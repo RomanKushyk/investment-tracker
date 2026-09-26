@@ -43,9 +43,17 @@ const SAME_SITE = new Set(['same-site', 'same-origin']);
 const COOKIE = '__Host-Http-refresh';
 /** The idle half of the session, re-set on every refresh (*Auth model*). */
 const IDLE_SECONDS = 7200;
+/** THE FAMILY'S ORIGINAL, set once at sign-in and never refreshed with: besides the live token, the
+ *  one whose revocation ends every branch (`docs/reference/COGNITO-POOL-PARAMS.md`). */
+const ORIGIN = '__Host-Http-origin';
+/** The family's lifetime, `RefreshTokenValidity`: each rotated token is valid "for the remaining
+ *  duration of the original refresh token" it replaced (AWS), so no branch outlives this cookie. */
+export const ORIGIN_SECONDS = 86400;
 const ATTRIBUTES = 'Path=/; Secure; HttpOnly; SameSite=Strict';
 const cookieOf = (token: string) => `${COOKIE}=${token}; Max-Age=${IDLE_SECONDS}; ${ATTRIBUTES}`;
+const originOf = (token: string) => `${ORIGIN}=${token}; Max-Age=${ORIGIN_SECONDS}; ${ATTRIBUTES}`;
 const CLEARED = `${COOKIE}=; Max-Age=0; ${ATTRIBUTES}`;
+const FORGOTTEN = [CLEARED, `${ORIGIN}=; Max-Age=0; ${ATTRIBUTES}`] as const;
 
 /** RFC 6749 §5.1: a response carrying a token MUST NOT be stored, and a challenge session neither. */
 const NO_STORE = 'no-store';
@@ -194,10 +202,10 @@ const REFUSED_AS = new Map<string, ApiResult>([
   ['InvalidParameterException', INVALID],
 ]);
 
-/** What `GetTokensFromRefreshToken` says of a token that will never work again. */
+/** What `GetTokensFromRefreshToken` says of a token that will never work again. A replay is not
+ *  among them: it ends the family, not only the session. */
 const SESSION_OVER = new Set([
   'NotAuthorizedException',
-  'RefreshTokenReuseException',
   'UserNotFoundException',
   'InvalidParameterException',
 ]);
@@ -302,8 +310,8 @@ const respondOf = (event: ApiEvent) => {
   return { challenge, session, responses: answered };
 };
 
-const cookieIn = (event: ApiEvent): string | undefined => {
-  const prefix = `${COOKIE}=`;
+const cookieIn = (event: ApiEvent, name: string): string | undefined => {
+  const prefix = `${name}=`;
   const value = event.cookies
     ?.map((cookie) => cookie.trim())
     .find((cookie) => cookie.startsWith(prefix))
@@ -346,17 +354,21 @@ const challenged = (answer: Answer): ApiResult => {
   );
 };
 
-/** The refresh token into the cookie, the other two into the body. `sent` is the cookie's own
- *  token, kept when a refresh rotates nothing. */
-const issued = (tokens: Tokens | undefined, sent?: string): ApiResult => {
-  const refresh = tokens?.RefreshToken ?? sent;
+/** The refresh token into the cookie, the other two into the body. A sign-in's is the family's
+ *  original too; a refresh's `sent` is the cookie's own, kept when Cognito rotates nothing. */
+const issued = (tokens: Tokens | undefined, from: 'sign-in' | { sent: string }): ApiResult => {
+  const refresh = tokens?.RefreshToken ?? (from === 'sign-in' ? undefined : from.sent);
   if (!tokens?.IdToken || !tokens.AccessToken || !refresh) {
     console.error('auth-relay: Cognito answered without the tokens a session needs');
     return INTERNAL;
   }
   return respond(
     TOKENS,
-    { 'set-cookie': cookieOf(refresh), 'cache-control': NO_STORE },
+    {
+      'set-cookie':
+        from === 'sign-in' ? [cookieOf(refresh), originOf(refresh)] : [cookieOf(refresh)],
+      'cache-control': NO_STORE,
+    },
     JSON.stringify({
       idToken: tokens.IdToken,
       accessToken: tokens.AccessToken,
@@ -372,8 +384,9 @@ const refusedBy = (route: string, err: unknown): ApiResult => {
   return INTERNAL;
 };
 
-const ended = () => respond(SESSION_ENDED, { 'set-cookie': CLEARED }, '{"error":"not_authorized"}');
-const signedOut = () => respond(SIGNED_OUT, { 'set-cookie': CLEARED }, '{"status":"signed_out"}');
+const ended = (cleared: readonly [string, ...string[]]) =>
+  respond(SESSION_ENDED, { 'set-cookie': cleared }, '{"error":"not_authorized"}');
+const signedOut = () => respond(SIGNED_OUT, { 'set-cookie': FORGOTTEN }, '{"status":"signed_out"}');
 
 /** One relay per execution environment, which is what its secret is cached across. */
 export const createRelay = (idp: IdentityClient, now: () => number = Date.now) => {
@@ -424,6 +437,18 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
     }
   };
 
+  /** A token already dead counts as revoked; any other refusal is the caller's to weigh. */
+  const revoke = async (ids: Ids, token: string): Promise<void> => {
+    try {
+      // `RevokeToken` NAMES A CLIENT-AUTH FAILURE `UnauthorizedException`, not the sign-in calls' name.
+      await withSecret(ids, 'UnauthorizedException', (s) =>
+        idp.revokeToken({ Token: token, ClientId: ids.client, ClientSecret: s }),
+      );
+    } catch (err) {
+      if (!ALREADY_DEAD.has(nameOf(err) ?? '')) throw err;
+    }
+  };
+
   const start = async (event: ApiEvent): Promise<ApiResult> => {
     const parameters = startOf(event);
     if (parameters === undefined) return INVALID;
@@ -466,17 +491,25 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           },
         }),
       );
-      return answered.AuthenticationResult !== undefined
-        ? issued(answered.AuthenticationResult)
-        : challenged(answered);
+      if (answered.AuthenticationResult === undefined) return challenged(answered);
+      const signedIn = issued(answered.AuthenticationResult, 'sign-in');
+      // A SIGN-IN ENDS THE FAMILY THIS BROWSER STILL CARRIES, which an idle expiry does not end. A
+      // revocation that errors costs no sign-in: that family is capped by its own lifetime.
+      const earlier = cookieIn(event, ORIGIN);
+      if (signedIn.statusCode === 200 && earlier !== undefined) {
+        await revoke(ids, earlier).catch((err: unknown) => {
+          console.error('auth-relay: revoking the earlier family failed', err);
+        });
+      }
+      return signedIn;
     } catch (err) {
       return refusedBy(RESPOND_ROUTE, err);
     }
   };
 
   const refresh = async (event: ApiEvent): Promise<ApiResult> => {
-    const token = cookieIn(event);
-    if (token === undefined) return ended();
+    const token = cookieIn(event, COOKIE);
+    if (token === undefined) return ended([CLEARED]);
     const ids = idsOf();
     if (ids === undefined) return INTERNAL;
     try {
@@ -487,13 +520,25 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           ClientSecret: s,
         }),
       );
-      return issued(AuthenticationResult, token);
+      return issued(AuthenticationResult, { sent: token });
     } catch (err) {
-      // THE ONE SIGN OF A STOLEN TOKEN THIS DESIGN GETS: Cognito revokes nothing, so it is logged.
+      // RFC 9700 §4.14.2: WHICH HOLDER REPLAYED CANNOT BE TOLD, AND THE ACTIVE TOKEN IS REVOKED —
+      // here every branch, through the original this browser carries; Cognito revokes nothing.
       if (nameOf(err) === 'RefreshTokenReuseException') {
         console.warn('auth-relay: a rotated-out refresh token was replayed');
+        const original = cookieIn(event, ORIGIN);
+        try {
+          if (original !== undefined) await revoke(ids, original);
+        } catch (failed) {
+          // KEPT SO THE NEXT ATTEMPT REVOKES AGAIN, as a failed sign-out keeps its cookie.
+          console.error('auth-relay: revoking a replayed family failed', failed);
+          return INTERNAL;
+        }
+        return ended(FORGOTTEN);
       }
-      if (SESSION_OVER.has(nameOf(err) ?? '')) return ended();
+      // AN EXPIRED OR REVOKED TOKEN SAYS NOTHING OF A THIEF: the original stays, for the next
+      // sign-in to revoke.
+      if (SESSION_OVER.has(nameOf(err) ?? '')) return ended([CLEARED]);
       // A FAULT IS NOT A DEAD SESSION: the cookie stays, so the next refresh can still succeed.
       console.error('auth-relay: refresh failed', err);
       return INTERNAL;
@@ -501,21 +546,18 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
   };
 
   const signOut = async (event: ApiEvent): Promise<ApiResult> => {
-    const token = cookieIn(event);
+    // THE ORIGINAL BEFORE THE COOKIE'S TOKEN: after a fork inside the window the cookie may hold the
+    // dead sibling, and revoking that leaves the other branch refreshing (measured).
+    const token = cookieIn(event, ORIGIN) ?? cookieIn(event, COOKIE);
     if (token === undefined) return signedOut();
     const ids = idsOf();
     if (ids === undefined) return INTERNAL;
     try {
-      // `RevokeToken` NAMES A CLIENT-AUTH FAILURE `UnauthorizedException`, not the sign-in calls' name.
-      await withSecret(ids, 'UnauthorizedException', (s) =>
-        idp.revokeToken({ Token: token, ClientId: ids.client, ClientSecret: s }),
-      );
+      await revoke(ids, token);
     } catch (err) {
-      if (!ALREADY_DEAD.has(nameOf(err) ?? '')) {
-        // KEPT SO A RETRY CAN STILL REVOKE IT: a forgotten live token stays usable wherever it went.
-        console.error('auth-relay: sign-out failed', err);
-        return INTERNAL;
-      }
+      // KEPT SO A RETRY CAN STILL REVOKE IT: a forgotten live token stays usable wherever it went.
+      console.error('auth-relay: sign-out failed', err);
+      return INTERNAL;
     }
     return signedOut();
   };

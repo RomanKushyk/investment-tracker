@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO, skipped } from '../../src/repo-root';
+import { ORIGIN_SECONDS } from './auth-relay';
 import { PROVIDERS } from './pre-signup';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
@@ -226,6 +227,14 @@ describe('three sign-in methods reach the pool', () => {
       AccessToken: 'minutes',
       IdToken: 'minutes',
     });
+  });
+
+  // Each rotated token is valid "for the remaining duration of the original refresh token" it
+  // replaced (AWS), so a family ends with the sign-in's original, and so does the relay's cookie.
+  it('keeps the family’s original in the relay exactly as long as the family lives', () => {
+    const client = props('UserPoolClient');
+    expect(client.TokenValidityUnits).toMatchObject({ RefreshToken: 'hours' });
+    expect(ORIGIN_SECONDS).toBe(Number(client.RefreshTokenValidity) * 3600);
   });
 
   // The grace period is not 0: at 0 "a successful request immediately invalidates the submitted

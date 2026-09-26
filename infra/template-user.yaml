@@ -217,7 +217,8 @@ Resources:
       # items on a list: rotate on each use OR sender-constrain, which Cognito does not offer;
       # cap the lifetime OR expire on inactivity; and the flat MUST NOT on a rotated token
       # outliving the original. The section binds more than those three — it also incorporates
-      # RFC 9700, whose replay rule Cognito meets only in part
+      # RFC 9700, whose replay rule Cognito meets only in part; the relay revokes the family's
+      # original on a replay that carries it, and keeps it in a cookie exactly this long
       # (`docs/reference/COGNITO-POOL-PARAMS.md`).
       RefreshTokenValidity: 24
       AccessTokenValidity: 60

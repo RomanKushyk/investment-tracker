@@ -133,24 +133,40 @@ const carried = <H extends string>(names: readonly H[], values: Record<H, string
     }),
   );
 
+/** Text for every header but `set-cookie`, which RFC 6265 §3 says not to fold into one field: a
+ *  list of at least one, as payload 2.0 carries it. */
+type HeaderValues<H extends string> = {
+  [K in H]: K extends 'set-cookie' ? readonly [string, ...string[]] : string;
+};
+
 /** A FRESH OBJECT EVERY CALL, and FROZEN as the fixed answers are: the proof and the document
  *  name it by its declaration, so a status or a body changed afterwards would go out under it. */
 export const respond = <H extends Lowercase<string>>(
   declared: Derived<H>,
-  headers: Record<NoInfer<H>, string>,
+  headers: HeaderValues<NoInfer<H>>,
   body: string,
 ): ApiResult => {
   made(declared);
-  // A DECLARED `set-cookie` LEAVES THROUGH `cookies`, the channel AWS documents for it; the
-  // declaration still names the header, which is what a client receives and the document shows.
-  const { 'set-cookie': cookie, ...sent } = carried(declared.headers, headers) as Record<
-    string,
-    string
-  >;
+  // A DECLARED `set-cookie` LEAVES THROUGH `cookies`, one entry per cookie, the channel AWS documents;
+  // the declaration still names the header, which is what a client receives and the document shows.
+  const names: readonly string[] = declared.headers;
+  const { 'set-cookie': cookies, ...values } = headers as Record<string, unknown>;
+  const sent = carried(
+    names.filter((name) => name !== 'set-cookie'),
+    values as Record<string, string>,
+  );
+  const cookied = names.includes('set-cookie');
+  // CHECKED HERE as `carried` checks the rest: read back as the wide type, the list is not asked for.
+  if (
+    cookied &&
+    !(Array.isArray(cookies) && cookies.length > 0 && cookies.every((c) => typeof c === 'string'))
+  ) {
+    throw new Error('the declared header set-cookie takes a list of at least one cookie');
+  }
   const result: ApiResult = Object.freeze({
     statusCode: declared.statusCode,
     headers: Object.freeze({ 'content-type': 'application/json', ...sent }),
-    ...(cookie === undefined ? {} : { cookies: Object.freeze([cookie]) }),
+    ...(cookied ? { cookies: Object.freeze([...(cookies as string[])]) } : {}),
     body,
   });
   DECLARATIONS.set(result, declared);

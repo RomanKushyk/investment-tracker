@@ -297,11 +297,18 @@ environment, so there is no second copy to drift and no store to pay for; its ro
 request without the custom header or from another site before anything else. THE REFRESH TOKEN IS
 BOUNDED AND ROTATES, which answers the three refresh requirements the browser BCP singles out and no
 more: that section incorporates RFC 9700, whose replay rule Cognito meets only in part — past the
-grace window it refuses a rotated-out token and revokes nothing, and revoking that token ends the
-family only when it is the sign-in's own, which the relay does not keep, so a replay ends only the
-session of the browser that sent it; inside the window a replay succeeds and forks the family, so the app refreshes once at a
-time across tabs. Cognito has no inactivity expiry, so the idle timeout is the cookie's `Max-Age`,
-re-set on every refresh — a UX bound and not a security boundary. Registration is an APPLICATION,
+grace window it refuses a rotated-out token and revokes nothing, and inside the window a replay
+succeeds and forks the family, so the app refreshes once at a time across tabs. THE RELAY KEEPS THE
+FAMILY'S ORIGINAL, to revoke on a replay that arrives with it: only the live token or the sign-in's
+own ends every branch when revoked, and the relay cannot know which branch is live. A second
+`__Host-Http-` cookie holds it, set at sign-in and never re-set; a replay revokes the original sent
+beside it, and so does a sign-out, in place of the refresh cookie's token, which after a fork may be
+the dead sibling. Cognito has no inactivity expiry, so the idle timeout is the refresh cookie's
+`Max-Age`, re-set on every refresh — a UX bound and not a security boundary. The original's cookie
+lives as long as the family can instead — each rotated token is valid "for the remaining
+duration of the original refresh token" it replaced, AWS says — so a live family whose session
+idled out still has its original in the browser, and the next sign-in there revokes it.
+Registration is an APPLICATION,
 not an open door — threat protection is a paid tier, so a public door has only quotas: sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
 Cognito write and a row REPLACEMENT, a DSQL primary key being immutable.

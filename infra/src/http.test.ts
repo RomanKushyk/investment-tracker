@@ -63,6 +63,12 @@ const TAGGED = derived({
   example: { n: 1 },
 });
 const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
+const COOKIED = derived({
+  statusCode: 200,
+  name: 'cookied',
+  headers: ['set-cookie', 'cache-control'],
+  example: {},
+});
 
 describe('a response built per request', () => {
   it('carries its own headers and leaves every shared constant as it was', () => {
@@ -115,15 +121,9 @@ describe('a response built per request', () => {
   // PAYLOAD 2.0 CARRIES COOKIES IN A LIST OF THEIR OWN, "each cookie becomes a set-cookie header",
   // so a declared one travels there — and the document still publishes the header it becomes.
   it('sends a declared set-cookie as a cookie, never as a header', () => {
-    const COOKIED = derived({
-      statusCode: 200,
-      name: 'cookied',
-      headers: ['set-cookie', 'cache-control'],
-      example: {},
-    });
     const built = respond(
       COOKIED,
-      { 'set-cookie': 'a=1; Secure', 'cache-control': 'no-store' },
+      { 'set-cookie': ['a=1; Secure'], 'cache-control': 'no-store' },
       '{}',
     );
     expect(built).toEqual({
@@ -133,6 +133,26 @@ describe('a response built per request', () => {
       body: '{}',
     });
     expect(Object.isFrozen(built.cookies)).toBe(true);
+  });
+
+  // RFC 6265 §3: SET-COOKIE SHOULD NOT BE FOLDED into one field, so it is the header given as a list.
+  it('sends every cookie of a declared set-cookie, one apiece and in order', () => {
+    const built = respond(
+      COOKIED,
+      { 'set-cookie': ['a=1; Secure', 'b=2; Secure'], 'cache-control': 'no-store' },
+      '{}',
+    );
+    expect(built.cookies).toEqual(['a=1; Secure', 'b=2; Secure']);
+  });
+
+  // AN EMPTY LIST IS THE LIST'S WAY OF LEAVING THE HEADER OUT, refused like any other.
+  it('refuses a declared set-cookie that carries no cookie', () => {
+    const widened: Derived = COOKIED;
+    // @ts-expect-error a declared set-cookie carries at least one cookie
+    expect(() => respond(COOKIED, { 'set-cookie': [], 'cache-control': 'no-store' }, '{}')).toThrow(
+      /set-cookie/,
+    );
+    expect(() => respond(widened, { 'cache-control': 'no-store' }, '{}')).toThrow(/set-cookie/);
   });
 
   // FROZEN as the fixed answers are: the proof and the document name an answer by its

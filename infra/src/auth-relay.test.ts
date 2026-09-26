@@ -31,6 +31,9 @@ const ID = 'id.token.jwt';
 const ACCESS = 'access.token.jwt';
 const REFRESH = 'refresh.token.jwe';
 const ROTATED = 'rotated.refresh.token.jwe';
+/** A family's original, from a sign-in before this request: never `REFRESH`, so a test can tell
+ *  which of the two was revoked. */
+const ORIGIN = 'origin.refresh.token.jwe';
 
 const hashOf = (secret: string, username: string) =>
   createHmac('sha256', secret)
@@ -41,7 +44,10 @@ const hashOf = (secret: string, username: string) =>
 // the module would carry an import along with it.
 const ATTRIBUTES = 'Path=/; Secure; HttpOnly; SameSite=Strict';
 const kept = (token: string) => `__Host-Http-refresh=${token}; Max-Age=7200; ${ATTRIBUTES}`;
+/** The family's original: its whole lifetime, set once at sign-in (*Auth model*). */
+const origin = (token: string) => `__Host-Http-origin=${token}; Max-Age=86400; ${ATTRIBUTES}`;
 const CLEARED = `__Host-Http-refresh=; Max-Age=0; ${ATTRIBUTES}`;
+const FORGOTTEN = [CLEARED, `__Host-Http-origin=; Max-Age=0; ${ATTRIBUTES}`];
 
 const BROWSER = { 'x-csrf': '1', 'sec-fetch-site': 'same-site' };
 
@@ -55,9 +61,19 @@ const post = (
   ...(body === undefined ? {} : { body: JSON.stringify(body), isBase64Encoded: false }),
 });
 
-const carrying = (routeKey: string, token = REFRESH): ApiEvent => ({
+type Jar = { refresh?: string; origin?: string };
+
+/** What a browser sends, the original FIRST where there is one: a cookie is found by its name,
+ *  never by its place. */
+const cookiesOf = (jar: Jar) => [
+  ...(jar.origin === undefined ? [] : [`__Host-Http-origin=${jar.origin}`]),
+  'theme=dark',
+  ...(jar.refresh === undefined ? [] : [`__Host-Http-refresh=${jar.refresh}`]),
+];
+
+const carrying = (routeKey: string, jar: Jar = { refresh: REFRESH }): ApiEvent => ({
   ...post(routeKey),
-  cookies: ['theme=dark', `__Host-Http-refresh=${token}`],
+  cookies: cookiesOf(jar),
 });
 
 const refusal = (name: string, message = name) => Object.assign(new Error(message), { name });
@@ -173,7 +189,9 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
     ]);
   });
 
-  it('finishes it with the tokens in the body and the refresh token in the cookie', async () => {
+  // THE SAME TOKEN TWICE: the live one, which every refresh replaces, and the family's original,
+  // which revoked ends every branch the family grows.
+  it('finishes it with the tokens in the body and the refresh token in both cookies', async () => {
     const { idp, of } = cognito();
     const res = await environment(idp)(
       post(RESPOND_ROUTE, {
@@ -184,7 +202,7 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
     );
     expect(res.statusCode).toBe(200);
     expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
-    expect(res.cookies).toEqual([kept(REFRESH)]);
+    expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH)]);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).not.toContain(REFRESH);
     expect(JSON.stringify(res.headers)).not.toContain(REFRESH);
@@ -245,7 +263,7 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
         responses: { USERNAME: SUB, NEW_PASSWORD: 'a new password' },
       }),
     );
-    expect(changed.cookies).toEqual([kept(REFRESH)]);
+    expect(changed.cookies).toEqual([kept(REFRESH), origin(REFRESH)]);
     expect(of('initiateAuth')[0].AuthParameters).toEqual({
       USERNAME: EMAIL,
       PREFERRED_CHALLENGE: 'PASSWORD_SRP',
@@ -292,7 +310,85 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
   });
 });
 
-describe('the cookie', () => {
+// COGNITO HAS NO INACTIVITY EXPIRY: a family whose refresh cookie idled out can still be live, and
+// then its original is still in the browser, for the next sign-in there to end.
+describe('a sign-in ends the family the browser still carries', () => {
+  const answer = {
+    challenge: 'WEB_AUTHN',
+    session: SESSION,
+    responses: { USERNAME: EMAIL, CREDENTIAL: '{}' },
+  };
+  const earlier: ApiEvent = {
+    ...post(RESPOND_ROUTE, answer),
+    cookies: cookiesOf({ refresh: ROTATED, origin: ORIGIN }),
+  };
+
+  it('revokes the earlier original once Cognito has signed in, then sets both cookies', async () => {
+    const { idp, calls } = cognito();
+    const res = await environment(idp)(earlier);
+    expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH)]]);
+    expect(calls.filter((c) => c.op !== 'describeUserPoolClient')).toEqual([
+      expect.objectContaining({ op: 'respondToAuthChallenge' }),
+      { op: 'revokeToken', input: { Token: ORIGIN, ClientId: CLIENT, ClientSecret: SECRET } },
+    ]);
+  });
+
+  // THE OLD FAMILY IS CAPPED BY ITS OWN LIFETIME, so a revocation that errors costs no sign-in.
+  it('completes the sign-in when that revocation fails', async () => {
+    const { idp, of } = cognito({
+      revokeToken: async () => {
+        throw refusal('TooManyRequestsException');
+      },
+    });
+    const res = await environment(idp)(earlier);
+    expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH)]]);
+    expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
+    expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN]);
+  });
+
+  // ONLY A SIGN-IN THAT HAPPENED ENDS THE OLD ONE: a step on the way, a refusal or a failure
+  // leaves the browser signed in as it was.
+  const unfinished: [string, Partial<IdentityClient>][] = [
+    [
+      'a challenge still to answer',
+      {
+        respondToAuthChallenge: async () => ({
+          ChallengeName: 'NEW_PASSWORD_REQUIRED',
+          Session: SESSION,
+          ChallengeParameters: {},
+        }),
+      },
+    ],
+    [
+      'a refusal',
+      {
+        respondToAuthChallenge: async () => {
+          throw refusal('NotAuthorizedException');
+        },
+      },
+    ],
+    [
+      'tokens missing what a session needs',
+      { respondToAuthChallenge: async () => ({ AuthenticationResult: { IdToken: ID } }) },
+    ],
+  ];
+  for (const [what, script] of unfinished) {
+    it(`revokes nothing on ${what}`, async () => {
+      const { idp, of } = cognito(script);
+      const res = await environment(idp)(earlier);
+      expect(res.cookies).toBeUndefined();
+      expect(of('revokeToken')).toEqual([]);
+    });
+  }
+});
+
+describe('the cookies', () => {
+  const signIn = post(RESPOND_ROUTE, {
+    challenge: 'WEB_AUTHN',
+    session: SESSION,
+    responses: { USERNAME: EMAIL, CREDENTIAL: '{}' },
+  });
+
   // RFC 10017 §6.1.3.2: Secure and HttpOnly are MUST; SameSite=Strict, `Path=/`, no `Domain` and
   // the `__Host-Http-` prefix are SHOULD. `Max-Age` is the idle half of the session (*Auth model*).
   it('is __Host-Http-, Secure, HttpOnly, SameSite=Strict, Path=/, with no Domain', async () => {
@@ -300,12 +396,35 @@ describe('the cookie', () => {
     expect(res.cookies).toEqual([
       '__Host-Http-refresh=rotated.refresh.token.jwe; Max-Age=7200; Path=/; Secure; HttpOnly; SameSite=Strict',
     ]);
-    expect(res.cookies?.[0]).not.toMatch(/domain/i);
+    for (const cookie of res.cookies ?? []) expect(cookie).not.toMatch(/domain/i);
+  });
+
+  // THE SAME RULES FOR THE ORIGINAL, and `Max-Age` is the family's lifetime: no rotated token
+  // outlives its original (AWS).
+  it('holds the same token as the family’s original after a sign-in, for the family’s life', async () => {
+    const res = await environment(cognito().idp)(signIn);
+    expect(res.cookies).toEqual([
+      '__Host-Http-refresh=refresh.token.jwe; Max-Age=7200; Path=/; Secure; HttpOnly; SameSite=Strict',
+      '__Host-Http-origin=refresh.token.jwe; Max-Age=86400; Path=/; Secure; HttpOnly; SameSite=Strict',
+    ]);
+    for (const cookie of res.cookies ?? []) expect(cookie).not.toMatch(/domain/i);
+  });
+
+  // SET ONCE, NEVER MOVED: re-set by a refresh, the original would outlive its family.
+  it('never re-sets the original on a refresh', async () => {
+    const { idp, of } = cognito();
+    const res = await environment(idp)(
+      carrying(REFRESH_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    );
+    expect(res.cookies).toEqual([kept(ROTATED)]);
+    expect(of('getTokensFromRefreshToken').map((input) => input.RefreshToken)).toEqual([REFRESH]);
   });
 
   it('is never sent as a header, where payload 2.0 would not repeat it', async () => {
-    const res = await environment(cognito().idp)(carrying(REFRESH_ROUTE));
-    expect(Object.keys(res.headers)).not.toContain('set-cookie');
+    for (const event of [carrying(REFRESH_ROUTE), signIn]) {
+      const res = await environment(cognito().idp)(event);
+      expect(Object.keys(res.headers)).not.toContain('set-cookie');
+    }
   });
 });
 
@@ -576,27 +695,59 @@ describe('the secret is read from Cognito, once per environment', () => {
     expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
   });
 
-  it('never puts the secret or a token in a log line', async () => {
-    const { idp } = cognito({
-      respondToAuthChallenge: async () => {
-        throw refusal('InternalErrorException');
-      },
-    });
-    const res = await environment(idp)(
-      post(RESPOND_ROUTE, {
-        challenge: 'WEB_AUTHN',
-        session: SESSION,
-        responses: { USERNAME: EMAIL, CREDENTIAL: '{}' },
-      }),
-    );
-    expect(res.statusCode).toBe(500);
-    const logged = JSON.stringify(vi.mocked(console.error).mock.calls, (_, v: unknown) =>
-      v instanceof Error ? `${v.name}: ${v.message}` : v,
-    );
-    for (const needle of [SECRET, hashOf(SECRET, EMAIL), SESSION, REFRESH]) {
-      expect([needle, logged.includes(needle)]).toEqual([needle, false]);
-    }
+  const throttled = async () => {
+    throw refusal('TooManyRequestsException');
+  };
+  const passkey = post(RESPOND_ROUTE, {
+    challenge: 'WEB_AUTHN',
+    session: SESSION,
+    responses: { USERNAME: EMAIL, CREDENTIAL: '{}' },
   });
+  const logging: [string, Partial<IdentityClient>, ApiEvent][] = [
+    [
+      'a sign-in Cognito fails',
+      {
+        respondToAuthChallenge: async () => {
+          throw refusal('InternalErrorException');
+        },
+      },
+      passkey,
+    ],
+    [
+      'a sign-in whose earlier original will not revoke',
+      { revokeToken: throttled },
+      { ...passkey, cookies: cookiesOf({ refresh: ROTATED, origin: ORIGIN }) },
+    ],
+    [
+      'a replay whose original will not revoke',
+      {
+        getTokensFromRefreshToken: async () => {
+          throw refusal('RefreshTokenReuseException');
+        },
+        revokeToken: throttled,
+      },
+      carrying(REFRESH_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    ],
+    [
+      'a sign-out that will not revoke',
+      { revokeToken: throttled },
+      carrying(SIGN_OUT_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    ],
+  ];
+  for (const [what, script, event] of logging) {
+    it(`never puts the secret or a token in a log line: ${what}`, async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await environment(cognito(script).idp)(event);
+      expect(console.error).toHaveBeenCalled();
+      const logged = JSON.stringify(
+        [...vi.mocked(console.error).mock.calls, ...warn.mock.calls],
+        (_, v: unknown) => (v instanceof Error ? `${v.name}: ${v.message}` : v),
+      );
+      for (const needle of [SECRET, hashOf(SECRET, EMAIL), SESSION, REFRESH, ROTATED, ORIGIN]) {
+        expect([needle, logged.includes(needle)]).toEqual([needle, false]);
+      }
+    });
+  }
 });
 
 describe('Cognito’s refusals, as the app can tell them apart', () => {
@@ -697,65 +848,127 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
     expect(calls).toEqual([]);
   });
 
-  // RFC 10017 §6.2.2.2: a refresh token that is no longer valid ends the session.
+  // THE ORIGINAL IS NOT A SESSION: it is kept to be revoked, never to refresh with.
+  it('refuses a request carrying only the original, and asks Cognito nothing', async () => {
+    const { idp, calls } = cognito();
+    const res = await environment(idp)(carrying(REFRESH_ROUTE, { origin: ORIGIN }));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      401,
+      '{"error":"not_authorized"}',
+      [CLEARED],
+    ]);
+    expect(calls).toEqual([]);
+  });
+
+  // RFC 10017 §6.2.2.2: a refresh token that is no longer valid ends the session. The original
+  // stays, for the next sign-in to revoke: an expired or revoked token says nothing of a thief.
   for (const name of [
     'NotAuthorizedException',
-    'RefreshTokenReuseException',
     'UserNotFoundException',
     'InvalidParameterException',
   ]) {
-    it(`clears the cookie when Cognito answers ${name}`, async () => {
-      const { idp } = cognito({
-        getTokensFromRefreshToken: async () => {
-          throw refusal(name);
-        },
-      });
-      const res = await environment(idp)(carrying(REFRESH_ROUTE));
-      expect([res.statusCode, res.body, res.cookies]).toEqual([
-        401,
-        '{"error":"not_authorized"}',
-        [CLEARED],
-      ]);
-    });
-  }
-
-  // A FAULT IS NOT A DEAD SESSION: clearing the cookie on a throttle would sign somebody out.
-  it('keeps the cookie through a failure that says nothing about the token', async () => {
-    const { idp } = cognito({
-      getTokensFromRefreshToken: async () => {
-        throw refusal('TooManyRequestsException');
-      },
-    });
-    const res = await environment(idp)(carrying(REFRESH_ROUTE));
-    expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
-  });
-
-  // A REPLAYED TOKEN IS NOT REVOKED IN TURN: past the window Cognito refuses it and revokes nothing,
-  // and revoking any rotated-out token but the sign-in's own reaches none of its descendants
-  // (measured on the dev pool). The relay does not keep that original, so it has nothing to revoke.
-  for (const name of ['RefreshTokenReuseException', 'NotAuthorizedException']) {
-    it(`revokes nothing when Cognito answers ${name}`, async () => {
+    it(`clears the refresh cookie alone when Cognito answers ${name}, revoking nothing`, async () => {
       const { idp, of } = cognito({
         getTokensFromRefreshToken: async () => {
           throw refusal(name);
         },
       });
-      await environment(idp)(carrying(REFRESH_ROUTE));
+      const res = await environment(idp)(
+        carrying(REFRESH_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+      );
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        401,
+        '{"error":"not_authorized"}',
+        [CLEARED],
+      ]);
       expect(of('revokeToken')).toEqual([]);
     });
   }
 
-  // THE ONE SIGN OF A STOLEN TOKEN THIS DESIGN GETS, so it is written down, without the token.
-  it('logs a detected replay, naming no token', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { idp } = cognito({
+  // A FAULT IS NOT A DEAD SESSION: clearing the cookie on a throttle would sign somebody out.
+  it('keeps the cookie through a failure that says nothing about the token', async () => {
+    const { idp, of } = cognito({
+      getTokensFromRefreshToken: async () => {
+        throw refusal('TooManyRequestsException');
+      },
+    });
+    const res = await environment(idp)(
+      carrying(REFRESH_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    );
+    expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
+    expect(of('revokeToken')).toEqual([]);
+  });
+});
+
+describe('a replayed token ends its whole family', () => {
+  // RFC 9700 §4.14.2: an invalidated token presented again has the active one revoked. Cognito
+  // revokes nothing, and only the live token or the original, when revoked, ends every branch.
+  const replayed = (script: Partial<IdentityClient> = {}) =>
+    cognito({
       getTokensFromRefreshToken: async () => {
         throw refusal('RefreshTokenReuseException', 'Refresh token reuse detected');
       },
+      ...script,
     });
-    await environment(idp)(carrying(REFRESH_ROUTE));
+  const both = carrying(REFRESH_ROUTE, { refresh: ROTATED, origin: ORIGIN });
+
+  it('revokes the original the browser carries, then clears both cookies', async () => {
+    const { idp, of } = replayed();
+    const res = await environment(idp)(both);
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      401,
+      '{"error":"not_authorized"}',
+      FORGOTTEN,
+    ]);
+    expect(of('revokeToken')).toEqual([{ Token: ORIGIN, ClientId: CLIENT, ClientSecret: SECRET }]);
+  });
+
+  for (const name of ['UnsupportedTokenTypeException', 'InvalidParameterException']) {
+    it(`counts an original Cognito answers ${name} as ended, and clears both`, async () => {
+      const { idp, of } = replayed({
+        revokeToken: async () => {
+          throw refusal(name);
+        },
+      });
+      const res = await environment(idp)(both);
+      expect([res.statusCode, res.cookies]).toEqual([401, FORGOTTEN]);
+      expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN]);
+    });
+  }
+
+  // KEPT SO THE NEXT ATTEMPT REVOKES AGAIN, as a failed sign-out keeps its cookie.
+  it('keeps both cookies when the revocation itself failed', async () => {
+    const { idp, of } = replayed({
+      revokeToken: async () => {
+        throw refusal('TooManyRequestsException');
+      },
+    });
+    const res = await environment(idp)(both);
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      500,
+      '{"error":"internal"}',
+      undefined,
+    ]);
+    expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN]);
+  });
+
+  // A BROWSER WITH NO ORIGINAL GETS NOTHING REVOKED: every sign-in sets one, and a replayed token
+  // other than the original, revoked, reaches no branch (measured).
+  it('clears both cookies of a browser that carries no original, revoking nothing', async () => {
+    const { idp, of } = replayed();
+    const res = await environment(idp)(carrying(REFRESH_ROUTE));
+    expect([res.statusCode, res.cookies]).toEqual([401, FORGOTTEN]);
+    expect(of('revokeToken')).toEqual([]);
+  });
+
+  // THE ONE SIGN OF A STOLEN TOKEN THE POOL GIVES, so it is written down, without the token.
+  it('logs a detected replay once, naming no token', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await environment(replayed().idp)(both);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(warn.mock.calls)).not.toContain(REFRESH);
+    for (const token of [ROTATED, ORIGIN]) {
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(token);
+    }
   });
 });
 
@@ -777,14 +990,32 @@ describe('a sign-out revokes the token before it forgets it', () => {
     });
   };
 
-  it('revokes the cookie’s token with the secret, then clears the cookie', async () => {
+  // THE ORIGINAL, NOT THE COOKIE'S TOKEN: after a fork inside the window the cookie may hold the
+  // dead sibling, and revoking that would leave the other branch refreshing (measured).
+  it('revokes the original with the secret, then clears both cookies', async () => {
     const { idp, of } = revoking();
-    const res = await environment(idp)(carrying(SIGN_OUT_ROUTE));
+    const res = await environment(idp)(
+      carrying(SIGN_OUT_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    );
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       200,
       '{"status":"signed_out"}',
-      [CLEARED],
+      FORGOTTEN,
     ]);
+    expect(of('revokeToken')).toEqual([{ Token: ORIGIN, ClientId: CLIENT, ClientSecret: SECRET }]);
+  });
+
+  it('revokes the original a browser carries alone', async () => {
+    const { idp, of } = revoking();
+    const res = await environment(idp)(carrying(SIGN_OUT_ROUTE, { origin: ORIGIN }));
+    expect([res.statusCode, res.cookies]).toEqual([200, FORGOTTEN]);
+    expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN]);
+  });
+
+  it('revokes the refresh token of a browser that carries no original', async () => {
+    const { idp, of } = revoking();
+    const res = await environment(idp)(carrying(SIGN_OUT_ROUTE));
+    expect([res.statusCode, res.cookies]).toEqual([200, FORGOTTEN]);
     expect(of('revokeToken')).toEqual([{ Token: REFRESH, ClientId: CLIENT, ClientSecret: SECRET }]);
   });
 
@@ -796,34 +1027,37 @@ describe('a sign-out revokes the token before it forgets it', () => {
     expect([replayed.statusCode, replayed.cookies]).toEqual([401, [CLEARED]]);
   });
 
-  it('clears the cookie of a caller who had none, asking Cognito nothing', async () => {
+  it('clears both cookies of a caller who had neither, asking Cognito nothing', async () => {
     const { idp, calls } = cognito();
     const res = await environment(idp)(post(SIGN_OUT_ROUTE));
-    expect([res.statusCode, res.cookies]).toEqual([200, [CLEARED]]);
+    expect([res.statusCode, res.cookies]).toEqual([200, FORGOTTEN]);
     expect(calls).toEqual([]);
   });
 
   for (const name of ['UnsupportedTokenTypeException', 'InvalidParameterException']) {
-    it(`treats ${name} as a token already dead, and clears the cookie`, async () => {
+    it(`treats ${name} as a token already dead, and clears both cookies`, async () => {
       const { idp } = cognito({
         revokeToken: async () => {
           throw refusal(name);
         },
       });
       const res = await environment(idp)(carrying(SIGN_OUT_ROUTE));
-      expect([res.statusCode, res.cookies]).toEqual([200, [CLEARED]]);
+      expect([res.statusCode, res.cookies]).toEqual([200, FORGOTTEN]);
     });
   }
 
   // KEPT SO A RETRY CAN STILL REVOKE IT: forgetting a live token would leave it usable elsewhere.
-  it('keeps the cookie when the revocation itself failed', async () => {
-    const { idp } = cognito({
+  it('keeps both cookies when the revocation itself failed', async () => {
+    const { idp, of } = cognito({
       revokeToken: async () => {
         throw refusal('TooManyRequestsException');
       },
     });
-    const res = await environment(idp)(carrying(SIGN_OUT_ROUTE));
+    const res = await environment(idp)(
+      carrying(SIGN_OUT_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    );
     expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
+    expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN]);
   });
 
   // `RevokeToken` NAMES A CLIENT-AUTH FAILURE DIFFERENTLY from the sign-in calls.
@@ -838,7 +1072,7 @@ describe('a sign-out revokes the token before it forgets it', () => {
       [SECRET, ROTATED_SECRET],
     );
     const res = await environment(idp)(carrying(SIGN_OUT_ROUTE));
-    expect([res.statusCode, res.cookies]).toEqual([200, [CLEARED]]);
+    expect([res.statusCode, res.cookies]).toEqual([200, FORGOTTEN]);
     expect(of('revokeToken')).toHaveLength(2);
   });
 });
