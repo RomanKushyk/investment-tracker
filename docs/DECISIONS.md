@@ -157,10 +157,14 @@ Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the 
 above it the sidebar is a panel in flow or an icon rail, and the choice persists. Collapsed, the
 header carries the figure and the dataset caution, the two things a 56px shell cannot hold. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
-every radius where the shape system put it. Exactly one branch mounts per shell.
+every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
+portfolio behind it — signed out, a refused caller, the first sign-in — mounts NEITHER: a top bar
+with the mark and the language control over one top-anchored card, `md` still its only breakpoint.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
-past its own control handing the tap to the neighbour.
+past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,
+the dataset, the reminders — that such a caller does not have, and the card is top-anchored
+because a centred one moves its button under the pointer whenever its height changes.
 **Rejected.** A theme control in the rail: one glyph cannot show the two states it is not in, where
 currency's box shows the state you are in.
 
