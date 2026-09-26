@@ -221,10 +221,13 @@ to `UpdateUserPool`, a different call. So the read before the write is not optio
 touching this call echoes back the whole object.
 
 **What that measurement does NOT settle:** accepting the string is not the same as running the
-ceremony with it. Two gaps remain, both closed by use. The call went through the Cognito API and
-not CloudFormation, so the deploy is what says the same of `AWS::Cognito::UserPool`; and no passkey
-has been registered through managed login against an apex RP ID here, the only assurance on that
-point being the same developer guide the reference pages contradict.
+ceremony with it. The call went through the Cognito API and not CloudFormation; the dev deploy has
+since carried the same value through `AWS::Cognito::UserPool` green. The ceremony has since run
+against the apex too: a platform passkey registered through `StartWebAuthnRegistration` and
+`CompleteWebAuthnRegistration` from a page on `dev.quirenote.com`, and the deployed app signed its
+user in with it through the relay, answering the pool's `WEB_AUTHN` challenge. No passkey has been
+registered through managed login against the apex, so whether managed login's own ceremony accepts
+it is still open.
 
 **A pool that allows passkeys does not offer them to a user who has none.** `InitiateAuth` with
 `AuthFlow: USER_AUTH` against a password-only user answers `SELECT_CHALLENGE` with
@@ -244,16 +247,25 @@ addresses answered one of three things:
 - `PasswordResetRequiredException`, which the relay answers as a 500.
 
 Each invented address kept its answer on every repeat: the same challenge, the same credential ids
-and the same count. Only the challenge nonce changed, as it does for a real account. So repeated
+and the same count. Only the challenge nonce and the order inside each credential's `transports`
+changed, and the nonce changes for a real account too. So repeated
 submissions do not tell an invented address from a real one, and the app must treat a passkey
 challenge as possibly invented: the sheet opens, finds no credential, and ends as a passkey sign-in
 that did not finish.
 
 With `PASSWORD_SRP` preferred, an invented address answers `PASSWORD_VERIFIER` with the same
 parameter names as a real account, including a UUID-shaped `USER_ID_FOR_SRP`, so only the verifier's
-answer can refuse it. One difference stays unmeasured until a passkey exists on dev: the order of
-`transports` inside an invented credential varied between repeats, and whether a real credential's
-order varies too is not known.
+answer can refuse it.
+
+With `WEB_AUTHN` preferred, a real account with one platform passkey repeats its answer as an
+invented address does: the same credential ids each time, and, like an invented address's, parameters
+holding `CREDENTIAL_REQUEST_OPTIONS` alone, with no `USERNAME`. It was offered two credentials in
+`allowCredentials`, though `ListWebAuthnCredentials` lists one, and two is inside the invented range
+of one to three, so the offered count neither tells a real account from an invented one nor gives its
+passkey count. The invented credentials differ in what `transports` holds: theirs include `hybrid`
+and change order between repeats, where the real account's two carry `internal` alone, one entry
+with no order to change. Whether a real credential with several transports keeps its order, and so
+whether `transports` separates the two for other kinds of authenticator, is not measured.
 
 ## What this does not answer
 
