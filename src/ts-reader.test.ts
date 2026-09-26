@@ -168,6 +168,8 @@ function tokensOf(sf: ts.SourceFile): ts.Node[] {
 // file, never text: the raw text goes only to the reader and the parser, the two routes the census
 // trusts.
 describe('the reader over the tree', () => {
+  // A TIMEOUT OF ITS OWN: the cost is the tree, every module parsed twice and walked token by token,
+  // so it grows with each file added and ran past the 5s default under a full run, never alone.
   it('keeps the line count and every token, and leaves no comment', () => {
     expect(FILES.length, 'the walk found almost nothing').toBeGreaterThanOrEqual(200);
     const wrong: string[] = [];
@@ -198,5 +200,5 @@ describe('the reader over the tree', () => {
       }
     }
     expect(wrong).toEqual([]);
-  });
+  }, 20_000);
 });
