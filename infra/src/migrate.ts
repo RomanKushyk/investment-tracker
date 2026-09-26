@@ -21,7 +21,7 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { canonicalAddress } from './address';
+import { canonicalAddress } from '@quirenote/core/address';
 import { connect } from './dsql';
 import { type Provisioned, provision } from './provision';
 

@@ -12,7 +12,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
-import { ADDRESS, MAX_ADDRESS } from './address';
+import { ADDRESS, MAX_ADDRESS } from '@quirenote/core/address';
 import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,

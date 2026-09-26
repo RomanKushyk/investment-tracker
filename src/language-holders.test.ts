@@ -73,9 +73,9 @@ const CALLERS = CODE.filter(({ name }) => name !== 'state/settings.ts');
 // it was not written in. Four fields still hold one — the asset form's
 // `expectedPct`, `targetPct` and `couponRatePct`, and `/allocation`'s target row
 // — and they are safe today for one reason only: the control that changes the
-// language lives on `/settings`, so each has unmounted before it can move. The
-// transaction panel and the coupon card are NOT among them; both are on
-// `NumberField` and derive their display.
+// language lives on `/settings` and in the signed-out shell, so each has
+// unmounted before it can move. The transaction panel and the coupon card are
+// NOT among them; both are on `NumberField` and derive their display.
 //
 // That is an invariant about a CALL SITE, which no type holds and no comment
 // enforces. Put a language control where those four stay mounted — the sidebar
@@ -85,8 +85,8 @@ const CALLERS = CODE.filter(({ name }) => name !== 'state/settings.ts');
 // `couponProjection` and `/yield` with it.
 describe('only one control can change the language', () => {
   it('calls setLanguage from exactly one place', () => {
-    // CALL SITES, not files: a second radiogroup inside `Settings.tsx` is the same hazard as
-    // one added elsewhere, and counting files would miss it.
+    // CALL SITES, not files: a second radiogroup inside `LanguageControl.tsx` is the same hazard
+    // as one added elsewhere, and counting files would miss it.
     const sites = CALLERS.flatMap(({ name, text }) =>
       (text.match(/\bsetLanguage\s*\(/g) ?? []).map(() => name),
     ).sort();
@@ -94,7 +94,16 @@ describe('only one control can change the language', () => {
       sites,
       'A second language control makes every mounted field a holder: give the ' +
         'four that keep their own string a way to follow the switch first.',
-    ).toEqual(['screens/Settings.tsx']);
+    ).toEqual(['components/LanguageControl.tsx']);
+  });
+
+  it('renders that control only where none of the four is mounted', () => {
+    // `/settings`, and the signed-out shell, which renders outside `<Layout />` and so beside no
+    // portfolio screen at all.
+    const sites = CODE.filter(({ text }) => /<LanguageControl\b/.test(text))
+      .map(({ name }) => name)
+      .sort();
+    expect(sites).toEqual(['app/SignedOutShell.tsx', 'screens/Settings.tsx']);
   });
 
   it('has no second way to write the language either', () => {

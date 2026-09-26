@@ -796,6 +796,41 @@ export const en = {
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
     },
   },
+  // The brief on #164 and its amendments; `failed` is the owner's ruling on #165.
+  auth: {
+    signIn: {
+      title: 'Sign in',
+      lead: 'Use the address your invitation was sent to.',
+      continue: 'Continue',
+      checking: 'Checking…',
+    },
+    email: 'Email',
+    emailMissing: 'Enter your email address.',
+    emailInvalid: 'Use Latin letters, like name@example.com.',
+    change: 'Change',
+    changeLabel: 'Change the address',
+    passkey: {
+      title: 'Confirm with your passkey',
+      lead: 'Your browser opened its passkey window.',
+      usePassword: 'Use your password instead',
+      notFinished:
+        'Passkey sign-in didn’t finish: it was cancelled, or this device has no passkey for this address.',
+    },
+    retry: 'Try again',
+    password: {
+      title: 'Enter your password',
+      label: 'Password',
+      show: 'Show password',
+      hide: 'Hide password',
+      submit: 'Sign in',
+      busy: 'Signing in…',
+      missing: 'Enter your password.',
+      wrong: 'Incorrect email or password.',
+    },
+    tooMany: 'Too many attempts. Try again later.',
+    offline: 'Couldn’t connect. Check your connection and try again.',
+    failed: 'Sign-in couldn’t finish. Try again.',
+  },
   transaction: {
     title: 'Transaction',
     badge: 'Occasional',
@@ -1714,6 +1749,40 @@ export const uk: Dict = {
       helper:
         'Що останнє отримання з Inzhur змогло і не змогло прочитати. Записи, які не вдалося прочитати, пропускаються, а не вгадуються — решта стрічки завантажується.',
     },
+  },
+  auth: {
+    signIn: {
+      title: 'Вхід',
+      lead: 'Вкажіть адресу, на яку прийшло запрошення.',
+      continue: 'Продовжити',
+      checking: 'Перевіряємо…',
+    },
+    email: 'Електронна пошта',
+    emailMissing: 'Вкажіть електронну пошту.',
+    emailInvalid: 'Адреса — латиницею, як name@example.com.',
+    change: 'Змінити',
+    changeLabel: 'Змінити адресу',
+    passkey: {
+      title: 'Підтвердьте ключем доступу',
+      lead: 'Браузер відкрив вікно ключа доступу.',
+      usePassword: 'Увійти з паролем',
+      notFinished:
+        'Вхід ключем доступу не завершено: його скасовано, або на цьому пристрої немає ключа для цієї адреси.',
+    },
+    retry: 'Спробувати ще раз',
+    password: {
+      title: 'Введіть пароль',
+      label: 'Пароль',
+      show: 'Показати пароль',
+      hide: 'Сховати пароль',
+      submit: 'Увійти',
+      busy: 'Входимо…',
+      missing: 'Вкажіть пароль.',
+      wrong: 'Неправильна адреса або пароль.',
+    },
+    tooMany: 'Забагато спроб. Спробуйте пізніше.',
+    offline: 'Не вдалося з’єднатися — перевірте мережу й спробуйте ще раз.',
+    failed: 'Не вдалося увійти. Спробуйте ще раз.',
   },
   transaction: {
     title: 'Транзакція',

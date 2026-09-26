@@ -282,7 +282,7 @@ accumulation; user data is the opposite on both counts.
 the plan had already given up.
 
 ## Auth model
-**Decision.** Cognito Essentials with managed login behind a JWT authorizer, and ONE POOL PER
+**Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
 ENVIRONMENT — a shared one would spend a production monthly active user on every dev sign-in and put
 dev identities in the table a real portfolio is keyed by. The passkey relying party is the
 environment's own APEX: an RP ID cannot change afterwards without stranding every credential
@@ -292,6 +292,21 @@ holds the only copy of the client secret, so no sign-in skips it. WHERE EACH TOK
 refresh token in a `__Host-Http-` cookie on the API host, HttpOnly, Secure and SameSite=Strict,
 which the relay alone sets and reads; the ID token, which the authorizer checks, and the access
 token, which registers a passkey, come back in the relay's body and are held in the app's memory.
+SIGN-IN IS THE APP'S OWN SCREEN, not managed login: a deviation from RFC 10017 §7.3, which says a
+browser app on OAuth or OpenID Connect "MUST use a redirect-based flow", ruled by the owner knowing
+it. It is IDENTIFIER-FIRST because the pool is — Cognito issues no passkey challenge without a
+username — so the address goes first with `WEB_AUTHN` preferred, an account with a passkey gets the
+OS sheet at once, and every other answer leads to the password, proved over SRP so it never leaves
+the page. The password step starts afresh rather than answering the address step's session, which
+lives three minutes and, once expired, is refused like a wrong password. The SRP maths is Amplify
+JS's, ported onto `BigInt` and WebCrypto; the WebAuthn JSON is `@simplewebauthn/browser`, because
+the native `parseRequestOptionsFromJSON` arrives in Safari 18.4 and the build targets Safari 16 —
+though sign-in starts at 16.4, the first to send the `Sec-Fetch-Site` the relay admits a caller by. ONE
+WEB LOCK ACROSS TABS covers every relay call that writes the cookies — refresh, the sign-in's
+respond, sign-out — held until the answer lands: two refreshes with one token fork the family and
+the jar keeps whichever answer lands last, and a refresh answering after another tab's sign-in
+writes an ended family's token over the new cookie. The relay and the pool are looked up by the
+page's host, which is what the relay admits a caller by.
 The relay reads the secret from Cognito with `DescribeUserPoolClient` and caches it per execution
 environment, so there is no second copy to drift and no store to pay for; its routes refuse a
 request without the custom header or from another site before anything else. THE REFRESH TOKEN IS
@@ -334,7 +349,13 @@ BFF, every data call proxied through a function holding the session: each call w
 account's shared Lambda concurrency, and a refusal that must land before any Lambda is invoked could
 only land inside one. · The secret in an SSM SecureString, which CloudFormation cannot create, so a
 hand copy per environment; in Secrets Manager under a key of its own, a fixed monthly charge on the
-standing "no" list; or in an environment variable, where AWS points to Secrets Manager instead.
+standing "no" list; or in an environment variable, where AWS points to Secrets Manager instead. ·
+Managed login as the sign-in surface, the redirect RFC 10017 §7.3 asks for: the owner ruled for the
+in-app screen. · Amplify JS: it never computes a `SECRET_HASH`, so it cannot talk to a confidential
+client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no `sideEffects: false`, and
+`@types/node` at run time. · Passkey autofill (conditional UI): it needs a challenge before anyone
+types, and this pool gives none without a username. · Build-time settings for the relay and the
+pool: a build can disagree with the host serving it, and the host cannot.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

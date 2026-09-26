@@ -9,9 +9,7 @@ import { AppHeader } from './AppHeader';
 import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from './nav-ids';
 import { Sidebar, SidebarDrawer } from './Sidebar';
 import { SidebarRail } from './SidebarRail';
-import { useDocumentLang } from '../i18n/useDocumentLang';
 import { useSettings } from '../state/settings';
-import { useTheme } from './theme';
 
 /** Marks the one history entry the drawer pushes, so Back can be told apart. */
 interface DrawerHistoryState {
@@ -20,12 +18,9 @@ interface DrawerHistoryState {
 
 export function Layout() {
   const { pathname } = useLocation();
-  // THESE FOUR LIVE HERE BECAUSE THE LAYOUT IS THE ONE MOUNT POINT SPANNING EVERY
-  // ROUTE: the toast fires once on app open, each root attribute gets exactly one
-  // owner, and another tab's dataset change reaches this one on any route.
+  // HERE BECAUSE THE LAYOUT SPANS EVERY PORTFOLIO ROUTE: the toast fires once on app open, and
+  // another tab's dataset change reaches this one on any route. Theme and language are `Root`'s.
   useReminderToast();
-  useTheme();
-  useDocumentLang();
   useDbSync();
 
   // `desktop` is read from the media query rather than expressed only in CSS, because

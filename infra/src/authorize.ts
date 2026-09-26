@@ -6,7 +6,7 @@
 // and AUTHORIZATION is this file's, read from the `app_user` row on every request (*Auth model*).
 // It is the same reason a group in a token cannot carry the role: removing somebody from a
 // super-admin group would change nothing until their token refreshed, and the row is read anyway.
-import { canonicalAddress } from './address';
+import { canonicalAddress } from '@quirenote/core/address';
 import { INTERNAL, type ApiEvent, type ApiResult, canonicalUuid, claim, json } from './http';
 import type { SqlClient } from './migrate';
 import { provision } from './provision';

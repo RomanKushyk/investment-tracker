@@ -6,7 +6,7 @@ import { useSettings } from '../state/settings';
  * Not cosmetic: `<html lang>` is what tells a screen reader which voice to read the
  * page in, and what a browser's translate prompt and hyphenation engine read.
  * `index.html` ships `lang="en"` while the default is Ukrainian, so it is wrong from
- * the first paint — hence this runs in the layout beside `useTheme`, which owns the
+ * the first paint — hence this runs in `Root` beside `useTheme`, which owns the
  * other root attribute.
  *
  * The head script does not set it, deliberately: unlike the theme, a wrong `lang` for

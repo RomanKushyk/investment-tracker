@@ -1,7 +1,7 @@
 # infra/ — the AWS backend
 
-A daily job archives prices into Aurora DSQL. **The app does not read any of this yet** — nothing in
-`src/` knows the backend exists. Design and rationale live in
+A daily job archives prices into Aurora DSQL. **The app does not read any of this yet**: the one call
+`src/` makes to the backend is sign-in's, to the auth relay. Design and rationale live in
 `docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md` (why this stack) and
 `2026-08-04-data-model.md` (what is stored and why); the why for what changed since is
 `docs/DECISIONS.md`, under **The price archive**, **External sources** and **Cloud target**.
@@ -20,8 +20,7 @@ A daily job archives prices into Aurora DSQL. **The app does not read any of thi
 | `src/approve.ts` | `POST /admin/users/{id}/approve` and `/reject`. Approve calls `AdminCreateUser` and replaces the application row with one keyed by the returned `sub` — a DSQL primary key is immutable, so it is a delete and an insert in one transaction. Reject disables an identity only where one exists, disable first so a failure is retryable |
 | `src/auth-relay.ts` | `POST /auth/start`, `/auth/respond`, `/auth/refresh` and `/auth/sign-out` — the relay on the CONFIDENTIAL client, and the only holder of its secret, read with `DescribeUserPoolClient` and cached per execution environment. The refresh token goes into a `__Host-Http-` HttpOnly cookie on the API host and nowhere else, and the family's original into a second. A replay revokes the original, and a sign-out or the next sign-in revokes both cookies' tokens, which can belong to two families. The ID and access tokens go back in the body. Every route refuses a request without `x-csrf: 1` or from another site before it reads anything, and admits only the challenges it lists — a plain password is not one |
 | `src/http.ts` | What a route on this API takes and answers — the payload 2.0 fields these handlers read, request headers and cookies among them, and the two kinds of answer: the frozen `json()` constants, and the ones built per request from a frozen declaration, a derived body or a 304 with headers and no body key. A declared `set-cookie` leaves through payload 2.0's own `cookies` list. Shared so there is one answer |
-| `src/applications.ts` | `POST /v1/applications` — the sign-up application. One insert, the same fixed `202` whether the row is new or already there, and the ASCII-only address rule below |
-| `src/address.ts` | The one rule for an address this system will store — ASCII only, so the fold done in TypeScript and `app_user_email_lower_ck` on the cluster are the same operation. Two copies would be two answers to what the cluster accepts |
+| `src/applications.ts` | `POST /v1/applications` — the sign-up application. One insert, the same fixed `202` whether the row is new or already there, and the ASCII-only address rule, `@quirenote/core/address` |
 | `src/dsql.ts` | `connect()` — the IAM auth token and the one `ssl` policy, shared by every handler that talks to a cluster |
 | `src/backup-freshness.ts` | Publishes how old prod's newest USER-data backup is, nightly, filtered by that cluster's own ARN. It never connects to the cluster: the ARN is a filter string, and the one grant is `backup:ListRecoveryPointsByBackupVault` on the vault. It THROWS where the capture's equivalent warns, a capture having a perishable price to write first |
 | `src/backup-age.ts` | The one rule both freshness checks read: recovery points in, an age in hours out. Only `COMPLETED` counts — a `CREATING` or `PARTIAL` point carries a newer timestamp and nothing can be restored from it — and no point at all reports a large number, never zero, because the metric is an AGE |

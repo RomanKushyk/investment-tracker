@@ -28,7 +28,7 @@ export function resolveTheme(pref: Theme): ResolvedTheme {
 /**
  * Applies the resolved theme to the document and keeps it applied.
  *
- * Mounted once, in Layout. Two writers would be one too many: index.html's head
+ * Mounted once, in Root. Two writers would be one too many: index.html's head
  * script stamps the FIRST paint and never runs again, and this owns every
  * subsequent write. Nothing else may touch `data-theme`.
  */

@@ -234,6 +234,27 @@ once one is registered, and registration takes an access token, so it follows a 
 rather than preceding it. Passkey-first onboarding is therefore an ordering of steps after an
 invitation, not a pool setting.
 
+**An address with no account gets an answer keyed on the address, and it repeats.** With
+`PreventUserExistenceErrors` on, `/auth/start` with `PREFERRED_CHALLENGE=WEB_AUTHN` on invented
+addresses answered one of three things:
+- `SELECT_CHALLENGE` with `["PASSWORD_SRP", "PASSWORD"]`, the password-only user's answer above;
+- a `WEB_AUTHN` challenge whose `AvailableChallenges` adds `WEB_AUTHN`, with
+  `CREDENTIAL_REQUEST_OPTIONS` carrying `rpId: dev.quirenote.com`, `userVerification: required` and
+  one to three invented credentials;
+- `PasswordResetRequiredException`, which the relay answers as a 500.
+
+Each invented address kept its answer on every repeat: the same challenge, the same credential ids
+and the same count. Only the challenge nonce changed, as it does for a real account. So repeated
+submissions do not tell an invented address from a real one, and the app must treat a passkey
+challenge as possibly invented: the sheet opens, finds no credential, and ends as a passkey sign-in
+that did not finish.
+
+With `PASSWORD_SRP` preferred, an invented address answers `PASSWORD_VERIFIER` with the same
+parameter names as a real account, including a UUID-shaped `USER_ID_FOR_SRP`, so only the verifier's
+answer can refuse it. One difference stays unmeasured until a passkey exists on dev: the order of
+`transports` inside an invented credential varied between repeats, and whether a real credential's
+order varies too is not known.
+
 ## What this does not answer
 
 **Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.

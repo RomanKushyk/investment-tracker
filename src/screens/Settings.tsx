@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
+import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
 import { NumberField } from '../components/ui/NumberField';
 import { ParseSkips } from '../components/ui/ParseSkips';
@@ -9,7 +10,7 @@ import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
 import { inputValue, storedNumber } from '@quirenote/core/money';
-import { THEME_ORDER, useSettings, type Language } from '../state/settings';
+import { THEME_ORDER, useSettings } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
@@ -150,42 +151,6 @@ function ThemeControl() {
           className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
         >
           {t.settings.theme[value]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-const LANGUAGE_ORDER: Language[] = ['uk', 'en'];
-
-function LanguageControl() {
-  const { language, setLanguage } = useSettings();
-  const t = useT();
-  return (
-    <div
-      role="radiogroup"
-      aria-label={t.settings.language.ariaLabel}
-      data-filled-track
-      className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1 max-sm:w-full"
-    >
-      <div
-        aria-hidden
-        data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
-        style={{
-          transform: `translateX(calc(${LANGUAGE_ORDER.indexOf(language)} * (100% + 4px)))`,
-        }}
-      />
-      {LANGUAGE_ORDER.map((value) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={language === value}
-          onClick={() => setLanguage(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${language === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
-        >
-          {t.settings.language[value]}
         </button>
       ))}
     </div>
@@ -453,7 +418,7 @@ export function Settings() {
           </SettingRow>
           <Divider />
           <SettingRow title={t.settings.language.title} helper={t.settings.language.helper}>
-            <LanguageControl />
+            <LanguageControl stretch />
           </SettingRow>
           <Divider />
           <SettingRow title={t.settings.currency.title} helper={t.settings.currency.helper}>

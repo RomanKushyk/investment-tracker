@@ -4,7 +4,7 @@
 // allowance: Cognito marks a user active at `SignUp`, so an application that reached the pool
 // would already have cost a monthly active user, approved or not. Minting the identity belongs to
 // APPROVAL, which is also what makes approval the verification step (*Auth model*).
-import { ADDRESS, MAX_ADDRESS, canonicalAddress } from './address';
+import { ADDRESS, MAX_ADDRESS, canonicalAddress } from '@quirenote/core/address';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
 import type { SqlClient } from './migrate';

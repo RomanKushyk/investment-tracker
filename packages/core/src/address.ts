@@ -1,7 +1,7 @@
 // ASCII by necessity: `006_email_lower.sql` constrains the column to `email = lower(email)`, and
 // Postgres `lower()` parts company with JavaScript `toLowerCase()` outside ASCII, where one can
-// fold a character into two. Shared by the applications endpoint and the migration runner's
-// bootstrap so a single answer says what the cluster will accept.
+// fold a character into two. Shared by the applications endpoint, the authorizer, the migration
+// runner's bootstrap and the sign-in screen, so a single answer says what the cluster will accept.
 
 /** Local part is the RFC 5322 dot-atom; domain is LDH labels under an alphabetic TLD. */
 export const ADDRESS =
