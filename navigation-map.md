@@ -211,12 +211,12 @@ Interactions to verify:
 
 ## `/sign-in` — Sign in
 
-Outside the portfolio shell: no sidebar, no platform bar, no capital strip (*Two shells, one breakpoint*). Reached by its URL; a signed-in visitor is sent on to `/`. The local dev server signs into the DEV pool through its `/relay` proxy; `dev.quirenote.com` and `quirenote.com` call their own `api.` host.
+Outside the portfolio shell: no sidebar, no platform bar, no capital strip (*Two shells, one breakpoint*). Reached by its URL, from `/apply`, or by an answer's "Sign out"; a signed-in visitor is sent on to `/`. The local dev server signs into the DEV pool through its `/relay` proxy; `dev.quirenote.com` and `quirenote.com` call their own `api.` host.
 
 Signed out, at 1280, in either theme (every colour a token):
 - **Top bar** 57 tall — 56 plus a 1px `hairline` bottom edge — on `page`, padding 36: the lockup on the left (22px mark, `quirenote` at 15px semibold), the language `radiogroup` on the right at its own **206 × 38** (radius 12, `ink` track, `card` thumb sliding 300 ms). No theme control; the stored theme applies.
 - **Card** top-anchored **64** below the bar and centred across, **440** wide, padding 28, radius 24, `card` fill with the card shadow (none in dark).
-- **Address step:** title "Sign in" (Manrope 26/39, 600), lead "Use the address your invitation was sent to." (13px `muted`), label "Email" (11px), a 36-tall field at radius 9 on `page` with a `field-border` edge (`ink` on hover), a reserved 16.5px line under it, then "Continue" — primary, 40 tall at radius 10, full width. No «або» rule, no Google button and no application link: #273 and #166 bring them.
+- **Address step:** title "Sign in" (Manrope 26/39, 600), lead "Use the address your invitation was sent to." (13px `muted`), label "Email" (11px), a 36-tall field at radius 9 on `page` with a `field-border` edge (`ink` on hover), a reserved 16.5px line under it, then "Continue" — primary, 40 tall at radius 10, full width. Then, 22 below it, "No access yet?" (13px `muted`) and the link "Apply for access" (`accent`, underlined) to `/apply` — on this step only. No «або» rule and no Google button: #273 brings them.
 
 At 360: bar padding 12; the card 336 wide, padding 22, **16** below the bar; buttons 44 tall at radius 11; field text 16px.
 
@@ -227,6 +227,38 @@ Interactions to verify:
 4. The right password → `/`. Open `/sign-in` again after a reload → one `POST …/auth/refresh` answering 200, and the page sends you on to `/`. No portfolio route sends it: the session is asked for only here. `localStorage`, `sessionStorage` and `document.cookie` hold no token: the refresh token is the relay host's `__Host-Http-refresh`, HttpOnly.
 5. An address with a passkey — on `dev.quirenote.com` only, since the relying party is `dev.quirenote.com` and localhost cannot run the ceremony → "Confirm with your passkey", "Your browser opened its passkey window.", outline "Use your password instead", and the OS sheet at once. Cancel it → "Passkey sign-in didn't finish: …" under the button, "Try again" beneath it (under any refusal on this step), nothing above moving.
 6. Switching the language keeps what is typed in the field.
+7. "Apply for access" → `/apply` in the same card, its top edge unmoved; the password and passkey steps carry no link.
+
+## `/apply` — Apply for access
+
+`/sign-in`'s shell and card, at the same top edge. Reached from the sign-in address step, by an answer's "Sign out and apply", or by its URL; it asks for no session and sends nothing until submitted, then posts the address to `POST /v1/applications` on the same `api.` host (through `/relay` locally) with no cookie.
+
+At 1280, in either theme:
+- Title "Apply for access", lead "Quirenote is by application. If yours is approved, the invitation goes to this address." (13px `muted`), label "Email", the 36-tall field (`type="email"`, `autocomplete="email"`, spellcheck off) with its reserved line, then "Apply" — primary, 40 tall at radius 10, full width. Then, 22 below it, "Already have access? Sign in" → `/sign-in`.
+
+At 360: as `/sign-in` — the card 336 wide, padding 22, 16 below the bar; the button 44 tall at radius 11; field text 16px.
+
+Interactions to verify:
+1. "Apply" on an empty field → "Enter your email address."; `оксана@пошта.укр` → "Use Latin letters, like name@example.com." Each sits on the field's line, one line at 360, turns its edge `neg` and focuses the field; the button does not move and nothing is sent.
+2. A valid address → "Sending…" at 70 % with the field read-only, then the form gives way to "Application recorded", which takes focus: "If it's approved, the invitation will go to <the address, lower-cased>. No other email is sent." and an outline "Back to sign in" → `/sign-in`. No link under it. Every address gets this view, a new one or one already applied: the endpoint's 202 is one constant.
+3. Submitting into the route's throttle (drain it with parallel requests from the console) → "Too many requests right now. Try again in a moment." below "Apply", announced, the address kept, the button unmoved; a second one is announced again. A 500 → "The application couldn't be sent. Try again."; no network → "Couldn't connect. Check your connection and try again."
+4. Switching the language keeps what is typed.
+
+## The four answers — a refused caller
+
+Not a route. When a request every signed-in user may make answers `403` with `pending`, `rejected`, `no_application` or `forbidden`, the answer replaces whatever route asked, in `/sign-in`'s shell and card, and the URL stays. It is held in memory, so a reload forgets it. No request asks yet — #191's repository is the first caller — so on the dev server, right after reloading any route, show one from the console by importing the module URL that load recorded (after an edit Vite serves it as `app.ts?t=…`, a bare path is another instance with its own store, and a page left open can stop recording the modules it loads): `(await import(performance.getEntriesByType('resource').findLast((e) => e.name.includes('/src/auth/app.ts')).name)).showAnswer({ answer: 'pending', email: 'name@example.com' })`, where `answer` is `pending`, `rejected`, `noApplication` or `forbidden`.
+
+At 1280 and 360, in either theme:
+- A 24px glyph in `muted` — clock, ban, file-question-mark, lock — 16 above the title, which takes focus. No colour tells them apart; none is `neg`.
+- **pending:** "Your application is being reviewed" / "Access opens once it's approved. There's nothing else to do."
+- **rejected:** "Your application wasn't approved" / "This address won't get access to Quirenote."
+- **no application:** "No application for this account", on two lines / "Sign out, then apply with the address you'll use."
+- **forbidden:** "No access" / "This account has no access to Quirenote." — and no address.
+- Under the lead of the first three, "Signed in as <address>" (13px `muted`); then an outline "Sign out", full width. No application stacks a primary "Sign out and apply" above it, 10 apart, at both widths. None offers "Sign in".
+
+Interactions to verify:
+1. Signed in, "Sign out" → 70 % while it runs, one `POST …/auth/sign-out`, then `/sign-in`, signed out and the answer gone. "Sign out and apply" → the same, landing on `/apply`.
+2. A sign-out the relay could not complete leaves the answer on screen and the button pressable again.
 
 ## Mobile shell (below 768 px)
 

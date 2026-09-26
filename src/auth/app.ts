@@ -1,6 +1,8 @@
 import { WebAuthnAbortService, startAuthentication } from '@simplewebauthn/browser';
 import { useSyncExternalStore } from 'react';
 
+import type { Answer } from './access';
+import { createApply } from './apply';
 import { environmentFor } from './environment';
 import { createRelay } from './relay';
 import { createSession } from './session';
@@ -28,4 +30,34 @@ export const cancelPasskey = () => WebAuthnAbortService.cancelCeremony();
 
 export function useSessionStatus() {
   return useSyncExternalStore(session.subscribe, session.status);
+}
+
+/** The application; the relay's host is the API's, so `/v1/applications` sits beside `/auth/*`. */
+export const apply = createApply({
+  base: environment?.relay,
+  fetch: (input, init) => fetch(input, init),
+});
+
+/** One of the four refusals `answerOf` reads, and the address the caller signed in with. */
+export interface HeldAnswer {
+  answer: Answer;
+  email?: string;
+}
+
+let held: HeldAnswer | undefined;
+const hearing = new Set<() => void>();
+const hear = (listener: () => void) => {
+  hearing.add(listener);
+  return () => void hearing.delete(listener);
+};
+
+/** Shows what the API told this caller in place of the route that asked. Memory only: the answer's
+ *  own sign-out clears it and a reload forgets it, so what shows is an answer this page was given. */
+export function showAnswer(next?: HeldAnswer) {
+  held = next;
+  for (const listener of hearing) listener();
+}
+
+export function useAnswer() {
+  return useSyncExternalStore(hear, () => held);
 }

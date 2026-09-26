@@ -330,7 +330,13 @@ idled out still has its original in the browser, and the next sign-in there revo
 Registration is an APPLICATION,
 not an open door — threat protection is a paid tier, so a public door has only quotas: sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
-Cognito write and a row REPLACEMENT, a DSQL primary key being immutable.
+Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. THE APPLICATION IS THE APP'S
+OWN FORM, `/apply`, one address posted with no cookie, since its route reads none; the endpoint
+answers every address with one constant, so the form can say only that it was recorded. A CALLER THE
+API REFUSES on a route every user may call — pending, rejected, no application, forbidden — sees that
+answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out; an
+admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
+not read that way.
 **Why.** Nothing decided at token-issue time can revoke anything, at any lifetime, so authorization
 belongs to the API, read from that row on every request. A refresh token script can read outlives
 the page that stole it; one in an HttpOnly cookie, exchangeable only with a secret the browser never
@@ -355,7 +361,9 @@ in-app screen. · Amplify JS: it never computes a `SECRET_HASH`, so it cannot ta
 client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no `sideEffects: false`, and
 `@types/node` at run time. · Passkey autofill (conditional UI): it needs a challenge before anyone
 types, and this pool gives none without a username. · Build-time settings for the relay and the
-pool: a build can disagree with the host serving it, and the host cannot.
+pool: a build can disagree with the host serving it, and the host cannot. · A who-am-I route to learn
+the four answers: every authenticated route reads the same row and answers them, so the first read
+the app makes serves, and a route of its own would cost an invocation on every sign-in.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

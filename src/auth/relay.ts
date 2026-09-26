@@ -29,7 +29,7 @@ const REFUSED: Record<number, Refusal> = { 400: 'invalid', 401: 'notAuthorized',
 
 // API Gateway's ceiling for an HTTP API's answer: past it none can come, and the cross-tab lock is
 // held until one does.
-const ANSWER_MS = 30_000;
+export const ANSWER_MS = 30_000;
 
 function read(body: unknown): RelayAnswer {
   if (typeof body !== 'object' || body === null) return { kind: 'refused', reason: 'failed' };

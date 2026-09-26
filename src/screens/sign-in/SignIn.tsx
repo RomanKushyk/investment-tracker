@@ -1,22 +1,22 @@
-import { Eye, EyeOff } from 'lucide-react';
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-  type RefObject,
-} from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import { cancelPasskey, session, signInDeps, useSessionStatus } from '../../auth/app';
 import { signInWithAddress, signInWithPassword, type SignInRefusal } from '../../auth/sign-in';
 import { Button } from '../../components/ui/Button';
-import { TAP_44 } from '../../components/ui/tap-target';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
+import {
+  EmailInput,
+  Field,
+  FocusedTitle,
+  Foot,
+  LINK,
+  PasswordInput,
+  StepAlert,
+  Title,
+} from './parts';
 
 type Step =
   { name: 'address' } | { name: 'passkey'; email: string } | { name: 'password'; email: string };
@@ -39,15 +39,6 @@ function sentence(t: Dict, reason: SignInRefusal): string {
   }[reason];
 }
 
-// `page` on `card`, as every field in the app; hover takes the edge to `ink`.
-function fieldClass(invalid: boolean): string {
-  return `block h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] text-ink transition ${
-    invalid ? 'border-neg' : 'border-field-border hover:border-ink'
-  }`;
-}
-
-const LINK = `cursor-pointer text-accent underline underline-offset-2 ${TAP_44}`;
-
 export function SignIn() {
   const t = useT();
   const status = useSessionStatus();
@@ -68,8 +59,15 @@ export function SignIn() {
   useEffect(() => {
     if (session.status() === 'unknown') void session.restore();
   }, []);
-  // An open sheet outlives the page unless closed: Back, or a sign-in elsewhere, would leave it up.
-  useEffect(() => cancelPasskey, []);
+  // Leaving ends the run, or an answer still in flight would open the sheet over the next page;
+  // a sheet already open outlives the page unless closed.
+  useEffect(
+    () => () => {
+      run.current++;
+      cancelPasskey();
+    },
+    [],
+  );
   // After the commit, so the field already carries `aria-invalid` and its sentence when focused.
   useEffect(() => {
     if (said?.reason === 'passwordMissing') passwordRef.current?.focus();
@@ -156,27 +154,28 @@ export function SignIn() {
             <form noValidate onSubmit={submitAddress} className="flex flex-col">
               <Field label={t.auth.email} error={fieldError && sentence(t, fieldError.reason)}>
                 {(id, describedBy) => (
-                  <input
-                    ref={addressRef}
+                  <EmailInput
                     id={id}
-                    type="email"
+                    inputRef={addressRef}
                     name="username"
                     autoComplete="username"
                     autoFocus={changed}
                     value={address}
-                    readOnly={busy}
-                    onChange={(event) => setAddress(event.target.value)}
-                    aria-invalid={fieldError ? true : undefined}
-                    aria-describedby={describedBy}
-                    className={fieldClass(Boolean(fieldError))}
+                    busy={busy}
+                    invalid={Boolean(fieldError)}
+                    describedBy={describedBy}
+                    onChange={setAddress}
                   />
                 )}
               </Field>
               <Button type="submit" className="mt-2 w-full" disabled={busy} disabledTone="busy">
                 {busy ? t.auth.signIn.checking : t.auth.signIn.continue}
               </Button>
-              <StepAlert said={stepError} />
+              {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
             </form>
+            <Foot prompt={t.auth.signIn.applyPrompt} to="/apply">
+              {t.auth.signIn.applyLink}
+            </Foot>
           </>
         )}
 
@@ -194,17 +193,19 @@ export function SignIn() {
             >
               {t.auth.passkey.usePassword}
             </Button>
-            <StepAlert said={stepError} />
             {stepError && (
-              <p className="mt-2 text-[13px] leading-[19.5px]">
-                <button
-                  type="button"
-                  className={LINK}
-                  onClick={() => void passkeyFirst(step.email)}
-                >
-                  {t.auth.retry}
-                </button>
-              </p>
+              <>
+                <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>
+                <p className="mt-2 text-[13px] leading-[19.5px]">
+                  <button
+                    type="button"
+                    className={LINK}
+                    onClick={() => void passkeyFirst(step.email)}
+                  >
+                    {t.auth.retry}
+                  </button>
+                </p>
+              </>
             )}
           </>
         )}
@@ -247,35 +248,12 @@ export function SignIn() {
               <Button type="submit" className="mt-2 w-full" disabled={busy} disabledTone="busy">
                 {busy ? t.auth.password.busy : t.auth.password.submit}
               </Button>
-              <StepAlert said={stepError} />
+              {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
             </form>
           </>
         )}
       </div>
     </SignedOutShell>
-  );
-}
-
-function Title({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="mb-1 font-display text-[26px] leading-[39px] font-semibold text-ink">
-      {children}
-    </h2>
-  );
-}
-
-/** The passkey step has no field: its heading takes focus, so the step is announced. */
-function FocusedTitle({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLHeadingElement>(null);
-  useEffect(() => ref.current?.focus(), []);
-  return (
-    <h2
-      ref={ref}
-      tabIndex={-1}
-      className="mb-1 font-display text-[26px] leading-[39px] font-semibold text-ink outline-none"
-    >
-      {children}
-    </h2>
   );
 }
 
@@ -292,102 +270,6 @@ function AddressRow({ email, onChange }: { email: string; onChange: () => void }
       >
         {t.auth.change}
       </button>
-    </div>
-  );
-}
-
-/** Label, field and the line under it, reserved whether or not it holds a sentence. */
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error: string | undefined;
-  children: (id: string, describedBy: string | undefined) => ReactNode;
-}) {
-  const id = useId();
-  const messageId = `${id}-message`;
-  return (
-    <div className="flex flex-col gap-1 text-[11px] leading-[16.5px] text-muted">
-      <label htmlFor={id}>{label}</label>
-      {children(id, error ? messageId : undefined)}
-      {/* Polite, so a sentence is read even when focus was already in the field. */}
-      <span id={messageId} aria-live="polite" className="min-h-[16.5px] text-neg">
-        {error && (
-          <span key={error} className="animate-in duration-200 fade-in">
-            {error}
-          </span>
-        )}
-      </span>
-    </div>
-  );
-}
-
-function PasswordInput({
-  id,
-  inputRef,
-  value,
-  busy,
-  invalid,
-  describedBy,
-  onChange,
-}: {
-  id: string;
-  inputRef: RefObject<HTMLInputElement | null>;
-  value: string;
-  busy: boolean;
-  invalid: boolean;
-  describedBy: string | undefined;
-  onChange: (value: string) => void;
-}) {
-  const t = useT();
-  const [shown, setShown] = useState(false);
-  const Icon = shown ? EyeOff : Eye;
-  return (
-    <span className="relative block">
-      <input
-        ref={inputRef}
-        id={id}
-        type={shown ? 'text' : 'password'}
-        name="password"
-        autoComplete="current-password"
-        autoFocus
-        value={value}
-        readOnly={busy}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-        className={`${fieldClass(invalid)} pr-9`}
-      />
-      {/* Outside the label, so its name does not join the field's; the wrapper is what sits in
-          the corner, because the tap overlay needs the button itself to be `relative`. */}
-      <span className="absolute top-0 right-0">
-        <button
-          type="button"
-          aria-label={shown ? t.auth.password.hide : t.auth.password.show}
-          aria-controls={id}
-          onClick={() => setShown((was) => !was)}
-          className={`grid size-9 cursor-pointer place-items-center text-muted ${TAP_44}`}
-        >
-          <Icon aria-hidden className="size-4" strokeWidth={2} />
-        </button>
-      </span>
-    </span>
-  );
-}
-
-/** A sentence about the whole step, below its button; re-inserted on each refusal. */
-function StepAlert({ said }: { said: Said | undefined }) {
-  const t = useT();
-  if (!said) return null;
-  return (
-    <div
-      key={said.n}
-      role="alert"
-      className="mt-3 animate-in text-[11px] leading-[16.5px] text-neg duration-200 fade-in"
-    >
-      {sentence(t, said.reason)}
     </div>
   );
 }

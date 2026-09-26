@@ -12,6 +12,7 @@ import { Payouts } from './screens/Payouts';
 import { Portfolio } from './screens/Portfolio';
 import { Seasonality } from './screens/Seasonality';
 import { Settings } from './screens/Settings';
+import { Apply } from './screens/sign-in/Apply';
 import { SignIn } from './screens/sign-in/SignIn';
 import { Yield } from './screens/Yield';
 
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
     children: [
       // Outside `<Layout />`: the signed-out shell has no portfolio behind it.
       { path: 'sign-in', element: <SignIn /> },
+      { path: 'apply', element: <Apply /> },
       {
         element: <Layout />,
         children: [

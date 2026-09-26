@@ -1,5 +1,5 @@
 export interface AuthEnvironment {
-  /** Where `/auth/*` lives, as an origin or a same-origin prefix. */
+  /** The API, where `/auth/*` and `/v1/applications` live, as an origin or a same-origin prefix. */
   relay: string;
   /** Public: every ID token's `iss` carries it. SRP signs with the part after `_`. */
   userPoolId: string;
