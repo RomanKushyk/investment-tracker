@@ -177,12 +177,23 @@ const SESSION_ENDED = derived({
 const NOT_AUTHORIZED = json(401, '{"error":"not_authorized"}');
 const INVALID_PASSWORD = json(400, '{"error":"invalid_password"}');
 const CSRF = json(403, '{"error":"csrf"}');
+/** RFC 6585 §4, with no `Retry-After`: Cognito never says how long its lockout lasts. */
+const TOO_MANY = json(429, '{"error":"too_many_attempts"}');
 
 /** What each route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `auth-relay.test.ts` proves it against what the routes really answer. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
-  [START_ROUTE]: [CHALLENGE, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
-  [RESPOND_ROUTE]: [TOKENS, CHALLENGE, NOT_AUTHORIZED, INVALID_PASSWORD, INVALID, CSRF, INTERNAL],
+  [START_ROUTE]: [CHALLENGE, NOT_AUTHORIZED, TOO_MANY, INVALID, CSRF, INTERNAL],
+  [RESPOND_ROUTE]: [
+    TOKENS,
+    CHALLENGE,
+    NOT_AUTHORIZED,
+    TOO_MANY,
+    INVALID_PASSWORD,
+    INVALID,
+    CSRF,
+    INTERNAL,
+  ],
   [REFRESH_ROUTE]: [TOKENS, SESSION_ENDED, CSRF, INTERNAL],
   [SIGN_OUT_ROUTE]: [SIGNED_OUT, CSRF, INTERNAL],
 };
@@ -201,6 +212,10 @@ const REFUSED_AS = new Map<string, ApiResult>([
   ['PasswordHistoryPolicyViolationException', INVALID_PASSWORD],
   ['InvalidParameterException', INVALID],
 ]);
+
+/** COGNITO'S LOCKOUT carries a wrong password's name, so only this message tells it apart. An address
+ *  with no account meets it too (`docs/reference/COGNITO-POOL-PARAMS.md`); other wording answers 401. */
+const LOCKED_OUT = 'Password attempts exceeded';
 
 /** What `GetTokensFromRefreshToken` says of a token that will never work again. A replay is not
  *  among them: it ends the family, not only the session. */
@@ -385,6 +400,7 @@ const issued = (tokens: Tokens | undefined, from: 'sign-in' | { sent: string }):
 };
 
 const refusedBy = (route: string, err: unknown): ApiResult => {
+  if ((err as { message?: unknown } | undefined)?.message === LOCKED_OUT) return TOO_MANY;
   const known = REFUSED_AS.get(nameOf(err) ?? '');
   if (known !== undefined) return known;
   console.error(`auth-relay: ${route} failed`, err);

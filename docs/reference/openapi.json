@@ -507,6 +507,20 @@
               }
             }
           },
+          "429": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "too_many_attempts": {
+                    "value": {
+                      "error": "too_many_attempts"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Failed",
             "content": {
@@ -808,6 +822,20 @@
                   "csrf": {
                     "value": {
                       "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "too_many_attempts": {
+                    "value": {
+                      "error": "too_many_attempts"
                     }
                   }
                 }

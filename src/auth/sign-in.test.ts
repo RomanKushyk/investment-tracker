@@ -325,6 +325,15 @@ describe('the password step', () => {
     });
   });
 
+  // Cognito's lockout refuses the password step's START, before any password is checked.
+  it('reads a locked-out start as too many attempts', async () => {
+    const { deps } = world({ start: [refused('throttled')] });
+    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+      kind: 'refused',
+      reason: 'tooMany',
+    });
+  });
+
   it('cannot yet finish a first sign-in, which is #272', async () => {
     const { deps } = world({ start: [VERIFIER], respond: [challenge('NEW_PASSWORD_REQUIRED')] });
     expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({

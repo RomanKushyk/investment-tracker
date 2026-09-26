@@ -14,7 +14,8 @@ export interface Challenge {
   availableChallenges?: string[];
 }
 
-/** `invalid` is a 400, `throttled` API Gateway's 429; `failed` is any answer the app cannot act on. */
+/** `invalid` is a 400, `throttled` a 429 from API Gateway or from Cognito's lockout; `failed` is
+ *  any answer the app cannot act on. */
 export type Refusal = 'notAuthorized' | 'invalid' | 'throttled' | 'offline' | 'failed';
 
 export type RelayAnswer =

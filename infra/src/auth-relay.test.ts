@@ -802,6 +802,38 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
     });
   }
 
+  // THE LOCKOUT SHARES A WRONG PASSWORD'S NAME, so only its message tells it apart; an address with
+  // no account meets it too (`docs/reference/COGNITO-POOL-PARAMS.md`).
+  const lockout: [string, number, string][] = [
+    ['Incorrect username or password.', 401, '{"error":"not_authorized"}'],
+    ['Password attempts exceeded', 429, '{"error":"too_many_attempts"}'],
+  ];
+  for (const [message, status, body] of lockout) {
+    it(`answers "${message}" with ${status}, at the start and at the verifier`, async () => {
+      const refused = async () => {
+        throw refusal('NotAuthorizedException', message);
+      };
+      const started = await environment(cognito({ initiateAuth: refused }).idp)(
+        post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' }),
+      );
+      const verified = await environment(cognito({ respondToAuthChallenge: refused }).idp)(
+        post(RESPOND_ROUTE, {
+          challenge: 'PASSWORD_VERIFIER',
+          session: SESSION,
+          responses: {
+            USERNAME: SUB,
+            PASSWORD_CLAIM_SIGNATURE: 'sig',
+            PASSWORD_CLAIM_SECRET_BLOCK: 'sb',
+            TIMESTAMP: 'Sat Sep 26 10:00:00 UTC 2026',
+          },
+        }),
+      );
+      for (const res of [started, verified]) {
+        expect([res.statusCode, res.body, res.cookies]).toEqual([status, body, undefined]);
+      }
+    });
+  }
+
   it('answers a start that Cognito refuses with 401', async () => {
     const { idp } = cognito({
       initiateAuth: async () => {

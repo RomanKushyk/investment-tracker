@@ -33,7 +33,7 @@ const SIGNED_IN: SignInOutcome = { kind: 'signedIn' };
 const refused = (reason: SignInRefusal): SignInOutcome => ({ kind: 'refused', reason });
 
 // A 401 blames nobody in particular: the relay answers a wrong password and an unknown address
-// alike, and Cognito's lockout the same way.
+// alike. Cognito's lockout is a 429, which an unknown address meets too.
 const STEP: Record<Refusal, SignInRefusal> = {
   notAuthorized: 'wrong',
   invalid: 'failed',

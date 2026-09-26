@@ -267,6 +267,33 @@ and change order between repeats, where the real account's two carry `internal` 
 with no order to change. Whether a real credential with several transports keeps its order, and so
 whether `transports` separates the two for other kinds of authenticator, is not measured.
 
+**An address with no account is locked out exactly as a real one is.** AWS locks a user out for one
+second after five failed passwords, doubling with each further failure up to about 15 minutes, and
+an attempt made during a lockout neither counts nor lengthens it ("Lockout behavior for failed
+sign-in attempts", in the developer guide's *Authentication*). The exception is
+`NotAuthorizedException` either way: only the message tells the lockout from a wrong password. Two
+subjects each took ten wrong passwords back to back, then an eleventh try. Each attempt was the
+app's own: `InitiateAuth` `USER_AUTH` preferring `PASSWORD_SRP`, then `RespondToAuthChallenge`
+`PASSWORD_VERIFIER` with a claim from `src/auth/srp.ts`. The subjects were an invented address and a
+throwaway user, made by `AdminCreateUser` with `SUPPRESS` and given a permanent password. The user
+was deleted afterwards, and `AdminGetUser` then answered `UserNotFoundException`. Both answered
+alike, attempt by attempt:
+
+| Attempt | Refused by | Real account | Invented address |
+|---|---|---|---|
+| each of 1–5 | `RespondToAuthChallenge` | `NotAuthorizedException`, "Incorrect username or password." | `NotAuthorizedException`, "Incorrect username or password." |
+| each of 6–10 | `InitiateAuth` | `NotAuthorizedException`, "Password attempts exceeded" | `NotAuthorizedException`, "Password attempts exceeded" |
+| 11: the right password, and a new wrong one for the invented address | `InitiateAuth` | `NotAuthorizedException`, "Password attempts exceeded" | `NotAuthorizedException`, "Password attempts exceeded" |
+
+So the lockout refuses the START, before any password is checked, and refuses the right password for
+as long as it lasts. It does not refuse a start preferring `WEB_AUTHN`. A second throwaway user and
+five invented addresses were each locked the same way. Each then answered the address step with the
+challenge it gave before failing: `SELECT_CHALLENGE`, or for two invented addresses a `WEB_AUTHN`
+challenge. A sixth invented address answers `PasswordResetRequiredException` to every start,
+`PASSWORD_SRP` included, so it never reaches a password and has no lockout to meet. For every account
+without a passkey, then, the lockout says nothing of whether an address has an account, and the
+relay answers it 429 (*Auth model*). An account with a passkey is open (below).
+
 ## What this does not answer
 
 **Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.
@@ -275,3 +302,8 @@ whether `transports` separates the two for other kinds of authenticator, is not 
 condition and direction are unit-tested (`infra/src/pre-signup.test.ts`) — but a link has not
 been exercised against Google itself. It cannot be until a local account exists for an address
 to link *to*, and creating one is the approval endpoint's job.
+
+**Whether the lockout refuses a `WEB_AUTHN` start for an account with a passkey.** The probe's
+throwaway users had none, and registering one takes an authenticator. If it does, the address step
+answers such an account unlike any invented address, which the lockout never refuses there. That
+answer would stand apart as the relay's old 401 too, not only as its 429.
