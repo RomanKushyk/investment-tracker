@@ -287,16 +287,26 @@ alike, attempt by attempt:
 
 So the lockout refuses the START, before any password is checked, and refuses the right password for
 as long as it lasts. It does not refuse a start preferring `WEB_AUTHN`. A second throwaway user and
-five invented addresses were each locked the same way. Each then answered the address step with the
-challenge it gave before failing: `SELECT_CHALLENGE`, or for two invented addresses a `WEB_AUTHN`
-challenge. A sixth invented address answers `PasswordResetRequiredException` to every start,
-`PASSWORD_SRP` included, so it never reaches a password and has no lockout to meet. Nor does the
-lockout refuse an account WITH a passkey there. A third throwaway user was given a platform passkey
-through `StartWebAuthnRegistration` and `CompleteWebAuthnRegistration`, then locked the same way.
-Its `WEB_AUTHN` start answered a `WEB_AUTHN` challenge offering its one credential before any
-failure, and again just before and just after a `PASSWORD_SRP` start that met "Password attempts
-exceeded". The lockout therefore says nothing of whether an address has an account, and the relay
-answers it 429 (*Auth model*).
+five invented addresses each took five wrong passwords back to back. Each then answered the address
+step with the challenge it gave before failing: `SELECT_CHALLENGE`, or for two invented addresses a
+`WEB_AUTHN` challenge. A sixth invented address answers `PasswordResetRequiredException` to every
+start, `PASSWORD_SRP` included, so it never reaches a password and has no lockout to meet. Nor does
+the lockout refuse an account WITH a passkey there. A third throwaway user was given a platform
+passkey through `StartWebAuthnRegistration` and `CompleteWebAuthnRegistration`, then took eight
+wrong passwords with each lockout waited out. Its `WEB_AUTHN` start answered a `WEB_AUTHN` challenge
+offering its one credential before any failure, and again just before and just after a
+`PASSWORD_SRP` start that met "Password attempts exceeded". The lockout therefore says nothing of
+whether an address has an account, and the relay answers it 429 (*Auth model*).
+
+**The lockout guards the password alone: a passkey still signs a locked-out account in, and the
+running lockout outlives that sign-in.** A fourth throwaway user was given a platform passkey the
+same way, then failed fourteen passwords with each lockout waited out, and a `PASSWORD_SRP` start
+met "Password attempts exceeded". It then signed in through the deployed app on `dev.quirenote.com`:
+the address step's `/auth/start` and the passkey's `/auth/respond` both answered 200, and the app
+went on to `/`. Straight after, `PASSWORD_SRP` with the RIGHT password still met "Password attempts
+exceeded", so a passkey sign-in does not end the running lockout period. Whether it resets the
+failure count, which sets the next period's length, is not measured: AWS names only a successful
+sign-in after a period expires, or fifteen minutes with no attempt.
 
 ## What this does not answer
 
