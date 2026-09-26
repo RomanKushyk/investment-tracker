@@ -301,9 +301,9 @@ the page. The password step starts afresh rather than answering the address step
 lives three minutes and, once expired, is refused like a wrong password. COGNITO'S LOCKOUT ANSWERS
 429, told from a wrong password by its message alone. OWASP's Authentication Cheat Sheet lists a
 locked account among the cases one generic error should cover. What that guards against, a
-difference that shows whether an account exists (CWE-204), is absent for every account without a
-passkey: an address with no account is locked out after as many failures and answered alike
-(`reference/COGNITO-POOL-PARAMS.md`; an account with a passkey is open). The SRP maths is Amplify
+difference that shows whether an account exists (CWE-204), the lockout does not add: an address
+with no account is locked out after as many failures and answered alike, and a locked-out account
+with a passkey is still offered it (`reference/COGNITO-POOL-PARAMS.md`). The SRP maths is Amplify
 JS's, ported onto `BigInt` and WebCrypto; the WebAuthn JSON is `@simplewebauthn/browser`, because
 the native `parseRequestOptionsFromJSON` arrives in Safari 18.4 and the build targets Safari 16 —
 though sign-in starts at 16.4, the first to send the `Sec-Fetch-Site` the relay admits a caller by. ONE

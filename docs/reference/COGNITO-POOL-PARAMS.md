@@ -290,9 +290,13 @@ as long as it lasts. It does not refuse a start preferring `WEB_AUTHN`. A second
 five invented addresses were each locked the same way. Each then answered the address step with the
 challenge it gave before failing: `SELECT_CHALLENGE`, or for two invented addresses a `WEB_AUTHN`
 challenge. A sixth invented address answers `PasswordResetRequiredException` to every start,
-`PASSWORD_SRP` included, so it never reaches a password and has no lockout to meet. For every account
-without a passkey, then, the lockout says nothing of whether an address has an account, and the
-relay answers it 429 (*Auth model*). An account with a passkey is open (below).
+`PASSWORD_SRP` included, so it never reaches a password and has no lockout to meet. Nor does the
+lockout refuse an account WITH a passkey there. A third throwaway user was given a platform passkey
+through `StartWebAuthnRegistration` and `CompleteWebAuthnRegistration`, then locked the same way.
+Its `WEB_AUTHN` start answered a `WEB_AUTHN` challenge offering its one credential before any
+failure, and again just before and just after a `PASSWORD_SRP` start that met "Password attempts
+exceeded". The lockout therefore says nothing of whether an address has an account, and the relay
+answers it 429 (*Auth model*).
 
 ## What this does not answer
 
@@ -302,8 +306,3 @@ relay answers it 429 (*Auth model*). An account with a passkey is open (below).
 condition and direction are unit-tested (`infra/src/pre-signup.test.ts`) — but a link has not
 been exercised against Google itself. It cannot be until a local account exists for an address
 to link *to*, and creating one is the approval endpoint's job.
-
-**Whether the lockout refuses a `WEB_AUTHN` start for an account with a passkey.** The probe's
-throwaway users had none, and registering one takes an authenticator. If it does, the address step
-answers such an account unlike any invented address, which the lockout never refuses there. That
-answer would stand apart as the relay's old 401 too, not only as its 429.
