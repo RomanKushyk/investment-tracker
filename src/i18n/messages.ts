@@ -855,7 +855,7 @@ export const en = {
     signedIn: 'Signed in',
     signOut: 'Sign out',
     signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
-    // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival (#279).
+    // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival.
     signedOut: 'You’re signed out.',
     pending: {
       title: 'Your application is being reviewed',

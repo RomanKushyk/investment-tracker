@@ -3,10 +3,8 @@ import { describe, expect, it } from 'vitest';
 
 import { arrivedSignedOut, SIGNED_OUT, usedUp } from './signed-out';
 
-// `/sign-in` SAYS SO ONCE, ON THE ARRIVAL A SIGN-OUT CAUSES (`design/extensions/sign-out-landing.dc.html`,
-// T4). The memory router keeps its entries and their state as the browser's history does; a reload is
-// a new router opened on the entry the old one stood on, state and all, as the browser keeps
-// `history.state`.
+// `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL (`sign-out-landing.dc.html`, T4). A reload is
+// a new router opened on the entry the old one stood on, state and all, as a browser's is.
 const ROUTES = [{ path: '/overview' }, { path: '/sign-in' }, { path: '/apply' }];
 type Router = ReturnType<typeof createMemoryRouter>;
 
@@ -70,7 +68,7 @@ describe('once `/sign-in` has used it up', () => {
     expect(said(reload(await usedUpArrival()))).toBe(false);
   });
 
-  it('replaced the entry rather than adding one, so Back leaves and Forward says nothing', async () => {
+  it('replaced its entry rather than adding one: Back leaves, Forward says nothing', async () => {
     const router = await usedUpArrival();
     await router.navigate(-1);
     expect(router.state.location.pathname, 'Back stayed on `/sign-in`: a push').toBe('/overview');

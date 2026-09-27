@@ -66,7 +66,7 @@ export function SignIn() {
   useEffect(() => {
     void session.restore();
   }, []);
-  // A reload or Back/Forward hands `history.state` back, so a sign-out's arrival replaces its entry.
+  // A reload or Back/Forward hands `history.state` back, so a sign-out's arrival replaces it.
   useEffect(() => {
     if (arrivedSignedOut(location.state)) void navigate(...usedUp(location));
   }, [location, navigate]);

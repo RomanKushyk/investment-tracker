@@ -200,14 +200,17 @@ export function StepAlert({ n, children }: { n: number; children: ReactNode }) {
   );
 }
 
-/** The line a sign-out's arrival opens the address step with. The box mounts first and the words a
- *  frame later, since a status is announced only when it changes (ARIA22). Held, the words fade out
- *  of the accessibility tree and the box keeps its line, so the button under it does not move. */
+// A live region just added is not heard at once: react-aria's announcer waits this long, having
+// found that in Safari "less than 100ms were not consistent".
+const REGION_SETTLES_MS = 100;
+
+/** A sign-out's arrival: a status box whose words enter once it has settled (ARIA22). Held, they
+ *  fade out of the accessibility tree and the box keeps its line, so nothing under it moves. */
 export function SignedOutNote({ held, children }: { held: boolean; children: ReactNode }) {
   const [told, setTold] = useState(false);
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setTold(true));
-    return () => cancelAnimationFrame(frame);
+    const wait = setTimeout(() => setTold(true), REGION_SETTLES_MS);
+    return () => clearTimeout(wait);
   }, []);
   return (
     <div role="status" className="mb-4 min-h-[19.5px] text-[13px] leading-[19.5px] text-ink">

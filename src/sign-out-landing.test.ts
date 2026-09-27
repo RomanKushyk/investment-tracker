@@ -4,9 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// `/sign-in` SAYS «ВИ ВИЙШЛИ З СИСТЕМИ.» ONCE, ON THE ARRIVAL A SIGN-OUT CAUSES
-// (`design/extensions/sign-out-landing.dc.html`): the fact itself is `auth/signed-out.test.ts`'s; this
-// holds the half no unit test can reach — who hands it over, and how the page reads, uses up and draws it.
+// `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL (`sign-out-landing.dc.html`): the half
+// `auth/signed-out.test.ts` cannot reach — who hands the fact over, and how the page draws it.
 const here = dirname(fileURLToPath(import.meta.url));
 /** Comments cut, so a sentence about the fact cannot answer for the fact. The canonical reader,
  *  copied whole as the house idiom has it (`ts-reader-census.test.ts`). */
@@ -113,7 +112,7 @@ describe('the line', () => {
   it('is a status box that mounts before its words, so they are announced', () => {
     expect(note(), 'not a status').toMatch(/role="status"/);
     expect(note(), 'the words mount with their box').toMatch(
-      /requestAnimationFrame\(\(\) => setTold\(true\)\)/,
+      /setTimeout\(\(\) => setTold\(true\), REGION_SETTLES_MS\)/,
     );
   });
 
