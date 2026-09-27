@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { accountRows } from '../app/account-rows';
 import { session, useSessionStatus, useSessionUnanswered } from '../auth/app';
+import { SIGNED_OUT } from '../auth/signed-out';
 import { useT } from '../i18n/useT';
 
 // A NEW ID PER FAILURE: sonner folds a toast into one still leaving under the same id, so a retry
@@ -38,8 +39,8 @@ export function useSignOut() {
       return;
     }
     // The session is signed out already; `leaving` keeps the rows up until the route changes, and
-    // `flushSync` commits that change at once rather than in a transition.
-    await navigate('/sign-in', { flushSync: true });
+    // `flushSync` commits that change at once rather than in a transition. `/sign-in` says so.
+    await navigate('/sign-in', { flushSync: true, state: SIGNED_OUT });
   }
 
   return { rows: accountRows(status, leaving, unanswered), leaving, leave };

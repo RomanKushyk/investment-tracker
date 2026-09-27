@@ -855,6 +855,8 @@ export const en = {
     signedIn: 'Signed in',
     signOut: 'Sign out',
     signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
+    // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival.
+    signedOut: 'You’re signed out.',
     pending: {
       title: 'Your application is being reviewed',
       lead: 'Access opens once it’s approved. There’s nothing else to do.',
@@ -1848,6 +1850,7 @@ export const uk: Dict = {
     signedIn: 'Ви увійшли',
     signOut: 'Вийти',
     signOutFailed: 'Не вдалося вийти — ви досі в системі. Спробуйте ще раз.',
+    signedOut: 'Ви вийшли з системи.',
     pending: {
       title: 'Заявка на розгляді',
       lead: 'Доступ відкриється, щойно її схвалять. Більше нічого робити не потрібно.',

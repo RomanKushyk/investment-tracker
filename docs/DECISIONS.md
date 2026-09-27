@@ -356,11 +356,17 @@ answers every address with one constant, so the form can say only that it was re
 API REFUSES on a route every user may call — pending, rejected, no application, forbidden — sees that
 answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out; an
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
-not read that way.
+not read that way. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE, ONCE: the fact rides the navigation
+as router state, and the page replaces its own history entry the moment it arrives, a status line
+above the title that submit empties and holds.
 **Why.** Nothing decided at token-issue time can revoke anything, at any lifetime, so authorization
 belongs to the API, read from that row on every request. A refresh token script can read outlives
 the page that stole it; one in an HttpOnly cookie, exchangeable only with a secret the browser never
 holds, leaves injected script an access token and nothing longer-lived.
+A finished sign-out should land on a page that "clearly indicates" the user is no longer signed in
+(web.dev, *sign-out best practices*), announced as a status without taking focus (WCAG 4.1.3); the
+browser keeps `history.state` across a reload and Back/Forward, so a fact read and left in place
+would be said again on every one of them.
 **Rejected.** As the relying party, a Cognito prefix domain — a later move to the custom one strips
 the passkeys registered against it — or the auth host, which would scope every credential to managed
 login alone. · A post-confirmation trigger creating the row: AWS does not invoke it for an
@@ -385,7 +391,8 @@ pool: a build can disagree with the host serving it, and the host cannot. · A w
 the four answers: every authenticated route reads the same row and answers them, so the first read
 the app makes serves, and a route of its own would cost an invocation on every sign-in. · Asking for
 the session in the live dataset only: demo is the default a sign-in lands on, and it would offer that
-user no way out.
+user no way out. · The signed-out confirmation as a toast: it leaves on a timer, and a toast here
+reports on the page the user stays on.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

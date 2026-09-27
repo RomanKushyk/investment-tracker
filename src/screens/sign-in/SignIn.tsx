@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import { cancelPasskey, session, signInDeps, useSessionStatus } from '../../auth/app';
 import { signInWithAddress, signInWithPassword, type SignInRefusal } from '../../auth/sign-in';
+import { arrivedSignedOut, usedUp } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
@@ -14,6 +15,7 @@ import {
   Foot,
   LINK,
   PasswordInput,
+  SignedOutNote,
   StepAlert,
   Title,
 } from './parts';
@@ -50,6 +52,12 @@ export function SignIn() {
   const addressRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [changed, setChanged] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Read at mount, so the visit keeps what it read after the entry is used up; held once submitted.
+  const [note, setNote] = useState<'said' | 'held' | undefined>(() =>
+    arrivedSignedOut(location.state) ? 'said' : undefined,
+  );
   // Each submit and each step change is a new run; an answer for an older one lands nowhere, so a
   // step the user has left never shows its sentence.
   const run = useRef(0);
@@ -58,6 +66,10 @@ export function SignIn() {
   useEffect(() => {
     void session.restore();
   }, []);
+  // A reload or Back/Forward hands `history.state` back, so a sign-out's arrival replaces it.
+  useEffect(() => {
+    if (arrivedSignedOut(location.state)) void navigate(...usedUp(location));
+  }, [location, navigate]);
   // Leaving ends the run, or an answer still in flight would open the sheet over the next page;
   // a sheet already open outlives the page unless closed.
   useEffect(
@@ -91,6 +103,7 @@ export function SignIn() {
     cancelPasskey();
     setBusy(false);
     setSaid(undefined);
+    setNote(undefined);
     setPassword('');
     setStep(next);
   }
@@ -115,6 +128,7 @@ export function SignIn() {
   function submitAddress(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+    setNote((before) => before && 'held');
     setBusy(true);
     void passkeyFirst(address);
   }
@@ -146,6 +160,7 @@ export function SignIn() {
       >
         {step.name === 'address' && (
           <>
+            {note && <SignedOutNote held={note === 'held'}>{t.auth.signedOut}</SignedOutNote>}
             <Title>{t.auth.signIn.title}</Title>
             <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">
               {t.auth.signIn.lead}
