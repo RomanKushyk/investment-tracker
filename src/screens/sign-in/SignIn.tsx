@@ -54,10 +54,9 @@ export function SignIn() {
   // step the user has left never shows its sentence.
   const run = useRef(0);
 
-  // Asked here and not on every load: nothing else needs the session yet, and the demo sends no
-  // request anywhere.
+  // Asked here and by the portfolio shell; `restore` reaches the relay until it has answered.
   useEffect(() => {
-    if (session.status() === 'unknown') void session.restore();
+    void session.restore();
   }, []);
   // Leaving ends the run, or an answer still in flight would open the sheet over the next page;
   // a sheet already open outlives the page unless closed.

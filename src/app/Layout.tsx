@@ -2,6 +2,7 @@ import { Dialog as RadixDialog } from 'radix-ui';
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 
+import { session } from '../auth/app';
 import { useDbSync } from '../hooks/useDbSync';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
@@ -22,6 +23,12 @@ export function Layout() {
   // another tab's dataset change reaches this one on any route. Theme and language are `Root`'s.
   useReminderToast();
   useDbSync();
+  // The footer band offers a sign-out only once the relay says someone is signed in. Asked in
+  // either dataset, the session being the browser's, and again on each route until it answers:
+  // once it has, `restore` asks nothing.
+  useEffect(() => {
+    void session.restore();
+  }, [pathname]);
 
   // `desktop` is read from the media query rather than expressed only in CSS, because
   // a drawer needs a focus trap and a focus trap has to know which shell is mounted.

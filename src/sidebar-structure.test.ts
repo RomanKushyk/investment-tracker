@@ -267,3 +267,49 @@ describe('the head carries the capital as a strip, and the blob is gone', () => 
     expect(SIDEBAR, '`SidebarDecor` is still in the file').not.toMatch(/SidebarDecor/);
   });
 });
+
+// THE ACCOUNT IS THE BAND'S LAST CONTROL (`design/extensions/sign-out.dc.html`, T1): the owner
+// ruled the sign-out last, a pill in Settings' own recipe, with the address above it.
+describe("the account is the footer band's last control", () => {
+  it('draws the account rows after Settings and before the version', () => {
+    const settings = SIDEBAR.indexOf('to="/settings"');
+    const rows = SIDEBAR.indexOf('<AccountRows />');
+    expect(rows, 'the band no longer draws the account').toBeGreaterThan(-1);
+    expect(rows, 'the account moved above Settings').toBeGreaterThan(settings);
+    expect(
+      SIDEBAR.indexOf('__APP_VERSION__'),
+      'the account moved under the version',
+    ).toBeGreaterThan(rows);
+  });
+
+  // A PILL LIKE ITS NEIGHBOURS, and busy WITHOUT `disabled`: disabling drops the focus, and a
+  // sign-out that fails leaves the pill as the retry.
+  it("signs out from a pill in Settings' recipe that keeps its focus while busy", () => {
+    const at = SIDEBAR.indexOf('function AccountRows');
+    expect(at, '`AccountRows` is gone').toBeGreaterThan(-1);
+    // Bounded by the markup's own close: a stripped JSX comment leaves a bare `}` at a line's
+    // start, so the function's closing brace is not a bound that can be found.
+    const end = SIDEBAR.indexOf('</AccountFold>', at);
+    expect(end, '`AccountRows` no longer closes its fold').toBeGreaterThan(at);
+    const rows = SIDEBAR.slice(at, end);
+    expect(rows, 'the sign-out is not a button').toMatch(/<button\b/);
+    expect(rows, "the sign-out left Settings' pill recipe").toMatch(
+      /pillClass\('py-2', 'rounded-\[9px\]'\)/,
+    );
+    expect(rows, 'busy no longer announces itself').toMatch(/aria-disabled=/);
+    expect(rows, 'busy disables the pill and drops its focus').not.toMatch(/\sdisabled=/);
+    expect(rows, 'the sign-out lost its glyph').toMatch(/Icon=\{LogOut\}/);
+  });
+
+  // An address set on one line is an unbreakable run, and an implicit `auto` column grows to
+  // it, so a long address would widen the whole band.
+  it("spells out the panel's column, so a long address cannot widen it", () => {
+    expect(SIDEBAR, "the panel's grid lost its explicit column").toMatch(
+      /grid h-full grid-cols-\[minmax\(0,1fr\)\]/,
+    );
+    // The account's fold is a grid too, and grew the rows past the band the same way.
+    expect(SIDEBAR, "the account's fold lost its explicit column").toMatch(
+      /grid grid-cols-\[minmax\(0,1fr\)\] transition-\[grid-template-rows\]/,
+    );
+  });
+});

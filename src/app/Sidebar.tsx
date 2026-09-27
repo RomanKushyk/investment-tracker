@@ -7,7 +7,9 @@ import {
   ChevronDown,
   ChevronLeft,
   CircleDollarSign,
+  CircleUser,
   LayoutGrid,
+  LogOut,
   type LucideIcon,
   Monitor,
   Moon,
@@ -18,15 +20,19 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
-import { Children, isValidElement, type ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode, useEffect, useRef } from 'react';
 import { matchPath, NavLink, useLocation } from 'react-router';
 
+import { useSessionAddress } from '../auth/app';
+import { useSignOut } from '../hooks/useSignOut';
 import { useT } from '../i18n/useT';
+import type { accountRows } from './account-rows';
 import { SIDEBAR_COLLAPSE_ID } from './nav-ids';
 import { THEME_ORDER, useDataset, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { Scroller } from '../components/ui/Scroller';
 import { TAP_44 } from '../components/ui/tap-target';
+import { keepOpenForToasts } from '../components/ui/toaster-press';
 
 // Route -> dictionary KEY: the key is language-independent, so the list stays a
 // constant and the compiler checks it against the dictionary.
@@ -241,9 +247,12 @@ function SidebarPanel({
   const demo = useDataset() === 'demo';
   const panel = variant === 'panel';
   const index = THEME_ORDER.indexOf(theme);
+  const band = useBandHeight(!panel);
 
+  // THE COLUMN IS SPELLED OUT: an implicit `auto` column grows to the widest unbreakable line in
+  // it, and an address is one — a long one widened the whole band (`sign-out.dc.html`, T1).
   return (
-    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
+    <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
       {/* ── band 1 — the lockup and the capital strip, fixed ────────────── */}
       <div>
         <div className="mb-[14px] flex items-center gap-2">
@@ -309,7 +318,10 @@ function SidebarPanel({
       {/* A BAND, NOT A CLUSTER, AND THE DIFFERENCE IS THE EDGE: its fill barely steps
           off the wall, so the rule along its top is what identifies it. The fill
           bleeds to the shell's edges while the CONTENT keeps the left inset. */}
-      <div className="mt-[14px] -mr-4 mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg py-2 pr-5 pl-[calc(max(16px,env(safe-area-inset-left))+4px)]">
+      <div
+        ref={band}
+        className="mt-[14px] -mr-4 mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg py-2 pr-5 pl-[calc(max(16px,env(safe-area-inset-left))+4px)]"
+      >
         {/* NO `data-filled-track`: it puts the focus ring on `page` for a track painted
             in the plane's FOREGROUND, and these two are on the active route's tint. The
             thumb widths resolve against the PADDING box — re-derive them if it moves. */}
@@ -389,6 +401,8 @@ function SidebarPanel({
           {({ isActive }) => <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />}
         </NavLink>
 
+        <AccountRows />
+
         {/* `sb-label` is the caption rank in here, and its shortfall is recorded rather
             than repaired: a second grey is a re-mint the palette forbids. */}
         <div className="mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sb-label uppercase">
@@ -397,6 +411,97 @@ function SidebarPanel({
       </div>
     </div>
   );
+}
+
+/**
+ * The account's place in a footer band, in both shells. HELD, invisible and inert, while the
+ * session is unknown, and folded shut signed out with the nav group's fold; `accountRows` says
+ * why. Keyed by that state, so what it holds fades in when it shows.
+ */
+export function AccountFold({
+  rows,
+  children,
+}: {
+  rows: ReturnType<typeof accountRows>;
+  children: ReactNode;
+}) {
+  const shown = rows === 'shown';
+  return (
+    // The column spelled out for the panel's reason: an implicit `auto` one grows to the address.
+    <div
+      className={`grid grid-cols-[minmax(0,1fr)] transition-[grid-template-rows] ease-soft ${
+        rows === 'closed' ? 'grid-rows-[0fr] duration-220' : 'grid-rows-[1fr] duration-300'
+      }`}
+    >
+      {/* Clipped only while it holds or folds: shown, a clip would cut a pill's focus ring and
+          its `TAP_44` overlay. */}
+      <div
+        key={rows}
+        inert={!shown || undefined}
+        className={`min-h-0 ${shown ? 'animate-in duration-200 ease-soft fade-in' : 'invisible overflow-hidden'}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * THE ACCOUNT IS THE BAND'S LAST CONTROL, above the version: the address, then «Вийти» in
+ * Settings' recipe. The address stands at a pill's geometry with no box of its own — information
+ * until the profile page makes it a link.
+ */
+function AccountRows() {
+  const t = useT();
+  const address = useSessionAddress();
+  const { rows, leaving, leave } = useSignOut();
+
+  return (
+    <AccountFold rows={rows}>
+      <div
+        title={address}
+        className="mt-[3px] flex h-[36px] items-center px-3.5 text-[11px] text-sb-item max-md:mt-2"
+      >
+        {address !== undefined && <span className="sr-only">{t.auth.signedInAs(address)}</span>}
+        <div aria-hidden={address !== undefined || undefined} className="min-w-0 flex-1">
+          <NavItem Icon={CircleUser} label={address ?? t.auth.signedIn} isActive={false} />
+        </div>
+      </div>
+      {/* `aria-disabled` and never `disabled` while it runs: disabling drops the focus, and a
+          sign-out that fails leaves this button as the retry. */}
+      <button
+        type="button"
+        aria-disabled={leaving || undefined}
+        onClick={() => void leave()}
+        className={`mt-[3px] cursor-pointer aria-disabled:opacity-70 max-md:mt-2 ${pillClass('py-2', 'rounded-[9px]')({ isActive: false })}`}
+      >
+        <NavItem Icon={LogOut} label={t.auth.signOut} isActive={false} />
+      </button>
+    </AccountFold>
+  );
+}
+
+/**
+ * Publishes the drawer's footer band's RENDERED height as `--drawer-band-h` while the drawer is
+ * open, so a toast stands on the band instead of covering «Вийти» — `AppToaster` adds it to the
+ * toaster's offset, as `DailyQuotes` does for its action bar and for the same reason.
+ */
+function useBandHeight(publish: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const root = document.documentElement;
+    if (!publish || !el) return;
+    const write = () => root.style.setProperty('--drawer-band-h', `${el.offsetHeight}px`);
+    write();
+    const observer = new ResizeObserver(write);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--drawer-band-h');
+    };
+  }, [publish]);
+  return ref;
 }
 
 /**
@@ -517,6 +622,7 @@ export function SidebarDrawer() {
       {/* One step under the app's dialogs: a drawer is chrome, a dialog a question. */}
       <RadixDialog.Content
         aria-describedby={undefined}
+        onInteractOutside={keepOpenForToasts}
         className="fixed top-0 left-0 z-40 h-dvh w-[280px] overflow-hidden rounded-r-[30px] border-r border-drawer-edge bg-sb-bg pt-[max(16px,env(safe-area-inset-top))] pr-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
       >
         {/* The drawer draws the wordmark, so Radix's title is screen-reader only. */}

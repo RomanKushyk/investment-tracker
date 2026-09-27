@@ -76,7 +76,7 @@ export interface UseNbuRate {
   lastGood: NbuRateResult | undefined;
   isFetching: boolean;
   isError: boolean;
-  /** True in the demo dataset: no request may leave the app. */
+  /** True in the demo dataset, which fetches no market data. */
   disabled: boolean;
   /** The ONLY way a request happens. Resolves undefined when disabled or the
    *  fetch failed — the failure surfaces through isError. */

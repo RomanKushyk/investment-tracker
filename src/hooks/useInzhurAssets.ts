@@ -119,7 +119,7 @@ export interface UseInzhurAssets {
   isFetching: boolean;
   isError: boolean;
   error: Error | null;
-  /** True in the demo dataset: no request can leave the app. */
+  /** True in the demo dataset, which fetches no market data. */
   disabled: boolean;
   /** The ONLY way a request happens: the query is `enabled: false`. Undefined when
    *  disabled or failed — the failure itself surfaces through isError/error. */

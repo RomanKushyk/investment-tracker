@@ -11,6 +11,7 @@ import { useT } from '../../i18n/useT';
 import { YEARS_PER_PAGE, yearBounds, yearPage } from './date-picker-years';
 import { Scroller } from './Scroller';
 import { TAP_44 } from './tap-target';
+import { keepOpenForToasts } from './toaster-press';
 import { useSettings } from '../../state/settings';
 
 // The WEEKDAY names come from date-fns, not the app dictionary: they are a locale's
@@ -322,6 +323,7 @@ export function DatePicker({
               the gutter is then reserved only while a rail is up. *Scrolling* */}
           <RadixDialog.Content
             aria-describedby={undefined}
+            onInteractOutside={keepOpenForToasts}
             className="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 animate-in grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-field-border bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
           >
             {/* The sheet draws a month caption, so the title is screen-reader only. */}

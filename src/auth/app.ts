@@ -15,7 +15,7 @@ const relay = createRelay({ base: environment?.relay, fetch: (input, init) => fe
 // is refused before it is sent: no cookie is written, and there is nothing for a lock to order.
 const unlocked = { request: (_: string, call: () => unknown) => call() } as unknown as LockManager;
 
-/** This tab's session, tokens in memory only; `/sign-in` restores it. */
+/** This tab's session, tokens in memory only; the portfolio shell and `/sign-in` restore it. */
 export const session = createSession({ relay, locks: navigator.locks ?? unlocked });
 
 export const signInDeps: SignInDeps = {
@@ -30,6 +30,14 @@ export const cancelPasskey = () => WebAuthnAbortService.cancelCeremony();
 
 export function useSessionStatus() {
   return useSyncExternalStore(session.subscribe, session.status);
+}
+
+export function useSessionAddress() {
+  return useSyncExternalStore(session.subscribe, session.address);
+}
+
+export function useSessionUnanswered() {
+  return useSyncExternalStore(session.subscribe, session.unanswered);
 }
 
 /** The application; the relay's host is the API's, so `/v1/applications` sits beside `/auth/*`. */

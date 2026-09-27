@@ -99,9 +99,20 @@ describe('a relay call', () => {
 
   it('refuses without a request where the host has no relay', async () => {
     const fetch = vi.fn();
-    expect(await createRelay({ base: undefined, fetch })('refresh')).toEqual({
+    expect(await createRelay({ base: undefined, fetch })('start', {})).toEqual({
       kind: 'refused',
       reason: 'failed',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  // No relay, no refresh cookie: the question a refresh asks has its answer, and the shell's
+  // account slot can close instead of waiting on an answer that cannot come.
+  it('answers a refresh there as signed out, not as a failure', async () => {
+    const fetch = vi.fn();
+    expect(await createRelay({ base: undefined, fetch })('refresh')).toEqual({
+      kind: 'refused',
+      reason: 'notAuthorized',
     });
     expect(fetch).not.toHaveBeenCalled();
   });

@@ -57,6 +57,10 @@ export const en = {
     demoBadge: 'DEMO',
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
   },
+  toast: {
+    /** A toast that stays until closed carries this button; sonner's own name is English only. */
+    close: 'Close notification',
+  },
   csv: {
     title: 'Spreadsheet export (CSV)',
     helper:
@@ -705,7 +709,7 @@ export const en = {
     fetching: 'Fetching…',
     title: 'Fetch the official National Bank of Ukraine rate',
     useIt: 'Use it',
-    demoDisabled: 'Demo data — no requests leave the app.',
+    demoDisabled: 'Demo data — no market data is fetched.',
     failed: 'Could not reach the NBU rate directory — please try again.',
     applied: (rate: string) => `Rate set to ${rate}`,
     shown: (rate: string, date: string) => `NBU ${rate} for ${date}`,
@@ -847,7 +851,10 @@ export const en = {
       back: 'Back to sign in',
     },
     signedInAs: (email: string) => `Signed in as ${email}`,
+    /** The account row when the ID token names no address. */
+    signedIn: 'Signed in',
     signOut: 'Sign out',
+    signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
     pending: {
       title: 'Your application is being reviewed',
       lead: 'Access opens once it’s approved. There’s nothing else to do.',
@@ -1143,6 +1150,9 @@ export const uk: Dict = {
     totalCapital: 'Загальний капітал', // ✎
     demoBadge: 'DEMO',
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
+  },
+  toast: {
+    close: 'Закрити сповіщення',
   },
   csv: {
     title: 'Експорт для таблиць (CSV)',
@@ -1697,7 +1707,7 @@ export const uk: Dict = {
     fetching: 'Отримання…',
     title: 'Отримати офіційний курс Національного банку України',
     useIt: 'Застосувати',
-    demoDisabled: 'Демонстраційні дані — жоден запит не залишає застосунок.',
+    demoDisabled: 'Демонстраційні дані — ринкові дані не завантажуються.',
     failed: 'Не вдалося звернутися до довідника курсів НБУ — спробуйте ще раз.',
     applied: (rate: string) => `Курс встановлено на ${rate}`,
     shown: (rate: string, date: string) => `НБУ ${rate} на ${date}`,
@@ -1835,7 +1845,9 @@ export const uk: Dict = {
       back: 'Повернутися до входу',
     },
     signedInAs: (email: string) => `Ви увійшли як ${email}`,
+    signedIn: 'Ви увійшли',
     signOut: 'Вийти',
+    signOutFailed: 'Не вдалося вийти — ви досі в системі. Спробуйте ще раз.',
     pending: {
       title: 'Заявка на розгляді',
       lead: 'Доступ відкриється, щойно її схвалять. Більше нічого робити не потрібно.',

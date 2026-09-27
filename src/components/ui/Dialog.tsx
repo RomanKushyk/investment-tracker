@@ -2,6 +2,7 @@ import { AlertDialog as RadixAlertDialog, Dialog as RadixDialog } from 'radix-ui
 import type { ReactNode } from 'react';
 
 import { Scroller } from './Scroller';
+import { keepOpenForToasts } from './toaster-press';
 
 // The app's dialog idiom; Radix provides the focus trap, Escape and the scroll lock,
 // and every dialog renders a title for its accessible name. A HOST MUST KEEP RENDERING
@@ -96,6 +97,7 @@ export function Dialog({
         <RadixDialog.Overlay className={OVERLAY_CLASS} />
         <RadixDialog.Content
           aria-describedby={undefined}
+          onInteractOutside={keepOpenForToasts}
           className={`${PANEL_CLASS} ${widthClass}`}
         >
           {/* The panel only supplies the column; callers lay themselves out. */}

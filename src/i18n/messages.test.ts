@@ -217,3 +217,14 @@ describe('the deposit type', () => {
     expect(stale.map(([key]) => key)).toEqual([]);
   });
 });
+
+describe("the demo dataset's promise", () => {
+  // Every portfolio load asks the relay for the session, in either dataset (#277), so the line
+  // beside the disabled rate button may claim only what the demo withholds.
+  it('claims that no market data is fetched, and not that no request leaves', () => {
+    expect(en.nbu.demoDisabled).not.toMatch(/request/i);
+    expect(uk.nbu.demoDisabled).not.toMatch(/[Зз]апит/);
+    expect(en.nbu.demoDisabled).toMatch(/market data/);
+    expect(uk.nbu.demoDisabled).toMatch(/ринкові дані/);
+  });
+});

@@ -47,7 +47,7 @@ const NO_TRANSACTIONS: Transaction[] = [];
  * sonner is mounted above the router and takes one static `mobileOffset`
  * string, so it cannot be told about a bar that comes and goes on one route; a
  * custom property is the only channel between them, and the arithmetic happens
- * in `main.tsx`'s `max()`.
+ * in `AppToaster.tsx`'s `max()`.
  *
  * MEASURED, NOT MIRRORED: the spacer below already writes that sum out, and a
  * third copy is a third thing to forget. `ResizeObserver` rather than a one-shot

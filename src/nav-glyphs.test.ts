@@ -75,10 +75,11 @@ const TABLE = [
   ['/settings', 'Settings'],
 ] as const;
 
-/** The glyphs that name no route: they are CONTROLS — a chevron folds a group or collapses
- *  the shell, and the theme track's three are segments — which is why the sheet keeps group
- *  headers glyphless. Listed so the import assertion can tell a control from an icon. */
-const CONTROLS = ['ChevronDown', 'ChevronLeft', 'Monitor', 'Moon', 'Sun'];
+/** The glyphs that name no route. A chevron folds a group or collapses the shell and the theme
+ *  track's three are segments — controls, which is why `parchment-5h.dc.html` keeps group headers
+ *  glyphless; the account's two label its address row and its sign-out (`sign-out.dc.html`).
+ *  Listed so the import assertion can tell them from a route's icon. */
+const CONTROLS = ['ChevronDown', 'ChevronLeft', 'CircleUser', 'LogOut', 'Monitor', 'Moon', 'Sun'];
 
 /** Matched TO ITS OWN `/>` rather than the first `>`: an arbitrary variant may hold one
  *  (`[&>path]:…`), and a tag cut short there fails the anatomy checks on correct markup

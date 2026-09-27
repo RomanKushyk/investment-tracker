@@ -68,7 +68,10 @@ export function createRelay({
   fetch: typeof globalThis.fetch;
 }): RelayCall {
   return async (route, body) => {
-    if (base === undefined) return { kind: 'refused', reason: 'failed' };
+    // No relay here, so no refresh cookie either: a refresh is answered, everything else fails.
+    if (base === undefined) {
+      return { kind: 'refused', reason: route === 'refresh' ? 'notAuthorized' : 'failed' };
+    }
     const init: RequestInit =
       body === undefined
         ? { method: 'POST', credentials: 'include', headers: { 'x-csrf': '1' } }

@@ -419,7 +419,7 @@ describe('the floating surfaces point at the token', () => {
   // detected. Both reached `panel-border` by their own route, which is what a class with no
   // shared recipe does.
   it('carries the toast and the chart tooltip, which paint from style objects', () => {
-    const main = source('main.tsx');
+    const main = source('app/AppToaster.tsx');
     expect(main, 'the toast no longer reads the popover shadow').toContain(
       "boxShadow: 'var(--shadow-popover)'",
     );

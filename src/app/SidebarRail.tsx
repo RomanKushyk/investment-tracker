@@ -1,7 +1,8 @@
-import { ArrowDownUp, CalendarDays, type LucideIcon, Settings } from 'lucide-react';
+import { ArrowDownUp, CalendarDays, LogOut, type LucideIcon, Settings } from 'lucide-react';
 import { NavLink } from 'react-router';
 
-import { ANALYTICS, Mark } from './Sidebar';
+import { useSignOut } from '../hooks/useSignOut';
+import { AccountFold, ANALYTICS, Mark } from './Sidebar';
 import { NAV_TRIGGER_ID } from './nav-ids';
 import { Scroller } from '../components/ui/Scroller';
 import { Tooltip, TooltipProvider } from '../components/ui/Tooltip';
@@ -58,24 +59,54 @@ function RailItem({ to, label, Icon }: { to: string; label: string; Icon: Lucide
   return (
     <Tooltip label={label}>
       <NavLink to={to} aria-label={label} className="block rounded-[9px]">
-        {({ isActive }) => (
-          <span
-            className={`mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition ${
-              isActive
-                ? 'bg-sb-item-active-bg shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
-                : 'hover:bg-sb-item-hover-bg'
-            }`}
-          >
-            <Icon
-              size={18}
-              strokeWidth={2}
-              aria-hidden
-              className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
-            />
-          </span>
-        )}
+        {({ isActive }) => <RailBox Icon={Icon} isActive={isActive} />}
       </NavLink>
     </Tooltip>
+  );
+}
+
+/** The drawn box and its glyph, shared by the links and the sign-out so the two cannot drift. */
+function RailBox({ Icon, isActive = false }: { Icon: LucideIcon; isActive?: boolean }) {
+  return (
+    <span
+      className={`mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition ${
+        isActive
+          ? 'bg-sb-item-active-bg shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
+          : 'hover:bg-sb-item-hover-bg'
+      }`}
+    >
+      <Icon
+        size={18}
+        strokeWidth={2}
+        aria-hidden
+        className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
+      />
+    </span>
+  );
+}
+
+/**
+ * The foot band's LAST item, the panel's «Вийти» in the rail's recipe: an action and never a
+ * route, so it takes no tint and no indicator. Held and folded as the panel's rows are. The
+ * button carries the radius for the same reason the link does: the focus ring follows it.
+ */
+function RailSignOut() {
+  const t = useT();
+  const { rows, leaving, leave } = useSignOut();
+  return (
+    <AccountFold rows={rows}>
+      <Tooltip label={t.auth.signOut}>
+        <button
+          type="button"
+          aria-label={t.auth.signOut}
+          aria-disabled={leaving || undefined}
+          onClick={() => void leave()}
+          className="mt-1.5 block w-full cursor-pointer rounded-[9px] transition aria-disabled:opacity-70"
+        >
+          <RailBox Icon={LogOut} />
+        </button>
+      </Tooltip>
+    </AccountFold>
   );
 }
 
@@ -146,15 +177,20 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             the inset back inside, so the items stay in the column the nav band
             above them uses. */}
         <div className="mt-[14px] -mr-2 mb-[calc(-16px-env(safe-area-inset-bottom))] ml-[calc(-8px-env(safe-area-inset-left))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg pt-2 pr-2 pb-[calc(8px+env(safe-area-inset-bottom))] pl-[calc(8px+env(safe-area-inset-left))]">
-          <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
-          {/* `sr-only` and not `aria-label`: a bare div is `role=generic`, which
+          {/* THE PANEL'S ORDER: the currency above Settings, as its track sits above
+              Settings in the panel, and the sign-out last (`sign-out.dc.html`, T2).
+              `sr-only` and not `aria-label`: a bare div is `role=generic`, which
               ARIA-in-HTML forbids naming, so the label was dropped and the box
               announced as a bare glyph. The same idiom the expanded track uses,
               and for the same reason. */}
-          <div className="mx-auto mt-1.5 grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-[13px] font-semibold text-ink">
+          <div className="mx-auto grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-[13px] font-semibold text-ink">
             {currency === 'UAH' ? '₴' : '$'}
             <span className="sr-only">{t.nav.currencyShown(currency)}</span>
           </div>
+          <div className="mt-1.5">
+            <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
+          </div>
+          <RailSignOut />
         </div>
       </div>
     </TooltipProvider>

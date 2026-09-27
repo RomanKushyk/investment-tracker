@@ -160,13 +160,23 @@ is HIT AREA, never geometry: a transparent centred overlay grows the pressable r
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
 portfolio behind it — signed out, a refused caller, the first sign-in — mounts NEITHER: a top bar
 with the mark and the language control over one top-anchored card, `md` still its only breakpoint.
+SIGNED IN, THE ACCOUNT IS EVERY FOOTER BAND'S LAST CONTROL: in the panel and the drawer the address,
+then a sign-out pill in Settings' recipe, above the version; in the rail a sign-out item, the rail's
+foot reading in the panel's order — currency, Settings, sign-out. Their slot is HELD until the relay
+answers, after a load it never answered too; a host with no relay is answered at once.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,
 the dataset, the reminders — that such a caller does not have, and the card is top-anchored
-because a centred one moves its button under the pointer whenever its height changes.
+because a centred one moves its button under the pointer whenever its height changes. A sign-out
+must be visible and reachable from every page that has a session (OWASP's *Logout Button*, ASVS
+7.4.4), and the owner ruled it last; a footer band is anchored to the bottom and grows upward, so
+rows appearing on the session's answer would move every target above them — held, they fade into
+their slot, and only a signed-out load sees the band close once.
 **Rejected.** A theme control in the rail: one glyph cannot show the two states it is not in, where
-currency's box shows the state you are in.
+currency's box shows the state you are in. · An account menu: a second press for one item, where
+the menus it copies switch accounts. · An avatar: only asset avatars and colour dots are round. ·
+A sign-out offered to every visitor regardless of session: a way out for someone never in.
 
 ## Brand
 **Decision.** The product is Quirenote and the domain is `quirenote.com`. The logo is the 5h mark,
@@ -311,7 +321,12 @@ WEB LOCK ACROSS TABS covers every relay call that writes the cookies — refresh
 respond, sign-out — held until the answer lands: two refreshes with one token fork the family and
 the jar keeps whichever answer lands last, and a refresh answering after another tab's sign-in
 writes an ended family's token over the new cookie. The relay and the pool are looked up by the
-page's host, which is what the relay admits a caller by.
+page's host, which is what the relay admits a caller by. THE PORTFOLIO SHELL ASKS FOR THE SESSION ON
+EVERY LOAD, in either dataset — the session is the browser's, not the demo's, and the demo withholds
+market data, not this — and once the relay has answered, a page asks no more; so a sign-out
+is offered only once the relay says someone is signed in. The account's address is the ID token's
+`email`, READ AND NEVER VERIFIED, a label only: the ID token is the client's to read, and the API
+verifies every token it is sent.
 The relay reads the secret from Cognito with `DescribeUserPoolClient` and caches it per execution
 environment, so there is no second copy to drift and no store to pay for; its routes refuse a
 request without the custom header or from another site before anything else. THE REFRESH TOKEN IS
@@ -368,7 +383,9 @@ client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no 
 types, and this pool gives none without a username. · Build-time settings for the relay and the
 pool: a build can disagree with the host serving it, and the host cannot. · A who-am-I route to learn
 the four answers: every authenticated route reads the same row and answers them, so the first read
-the app makes serves, and a route of its own would cost an invocation on every sign-in.
+the app makes serves, and a route of its own would cost an invocation on every sign-in. · Asking for
+the session in the live dataset only: demo is the default a sign-in lands on, and it would offer that
+user no way out.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

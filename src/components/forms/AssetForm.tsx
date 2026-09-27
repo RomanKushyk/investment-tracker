@@ -78,7 +78,7 @@ function inputClass(invalid: boolean): string {
 // opening the form fires no request; linking is NEVER blocked by the network, so
 // every failure path lands in a working manual input, and offline reads `muted`
 // rather than `neg` because it is not a user mistake; demo forces manual mode,
-// no request being allowed to leave the app there.
+// since the demo fetches no market data.
 function InzhurGroup({ form }: { form: AssetFormHandle }) {
   const t = useT();
   const MSG = t.asset.message;

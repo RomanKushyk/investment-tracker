@@ -1,6 +1,6 @@
 # Quirenote — investment portfolio tracker
 
-Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, one pnpm workspace: the SPA at the root, `infra/` the AWS backend (a daily price archive on Aurora DSQL), and `packages/core` the domain layer both import. Persistence today is Dexie on IndexedDB; the app calls the backend only to apply for access and, through its auth relay, to sign in and out.
+Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, one pnpm workspace: the SPA at the root, `infra/` the AWS backend (a daily price archive on Aurora DSQL), and `packages/core` the domain layer both import. Persistence today is Dexie on IndexedDB; the app calls the backend only to apply for access and, through its auth relay, for the session: asked once on every portfolio load, and to sign in and out.
 
 ## Commands
 - `pnpm dev` — port and `strictPort` live in `vite.config.ts`, nowhere else. It refuses to boot on a conflict instead of drifting: check what holds the port, attach if it is this app, else `pnpm dev --port N`. The owner usually has one running.
