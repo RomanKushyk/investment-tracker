@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { SignedOutShell } from '../../app/SignedOutShell';
 import type { Answer } from '../../auth/access';
 import { session, showAnswer, type HeldAnswer } from '../../auth/app';
+import { SIGNED_OUT } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import { useT } from '../../i18n/useT';
 import { FocusedTitle } from './parts';
@@ -29,7 +30,8 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
   // `forbidden` names nobody: its causes include an address the rule refused.
   const email = held.answer === 'forbidden' ? undefined : held.email;
 
-  async function leave(to: string) {
+  // Only the sign-out that lands on `/sign-in` hands it the fact; `/apply` is about applying.
+  async function leave(to: string, state?: typeof SIGNED_OUT) {
     if (leaving) return;
     setLeaving(to);
     // Not revoked keeps both cookies for a retry, so the answer stays and the button comes back.
@@ -39,7 +41,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
     }
     // The router commits in a transition and the store at once: cleared first, the route that asked
     // would render in the answer's place for a frame and run its effects signed out.
-    await navigate(to, { flushSync: true });
+    await navigate(to, { flushSync: true, state });
     showAnswer(undefined);
   }
 
@@ -75,7 +77,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
             className="w-full"
             disabled={leaving === '/sign-in'}
             disabledTone="busy"
-            onClick={() => void leave('/sign-in')}
+            onClick={() => void leave('/sign-in', SIGNED_OUT)}
           >
             {t.auth.signOut}
           </Button>

@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from 'lucide-react';
+import { CircleCheck, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router';
 
@@ -196,6 +196,35 @@ export function StepAlert({ n, children }: { n: number; children: ReactNode }) {
       className="mt-3 animate-in text-[11px] leading-[16.5px] text-neg duration-200 fade-in"
     >
       {children}
+    </div>
+  );
+}
+
+/** The line a sign-out's arrival opens the address step with. The box mounts first and the words a
+ *  frame later, since a status is announced only when it changes (ARIA22). Held, the words fade out
+ *  of the accessibility tree and the box keeps its line, so the button under it does not move. */
+export function SignedOutNote({ held, children }: { held: boolean; children: ReactNode }) {
+  const [told, setTold] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setTold(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return (
+    <div role="status" className="mb-4 min-h-[19.5px] text-[13px] leading-[19.5px] text-ink">
+      {told && (
+        <p
+          className={`flex animate-in items-start gap-2 transition-[opacity,visibility] duration-200 ease-soft fade-in ${
+            held ? 'invisible opacity-0' : ''
+          }`}
+        >
+          <CircleCheck
+            aria-hidden
+            className="mt-[1.75px] size-4 flex-none text-info"
+            strokeWidth={2}
+          />
+          {children}
+        </p>
+      )}
     </div>
   );
 }
