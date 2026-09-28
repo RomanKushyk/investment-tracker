@@ -23,6 +23,7 @@ export type SignInRefusal =
   | 'wrong'
   | 'notFinished'
   | 'rule'
+  | 'reused'
   | 'tooMany'
   | 'offline'
   | 'failed';
@@ -42,9 +43,17 @@ const STEP: Record<Refusal, SignInRefusal> = {
   notAuthorized: 'wrong',
   invalid: 'failed',
   invalidPassword: 'failed',
+  reusedPassword: 'failed',
   throttled: 'tooMany',
   offline: 'offline',
   failed: 'failed',
+};
+/** The first sign-in's own two. A history of 1 is the current password alone, so a reused one can
+ *  only be the temporary password. */
+const NEW_PASSWORD: Record<Refusal, SignInRefusal> = {
+  ...STEP,
+  invalidPassword: 'rule',
+  reusedPassword: 'reused',
 };
 
 /** The address first, as the pool offers no passkey without it. Safari before 17.4 opens the sheet
@@ -205,8 +214,6 @@ export async function setNewPassword(
   });
   // Approval minted this account and it has never held an access token, so it has no passkey.
   if (answer.kind === 'tokens') return signedIn(true);
-  if (answer.kind === 'refused') {
-    return refused(answer.reason === 'invalidPassword' ? 'rule' : STEP[answer.reason]);
-  }
+  if (answer.kind === 'refused') return refused(NEW_PASSWORD[answer.reason]);
   return refused('failed');
 }

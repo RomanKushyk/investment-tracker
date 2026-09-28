@@ -312,7 +312,14 @@ lives three minutes and, once expired, is refused like a wrong password. THE FIR
 ACCOUNT'S OWN PASSWORD: the invitation's temporary one answers `NEW_PASSWORD_REQUIRED`, each submit
 proves the temporary password afresh for the same reason, and the pool's rule is on screen before
 any refusal. The new password travels in the body, as that challenge takes it — Cognito has no SRP
-form for setting one. THEN A PASSKEY IS OFFERED, and again after every password sign-in while
+form for setting one. THE TEMPORARY PASSWORD NEVER BECOMES THE ACCOUNT'S OWN: it sits in an
+invitation mail, and OWASP ASVS 5.0 6.4.1 says initial secrets "must not be permitted to become the
+long term password". So the pool keeps a password history of 1, which refuses it at the first
+sign-in. One is the current password alone: Microsoft Entra's rule on a change ("The last password
+can't be used again") and the least that meets 6.4.1, and nothing cited asks for more. The relay
+answers that refusal apart from a weak password, and the app says it in a sentence of its own that
+names the temporary password, since under a history of 1 it can be no other. THEN A PASSKEY IS
+OFFERED, and again after every password sign-in while
 `ListWebAuthnCredentials` lists none; an answer Cognito cannot give offers nothing, and no «not now»
 is remembered. Registration and that list are the app's own calls to Cognito's endpoint with the
 access token: token-authorized operations, which take no client and no secret. COGNITO'S LOCKOUT ANSWERS

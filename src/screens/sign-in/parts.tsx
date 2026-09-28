@@ -68,18 +68,18 @@ export function Field({
   );
 }
 
-/** A field whose rule is on screen before any refusal. A refusal turns it `neg` with a glyph (WCAG
- *  1.4.1) and re-inserts it as an alert: an unchanged one is generally not announced (MDN). */
+/** A field whose rule is on screen before any refusal. A refusal says its sentence in `neg` with a
+ *  glyph (WCAG 1.4.1), re-inserted as an alert: an unchanged one is generally not announced (MDN). */
 export function RuleField({
   label,
   rule,
-  refused,
+  refusal,
   children,
 }: {
   label: string;
   rule: string;
-  /** The refusal's count, a new one per refusal; undefined while none stands. */
-  refused: number | undefined;
+  /** The refusal's count, a new one per refusal, and its sentence; undefined while none stands. */
+  refusal: { n: number; sentence: string } | undefined;
   children: (id: string, describedBy: string) => ReactNode;
 }) {
   const id = useId();
@@ -88,21 +88,28 @@ export function RuleField({
     <div className="flex flex-col gap-1 text-[11px] leading-[16.5px] text-muted">
       <label htmlFor={id}>{label}</label>
       {children(id, ruleId)}
-      {refused === undefined ? (
+      {refusal === undefined ? (
         <span id={ruleId} className="min-h-[16.5px]">
           {rule}
         </span>
       ) : (
-        <span
-          key={refused}
-          id={ruleId}
-          role="alert"
-          className="flex min-h-[16.5px] animate-in gap-1 text-neg duration-200 fade-in"
-        >
-          <span className="flex-none pt-[2px]">
-            <CircleAlert aria-hidden className="size-3" strokeWidth={2} />
+        // The rule stays under the sentence, hidden, so the line keeps its height and the button
+        // below it does not move (`password-reuse.dc.html`).
+        <span className="grid min-h-[16.5px]">
+          <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+            {rule}
           </span>
-          <span>{rule}</span>
+          <span
+            key={refusal.n}
+            id={ruleId}
+            role="alert"
+            className="col-start-1 row-start-1 flex animate-in gap-1 text-neg duration-200 fade-in"
+          >
+            <span className="flex-none pt-[2px]">
+              <CircleAlert aria-hidden className="size-3" strokeWidth={2} />
+            </span>
+            <span>{refusal.sentence}</span>
+          </span>
         </span>
       )}
     </div>

@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import vectors from './__fixtures__/srp-vectors.json';
-import { type RelayAnswer, type RelayCall, type RelayRoute, createRelay } from './relay';
+import {
+  type RelayAnswer,
+  type RelayCall,
+  type RelayRoute,
+  type Refusal,
+  createRelay,
+} from './relay';
 import { type Locks, createSession } from './session';
 import { type SignInDeps, setNewPassword, signInWithAddress, signInWithPassword } from './sign-in';
 
@@ -23,9 +29,7 @@ const challenge = (name: string, parameters: Record<string, string> = {}, availa
       ...(available && { availableChallenges: available }),
     },
   }) as RelayAnswer;
-const refused = (
-  reason: 'notAuthorized' | 'invalid' | 'invalidPassword' | 'throttled' | 'offline' | 'failed',
-) => ({ kind: 'refused', reason }) as RelayAnswer;
+const refused = (reason: Refusal) => ({ kind: 'refused', reason }) as RelayAnswer;
 
 const VERIFIER = challenge('PASSWORD_VERIFIER', {
   USERNAME: v.userId,
@@ -335,6 +339,7 @@ describe('the password step', () => {
     ['failed', 'failed'],
     ['invalid', 'failed'],
     ['invalidPassword', 'failed'],
+    ['reusedPassword', 'failed'],
   ] as const)('reads a %s verifier answer as %s', async (reason, expected) => {
     const { deps } = world({ start: [VERIFIER], respond: [refused(reason)] });
     expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
@@ -472,6 +477,8 @@ describe('the first sign-in', () => {
 
   it.each([
     ['invalidPassword', 'rule'],
+    // The pool's history: the temporary password given back as the new one.
+    ['reusedPassword', 'reused'],
     ['throttled', 'tooMany'],
     ['offline', 'offline'],
     ['notAuthorized', 'wrong'],

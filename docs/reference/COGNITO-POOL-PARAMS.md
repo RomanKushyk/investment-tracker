@@ -40,7 +40,7 @@ aws cognito-idp admin-confirm-sign-up --region eu-north-1 \
 | `PoolName` | chosen | `quirenote-rehearsal-a54` | in `UpdateUserPool` |
 | `UserPoolTier` | chosen | `ESSENTIALS` | in `UpdateUserPool`; passkeys are not in Lite |
 | `DeletionProtection` | chosen | `INACTIVE` | in `UpdateUserPool`; rehearsal-only, see the deviations |
-| `Policies.PasswordPolicy` | defaulted | min 8, upper + lower + number + symbol, temp password 7 days | nothing was sent for it |
+| `Policies.PasswordPolicy` | defaulted, changeable | min 8, upper + lower + number + symbol, temp password 7 days | nothing was sent for it. In `UpdateUserPool`; the real pool writes it out and adds a history, see below |
 | `Policies.SignInPolicy.AllowedFirstAuthFactors` | defaulted, changeable | `["PASSWORD"]` | **passkey-first needs `WEB_AUTHN` here.** `Policies` is an `UpdateUserPool` parameter and AWS's own sample sets `["PASSWORD","EMAIL_OTP","WEB_AUTHN"]`, so this is not a create-time trap |
 | `AdminCreateUserConfig` | defaulted, changeable | self-service sign-up open | in `UpdateUserPool`; see the deviations — the real pool closes it |
 | `MfaConfiguration` | defaulted | `OFF` | |
@@ -117,6 +117,7 @@ rather than remembered. What the template adds beyond the rehearsal's four corre
 | `WebAuthnRelyingPartyID` | the environment's apex | see below; this one is not practically reversible |
 | `WebAuthnUserVerification` | `required` | a passkey with user verification already satisfies MFA, which is why `MfaConfiguration` stays `OFF` |
 | `LambdaConfig.PreSignUp` | the linking trigger | `infra/src/pre-signup.ts` |
+| `Policies.PasswordPolicy` | the default rule above, written out, plus `PasswordHistorySize: 1` | `UpdateUserPool` sets what a call omits to its default, so the rule is sent whole. The history refuses the temporary password as the account's own (*Password history*, below) |
 
 **The relying party ID is the second irreversible decision, and it is not a pool parameter.**
 A passkey is registered against one RP ID and no browser will offer it to another. AWS states
@@ -318,7 +319,8 @@ it names the user as the verifier did, by the start's `USER_ID_FOR_SRP`, and the
 over that name. A new password the default policy refuses answered `InvalidPasswordException`,
 which the relay gives as `400 invalid_password`. **The temporary password itself was taken as the
 new one:** the answer carried tokens, and the account turned permanent with the password it was
-invited with. `admin-set-user-password --no-permanent` puts an account back into
+invited with. That pool had no password history; under a history of 1 the same answer is refused
+(*Password history*, below). `admin-set-user-password --no-permanent` puts an account back into
 `FORCE_CHANGE_PASSWORD`, so the same user walks the first sign-in again.
 
 **The token-authorized passkey calls answer a page on any origin.** Cognito's endpoint answers the
@@ -331,6 +333,48 @@ ceremony, the relying party not being the page's host, so no credential was made
 credential the page forged answered `CompleteWebAuthnRegistration` with `InvalidParameterException`,
 "Credential data is not valid". The user was deleted afterwards, and `AdminGetUser` answered
 `UserNotFoundException`.
+
+## Password history, rehearsed on a second throwaway pool
+
+AWS does not say whether a temporary password counts in `PasswordPolicy.PasswordHistorySize`. The
+developer guide words the setting as preventing "a user from resetting their password to a new
+password that matches their current password or any of up to 23 additional previous passwords". So
+it was measured before the template carried it. Both deployed pools read back through
+`DescribeUserPool` first: `ESSENTIALS`, minimum 8, upper, lower, number and symbol, a temporary
+password valid 7 days, and no history, which `PasswordPolicyType` says "isn't displayed in
+DescribeUserPool responses when you set this value to 0 or don't provide it".
+
+The throwaway pool copied that: `ESSENTIALS`, `UsernameAttributes: ["email"]`,
+`CaseSensitive: false`, admin-only creation, the same policy with no history, and an app client
+with no secret offering `ALLOW_USER_AUTH` and `ALLOW_USER_SRP_AUTH`. Each account was made by
+`AdminCreateUser` with `SUPPRESS` and a random `TemporaryPassword`. Each first sign-in walked the
+app's own path: `InitiateAuth` `USER_AUTH` preferring `PASSWORD_SRP`, `PASSWORD_VERIFIER` with a
+claim from `src/auth/srp.ts`, then `NEW_PASSWORD_REQUIRED`. Between the first account and the
+second, `UpdateUserPool` sent the same policy with `PasswordHistorySize: 1`, and `DescribeUserPool`
+read it back.
+
+| Account | History | `NEW_PASSWORD` | Answer | Status after |
+|---|---|---|---|---|
+| A | none | its temporary password | tokens | `CONFIRMED` |
+| B, invited after the update | 1 | its temporary password | `PasswordHistoryPolicyViolationException`, "Password has previously been used" | `FORCE_CHANGE_PASSWORD` |
+| B | 1 | the same, from a fresh sign-in | the same | |
+| B | 1 | a password too short | `InvalidPasswordException`, "Password does not conform to policy: Password not long enough" | |
+| B | 1 | a new password the policy accepts | tokens | `CONFIRMED` |
+| C, invited before the update | 1 | its temporary password | `PasswordHistoryPolicyViolationException`, "Password has previously been used" | `FORCE_CHANGE_PASSWORD` |
+
+**The temporary password counts in the history.** Under a history of 1 the first sign-in refuses
+it, and the refusal leaves the account in `FORCE_CHANGE_PASSWORD`, so the step can be answered
+again. A weak password is still `InvalidPasswordException`, so the exception tells the two refusals
+apart. **It counts for an invitation already out:** C was invited before the history was switched
+on and refused after.
+
+**A history of 1 is the current password alone.** With its own password, B called `ChangePassword`
+twice. Its current password answered `PasswordHistoryPolicyViolationException`, and the temporary
+password, one before it, was accepted. So the count includes the current password, as the guide's
+wording has it, and a history of 1 refuses the temporary password while it is the current one: at
+the first sign-in.
+
+The pool was deleted afterwards, and `DescribeUserPool` answered `ResourceNotFoundException`.
 
 ## What this does not answer
 

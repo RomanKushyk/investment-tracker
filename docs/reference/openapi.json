@@ -791,6 +791,11 @@
                       "error": "invalid_password"
                     }
                   },
+                  "reused_password": {
+                    "value": {
+                      "error": "reused_password"
+                    }
+                  },
                   "invalid_request": {
                     "value": {
                       "error": "invalid_request"

@@ -176,6 +176,8 @@ const SESSION_ENDED = derived({
 
 const NOT_AUTHORIZED = json(401, '{"error":"not_authorized"}');
 const INVALID_PASSWORD = json(400, '{"error":"invalid_password"}');
+/** The pool's history refusing the temporary password as the new one, which meets the rule. */
+const REUSED_PASSWORD = json(400, '{"error":"reused_password"}');
 const CSRF = json(403, '{"error":"csrf"}');
 /** RFC 6585 §4, with no `Retry-After`: Cognito never says how long its lockout lasts. */
 const TOO_MANY = json(429, '{"error":"too_many_attempts"}');
@@ -190,6 +192,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     NOT_AUTHORIZED,
     TOO_MANY,
     INVALID_PASSWORD,
+    REUSED_PASSWORD,
     INVALID,
     CSRF,
     INTERNAL,
@@ -209,7 +212,7 @@ const REFUSED_AS = new Map<string, ApiResult>([
   ['NotAuthorizedException', NOT_AUTHORIZED],
   ['UserNotFoundException', NOT_AUTHORIZED],
   ['InvalidPasswordException', INVALID_PASSWORD],
-  ['PasswordHistoryPolicyViolationException', INVALID_PASSWORD],
+  ['PasswordHistoryPolicyViolationException', REUSED_PASSWORD],
   ['InvalidParameterException', INVALID],
 ]);
 

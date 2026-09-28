@@ -786,7 +786,8 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
     // THE SAME ANSWER AS A WRONG PASSWORD, so an address cannot be probed through the relay.
     ['UserNotFoundException', 401, '{"error":"not_authorized"}'],
     ['InvalidPasswordException', 400, '{"error":"invalid_password"}'],
-    ['PasswordHistoryPolicyViolationException', 400, '{"error":"invalid_password"}'],
+    // The temporary password taken back as the new one, which the pool's history refuses.
+    ['PasswordHistoryPolicyViolationException', 400, '{"error":"reused_password"}'],
     ['InvalidParameterException', 400, '{"error":"invalid_request"}'],
     ['PasswordResetRequiredException', 500, '{"error":"internal"}'],
   ];

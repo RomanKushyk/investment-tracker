@@ -185,6 +185,16 @@ Resources:
       AutoVerifiedAttributes: [email]
       MfaConfiguration: 'OFF'
       Policies:
+        # THE DEFAULT RULE WRITTEN OUT: `UpdateUserPool` sets what a call omits to its default. A
+        # history of 1 refuses the invitation's password as the account's own (*Auth model*).
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+          PasswordHistorySize: 1
         SignInPolicy:
           AllowedFirstAuthFactors: [PASSWORD, WEB_AUTHN]
       WebAuthnUserVerification: required

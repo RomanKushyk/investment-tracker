@@ -837,8 +837,9 @@ export const en = {
       title: 'Set your password',
       lead: 'The temporary password from your invitation works only for the first sign-in. Choose your own.',
       label: 'New password',
-      // The pool's own policy: `template-user.yaml` sets none, so Cognito's default holds.
+      // The pool's own policy, as `template-user.yaml` writes it out.
       rule: 'At least 8 characters, with an upper-case and a lower-case letter, a number and a symbol.',
+      reused: 'That’s the temporary password. Choose your own.',
       submit: 'Save and continue',
       busy: 'Saving…',
     },
@@ -1856,6 +1857,7 @@ export const uk: Dict = {
       lead: 'Тимчасовий пароль із запрошення діє лише для першого входу. Придумайте власний.',
       label: 'Новий пароль',
       rule: 'Щонайменше 8 символів: велика й мала літери, цифра та символ.',
+      reused: 'Це тимчасовий пароль. Придумайте власний.',
       submit: 'Зберегти й продовжити',
       busy: 'Зберігаємо…',
     },

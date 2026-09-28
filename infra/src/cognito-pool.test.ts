@@ -189,6 +189,20 @@ describe('three sign-in methods reach the pool', () => {
     expect(factors).toContain('PASSWORD');
   });
 
+  // THE DEFAULT RULE WRITTEN OUT, as `UpdateUserPool` defaults what a call omits. A history of 1 is
+  // the current password alone, so the app's refusal may name the temporary one. [*Auth model*]
+  it("keeps the default rule, and refuses the invitation's password as the account's own", () => {
+    expect((props('UserPool').Policies as { PasswordPolicy?: unknown })?.PasswordPolicy).toEqual({
+      MinimumLength: 8,
+      RequireUppercase: true,
+      RequireLowercase: true,
+      RequireNumbers: true,
+      RequireSymbols: true,
+      TemporaryPasswordValidityDays: 7,
+      PasswordHistorySize: 1,
+    });
+  });
+
   // A CONFIDENTIAL CLIENT, and that is what keeps every sign-in inside the relay: with a secret,
   // each call needs a `SECRET_HASH` or the secret itself, and only the relay can read it. RFC 10017
   // §6.2.3.1: "the token-mediating backend MUST act as a confidential client". [*Auth model*]

@@ -228,3 +228,12 @@ describe("the demo dataset's promise", () => {
     expect(uk.nbu.demoDisabled).toMatch(/ринкові дані/);
   });
 });
+
+describe('the reused temporary password', () => {
+  // The words the owner ruled (`password-reuse.dc.html`): what happened, then the fix the lead
+  // already asks for, in its own last words.
+  it('names the temporary password and says to choose another', () => {
+    expect(en.auth.setPassword.reused).toBe('That’s the temporary password. Choose your own.');
+    expect(uk.auth.setPassword.reused).toBe('Це тимчасовий пароль. Придумайте власний.');
+  });
+});

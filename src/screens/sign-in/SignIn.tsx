@@ -5,12 +5,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import { SignedOutShell } from '../../app/SignedOutShell';
 import { cancelPasskey, passkeyDeps, session, signInDeps, useSessionStatus } from '../../auth/app';
 import { addPasskey } from '../../auth/passkey';
-import {
-  setNewPassword,
-  signInWithAddress,
-  signInWithPassword,
-  type SignInRefusal,
-} from '../../auth/sign-in';
+import { setNewPassword, signInWithAddress, signInWithPassword } from '../../auth/sign-in';
 import { arrivedSignedOut, usedUp } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
@@ -28,6 +23,7 @@ import {
   StepAlert,
   Title,
 } from './parts';
+import { ON_THE_FIELD, ON_THE_RULE, type Reason } from './refusals';
 
 type Step =
   | { name: 'address' }
@@ -38,13 +34,8 @@ type Step =
   | { name: 'offer' }
   | { name: 'created' };
 
-/** What a step can be told: a sign-in's refusals, and the passkey offer's two of its own. */
-type Reason = SignInRefusal | 'notCreated' | 'passkeyFailed';
-
 /** A refusal, and a count that re-inserts its alert so a repeat is announced again. */
 type Said = { reason: Reason; n: number };
-
-const ON_THE_FIELD: Reason[] = ['emailMissing', 'emailInvalid', 'passwordMissing', 'rule'];
 
 function sentence(t: Dict, reason: Reason): string {
   return {
@@ -54,6 +45,7 @@ function sentence(t: Dict, reason: Reason): string {
     wrong: t.auth.password.wrong,
     notFinished: t.auth.passkey.notFinished,
     rule: t.auth.setPassword.rule,
+    reused: t.auth.setPassword.reused,
     tooMany: t.auth.tooMany,
     offline: t.auth.offline,
     failed: t.auth.failed,
@@ -102,8 +94,9 @@ export function SignIn() {
   );
   // After the commit, so the field already carries `aria-invalid` and its sentence when focused.
   useEffect(() => {
-    if (said?.reason === 'passwordMissing' || said?.reason === 'rule') passwordRef.current?.focus();
-    else if (said?.reason === 'emailMissing' || said?.reason === 'emailInvalid') {
+    if (said?.reason === 'passwordMissing' || (said && ON_THE_RULE.includes(said.reason))) {
+      passwordRef.current?.focus();
+    } else if (said?.reason === 'emailMissing' || said?.reason === 'emailInvalid') {
       addressRef.current?.focus();
     }
   }, [said]);
@@ -212,6 +205,7 @@ export function SignIn() {
 
   const fieldError = said && ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const stepError = said && !ON_THE_FIELD.includes(said.reason) ? said : undefined;
+  const ruleError = said && ON_THE_RULE.includes(said.reason) ? said : undefined;
 
   return (
     <SignedOutShell>
@@ -352,7 +346,7 @@ export function SignIn() {
               <RuleField
                 label={t.auth.setPassword.label}
                 rule={t.auth.setPassword.rule}
-                refused={fieldError?.reason === 'rule' ? fieldError.n : undefined}
+                refusal={ruleError && { n: ruleError.n, sentence: sentence(t, ruleError.reason) }}
               >
                 {(id, describedBy) => (
                   <PasswordInput
@@ -361,7 +355,7 @@ export function SignIn() {
                     autoComplete="new-password"
                     value={password}
                     busy={busy}
-                    invalid={fieldError?.reason === 'rule'}
+                    invalid={Boolean(ruleError)}
                     describedBy={describedBy}
                     onChange={setPassword}
                   />
