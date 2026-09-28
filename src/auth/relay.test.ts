@@ -46,6 +46,8 @@ describe('a relay call', () => {
     [200, { status: 'signed_out' }, { kind: 'signedOut' }],
     [401, { error: 'not_authorized' }, { kind: 'refused', reason: 'notAuthorized' }],
     [400, { error: 'invalid_request' }, { kind: 'refused', reason: 'invalid' }],
+    [400, { error: 'invalid_password' }, { kind: 'refused', reason: 'invalidPassword' }],
+    [400, 'not json', { kind: 'refused', reason: 'invalid' }],
     [429, { message: 'Too Many Requests' }, { kind: 'refused', reason: 'throttled' }],
     [429, { error: 'too_many_attempts' }, { kind: 'refused', reason: 'throttled' }],
     [403, { error: 'csrf' }, { kind: 'refused', reason: 'failed' }],

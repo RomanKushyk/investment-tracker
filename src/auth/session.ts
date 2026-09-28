@@ -18,6 +18,8 @@ export interface Session {
   /** `false` when the relay could not revoke, which keeps both cookies for a retry. */
   signOut(): Promise<boolean>;
   getIdToken(): Promise<string | undefined>;
+  /** Of the same pair as the ID token; it authorizes the user's own Cognito calls. */
+  getAccessToken(): Promise<string | undefined>;
 }
 
 // ONE LOCK FOR EVERY CALL THAT WRITES THE COOKIES, held until the answer lands: without it two tabs
@@ -78,6 +80,13 @@ export function createSession({
       else if (status === 'unknown') set('signedOut', undefined, false);
     }).finally(() => (refreshing = undefined)));
 
+  const fresh = async () => {
+    if (held && held.until - now() >= EARLY_MS) return held;
+    if (status !== 'signedOut' || unanswered) await refresh();
+    // A refresh that could not run leaves the old pair behind; past its expiry it is no answer.
+    return held && held.until > now() ? held : undefined;
+  };
+
   return {
     status: () => status,
     address: () => address,
@@ -103,11 +112,7 @@ export function createSession({
         set('signedOut');
         return true;
       }).finally(() => (leaving = undefined))),
-    async getIdToken() {
-      if (held && held.until - now() >= EARLY_MS) return held.idToken;
-      if (status !== 'signedOut' || unanswered) await refresh();
-      // A refresh that could not run leaves the old token behind; past its expiry it is no answer.
-      return held && held.until > now() ? held.idToken : undefined;
-    },
+    getIdToken: async () => (await fresh())?.idToken,
+    getAccessToken: async () => (await fresh())?.accessToken,
   };
 }

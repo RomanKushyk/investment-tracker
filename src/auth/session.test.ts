@@ -284,6 +284,22 @@ describe('one tab', () => {
     expect(relay).toHaveBeenCalledTimes(2);
   });
 
+  // The access token registers a passkey; it is issued, refreshed and expired with the ID token.
+  it('hands out the access token of the same pair, refreshed on the same schedule', async () => {
+    let now = 0;
+    const relay = scripted(TOKENS('1'), TOKENS('2'));
+    const session = createSession({ relay, locks: webLocks(), now: () => now });
+    await session.restore();
+    expect(await session.getAccessToken()).toBe('access.1');
+
+    now = 3_541_000;
+    expect(await Promise.all([session.getAccessToken(), session.getIdToken()])).toEqual([
+      'access.2',
+      'id.2',
+    ]);
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+
   it('hands out no token once it has expired and the refresh could not run', async () => {
     let now = 0;
     const session = createSession({

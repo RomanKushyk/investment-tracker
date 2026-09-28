@@ -308,6 +308,30 @@ exceeded", so a passkey sign-in does not end the running lockout period. Whether
 failure count, which sets the next period's length, is not measured: AWS names only a successful
 sign-in after a period expires, or fifteen minutes with no attempt.
 
+**The first sign-in answers `NEW_PASSWORD_REQUIRED` after the verifier, and the answer names the
+user nowhere.** A throwaway user made by `AdminCreateUser` with `SUPPRESS` and a `TemporaryPassword`
+(`FORCE_CHANGE_PASSWORD`) signed in through the app on localhost and the dev relay. Its address led
+to the password step, and the temporary password's `PASSWORD_VERIFIER` answered
+`NEW_PASSWORD_REQUIRED` with two parameters, `requiredAttributes` (`[]`) and `userAttributes` (the
+address and `email_verified`): no `USER_ID_FOR_SRP` and no `AvailableChallenges`. So the answer to
+it names the user as the verifier did, by the start's `USER_ID_FOR_SRP`, and the relay's hash is
+over that name. A new password the default policy refuses answered `InvalidPasswordException`,
+which the relay gives as `400 invalid_password`. **The temporary password itself was taken as the
+new one:** the answer carried tokens, and the account turned permanent with the password it was
+invited with. `admin-set-user-password --no-permanent` puts an account back into
+`FORCE_CHANGE_PASSWORD`, so the same user walks the first sign-in again.
+
+**The token-authorized passkey calls answer a page on any origin.** Cognito's endpoint answers the
+preflight with `Access-Control-Allow-Origin: *` for `content-type`, `x-amz-target` and
+`cache-control`. With the same user's access token, `ListWebAuthnCredentials` (`MaxResults: 1`)
+answered `{"Credentials":[]}`, and `StartWebAuthnRegistration` from `localhost` answered
+`CredentialCreationOptions` for `rp.id` `dev.quirenote.com`, with `residentKey` and
+`userVerification` both `required` and no `excludeCredentials`. The browser then refused the
+ceremony, the relying party not being the page's host, so no credential was made there. A
+credential the page forged answered `CompleteWebAuthnRegistration` with `InvalidParameterException`,
+"Credential data is not valid". The user was deleted afterwards, and `AdminGetUser` answered
+`UserNotFoundException`.
+
 ## What this does not answer
 
 **Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.

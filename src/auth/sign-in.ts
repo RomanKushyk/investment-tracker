@@ -1,7 +1,7 @@
 import { canonicalAddress } from '@quirenote/core/address';
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
-import type { Challenge, Refusal, RelayCall } from './relay';
+import type { Challenge, Refusal, RelayAnswer, RelayCall } from './relay';
 import type { Session } from './session';
 import { cognitoTimestamp, passwordClaim, srpStart } from './srp';
 
@@ -12,6 +12,8 @@ export interface SignInDeps {
   poolName: string | undefined;
   /** The OS passkey sheet: resolves with the assertion as JSON, rejects however it did not finish. */
   authenticate: (options: PublicKeyCredentialRequestOptionsJSON) => Promise<unknown>;
+  /** Whether Cognito lists a passkey for the account just signed in; undefined when it cannot say. */
+  hasPasskey: () => Promise<boolean | undefined>;
 }
 
 export type SignInRefusal =
@@ -20,16 +22,18 @@ export type SignInRefusal =
   | 'passwordMissing'
   | 'wrong'
   | 'notFinished'
+  | 'rule'
   | 'tooMany'
   | 'offline'
   | 'failed';
 
 export type SignInOutcome =
-  | { kind: 'signedIn' }
+  | { kind: 'signedIn'; offerPasskey: boolean }
   | { kind: 'password'; email: string }
+  | { kind: 'newPassword'; email: string }
   | { kind: 'refused'; reason: SignInRefusal };
 
-const SIGNED_IN: SignInOutcome = { kind: 'signedIn' };
+const signedIn = (offerPasskey: boolean): SignInOutcome => ({ kind: 'signedIn', offerPasskey });
 const refused = (reason: SignInRefusal): SignInOutcome => ({ kind: 'refused', reason });
 
 // A 401 blames nobody in particular: the relay answers a wrong password and an unknown address
@@ -37,6 +41,7 @@ const refused = (reason: SignInRefusal): SignInOutcome => ({ kind: 'refused', re
 const STEP: Record<Refusal, SignInRefusal> = {
   notAuthorized: 'wrong',
   invalid: 'failed',
+  invalidPassword: 'failed',
   throttled: 'tooMany',
   offline: 'offline',
   failed: 'failed',
@@ -95,7 +100,8 @@ async function passkey(
       CREDENTIAL: JSON.stringify(credential),
     },
   });
-  if (answer.kind === 'tokens') return SIGNED_IN;
+  // It has just used a passkey, so there is none to offer.
+  if (answer.kind === 'tokens') return signedIn(false);
   if (answer.kind === 'refused') {
     return refused(answer.reason === 'notAuthorized' ? 'notFinished' : STEP[answer.reason]);
   }
@@ -104,13 +110,12 @@ async function passkey(
 
 /** The password over SRP, so it never leaves the page, from a fresh start: the address step's
  *  session lives three minutes, and an expired one is refused like a wrong password. */
-export async function signInWithPassword(
+async function verified(
   email: string,
   password: string,
   deps: SignInDeps,
-): Promise<SignInOutcome> {
-  if (!password) return refused('passwordMissing');
-  if (!deps.poolName) return refused('failed');
+): Promise<{ answer: RelayAnswer; userId: string } | SignInRefusal> {
+  if (!deps.poolName) return 'failed';
 
   const { a, srpA } = srpStart();
   const start = await deps.relay('start', {
@@ -118,9 +123,9 @@ export async function signInWithPassword(
     PREFERRED_CHALLENGE: 'PASSWORD_SRP',
     SRP_A: srpA,
   });
-  if (start.kind === 'refused') return refused(STEP[start.reason]);
+  if (start.kind === 'refused') return STEP[start.reason];
   if (start.kind !== 'challenge' || start.challenge.challenge !== 'PASSWORD_VERIFIER') {
-    return refused('failed');
+    return 'failed';
   }
 
   const p = start.challenge.parameters;
@@ -139,7 +144,7 @@ export async function signInWithPassword(
       timestamp,
     });
   } catch {
-    return refused('failed');
+    return 'failed';
   }
 
   const answer = await deps.session.respond({
@@ -152,8 +157,56 @@ export async function signInWithPassword(
       TIMESTAMP: timestamp,
     },
   });
-  if (answer.kind === 'tokens') return SIGNED_IN;
+  return { answer, userId };
+}
+
+export async function signInWithPassword(
+  email: string,
+  password: string,
+  deps: SignInDeps,
+): Promise<SignInOutcome> {
+  if (!password) return refused('passwordMissing');
+  const proof = await verified(email, password, deps);
+  if (typeof proof === 'string') return refused(proof);
+  const { answer } = proof;
+  // Cognito is asked with the access token these carry, so only once they have landed; an answer
+  // it cannot give offers nothing, and the offer comes back on the next sign-in.
+  if (answer.kind === 'tokens') return signedIn((await deps.hasPasskey()) === false);
   if (answer.kind === 'refused') return refused(STEP[answer.reason]);
-  // NEW_PASSWORD_REQUIRED, the first sign-in, is #272's to answer.
+  // A temporary password: the first sign-in, where the account sets its own.
+  if (answer.kind === 'challenge' && answer.challenge.challenge === 'NEW_PASSWORD_REQUIRED') {
+    return { kind: 'newPassword', email };
+  }
+  return refused('failed');
+}
+
+/** The first sign-in's own password, answering a fresh proof of the temporary one, whose challenge
+ *  lives three minutes too. Empty fails the pool's rule before anything is asked. */
+export async function setNewPassword(
+  email: string,
+  temporary: string,
+  next: string,
+  deps: SignInDeps,
+): Promise<SignInOutcome> {
+  if (!next) return refused('rule');
+  const proof = await verified(email, temporary, deps);
+  if (typeof proof === 'string') return refused(proof);
+  const { answer: first, userId } = proof;
+  if (first.kind === 'refused') return refused(STEP[first.reason]);
+  if (first.kind !== 'challenge' || first.challenge.challenge !== 'NEW_PASSWORD_REQUIRED') {
+    return refused('failed');
+  }
+
+  const answer = await deps.session.respond({
+    challenge: 'NEW_PASSWORD_REQUIRED',
+    session: first.challenge.session,
+    // The name the proof signed in as, which the relay's hash is over.
+    responses: { USERNAME: userId, NEW_PASSWORD: next },
+  });
+  // Approval minted this account and it has never held an access token, so it has no passkey.
+  if (answer.kind === 'tokens') return signedIn(true);
+  if (answer.kind === 'refused') {
+    return refused(answer.reason === 'invalidPassword' ? 'rule' : STEP[answer.reason]);
+  }
   return refused('failed');
 }

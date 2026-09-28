@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import vectors from './__fixtures__/srp-vectors.json';
 import { type RelayAnswer, type RelayCall, type RelayRoute, createRelay } from './relay';
 import { type Locks, createSession } from './session';
-import { type SignInDeps, signInWithAddress, signInWithPassword } from './sign-in';
+import { type SignInDeps, setNewPassword, signInWithAddress, signInWithPassword } from './sign-in';
 
 const EMAIL = 'someone@example.com';
 const PASSWORD = 'Correct-Horse-9!';
@@ -23,8 +23,9 @@ const challenge = (name: string, parameters: Record<string, string> = {}, availa
       ...(available && { availableChallenges: available }),
     },
   }) as RelayAnswer;
-const refused = (reason: 'notAuthorized' | 'invalid' | 'throttled' | 'offline' | 'failed') =>
-  ({ kind: 'refused', reason }) as RelayAnswer;
+const refused = (
+  reason: 'notAuthorized' | 'invalid' | 'invalidPassword' | 'throttled' | 'offline' | 'failed',
+) => ({ kind: 'refused', reason }) as RelayAnswer;
 
 const VERIFIER = challenge('PASSWORD_VERIFIER', {
   USERNAME: v.userId,
@@ -32,6 +33,11 @@ const VERIFIER = challenge('PASSWORD_VERIFIER', {
   SRP_B: v.srpB,
   SALT: v.salt,
   SECRET_BLOCK: v.secretBlock,
+});
+// The dev pool's own answer, which names the user nowhere: the name to answer as is the verifier's.
+const NEW_PASSWORD = challenge('NEW_PASSWORD_REQUIRED', {
+  requiredAttributes: '[]',
+  userAttributes: '{"email_verified":"true","email":"someone@example.com"}',
 });
 const PASSKEY = challenge(
   'WEB_AUTHN',
@@ -61,6 +67,7 @@ function heldLocks() {
 function world(
   answers: Partial<Record<RelayRoute, RelayAnswer[]>>,
   authenticate?: SignInDeps['authenticate'],
+  hasPasskey?: SignInDeps['hasPasskey'],
 ) {
   const { locks, held } = heldLocks();
   const calls: { route: RelayRoute; body: unknown; locked: boolean }[] = [];
@@ -73,6 +80,7 @@ function world(
     session: createSession({ relay, locks }),
     poolName: v.poolName,
     authenticate: authenticate ?? vi.fn(async () => ({ id: 'credential' })),
+    hasPasskey: hasPasskey ?? vi.fn(async () => true),
   };
   return { deps, calls };
 }
@@ -149,7 +157,9 @@ describe('the passkey step', () => {
       order.push('step');
     });
 
-    expect(outcome).toEqual({ kind: 'signedIn' });
+    // It has just used a passkey, so there is nothing to offer and nothing to ask.
+    expect(outcome).toEqual({ kind: 'signedIn', offerPasskey: false });
+    expect(deps.hasPasskey).not.toHaveBeenCalled();
     expect(order).toEqual(['step', 'sheet']);
     expect(calls.map((c) => c.route)).toEqual(['start', 'respond']);
     expect(calls[1]?.body).toEqual({
@@ -225,7 +235,10 @@ describe('the password step', () => {
   it('starts afresh over SRP and answers the verifier as USER_ID_FOR_SRP', async () => {
     const { deps, calls } = world({ start: [VERIFIER], respond: [TOKENS] });
 
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({ kind: 'signedIn' });
+    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+      kind: 'signedIn',
+      offerPasskey: false,
+    });
 
     const [start, respond] = calls;
     expect(start?.body).toMatchObject({ USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP' });
@@ -272,9 +285,13 @@ describe('the password step', () => {
       session: createSession({ relay, locks }),
       poolName: v.poolName,
       authenticate: vi.fn(),
+      hasPasskey: vi.fn(async () => true),
     };
 
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({ kind: 'signedIn' });
+    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+      kind: 'signedIn',
+      offerPasskey: false,
+    });
 
     const bytes = new TextEncoder().encode(PASSWORD);
     const base64 = btoa(String.fromCharCode(...bytes));
@@ -317,6 +334,7 @@ describe('the password step', () => {
     ['offline', 'offline'],
     ['failed', 'failed'],
     ['invalid', 'failed'],
+    ['invalidPassword', 'failed'],
   ] as const)('reads a %s verifier answer as %s', async (reason, expected) => {
     const { deps } = world({ start: [VERIFIER], respond: [refused(reason)] });
     expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
@@ -334,13 +352,56 @@ describe('the password step', () => {
     });
   });
 
-  it('cannot yet finish a first sign-in, which is #272', async () => {
-    const { deps } = world({ start: [VERIFIER], respond: [challenge('NEW_PASSWORD_REQUIRED')] });
+  it('hands a temporary password on to the first sign-in, signing nobody in', async () => {
+    const { deps } = world({ start: [VERIFIER], respond: [NEW_PASSWORD] });
     expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
-      kind: 'refused',
-      reason: 'failed',
+      kind: 'newPassword',
+      email: EMAIL,
     });
     expect(deps.session.status()).toBe('unknown');
+    expect(deps.hasPasskey).not.toHaveBeenCalled();
+  });
+
+  // Amplify UI's Authenticator asks the same after a sign-in: `listWebAuthnCredentials`, and a
+  // prompt only when it is empty.
+  it('offers a passkey only when Cognito lists none, asked once the tokens have landed', async () => {
+    for (const [listed, offerPasskey] of [
+      [false, true],
+      [true, false],
+      [undefined, false],
+    ] as const) {
+      const hasPasskey = vi.fn(async () => {
+        expect(deps.session.status()).toBe('signedIn');
+        return listed;
+      });
+      const { deps } = world({ start: [VERIFIER], respond: [TOKENS] }, undefined, hasPasskey);
+      expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+        kind: 'signedIn',
+        offerPasskey,
+      });
+      expect(hasPasskey).toHaveBeenCalledOnce();
+    }
+  });
+
+  // «Не зараз» is remembered nowhere: the offer returns on every password sign-in until one exists.
+  it('offers again on the next password sign-in of an account that still has none', async () => {
+    const { deps } = world(
+      { start: [VERIFIER, VERIFIER], respond: [TOKENS, TOKENS] },
+      undefined,
+      vi.fn(async () => false),
+    );
+    for (let i = 0; i < 2; i++) {
+      expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+        kind: 'signedIn',
+        offerPasskey: true,
+      });
+    }
+  });
+
+  it('asks nothing about passkeys after a refused password', async () => {
+    const { deps } = world({ start: [VERIFIER], respond: [refused('notAuthorized')] });
+    await signInWithPassword(EMAIL, PASSWORD, deps);
+    expect(deps.hasPasskey).not.toHaveBeenCalled();
   });
 
   it('refuses without a request where the host has no pool', async () => {
@@ -350,5 +411,91 @@ describe('the password step', () => {
       reason: 'failed',
     });
     expect(calls).toEqual([]);
+  });
+});
+
+describe('the first sign-in', () => {
+  const TEMPORARY = 'Tmp-Invite-7x!';
+  const CHOSEN = 'My-Own-Pass-8!';
+
+  it('refuses an empty new password against the rule, before any request', async () => {
+    const { deps, calls } = world({});
+    expect(await setNewPassword(EMAIL, TEMPORARY, '', deps)).toEqual({
+      kind: 'refused',
+      reason: 'rule',
+    });
+    expect(calls).toEqual([]);
+  });
+
+  // The challenge's session lives three minutes, as the address step's does, so each submit proves
+  // the temporary password again over SRP and answers the session that proof returns.
+  it('starts afresh with the temporary password and answers NEW_PASSWORD_REQUIRED', async () => {
+    const { deps, calls } = world({ start: [VERIFIER], respond: [NEW_PASSWORD, TOKENS] });
+
+    expect(await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps)).toEqual({
+      kind: 'signedIn',
+      offerPasskey: true,
+    });
+
+    expect(calls.map(({ route, locked }) => [route, locked])).toEqual([
+      ['start', false],
+      ['respond', true],
+      ['respond', true],
+    ]);
+    expect(calls[0]?.body).toMatchObject({ USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP' });
+    expect(calls[2]?.body).toEqual({
+      challenge: 'NEW_PASSWORD_REQUIRED',
+      session: 'session-NEW_PASSWORD_REQUIRED',
+      responses: { USERNAME: v.userId, NEW_PASSWORD: CHOSEN },
+    });
+    expect(deps.session.status()).toBe('signedIn');
+    // An account minted by approval has never held an access token, so it cannot hold a passkey.
+    expect(deps.hasPasskey).not.toHaveBeenCalled();
+  });
+
+  it('never sends the temporary password, in any encoding', async () => {
+    const { deps, calls } = world({ start: [VERIFIER], respond: [NEW_PASSWORD, TOKENS] });
+    await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps);
+    const sent = JSON.stringify(calls);
+    const bytes = new TextEncoder().encode(TEMPORARY);
+    const base64 = btoa(String.fromCharCode(...bytes));
+    for (const form of [
+      TEMPORARY,
+      encodeURIComponent(TEMPORARY),
+      Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(''),
+      base64,
+      base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+    ]) {
+      expect(sent).not.toContain(form);
+    }
+  });
+
+  it.each([
+    ['invalidPassword', 'rule'],
+    ['throttled', 'tooMany'],
+    ['offline', 'offline'],
+    ['notAuthorized', 'wrong'],
+    ['invalid', 'failed'],
+    ['failed', 'failed'],
+  ] as const)('reads a %s answer to the new password as %s', async (reason, expected) => {
+    const { deps } = world({ start: [VERIFIER], respond: [NEW_PASSWORD, refused(reason)] });
+    expect(await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps)).toEqual({
+      kind: 'refused',
+      reason: expected,
+    });
+    expect(deps.session.status()).toBe('unknown');
+  });
+
+  it.each([
+    ['a refused start', { start: [refused('throttled')] }, 'tooMany'],
+    ['a refused proof', { start: [VERIFIER], respond: [refused('notAuthorized')] }, 'wrong'],
+    ['a proof answering another challenge', { start: [VERIFIER], respond: [VERIFIER] }, 'failed'],
+  ])('reads %s as its sentence, and sends no new password', async (_, answers, expected) => {
+    const { deps, calls } = world(answers);
+    expect(await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps)).toEqual({
+      kind: 'refused',
+      reason: expected,
+    });
+    expect(JSON.stringify(calls)).not.toContain(CHOSEN);
   });
 });

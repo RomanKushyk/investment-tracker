@@ -1,9 +1,16 @@
+import { CircleCheck } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
-import { cancelPasskey, session, signInDeps, useSessionStatus } from '../../auth/app';
-import { signInWithAddress, signInWithPassword, type SignInRefusal } from '../../auth/sign-in';
+import { cancelPasskey, passkeyDeps, session, signInDeps, useSessionStatus } from '../../auth/app';
+import { addPasskey } from '../../auth/passkey';
+import {
+  setNewPassword,
+  signInWithAddress,
+  signInWithPassword,
+  type SignInRefusal,
+} from '../../auth/sign-in';
 import { arrivedSignedOut, usedUp } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
@@ -14,30 +21,44 @@ import {
   FocusedTitle,
   Foot,
   LINK,
+  PasskeyMark,
   PasswordInput,
+  RuleField,
   SignedOutNote,
   StepAlert,
   Title,
 } from './parts';
 
 type Step =
-  { name: 'address' } | { name: 'passkey'; email: string } | { name: 'password'; email: string };
+  | { name: 'address' }
+  | { name: 'passkey'; email: string }
+  | { name: 'password'; email: string }
+  // The temporary password, in memory for this step alone: each submit proves it afresh.
+  | { name: 'newPassword'; email: string; temporary: string }
+  | { name: 'offer' }
+  | { name: 'created' };
+
+/** What a step can be told: a sign-in's refusals, and the passkey offer's two of its own. */
+type Reason = SignInRefusal | 'notCreated' | 'passkeyFailed';
 
 /** A refusal, and a count that re-inserts its alert so a repeat is announced again. */
-type Said = { reason: SignInRefusal; n: number };
+type Said = { reason: Reason; n: number };
 
-const ON_THE_FIELD: SignInRefusal[] = ['emailMissing', 'emailInvalid', 'passwordMissing'];
+const ON_THE_FIELD: Reason[] = ['emailMissing', 'emailInvalid', 'passwordMissing', 'rule'];
 
-function sentence(t: Dict, reason: SignInRefusal): string {
+function sentence(t: Dict, reason: Reason): string {
   return {
     emailMissing: t.auth.emailMissing,
     emailInvalid: t.auth.emailInvalid,
     passwordMissing: t.auth.password.missing,
     wrong: t.auth.password.wrong,
     notFinished: t.auth.passkey.notFinished,
+    rule: t.auth.setPassword.rule,
     tooMany: t.auth.tooMany,
     offline: t.auth.offline,
     failed: t.auth.failed,
+    notCreated: t.auth.addPasskey.notCreated,
+    passkeyFailed: t.auth.addPasskey.failed,
   }[reason];
 }
 
@@ -81,16 +102,21 @@ export function SignIn() {
   );
   // After the commit, so the field already carries `aria-invalid` and its sentence when focused.
   useEffect(() => {
-    if (said?.reason === 'passwordMissing') passwordRef.current?.focus();
+    if (said?.reason === 'passwordMissing' || said?.reason === 'rule') passwordRef.current?.focus();
     else if (said?.reason === 'emailMissing' || said?.reason === 'emailInvalid') {
       addressRef.current?.focus();
     }
   }, [said]);
 
-  // A completed sign-in lands here too: the session turns signed in, and the page leaves.
-  if (status === 'signedIn') return <Navigate to="/" replace />;
+  // A completed sign-in leaves, but not for the offer or its outcome: a password's tokens land
+  // before its outcome says whether the offer follows, so the page holds while that submit runs.
+  const holds =
+    step.name === 'offer' ||
+    step.name === 'created' ||
+    (busy && (step.name === 'password' || step.name === 'newPassword'));
+  if (status === 'signedIn' && !holds) return <Navigate to="/" replace />;
 
-  const say = (reason: SignInRefusal) => setSaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
+  const say = (reason: Reason) => setSaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
 
   function begin() {
     const mine = ++run.current;
@@ -141,8 +167,43 @@ export function SignIn() {
     const outcome = await signInWithPassword(email, password, signInDeps);
     if (!current()) return;
     setBusy(false);
-    if (outcome.kind === 'refused') say(outcome.reason);
+    if (outcome.kind === 'refused') {
+      say(outcome.reason);
+    } else if (outcome.kind === 'newPassword') {
+      go({ name: 'newPassword', email, temporary: password });
+    } else if (outcome.kind === 'signedIn' && outcome.offerPasskey) {
+      go({ name: 'offer' });
+    }
   }
+
+  async function submitNewPassword(event: FormEvent, email: string, temporary: string) {
+    event.preventDefault();
+    if (busy) return;
+    const current = begin();
+    setBusy(true);
+    const outcome = await setNewPassword(email, temporary, password, signInDeps);
+    if (!current()) return;
+    setBusy(false);
+    if (outcome.kind === 'refused') say(outcome.reason);
+    else if (outcome.kind === 'signedIn') go({ name: 'offer' });
+  }
+
+  async function createPasskey() {
+    if (busy) return;
+    const current = begin();
+    setBusy(true);
+    const made = await addPasskey(passkeyDeps, current);
+    if (!current()) return;
+    setBusy(false);
+    if (made === 'created') go({ name: 'created' });
+    else say(made === 'failed' ? 'passkeyFailed' : made);
+  }
+
+  // The run ends at the press: the router commits in a transition, and the step renders once more.
+  const toTheApp = () => {
+    run.current++;
+    void navigate('/', { replace: true });
+  };
 
   const change = () => {
     go({ name: 'address' });
@@ -251,6 +312,7 @@ export function SignIn() {
                   <PasswordInput
                     id={id}
                     inputRef={passwordRef}
+                    autoComplete="current-password"
                     value={password}
                     busy={busy}
                     invalid={Boolean(fieldError)}
@@ -264,6 +326,90 @@ export function SignIn() {
               </Button>
               {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
             </form>
+          </>
+        )}
+
+        {step.name === 'newPassword' && (
+          <>
+            <Title>{t.auth.setPassword.title}</Title>
+            <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">
+              {t.auth.setPassword.lead}
+            </p>
+            <form
+              noValidate
+              onSubmit={(event) => void submitNewPassword(event, step.email, step.temporary)}
+              className="flex flex-col"
+            >
+              {/* The account a password manager saves the new password against. */}
+              <input
+                type="email"
+                name="username"
+                autoComplete="username"
+                value={step.email}
+                readOnly
+                className="hidden"
+              />
+              <RuleField
+                label={t.auth.setPassword.label}
+                rule={t.auth.setPassword.rule}
+                refused={fieldError?.reason === 'rule' ? fieldError.n : undefined}
+              >
+                {(id, describedBy) => (
+                  <PasswordInput
+                    id={id}
+                    inputRef={passwordRef}
+                    autoComplete="new-password"
+                    value={password}
+                    busy={busy}
+                    invalid={fieldError?.reason === 'rule'}
+                    describedBy={describedBy}
+                    onChange={setPassword}
+                  />
+                )}
+              </RuleField>
+              <Button type="submit" className="mt-2 w-full" disabled={busy} disabledTone="busy">
+                {busy ? t.auth.setPassword.busy : t.auth.setPassword.submit}
+              </Button>
+              {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
+            </form>
+          </>
+        )}
+
+        {step.name === 'offer' && (
+          <>
+            <FocusedTitle>{t.auth.addPasskey.title}</FocusedTitle>
+            <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">
+              {t.auth.addPasskey.lead}
+            </p>
+            <div className="flex flex-col gap-[10px]">
+              <Button
+                className="w-full"
+                disabled={busy}
+                disabledTone="busy"
+                onClick={() => void createPasskey()}
+              >
+                <PasskeyMark />
+                {t.auth.addPasskey.create}
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={toTheApp}>
+                {t.auth.addPasskey.later}
+              </Button>
+            </div>
+            {/* Under both buttons, so the OS dialog's closing moves neither. */}
+            {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
+          </>
+        )}
+
+        {step.name === 'created' && (
+          <>
+            <CircleCheck aria-hidden className="mb-4 size-6 flex-none text-muted" strokeWidth={2} />
+            <FocusedTitle>{t.auth.addPasskey.createdTitle}</FocusedTitle>
+            <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">
+              {t.auth.addPasskey.createdLead}
+            </p>
+            <Button className="w-full" onClick={toTheApp}>
+              {t.auth.addPasskey.continue}
+            </Button>
           </>
         )}
       </div>

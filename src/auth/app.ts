@@ -1,9 +1,14 @@
-import { WebAuthnAbortService, startAuthentication } from '@simplewebauthn/browser';
+import {
+  WebAuthnAbortService,
+  startAuthentication,
+  startRegistration,
+} from '@simplewebauthn/browser';
 import { useSyncExternalStore } from 'react';
 
 import type { Answer } from './access';
 import { createApply } from './apply';
 import { environmentFor } from './environment';
+import { type PasskeyDeps, createCognito, hasPasskey } from './passkey';
 import { createRelay } from './relay';
 import { createSession } from './session';
 import type { SignInDeps } from './sign-in';
@@ -18,14 +23,25 @@ const unlocked = { request: (_: string, call: () => unknown) => call() } as unkn
 /** This tab's session, tokens in memory only; the portfolio shell and `/sign-in` restore it. */
 export const session = createSession({ relay, locks: navigator.locks ?? unlocked });
 
+/** The account's own passkeys, through Cognito's endpoint in the pool's region, the id's prefix. */
+export const passkeyDeps: PasskeyDeps = {
+  cognito: createCognito({
+    region: environment?.userPoolId.split('_')[0],
+    fetch: (input, init) => fetch(input, init),
+  }),
+  getAccessToken: () => session.getAccessToken(),
+  register: (optionsJSON) => startRegistration({ optionsJSON }),
+};
+
 export const signInDeps: SignInDeps = {
   relay,
   session,
   poolName: environment?.userPoolId.split('_')[1],
   authenticate: (optionsJSON) => startAuthentication({ optionsJSON }),
+  hasPasskey: () => hasPasskey(passkeyDeps),
 };
 
-/** Closes a passkey sheet still open when its step is left. */
+/** Closes a passkey sheet or dialog still open when its step is left. */
 export const cancelPasskey = () => WebAuthnAbortService.cancelCeremony();
 
 export function useSessionStatus() {

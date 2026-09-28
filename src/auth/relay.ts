@@ -14,9 +14,10 @@ export interface Challenge {
   availableChallenges?: string[];
 }
 
-/** `invalid` is a 400, `throttled` a 429 from API Gateway or from Cognito's lockout; `failed` is
- *  any answer the app cannot act on. */
-export type Refusal = 'notAuthorized' | 'invalid' | 'throttled' | 'offline' | 'failed';
+/** `invalid` is a 400, `invalidPassword` the 400 a new password the pool refuses gets, `throttled`
+ *  a 429 from API Gateway or from Cognito's lockout; `failed` is any answer the app cannot act on. */
+export type Refusal =
+  'notAuthorized' | 'invalid' | 'invalidPassword' | 'throttled' | 'offline' | 'failed';
 
 export type RelayAnswer =
   | { kind: 'tokens'; tokens: Tokens }
@@ -26,7 +27,7 @@ export type RelayAnswer =
 
 export type RelayCall = (route: RelayRoute, body?: unknown) => Promise<RelayAnswer>;
 
-const REFUSED: Record<number, Refusal> = { 400: 'invalid', 401: 'notAuthorized', 429: 'throttled' };
+const REFUSED: Record<number, Refusal> = { 401: 'notAuthorized', 429: 'throttled' };
 
 // API Gateway's ceiling for an HTTP API's answer: past it none can come, and the cross-tab lock is
 // held until one does.
@@ -85,6 +86,14 @@ export function createRelay({
     const timer = setTimeout(() => controller.abort(), ANSWER_MS);
     try {
       const response = await fetch(`${base}/auth/${route}`, { ...init, signal: controller.signal });
+      if (response.status === 400) {
+        const body: unknown = await response.json().catch(() => undefined);
+        const named = (body as { error?: unknown } | null | undefined)?.error;
+        return {
+          kind: 'refused',
+          reason: named === 'invalid_password' ? 'invalidPassword' : 'invalid',
+        };
+      }
       if (response.status !== 200) {
         return { kind: 'refused', reason: REFUSED[response.status] ?? 'failed' };
       }

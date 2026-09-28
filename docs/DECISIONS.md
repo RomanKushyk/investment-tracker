@@ -308,7 +308,14 @@ it. It is IDENTIFIER-FIRST because the pool is — Cognito issues no passkey cha
 username — so the address goes first with `WEB_AUTHN` preferred, an account with a passkey gets the
 OS sheet at once, and every other answer leads to the password, proved over SRP so it never leaves
 the page. The password step starts afresh rather than answering the address step's session, which
-lives three minutes and, once expired, is refused like a wrong password. COGNITO'S LOCKOUT ANSWERS
+lives three minutes and, once expired, is refused like a wrong password. THE FIRST SIGN-IN SETS THE
+ACCOUNT'S OWN PASSWORD: the invitation's temporary one answers `NEW_PASSWORD_REQUIRED`, each submit
+proves the temporary password afresh for the same reason, and the pool's rule is on screen before
+any refusal. The new password travels in the body, as that challenge takes it — Cognito has no SRP
+form for setting one. THEN A PASSKEY IS OFFERED, and again after every password sign-in while
+`ListWebAuthnCredentials` lists none; an answer Cognito cannot give offers nothing, and no «not now»
+is remembered. Registration and that list are the app's own calls to Cognito's endpoint with the
+access token: token-authorized operations, which take no client and no secret. COGNITO'S LOCKOUT ANSWERS
 429, told from a wrong password by its message alone. OWASP's Authentication Cheat Sheet lists a
 locked account among the cases one generic error should cover. What that guards against, a
 difference that shows whether an account exists (CWE-204), the lockout does not add: an address
@@ -367,6 +374,12 @@ A finished sign-out should land on a page that "clearly indicates" the user is n
 (web.dev, *sign-out best practices*), announced as a status without taking focus (WCAG 4.1.3); the
 browser keeps `history.state` across a reload and Back/Forward, so a fact read and left in place
 would be said again on every one of them.
+The offer is Google's passkey journey — "authenticating the user as usual, let them know they can
+create a passkey, trigger the OS dialog for passkey creation, and then let them know that the
+passkey was successfully created" — and Amplify UI's Authenticator, which lists the credentials
+after a sign-in and prompts only on an empty list. It prompts when the list errors too; here that
+would invite the `InvalidStateError` of a passkey that already exists, of which web.dev says "The
+site shouldn't treat this as an error."
 **Rejected.** As the relying party, a Cognito prefix domain — a later move to the custom one strips
 the passkeys registered against it — or the auth host, which would scope every credential to managed
 login alone. · A post-confirmation trigger creating the row: AWS does not invoke it for an
@@ -375,7 +388,7 @@ Cognito groups as the role: status and role are application state, decided and s
 approval this system performs, so a group is a second place for them to live and the two can
 disagree; freshness is the lesser argument, a group riding on tokens that last an hour. · Letting an
 open-registration sign-in approve its own earlier application: convenience, and a way to overturn a
-rejection by signing up again. · A public client, the app calling Cognito itself: `InitiateAuth` hands
+rejection by signing up again. · A public client, the app signing in with Cognito itself: `InitiateAuth` hands
 the refresh token to whoever calls it, and injected script could run a sign-in of its own. · The full
 BFF, every data call proxied through a function holding the session: each call would spend the
 account's shared Lambda concurrency, and a refusal that must land before any Lambda is invoked could
@@ -392,7 +405,10 @@ the four answers: every authenticated route reads the same row and answers them,
 the app makes serves, and a route of its own would cost an invocation on every sign-in. · Asking for
 the session in the live dataset only: demo is the default a sign-in lands on, and it would offer that
 user no way out. · The signed-out confirmation as a toast: it leaves on a timer, and a toast here
-reports on the page the user stays on.
+reports on the page the user stays on. · Deciding the offer from the address step's answer, a
+`SELECT_CHALLENGE` without `WEB_AUTHN`: it depends on which way the user reached the password, and no
+source documents it as a signal. · Registration through the relay: no secret is involved, so it
+would only carry the access token one hop further.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;
