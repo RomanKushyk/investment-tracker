@@ -158,8 +158,9 @@ above it the sidebar is a panel in flow or an icon rail, and the choice persists
 header carries the figure and the dataset caution, the two things a 56px shell cannot hold. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
-portfolio behind it — signed out, a refused caller, the first sign-in — mounts NEITHER: a top bar
-with the mark and the language control over one top-anchored card, `md` still its only breakpoint.
+portfolio behind it — signed out, a refused caller, the first sign-in, the app that failed — mounts
+NEITHER: a top bar with the mark and the language control over one top-anchored card, `md` still its
+only breakpoint.
 SIGNED IN, THE ACCOUNT IS EVERY FOOTER BAND'S LAST CONTROL: in the panel and the drawer the address,
 then a sign-out pill in Settings' recipe, above the version; in the rail a sign-out item, the rail's
 foot reading in the panel's order — currency, Settings, sign-out. Their slot is HELD until the relay
@@ -177,6 +178,28 @@ their slot, and only a signed-out load sees the band close once.
 currency's box shows the state you are in. · An account menu: a second press for one item, where
 the menus it copies switch accounts. · An avatar: only asset avatars and colour dots are round. ·
 A sign-out offered to every visitor regardless of session: a way out for someone never in.
+
+## Not found and failures
+**Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE
+CARRIES THE APP-FAILURE PAGE, for a throw in `Root`, in `Layout` or on a signed-out page, and
+`main.tsx` renders the same page when the database cannot open at boot. It stands in the signed-out
+frame, having no shell left to keep, and owns `<html lang>` and the theme while `Root` is not
+mounted. A PATHLESS ROUTE BETWEEN `Layout` AND THE SCREENS carries the failed-screen state, so a
+screen that throws keeps the sidebar and reaching any route clears it. A `*` among the screens
+catches every other path, `/sign-in/x` too, inside the shell. Each state is an answer's block — a
+muted glyph, the title, the lead, one button — and in the shell its card sits where the signed-out
+card does. The two failures share their words and one reload; not found sends to `/`. NO STATE SHOWS
+THE ERROR, a status code or a stack: the router and React log what a boundary catches, and the boot
+logs its own.
+**Why.** GOV.UK asks for the same page for all unexpected problems, and for no jargon like 404, no
+"oops" and no red. OWASP logs the details and returns none to the user, and the console is this
+app's log. React Router renders a boundary in place of its own route's element, so where a boundary
+sits decides what survives the throw.
+**Rejected.** A loading state, `HydrateFallback` or `Suspense`: no route loads and nothing suspends.
+· A real 404 status: the host rewrites every app path to the SPA with a 200. · A "Try again" that
+re-renders in place: with no loaders to revalidate, a location change is the only reset this app's
+router has, a render that threw usually throws again on the same data, and a reload also drops the
+in-memory caches a re-render keeps. · Reporting errors to a service.
 
 ## Brand
 **Decision.** The product is Quirenote and the domain is `quirenote.com`. The logo is the 5h mark,

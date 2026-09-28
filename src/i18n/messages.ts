@@ -1091,6 +1091,20 @@ export const en = {
       ghost: 'Suggested from coupon accrual — accept or type your own.',
     },
   },
+  // The app's own not-found and failure states (`boundaries.dc.html`). The two failures, a screen's
+  // and the whole app's, share their words: GOV.UK's "same page for all unexpected problems".
+  boundary: {
+    notFound: {
+      title: 'Page not found',
+      lead: 'If you typed the address, check it is correct. If you pasted it, check you copied all of it.',
+      home: 'Go to Daily quotes',
+    },
+    failed: {
+      title: 'This page couldn’t be shown',
+      lead: 'Reload the page to try again. Reloading won’t delete your data.',
+      reload: 'Reload the page',
+    },
+  },
   screen: {
     transactions: {
       title: 'Transactions',
@@ -2072,6 +2086,18 @@ export const uk: Dict = {
       stale: 'З останнього вдалого отримання — Inzhur був недоступний.',
       accrual: 'Заповнено з нарахування купона — прийнята пропозиція.',
       ghost: 'Запропоновано з нарахування купона — прийміть або введіть власне.',
+    },
+  },
+  boundary: {
+    notFound: {
+      title: 'Сторінку не знайдено',
+      lead: 'Якщо ви вводили адресу, перевірте, чи вона правильна. Якщо вставляли — чи скопіювали її повністю.',
+      home: 'Перейти до щоденних котирувань',
+    },
+    failed: {
+      title: 'Не вдалося показати сторінку',
+      lead: 'Перезавантажте сторінку, щоб спробувати ще раз. Від цього ваші дані не зникнуть.',
+      reload: 'Перезавантажити сторінку',
     },
   },
   screen: {

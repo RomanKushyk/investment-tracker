@@ -271,6 +271,22 @@ Interactions to verify:
 1. Signed in, "Sign out" → 70 % while it runs, one `POST …/auth/sign-out`, then `/sign-in`, signed out and the answer gone, saying "You’re signed out." (`/sign-in` interaction 8). "Sign out and apply" → the same, landing on `/apply`, which says nothing of it.
 2. A sign-out the relay could not complete leaves the answer on screen and the button pressable again.
 
+## Not found and failures
+
+Three states replace the router's own fallback, whose "Unexpected Application Error!" appears nowhere (`boundaries.dc.html`). None shows the error's message, a stack or a status code. What a boundary catches reaches the console, on the dev server twice: from React ("The above error occurred in the <…> component") and from the router ("React Router caught the following error during render").
+
+At 1280 and 360, in either theme: an answer's block — a 24px glyph in `muted`, 16 above the title, the lead in 13px `muted`, then one primary button at the card's width. Inside the shell the block sits in a screen's card (r24, 22 inside, 440 at most), centred across the content column and 64 below its top at 1280 — y 64 beside the panel, y 121 beside the rail — and 16 below at 360, where it fills the column.
+
+- **Not found** — any path nothing else matches, `/nope`, `/sign-in/x` and `/overview/x` alike, inside the portfolio shell: a `route-off` glyph, "Page not found" / "If you typed the address, check it is correct. If you pasted it, check you copied all of it.", and "Go to Daily quotes", a link to `/`. No nav item is active, and focus does not move.
+- **A failed screen** — a screen that throws while rendering, inside the shell with the sidebar working: a `triangle-alert` glyph, "This page couldn’t be shown" / "Reload the page to try again. Reloading won’t delete your data.", and "Reload the page". The title takes focus. The route's nav item stays active.
+- **The app failing** — a throw in the shell itself or on a signed-out page, or a demo database that cannot open at boot: the failed screen's block in `/sign-in`'s shell and card, the language control switching the copy and `<html lang>` together.
+
+Interactions to verify, on the dev server, loading a module by the URL the page recorded: `const mod = (p) => import(performance.getEntriesByType('resource').findLast((e) => e.name.includes(p))?.name ?? p)`:
+1. `/nope` → not found. "Go to Daily quotes" → `/`.
+2. On `/`: `(await mod('/src/state/draft.ts')).useDraft.setState({ quotes: new Proxy({}, { get: (_, k) => { if (k === 'toJSON') return undefined; throw new Error('probe'); } }) })` → the failed screen. Any nav item → that route, the state gone. It persists as `{}`, so a reload recovers; never write `null` there, which the draft keeps. On `/overview`, `/yield` or `/seasonality`, `(await mod('/src/state/settings.ts')).useSettings.setState({ period: { [Symbol.toPrimitive]() { throw new Error('probe'); } } })` does the same, and the next load repairs the period.
+3. At 1280 with the panel expanded, or at 360 with the drawer opened after it: `(await mod('/src/state/settings.ts')).useSettings.setState({ sidebarCollapsed: false, collapsedNavGroups: null })` → the app failing. "Reload the page" → the app back, the groups repaired.
+4. In demo, with `Object.defineProperty(window, 'indexedDB', { value: undefined })` run before the bundle (a navigation init script) → the app failing instead of a blank page, and the database's error in the console. In live the boot opens nothing, so it cannot fail there.
+
 ## Mobile shell (below 768 px)
 
 **One breakpoint, `md` = 768px, the only one.** Resize to 360×740 and run these; then to 768×800, where the desktop shell must be back byte-for-byte.

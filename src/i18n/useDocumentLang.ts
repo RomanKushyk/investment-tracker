@@ -7,7 +7,7 @@ import { useSettings } from '../state/settings';
  * page in, and what a browser's translate prompt and hyphenation engine read.
  * `index.html` ships `lang="en"` while the default is Ukrainian, so it is wrong from
  * the first paint — hence this runs in `Root` beside `useTheme`, which owns the
- * other root attribute.
+ * other root attribute, and in the app-failure page that stands in `Root`'s place.
  *
  * The head script does not set it, deliberately: unlike the theme, a wrong `lang` for
  * one frame has no visual effect, and the boot script stays at the one thing that must

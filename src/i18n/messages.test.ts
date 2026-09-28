@@ -237,3 +237,41 @@ describe('the reused temporary password', () => {
     expect(uk.auth.setPassword.reused).toBe('Це тимчасовий пароль. Придумайте власний.');
   });
 });
+
+describe('the not-found and failure states', () => {
+  const BOUNDARY = [...EN, ...UK].filter(([key]) => key.startsWith('boundary.'));
+
+  // The words of `boundaries.dc.html`: GOV.UK's not-found page, and one failure sentence for every
+  // unexpected problem, in the app's «Не вдалося …» voice.
+  it('say what the brief says, in both languages', () => {
+    expect(en.boundary.notFound).toEqual({
+      title: 'Page not found',
+      lead: 'If you typed the address, check it is correct. If you pasted it, check you copied all of it.',
+      home: 'Go to Daily quotes',
+    });
+    expect(uk.boundary.notFound).toEqual({
+      title: 'Сторінку не знайдено',
+      lead: 'Якщо ви вводили адресу, перевірте, чи вона правильна. Якщо вставляли — чи скопіювали її повністю.',
+      home: 'Перейти до щоденних котирувань',
+    });
+    expect(en.boundary.failed).toEqual({
+      title: 'This page couldn’t be shown',
+      lead: 'Reload the page to try again. Reloading won’t delete your data.',
+      reload: 'Reload the page',
+    });
+    expect(uk.boundary.failed).toEqual({
+      title: 'Не вдалося показати сторінку',
+      lead: 'Перезавантажте сторінку, щоб спробувати ще раз. Від цього ваші дані не зникнуть.',
+      reload: 'Перезавантажити сторінку',
+    });
+  });
+
+  // GOV.UK rules out "technical jargon like 404" and "informal or humorous words like oops".
+  it('name no status code and say no oops', () => {
+    expect(BOUNDARY).toHaveLength(12);
+    for (const [key, value] of BOUNDARY) {
+      expect(String(value), key).not.toMatch(/\b[45]\d\d\b/);
+      expect(String(value), key).not.toMatch(/\boops\b|упс/iu);
+    }
+  });
+});
