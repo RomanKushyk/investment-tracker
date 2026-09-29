@@ -1,10 +1,12 @@
 // The relay is the only way a browser gets a token, and the only holder of the client secret. What
 // these tests pin is where each token goes — the refresh token into an HttpOnly cookie and nowhere
 // else — and what a request must carry to be answered at all.
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  GOOGLE_BEGIN_ROUTE,
+  GOOGLE_COMPLETE_ROUTE,
   REFRESH_ROUTE,
   RESPOND_ROUTE,
   RESPONSES,
@@ -13,6 +15,7 @@ import {
   type IdentityClient,
   createRelay,
   handler as rawHandler,
+  redeemWith,
 } from './auth-relay';
 import type { ApiEvent, ApiResult } from './http';
 import { proveRouteContract, recorder } from './route-contract';
@@ -34,6 +37,16 @@ const ROTATED = 'rotated.refresh.token.jwe';
 /** A family's original, from a sign-in before this request: never `REFRESH`, so a test can tell
  *  which of the two was revoked. */
 const ORIGIN = 'origin.refresh.token.jwe';
+/** The managed-login domain, where Cognito's OAuth endpoints live. */
+const DOMAIN = 'auth.example.test';
+const CALLBACK = 'https://app.example.test/auth/callback';
+const CODE = 'the-authorization-code';
+/** A flow a begin already bound to this browser: 43 base64url characters each, as 32 bytes give. */
+const STATE = 'S'.repeat(43);
+const VERIFIER = 'V'.repeat(43);
+/** What `DescribeUserPoolClient` lists: a client without Google, and one with it. */
+const WITHOUT_GOOGLE = ['COGNITO'];
+const WITH_GOOGLE = ['COGNITO', 'Google'];
 
 const hashOf = (secret: string, username: string) =>
   createHmac('sha256', secret)
@@ -48,6 +61,10 @@ const kept = (token: string) => `__Host-Http-refresh=${token}; Max-Age=7200; ${A
 const origin = (token: string) => `__Host-Http-origin=${token}; Max-Age=86400; ${ATTRIBUTES}`;
 const CLEARED = `__Host-Http-refresh=; Max-Age=0; ${ATTRIBUTES}`;
 const FORGOTTEN = [CLEARED, `__Host-Http-origin=; Max-Age=0; ${ATTRIBUTES}`];
+/** The Google flow's state and verifier: fifteen minutes, as Auth.js keeps its pair. */
+const flow = (state: string, verifier: string) =>
+  `__Host-Http-google=${state}.${verifier}; Max-Age=900; ${ATTRIBUTES}`;
+const FLOW_CLEARED = `__Host-Http-google=; Max-Age=0; ${ATTRIBUTES}`;
 
 const BROWSER = { 'x-csrf': '1', 'sec-fetch-site': 'same-site' };
 
@@ -61,7 +78,7 @@ const post = (
   ...(body === undefined ? {} : { body: JSON.stringify(body), isBase64Encoded: false }),
 });
 
-type Jar = { refresh?: string; origin?: string };
+type Jar = { refresh?: string; origin?: string; google?: string };
 
 /** What a browser sends, the original FIRST where there is one: a cookie is found by its name,
  *  never by its place. */
@@ -69,6 +86,7 @@ const cookiesOf = (jar: Jar) => [
   ...(jar.origin === undefined ? [] : [`__Host-Http-origin=${jar.origin}`]),
   'theme=dark',
   ...(jar.refresh === undefined ? [] : [`__Host-Http-refresh=${jar.refresh}`]),
+  ...(jar.google === undefined ? [] : [`__Host-Http-google=${jar.google}`]),
 ];
 
 const carrying = (routeKey: string, jar: Jar = { refresh: REFRESH }): ApiEvent => ({
@@ -98,8 +116,14 @@ const SIGNED_IN = {
 };
 
 /** A pool that records every call. `secrets` is what successive `DescribeUserPoolClient` calls
- *  read, the last one repeated; every other call answers from `script`, else succeeds. */
-const cognito = (script: Partial<IdentityClient> = {}, secrets: (string | Error)[] = [SECRET]) => {
+ *  read, the last one repeated, beside the client's `providers`; every other call answers from
+ *  `script`, else succeeds. */
+const cognito = (
+  script: Partial<IdentityClient> = {},
+  secrets: (string | Error)[] = [SECRET],
+  providers: string[] = WITHOUT_GOOGLE,
+  callbacks: string[] = [CALLBACK],
+) => {
   const calls: { op: keyof IdentityClient; input: Record<string, unknown> }[] = [];
   let reads = 0;
   const log = (op: keyof IdentityClient, input: unknown) =>
@@ -109,7 +133,13 @@ const cognito = (script: Partial<IdentityClient> = {}, secrets: (string | Error)
       log('describeUserPoolClient', input);
       const next = secrets[Math.min(reads++, secrets.length - 1)];
       if (next instanceof Error) throw next;
-      return { UserPoolClient: { ClientSecret: next } };
+      return {
+        UserPoolClient: {
+          ClientSecret: next,
+          SupportedIdentityProviders: providers,
+          CallbackURLs: callbacks,
+        },
+      };
     },
     initiateAuth: async (input) => {
       log('initiateAuth', input);
@@ -136,6 +166,12 @@ const cognito = (script: Partial<IdentityClient> = {}, secrets: (string | Error)
       log('revokeToken', input);
       return script.revokeToken ? script.revokeToken(input) : {};
     },
+    redeemCode: async (input) => {
+      log('redeemCode', input);
+      return script.redeemCode
+        ? script.redeemCode(input)
+        : { id_token: ID, access_token: ACCESS, refresh_token: REFRESH, expires_in: 3600 };
+    },
   };
   const of = (op: keyof IdentityClient) => calls.filter((c) => c.op === op).map((c) => c.input);
   return { idp, calls, of };
@@ -154,6 +190,7 @@ const bodyOf = (res: ApiResult) => JSON.parse(res.body) as Record<string, unknow
 beforeEach(() => {
   vi.stubEnv('USER_POOL_ID', POOL);
   vi.stubEnv('USER_POOL_CLIENT_ID', CLIENT);
+  vi.stubEnv('AUTH_DOMAIN', DOMAIN);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -876,7 +913,12 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
     const { idp, of } = cognito();
     const res = await environment(idp)(carrying(REFRESH_ROUTE));
     expect(res.statusCode).toBe(200);
-    expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
+    expect(bodyOf(res)).toEqual({
+      idToken: ID,
+      accessToken: ACCESS,
+      expiresIn: 3600,
+      google: false,
+    });
     expect(res.cookies).toEqual([kept(ROTATED)]);
     expect(res.body).not.toContain(ROTATED);
     expect(of('getTokensFromRefreshToken')).toEqual([
@@ -895,27 +937,29 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
     expect(res.cookies).toEqual([kept(REFRESH)]);
   });
 
-  it('refuses a request with no cookie, and clears it, asking Cognito nothing', async () => {
+  // THE CLIENT IS READ, AND NOTHING ELSE: whether Google is on is what a signed-out page asks this
+  // for, and no token is involved.
+  it('refuses a request with no cookie, and clears it, asking Cognito for the client alone', async () => {
     const { idp, calls } = cognito();
     const res = await environment(idp)(post(REFRESH_ROUTE));
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       401,
-      '{"error":"not_authorized"}',
+      '{"error":"not_authorized","google":false}',
       [CLEARED],
     ]);
-    expect(calls).toEqual([]);
+    expect(calls.map((c) => c.op)).toEqual(['describeUserPoolClient']);
   });
 
   // THE ORIGINAL IS NOT A SESSION: it is kept to be revoked, never to refresh with.
-  it('refuses a request carrying only the original, and asks Cognito nothing', async () => {
+  it('refuses a request carrying only the original, and asks Cognito for the client alone', async () => {
     const { idp, calls } = cognito();
     const res = await environment(idp)(carrying(REFRESH_ROUTE, { origin: ORIGIN }));
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       401,
-      '{"error":"not_authorized"}',
+      '{"error":"not_authorized","google":false}',
       [CLEARED],
     ]);
-    expect(calls).toEqual([]);
+    expect(calls.map((c) => c.op)).toEqual(['describeUserPoolClient']);
   });
 
   // RFC 10017 §6.2.2.2: a refresh token that is no longer valid ends the session. The original
@@ -936,7 +980,7 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
       );
       expect([res.statusCode, res.body, res.cookies]).toEqual([
         401,
-        '{"error":"not_authorized"}',
+        '{"error":"not_authorized","google":false}',
         [CLEARED],
       ]);
       expect(of('revokeToken')).toEqual([]);
@@ -975,7 +1019,7 @@ describe('a replayed token ends its whole family', () => {
     const res = await environment(idp)(both);
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       401,
-      '{"error":"not_authorized"}',
+      '{"error":"not_authorized","google":false}',
       FORGOTTEN,
     ]);
     expect(of('revokeToken')).toEqual([{ Token: ORIGIN, ClientId: CLIENT, ClientSecret: SECRET }]);
@@ -1097,11 +1141,11 @@ describe('a sign-out revokes every token before it forgets them', () => {
     expect([replayed.statusCode, replayed.cookies]).toEqual([401, [CLEARED]]);
   });
 
-  it('clears both cookies of a caller who had neither, asking Cognito nothing', async () => {
+  it('clears both cookies of a caller who had neither, asking Cognito for the client alone', async () => {
     const { idp, calls } = cognito();
     const res = await environment(idp)(post(SIGN_OUT_ROUTE));
     expect([res.statusCode, res.cookies]).toEqual([200, FORGOTTEN]);
-    expect(calls).toEqual([]);
+    expect(calls.map((c) => c.op)).toEqual(['describeUserPoolClient']);
   });
 
   for (const name of ['UnsupportedTokenTypeException', 'InvalidParameterException']) {
@@ -1196,6 +1240,418 @@ describe('a sign-out revokes every token before it forgets them', () => {
   });
 });
 
+// RFC 9700 §2.1.1: PKCE, "securely bound to the client and the user agent in which the transaction
+// was started". The pair lives in a cookie only this relay reads, drawn afresh for every redirect.
+describe('Google: begin binds a new flow to this browser', () => {
+  const google = () => cognito({}, [SECRET], WITH_GOOGLE);
+  const begun = async (idp = google().idp) => {
+    const res = await environment(idp)(post(GOOGLE_BEGIN_ROUTE));
+    const pair = /^__Host-Http-google=([^;]*);/.exec(res.cookies?.[0] ?? '')?.[1] ?? '';
+    const [state = '', verifier = ''] = pair.split('.');
+    return { res, state, verifier, url: new URL(bodyOf(res).authorize as string) };
+  };
+
+  it('answers the authorize URL, straight to Google, with the state and an S256 challenge', async () => {
+    const { res, state, verifier, url } = await begun();
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(`${url.origin}${url.pathname}`).toBe(`https://${DOMAIN}/oauth2/authorize`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      response_type: 'code',
+      client_id: CLIENT,
+      redirect_uri: CALLBACK,
+      identity_provider: 'Google',
+      scope: 'openid email profile',
+      prompt: 'select_account',
+      state,
+      code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+      code_challenge_method: 'S256',
+    });
+  });
+
+  // RFC 7636 §4.1: "a 32-octet sequence", which base64url spells in 43 characters, the minimum.
+  it('binds the state and the verifier to this browser for fifteen minutes', async () => {
+    const { res, state, verifier } = await begun();
+    expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(res.cookies).toEqual([flow(state, verifier)]);
+  });
+
+  it('never lets the verifier out of the cookie', async () => {
+    const { res, verifier } = await begun();
+    expect(res.body).not.toContain(verifier);
+    expect(JSON.stringify(res.headers)).not.toContain(verifier);
+  });
+
+  it('draws a new state and verifier for every redirect', async () => {
+    const { idp } = google();
+    const [a, b] = [await begun(idp), await begun(idp)];
+    expect(a.state).not.toBe(b.state);
+    expect(a.verifier).not.toBe(b.verifier);
+  });
+
+  it('refuses when the client lists no Google, and binds nothing', async () => {
+    const res = await environment(cognito().idp)(post(GOOGLE_BEGIN_ROUTE));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      404,
+      '{"error":"google_disabled"}',
+      undefined,
+    ]);
+  });
+
+  it('answers its own failure when the client cannot be read', async () => {
+    const { idp } = cognito({}, [refusal('TooManyRequestsException')], WITH_GOOGLE);
+    const res = await environment(idp)(post(GOOGLE_BEGIN_ROUTE));
+    expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
+  });
+
+  it('answers its own failure when the client lists no callback', async () => {
+    const { idp } = cognito({}, [SECRET], WITH_GOOGLE, []);
+    const res = await environment(idp)(post(GOOGLE_BEGIN_ROUTE));
+    expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
+  });
+});
+
+describe('Google: complete redeems the code in the browser that began, and only there', () => {
+  const google = (script: Partial<IdentityClient> = {}, secrets = [SECRET]) =>
+    cognito(script, secrets, WITH_GOOGLE);
+  const completing = (jar: Jar = {}, body: unknown = { code: CODE, state: STATE }): ApiEvent => ({
+    ...post(GOOGLE_COMPLETE_ROUTE, body),
+    cookies: cookiesOf({ google: `${STATE}.${VERIFIER}`, ...jar }),
+  });
+
+  it('redeems the code with the verifier and the secret, then signs in as any sign-in does', async () => {
+    const { idp, of } = google();
+    const res = await environment(idp)(completing());
+    expect(res.statusCode).toBe(200);
+    expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
+    expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH), FLOW_CLEARED]);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body).not.toContain(REFRESH);
+    expect(of('redeemCode')).toEqual([
+      {
+        domain: DOMAIN,
+        client: CLIENT,
+        secret: SECRET,
+        code: CODE,
+        redirectUri: CALLBACK,
+        verifier: VERIFIER,
+      },
+    ]);
+  });
+
+  it('revokes every token the browser still carries once it has signed in', async () => {
+    const { idp, of } = google();
+    await environment(idp)(completing({ refresh: ROTATED, origin: ORIGIN }));
+    expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN, ROTATED]);
+  });
+
+  // THE CRITERION: a code arriving in a browser that never began — no verifier — or with another
+  // flow's state is refused before it is redeemed, and the flow it did not belong to stays.
+  const unbound: [string, ApiEvent][] = [
+    ['no flow cookie', post(GOOGLE_COMPLETE_ROUTE, { code: CODE, state: STATE })],
+    ['a state the cookie does not hold', completing({}, { code: CODE, state: 'T'.repeat(43) })],
+    ['a state of another length', completing({}, { code: CODE, state: STATE.slice(1) })],
+    ['a cookie holding no verifier', completing({ google: STATE })],
+    ['a cookie holding an empty verifier', completing({ google: `${STATE}.` })],
+    ['a cookie holding more than a pair', completing({ google: `${STATE}.${VERIFIER}.x` })],
+  ];
+  for (const [what, event] of unbound) {
+    it(`refuses ${what}, never asking for the tokens`, async () => {
+      const { idp, of } = google();
+      const res = await environment(idp)(event);
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        401,
+        '{"error":"not_authorized"}',
+        undefined,
+      ]);
+      expect(of('redeemCode')).toEqual([]);
+    });
+  }
+
+  const malformed: unknown[] = [
+    { code: CODE },
+    { code: CODE, state: STATE, extra: 'x' },
+    { code: '', state: STATE },
+    'text',
+  ];
+  for (const body of malformed) {
+    it(`refuses the body ${JSON.stringify(body)}, asking Cognito nothing`, async () => {
+      const { idp, calls } = google();
+      const res = await environment(idp)(completing({}, body));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        400,
+        '{"error":"invalid_request"}',
+        undefined,
+      ]);
+      expect(calls).toEqual([]);
+    });
+  }
+
+  // THE TOKEN ENDPOINT'S OWN REFUSALS (Cognito, *Token endpoint*): a spent or unknown code, a
+  // redirect that does not match, a malformed request. Each ends this flow.
+  for (const name of ['invalid_grant', 'unauthorized_client', 'invalid_request']) {
+    it(`refuses a code the token endpoint answers ${name}, spends the flow, and logs the name`, async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { idp } = google({
+        redeemCode: async () => {
+          throw refusal(name);
+        },
+      });
+      const res = await environment(idp)(completing({ refresh: ROTATED }));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        401,
+        '{"error":"not_authorized"}',
+        [FLOW_CLEARED],
+      ]);
+      expect(JSON.stringify(warn.mock.calls)).toContain(name);
+      for (const needle of [CODE, STATE, VERIFIER]) {
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(needle);
+      }
+    });
+  }
+
+  it('answers its own failure when the client lists no callback', async () => {
+    const { idp, of } = cognito({}, [SECRET], WITH_GOOGLE, []);
+    const res = await environment(idp)(completing());
+    expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
+    expect(of('redeemCode')).toEqual([]);
+  });
+
+  it('redeems again once with a secret that changed since it was read', async () => {
+    const { idp, of } = google(
+      {
+        redeemCode: async (input) => {
+          if (input.secret !== ROTATED_SECRET) throw refusal('invalid_client');
+          return { id_token: ID, access_token: ACCESS, refresh_token: REFRESH, expires_in: 3600 };
+        },
+      },
+      [SECRET, ROTATED_SECRET],
+    );
+    const res = await environment(idp)(completing());
+    expect(res.statusCode).toBe(200);
+    expect(of('redeemCode').map((input) => input.secret)).toEqual([SECRET, ROTATED_SECRET]);
+  });
+
+  // A FAULT IS NOT A REFUSAL: the code may still be good, so nothing is cleared.
+  it('answers a fault as its own failure, keeping the cookies', async () => {
+    const { idp } = google({
+      redeemCode: async () => {
+        throw refusal('TypeError', 'fetch failed');
+      },
+    });
+    const res = await environment(idp)(completing());
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      500,
+      '{"error":"internal"}',
+      undefined,
+    ]);
+  });
+
+  it('answers tokens missing what a session needs as a failure', async () => {
+    const { idp } = google({ redeemCode: async () => ({ id_token: ID, access_token: ACCESS }) });
+    expect((await environment(idp)(completing())).statusCode).toBe(500);
+  });
+
+  it('never puts the code, the state or the verifier in a log line', async () => {
+    const { idp } = google({
+      redeemCode: async () => {
+        throw refusal('TypeError', 'fetch failed');
+      },
+    });
+    await environment(idp)(completing());
+    expect(console.error).toHaveBeenCalled();
+    const logged = JSON.stringify(vi.mocked(console.error).mock.calls, (_, v: unknown) =>
+      v instanceof Error ? `${v.name}: ${v.message}` : v,
+    );
+    for (const needle of [CODE, STATE, VERIFIER, SECRET]) {
+      expect([needle, logged.includes(needle)]).toEqual([needle, false]);
+    }
+  });
+});
+
+// COGNITO, *Token endpoint*: "The token endpoint supports client_secret_basic", and "The
+// authorization header string is Basic Base64Encode(client_id:client_secret)".
+describe('the token endpoint', () => {
+  const INPUT = {
+    domain: DOMAIN,
+    client: CLIENT,
+    secret: SECRET,
+    code: CODE,
+    redirectUri: CALLBACK,
+    verifier: VERIFIER,
+  };
+  const TOKENS_ANSWERED = {
+    id_token: 'i',
+    access_token: 'a',
+    refresh_token: 'r',
+    expires_in: 3600,
+  };
+  const answering = (status: number, body: string) =>
+    vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response(body, { status }),
+    );
+
+  it('posts the code, the redirect and the verifier as a form, the secret in Basic', async () => {
+    const fetch = answering(200, JSON.stringify(TOKENS_ANSWERED));
+    await redeemWith(fetch)(INPUT);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe(`https://${DOMAIN}/oauth2/token`);
+    expect(init.method).toBe('POST');
+    expect(init.headers).toEqual({
+      authorization: `Basic ${Buffer.from(`${CLIENT}:${SECRET}`).toString('base64')}`,
+      'content-type': 'application/x-www-form-urlencoded',
+    });
+    expect(Object.fromEntries(new URLSearchParams(init.body as string))).toEqual({
+      grant_type: 'authorization_code',
+      client_id: CLIENT,
+      code: CODE,
+      redirect_uri: CALLBACK,
+      code_verifier: VERIFIER,
+    });
+  });
+
+  it('hands back what it answers', async () => {
+    const fetch = answering(200, JSON.stringify(TOKENS_ANSWERED));
+    expect(await redeemWith(fetch)(INPUT)).toEqual(TOKENS_ANSWERED);
+  });
+
+  it('throws a refusal under its OAuth error name', async () => {
+    const fetch = answering(400, '{"error":"invalid_grant"}');
+    await expect(redeemWith(fetch)(INPUT)).rejects.toMatchObject({ name: 'invalid_grant' });
+  });
+
+  it('throws an answer it cannot read as a fault, never as a refusal', async () => {
+    const fetch = answering(502, '<html>');
+    await expect(redeemWith(fetch)(INPUT)).rejects.toMatchObject({ name: 'TokenEndpointFault' });
+  });
+});
+
+// Supabase's `GET /settings` publishes `"google": true` for a sign-in page to read; here the
+// answer every load already asks for carries it, so knowing costs no call of its own.
+describe('a refresh says whether Google is on', () => {
+  it('names it on the tokens', async () => {
+    const { idp } = cognito({}, [SECRET], WITH_GOOGLE);
+    const res = await environment(idp)(carrying(REFRESH_ROUTE));
+    expect(bodyOf(res)).toEqual({
+      idToken: ID,
+      accessToken: ACCESS,
+      expiresIn: 3600,
+      google: true,
+    });
+  });
+
+  it('names it on a refusal, which is what a signed-out page reads', async () => {
+    const { idp } = cognito({}, [SECRET], WITH_GOOGLE);
+    const res = await environment(idp)(post(REFRESH_ROUTE));
+    expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized","google":true}']);
+  });
+
+  // A DEPLOY THAT TURNS GOOGLE OFF changes the client, not the function: a warm environment reads
+  // the providers again once they are five minutes old.
+  it('reads the providers again once they are five minutes old', async () => {
+    let clock = 0;
+    const providers = [...WITH_GOOGLE];
+    const { idp, of } = cognito({}, [SECRET], providers);
+    const relay = environment(idp, () => clock);
+    const google = async () => bodyOf(await relay(post(REFRESH_ROUTE))).google;
+    expect(await google()).toBe(true);
+    providers.splice(providers.indexOf('Google'), 1);
+    clock += 299_999;
+    expect(await google()).toBe(true);
+    clock += 1;
+    expect(await google()).toBe(false);
+    expect(of('describeUserPoolClient')).toHaveLength(2);
+  });
+
+  // A FAILED RE-READ KEEPS WHAT WAS READ, the secret and the providers, for five minutes more: a
+  // throttled read is not retried on every request.
+  it('keeps the client it read when a later re-read fails, and waits to read again', async () => {
+    let clock = 0;
+    const { idp, of } = cognito({}, [SECRET, refusal('TooManyRequestsException')], WITH_GOOGLE);
+    const relay = environment(idp, () => clock);
+    const answered = async () => {
+      const res = await relay(carrying(REFRESH_ROUTE));
+      return [res.statusCode, bodyOf(res).google];
+    };
+    expect(await answered()).toEqual([200, true]);
+    clock += 300_000;
+    expect(await answered()).toEqual([200, true]);
+    clock += 1;
+    expect(await answered()).toEqual([200, true]);
+    expect(of('getTokensFromRefreshToken').map((input) => input.ClientSecret)).toEqual([
+      SECRET,
+      SECRET,
+      SECRET,
+    ]);
+    expect(of('describeUserPoolClient')).toHaveLength(2);
+    clock += 299_999;
+    await answered();
+    expect(of('describeUserPoolClient')).toHaveLength(3);
+  });
+
+  it('begins by the providers as they are five minutes on', async () => {
+    let clock = 0;
+    const providers = [...WITH_GOOGLE];
+    const { idp } = cognito({}, [SECRET], providers);
+    const relay = environment(idp, () => clock);
+    expect((await relay(post(GOOGLE_BEGIN_ROUTE))).statusCode).toBe(200);
+    providers.splice(providers.indexOf('Google'), 1);
+    clock += 300_000;
+    expect((await relay(post(GOOGLE_BEGIN_ROUTE))).statusCode).toBe(404);
+  });
+
+  it('says it is off when the client cannot be read, and still answers the missing cookie', async () => {
+    const { idp } = cognito({}, [refusal('TooManyRequestsException')], WITH_GOOGLE);
+    const res = await environment(idp)(post(REFRESH_ROUTE));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      401,
+      '{"error":"not_authorized","google":false}',
+      [CLEARED],
+    ]);
+  });
+});
+
+// GlobalSignOut "doesn't clear the managed login session cookie"; the logout endpoint does, and the
+// cookie is the auth domain's, so only a browser sent there can have it cleared.
+describe('a sign-out names Cognito’s logout while Google is on', () => {
+  const LOGOUT = `https://${DOMAIN}/logout?client_id=${CLIENT}`;
+
+  it('hands back the logout endpoint for this client', async () => {
+    const { idp } = cognito({}, [SECRET], WITH_GOOGLE);
+    const res = await environment(idp)(
+      carrying(SIGN_OUT_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
+    );
+    expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+      200,
+      { status: 'signed_out', logout: LOGOUT },
+      FORGOTTEN,
+    ]);
+  });
+
+  // COGNITO'S SESSION IS ITS OWN: nothing this relay holds says whether the browser has one.
+  it('hands it back to a browser that carries no token too', async () => {
+    const { idp } = cognito({}, [SECRET], WITH_GOOGLE);
+    const res = await environment(idp)(post(SIGN_OUT_ROUTE));
+    expect(bodyOf(res)).toEqual({ status: 'signed_out', logout: LOGOUT });
+  });
+
+  it('names none when the client lists no Google', async () => {
+    const res = await environment(cognito().idp)(carrying(SIGN_OUT_ROUTE));
+    expect(res.body).toBe('{"status":"signed_out"}');
+  });
+
+  it('names none when the client cannot be read, and still signs a tokenless browser out', async () => {
+    const { idp } = cognito({}, [refusal('TooManyRequestsException')], WITH_GOOGLE);
+    const res = await environment(idp)(post(SIGN_OUT_ROUTE));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      200,
+      '{"status":"signed_out"}',
+      FORGOTTEN,
+    ]);
+  });
+});
+
 describe('a request the relay does not answer at all', () => {
   const ROUTES: [string, ApiEvent][] = [
     [START_ROUTE, post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' })],
@@ -1209,6 +1665,14 @@ describe('a request the relay does not answer at all', () => {
     ],
     [REFRESH_ROUTE, carrying(REFRESH_ROUTE)],
     [SIGN_OUT_ROUTE, carrying(SIGN_OUT_ROUTE)],
+    [GOOGLE_BEGIN_ROUTE, post(GOOGLE_BEGIN_ROUTE)],
+    [
+      GOOGLE_COMPLETE_ROUTE,
+      {
+        ...post(GOOGLE_COMPLETE_ROUTE, { code: CODE, state: STATE }),
+        cookies: cookiesOf({ google: `${STATE}.${VERIFIER}` }),
+      },
+    ],
   ];
   const forged: [string, Record<string, string | undefined>][] = [
     ['no custom header', { 'x-csrf': undefined }],
@@ -1236,7 +1700,7 @@ describe('a request the relay does not answer at all', () => {
     }
 
     it(`admits a same-origin fetch on ${route}`, async () => {
-      const res = await environment(cognito().idp)({
+      const res = await environment(cognito({}, [SECRET], WITH_GOOGLE).idp)({
         ...event,
         headers: { ...event.headers, 'sec-fetch-site': 'same-origin' },
       });

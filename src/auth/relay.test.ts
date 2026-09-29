@@ -18,6 +18,17 @@ describe('a relay call', () => {
     });
   });
 
+  it('reaches the Google routes under /auth/google', async () => {
+    const fetch = answer(200, { authorize: 'https://auth.test/oauth2/authorize' });
+    await createRelay({ base: 'https://api.test', fetch })('google/begin');
+    expect(fetch).toHaveBeenCalledWith('https://api.test/auth/google/begin', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'x-csrf': '1' },
+      signal: expect.any(AbortSignal),
+    });
+  });
+
   it('sends no body where the relay reads none', async () => {
     const fetch = answer(401, { error: 'not_authorized' });
     await createRelay({ base: '/relay', fetch })('refresh');
@@ -61,6 +72,39 @@ describe('a relay call', () => {
       { kind: 'refused', reason: 'failed' },
     ],
     [200, { idToken: 'i', accessToken: 'a' }, { kind: 'refused', reason: 'failed' }],
+    // WHETHER GOOGLE IS ON rides a refresh's answers, both of them, and nothing else is read as it.
+    [
+      200,
+      { idToken: 'i', accessToken: 'a', expiresIn: 3600, google: true },
+      {
+        kind: 'tokens',
+        tokens: { idToken: 'i', accessToken: 'a', expiresIn: 3600 },
+        google: true,
+      },
+    ],
+    [
+      401,
+      { error: 'not_authorized', google: false },
+      { kind: 'refused', reason: 'notAuthorized', google: false },
+    ],
+    [
+      401,
+      { error: 'not_authorized', google: 'true' },
+      { kind: 'refused', reason: 'notAuthorized' },
+    ],
+    [
+      200,
+      { status: 'signed_out', logout: 'https://auth.test/logout?client_id=c' },
+      { kind: 'signedOut', logout: 'https://auth.test/logout?client_id=c' },
+    ],
+    [200, { status: 'signed_out', logout: 7 }, { kind: 'signedOut' }],
+    [
+      200,
+      { authorize: 'https://auth.test/oauth2/authorize?state=s' },
+      { kind: 'authorize', url: 'https://auth.test/oauth2/authorize?state=s' },
+    ],
+    [200, { authorize: '' }, { kind: 'refused', reason: 'failed' }],
+    [404, { error: 'google_disabled' }, { kind: 'refused', reason: 'failed' }],
   ])('reads %i %j as %j', async (status, body, expected) => {
     const relay = createRelay({ base: '', fetch: answer(status, body) });
     expect(await relay('respond', {})).toEqual(expected);

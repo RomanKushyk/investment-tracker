@@ -10,6 +10,8 @@ import { parseDocument } from 'yaml';
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
 import {
   CSRF_HEADER,
+  GOOGLE_BEGIN_ROUTE,
+  GOOGLE_COMPLETE_ROUTE,
   REFRESH_ROUTE,
   RESPOND_ROUTE,
   SIGN_OUT_ROUTE,
@@ -127,7 +129,15 @@ describe('every other route is behind the pool, and the pool is the only issuer'
   // This stands in for `DefaultAuthorizer` and is stronger: a route with no authorizer fails the
   // suite before `sam deploy` runs. PUBLIC IS A WRITTEN LIST, not a count — a count is satisfied
   // by the wrong route being the exception.
-  const PUBLIC = [ROUTE, START_ROUTE, RESPOND_ROUTE, REFRESH_ROUTE, SIGN_OUT_ROUTE];
+  const PUBLIC = [
+    ROUTE,
+    START_ROUTE,
+    RESPOND_ROUTE,
+    REFRESH_ROUTE,
+    SIGN_OUT_ROUTE,
+    GOOGLE_BEGIN_ROUTE,
+    GOOGLE_COMPLETE_ROUTE,
+  ];
 
   // A `Globals:` block is the one way auth can move without a route moving: `Globals.HttpApi.Auth`
   // reaches every route from outside the derivation below, and the test would keep passing.
@@ -191,18 +201,20 @@ describe('the route is throttled below the stage it sits in', () => {
   });
 });
 
-describe('the relay: four POSTs outside the authorizer, holding one grant', () => {
+describe('the relay: six POSTs outside the authorizer, holding one grant', () => {
   const relay = ['Resources', 'AuthRelayFunction', 'Properties', 'Policies', 0, 'Statement'];
 
   // OUTSIDE THE AUTHORIZER BECAUSE THEY ARE HOW A TOKEN IS OBTAINED: a caller reaching them holds
   // none yet, or holds only the cookie. [*Auth model*]
-  it('routes the four sign-in routes at the relay, each a POST with no authorizer', () => {
+  it('routes the six sign-in routes at the relay, each a POST with no authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'AuthRelayFunction');
     expect(routes.map((r) => r.key)).toEqual([
       START_ROUTE,
       RESPOND_ROUTE,
       REFRESH_ROUTE,
       SIGN_OUT_ROUTE,
+      GOOGLE_BEGIN_ROUTE,
+      GOOGLE_COMPLETE_ROUTE,
     ]);
     for (const route of routes) {
       expect([route.key, route.api, route.authorizer]).toEqual([route.key, 'PublicApi', undefined]);
@@ -238,15 +250,21 @@ describe('the relay: four POSTs outside the authorizer, holding one grant', () =
     });
   });
 
-  // NO SECRET IN ITS CONFIGURATION: the pool and the client are named, and the secret is read.
-  it('is told the pool and the client, and nothing else', () => {
+  // NO SECRET IN ITS CONFIGURATION: the pool, the client and the managed-login domain Google's
+  // redirect and code exchange go through are named, and the secret is read.
+  it('is told the pool, the client and the auth domain, and nothing else', () => {
     const vars = (props('AuthRelayFunction').Environment as { Variables?: Record<string, unknown> })
       ?.Variables;
     expect(Object.keys(vars ?? {}).sort()).toEqual([
+      'AUTH_DOMAIN',
       'NODE_OPTIONS',
       'USER_POOL_CLIENT_ID',
       'USER_POOL_ID',
     ]);
+    expect(intrinsicAt(doc, ...envVars('AuthRelayFunction'), 'AUTH_DOMAIN')).toEqual({
+      tag: '!Ref',
+      value: 'UserPoolDomain',
+    });
     expect(intrinsicAt(doc, ...envVars('AuthRelayFunction'), 'USER_POOL_ID')).toEqual({
       tag: '!Ref',
       value: 'UserPool',

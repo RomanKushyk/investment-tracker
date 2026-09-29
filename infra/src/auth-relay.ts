@@ -3,7 +3,7 @@
 // RFC 10017's token-mediating backend on a confidential client (*Auth model*): the refresh token
 // goes into an HttpOnly cookie on this host and nowhere else, and the ID and access tokens go back
 // in the body for the app to hold in memory. Data routes never see this function.
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   type ChallengeNameType,
   CognitoIdentityProviderClient,
@@ -29,6 +29,10 @@ export const START_ROUTE = 'POST /auth/start';
 export const RESPOND_ROUTE = 'POST /auth/respond';
 export const REFRESH_ROUTE = 'POST /auth/refresh';
 export const SIGN_OUT_ROUTE = 'POST /auth/sign-out';
+/** GOOGLE IS THE ONE SIGN-IN THAT CANNOT BE A FORM: Cognito federates through its managed-login
+ *  domain on the authorization-code grant, so the browser leaves between these two. */
+export const GOOGLE_BEGIN_ROUTE = 'POST /auth/google/begin';
+export const GOOGLE_COMPLETE_ROUTE = 'POST /auth/google/complete';
 
 /** RFC 10017 §6.1.3.3.2: a static custom header forces a preflight, which CORS refuses to every
  *  origin it does not name. Duende BFF's spelling; the value is checked exactly. */
@@ -54,6 +58,13 @@ const cookieOf = (token: string) => `${COOKIE}=${token}; Max-Age=${IDLE_SECONDS}
 const originOf = (token: string) => `${ORIGIN}=${token}; Max-Age=${ORIGIN_SECONDS}; ${ATTRIBUTES}`;
 const CLEARED = `${COOKIE}=; Max-Age=0; ${ATTRIBUTES}`;
 const FORGOTTEN = [CLEARED, `${ORIGIN}=; Max-Age=0; ${ATTRIBUTES}`] as const;
+/** A GOOGLE FLOW'S STATE AND PKCE VERIFIER, bound to the browser that began it (RFC 9700 §2.1.1)
+ *  for as long as Auth.js keeps its own pair; Cognito's code itself lives five minutes. */
+const FLOW = '__Host-Http-google';
+const FLOW_SECONDS = 900;
+const flowOf = (state: string, verifier: string) =>
+  `${FLOW}=${state}.${verifier}; Max-Age=${FLOW_SECONDS}; ${ATTRIBUTES}`;
+const FLOW_CLEARED = `${FLOW}=; Max-Age=0; ${ATTRIBUTES}`;
 
 /** RFC 6749 §5.1: a response carrying a token MUST NOT be stored, and a challenge session neither. */
 const NO_STORE = 'no-store';
@@ -81,6 +92,12 @@ const CHALLENGE_KEYS = {
 /** THE ONE SELECTION ADMITTED. AWS: "The Password option is always available", so a plain password
  *  is refused here or nowhere. */
 const SELECTABLE = 'PASSWORD_SRP';
+
+/** What the client lists and the Google provider maps; Cognito ignores a scope it does not list. */
+const SCOPE = 'openid email profile';
+
+/** What `/auth/google/complete` takes: what Cognito's redirect handed the callback page. */
+const COMPLETE_KEYS = ['code', 'state'] as const;
 
 const TEXT = { type: 'string', minLength: 1 } as const;
 const exactObject = (keys: readonly string[], narrowed: Record<string, unknown> = {}) => ({
@@ -130,6 +147,11 @@ export const RESPOND_BODY = {
   },
 };
 
+export const GOOGLE_COMPLETE_BODY = {
+  required: true,
+  content: { 'application/json': { schema: exactObject(COMPLETE_KEYS) } },
+};
+
 const ASKING_FOR_THE_HEADER = [
   {
     name: CSRF_HEADER,
@@ -160,16 +182,39 @@ const CHALLENGE = derived({
     },
   },
 });
+/** A refresh's tokens name whether Google is on: every page load asks this, so knowing costs no
+ *  call of its own (Supabase publishes the same flag on `GET /settings`). */
+const REFRESHED = derived({
+  statusCode: 200,
+  name: 'tokens',
+  headers: ['set-cookie', 'cache-control'],
+  example: { idToken: '<JWT>', accessToken: '<JWT>', expiresIn: 3600, google: true },
+});
+/** `logout` WHILE GOOGLE IS ON: `GlobalSignOut` "doesn't clear the managed login session cookie",
+ *  and only a browser sent to Cognito's logout endpoint can have it cleared. */
 const SIGNED_OUT = derived({
   statusCode: 200,
   name: 'signed_out',
   headers: ['set-cookie'],
-  example: { status: 'signed_out' },
+  example: { status: 'signed_out', logout: 'https://<auth domain>/logout?client_id=<client>' },
 });
 /** RFC 10017 §6.2.2.2: a refresh token no longer valid ends the session, so the cookie goes too. */
 const SESSION_ENDED = derived({
   statusCode: 401,
   name: 'not_authorized',
+  headers: ['set-cookie'],
+  example: { error: 'not_authorized', google: true },
+});
+const AUTHORIZE = derived({
+  statusCode: 200,
+  name: 'authorize',
+  headers: ['set-cookie', 'cache-control'],
+  example: { authorize: 'https://<auth domain>/oauth2/authorize?identity_provider=Google&…' },
+});
+/** A code the token endpoint will not redeem: its flow is spent, so the cookie goes. */
+const FLOW_SPENT = derived({
+  statusCode: 401,
+  name: 'flow_spent',
   headers: ['set-cookie'],
   example: { error: 'not_authorized' },
 });
@@ -181,6 +226,8 @@ const REUSED_PASSWORD = json(400, '{"error":"reused_password"}');
 const CSRF = json(403, '{"error":"csrf"}');
 /** RFC 6585 §4, with no `Retry-After`: Cognito never says how long its lockout lasts. */
 const TOO_MANY = json(429, '{"error":"too_many_attempts"}');
+/** The client lists no Google provider: the deploy had no Google credentials. */
+const GOOGLE_DISABLED = json(404, '{"error":"google_disabled"}');
 
 /** What each route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `auth-relay.test.ts` proves it against what the routes really answer. */
@@ -197,8 +244,10 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     CSRF,
     INTERNAL,
   ],
-  [REFRESH_ROUTE]: [TOKENS, SESSION_ENDED, CSRF, INTERNAL],
+  [REFRESH_ROUTE]: [REFRESHED, SESSION_ENDED, CSRF, INTERNAL],
   [SIGN_OUT_ROUTE]: [SIGNED_OUT, CSRF, INTERNAL],
+  [GOOGLE_BEGIN_ROUTE]: [AUTHORIZE, GOOGLE_DISABLED, CSRF, INTERNAL],
+  [GOOGLE_COMPLETE_ROUTE]: [TOKENS, NOT_AUTHORIZED, FLOW_SPENT, INVALID, CSRF, INTERNAL],
 };
 
 /** What a request must carry beyond its body, for the document to publish: every route the relay
@@ -232,11 +281,30 @@ const SESSION_OVER = new Set([
  *  cannot parse. A revoked or unknown refresh token revokes without complaint (measured). */
 const ALREADY_DEAD = new Set(['UnsupportedTokenTypeException', 'InvalidParameterException']);
 
-/** A refusal waits this long before it may read the secret again — the default cache lifetime of
- *  AWS's Parameters and Secrets Lambda Extension. `UserPoolClientRead` allows five a second. */
+/** The token endpoint's refusals of a code (Cognito, *Token endpoint*): spent or unknown, a redirect
+ *  that does not match, a malformed request. `invalid_client` is the secret's, and is re-read. */
+const UNREDEEMABLE = new Set(['invalid_grant', 'unauthorized_client', 'invalid_request']);
+
+/** A refusal's wait before re-reading the secret, and the providers' age at re-read: AWS's
+ *  Parameters and Secrets Lambda Extension's default. `UserPoolClientRead` allows five a second. */
 const REREAD_MS = 300_000;
 
 type Tokens = { IdToken?: string; AccessToken?: string; RefreshToken?: string; ExpiresIn?: number };
+/** The token endpoint's own spelling of the same four. */
+export type CodeTokens = {
+  id_token?: string;
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+};
+export type RedeemInput = {
+  domain: string;
+  client: string;
+  secret: string;
+  code: string;
+  redirectUri: string;
+  verifier: string;
+};
 type Answer = {
   ChallengeName?: string;
   Session?: string;
@@ -245,12 +313,15 @@ type Answer = {
   AuthenticationResult?: Tokens;
 };
 
-/** Narrowed to the five calls this file makes, so a test injects a double rather than the SDK. */
+/** Narrowed to the six calls this file makes, so a test injects a double rather than the SDK. */
 export type IdentityClient = {
-  describeUserPoolClient(input: {
-    UserPoolId: string;
-    ClientId: string;
-  }): Promise<{ UserPoolClient?: { ClientSecret?: string } }>;
+  describeUserPoolClient(input: { UserPoolId: string; ClientId: string }): Promise<{
+    UserPoolClient?: {
+      ClientSecret?: string;
+      SupportedIdentityProviders?: string[];
+      CallbackURLs?: string[];
+    };
+  }>;
   initiateAuth(input: {
     AuthFlow: 'USER_AUTH';
     ClientId: string;
@@ -268,6 +339,8 @@ export type IdentityClient = {
     ClientSecret: string;
   }): Promise<{ AuthenticationResult?: Tokens }>;
   revokeToken(input: { Token: string; ClientId: string; ClientSecret: string }): Promise<unknown>;
+  /** `/oauth2/token`, which no SDK command covers; a refusal throws under its OAuth `error`. */
+  redeemCode(input: RedeemInput): Promise<CodeTokens>;
 };
 
 /** THE READ'S OWN FAILURE, kept apart: `DescribeUserPoolClient` answers a missing grant with
@@ -296,6 +369,9 @@ const parsed = (event: ApiEvent): unknown => {
     return undefined;
   }
 };
+
+/** A named error, which is how every refusal here is told apart. */
+const named = (name: string, message: string) => Object.assign(new Error(message), { name });
 
 /** An object holding exactly `keys`, each non-empty text — or nothing, which is the 400. */
 const exactly = (value: unknown, keys: readonly string[]): Record<string, string> | undefined => {
@@ -350,16 +426,36 @@ const hashOf = (secret: string, username: string, client: string) =>
     .update(username + client)
     .digest('base64');
 
-type Ids = { pool: string; client: string };
+/** The flow a begin bound to this browser, or nothing when the cookie holds no whole pair. */
+const flowIn = (event: ApiEvent) => {
+  const [state, verifier, ...rest] = cookieIn(event, FLOW)?.split('.') ?? [];
+  return state && verifier && rest.length === 0 ? { state, verifier } : undefined;
+};
+
+/** In constant time, so the comparison says nothing of how much of a guess was right. */
+const same = (a: string, b: string) => {
+  const [x, y] = [Buffer.from(a), Buffer.from(b)];
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+
+type Ids = { pool: string; client: string; domain: string };
 
 const idsOf = (): Ids | undefined => {
   const pool = process.env.USER_POOL_ID;
   const client = process.env.USER_POOL_CLIENT_ID;
-  if (!pool || !client) {
-    console.error('auth-relay: USER_POOL_ID or USER_POOL_CLIENT_ID is not set on this function');
+  const domain = process.env.AUTH_DOMAIN;
+  if (!pool || !client || !domain) {
+    console.error('auth-relay: USER_POOL_ID, USER_POOL_CLIENT_ID or AUTH_DOMAIN is not set');
     return undefined;
   }
-  return { pool, client };
+  return { pool, client, domain };
+};
+
+/** COGNITO'S LOGOUT FOR THIS CLIENT; the app names where it lands (`logout_uri`). */
+const logoutOf = (ids: Ids) => {
+  const url = new URL('/logout', `https://${ids.domain}`);
+  url.searchParams.set('client_id', ids.client);
+  return url.href;
 };
 
 const challenged = (answer: Answer): ApiResult => {
@@ -381,24 +477,35 @@ const challenged = (answer: Answer): ApiResult => {
 
 /** The refresh token into the cookie, the other two into the body. A sign-in's is the family's
  *  original too; a refresh's `sent` is the cookie's own, kept when Cognito rotates nothing. */
-const issued = (tokens: Tokens | undefined, from: 'sign-in' | { sent: string }): ApiResult => {
-  const refresh = tokens?.RefreshToken ?? (from === 'sign-in' ? undefined : from.sent);
+const issued = (
+  tokens: Tokens | undefined,
+  from: 'sign-in' | 'google' | { sent: string; google: boolean },
+): ApiResult => {
+  const refresh = tokens?.RefreshToken ?? (typeof from === 'string' ? undefined : from.sent);
   if (!tokens?.IdToken || !tokens.AccessToken || !refresh) {
     console.error('auth-relay: Cognito answered without the tokens a session needs');
     return INTERNAL;
   }
+  const body = {
+    idToken: tokens.IdToken,
+    accessToken: tokens.AccessToken,
+    expiresIn: tokens.ExpiresIn,
+  };
+  if (typeof from !== 'string') {
+    return respond(
+      REFRESHED,
+      { 'set-cookie': [cookieOf(refresh)], 'cache-control': NO_STORE },
+      JSON.stringify({ ...body, google: from.google }),
+    );
+  }
+  const signedIn = [cookieOf(refresh), originOf(refresh)] as const;
   return respond(
     TOKENS,
     {
-      'set-cookie':
-        from === 'sign-in' ? [cookieOf(refresh), originOf(refresh)] : [cookieOf(refresh)],
+      'set-cookie': from === 'google' ? [...signedIn, FLOW_CLEARED] : signedIn,
       'cache-control': NO_STORE,
     },
-    JSON.stringify({
-      idToken: tokens.IdToken,
-      accessToken: tokens.AccessToken,
-      expiresIn: tokens.ExpiresIn,
-    }),
+    JSON.stringify(body),
   );
 };
 
@@ -410,21 +517,51 @@ const refusedBy = (route: string, err: unknown): ApiResult => {
   return INTERNAL;
 };
 
-const ended = (cleared: readonly [string, ...string[]]) =>
-  respond(SESSION_ENDED, { 'set-cookie': cleared }, '{"error":"not_authorized"}');
-const signedOut = () => respond(SIGNED_OUT, { 'set-cookie': FORGOTTEN }, '{"status":"signed_out"}');
+const ended = (cleared: readonly [string, ...string[]], google: boolean) =>
+  respond(
+    SESSION_ENDED,
+    { 'set-cookie': cleared },
+    JSON.stringify({ error: 'not_authorized', google }),
+  );
+const signedOut = (logout?: string) =>
+  respond(
+    SIGNED_OUT,
+    { 'set-cookie': FORGOTTEN },
+    JSON.stringify(
+      logout === undefined ? { status: 'signed_out' } : { status: 'signed_out', logout },
+    ),
+  );
+const spent = () =>
+  respond(FLOW_SPENT, { 'set-cookie': [FLOW_CLEARED] }, '{"error":"not_authorized"}');
 
-/** One relay per execution environment, which is what its secret is cached across. */
+/** The token endpoint's answer in the SDK's spelling, which `issued` reads. */
+const tokensOf = (answered: CodeTokens): Tokens => ({
+  IdToken: answered.id_token,
+  AccessToken: answered.access_token,
+  RefreshToken: answered.refresh_token,
+  ExpiresIn: answered.expires_in,
+});
+
+/** What the relay reads of its client: the secret, whether Google is among its providers, and the
+ *  one callback Cognito sends Google's code to. */
+type Client = { secret: string; google: boolean; callback: string | undefined };
+
+/** One relay per execution environment, which is what its client is cached across. */
 export const createRelay = (idp: IdentityClient, now: () => number = Date.now) => {
-  let secret: Promise<string> | undefined;
+  let client: { value: Promise<Client>; at: number } | undefined;
   let rereadAt = -Infinity;
 
-  const read = (ids: Ids): Promise<string> =>
+  const read = (ids: Ids): Promise<Client> =>
     idp.describeUserPoolClient({ UserPoolId: ids.pool, ClientId: ids.client }).then(
       (described) => {
-        const value = described.UserPoolClient?.ClientSecret;
-        if (!value) throw new SecretUnreadable('the app client has no secret');
-        return value;
+        const { ClientSecret, SupportedIdentityProviders, CallbackURLs } =
+          described.UserPoolClient ?? {};
+        if (!ClientSecret) throw new SecretUnreadable('the app client has no secret');
+        return {
+          secret: ClientSecret,
+          google: SupportedIdentityProviders?.includes('Google') ?? false,
+          callback: CallbackURLs?.[0],
+        };
       },
       (err: unknown) => {
         throw new SecretUnreadable('DescribeUserPoolClient failed', { cause: err });
@@ -432,16 +569,35 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
     );
 
   // A FAILED READ IS NOT KEPT, or one throttle would poison the environment until it is recycled.
-  const cached = (ids: Ids): Promise<string> => {
-    if (secret === undefined) {
-      const reading = read(ids);
-      secret = reading;
-      reading.catch(() => {
-        if (secret === reading) secret = undefined;
-      });
-    }
-    return secret;
+  const fill = (ids: Ids): Promise<Client> => {
+    const entry = { value: read(ids), at: now() };
+    client = entry;
+    entry.value.catch(() => {
+      if (client === entry) client = undefined;
+    });
+    return entry.value;
   };
+  /** The secret is kept until Cognito refuses it. */
+  const cached = (ids: Ids): Promise<Client> => client?.value ?? fill(ids);
+  /** THE PROVIDERS ARE READ AGAIN ONCE FIVE MINUTES OLD: a deploy that turns Google on or off
+   *  changes the client and not this function. A failed re-read serves what was read, five more. */
+  const current = (ids: Ids): Promise<Client> => {
+    const kept = client;
+    if (kept === undefined) return fill(ids);
+    if (now() - kept.at < REREAD_MS) return kept.value;
+    const entry = { value: read(ids).catch(() => kept.value), at: now() };
+    client = entry;
+    return entry.value;
+  };
+
+  /** A client that cannot be read offers no Google: a sign-in page then shows the form alone. */
+  const googleOn = (ids: Ids | undefined): Promise<boolean> =>
+    ids === undefined
+      ? Promise.resolve(false)
+      : current(ids).then(
+          (read) => read.google,
+          () => false,
+        );
 
   /** One call with the secret, made AGAIN only when a re-read finds the secret changed: a wrong
    *  password submitted twice would count twice toward Cognito's lockout. */
@@ -452,14 +608,14 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
   ): Promise<T> => {
     const known = await cached(ids);
     try {
-      return await call(known);
+      return await call(known.secret);
     } catch (err) {
       if (nameOf(err) !== refusedAs || now() - rereadAt < REREAD_MS) throw err;
       rereadAt = now();
       const fresh = await read(ids).catch(() => undefined);
-      if (fresh === undefined || fresh === known) throw err;
-      secret = Promise.resolve(fresh);
-      return call(fresh);
+      if (fresh === undefined || fresh.secret === known.secret) throw err;
+      client = { value: Promise.resolve(fresh), at: now() };
+      return call(fresh.secret);
     }
   };
 
@@ -543,9 +699,9 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
   };
 
   const refresh = async (event: ApiEvent): Promise<ApiResult> => {
-    const token = cookieIn(event, COOKIE);
-    if (token === undefined) return ended([CLEARED]);
     const ids = idsOf();
+    const token = cookieIn(event, COOKIE);
+    if (token === undefined) return ended([CLEARED], await googleOn(ids));
     if (ids === undefined) return INTERNAL;
     try {
       const { AuthenticationResult } = await withSecret(ids, 'NotAuthorizedException', (s) =>
@@ -555,7 +711,7 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           ClientSecret: s,
         }),
       );
-      return issued(AuthenticationResult, { sent: token });
+      return issued(AuthenticationResult, { sent: token, google: await googleOn(ids) });
     } catch (err) {
       // RFC 9700 §4.14.2: WHICH HOLDER REPLAYED CANNOT BE TOLD, AND THE ACTIVE TOKEN IS REVOKED —
       // here every branch, through the original this browser carries; Cognito revokes nothing.
@@ -569,11 +725,11 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           console.error('auth-relay: revoking a replayed family failed', failed);
           return INTERNAL;
         }
-        return ended(FORGOTTEN);
+        return ended(FORGOTTEN, await googleOn(ids));
       }
       // AN EXPIRED OR REVOKED TOKEN SAYS NOTHING OF A THIEF: the original stays, for the next
       // sign-in to revoke.
-      if (SESSION_OVER.has(nameOf(err) ?? '')) return ended([CLEARED]);
+      if (SESSION_OVER.has(nameOf(err) ?? '')) return ended([CLEARED], await googleOn(ids));
       // A FAULT IS NOT A DEAD SESSION: the cookie stays, so the next refresh can still succeed.
       console.error('auth-relay: refresh failed', err);
       return INTERNAL;
@@ -584,13 +740,97 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
     // BOTH COOKIES' TOKENS, because they can belong to two families — a refresh answering after a
     // sign-in overwrites one — and Cognito revokes a family, never the browser.
     const tokens = carried(event);
-    if (tokens.length === 0) return signedOut();
     const ids = idsOf();
-    if (ids === undefined) return INTERNAL;
-    const failed = await revokeEach(ids, tokens);
+    if (ids === undefined) return tokens.length === 0 ? signedOut() : INTERNAL;
+    const failed = tokens.length === 0 ? [] : await revokeEach(ids, tokens);
     // KEPT SO A RETRY CAN STILL REVOKE THEM: a forgotten live token stays usable wherever it went.
     for (const err of failed) console.error('auth-relay: sign-out failed', err);
-    return failed.length === 0 ? signedOut() : INTERNAL;
+    if (failed.length > 0) return INTERNAL;
+    // EVERY SIGN-OUT WHILE GOOGLE IS ON, a tokenless one too: Cognito's session is its own, and
+    // nothing this relay holds says whether the browser has one.
+    return signedOut((await googleOn(ids)) ? logoutOf(ids) : undefined);
+  };
+
+  const begin = async (): Promise<ApiResult> => {
+    const ids = idsOf();
+    if (ids === undefined) return INTERNAL;
+    const { google, callback } = await current(ids);
+    if (!google) return GOOGLE_DISABLED;
+    if (callback === undefined) {
+      console.error('auth-relay: the app client lists no callback URL');
+      return INTERNAL;
+    }
+    // RFC 7636 §4.1: "a 32-octet sequence"; §4.2: S256 "MUST" where the client can, and Cognito
+    // "supports only S256". A new pair for every redirect, as openid-client requires of the state.
+    const state = randomBytes(32).toString('base64url');
+    const verifier = randomBytes(32).toString('base64url');
+    const authorize = new URL('/oauth2/authorize', `https://${ids.domain}`);
+    authorize.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: ids.client,
+      redirect_uri: callback,
+      // "silently redirects your user to the sign-in page for that identity provider": managed
+      // login's own page is never shown.
+      identity_provider: 'Google',
+      scope: SCOPE,
+      // FORWARDED TO GOOGLE, which then asks which account every time — so a sign-out is followed
+      // by a question, not by the last account signing straight back in.
+      prompt: 'select_account',
+      state,
+      code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+      code_challenge_method: 'S256',
+    }).toString();
+    return respond(
+      AUTHORIZE,
+      { 'set-cookie': [flowOf(state, verifier)], 'cache-control': NO_STORE },
+      JSON.stringify({ authorize: authorize.href }),
+    );
+  };
+
+  const complete = async (event: ApiEvent): Promise<ApiResult> => {
+    const body = exactly(parsed(event), COMPLETE_KEYS);
+    if (body === undefined) return INVALID;
+    const ids = idsOf();
+    if (ids === undefined) return INTERNAL;
+    // A CODE ONLY THE BROWSER THAT BEGAN CAN REDEEM: its state must be the cookie's, and the
+    // verifier is nowhere else (RFC 9700 §4.7.1). A stray code leaves any flow in progress alone.
+    const flow = flowIn(event);
+    if (flow === undefined || !same(flow.state, body.state)) return NOT_AUTHORIZED;
+    const { callback } = await cached(ids);
+    if (callback === undefined) {
+      console.error('auth-relay: the app client lists no callback URL');
+      return INTERNAL;
+    }
+    try {
+      const answered = await withSecret(ids, 'invalid_client', (secret) =>
+        idp.redeemCode({
+          domain: ids.domain,
+          client: ids.client,
+          secret,
+          code: body.code,
+          redirectUri: callback,
+          verifier: flow.verifier,
+        }),
+      );
+      const signedIn = issued(tokensOf(answered), 'google');
+      // AS ANY SIGN-IN DOES: every token this browser still carries is revoked, at no cost to it.
+      if (signedIn.statusCode === 200) {
+        for (const err of await revokeEach(ids, carried(event))) {
+          console.error('auth-relay: revoking the earlier session failed', err);
+        }
+      }
+      return signedIn;
+    } catch (err) {
+      const name = nameOf(err) ?? '';
+      // Named, since a misconfigured client refuses every code the same way.
+      if (UNREDEEMABLE.has(name)) {
+        console.warn('auth-relay: the token endpoint refused a Google code', name);
+        return spent();
+      }
+      // A FAULT IS NOT A REFUSAL: logged, and the flow left to expire.
+      console.error('auth-relay: redeeming a Google code failed', err);
+      return INTERNAL;
+    }
   };
 
   return async (event: ApiEvent): Promise<ApiResult> => {
@@ -607,6 +847,10 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           return await refresh(event);
         case SIGN_OUT_ROUTE:
           return await signOut(event);
+        case GOOGLE_BEGIN_ROUTE:
+          return await begin();
+        case GOOGLE_COMPLETE_ROUTE:
+          return await complete(event);
         default:
           return INVALID;
       }
@@ -616,6 +860,33 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
     }
   };
 };
+
+/** Cognito's token endpoint: "supports client_secret_basic", and "The authorization header string
+ *  is Basic Base64Encode(client_id:client_secret)". A refusal throws under its OAuth `error`. */
+export const redeemWith =
+  (fetch: (url: string, init: RequestInit) => Promise<Response>) =>
+  async (input: RedeemInput): Promise<CodeTokens> => {
+    const response = await fetch(`https://${input.domain}/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        authorization: `Basic ${Buffer.from(`${input.client}:${input.secret}`).toString('base64')}`,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: input.client,
+        code: input.code,
+        redirect_uri: input.redirectUri,
+        code_verifier: input.verifier,
+      }).toString(),
+    });
+    const body: unknown = await response.json().catch(() => undefined);
+    if (response.ok && typeof body === 'object' && body !== null) return body as CodeTokens;
+    const error = (body as { error?: unknown } | undefined)?.error;
+    throw typeof error === 'string'
+      ? named(error, `the token endpoint refused the code (${response.status})`)
+      : named('TokenEndpointFault', `the token endpoint answered ${response.status}`);
+  };
 
 const cognito = new CognitoIdentityProviderClient({});
 
@@ -631,6 +902,7 @@ const sdk: IdentityClient = {
     ),
   getTokensFromRefreshToken: (input) => cognito.send(new GetTokensFromRefreshTokenCommand(input)),
   revokeToken: (input) => cognito.send(new RevokeTokenCommand(input)),
+  redeemCode: redeemWith((url, init) => fetch(url, init)),
 };
 
 export const handler = createRelay(sdk);

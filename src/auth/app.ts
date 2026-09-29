@@ -8,10 +8,12 @@ import { useSyncExternalStore } from 'react';
 import type { Answer } from './access';
 import { createApply } from './apply';
 import { environmentFor } from './environment';
+import { beginGoogle } from './google';
 import { type PasskeyDeps, createCognito, hasPasskey } from './passkey';
 import { createRelay } from './relay';
 import { createSession } from './session';
 import type { SignInDeps } from './sign-in';
+import { carrySignedOut, throughLogout } from './signed-out';
 
 const environment = environmentFor(location.hostname);
 const relay = createRelay({ base: environment?.relay, fetch: (input, init) => fetch(input, init) });
@@ -54,6 +56,33 @@ export function useSessionAddress() {
 
 export function useSessionUnanswered() {
   return useSyncExternalStore(session.subscribe, session.unanswered);
+}
+
+/** Whether Google is on, once a refresh has said; until then the card shows the form alone. */
+export function useGoogle() {
+  return useSyncExternalStore(session.subscribe, session.google);
+}
+
+/** The authorize URL for this browser, from the relay, which keeps the flow's pair. */
+export const startGoogle = () => beginGoogle(relay);
+
+/** This tab's session storage, or none where the browser refuses it. */
+export function tabStorage(): Storage | undefined {
+  try {
+    return sessionStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A SIGN-OUT WHILE GOOGLE IS ON LEAVES THROUGH COGNITO'S LOGOUT, the only way its session cookie
+ *  is cleared, to land on `to` on the listed site. False where there is no logout or no site. */
+export function leaveThroughLogout(logout: string | undefined, to: '/sign-in' | '/apply'): boolean {
+  const leaving = throughLogout(logout, environment?.site, location.origin, to);
+  if (leaving === undefined) return false;
+  if (leaving.carry) carrySignedOut(tabStorage());
+  location.assign(leaving.url);
+  return true;
 }
 
 /** The application; the relay's host is the API's, so `/v1/applications` sits beside `/auth/*`. */

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import type { Answer } from '../../auth/access';
-import { session, showAnswer, type HeldAnswer } from '../../auth/app';
+import { leaveThroughLogout, session, showAnswer, type HeldAnswer } from '../../auth/app';
 import { SIGNED_OUT } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import { useT } from '../../i18n/useT';
@@ -31,14 +31,17 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
   const email = held.answer === 'forbidden' ? undefined : held.email;
 
   // Only the sign-out that lands on `/sign-in` hands it the fact; `/apply` is about applying.
-  async function leave(to: string, state?: typeof SIGNED_OUT) {
+  async function leave(to: '/sign-in' | '/apply', state?: typeof SIGNED_OUT) {
     if (leaving) return;
     setLeaving(to);
     // Not revoked keeps both cookies for a retry, so the answer stays and the button comes back.
-    if (!(await session.signOut())) {
+    const out = await session.signOut();
+    if (!out) {
       setLeaving(undefined);
       return;
     }
+    // Through Cognito's logout while Google is on, landing on `to` itself; the page goes.
+    if (leaveThroughLogout(out.logout, to)) return;
     // The router commits in a transition and the store at once: cleared first, the route that asked
     // would render in the answer's place for a frame and run its effects signed out.
     await navigate(to, { flushSync: true, state });

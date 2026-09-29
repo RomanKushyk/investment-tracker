@@ -14,6 +14,7 @@ import { Portfolio } from './screens/Portfolio';
 import { Seasonality } from './screens/Seasonality';
 import { Settings } from './screens/Settings';
 import { Apply } from './screens/sign-in/Apply';
+import { GoogleCallback } from './screens/sign-in/GoogleCallback';
 import { SignIn } from './screens/sign-in/SignIn';
 import { Yield } from './screens/Yield';
 
@@ -26,6 +27,8 @@ export const routes: RouteObject[] = [
       // Outside `<Layout />`: the signed-out shell has no portfolio behind it.
       { path: 'sign-in', element: <SignIn /> },
       { path: 'apply', element: <Apply /> },
+      // Cognito's redirect back from Google (`CallbackURLs`); `/auth/*` otherwise is the API's.
+      { path: 'auth/callback', element: <GoogleCallback /> },
       {
         element: <Layout />,
         children: [

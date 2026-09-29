@@ -3,13 +3,29 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
-import { cancelPasskey, passkeyDeps, session, signInDeps, useSessionStatus } from '../../auth/app';
+import {
+  cancelPasskey,
+  passkeyDeps,
+  session,
+  signInDeps,
+  startGoogle,
+  tabStorage,
+  useGoogle,
+  useSessionStatus,
+} from '../../auth/app';
+import { arrivedGoogleFailed, belowTheForm } from '../../auth/google';
 import { addPasskey } from '../../auth/passkey';
 import { setNewPassword, signInWithAddress, signInWithPassword } from '../../auth/sign-in';
-import { arrivedSignedOut, usedUp } from '../../auth/signed-out';
+import {
+  arrivedSignedOut,
+  forgetSignedOut,
+  returnedSignedOut,
+  usedUp,
+} from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
+import { OrGoogle } from './GoogleButton';
 import {
   EmailInput,
   Field,
@@ -51,12 +67,15 @@ function sentence(t: Dict, reason: Reason): string {
     failed: t.auth.failed,
     notCreated: t.auth.addPasskey.notCreated,
     passkeyFailed: t.auth.addPasskey.failed,
+    googleFailed: t.auth.google.failed,
   }[reason];
 }
 
-export function SignIn() {
+/** `completing`: back from Google on `/auth/callback`, the relay redeeming the code. */
+export function SignIn({ completing = false }: { completing?: boolean }) {
   const t = useT();
   const status = useSessionStatus();
+  const google = useGoogle();
   const [step, setStep] = useState<Step>({ name: 'address' });
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
@@ -68,8 +87,14 @@ export function SignIn() {
   const location = useLocation();
   const navigate = useNavigate();
   // Read at mount, so the visit keeps what it read after the entry is used up; held once submitted.
+  // A sign-out through Cognito's logout arrives by a load, carrying the fact in this tab instead.
   const [note, setNote] = useState<'said' | 'held' | undefined>(() =>
-    arrivedSignedOut(location.state) ? 'said' : undefined,
+    arrivedSignedOut(location.state) || returnedSignedOut(tabStorage()) ? 'said' : undefined,
+  );
+  // Busy from the press until the page leaves for Google, and while the relay redeems its code.
+  const [googleBusy, setGoogleBusy] = useState(completing);
+  const [googleSaid, setGoogleSaid] = useState<Said | undefined>(() =>
+    arrivedGoogleFailed(location.state) ? { reason: 'googleFailed', n: 1 } : undefined,
   );
   // Each submit and each step change is a new run; an answer for an older one lands nowhere, so a
   // step the user has left never shows its sentence.
@@ -83,6 +108,19 @@ export function SignIn() {
   useEffect(() => {
     if (arrivedSignedOut(location.state)) void navigate(...usedUp(location));
   }, [location, navigate]);
+  useEffect(() => {
+    if (arrivedGoogleFailed(location.state)) void navigate(...usedUp(location));
+  }, [location, navigate]);
+  // Forgotten once read, so a reload or Back says nothing.
+  useEffect(() => forgetSignedOut(tabStorage()), []);
+  // BACK FROM GOOGLE'S CHOOSER can restore this page from the back/forward cache, busy as it left.
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) setGoogleBusy(false);
+    };
+    addEventListener('pageshow', restored);
+    return () => removeEventListener('pageshow', restored);
+  }, []);
   // Leaving ends the run, or an answer still in flight would open the sheet over the next page;
   // a sheet already open outlives the page unless closed.
   useEffect(
@@ -114,6 +152,7 @@ export function SignIn() {
   function begin() {
     const mine = ++run.current;
     setSaid(undefined);
+    setGoogleSaid(undefined);
     return () => mine === run.current;
   }
 
@@ -122,6 +161,7 @@ export function SignIn() {
     cancelPasskey();
     setBusy(false);
     setSaid(undefined);
+    setGoogleSaid(undefined);
     setNote(undefined);
     setPassword('');
     setStep(next);
@@ -181,6 +221,21 @@ export function SignIn() {
     else if (outcome.kind === 'signedIn') go({ name: 'offer' });
   }
 
+  // THE PAGE LEAVES FOR GOOGLE and stays busy until it has gone; the relay keeps the flow's pair.
+  async function continueWithGoogle() {
+    if (googleBusy) return;
+    setGoogleBusy(true);
+    setGoogleSaid(undefined);
+    const begun = await startGoogle();
+    if ('url' in begun) {
+      window.location.assign(begun.url);
+      return;
+    }
+    setGoogleBusy(false);
+    const reason = begun.refused === 'offline' ? 'offline' : 'googleFailed';
+    setGoogleSaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
+  }
+
   async function createPasskey() {
     if (busy) return;
     const current = begin();
@@ -203,6 +258,7 @@ export function SignIn() {
     setChanged(true);
   };
 
+  const below = belowTheForm(status, google, completing || googleSaid !== undefined);
   const fieldError = said && ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const stepError = said && !ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const ruleError = said && ON_THE_RULE.includes(said.reason) ? said : undefined;
@@ -242,9 +298,25 @@ export function SignIn() {
               </Button>
               {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
             </form>
-            <Foot prompt={t.auth.signIn.applyPrompt} to="/apply">
-              {t.auth.signIn.applyLink}
-            </Foot>
+            {/* Held until the relay has answered, then faded in whole (*Interaction rules*); a flag
+                arriving after an unanswered load fades the pair in alone. */}
+            {below.link && (
+              <div className="animate-in duration-300 ease-soft fade-in">
+                <OrGoogle
+                  on={below.google}
+                  busy={googleBusy}
+                  copy={t.auth.google}
+                  onClick={() => void continueWithGoogle()}
+                >
+                  {googleSaid && (
+                    <StepAlert n={googleSaid.n}>{sentence(t, googleSaid.reason)}</StepAlert>
+                  )}
+                </OrGoogle>
+                <Foot prompt={t.auth.signIn.applyPrompt} to="/apply">
+                  {t.auth.signIn.applyLink}
+                </Foot>
+              </div>
+            )}
           </>
         )}
 

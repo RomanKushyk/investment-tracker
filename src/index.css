@@ -40,6 +40,9 @@
      and every KPI column wobbles. `ui-face.test.ts` holds the two together. */
   --font-display: 'Manrope', sans-serif;
   --font-body: 'JetBrains Mono', monospace;
+  /* The Google button's label alone: Google's guidelines name the face ("The button font is
+     Google Sans Medium"), loaded by the one module that draws it. */
+  --font-google: 'Google Sans', 'Manrope', sans-serif;
   /* Elevation as three tokens, so all three go transparent under
      [data-theme=dark] in one place: DARK ELEVATION COMES FROM THE SURFACE STEP
      (page -> card -> panel), never from shadow.
@@ -239,6 +242,11 @@
   --color-sb-badge: #8a5a3a;
   --color-sb-badge-bg: rgba(138, 90, 58, 0.12);
   --color-sb-footer-bg: #e1d9cc;
+  /* GOOGLE'S OWN, at the values its branding guidelines fix for the Light and Dark buttons, which
+     a site must follow "to complete the app verification process" (`auth-surface.dc.html` T7). */
+  --color-google-btn-bg: #ffffff;
+  --color-google-btn-border: #747775;
+  --color-google-btn-text: #1f1f1f;
 
   /* Chart paint aliases — core/colors.ts emits var(--color-chart-*) for SVG
      fill/stroke, which gives the dark theme a chart-specific seam to redefine. */
@@ -379,6 +387,9 @@
      dark at 0.12 would also collapse this onto `sb-item-active-bg`. */
   --color-sb-badge-bg: rgba(216, 180, 148, 0.14);
   --color-sb-footer-bg: #131312;
+  --color-google-btn-bg: #131314;
+  --color-google-btn-border: #8e918f;
+  --color-google-btn-text: #e3e3e3;
 
   /* Elevation comes from the surface step, never from shadow. `0 0 #0000` rather
      than `none` — see the token block above. */

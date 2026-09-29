@@ -21,6 +21,9 @@ import {
 import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
 import {
   CSRF_HEADER,
+  GOOGLE_BEGIN_ROUTE,
+  GOOGLE_COMPLETE_BODY,
+  GOOGLE_COMPLETE_ROUTE,
   REFRESH_ROUTE,
   RESPOND_BODY,
   RESPOND_ROUTE,
@@ -260,6 +263,7 @@ describe('each operation publishes its own route’s answers', () => {
       [APPLY_ROUTE, REQUEST_BODY],
       [START_ROUTE, START_BODY],
       [RESPOND_ROUTE, RESPOND_BODY],
+      [GOOGLE_COMPLETE_ROUTE, GOOGLE_COMPLETE_BODY],
     ]);
   });
 
@@ -307,9 +311,16 @@ describe('every route that is published is proved, by mechanism rather than by h
 
 describe('the routes, the authorizer, and the routes outside it', () => {
   const spec = buildSpec();
-  const RELAY = [START_ROUTE, RESPOND_ROUTE, REFRESH_ROUTE, SIGN_OUT_ROUTE];
+  const RELAY = [
+    START_ROUTE,
+    RESPOND_ROUTE,
+    REFRESH_ROUTE,
+    SIGN_OUT_ROUTE,
+    GOOGLE_BEGIN_ROUTE,
+    GOOGLE_COMPLETE_ROUTE,
+  ];
 
-  it('declares the seven routes and no others', () => {
+  it('declares the nine routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, ...RELAY].sort(),
     );

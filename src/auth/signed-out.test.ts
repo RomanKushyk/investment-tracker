@@ -1,7 +1,16 @@
 import { createMemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
-import { arrivedSignedOut, SIGNED_OUT, usedUp } from './signed-out';
+import {
+  arrivedSignedOut,
+  carrySignedOut,
+  forgetSignedOut,
+  logoutFor,
+  returnedSignedOut,
+  SIGNED_OUT,
+  throughLogout,
+  usedUp,
+} from './signed-out';
 
 // `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL (`sign-out-landing.dc.html`, T4). A reload is
 // a new router opened on the entry the old one stood on, state and all, as a browser's is.
@@ -83,5 +92,75 @@ describe('once `/sign-in` has used it up', () => {
     await router.navigate(-1);
     expect(router.state.location.pathname).toBe('/sign-in');
     expect(said(router)).toBe(false);
+  });
+});
+
+// A SIGN-OUT THROUGH COGNITO'S LOGOUT loads `/sign-in` afresh from another origin, where router
+// state cannot follow; this tab's session storage does, and is read until the page spends it.
+describe('the fact carried across Cognito’s logout', () => {
+  const store = () => {
+    const kept = new Map<string, string>();
+    return {
+      getItem: (key: string) => kept.get(key) ?? null,
+      setItem: (key: string, value: string) => void kept.set(key, value),
+      removeItem: (key: string) => void kept.delete(key),
+    };
+  };
+  const refusing = {
+    getItem: () => {
+      throw new DOMException('', 'SecurityError');
+    },
+    setItem: () => {
+      throw new DOMException('', 'QuotaExceededError');
+    },
+    removeItem: () => {
+      throw new DOMException('', 'SecurityError');
+    },
+  };
+
+  it('is said once carried, until it is forgotten', () => {
+    const tab = store();
+    expect(returnedSignedOut(tab)).toBe(false);
+    carrySignedOut(tab);
+    expect(returnedSignedOut(tab)).toBe(true);
+    expect(returnedSignedOut(tab), 'a read alone spent it').toBe(true);
+    forgetSignedOut(tab);
+    expect(returnedSignedOut(tab)).toBe(false);
+  });
+
+  it('is never said where the tab keeps no storage, and never throws there', () => {
+    expect(() => carrySignedOut(refusing)).not.toThrow();
+    expect(returnedSignedOut(refusing)).toBe(false);
+    expect(() => forgetSignedOut(refusing)).not.toThrow();
+    expect(returnedSignedOut(undefined)).toBe(false);
+  });
+
+  const LOGOUT = 'https://auth.test/logout?client_id=c';
+  const SITE = 'https://dev.quirenote.com';
+
+  it('leaves through the logout only with one to leave through, on a listed site', () => {
+    expect(throughLogout(undefined, SITE, SITE, '/sign-in')).toBeUndefined();
+    expect(throughLogout(LOGOUT, undefined, 'http://localhost:3300', '/sign-in')).toBeUndefined();
+    expect(throughLogout(LOGOUT, SITE, SITE, '/apply')?.url).toBe(
+      logoutFor(LOGOUT, SITE, '/apply'),
+    );
+  });
+
+  // STORAGE IS THE ORIGIN'S: a flag left on another host would wait there to be said falsely.
+  it('carries the fact to `/sign-in` only from the site Cognito lands on', () => {
+    expect(throughLogout(LOGOUT, SITE, SITE, '/sign-in')?.carry).toBe(true);
+    expect(throughLogout(LOGOUT, SITE, 'https://www.dev.quirenote.com', '/sign-in')?.carry).toBe(
+      false,
+    );
+    expect(throughLogout(LOGOUT, SITE, SITE, '/apply')?.carry).toBe(false);
+  });
+
+  // COGNITO REDIRECTS TO `logout_uri` when it is "an authorized sign-out URL for the app client".
+  it('sends the browser back to the page the sign-out leaves for, on the listed site', () => {
+    expect(
+      logoutFor('https://auth.test/logout?client_id=c', 'https://dev.quirenote.com', '/sign-in'),
+    ).toBe(
+      'https://auth.test/logout?client_id=c&logout_uri=https%3A%2F%2Fdev.quirenote.com%2Fsign-in',
+    );
   });
 });

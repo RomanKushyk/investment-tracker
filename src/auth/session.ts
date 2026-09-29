@@ -2,6 +2,8 @@ import type { RelayAnswer, RelayCall, Tokens } from './relay';
 
 export type SessionStatus = 'unknown' | 'signedIn' | 'signedOut';
 export type Locks = Pick<LockManager, 'request'>;
+/** A finished sign-out, and Cognito's logout endpoint while Google is on. */
+export type SignedOut = { logout?: string };
 
 export interface Session {
   status(): SessionStatus;
@@ -9,14 +11,18 @@ export interface Session {
   address(): string | undefined;
   /** True while the status is a signed-out the relay never gave: the load went unanswered. */
   unanswered(): boolean;
+  /** Whether Google is on, as the last refresh answer said; undefined until one has. */
+  google(): boolean | undefined;
   subscribe(listener: () => void): () => void;
   /** Asks the relay until it has answered: the refresh cookie is HttpOnly, so asking is the only
    *  way to know, and the first answer settles it for the page's life. */
   restore(): Promise<void>;
   /** Every `/auth/respond` goes through here, so none can run outside the lock. */
   respond(body: unknown): Promise<RelayAnswer>;
+  /** Google's code and state, back from Cognito; it writes the cookies, so it takes the lock too. */
+  complete(body: unknown): Promise<RelayAnswer>;
   /** `false` when the relay could not revoke, which keeps both cookies for a retry. */
-  signOut(): Promise<boolean>;
+  signOut(): Promise<false | SignedOut>;
   getIdToken(): Promise<string | undefined>;
   /** Of the same pair as the ID token; it authorizes the user's own Cognito calls. */
   getAccessToken(): Promise<string | undefined>;
@@ -53,8 +59,9 @@ export function createSession({
   let status: SessionStatus = 'unknown';
   let held: (Tokens & { until: number }) | undefined;
   let address: string | undefined;
+  let google: boolean | undefined;
   let refreshing: Promise<void> | undefined;
-  let leaving: Promise<boolean> | undefined;
+  let leaving: Promise<false | SignedOut> | undefined;
   // A signed-out status the relay never gave: the next reader asks again.
   let unanswered = false;
   const listeners = new Set<() => void>();
@@ -73,6 +80,10 @@ export function createSession({
   const refresh = () =>
     (refreshing ??= locked(async () => {
       const answer = await relay('refresh');
+      // Before `set`, which tells the subscribers: they read it along with the status.
+      if ((answer.kind === 'tokens' || answer.kind === 'refused') && answer.google !== undefined) {
+        google = answer.google;
+      }
       if (answer.kind === 'tokens') set('signedIn', answer.tokens);
       else if (answer.kind === 'refused' && answer.reason === 'notAuthorized') set('signedOut');
       // Offline or failed says nothing about the cookie; only an unanswered load turns signed out,
@@ -91,6 +102,7 @@ export function createSession({
     status: () => status,
     address: () => address,
     unanswered: () => unanswered,
+    google: () => google,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -104,13 +116,19 @@ export function createSession({
         if (answer.kind === 'tokens') set('signedIn', answer.tokens);
         return answer;
       }),
+    complete: (body) =>
+      locked(async () => {
+        const answer = await relay('google/complete', body);
+        if (answer.kind === 'tokens') set('signedIn', answer.tokens);
+        return answer;
+      }),
     // Shared while one runs, as a refresh is: one sign-out, however many controls are pressed.
     signOut: () =>
       (leaving ??= locked(async () => {
         const answer = await relay('sign-out');
         if (answer.kind !== 'signedOut') return false;
         set('signedOut');
-        return true;
+        return answer.logout === undefined ? {} : { logout: answer.logout };
       }).finally(() => (leaving = undefined))),
     getIdToken: async () => (await fresh())?.idToken,
     getAccessToken: async () => (await fresh())?.accessToken,

@@ -248,6 +248,9 @@ const RETIRED = [
   '#ffffff',
 ] as const;
 
+/** A declaration of Google's button family, whole, and nothing around it. */
+const GOOGLE = /^[ \t]*--color-google-btn-[a-z]+: #[0-9a-f]{6};\r?$/gm;
+
 describe('the palette and its two mirrors carry no retired value', () => {
   // COMMENTS INCLUDED, DELIBERATELY: `index.css` argues from its own hexes beside nearly
   // every token, so a comment left behind states something false about the file it sits in —
@@ -259,9 +262,15 @@ describe('the palette and its two mirrors carry no retired value', () => {
   // mirrors. `mark.test.ts` keeps those honest meanwhile, reading their colours out of
   // `index.css` rather than freezing them.
   it.each(Object.keys(FILES) as (keyof typeof FILES)[])('%s holds none of them', (file) => {
-    const source = FILES[file].toLowerCase();
+    const source = FILES[file].toLowerCase().replace(GOOGLE, '');
     const found = RETIRED.filter((hex) => source.includes(hex));
     expect(found, `${file} still carries retired values`).toEqual([]);
+  });
+
+  // GOOGLE'S FAMILY IS NOT THE PALETTE (`auth-surface.dc.html` T7): its light fill is the white the
+  // parchment palette retired, so its declarations alone leave the sweep — three per theme.
+  it('leaves out Google’s own three per theme, and nothing else', () => {
+    expect(FILES['src/index.css'].toLowerCase().match(GOOGLE)).toHaveLength(6);
   });
 
   // IS THE SWEEP ACTUALLY LOOKING? An absence guard passes on a tree where nothing is left

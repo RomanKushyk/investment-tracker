@@ -822,6 +822,12 @@ export const en = {
       notFinished:
         'Passkey sign-in didn’t finish: it was cancelled, or this device has no passkey for this address.',
     },
+    // `failed` names no cause: a refused application and a cancelled chooser come back alike.
+    google: {
+      or: 'or',
+      continue: 'Continue with Google',
+      failed: 'Google sign-in didn’t finish.',
+    },
     retry: 'Try again',
     password: {
       title: 'Enter your password',
@@ -1854,6 +1860,11 @@ export const uk: Dict = {
       usePassword: 'Увійти з паролем',
       notFinished:
         'Вхід ключем доступу не завершено: його скасовано, або на цьому пристрої немає ключа для цієї адреси.',
+    },
+    google: {
+      or: 'або',
+      continue: 'Продовжити з Google',
+      failed: 'Вхід через Google не завершено.',
     },
     retry: 'Спробувати ще раз',
     password: {

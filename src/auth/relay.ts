@@ -1,4 +1,5 @@
-export type RelayRoute = 'start' | 'respond' | 'refresh' | 'sign-out';
+export type RelayRoute =
+  'start' | 'respond' | 'refresh' | 'sign-out' | 'google/begin' | 'google/complete';
 
 export interface Tokens {
   idToken: string;
@@ -25,15 +26,18 @@ export type Refusal =
   | 'offline'
   | 'failed';
 
+/** `google` is a refresh's word on whether Google is on; `logout`, Cognito's logout endpoint, which
+ *  a sign-out names while it is. */
 export type RelayAnswer =
-  | { kind: 'tokens'; tokens: Tokens }
+  | { kind: 'tokens'; tokens: Tokens; google?: boolean }
   | { kind: 'challenge'; challenge: Challenge }
-  | { kind: 'signedOut' }
-  | { kind: 'refused'; reason: Refusal };
+  | { kind: 'signedOut'; logout?: string }
+  | { kind: 'authorize'; url: string }
+  | { kind: 'refused'; reason: Refusal; google?: boolean };
 
 export type RelayCall = (route: RelayRoute, body?: unknown) => Promise<RelayAnswer>;
 
-const REFUSED: Record<number, Refusal> = { 401: 'notAuthorized', 429: 'throttled' };
+const REFUSED: Record<number, Refusal> = { 429: 'throttled' };
 /** The 400s the relay names; any other is `invalid`. */
 const NAMED = new Map<unknown, Refusal>([
   ['invalid_password', 'invalidPassword'],
@@ -43,6 +47,12 @@ const NAMED = new Map<unknown, Refusal>([
 // API Gateway's ceiling for an HTTP API's answer: past it none can come, and the cross-tab lock is
 // held until one does.
 export const ANSWER_MS = 30_000;
+
+/** The flag where a body carries one as a boolean, and nothing otherwise. */
+function googleIn(body: unknown): { google?: boolean } {
+  const google = (body as { google?: unknown } | null | undefined)?.google;
+  return typeof google === 'boolean' ? { google } : {};
+}
 
 function read(body: unknown): RelayAnswer {
   if (typeof body !== 'object' || body === null) return { kind: 'refused', reason: 'failed' };
@@ -56,6 +66,7 @@ function read(body: unknown): RelayAnswer {
     return {
       kind: 'tokens',
       tokens: { idToken: b.idToken, accessToken: b.accessToken, expiresIn: b.expiresIn },
+      ...googleIn(b),
     };
   }
   if (
@@ -66,7 +77,14 @@ function read(body: unknown): RelayAnswer {
   ) {
     return { kind: 'challenge', challenge: b as unknown as Challenge };
   }
-  if (b.status === 'signed_out') return { kind: 'signedOut' };
+  if (b.status === 'signed_out') {
+    return typeof b.logout === 'string'
+      ? { kind: 'signedOut', logout: b.logout }
+      : { kind: 'signedOut' };
+  }
+  if (typeof b.authorize === 'string' && b.authorize !== '') {
+    return { kind: 'authorize', url: b.authorize };
+  }
   return { kind: 'refused', reason: 'failed' };
 }
 
@@ -101,6 +119,11 @@ export function createRelay({
         const body: unknown = await response.json().catch(() => undefined);
         const named = (body as { error?: unknown } | null | undefined)?.error;
         return { kind: 'refused', reason: NAMED.get(named) ?? 'invalid' };
+      }
+      // A refresh's refusal is what a signed-out page reads whether Google is on from.
+      if (response.status === 401) {
+        const body: unknown = await response.json().catch(() => undefined);
+        return { kind: 'refused', reason: 'notAuthorized', ...googleIn(body) };
       }
       if (response.status !== 200) {
         return { kind: 'refused', reason: REFUSED[response.status] ?? 'failed' };

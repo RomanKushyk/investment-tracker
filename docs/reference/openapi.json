@@ -904,7 +904,8 @@
                     "value": {
                       "idToken": "<JWT>",
                       "accessToken": "<JWT>",
-                      "expiresIn": 3600
+                      "expiresIn": 3600,
+                      "google": true
                     }
                   }
                 }
@@ -925,7 +926,8 @@
                 "examples": {
                   "not_authorized": {
                     "value": {
-                      "error": "not_authorized"
+                      "error": "not_authorized",
+                      "google": true
                     }
                   }
                 }
@@ -996,9 +998,243 @@
                 "examples": {
                   "signed_out": {
                     "value": {
-                      "status": "signed_out"
+                      "status": "signed_out",
+                      "logout": "https://<auth domain>/logout?client_id=<client>"
                     }
                   }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/begin": {
+      "post": {
+        "operationId": "postAuthGoogleBegin",
+        "summary": "POST /auth/google/begin",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "authorize": {
+                    "value": {
+                      "authorize": "https://<auth domain>/oauth2/authorize?identity_provider=Google&…"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "google_disabled": {
+                    "value": {
+                      "error": "google_disabled"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/complete": {
+      "post": {
+        "operationId": "postAuthGoogleComplete",
+        "summary": "POST /auth/google/complete",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "code",
+                  "state"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "tokens": {
+                    "value": {
+                      "idToken": "<JWT>",
+                      "accessToken": "<JWT>",
+                      "expiresIn": 3600
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  },
+                  "flow_spent": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }

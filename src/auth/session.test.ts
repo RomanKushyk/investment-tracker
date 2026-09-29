@@ -261,7 +261,7 @@ describe('one tab', () => {
     await session.restore();
     expect(await session.signOut()).toBe(false);
     expect(session.status()).toBe('signedIn');
-    expect(await session.signOut()).toBe(true);
+    expect(await session.signOut()).toEqual({});
     expect(session.status()).toBe('signedOut');
     expect(await session.getIdToken()).toBeUndefined();
   });
@@ -393,7 +393,77 @@ describe('one tab', () => {
     const relay = scripted(TOKENS('1'), { kind: 'signedOut' });
     const session = createSession({ relay, locks: webLocks() });
     await session.restore();
-    expect(await Promise.all([session.signOut(), session.signOut()])).toEqual([true, true]);
+    expect(await Promise.all([session.signOut(), session.signOut()])).toEqual([{}, {}]);
     expect(relay.mock.calls.map(([route]) => route)).toEqual(['refresh', 'sign-out']);
+  });
+});
+
+describe('Google', () => {
+  const scripted = (...answers: RelayAnswer[]) =>
+    vi.fn<RelayCall>(async () => answers.shift() ?? REFUSED('failed'));
+  /** Records every lock asked for, and runs its call at once. */
+  const recordingLocks = (names: string[]) =>
+    ({
+      request: (name: string, call: () => unknown) => {
+        names.push(name);
+        return call();
+      },
+    }) as unknown as Locks;
+
+  // THE ANSWER EVERY LOAD ALREADY ASKS FOR SAYS IT; an answer that does not say leaves it unknown.
+  it('knows whether Google is on from the refresh answer that says so, and from nothing else', async () => {
+    const cases: [RelayAnswer, boolean | undefined][] = [
+      [
+        {
+          kind: 'tokens',
+          tokens: { idToken: 'id.1', accessToken: 'access.1', expiresIn: 3600 },
+          google: true,
+        },
+        true,
+      ],
+      [{ kind: 'refused', reason: 'notAuthorized', google: false }, false],
+      [{ kind: 'refused', reason: 'notAuthorized', google: true }, true],
+      [TOKENS('1'), undefined],
+      [REFUSED('offline'), undefined],
+    ];
+    for (const [answer, google] of cases) {
+      const session = createSession({ relay: scripted(answer), locks: webLocks() });
+      expect(session.google()).toBeUndefined();
+      await session.restore();
+      expect([answer, session.google()]).toEqual([answer, google]);
+    }
+  });
+
+  it('completes a Google sign-in inside the lock, signed in by its tokens', async () => {
+    const relay = scripted(REFUSED('notAuthorized'), TOKENS('g'));
+    const names: string[] = [];
+    const session = createSession({ relay, locks: recordingLocks(names) });
+    await session.restore();
+    expect(await session.complete({ code: 'c', state: 's' })).toEqual(TOKENS('g'));
+    expect(relay.mock.calls.at(-1)).toEqual(['google/complete', { code: 'c', state: 's' }]);
+    expect(names).toEqual(['quirenote-auth', 'quirenote-auth']);
+    expect(session.status()).toBe('signedIn');
+    expect(await session.getIdToken()).toBe('id.g');
+  });
+
+  it('stays signed out when the relay refuses the code', async () => {
+    const session = createSession({
+      relay: scripted(REFUSED('notAuthorized'), REFUSED('notAuthorized')),
+      locks: webLocks(),
+    });
+    await session.restore();
+    expect(await session.complete({ code: 'c', state: 's' })).toEqual(REFUSED('notAuthorized'));
+    expect(session.status()).toBe('signedOut');
+  });
+
+  it('hands a sign-out’s logout endpoint back to whoever signed out', async () => {
+    const logout = 'https://auth.test/logout?client_id=c';
+    const session = createSession({
+      relay: scripted(TOKENS('1'), { kind: 'signedOut', logout }),
+      locks: webLocks(),
+    });
+    await session.restore();
+    expect(await session.signOut()).toEqual({ logout });
+    expect(session.status()).toBe('signedOut');
   });
 });

@@ -15,6 +15,8 @@ import {
 } from './applications';
 import { RESPONSES as ADMIN_RESPONSES } from './approve';
 import {
+  GOOGLE_COMPLETE_BODY,
+  GOOGLE_COMPLETE_ROUTE,
   PARAMETERS,
   RESPOND_BODY,
   RESPOND_ROUTE,
@@ -58,6 +60,7 @@ const BODIES: Record<string, unknown> = {
   [APPLY_ROUTE]: REQUEST_BODY,
   [START_ROUTE]: START_BODY,
   [RESPOND_ROUTE]: RESPOND_BODY,
+  [GOOGLE_COMPLETE_ROUTE]: GOOGLE_COMPLETE_BODY,
 };
 
 type Operation = {

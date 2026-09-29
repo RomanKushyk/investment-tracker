@@ -115,7 +115,8 @@ decimal. A currency token beside the number is dropped before the grammar reads 
 any other letter is not, so `12abc` stays refused. The ₴/$ toggle converts the DISPLAY of headline
 KPIs and the sidebar capital only; tables stay in ₴, and dates are `dd.MM.yyyy`. Faces: Manrope for
 headings, buttons and KPI numbers, JetBrains Mono for body and tables, and `body` sets
-`font-variant-numeric: tabular-nums`. A field holding an unsaved number STORES A LANGUAGE-FREE
+`font-variant-numeric: tabular-nums`. Google's button alone takes Google Sans Medium, the face
+Google's guidelines fix for it; its Cyrillic subset carries the Ukrainian label (*Auth model*). A field holding an unsaved number STORES A LANGUAGE-FREE
 SPELLING and derives what it shows. A mark the typist PRESSES is read as this language's own; a mark
 that ARRIVES BY PASTE is read by the grammar, the only way to keep refusing a European `1234,567`
 under English.
@@ -384,6 +385,29 @@ cookie's `Max-Age`, re-set on every refresh — a UX bound and not a security bo
 lives as long as the family can instead — each rotated token is valid "for the remaining
 duration of the original refresh token" it replaced, AWS says — so a live family whose session
 idled out still has its original in the browser, and the next sign-in there revokes it.
+GOOGLE IS THE ONE SIGN-IN THAT LEAVES THE PAGE, and still not for managed login: `/auth/google/begin`
+answers an authorize URL naming `identity_provider=Google`, which Cognito says "silently redirects
+your user to the sign-in page for that identity provider", and Cognito's code comes back to
+`/auth/callback`, which hands it to `/auth/google/complete` under the one lock. The relay redeems it
+at the token endpoint with the secret in Basic, and sets the cookies as any sign-in does. THE FLOW IS
+BOUND TO THE BROWSER THAT BEGAN IT — PKCE "securely bound to the client and the user agent", RFC 9700
+§2.1.1 — a fresh state and S256 verifier per redirect in one more `__Host-Http-` cookie, for the
+fifteen minutes Auth.js keeps its own pair; a code arriving with no verifier or another flow's state
+is refused before it is redeemed and leaves any flow in progress alone, and a code the token
+endpoint refuses spends its own. THE APP LEARNS WHETHER GOOGLE IS ON FROM THE REFRESH ANSWER every
+load already asks for, so knowing costs no call of its own — Supabase publishes the same flag on
+`GET /settings`. The relay reads it from the client's providers, again once five minutes old, since
+a deploy that turns Google on or off changes the client and not the relay. Until the answer lands the
+card holds the pair and the link beneath it, which the pair arriving later would push under a
+pointer; after a load the relay never answered the link shows, and a pair arriving later fades in. BEGIN SENDS `prompt=select_account`, which Cognito forwards to Google, so
+after a sign-out the next Google sign-in asks which account rather than signing the last one straight
+back in. EVERY SIGN-OUT WHILE GOOGLE IS ON LEAVES THROUGH COGNITO'S LOGOUT, the only way its session
+cookie is cleared — `GlobalSignOut` "doesn't clear the managed login session cookie" — so the relay
+names the endpoint and the app goes there, to land on `/sign-in` or `/apply`, the two sign-out URLs
+the client lists; a tokenless sign-out too, since nothing the relay holds says whether the browser
+has a session there. The button is Google's: its colours per theme and its
+face, Google Sans Medium, as the branding guidelines fix them for "the app verification process", and
+the bundle's own G cropped to its box.
 Registration is an APPLICATION,
 not an open door — threat protection is a paid tier, so a public door has only quotas: sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
@@ -395,7 +419,9 @@ answer IN PLACE of the route that asked, held in memory, and every way out it of
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
 not read that way. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE, ONCE: the fact rides the navigation
 as router state, and the page replaces its own history entry the moment it arrives, a status line
-above the title that submit empties and holds.
+above the title that submit empties and holds. Through Cognito's logout the page arrives by a load
+from another origin, which router state cannot cross, so this tab's session storage carries the fact
+and the page forgets it once read.
 **Why.** Nothing decided at token-issue time can revoke anything, at any lifetime, so authorization
 belongs to the API, read from that row on every request. A refresh token script can read outlives
 the page that stole it; one in an HttpOnly cookie, exchangeable only with a secret the browser never
@@ -438,7 +464,15 @@ user no way out. · The signed-out confirmation as a toast: it leaves on a timer
 reports on the page the user stays on. · Deciding the offer from the address step's answer, a
 `SELECT_CHALLENGE` without `WEB_AUTHN`: it depends on which way the user reached the password, and no
 source documents it as a signal. · Registration through the relay: no secret is involved, so it
-would only carry the access token one hop further.
+would only carry the access token one hop further. · Beginning Google as the sign-in page loads,
+Ory's flow-first shape: an invocation and a flow cookie for every visit, and a flow gone stale by
+the time of a late click. · A Google flag in the host table: a deploy that drops the credentials
+would leave the button standing. · Leaving through Cognito's logout only after a Google sign-in: a
+third cookie to remember one, and the relay guessing at a session only Cognito can see. ·
+`prompt` left out, or `login`: without it a live Google session signs the last account straight
+back in; `login` asks for Google's password every time. · The flow's pair encrypted, as Auth.js
+keeps its own: HttpOnly and `__Host-` already keep it from script and other hosts, and a key would
+be a second secret to store.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

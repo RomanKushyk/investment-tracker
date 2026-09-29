@@ -257,8 +257,11 @@ Resources:
           - IsProd
           - https://quirenote.com/auth/callback
           - https://dev.quirenote.com/auth/callback
+      # WHERE A SIGN-OUT LEAVES FOR, which Cognito's logout returns to only when listed here:
+      # `/sign-in`, or `/apply` from the no-application answer.
       LogoutURLs:
-        - !If [IsProd, https://quirenote.com/, https://dev.quirenote.com/]
+        - !If [IsProd, https://quirenote.com/sign-in, https://dev.quirenote.com/sign-in]
+        - !If [IsProd, https://quirenote.com/apply, https://dev.quirenote.com/apply]
       PreventUserExistenceErrors: ENABLED
 
   GoogleIdentityProvider:
@@ -352,7 +355,7 @@ Resources:
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn
 
-  # `POST /v1/applications` AND THE RELAY'S FOUR ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
+  # `POST /v1/applications` AND THE RELAY'S SIX ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
   # the first creates the very `app_user` row every other route is checked against, and the relay
   # is how a token is obtained at all (*Auth model*). EVERY OTHER ROUTE NAMES THE AUTHORIZER and
   # `DefaultAuthorizer` is deliberately NOT set — SAM renders an opted-out route against a scheme it never declares, and
@@ -393,7 +396,7 @@ Resources:
         'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
-        # The relay's four. A ceiling per route bounds its requests, not the concurrency they share.
+        # The relay's six. A ceiling per route bounds its requests, not the concurrency they share.
         'POST /auth/start':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -404,6 +407,12 @@ Resources:
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
         'POST /auth/sign-out':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/google/begin':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/google/complete':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
@@ -468,9 +477,9 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /v1/applications
-            # NO `Auth` BLOCK, AND ABSENCE IS THE DECISION, as on the relay's four: this endpoint creates
+            # NO `Auth` BLOCK, AND ABSENCE IS THE DECISION, as on the relay's six: this endpoint creates
             # the row every other route is checked against, so there is nothing to check it with.
-            # `public-api.test.ts` names these five as the only routes allowed to be here.
+            # `public-api.test.ts` names these seven as the only routes allowed to be here.
 
   ApplicationsLogGroup:
     Type: AWS::Logs::LogGroup
@@ -562,10 +571,14 @@ Resources:
           # THE CLIENT, NEVER ITS SECRET: that is read from Cognito and cached per environment, so no
           # copy exists to drift and nothing in the function's configuration can show it.
           USER_POOL_CLIENT_ID: !Ref UserPoolClient
+          # WHERE GOOGLE'S REDIRECT, ITS CODE EXCHANGE AND THE LOGOUT GO: the managed-login domain,
+          # whose `Ref` is the host itself.
+          AUTH_DOMAIN: !Ref UserPoolDomain
       Policies:
         - Statement:
             # ONE READ, AND IT IS POOL-WIDE — any client in the pool can be described, the accepted
-            # cost of storing the secret nowhere. The four sign-in calls themselves need no grant.
+            # cost of storing the secret nowhere. The sign-in calls themselves need no grant, and the
+            # token endpoint is not an AWS API: the secret is its credential.
             - Sid: ReadTheClientSecret
               Effect: Allow
               Action: cognito-idp:DescribeUserPoolClient
@@ -595,6 +608,18 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /auth/sign-out
+        GoogleBegin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/google/begin
+        GoogleComplete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/google/complete
 
   AuthRelayLogGroup:
     Type: AWS::Logs::LogGroup

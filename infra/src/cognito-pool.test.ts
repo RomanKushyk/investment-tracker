@@ -514,6 +514,21 @@ describe('the stack still takes its environment the way it did', () => {
     expect(props('UserPoolClient').PreventUserExistenceErrors).toBe('ENABLED');
   });
 
+  // COGNITO REDIRECTS ONLY TO "an authorized sign-out URL for the app client" (*Logout endpoint*),
+  // and a sign-out leaves for `/sign-in`, or for `/apply` from the no-application answer.
+  it('lets the logout return to the two pages a sign-out leaves for, in each environment', () => {
+    const logouts = props('UserPoolClient').LogoutURLs as string[][];
+    expect(logouts.map((arms) => arms[0])).toEqual(['IsProd', 'IsProd']);
+    expect(logouts.map((arms) => arms[1])).toEqual([
+      'https://quirenote.com/sign-in',
+      'https://quirenote.com/apply',
+    ]);
+    expect(logouts.map((arms) => arms[2])).toEqual([
+      'https://dev.quirenote.com/sign-in',
+      'https://dev.quirenote.com/apply',
+    ]);
+  });
+
   // `OFF` is a YAML 1.1 BOOLEAN unless quoted, which would send `false` where a string is required.
   it('keeps MFA off as a string rather than a YAML boolean', () => {
     expect(props('UserPool').MfaConfiguration).toBe('OFF');

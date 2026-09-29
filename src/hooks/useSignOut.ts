@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
 import { accountRows } from '../app/account-rows';
-import { session, useSessionStatus, useSessionUnanswered } from '../auth/app';
+import { leaveThroughLogout, session, useSessionStatus, useSessionUnanswered } from '../auth/app';
 import { SIGNED_OUT } from '../auth/signed-out';
 import { useT } from '../i18n/useT';
 
@@ -29,7 +29,8 @@ export function useSignOut() {
     if (leaving) return;
     setLeaving(true);
     toast.dismiss(failedId(failures));
-    if (!(await session.signOut())) {
+    const out = await session.signOut();
+    if (!out) {
       setLeaving(false);
       toast.error(t.auth.signOutFailed, {
         id: failedId(++failures),
@@ -38,6 +39,8 @@ export function useSignOut() {
       });
       return;
     }
+    // Through Cognito's logout while Google is on; `leaving` holds the rows until the page goes.
+    if (leaveThroughLogout(out.logout, '/sign-in')) return;
     // The session is signed out already; `leaving` keeps the rows up until the route changes, and
     // `flushSync` commits that change at once rather than in a transition. `/sign-in` says so.
     await navigate('/sign-in', { flushSync: true, state: SIGNED_OUT });
