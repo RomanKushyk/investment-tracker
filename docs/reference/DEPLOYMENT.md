@@ -273,8 +273,10 @@ regional `EUN1-CognitoUserPoolMAU` **does not exist** — the regional classic t
 `EUN1-CognitoUserPoolsMAU` at $0.0055/MAU over 0–50,000 — and AWS's Free Tier tracking documentation
 still lists `CognitoUserPoolMAU`, that legacy 50,000 line, not the 10,000 this budget is about. Read
 which line carries non-zero usage before choosing the usage type — paired wrong, the budget reads
-zero across the whole range it watches; `aws ce get-dimension-values --dimension USAGE_TYPE
---search-string Cognito` settles it. Usage on the Essentials meter while the bill is $0 means the
+zero across the whole range it watches. Cost Explorer filtered to the Amazon Cognito service and
+grouped by usage type settles it, showing each line's usage and its cost; the Essentials line's
+unit reads `CognitoUserPoolsMAU`, a label and not the classic usage type above. Usage on the
+Essentials meter while the bill is $0 means the
 free tier is applied as a credit and the limit is 10,000; usage on the `Global-` line instead means
 only the excess is billed, so the limit is near zero — any billable Essentials MAU says the
 allowance is gone. **If the console offers no Cognito usage line yet** — possible while the pool is

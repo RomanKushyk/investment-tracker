@@ -408,6 +408,35 @@ Not measured: whether Cognito reuses its session for an authorize without `promp
 never makes — and so what `/logout` cleared, since the sign-in after it asked as the one before it
 did. The readings are on #273.
 
-## What this does not answer
+## Three refusals, none of them metered
 
-**Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.
+AWS does not say whether a refused sign-up counts. The
+[pricing page](https://aws.amazon.com/cognito/pricing/) counts a user when "customers’ application
+generates an identity operation for that user, like administrative creation or update, sign-up,
+sign-in, …", and the
+[pre sign-up trigger page](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-sign-up.html)
+says: "Immediately before Amazon Cognito completes creation of a new local or federated user, it
+activates the pre sign-up Lambda function." So it was measured on Essentials pools in eu-north-1,
+against Cost Explorer's daily Amazon Cognito usage grouped by usage type, where the only type with
+rows was `EUN1-CognitoEssentialsMAU`.
+
+One day carried three kinds of refusal, each attempt with its own email address:
+
+| Refusal | Pool | Answer |
+|---|---|---|
+| `SignUp`, refused by a pre-sign-up trigger that always throws | a throwaway pool | `UserLambdaValidationException`, "PreSignUp failed with error …" |
+| `SignUp`, refused by `AllowAdminCreateUserOnly` | a second throwaway pool | `NotAuthorizedException`, "SignUp is not permitted for this user pool" |
+| a first Google sign-in, from an address with no account there | dev | a redirect whose `error_description` carries the deployed trigger's registration message, and one error on that trigger's Lambda metrics |
+
+None of them created a user. The first pool held none afterwards, the second only one made by
+`AdminCreateUser` beside the refusals, and the dev pool's users were the same after the Google
+attempt as before it.
+
+**None of the three is metered.** The day's row equalled the users `AdminCreateUser` created that
+day. Every earlier day's row had equalled its own day's creations by `SignUp` and
+`AdminCreateUser`, users deleted the same day among them. So the creations account for the whole
+row, and the refusals added nothing to it. The readings are on #61.
+
+The two throwaway pools and their app clients, with the first pool's trigger, its role and its
+invoke permission, were one CloudFormation stack, deleted afterwards. `DescribeUserPool` answered
+`ResourceNotFoundException` for both pools.
