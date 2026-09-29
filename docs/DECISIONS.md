@@ -616,7 +616,8 @@ certificate-validation CNAME and the mail records never are. A PUBLIC RUN CARRIE
 the repository is public, so a run's log and artifacts are readable by anyone while they are kept.
 `migrate.yml` masks the address its bootstrap is given in the job's first step, reading it from the
 event payload because a step prints its `env:` block before its script runs, and the migration
-runner neither returns nor logs one.
+runner neither returns nor logs one. A bootstrap must never run with debug logging, and a run that
+did has its logs deleted: the runner's diagnostic log carries the job's inputs from before any step.
 **Why.** A git-connected Amplify app has no build-status badge, and an Actions badge is real
 deployment status when the workflow performs the deploy. Proxying keeps repeat traffic off origin
 egress, the one cost line a flood can move — and a record left grey publishes the address its
@@ -626,7 +627,9 @@ step that does not run cannot. OWASP's Logging Cheat Sheet counts an email addre
 to remove, mask or hash before it is logged. GitHub's secure-use guidance masks a sensitive value
 that is not a secret with `::add-mask::` and calls redaction not guaranteed; a mask rewrites log
 lines and never an uploaded file, so it guards the log alone, and the report drops the address
-outright.
+outright. The Actions runner writes the whole job message to its diagnostic log before the first step
+runs, and GitHub adds that log to the run's archive when anyone who can run the workflow re-runs it
+with debug logging, or when `ACTIONS_RUNNER_DEBUG` is set to `true`.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
 certificate stops renewing. · An environment secret for the bootstrap's address: masked from the
 job's start, but an operator's input would become standing configuration in each environment.

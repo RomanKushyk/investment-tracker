@@ -7,6 +7,7 @@
 // ASYNC` is DSQL-only and PGlite refuses it BY DESIGN. Only the unrewritten half can
 // be executed here, which is why the module keeps the rewrite and the apply apart.
 import { readFileSync } from 'node:fs';
+import { format } from 'node:util';
 import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -1251,9 +1252,15 @@ describe('the bootstrap mode makes the one account that can approve the others',
     const SUB_SHAPE = /[0-9a-f]{8}-[0-9a-f]{4}-/i;
     const OTHER_SUB = '11111111-0000-4000-8000-000000000003';
 
-    it('in the report or the log line of a bootstrap that succeeds', async () => {
+    it('in the report or any log line of a bootstrap that succeeds', async () => {
       const db = await applied();
-      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      // EVERY LEVEL, each of which Lambda sends to CloudWatch: `log` alone would let an address reach
+      // it through `error` on a path that succeeds. Read as `format` prints them, not as JSON, which
+      // writes an Error as `{}` and so drops a message that carries one.
+      const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((level) =>
+        vi.spyOn(console, level).mockImplementation(() => {}),
+      );
+      const [log] = spies;
       try {
         const reports = [
           await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp),
@@ -1274,9 +1281,10 @@ describe('the bootstrap mode makes the one account that can approve the others',
         }
         // The sub still reaches CloudWatch, which is the only place an operator can find it.
         expect(JSON.stringify(log.mock.calls)).toContain(SUB);
-        expect(JSON.stringify(log.mock.calls)).not.toMatch(/@/);
+        for (const s of spies)
+          for (const call of s.mock.calls) expect(format(...call)).not.toMatch(/@/);
       } finally {
-        log.mockRestore();
+        for (const s of spies) s.mockRestore();
       }
     });
 

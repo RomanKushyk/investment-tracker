@@ -1692,14 +1692,19 @@ describe('the invoke is written once, and both workflows call it', () => {
 
     // AN ALLOW-LIST, NOT A LIST OF PLACES: a run name, a job name, a group or an `env:` at any level
     // is printed where no mask reaches, so an expression that can yield the address sits in the call.
+    // `github` is refused whole but for a named property other than `event`: `toJSON(github)` and
+    // `github['event']` carry the dispatch inputs as surely as `github.event` does. CASE-BLIND, as
+    // the runner looks context keys up; and an expression runs to its first `}}`, so a `format`
+    // string's own braces cannot hide it.
     it.each(passing)('$where: names the address in the call alone', ({ where, wf, call, key }) => {
       expect(key, where).toBeDefined();
       const reaches = new RegExp(
-        `\\binputs\\.${key}\\b|\\binputs\\b(?!\\.\\w)|\\bgithub\\.event\\b(?!\\.\\w)`,
+        `\\binputs\\.${key}\\b|\\binputs\\b(?!\\.\\w)|\\bgithub\\b(?!\\.(?!event\\b)\\w)`,
+        'i',
       );
       const found = leaves(wf)
         .filter(([, text]) =>
-          [...text.matchAll(/\$\{\{([^}]*)\}\}/g)].some(([, e]) => reaches.test(e)),
+          [...text.matchAll(/\$\{\{([\s\S]*?)\}\}/g)].some(([, e]) => reaches.test(e)),
         )
         .map(([at]) => at);
       expect(found, where).toEqual([call]);
@@ -1740,6 +1745,13 @@ describe('the invoke is written once, and both workflows call it', () => {
         );
         expect(masks({ [key]: 'Owner@X.com\r\nNext' }), where).toBe(
           '::add-mask::Owner@X.com%0D%0ANext\n::add-mask::owner@x.com%0D%0Anext\n',
+        );
+        // Each break ALONE too: one substitution of the pair passes the case above and leaves these raw.
+        expect(masks({ [key]: 'Owner@X.com\nNext' }), where).toBe(
+          '::add-mask::Owner@X.com%0ANext\n::add-mask::owner@x.com%0Anext\n',
+        );
+        expect(masks({ [key]: 'Owner@X.com\rNext' }), where).toBe(
+          '::add-mask::Owner@X.com%0DNext\n::add-mask::owner@x.com%0Dnext\n',
         );
         expect(masks({ [key]: '' }), where).toBe('');
         expect(masks({}), where).toBe('');

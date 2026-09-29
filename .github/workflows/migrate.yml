@@ -63,6 +63,8 @@ jobs:
     steps:
       # FIRST, AND FROM THE EVENT: the repository is public and the invoke prints its `env:` block,
       # address included, before its script runs. A mask read through `env:` prints it itself.
+      # THE RUNNER'S DIAGNOSTIC LOG DUMPS THE JOB, INPUTS INCLUDED, BEFORE THIS MASK EXISTS: a bootstrap
+      # must never run with debug logging or `ACTIONS_RUNNER_DEBUG`, and one that did has its logs deleted.
       - name: Mask the address
         run: |
           email=$(jq -r '.inputs.email // ""' "$GITHUB_EVENT_PATH")
@@ -70,7 +72,8 @@ jobs:
           # line break would end the command and print the rest of the value as a line of its own.
           mask() { local v=${1//'%'/%25}; v=${v//$'\r'/%0D}; echo "::add-mask::${v//$'\n'/%0A}"; }
           # Lower-cased too, as a backstop: the migration runner hands Cognito and Postgres this form
-          # trimmed and passes their errors on, and the Actions runner registers a mask trimmed too.
+          # trimmed and passes their errors on. The Actions runner also registers each line of a mask
+          # trimmed, but by .NET's rule, which keeps the U+FEFF that JavaScript's `trim()` strips.
           if [ -n "$email" ]; then
             mask "$email"
             mask "${email,,}"
