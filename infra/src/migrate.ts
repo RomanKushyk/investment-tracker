@@ -389,7 +389,6 @@ export type IdentityAdminClient = {
 
 /** What the bootstrap did, which the other three modes never set. */
 export interface BootstrapReport {
-  email: string;
   identity: 'created' | 'existing';
   row: 'created' | 'existing';
   /** Reported on EVERY run, including one that found the row finished: the clusters hold a
@@ -469,11 +468,7 @@ async function bootstrap(
   // CANONICALISED BEFORE ANYTHING IS ASKED, so a constraint is never what reports an operator's
   // capital letter in the middle of a privileged run.
   const email = canonicalAddress(supplied);
-  if (email === undefined) {
-    throw new Error(
-      `email must be an address this schema can store, got ${JSON.stringify(supplied)}`,
-    );
-  }
+  if (email === undefined) throw new Error('email must be an address this schema can store');
 
   const UserPoolId = process.env.USER_POOL_ID;
   if (!UserPoolId) throw new Error('USER_POOL_ID is not set on this function');
@@ -487,15 +482,19 @@ async function bootstrap(
   if (mine && mine.status === 'active' && mine.role === 'super_admin') {
     // The row says the identity exists; this is what makes that falsifiable rather than assumed.
     const found = await idp.adminGetUser({ UserPoolId, Username: email }).catch((err: unknown) => {
-      // NAMED ON BOTH SIDES: the raw SDK answer carries no address, no row and no next step, and
-      // this is the one state an operator reaches while already locked out.
+      // THE ROW IS NAMED IN THE LOG, NOT THE MESSAGE: the raw SDK answer names no row and no next
+      // step, and the message is printed in a public run.
+      console.error(`bootstrap: the pool did not return super-admin row ${mine.user_id}`);
       throw new Error(
-        `${email} holds a super-admin row (${mine.user_id}) but the pool has no such user: ${String(err)}`,
+        `the address holds a super-admin row, but the pool did not return its user; the runner's CloudWatch log names the row: ${String(err)}`,
       );
     });
     const sub = subOf(found.UserAttributes);
     if (sub !== mine.user_id) {
-      throw new Error(`${email} is row ${mine.user_id} but pool user ${sub ?? 'unknown'}`);
+      console.error(`bootstrap: super-admin row ${mine.user_id} is pool user ${sub ?? 'unknown'}`);
+      throw new Error(
+        "the address's super-admin row and its pool user carry different subs; the runner's CloudWatch log names both",
+      );
     }
     // THE FINISHED ROW IS PROVISIONED TOO, and this arm is the only way an EXISTING super-admin ever
     // gets an account: both clusters hold one written before anything provisioned, so without this
@@ -508,7 +507,7 @@ async function bootstrap(
       mode: 'bootstrap',
       schema: 'public',
       files: [],
-      bootstrap: { email, identity: 'existing', row: 'existing', account },
+      bootstrap: { identity: 'existing', row: 'existing', account },
     };
   }
 
@@ -516,15 +515,16 @@ async function bootstrap(
   // Refused by NAME, or the alternative is a raw violation raised after an identity was minted.
   if (mine) {
     throw new Error(
-      `${email} already holds an app_user row (${mine.status}/${mine.role}); remove or decide it before bootstrapping`,
+      `the address already holds an app_user row (${mine.status}/${mine.role}); remove or decide it before bootstrapping`,
     );
   }
 
   // THE FIRST super-admin, which is what this mode is named for: without this a second dispatch
   // writes another `active` super-admin for an address nobody approved.
   if (otherAdmin) {
+    console.error(`bootstrap: super-admin row ${otherAdmin.user_id} is in the way`);
     throw new Error(
-      `a super-admin already exists (${otherAdmin.email}); promoting another is not this mode's to do`,
+      "a super-admin already exists under another address, and the runner's CloudWatch log names its row; promoting a second is not this mode's to do",
     );
   }
 
@@ -554,19 +554,19 @@ async function bootstrap(
     const found = await idp.adminGetUser({ UserPoolId, Username: email });
     userId = subOf(found.UserAttributes);
   }
-  if (!userId) throw new Error(`the pool returned no sub for ${email}`);
+  if (!userId) throw new Error('the pool returned no sub for the address');
 
   const account = await provision(client, userId, () =>
     client.query(BOOTSTRAP_ROW, [userId, email]),
   );
-  // THE SUB IS LOGGED, NOT RETURNED: the report is kept as a workflow artifact on a PUBLIC
-  // repository, and the `sub` is the key every row in this database is scoped by.
-  console.log(`bootstrap: ${email} is ${userId} (identity ${identity})`);
+  // THE SUB IS LOGGED AND THE ADDRESS NOWHERE: the report and every refusal are printed in a
+  // PUBLIC run and kept as its artifact, and the `sub` is the key every row here is scoped by.
+  console.log(`bootstrap: the super-admin is ${userId} (identity ${identity})`);
   return {
     mode: 'bootstrap',
     schema: 'public',
     files: [],
-    bootstrap: { email, identity, row: 'created', account },
+    bootstrap: { identity, row: 'created', account },
   };
 }
 

@@ -131,6 +131,7 @@ runs:
         fi
       env:
         MIGRATE_MODE: ${{ inputs.mode }}
+        # PRINTED in this step's `env:` block, on a public run: a caller passing one masks it first.
         BOOTSTRAP_EMAIL: ${{ inputs.email }}
         MIGRATE_TARGET: ${{ inputs.target }}
 

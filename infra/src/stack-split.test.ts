@@ -1,4 +1,6 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
@@ -981,6 +983,7 @@ type Step = {
   if?: string;
   'continue-on-error'?: boolean;
   run?: string;
+  shell?: string;
   uses?: string;
   with?: Record<string, string>;
   env?: Record<string, string>;
@@ -994,6 +997,7 @@ type Job = {
   environment?: { name?: string };
   concurrency?: Concurrency;
   outputs?: Record<string, string>;
+  defaults?: { run?: { shell?: string } };
   steps?: Step[];
 };
 type Workflow = {
@@ -1004,6 +1008,7 @@ type Workflow = {
     };
   };
   concurrency?: Concurrency;
+  defaults?: { run?: { shell?: string } };
   jobs: Record<string, Job>;
 };
 
@@ -1642,6 +1647,106 @@ describe('the invoke is written once, and both workflows call it', () => {
     expect(files).toContain(ACTION_FILE);
     const inlining = files.filter((file) => actionText(file).includes('aws lambda invoke'));
     expect(inlining).toEqual([ACTION_FILE]);
+  });
+
+  // THE INVOKE PRINTS ITS `env:` BLOCK, ADDRESS INCLUDED, so every job handing it one masks it in
+  // a first step that reads the event: a mask read through `env:` prints the value itself.
+  describe('is handed an address only by a job whose first step masks it', () => {
+    // From PowerShell, `bash` on win32 is WSL's launcher; Git's own MSYS bash is the one to run.
+    const BASH =
+      process.platform === 'win32'
+        ? join(
+            execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim(),
+            '../../../usr/bin/bash.exe',
+          )
+        : 'bash';
+    const passing = readdirSync(join(REPO, '.github/workflows'))
+      .filter((file) => /\.ya?ml$/.test(file))
+      .flatMap((file) => {
+        const wf = workflow(file);
+        return Object.entries(wf.jobs).flatMap(([name, job]) =>
+          selfCalls(job)
+            .filter((call) => call.with?.email !== undefined)
+            .map((call) => ({
+              where: `${file} ${name}`,
+              wf,
+              job,
+              call: `jobs.${name}.steps.${job.steps?.indexOf(call)}.with.email`,
+              // The dispatch input the mask must read, taken from what the call hands over.
+              key: /^\$\{\{ inputs\.(\w+) \}\}$/.exec(call.with?.email ?? '')?.[1],
+            })),
+        );
+      });
+
+    /** Every string in a parsed document, with the path it sits at. */
+    const leaves = (value: unknown, path = ''): [string, string][] =>
+      typeof value === 'string'
+        ? [[path, value]]
+        : value !== null && typeof value === 'object'
+          ? Object.entries(value).flatMap(([k, v]) => leaves(v, path ? `${path}.${k}` : k))
+          : [];
+
+    it('finds the dispatch among them', () => {
+      expect(passing.map(({ where }) => where)).toContain('migrate.yml migrate');
+    });
+
+    // AN ALLOW-LIST, NOT A LIST OF PLACES: a run name, a job name, a group or an `env:` at any level
+    // is printed where no mask reaches, so an expression that can yield the address sits in the call.
+    it.each(passing)('$where: names the address in the call alone', ({ where, wf, call, key }) => {
+      expect(key, where).toBeDefined();
+      const reaches = new RegExp(
+        `\\binputs\\.${key}\\b|\\binputs\\b(?!\\.\\w)|\\bgithub\\.event\\b(?!\\.\\w)`,
+      );
+      const found = leaves(wf)
+        .filter(([, text]) =>
+          [...text.matchAll(/\$\{\{([^}]*)\}\}/g)].some(([, e]) => reaches.test(e)),
+        )
+        .map(([at]) => at);
+      expect(found, where).toEqual([call]);
+    });
+
+    // A skipped or tolerated mask step masks nothing, and one under `sh` fails on bash expansions.
+    it.each(passing)('$where: nothing skips the mask or runs it outside bash', (caller) => {
+      const { where, wf, job } = caller;
+      const first = job.steps?.[0];
+      expect(first?.if, where).toBeUndefined();
+      expect(first?.['continue-on-error'], where).toBeUndefined();
+      for (const shell of [first?.shell, job.defaults?.run?.shell, wf.defaults?.run?.shell])
+        expect(shell ?? 'bash', where).toBe('bash');
+    });
+
+    // RUN, NOT READ: the runner unescapes `%25`, `%0D` and `%0A` in a command and a raw line break
+    // ends one, so each line out must be a mask of one form of the value, escaped exactly.
+    it.each(passing)('$where: the first step masks the address, raw and lower-cased', (caller) => {
+      const { where, job, key = 'email' } = caller;
+      const dir = mkdtempSync(join(tmpdir(), 'mask-'));
+      // jq.exe writes an LF as CRLF unless `--binary` (jq's manual); the runner's Linux jq does not.
+      const linuxJq = process.platform === 'win32' ? 'jq() { command jq --binary "$@"; }\n' : '';
+      const masks = (inputs: Record<string, string>) => {
+        const event = join(dir, 'event.json');
+        writeFileSync(event, JSON.stringify({ inputs }));
+        return execFileSync(
+          BASH,
+          ['--noprofile', '--norc', '-e', '-c', linuxJq + (job.steps?.[0]?.run ?? '')],
+          {
+            env: { ...process.env, GITHUB_EVENT_PATH: event },
+            encoding: 'utf8',
+          },
+        );
+      };
+      try {
+        expect(masks({ [key]: 'Owner%0A@Quirenote.COM' }), where).toBe(
+          '::add-mask::Owner%250A@Quirenote.COM\n::add-mask::owner%250a@quirenote.com\n',
+        );
+        expect(masks({ [key]: 'Owner@X.com\r\nNext' }), where).toBe(
+          '::add-mask::Owner@X.com%0D%0ANext\n::add-mask::owner@x.com%0D%0Anext\n',
+        );
+        expect(masks({ [key]: '' }), where).toBe('');
+        expect(masks({}), where).toBe('');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it('is called by the dispatch as well, passing every input it takes', () => {

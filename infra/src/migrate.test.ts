@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { freshDb } from './__fixtures__/pglite';
 import { DEMO_ACCOUNT_ID, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
-import type { SqlClient } from './migrate';
+import type { IdentityAdminClient, SqlClient } from './migrate';
 import {
   MIGRATIONS,
   TEARDOWN_RESERVE_MS,
@@ -1027,7 +1027,6 @@ describe('the bootstrap mode makes the one account that can approve the others',
 
     expect(created).toHaveLength(1);
     expect(report.bootstrap).toEqual({
-      email: 'owner@quirenote.com',
       identity: 'created',
       row: 'created',
       account: 'created',
@@ -1058,7 +1057,6 @@ describe('the bootstrap mode makes the one account that can approve the others',
       again.idp,
     );
     expect(report.bootstrap).toEqual({
-      email: 'owner@quirenote.com',
       identity: 'existing',
       row: 'existing',
       account: 'existing',
@@ -1094,7 +1092,6 @@ describe('the bootstrap mode makes the one account that can approve the others',
       spy(SUB).idp,
     );
     expect(report.bootstrap).toEqual({
-      email: 'owner@quirenote.com',
       identity: 'existing',
       row: 'existing',
       account: 'created',
@@ -1108,8 +1105,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
   it('canonicalises the address before the insert, and asks Cognito for the same one', async () => {
     const db = await applied();
     const { idp, created } = spy();
-    const report = await migrate(db, { mode: 'bootstrap', email: 'Owner@Quirenote.COM' }, idp);
-    expect(report.bootstrap?.email).toBe('owner@quirenote.com');
+    await migrate(db, { mode: 'bootstrap', email: 'Owner@Quirenote.COM' }, idp);
     expect((created[0] as { Username: string }).Username).toBe('owner@quirenote.com');
     expect((await rows(db))[0].email).toBe('owner@quirenote.com');
   });
@@ -1182,7 +1178,6 @@ describe('the bootstrap mode makes the one account that can approve the others',
 
     expect(created).toHaveLength(1);
     expect(report.bootstrap).toEqual({
-      email: 'owner@quirenote.com',
       identity: 'created',
       row: 'created',
       account: 'created',
@@ -1248,5 +1243,130 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(schemas.rows).toEqual([]);
     const path = await db.query<{ search_path: string }>('SHOW search_path');
     expect(path.rows[0].search_path).toContain('public');
+  });
+
+  // THE REPORT IS PUBLIC: printed in the run log and kept as an artifact of a public repository,
+  // where a mask redacts the log alone. `@` is the oracle because no address is without one.
+  describe('what leaves the runner names no address', () => {
+    const SUB_SHAPE = /[0-9a-f]{8}-[0-9a-f]{4}-/i;
+    const OTHER_SUB = '11111111-0000-4000-8000-000000000003';
+
+    it('in the report or the log line of a bootstrap that succeeds', async () => {
+      const db = await applied();
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        const reports = [
+          await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp),
+          await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy(SUB).idp),
+        ];
+        await db.query('DELETE FROM account WHERE user_id = $1', [SUB]);
+        reports.push(
+          await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy(SUB).idp),
+        );
+        expect(reports.map((r) => r.bootstrap?.account)).toEqual([
+          'created',
+          'existing',
+          'created',
+        ]);
+        for (const report of reports) {
+          expect(JSON.stringify(report)).not.toMatch(/@/);
+          expect(JSON.stringify(report)).not.toMatch(SUB_SHAPE);
+        }
+        // The sub still reaches CloudWatch, which is the only place an operator can find it.
+        expect(JSON.stringify(log.mock.calls)).toContain(SUB);
+        expect(JSON.stringify(log.mock.calls)).not.toMatch(/@/);
+      } finally {
+        log.mockRestore();
+      }
+    });
+
+    type Arrange = (db: PGlite) => Promise<{ email: string; idp: IdentityAdminClient }>;
+    const owner = (db: PGlite) =>
+      migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
+
+    // Each refusal must still say which it is. The ids are what CloudWatch carries in the message's
+    // place, read from the refusal's own run: the setup's bootstrap logs the same sub.
+    it.each<[string, RegExp, string[], Arrange]>([
+      [
+        'an address it cannot store',
+        /email must be an address this schema can store/,
+        [],
+        async () => ({ email: 'ольга@quirenote.com', idp: spy().idp }),
+      ],
+      [
+        'an address that already applied',
+        /already holds an app_user row \(pending\/user\)/,
+        [],
+        async (db) => {
+          await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at)
+                         VALUES ('11111111-0000-4000-8000-000000000001',
+                                 'owner@quirenote.com', 'pending', 'user', now());`);
+          return { email: 'owner@quirenote.com', idp: spy().idp };
+        },
+      ],
+      [
+        'a second super-admin, which would name the first one',
+        /super-admin already exists/,
+        [SUB],
+        async (db) => {
+          await owner(db);
+          return { email: 'someone.else@quirenote.com', idp: spy().idp };
+        },
+      ],
+      [
+        'a row whose pool user is gone',
+        /the pool did not return its user/,
+        [SUB],
+        async (db) => {
+          await owner(db);
+          const gone = async () => {
+            throw Object.assign(new Error('User does not exist.'), {
+              name: 'UserNotFoundException',
+            });
+          };
+          return { email: 'owner@quirenote.com', idp: { ...spy().idp, adminGetUser: gone } };
+        },
+      ],
+      [
+        'a row the pool keys under another sub',
+        /carry different subs/,
+        [SUB, OTHER_SUB],
+        async (db) => {
+          await owner(db);
+          return { email: 'owner@quirenote.com', idp: spy(OTHER_SUB).idp };
+        },
+      ],
+      [
+        'a pool that hands back no sub',
+        /returned no sub/,
+        [],
+        async () => ({
+          email: 'owner@quirenote.com',
+          idp: { ...spy().idp, adminCreateUser: async () => ({ User: { Attributes: [] } }) },
+        }),
+      ],
+    ])('in the refusal for %s', async (_, names, logged, arrange) => {
+      const db = await applied();
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const { email, idp } = await arrange(db);
+        log.mockClear();
+        error.mockClear();
+        const refusal = await migrate(db, { mode: 'bootstrap', email }, idp).then(
+          () => undefined,
+          (err: unknown) => (err instanceof Error ? err.message : String(err)),
+        );
+        expect(refusal).toMatch(names);
+        expect(refusal).not.toMatch(/@/);
+        expect(refusal).not.toMatch(SUB_SHAPE);
+        const cloudWatch = JSON.stringify([...log.mock.calls, ...error.mock.calls]);
+        expect(cloudWatch).not.toMatch(/@/);
+        for (const id of logged) expect(cloudWatch).toContain(id);
+      } finally {
+        log.mockRestore();
+        error.mockRestore();
+      }
+    });
   });
 });

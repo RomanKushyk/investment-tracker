@@ -61,6 +61,21 @@ jobs:
     environment:
       name: ${{ inputs.target }}
     steps:
+      # FIRST, AND FROM THE EVENT: the repository is public and the invoke prints its `env:` block,
+      # address included, before its script runs. A mask read through `env:` prints it itself.
+      - name: Mask the address
+        run: |
+          email=$(jq -r '.inputs.email // ""' "$GITHUB_EVENT_PATH")
+          # ESCAPED AS `core.setSecret` ESCAPES: the Actions runner unescapes these three, and a raw
+          # line break would end the command and print the rest of the value as a line of its own.
+          mask() { local v=${1//'%'/%25}; v=${v//$'\r'/%0D}; echo "::add-mask::${v//$'\n'/%0A}"; }
+          # Lower-cased too, as a backstop: the migration runner hands Cognito and Postgres this form
+          # trimmed and passes their errors on, and the Actions runner registers a mask trimmed too.
+          if [ -n "$email" ]; then
+            mask "$email"
+            mask "${email,,}"
+          fi
+
       # NO CHECKOUT: the SQL applied is the copy baked into the DEPLOYED bundle, not the ref.
       - uses: aws-actions/configure-aws-credentials@v6
         with:

@@ -612,15 +612,24 @@ ARTIFACTS: a SECOND Vite build appends the API reference page to the same `dist/
 but `main`, so it sits behind the dev site's basic auth and is absent from production. The GitHub
 OIDC deploy role deliberately cannot change the app: the SPA 200 rewrite and the cache headers stay
 console-managed. Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
-certificate-validation CNAME and the mail records never are.
+certificate-validation CNAME and the mail records never are. A PUBLIC RUN CARRIES NO EMAIL ADDRESS:
+the repository is public, so a run's log and artifacts are readable by anyone while they are kept.
+`migrate.yml` masks the address its bootstrap is given in the job's first step, reading it from the
+event payload because a step prints its `env:` block before its script runs, and the migration
+runner neither returns nor logs one.
 **Why.** A git-connected Amplify app has no build-status badge, and an Actions badge is real
 deployment status when the workflow performs the deploy. Proxying keeps repeat traffic off origin
 egress, the one cost line a flood can move — and a record left grey publishes the address its
 proxied neighbour hides. The reference page is a build step rather than a flag because a flag is how
 this pattern fails: a disable switch that turns out to be dead code and ships the page anyway. A
-step that does not run cannot.
+step that does not run cannot. OWASP's Logging Cheat Sheet counts an email address among the data
+to remove, mask or hash before it is logged. GitHub's secure-use guidance masks a sensitive value
+that is not a secret with `::add-mask::` and calls redaction not guaranteed; a mask rewrites log
+lines and never an uploaded file, so it guards the log alone, and the report drops the address
+outright.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
-certificate stops renewing.
+certificate stops renewing. · An environment secret for the bootstrap's address: masked from the
+job's start, but an operator's input would become standing configuration in each environment.
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the
