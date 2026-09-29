@@ -59,6 +59,16 @@ The archive step is skipped off `main`, **so a `workflow_dispatch` on `main` can
 apply job and a hand dispatch resolve the same environment. **No reviewer stands in front of either**; what
 carries a failed apply is the `notify` job, which opens an issue.
 
+**Each environment deploys through its own roles, and every role a stack creates carries the
+permissions boundary `quirenote-backend-boundary`.** A `dev` job's own credentials reach neither the
+production stack nor its runner. A template it deploys still can, through the execution role both
+environments share (`infra/docs/role-deploy.md`). CloudFormation's execution role creates or
+changes no role without the boundary, so a template cannot mint a role holding an action no stack
+role is granted. The boundary is `infra/iam/quirenote-backend-boundary.json`, applied by hand. **A
+grant added to a template needs it widened and applied BEFORE the deploy**, or the deploy reads green
+while the function is refused at its first call (`infra/docs/role-cfn-exec.md`). Artifacts upload
+under `dev/` or `prod/`, each deploy role writing its own prefix alone.
+
 **A new POOL resolves nowhere, and a new API does not either**: the `auth` and `api` records are
 Cloudflare's and manual, so until they exist the hostnames answer nothing while every stack reads
 green. Their certificates differ in Region — the pool's distribution is global, so
@@ -127,12 +137,13 @@ pattern for its chunks. **The third pattern is not optional:** `/api-docs.html` 
 the first two, so without it a cached copy keeps pointing at a hashed chunk the next deploy removed
 — a blank page that survives redeploys.
 
-### 3.3 GitHub OIDC provider, and the deploy role
+### 3.3 GitHub OIDC provider, and the deploy roles
 
 **IAM is a separate service, not part of Amplify** — `console.aws.amazon.com/iam/home#/identity_providers`,
 global and with no region. Add an OpenID Connect provider with URL
-`https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com` if one does not exist, then
-a **Custom trust policy** role named `quirenote-frontend-deploy`:
+`https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com` if one does not exist.
+Then add one **Custom trust policy** role per environment, `quirenote-frontend-deploy-dev` and
+`quirenote-frontend-deploy-prod`, with `<env>`/`<branch>` as `dev`/`dev` and `prod`/`main`:
 
 ```json
 {
@@ -146,10 +157,9 @@ a **Custom trust policy** role named `quirenote-frontend-deploy`:
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:*"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:<env>",
+          "token.actions.githubusercontent.com:ref": "refs/heads/<branch>"
         }
       }
     }
@@ -157,10 +167,15 @@ a **Custom trust policy** role named `quirenote-frontend-deploy`:
 }
 ```
 
-**The `sub` is the environment, not the branch** — the claim is `environment:dev`, not
-`ref:refs/heads/dev`, and carries the repo's immutable numeric ID (§6 prints it). `environment:*` lets a new
-environment assume the role with no AWS change, which is why the branch policy in §4 is what scopes it.
-Inline permission policy, **named `quirenote-frontend-deployPolicy`**:
+**The trust names the environment AND its branch.** A job in an environment carries the `sub`
+`…:environment:dev`, not `ref:refs/heads/dev`, with the repo's immutable numeric ID (§6 prints it).
+`ref` is a claim IAM reads on its own, so a job on another branch gets nothing even if §4's branch
+policy is edited. **Never `environment:*`**: GitHub creates an environment a workflow merely names,
+with no protection rules, and the wildcard would trust it. One role per environment means a job in
+`dev` cannot deploy the production branch, even when the code running in it is a dependency under
+test. Any step of a job holding `id-token: write` can mint the token.
+Inline permission policy, **named `quirenote-frontend-deploy-<env>Policy`**, with `<branch>` again
+`dev` or `main`:
 
 ```json
 {
@@ -176,10 +191,8 @@ Inline permission policy, **named `quirenote-frontend-deployPolicy`**:
         "amplify:GetJob"
       ],
       "Resource": [
-        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/main",
-        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/main/*",
-        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev",
-        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev/*"
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/<branch>",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/<branch>/*"
       ]
     }
   ]
@@ -202,8 +215,8 @@ an empty value rather than an error that names it.
 | Variable | `AWS_REGION` | `eu-north-1` | both |
 | Variable | `OPEN_REGISTRATION` | `open`, to admit sign-ups | neither — unset deploys `closed` |
 | Secret | `AWS_ACCOUNT_ID` | the account number | both |
-| Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` | both |
-| Secret | `AWS_BACKEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-backend-deploy` | both — `prod` needs it since the backend split |
+| Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy-<env>` | both, each its own role |
+| Secret | `AWS_BACKEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-backend-deploy-<env>` | both, each its own role (`infra/docs/role-deploy.md`) |
 | Secret | `AUTH_CERTIFICATE_ARN` | the ACM certificate for both `auth.` hosts, in **us-east-1** | both |
 | Secret | `API_CERTIFICATE_ARN` | the ACM certificate for both `api.` hosts, in `eu-north-1` | both |
 | Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: one alone fails the deploy, neither switches Google sign-in off |
@@ -221,9 +234,10 @@ policy and no `AWS_BACKEND_ROLE_ARN`.
 
 **Deployment branch policy — required, not cosmetic.** Settings → Environments → `<env>` →
 **Deployment branches and tags** → *Selected branches and tags* → the one branch that environment
-deploys. Since the trust `sub` keys on the environment rather than the branch, this is the only
-thing stopping a job on another branch from assuming the deploy role; set it when an environment is
-created. Every `gh` call here runs with `GH_CONFIG_DIR="$HOME/.quirenote/gh-config"`, and **`gh auth
+deploys. Each trust policy pins that branch as well (§3.3), so a job on another branch gets no AWS
+credentials either way. The branch policy is what keeps the environment's other secrets off
+other branches, such as the certificate ARNs and the Google client secret, so set it when an
+environment is created. Every `gh` call here runs with `GH_CONFIG_DIR="$HOME/.quirenote/gh-config"`, and **`gh auth
 switch` is forbidden** (*Git model*): two accounts share one keyring.
 
 ## 5. Deploying and verifying
@@ -247,7 +261,7 @@ assets are content-hashed and `index.html` is `no-cache`, so it takes effect on 
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `configure-aws-credentials` fails or hangs on `sts:AssumeRoleWithWebIdentity` | trust policy `sub` mismatch or missing `id-token: write`; the secret holds a role NAME not an ARN; the secret is empty or wrongly scoped | In order: (1) the `sub` must be the `environment:` form, **not** `ref:refs/heads/…`, and the workflow must declare `id-token: write`; (2) a bare name hangs for minutes instead of erroring, and secrets are read when the step executes, so start a new run after fixing it; (3) `role-to-assume: ***` in the log does NOT prove the secret has a value — confirm it in the environment and re-enter it; (4) print the real claim from a step **before** `configure-aws-credentials`: fetch the OIDC token from `$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com`, base64url-decode the second dot-segment, `jq '{iss,aud,sub}'` — **print claims only, never the token** |
+| `configure-aws-credentials` fails or hangs on `sts:AssumeRoleWithWebIdentity` | trust policy `sub` mismatch or missing `id-token: write`; the secret holds a role NAME not an ARN; the secret is empty or wrongly scoped | In order: (1) the trust must name this environment's `sub` (the `environment:` form, **not** `ref:refs/heads/…`) and its branch's `ref`, and the workflow must declare `id-token: write`; a run from another branch is refused by design; (2) a bare name hangs for minutes instead of erroring, and secrets are read when the step executes, so start a new run after fixing it; (3) `role-to-assume: ***` in the log does NOT prove the secret has a value — confirm it in the environment and re-enter it; (4) print the real claim from a step **before** `configure-aws-credentials`: fetch the OIDC token from `$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com`, base64url-decode the second dot-segment, `jq '{iss,aud,sub,ref}'` — **print claims only, never the token** |
 | `AccessDeniedException` on an `amplify:` call | the action authorizes against a sub-resource, not the branch | Read the resource ARN out of the error message; §3.3 grants `…/branches/dev` **and** `…/branches/dev/*` for this reason |
 | Site returns "Access Denied" | the zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
 | A non-root route 404s, or a blank page with `Failed to load module script … MIME type of "text/html"` | missing rewrite (404), or the rewrite matching static assets (blank page) | Re-check §3.1 — type **200**, source the regex, not `/<*>`. `curl -sSI "$BASE/assets/<file>.js" \| grep -i content-type`: anything but `application/javascript` is the MIME bug |

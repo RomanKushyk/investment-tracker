@@ -610,8 +610,15 @@ commit on a branch that forbids the force-push it would take to undo.
 deploys and polls the job to completion, taking its environment from the ref. ONE WORKFLOW, TWO
 ARTIFACTS: a SECOND Vite build appends the API reference page to the same `dist/` on every branch
 but `main`, so it sits behind the dev site's basic auth and is absent from production. The GitHub
-OIDC deploy role deliberately cannot change the app: the SPA 200 rewrite and the cache headers stay
-console-managed. Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
+OIDC deploy roles deliberately cannot change the app: the SPA 200 rewrite and the cache headers stay
+console-managed. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
+environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
+shared archive being `dev`'s. CloudFormation's execution role creates or changes no role without the
+permissions boundary, which allows exactly the actions the stack roles are granted. Both
+environments share that execution role, so a template deployed to `dev` can reach production
+through the role's own grants and through the roles it creates; only an execution role, or an
+account, per environment would close that.
+Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
 certificate-validation CNAME and the mail records never are. A PUBLIC RUN CARRIES NO EMAIL ADDRESS:
 the repository is public, so a run's log and artifacts are readable by anyone while they are kept.
 `migrate.yml` masks the address its bootstrap is given in the job's first step, reading it from the
@@ -629,10 +636,20 @@ that is not a secret with `::add-mask::` and calls redaction not guaranteed; a m
 lines and never an uploaded file, so it guards the log alone, and the report drops the address
 outright. The Actions runner writes the whole job message to its diagnostic log before the first step
 runs, and GitHub adds that log to the run's archive when anyone who can run the workflow re-runs it
-with debug logging, or when `ACTIONS_RUNNER_DEBUG` is set to `true`.
+with debug logging, or when `ACTIONS_RUNNER_DEBUG` is set to `true`. Any step of a job holding
+`id-token: write` can mint its OIDC token, a dependency under test included. GitHub creates an
+environment a workflow names but nobody made, with no protection rules. IAM reads a GitHub token's
+`ref` and `environment` claims as condition keys, "to implement environment-based access
+controls, such as separate permissions for development, staging, and production environments". AWS's
+least-privilege guidance for CloudFormation: "An IAM principal with permissions to create a role and
+attach any policy can escalate their own permissions". CDK's bootstrap example boundary likewise
+refuses a role created without it.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
 certificate stops renewing. · An environment secret for the bootstrap's address: masked from the
-job's start, but an operator's input would become standing configuration in each environment.
+job's start, but an operator's input would become standing configuration in each environment. ·
+One deploy role trusting `environment:*`: it trusts any environment a workflow names. · One role
+for both environments with the workflow choosing the target: a `dev` job holds production's stack and
+its runner, whose `bootstrap` mode mints a super-admin.
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the

@@ -15,6 +15,9 @@ Globals:
     # high one is free — and at 300 two sources retrying can be killed mid-retry, no row written.
     Timeout: 600
     Tracing: Active
+    # THE CAP `cfn-exec` REQUIRES on every role it creates or changes: made by hand from
+    # `infra/iam/quirenote-backend-boundary.json`, so no stack can widen it.
+    PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
 
 Resources:
   # NO VPC anywhere in this stack, the single most important cost decision in the file: DSQL is
@@ -132,6 +135,8 @@ Resources:
   SchedulerRole:
     Type: AWS::IAM::Role
     Properties:
+      # A declared role takes no `Globals`: the same cap, written out.
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:

@@ -98,10 +98,8 @@ Resources:
   # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE, and what separates them is blast radius: a
   # mode would give the function that runs unattended on a schedule, with a DLQ that retries it,
   # the standing right to CREATE and ALTER the user tables. ONE CLUSTER PER RUNNER for the same
-  # reason — but the deploy role can invoke both, so what keeps a dev run off production is the
-  # environment each CALLER resolves, not IAM: `migrate.yml` from its `target`, and
-  # `deploy-backend.yml`'s plan and apply from the ref (`infra/docs/role-deploy.md`, an accepted
-  # risk).
+  # reason, and one deploy role per environment, each able to invoke its own runner alone
+  # (`infra/docs/role-deploy.md`).
   MigrateFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -111,6 +109,9 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      # THE CAP `cfn-exec` REQUIRES on every role it creates or changes, made by hand from
+      # `infra/iam/quirenote-backend-boundary.json`. On each function: this template takes no Globals.
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       # 900, the Lambda maximum: `CREATE INDEX ASYNC` returns a job the runner waits on, so the
       # ceiling is an index BUILD, and a wait killed there leaves a ledger row open over it.
       Timeout: 900
@@ -309,6 +310,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       Timeout: 5
       Environment:
         Variables:
@@ -454,6 +456,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       # TIMEOUT × RATE IS A CONCURRENCY BUDGET, and on this account it binds before API Gateway
       # does: the unreserved pool is about ten, and EVERY function in both stacks shares it.
       Timeout: 5
@@ -496,6 +499,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       # LONGER THAN THE APPLICATION'S 5 for the extra round trip, not extra work: `AdminCreateUser`
       # sends an email before it answers. What bounds the concurrency is the ROUTES' throttles, not
       # the role check — that runs HERE, after the connection, so a `pending` applicant reaches this
@@ -563,6 +567,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       Timeout: 5
       Environment:
         Variables:
@@ -642,6 +647,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       Timeout: 10
       Environment:
         Variables:
@@ -692,6 +698,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: IsProd
     Properties:
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -812,6 +819,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       Timeout: 10
       Environment:
         Variables:
@@ -854,6 +862,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: IsProd
     Properties:
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:

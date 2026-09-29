@@ -1,0 +1,71 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteOwnLogs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": [
+        "arn:aws:logs:eu-north-1:*:log-group:/aws/lambda/quirenote-backend-*",
+        "arn:aws:logs:eu-north-1:*:log-group:/aws/lambda/quirenote-backend-*:log-stream:*"
+      ]
+    },
+    {
+      "Sid": "WriteTraces",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets",
+        "xray:GetSamplingStatisticSummaries"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ConnectToDsql",
+      "Effect": "Allow",
+      "Action": "dsql:DbConnectAdmin",
+      "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*"
+    },
+    {
+      "Sid": "ReadBackupFreshness",
+      "Effect": "Allow",
+      "Action": "backup:ListRecoveryPointsByBackupVault",
+      "Resource": "arn:aws:backup:eu-north-1:*:backup-vault:quirenote-backups"
+    },
+    {
+      "Sid": "ReadAlertChannel",
+      "Effect": "Allow",
+      "Action": ["notifications:ListNotificationConfigurations", "notifications:ListChannels"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "UserPool",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminDisableUser",
+        "cognito-idp:AdminEnableUser",
+        "cognito-idp:ListUsers",
+        "cognito-idp:AdminLinkProviderForUser",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:DescribeUserPool"
+      ],
+      "Resource": "arn:aws:cognito-idp:eu-north-1:*:userpool/*"
+    },
+    {
+      "Sid": "InvokeScheduledFunctions",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-*"
+    },
+    {
+      "Sid": "DeadLetter",
+      "Effect": "Allow",
+      "Action": "sqs:SendMessage",
+      "Resource": "arn:aws:sqs:eu-north-1:*:quirenote-backend-*"
+    }
+  ]
+}

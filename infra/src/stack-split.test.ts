@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { parseDocument, visit, type Document, type Node } from 'yaml';
+import { isScalar, parseDocument, visit, type Document, type Node } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { FREE_TIER_USERS } from './pool-usage';
@@ -132,6 +132,12 @@ const idFromArn = (doc: Document, ...path: (string | number)[]) => {
 };
 
 const CLUSTER = 'AWS::DSQL::Cluster';
+
+/** The permissions boundary every role these stacks create carries, and `cfn-exec` requires. A
+ *  `!Sub` of the pseudo parameters, the account id staying out of a public repository; the policy
+ *  it names is made by hand from `infra/iam/quirenote-backend-boundary.json`. */
+const BOUNDARY = 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary';
+const BOUNDARY_FILE = join(REPO, 'infra/iam/quirenote-backend-boundary.json');
 
 /** `capture.ts` is read through this, so a commented-out copy of the DDL cannot stand in for a
  *  deleted table.
@@ -829,10 +835,11 @@ describe('what reaches a role besides its own policies', () => {
   });
 
   // A FUNCTION'S ROLE IS WHAT SAM BUILDS FROM ITS KEYS, so they are an ALLOW-list, `Globals` read
-  // as one more: a swapped role, a trust, a boundary, a VPC or a destination arrives unlisted.
+  // as one more: a swapped role, a trust, a VPC or a destination arrives unlisted.
   it('builds each function role only from keys these tests read', () => {
-    // Three of the last four grant: `Policies`, counted per function; `Tracing`, X-Ray's write-only
-    // policy; the dead-letter send pinned below. Events are held to HttpApi routes, which grant none.
+    // Three of the last five grant: `Policies`, counted per function; `Tracing`, X-Ray's write-only
+    // policy; the dead-letter send pinned below. Events are held to HttpApi routes, which grant none,
+    // and the boundary, which caps rather than grants, is pinned under "bounds every role".
     const allowed = new Set([
       'CodeUri',
       'Handler',
@@ -845,6 +852,7 @@ describe('what reaches a role besides its own policies', () => {
       'Tracing',
       'DeadLetterQueue',
       'Events',
+      'PermissionsBoundary',
     ]);
     const bags = Object.entries({ archive, user }).flatMap(([name, t]) => [
       [`${name} Globals.Function`, t.Globals?.Function ?? {}] as const,
@@ -882,7 +890,8 @@ describe('what reaches a role besides its own policies', () => {
   });
 
   // WHO MAY ASSUME A ROLE, found from the schedules so an added one brings its role in; the trust
-  // is read for tags too, the account's `!Ref` its one, and the role's keys are its two policies.
+  // is read for tags too, the account's `!Ref` its one, and the role's keys are its policies and
+  // the boundary.
   it('lets the scheduler alone assume each role a schedule runs as', () => {
     const trust = {
       Version: '2012-10-17',
@@ -902,7 +911,7 @@ describe('what reaches a role besides its own policies', () => {
         const properties = t.Resources[role]?.Properties ?? {};
         expect([role, Object.keys(properties).sort()]).toEqual([
           role,
-          ['AssumeRolePolicyDocument', 'Policies'],
+          ['AssumeRolePolicyDocument', 'PermissionsBoundary', 'Policies'],
         ]);
         expect([role, properties.AssumeRolePolicyDocument]).toEqual([role, trust]);
         const trustAt = ['Resources', role, 'Properties', 'AssumeRolePolicyDocument'];
@@ -924,6 +933,210 @@ describe('what reaches a role besides its own policies', () => {
     expect(declared).not.toEqual([]);
     // A role two schedules share is one role.
     expect([...new Set(roles)].sort()).toEqual(declared.sort());
+  });
+
+  // `cfn-exec` creates or changes a role only when it carries this boundary, so a role without it
+  // fails the deploy. SAM's generated role takes it from the function or `Globals`, a declared role
+  // from its own properties.
+  it('bounds every role either stack creates', () => {
+    const bounded = stackDocs.flatMap(([doc, t]) => [
+      ...idsOfType(t, 'AWS::Serverless::Function').map((id) => {
+        const own = (t.Resources[id].Properties ?? {}) as Record<string, unknown>;
+        const at =
+          'PermissionsBoundary' in own
+            ? ['Resources', id, 'Properties', 'PermissionsBoundary']
+            : ['Globals', 'Function', 'PermissionsBoundary'];
+        return [id, intrinsicAt(doc, ...at)] as const;
+      }),
+      ...idsOfType(t, 'AWS::IAM::Role').map(
+        (id) =>
+          [id, intrinsicAt(doc, 'Resources', id, 'Properties', 'PermissionsBoundary')] as const,
+      ),
+    ]);
+    expect(bounded.length).toBeGreaterThan(0);
+    for (const [id, boundary] of bounded)
+      expect([id, boundary]).toEqual([id, { tag: '!Sub', value: BOUNDARY }]);
+  });
+});
+
+// EXACTLY THE ACTIONS THE ROLES ARE GRANTED, no more and no less, over resources that cover every one
+// a template names outright. A grant the boundary lacks deploys green and is refused only when the
+// function first makes the call; an action it allows that no role is granted is room a crafted
+// template could use.
+describe('the boundary allows exactly the actions the stack roles are granted', () => {
+  type Statement = {
+    Effect?: string;
+    Action?: string | string[];
+    NotAction?: unknown;
+    Resource?: unknown;
+  };
+  // SAM attaches both to every role it generates here, the second for `Tracing: Active`. Read with
+  // `aws iam get-policy-version --policy-arn arn:aws:iam::aws:policy/<path+name> --version-id <default>`.
+  const BASIC_EXECUTION = ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'];
+  const XRAY_WRITE_ONLY = [
+    'xray:PutTraceSegments',
+    'xray:PutTelemetryRecords',
+    'xray:GetSamplingRules',
+    'xray:GetSamplingTargets',
+    'xray:GetSamplingStatisticSummaries',
+  ];
+
+  /** THROWS on what it cannot count, rather than stepping over it: a `NotAction`, a Deny, a policy
+   *  template or a managed policy would each grant outside the set this compares. */
+  const actionsOf = (where: string, statements: Statement[]) =>
+    statements.flatMap((s) => {
+      if (s.Effect !== 'Allow' || s.NotAction !== undefined || s.Action === undefined)
+        throw new Error(`${where}: a statement other than an Allow of named actions`);
+      return [s.Action].flat();
+    });
+
+  const granted = () =>
+    Object.entries({ archive, user }).flatMap(([name, t]) =>
+      resources(t).flatMap(([id, r]) => {
+        const where = `${name} ${id}`;
+        const p = (r.Properties ?? {}) as Record<string, unknown>;
+        if (r.Type === 'AWS::Serverless::Function') {
+          const statements = ((p.Policies ?? []) as unknown[]).flatMap((policy) => {
+            if (typeof policy !== 'object' || policy === null || !('Statement' in policy))
+              throw new Error(`${where}: a policy that is not an inline statement list`);
+            return policy.Statement as Statement[];
+          });
+          const tracing = p.Tracing ?? t.Globals?.Function?.Tracing;
+          return [
+            ...actionsOf(where, statements),
+            ...BASIC_EXECUTION,
+            ...(tracing === 'Active' ? XRAY_WRITE_ONLY : []),
+            ...((p.DeadLetterQueue as { Type?: string } | undefined)?.Type === 'SQS'
+              ? ['sqs:SendMessage']
+              : []),
+          ];
+        }
+        if (r.Type === 'AWS::IAM::Role') {
+          if (p.ManagedPolicyArns !== undefined) throw new Error(`${where}: a managed policy`);
+          const policies = (p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[];
+          return actionsOf(
+            where,
+            policies.flatMap((x) => x.PolicyDocument.Statement),
+          );
+        }
+        if (r.Type === 'AWS::IAM::Policy')
+          return actionsOf(where, (p.PolicyDocument as { Statement: Statement[] }).Statement);
+        return [];
+      }),
+    );
+
+  // IAM matches an action name case-blind.
+  const set = (actions: string[]) => [...new Set(actions.map((a) => a.toLowerCase()))].sort();
+
+  it('names the actions the templates grant, and no other', () => {
+    const boundary = JSON.parse(readFileSync(BOUNDARY_FILE, 'utf8')) as {
+      Version?: string;
+      Statement: Statement[];
+    };
+    expect(boundary.Version).toBe('2012-10-17');
+    expect(set(actionsOf('the boundary', boundary.Statement))).toEqual(set(granted()));
+  });
+
+  /** The statements a template writes itself, each resource as its DOCUMENT node: `toJS()` drops
+   *  the tag, and a `!Ref` or a `!Sub` of a parameter would read as a plain name. */
+  const written = () =>
+    stackDocs.flatMap(([doc, t]) =>
+      resources(t).flatMap(([id, r]) => {
+        const p = (r.Properties ?? {}) as Record<string, unknown>;
+        const at = ['Resources', id, 'Properties'];
+        const lists: [(string | number)[], Statement[]][] =
+          r.Type === 'AWS::Serverless::Function'
+            ? ((p.Policies ?? []) as { Statement: Statement[] }[]).map((x, i) => [
+                [...at, 'Policies', i, 'Statement'],
+                x.Statement,
+              ])
+            : r.Type === 'AWS::IAM::Role'
+              ? ((p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[]).map(
+                  (x, i) => [
+                    [...at, 'Policies', i, 'PolicyDocument', 'Statement'],
+                    x.PolicyDocument.Statement,
+                  ],
+                )
+              : r.Type === 'AWS::IAM::Policy'
+                ? [
+                    [
+                      [...at, 'PolicyDocument', 'Statement'],
+                      (p.PolicyDocument as { Statement: Statement[] }).Statement,
+                    ],
+                  ]
+                : [];
+        return lists.flatMap(([path, statements]) =>
+          statements.map((s, j) => ({
+            where: id,
+            actions: actionsOf(id, [s]),
+            resources: Array.isArray(s.Resource)
+              ? s.Resource.map((_, k) => doc.getIn([...path, j, 'Resource', k], true))
+              : [doc.getIn([...path, j, 'Resource'], true)],
+          })),
+        );
+      }),
+    );
+
+  // A NAME WRITTEN OUT, the vault's say, is the boundary's to cover as well: renamed in a template
+  // alone, it deploys green and is refused at the first call. A resource read off another one
+  // (`!GetAtt`) is named at deploy time, so it is the boundary's wildcard that has to hold it.
+  it('covers each resource a template names outright', () => {
+    const boundary = JSON.parse(readFileSync(BOUNDARY_FILE, 'utf8')) as { Statement: Statement[] };
+    const glob = (pattern: string) =>
+      new RegExp(
+        `^${pattern
+          .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+          .replaceAll('*', '.*')
+          .replaceAll('?', '.')}$`,
+      );
+    // THROWS on a resource it cannot read, like `actionsOf`: a long-form `Fn::Sub`, a `!Join`, a
+    // `!Ref` or a `!Sub` of a parameter would otherwise leave the test green over a name it never
+    // compared. Only a scalar `!GetAtt` is skipped, being named at deploy time.
+    const outright = (where: string, node: unknown) => {
+      if (!isScalar(node)) throw new Error(`${where}: a resource that is not a single value`);
+      if (node.tag === '!GetAtt') return undefined;
+      const r = node.value;
+      if (
+        typeof r !== 'string' ||
+        (node.tag !== undefined && node.tag !== '!Sub') ||
+        (r !== '*' && !r.startsWith('arn:'))
+      )
+        throw new Error(
+          `${where}: a resource this test cannot read: ${node.tag ?? ''} ${String(r)}`,
+        );
+      const named = r
+        .replaceAll('${AWS::Partition}', 'aws')
+        .replaceAll('${AWS::Region}', 'eu-north-1')
+        .replaceAll('${AWS::AccountId}', '123456789012');
+      if (named.includes('${'))
+        throw new Error(`${where}: a resource naming more than the account`);
+      return named;
+    };
+    const checked = written().flatMap(({ where, actions, resources: named }) =>
+      named
+        .map((r) => outright(where, r))
+        .filter((r): r is string => r !== undefined)
+        .flatMap((r) =>
+          actions.map((action) => {
+            const patterns = boundary.Statement.filter((s) =>
+              [s.Action].flat().some((a) => String(a).toLowerCase() === action.toLowerCase()),
+            ).flatMap((s) => [s.Resource].flat().map(String));
+            return [where, action, r, patterns.some((p) => glob(p).test(r))];
+          }),
+        ),
+    );
+    expect(checked.length).toBeGreaterThan(0);
+    for (const [where, action, r, covered] of checked)
+      expect(covered, `${where}: ${action} on ${r}`).toBe(true);
+  });
+
+  it('is the policy the templates name', () => {
+    expect(BOUNDARY.endsWith(`:policy/${basename(BOUNDARY_FILE, '.json')}`)).toBe(true);
+  });
+
+  // The repository is public: the account id belongs in the policy IAM holds, never in this file.
+  it('carries no account id', () => {
+    expect(readFileSync(BOUNDARY_FILE, 'utf8')).not.toMatch(/\d{12}/);
   });
 });
 
@@ -1114,6 +1327,20 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     // rule, so the archive would deploy from `main` alone and the two branches would stop
     // touching disjoint stacks — silently.
     expect(archiveStack.if).toBe("github.ref_name != 'main'");
+  });
+
+  // ONE PREFIX PER ENVIRONMENT, and each deploy role writes under its own alone. `sam deploy` skips
+  // an upload whose md5-named key already exists, and `main` ships the bundles `dev` shipped, so in
+  // one shared namespace a dev job could plant the object a production deploy then reuses.
+  it("uploads each stack's artifacts under its own environment's prefix", () => {
+    expect(deploys).toHaveLength(2);
+    for (const step of deploys) {
+      expect([step.name, step.run?.match(/--s3-prefix "\$\{ENVIRONMENT\}"/g)?.length]).toEqual([
+        step.name,
+        1,
+      ]);
+      expect([step.name, step.env?.ENVIRONMENT]).toEqual([step.name, REF_TO_ENV]);
+    }
   });
 
   it('bundles an entry point for every handler the templates declare', () => {
@@ -1620,11 +1847,10 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
 });
 
 describe('the invoke is written once, and both workflows call it', () => {
-  // EVERY FILE, NOT A LIST OF EXTENSIONS. `infra/docs/role-deploy.md` rests the whole gate on
-  // this sweep — "the gate is a property of what is written" — and an extension list would let a
-  // `.py` helper, an extensionless script or a snippet in a `.md` carry the invoke unseen, making
-  // that sentence false without anything here going red. Directories are dropped; `.github` holds
-  // no binary.
+  // EVERY FILE, NOT A LIST OF EXTENSIONS. `infra/docs/role-deploy.md` says the invoke is written
+  // once, in the shared action, and an extension list would let a `.py` helper, an extensionless
+  // script or a snippet in a `.md` carry one unseen, making that sentence false without anything
+  // here going red. Directories are dropped; `.github` holds no binary.
   const files = readdirSync(join(REPO, '.github'), { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map(

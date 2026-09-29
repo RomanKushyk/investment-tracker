@@ -126,8 +126,10 @@ ends, each failing with a message that points elsewhere:
 Region **`eu-north-1`**, the same as Amplify; Aurora DSQL is available there and is PostgreSQL 16
 compatible. Deployed by GitHub Actions, never from a developer machine — there are no AWS
 credentials locally and there should not be (`docs/reference/DEPLOYMENT.md`). The backend uses its
-**own** OIDC role, separate from `quirenote-frontend-deploy`, so the frontend deploy role stays
-unable to touch hosting config.
+**own** OIDC roles, one per environment and separate from the frontend's, so the frontend deploy
+roles stay unable to touch hosting config. Every role a stack creates carries the permissions
+boundary in [`iam/quirenote-backend-boundary.json`](iam/quirenote-backend-boundary.json), applied
+by hand (`docs/role-cfn-exec.md`).
 
 ## infra/docs/
 
@@ -135,5 +137,5 @@ unable to touch hosting config.
 |---|---|
 | [`docs/dsql-constraints.md`](docs/dsql-constraints.md) | Every DDL statement DSQL accepts or refuses, and the `ALTER TABLE` create-time-only matrix |
 | [`docs/console-setup.md`](docs/console-setup.md) | One-time console setup, SES, the artifacts bucket |
-| [`docs/role-deploy.md`](docs/role-deploy.md) | Role 1 — `quirenote-backend-deploy` |
-| [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec`, and the traps — one of them is why the user stacks are named as they are |
+| [`docs/role-deploy.md`](docs/role-deploy.md) | Roles 1 — `quirenote-backend-deploy-dev` and `-prod` |
+| [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec`, the boundary it requires, and the traps — one of them is why the user stacks are named as they are |

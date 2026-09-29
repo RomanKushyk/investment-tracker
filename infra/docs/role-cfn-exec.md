@@ -83,13 +83,29 @@ Inline permission policy:
     {
       "Sid": "RolesTheStackOwns",
       "Effect": "Allow",
-      "Action": ["iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
-                 "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+      "Action": ["iam:CreateRole", "iam:DeleteRole",
+                 "iam:PutRolePolicy", "iam:DeleteRolePolicy",
                  "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+                 "iam:UpdateAssumeRolePolicy", "iam:PutRolePermissionsBoundary"],
+      "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-*",
+      "Condition": { "StringEquals": {
+        "iam:PermissionsBoundary": "arn:aws:iam::<account-id>:policy/quirenote-backend-boundary"
+      } }
+    },
+    {
+      "Sid": "ReadTagAndPassStackRoles",
+      "Effect": "Allow",
+      "Action": ["iam:GetRole", "iam:GetRolePolicy",
                  "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
-                 "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
-                 "iam:PassRole"],
+                 "iam:TagRole", "iam:UntagRole", "iam:PassRole"],
       "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-*"
+    },
+    {
+      "Sid": "NotTheRolesThatDeploy",
+      "Effect": "Deny",
+      "Action": "iam:*",
+      "Resource": ["arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec",
+                   "arn:aws:iam::<account-id>:role/quirenote-backend-deploy-*"]
     },
     {
       "Sid": "ApiGatewayServiceLinkedRole",
@@ -169,15 +185,55 @@ Inline permission policy:
 }
 ```
 
+### The boundary every stack role carries
+
+**This role creates or changes no role that lacks `quirenote-backend-boundary`.** Without that
+condition a template could create a role holding `AdministratorAccess` and hand it to a function it
+also creates. AWS's least-privilege guidance for CloudFormation says it plainly: "An IAM principal
+with permissions to create a role and attach any policy can escalate their own permissions." The
+condition sits on every action that changes a role, and each of them takes the
+`iam:PermissionsBoundary` key (Service Authorization Reference). Every role the two templates create
+names the policy: SAM's generated ones through `PermissionsBoundary` on the function or in
+`Globals`, the declared ones in their own properties.
+
+**The boundary is [`infra/iam/quirenote-backend-boundary.json`](../iam/quirenote-backend-boundary.json),
+made by hand and never by a stack.** A role able to edit it could lift it, so this role holds no
+policy-editing action at all, and no `DeleteRolePermissionsBoundary`. It allows exactly the actions
+the stack roles are granted: `src/stack-split.test.ts` holds the file to the templates' grants plus
+the two managed policies SAM attaches. **A grant added to a template therefore needs the boundary
+widened and applied BEFORE the deploy that ships it.** Deployed first, the grant is refused at the
+function's first call, while the deploy itself goes green. Create it once, then change it by version:
+
+```bash
+aws iam create-policy --policy-name quirenote-backend-boundary \
+  --policy-document "$(cat infra/iam/quirenote-backend-boundary.json)"
+aws iam create-policy-version --set-as-default \
+  --policy-arn arn:aws:iam::<account-id>:policy/quirenote-backend-boundary \
+  --policy-document "$(cat infra/iam/quirenote-backend-boundary.json)"
+```
+
+A policy keeps five versions, so delete the oldest non-default one before a sixth. **The file writes
+the account field as `*`**, keeping the id out of this public repository. IAM refuses a policy
+variable there ("failed legacy parsing") although Access Analyzer passes it. So the boundary pins
+no account. What keeps a stack role in this one is its own grants, and any other account's resource
+policy, which would have to admit it. Where a template names a resource it writes the account with
+`${AWS::AccountId}` or a `!GetAtt`. The `*` grants name no account: the alert-channel reads, and the
+logging and tracing policies SAM attaches.
+
+**`NotTheRolesThatDeploy` is the one Deny.** This role and the deploy roles all match
+`role/quirenote-backend-*` but carry no boundary. The condition alone would let a stack IMPORT one of
+them, put the boundary on it, and then rewrite its trust.
+
 ### The traps, and the grants nothing derivable states
 
 **`ApplyTheSamTransform` is not optional and is not obvious.** `AWS::Serverless-2016-10-31` is a
 macro CloudFormation expands **as the execution role**, not as the principal that ran `sam deploy`,
 which is why the transform ARN appears in both policies. **`RolesTheStackOwns` must match the
-stack's prefix or nothing deploys** — SAM names the function's execution role after the stack, and a
-stale prefix fails on `iam:CreateRole` with an error naming the role, not the policy. Withheld
-deliberately: `iam:*` outside the prefix, and anything EC2 or VPC. Expect the first deploy to refuse
-once or twice: read the resource ARN out of the error and add exactly that, never `*`.
+stack's prefix, and every role must name the boundary, or nothing deploys.** SAM names the
+function's execution role after the stack, and either miss fails on `iam:CreateRole` with an error
+naming the role, not the policy. Withheld deliberately: `iam:*` outside the prefix, and anything
+EC2 or VPC. Expect the first deploy to refuse once or twice: read the resource ARN out of the error
+and add exactly that, never `*`.
 
 **A HALF-DONE STACK RENAME LEAVES A DELETION-PROTECTED ORPHAN CLUSTER.** The user stacks
 (`quirenote-backend-user-dev`, `…-prod`) already match every `quirenote-backend-*` prefix above, so
@@ -243,12 +299,11 @@ trap above. **`apigateway:PUT` is not optional either**, though it reads as the 
 block into one, which is the only reason `CorsConfiguration` works here. So every create and update
 goes through PUT, and the ARN it fails on FIRST is a tags one rather than `/apis`.
 
-**The live role is missing `apigateway:PUT` and the two certificate actions.** Reconcile from an
-`aws iam get-role-policy` readback rather than a fresh document, because `put-role-policy` REPLACES
-the whole inline document.
+**Edit from a readback.** Write every change from an `aws iam get-role-policy` readback rather than
+a fresh document, because `put-role-policy` REPLACES the whole inline document.
 
-**Account setup:** `bash infra/scripts/bootstrap-account.sh`, idempotent, run in AWS CloudShell.
-Then add `AWS_BACKEND_ROLE_ARN` to the `dev` **and `prod`** environments' secrets, the same ARN in
-both: the trust policy keys on `:environment:*` so it needs no change, but environment secrets are
-not shared and the `main` push fails on an empty `role-to-assume` without it. `gh secret set` works
-provided `GH_CONFIG_DIR="$HOME/.quirenote/gh-config"` is set.
+**Account setup:** `bash infra/scripts/bootstrap-account.sh`, idempotent, run in AWS CloudShell,
+then the boundary above. Set each environment's `AWS_BACKEND_ROLE_ARN` secret to that environment's
+own role (`role-deploy.md`). Environment secrets are not shared, and the `main` push fails on an
+empty `role-to-assume` without it. `gh secret set` works provided
+`GH_CONFIG_DIR="$HOME/.quirenote/gh-config"` is set.

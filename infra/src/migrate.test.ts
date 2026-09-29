@@ -541,8 +541,7 @@ describe('dropRehearsalSchema', () => {
 
 describe('migrate', () => {
   // NO SAFE DEFAULT FOR A VERB THIS DESTRUCTIVE, for the reason `MigrateEvent.mode`'s
-  // own doc gives. What is only true here: `role-deploy.md` grants the invoke on prod's
-  // runner as well as dev's, so a mode nobody recognises has somewhere to land.
+  // own doc gives.
   it('refuses a missing or unrecognised mode rather than choosing one', async () => {
     const db = await freshDb();
     await expect(migrate(db, {})).rejects.toThrow(/mode must be one of/);

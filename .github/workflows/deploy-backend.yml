@@ -57,7 +57,8 @@ jobs:
       pending: ${{ steps.plan.outputs.pending }}
     environment:
       # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG: a dispatch on `vX.Y.Z`
-      # asks for the DEV stacks from production's tree, and only the branch policy refuses it.
+      # asks for the DEV stacks from production's tree, and the branch policy refuses it, as does
+      # the dev role's trust, which names `refs/heads/dev`.
       name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     steps:
       - uses: actions/checkout@v7
@@ -362,12 +363,15 @@ jobs:
           else
             overrides+=("OpenRegistration=closed")
           fi
+          # ONE PREFIX PER ENVIRONMENT, the only one its deploy role may write: `sam deploy` reuses an
+          # object already at its md5-named key, so a shared namespace lets dev plant prod's bundle.
           sam deploy \
             --template-file template-user.yaml \
             --stack-name "quirenote-backend-user-${ENVIRONMENT}" \
             --parameter-overrides "${overrides[@]}" \
             --region "$AWS_REGION" \
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
+            --s3-prefix "${ENVIRONMENT}" \
             --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
@@ -395,6 +399,7 @@ jobs:
             --stack-name quirenote-backend \
             --region "$AWS_REGION" \
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
+            --s3-prefix "${ENVIRONMENT}" \
             --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
@@ -402,6 +407,8 @@ jobs:
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
+          # The job's own rule rather than a literal `dev`, so the prefix follows the credentials.
+          ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
       # A CHANGE SET DOES NOT COUNT THE STACK `Description` AS A CHANGE, AND `sam deploy` HAS NO
       # OTHER ROUTE. A commit that changes only that text gets back "No updates are to be
