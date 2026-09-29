@@ -84,14 +84,14 @@ aws cognito-idp create-user-pool-client --region eu-north-1 \
 
 This client is not a template for the real one: its `--explicit-auth-flows` carries no `ALLOW_USER_AUTH`, which is the flow choice-based sign-in — passkeys included — is selected through. Nor is its refresh validity, nor its missing secret: the shipped client is **24 hours with rotation** and **confidential** — every call carries the secret or its hash, and only the relay (`infra/src/auth-relay.ts`) can read it — and the ceiling above is a fact about the product rather than a setting anything here uses.
 
-### What rotation does, measured on the dev pool with the 60-second grace period — and one question still open
+### What rotation does, measured on the dev pool with the 60-second grace period
 
 - **The refresh path is `GetTokensFromRefreshToken`.** The developer guide settles what the two references left open: "Refresh token rotation isn't compatible with the authentication flow REFRESH_TOKEN_AUTH … design your application to submit token-refresh requests with the GetTokensFromRefreshToken API operation". The relay (`infra/src/auth-relay.ts`) refreshes that way, with the client secret.
 - **A replay outside the window is refused, and revokes nothing.** A rotated-out token answers `RefreshTokenReuseException` ("Refresh token reuse detected"), and the newest token in the same family still refreshes afterwards. So Cognito meets RFC 9700 §4.14.2 only in part: the replay is detected, but the active token is not revoked.
 - **Only two tokens end a family when revoked: the live one and the sign-in's original.** After `RevokeToken` on the newest token, it and the original both answer `NotAuthorizedException`. Revoking the original ends every branch: a plain chain, a fork of the original itself, and a fork of a mid-chain token, whose newest child refreshed before the revoke and answers `NotAuthorizedException` after it. Revoking any other rotated-out token, a mid-chain one or a sibling forked inside the window, leaves the newest refreshing. So the relay keeps the original in a cookie of its own, and revokes that on a replay, at sign-out and at the next sign-in.
 - **A replay inside the window succeeds, and forks the family.** It mints a second child, and from then on only the newest child refreshes; the first answers `RefreshTokenReuseException`. The window therefore saves a retried request but not two tabs racing: a browser with one cookie keeps whichever answer landed last, so the app must refresh once at a time across tabs rather than lean on the window.
 - **Revocation is idempotent.** `RevokeToken` succeeds on a token already revoked and on one that was never issued. Refreshing either answers `NotAuthorizedException`.
-- **Open, not measured: whether the managed-login session cookie undoes the bound.** AWS's own pages disagree: one says such sessions "are set in a browser cookie and are valid for one hour", another that they "don't expire automatically, your user can re-authenticate with a session cookie, with no additional prompt for credentials". On the managed-login path that decides whether a twenty-four-hour refresh token actually forces a credential prompt or merely a silent redirect. It is the difference between a bound and a formality.
+- **With the relay's `prompt=select_account`, the managed-login session did not make a Google sign-in silent** (*Google and the managed-login session*, below).
 
 ## Four deviations this pool made, which a real one must not copy
 
@@ -376,11 +376,38 @@ the first sign-in.
 
 The pool was deleted afterwards, and `DescribeUserPool` answered `ResourceNotFoundException`.
 
+## Google and the managed-login session, measured on the dev pool
+
+AWS's refresh-token page says both that managed-login sessions "are set in a browser cookie and are
+valid for one hour" and that they "don't expire automatically, your user can re-authenticate with a
+session cookie, with no additional prompt for credentials"; the managed-login page sides with the
+hour. Either would decide whether a Google sign-in past the twenty-four-hour refresh token asks for
+anything — if Cognito reused the session for a federated authorize. Whether it does was measured on
+the dev pool with Google enabled, in a real browser, through the relay's `POST /auth/google/begin`,
+which names `identity_provider=Google` and sends `prompt=select_account`. In order:
+
+| Before the authorize | Where it led | Outcome |
+|---|---|---|
+| no local account for the Google address | Google's account chooser | the trigger refused; `/sign-in` said «Вхід через Google не завершено.»; the pool held no new user |
+| the address approved through `POST /admin/users/{id}/approve`, then a sign-out through Cognito's `/logout` | Google's account chooser | signed in; the Google identity is on the approved local account (`identities`, `primary: false`), and there is no second profile |
+| that Google sign-in, earlier and with no sign-out between | Google's account chooser | signed in on the pick |
+| a sign-out through Cognito's `/logout` | Google's account chooser | |
+
+**None of the four authorizes was a silent redirect.** Each landed on Google's chooser with
+`prompt=select_account` in its URL, managed login's own page never the landing. On the one that
+followed a Google sign-in with no sign-out, inside the lifetime either page gives, Cognito still
+sent the browser to Google. So past the bound, this path's authorize should still reach Google's
+chooser rather than return a code silently; what the chooser asks is Google's — with a live Google
+session, which account, and no credentials.
+
+**The first Google sign-in to an approved account linked rather than duplicated.** The trigger's
+`AdminLinkProviderForUser` put the Google identity on the account the approval created, and that
+same sign-in completed.
+
+Not measured: whether Cognito reuses its session for an authorize without `prompt`, which the relay
+never makes — and so what `/logout` cleared, since the sign-in after it asked as the one before it
+did. The readings are on #273.
+
 ## What this does not answer
 
 **Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.
-
-**Whether federation links rather than duplicates.** The trigger is deployed and wired, and its
-condition and direction are unit-tested (`infra/src/pre-signup.test.ts`) — but a link has not
-been exercised against Google itself. It cannot be until a local account exists for an address
-to link *to*, and creating one is the approval endpoint's job.
