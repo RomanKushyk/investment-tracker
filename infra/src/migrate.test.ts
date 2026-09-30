@@ -1121,11 +1121,10 @@ describe('the bootstrap mode makes the one account that can approve the others',
     }
   });
 
-  // THE INVITATION IS WHAT MAKES THE ACCOUNT USABLE. `AdminCreateUser` mints a
-  // temporary password whatever else happens and leaves the user in
-  // `FORCE_CHANGE_PASSWORD`, which `ForgotPassword` refuses — suppress the message and
-  // the row is perfect and the account unreachable. The medium is named because it
-  // DEFAULTS to SMS and this pool carries no phone number.
+  // THE INVITATION IS WHAT MAKES THE ACCOUNT USABLE. `AdminCreateUser` mints a temporary
+  // password and leaves the user in `FORCE_CHANGE_PASSWORD`, which `ForgotPassword` refuses —
+  // suppress the message and the row is perfect and the account unreachable. The medium is named
+  // because it DEFAULTS to SMS and this pool carries no phone number.
   it('sends the invitation, by email, rather than suppressing it', async () => {
     const db = await applied();
     const { idp, created } = spy();

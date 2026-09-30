@@ -319,9 +319,9 @@ describe('approving replaces the placeholder with the sub the create call return
     ]);
   });
 
-  // Suppressing the invitation is a measured trap: `AdminCreateUser` with `MessageAction: SUPPRESS`
-  // and no `TemporaryPassword` fails outright, and a suppressed message takes the generated
-  // password with it, leaving an account nobody can sign into.
+  // Suppressing the invitation is a trap: a suppressed message that Cognito accepts leaves the
+  // account in `FORCE_CHANGE_PASSWORD` with a generated password nobody was sent, and
+  // `ForgotPassword` refuses that state.
   it('asks for an emailed invitation and suppresses nothing', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const { idp, created } = spy();

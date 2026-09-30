@@ -172,11 +172,33 @@ accounts. That is the one behaviour `CaseSensitive: false` is set at creation to
 it is now observed rather than inferred. It matters that the call is this one: production closes
 self-service sign-up, so `SignUp` is no longer what creates an identity.
 
-**Suppressing the message suppresses the password with it.** `AdminCreateUser` with
-`MessageAction: SUPPRESS` and no `TemporaryPassword` fails outright —
-`InvalidParameterException: User is required to have a password`. Cognito generates a temporary
-password only when it has a message to put it in, so any caller that suppresses the invitation
-has to supply one.
+**`AdminCreateUser` with `MessageAction: SUPPRESS` and no `TemporaryPassword` has answered both
+ways on the dev pool, and what separates the two is not established.** Five minutes after
+CloudFormation created the pool, and after its stack had completed, such calls from the CLI
+answered `InvalidParameterException`, "User is required to have a password.", and the pre sign-up
+trigger ran for none of them. On a later day calls of the same shape succeeded, from the SDK and
+from the CLI. One was the refused CLI call with another address, and it answered
+`FORCE_CHANGE_PASSWORD`: Cognito generated a temporary password that no message carried. The calls
+sent the address as `Username`, `email` and `email_verified`, and no `DesiredDeliveryMediums`. The
+pool's settings were the same on both days apart from the WebAuthn relying party, which had moved
+from `auth.dev.quirenote.com` to `dev.quirenote.com`.
+
+A throwaway pool was made directly rather than through CloudFormation, with the dev pool's creation
+settings and its first relying party. It answered the refused CLI call with `FORCE_CHANGE_PASSWORD`
+seconds after creation, and again five minutes after. So the pool's age and its first relying party
+did not reproduce the refusal. The throwaway pool had no trigger, identity provider, managed-login
+branding or custom domain, all of which the dev pool had, and it ran on a later date.
+
+AWS's reference says Cognito generates a temporary password "unless you have passwordless options
+active for your user pool", and that "the exception to the requirement for a password is when your
+user pool supports passwordless sign-in with email or SMS OTPs". The dev pool offers `WEB_AUTHN` and
+no OTP, and generated one. The readings are on #295.
+
+**`ForgotPassword` refuses an account in `FORCE_CHANGE_PASSWORD`.** On the same throwaway pool,
+through an app client with no secret and `PreventUserExistenceErrors: LEGACY`, it answered
+`NotAuthorizedException`, "User password cannot be reset in the current state.", and the account
+stayed in `FORCE_CHANGE_PASSWORD`. The pool was deleted afterwards, and `DescribeUserPool`
+answered `ResourceNotFoundException`.
 
 **Alias resolution does not wait for confirmation, and `Enabled` is independent of `UserStatus`.**
 On a throwaway pool carrying the same `UsernameAttributes: ["email"]` and

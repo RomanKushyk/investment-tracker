@@ -141,9 +141,8 @@ async function identify(
         // forgot-password work afterwards.
         { Name: 'email_verified', Value: 'true' },
       ],
-      // SUPPRESSING THE INVITATION IS A MEASURED TRAP: with `MessageAction: SUPPRESS` and no
-      // `TemporaryPassword` the call fails outright, and a suppressed one leaves an account in
-      // `FORCE_CHANGE_PASSWORD` that `ForgotPassword` refuses. The medium defaults to SMS.
+      // SUPPRESSING THE INVITATION IS A TRAP: a suppressed one, when accepted, leaves an account
+      // in `FORCE_CHANGE_PASSWORD` that `ForgotPassword` refuses. The medium defaults to SMS.
       DesiredDeliveryMediums: ['EMAIL'],
     });
     return { sub: subOf(made.User?.Attributes), minted: true };
