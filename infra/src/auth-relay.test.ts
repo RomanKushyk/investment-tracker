@@ -1,12 +1,16 @@
 // The relay is the only way a browser gets a token, and the only holder of the client secret. What
 // these tests pin is where each token goes — the refresh token into an HttpOnly cookie and nowhere
-// else — and what a request must carry to be answered at all.
+// else, the access token sealed into one only the relay can open — and what a request must carry
+// to be answered at all.
 import { createHash, createHmac } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_ROUTE,
+  PASSKEY_COMPLETE_ROUTE,
+  PASSKEY_LIST_ROUTE,
+  PASSKEY_START_ROUTE,
   REFRESH_ROUTE,
   RESPOND_ROUTE,
   RESPONSES,
@@ -31,7 +35,10 @@ const EMAIL = 'owner@quirenote.com';
 const SUB = '9f1e2d3c-0000-4000-8000-0000000000d4';
 const SESSION = 'challenge-session';
 const ID = 'id.token.jwt';
-const ACCESS = 'access.token.jwt';
+/** The account an access token names, in its payload's `sub`, as Cognito's own do. */
+const ACCOUNT = '5a1b2c3d-0000-4000-8000-0000000000a1';
+const jwt = (claims: object) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
+const ACCESS = jwt({ sub: ACCOUNT, token_use: 'access' });
 const REFRESH = 'refresh.token.jwe';
 const ROTATED = 'rotated.refresh.token.jwe';
 /** A family's original, from a sign-in before this request: never `REFRESH`, so a test can tell
@@ -59,8 +66,18 @@ const ATTRIBUTES = 'Path=/; Secure; HttpOnly; SameSite=Strict';
 const kept = (token: string) => `__Host-Http-refresh=${token}; Max-Age=7200; ${ATTRIBUTES}`;
 /** The family's original: its whole lifetime, set once at sign-in (*Auth model*). */
 const origin = (token: string) => `__Host-Http-origin=${token}; Max-Age=86400; ${ATTRIBUTES}`;
+/** THE ACCESS TOKEN, SEALED: base64url, which a JWT's dots are not, for as long as the token lives.
+ *  RFC 10017 §6.1.3.2 — a BFF's cookie holding an access token "SHOULD" be encrypted. */
+const sealedFor = (seconds: number) =>
+  expect.stringMatching(
+    new RegExp(`^__Host-Http-access=[A-Za-z0-9_-]+; Max-Age=${seconds}; ${ATTRIBUTES}$`),
+  );
+const sealed = sealedFor(3600);
 const CLEARED = `__Host-Http-refresh=; Max-Age=0; ${ATTRIBUTES}`;
-const FORGOTTEN = [CLEARED, `__Host-Http-origin=; Max-Age=0; ${ATTRIBUTES}`];
+const ACCESS_CLEARED = `__Host-Http-access=; Max-Age=0; ${ATTRIBUTES}`;
+/** A session that ended: its refresh cookie and the access token sealed beside it. */
+const ENDED = [CLEARED, ACCESS_CLEARED];
+const FORGOTTEN = [CLEARED, `__Host-Http-origin=; Max-Age=0; ${ATTRIBUTES}`, ACCESS_CLEARED];
 /** The Google flow's state and verifier: fifteen minutes, as Auth.js keeps its pair. */
 const flow = (state: string, verifier: string) =>
   `__Host-Http-google=${state}.${verifier}; Max-Age=900; ${ATTRIBUTES}`;
@@ -78,7 +95,7 @@ const post = (
   ...(body === undefined ? {} : { body: JSON.stringify(body), isBase64Encoded: false }),
 });
 
-type Jar = { refresh?: string; origin?: string; google?: string };
+type Jar = { refresh?: string; origin?: string; google?: string; access?: string };
 
 /** What a browser sends, the original FIRST where there is one: a cookie is found by its name,
  *  never by its place. */
@@ -87,6 +104,7 @@ const cookiesOf = (jar: Jar) => [
   'theme=dark',
   ...(jar.refresh === undefined ? [] : [`__Host-Http-refresh=${jar.refresh}`]),
   ...(jar.google === undefined ? [] : [`__Host-Http-google=${jar.google}`]),
+  ...(jar.access === undefined ? [] : [`__Host-Http-access=${jar.access}`]),
 ];
 
 const carrying = (routeKey: string, jar: Jar = { refresh: REFRESH }): ApiEvent => ({
@@ -113,6 +131,14 @@ const SIGNED_IN = {
     RefreshToken: REFRESH,
     ExpiresIn: 3600,
   },
+};
+/** What `StartWebAuthnRegistration` answers, and what the OS dialog makes of it. */
+const CREATION_OPTIONS = { challenge: 'c', rp: { id: 'dev.quirenote.com', name: 'quirenote' } };
+const CREDENTIAL = {
+  id: 'cred',
+  rawId: 'cred',
+  type: 'public-key',
+  response: { clientDataJSON: 'd' },
 };
 
 /** A pool that records every call. `secrets` is what successive `DescribeUserPoolClient` calls
@@ -172,20 +198,66 @@ const cognito = (
         ? script.redeemCode(input)
         : { id_token: ID, access_token: ACCESS, refresh_token: REFRESH, expires_in: 3600 };
     },
+    listWebAuthnCredentials: async (input) => {
+      log('listWebAuthnCredentials', input);
+      return script.listWebAuthnCredentials
+        ? script.listWebAuthnCredentials(input)
+        : { Credentials: [] };
+    },
+    startWebAuthnRegistration: async (input) => {
+      log('startWebAuthnRegistration', input);
+      return script.startWebAuthnRegistration
+        ? script.startWebAuthnRegistration(input)
+        : { CredentialCreationOptions: CREATION_OPTIONS };
+    },
+    completeWebAuthnRegistration: async (input) => {
+      log('completeWebAuthnRegistration', input);
+      return script.completeWebAuthnRegistration ? script.completeWebAuthnRegistration(input) : {};
+    },
   };
   const of = (op: keyof IdentityClient) => calls.filter((c) => c.op === op).map((c) => c.input);
   return { idp, calls, of };
 };
 
+/** Every answer this file is given, for the criterion at its end: none carries the access token. */
+const answered: ApiResult[] = [];
+const seen = (event: ApiEvent, result: ApiResult) => {
+  answered.push(result);
+  return record(event, result);
+};
+
 /** One execution environment: a relay whose secret cache survives between the calls it answers. */
 const environment = (idp: IdentityClient, now?: () => number) => {
   const relay = createRelay(idp, now);
-  return async (event: ApiEvent): Promise<ApiResult> => record(event, await relay(event));
+  return async (event: ApiEvent): Promise<ApiResult> => seen(event, await relay(event));
 };
 
-const handler = async (event: ApiEvent) => record(event, await rawHandler(event));
+const handler = async (event: ApiEvent) => seen(event, await rawHandler(event));
 
 const bodyOf = (res: ApiResult) => JSON.parse(res.body) as Record<string, unknown>;
+
+const SIGN_IN = post(RESPOND_ROUTE, {
+  challenge: 'WEB_AUTHN',
+  session: SESSION,
+  responses: { USERNAME: EMAIL, CREDENTIAL: '{}' },
+});
+/** The sealed access token an answer set, as the browser will send it back. */
+const accessIn = (res: ApiResult) =>
+  /^__Host-Http-access=([^;]+);/.exec(
+    res.cookies?.find((cookie) => cookie.startsWith('__Host-Http-access=')) ?? '',
+  )?.[1];
+/** What a browser signed in through this relay holds: only a sign-in there can seal the token. */
+const holding = async (relay: (event: ApiEvent) => Promise<ApiResult>) => {
+  const access = accessIn(await relay(SIGN_IN));
+  if (access === undefined) throw new Error('the sign-in sealed no access token');
+  return access;
+};
+/** A passkey call, naming the account its tab shows, with the cookies a browser holds. */
+const ASKED = { sub: ACCOUNT };
+const asking = (route: string, jar: Jar, body: unknown = ASKED): ApiEvent => ({
+  ...post(route, body),
+  cookies: cookiesOf(jar),
+});
 
 beforeEach(() => {
   vi.stubEnv('USER_POOL_ID', POOL);
@@ -238,8 +310,8 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
       }),
     );
     expect(res.statusCode).toBe(200);
-    expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
-    expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH)]);
+    expect(bodyOf(res)).toEqual({ idToken: ID, expiresIn: 3600 });
+    expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH), sealed]);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).not.toContain(REFRESH);
     expect(JSON.stringify(res.headers)).not.toContain(REFRESH);
@@ -300,7 +372,7 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
         responses: { USERNAME: SUB, NEW_PASSWORD: 'a new password' },
       }),
     );
-    expect(changed.cookies).toEqual([kept(REFRESH), origin(REFRESH)]);
+    expect(changed.cookies).toEqual([kept(REFRESH), origin(REFRESH), sealed]);
     expect(of('initiateAuth')[0].AuthParameters).toEqual({
       USERNAME: EMAIL,
       PREFERRED_CHALLENGE: 'PASSWORD_SRP',
@@ -366,7 +438,7 @@ describe('a sign-in revokes every token the browser still carries', () => {
   it('revokes the earlier original and refresh token once Cognito has signed in, then sets both cookies', async () => {
     const { idp, calls } = cognito();
     const res = await environment(idp)(earlier);
-    expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH)]]);
+    expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH), sealed]]);
     expect(calls.filter((c) => c.op !== 'describeUserPoolClient')).toEqual([
       expect.objectContaining({ op: 'respondToAuthChallenge' }),
       { op: 'revokeToken', input: { Token: ORIGIN, ClientId: CLIENT, ClientSecret: SECRET } },
@@ -378,7 +450,7 @@ describe('a sign-in revokes every token the browser still carries', () => {
   it('revokes the refresh token a browser carries alone', async () => {
     const { idp, of } = cognito();
     const res = await environment(idp)(signingIn({ refresh: ROTATED }));
-    expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH)]]);
+    expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH), sealed]]);
     expect(of('revokeToken').map((input) => input.Token)).toEqual([ROTATED]);
   });
 
@@ -401,8 +473,11 @@ describe('a sign-in revokes every token the browser still carries', () => {
         },
       });
       const res = await environment(idp)(earlier);
-      expect([res.statusCode, res.cookies]).toEqual([200, [kept(REFRESH), origin(REFRESH)]]);
-      expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
+      expect([res.statusCode, res.cookies]).toEqual([
+        200,
+        [kept(REFRESH), origin(REFRESH), sealed],
+      ]);
+      expect(bodyOf(res)).toEqual({ idToken: ID, expiresIn: 3600 });
       expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN, ROTATED]);
       expect(console.error).toHaveBeenCalledTimes(1);
     });
@@ -457,8 +532,34 @@ describe('the cookies', () => {
     const res = await environment(cognito().idp)(carrying(REFRESH_ROUTE));
     expect(res.cookies).toEqual([
       '__Host-Http-refresh=rotated.refresh.token.jwe; Max-Age=7200; Path=/; Secure; HttpOnly; SameSite=Strict',
+      expect.stringMatching(
+        /^__Host-Http-access=[A-Za-z0-9_-]+; Max-Age=3600; Path=\/; Secure; HttpOnly; SameSite=Strict$/,
+      ),
     ]);
     for (const cookie of res.cookies ?? []) expect(cookie).not.toMatch(/domain/i);
+  });
+
+  // NO LIFETIME, NO COOKIE: the app reads a pair without one as no answer, and the sealed token
+  // would have no `Max-Age` to be given.
+  it('answers tokens that carry no lifetime as a failure', async () => {
+    const { idp } = cognito({
+      getTokensFromRefreshToken: async () => ({
+        AuthenticationResult: { IdToken: ID, AccessToken: ACCESS, RefreshToken: ROTATED },
+      }),
+    });
+    const res = await environment(idp)(carrying(REFRESH_ROUTE));
+    expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
+  });
+
+  // THE SEALED TOKEN LIVES AS LONG AS THE TOKEN: past it, nothing in the cookie could be spent.
+  it('keeps the sealed access token for as long as Cognito says the token lives', async () => {
+    const { idp } = cognito({
+      getTokensFromRefreshToken: async () => ({
+        AuthenticationResult: { IdToken: ID, AccessToken: ACCESS, ExpiresIn: 1800 },
+      }),
+    });
+    const res = await environment(idp)(carrying(REFRESH_ROUTE));
+    expect(res.cookies).toEqual([kept(REFRESH), sealedFor(1800)]);
   });
 
   // THE SAME RULES FOR THE ORIGINAL, and `Max-Age` is the family's lifetime: no rotated token
@@ -468,6 +569,7 @@ describe('the cookies', () => {
     expect(res.cookies).toEqual([
       '__Host-Http-refresh=refresh.token.jwe; Max-Age=7200; Path=/; Secure; HttpOnly; SameSite=Strict',
       '__Host-Http-origin=refresh.token.jwe; Max-Age=86400; Path=/; Secure; HttpOnly; SameSite=Strict',
+      sealed,
     ]);
     for (const cookie of res.cookies ?? []) expect(cookie).not.toMatch(/domain/i);
   });
@@ -478,7 +580,7 @@ describe('the cookies', () => {
     const res = await environment(idp)(
       carrying(REFRESH_ROUTE, { refresh: REFRESH, origin: ORIGIN }),
     );
-    expect(res.cookies).toEqual([kept(ROTATED)]);
+    expect(res.cookies).toEqual([kept(ROTATED), sealed]);
     expect(of('getTokensFromRefreshToken').map((input) => input.RefreshToken)).toEqual([REFRESH]);
   });
 
@@ -487,6 +589,79 @@ describe('the cookies', () => {
       const res = await environment(cognito().idp)(event);
       expect(Object.keys(res.headers)).not.toContain('set-cookie');
     }
+  });
+});
+
+// RFC 10017 §6.1.3.2: a BFF's cookie holding an access token "SHOULD" be encrypted, so a copied
+// cookie store holds no token Cognito takes. Script never sees it: HttpOnly, and in no body.
+describe('the access token is sealed into a cookie only the relay can open', () => {
+  it('seals it at every sign-in, so the cookie holds no token', async () => {
+    const relay = environment(cognito().idp);
+    const [a, b] = [await holding(relay), await holding(relay)];
+    expect(a).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(a).not.toContain(ACCESS);
+    expect(Buffer.from(a, 'base64url').toString('latin1')).not.toContain(ACCESS);
+    // A NEW NONCE EVERY TIME, which GCM requires of one key (NIST SP 800-38D §8).
+    expect(a).not.toBe(b);
+  });
+
+  // LAMBDA SCALES OUT: the next request may land in another environment, which read the same secret.
+  it('opens in another environment that read the same secret', async () => {
+    const access = await holding(environment(cognito().idp));
+    const { idp, of } = cognito();
+    const res = await environment(idp)(asking(PASSKEY_LIST_ROUTE, { access }));
+    expect(res.statusCode).toBe(200);
+    expect(of('listWebAuthnCredentials')).toEqual([{ AccessToken: ACCESS, MaxResults: 1 }]);
+  });
+
+  // A SECRET ROTATED IN PLACE leaves environments holding different ones, and Cognito refuses
+  // neither while both are active: one that cannot open a cookie reads the secret again.
+  it('opens a token sealed under a secret this environment has not read yet', async () => {
+    const access = await holding(environment(cognito({}, [ROTATED_SECRET]).idp));
+    const { idp, of } = cognito({}, [SECRET, ROTATED_SECRET]);
+    const relay = environment(idp);
+    await relay(post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' }));
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access }));
+    expect(res.statusCode).toBe(200);
+    expect(of('describeUserPoolClient')).toHaveLength(2);
+  });
+
+  // THE FLAG FIRST: its five-minute re-read may bring a rotated secret, and a refresh sealed under
+  // the one it replaced would open nowhere that holds the new one, this environment included.
+  it('seals a refresh under the secret it holds once the providers are read again', async () => {
+    let clock = 0;
+    const relay = environment(cognito({}, [SECRET, ROTATED_SECRET]).idp, () => clock);
+    await relay(carrying(REFRESH_ROUTE));
+    clock += 300_000;
+    const access = accessIn(await relay(carrying(REFRESH_ROUTE)));
+    const { idp, of } = cognito({}, [ROTATED_SECRET]);
+    expect((await environment(idp)(asking(PASSKEY_LIST_ROUTE, { access }))).statusCode).toBe(200);
+    expect(of('describeUserPoolClient')).toHaveLength(1);
+  });
+
+  // A RE-READ THAT FAILS IS NOT KEPT, or one throttle would leave the environment with no secret.
+  it('refuses a cookie it cannot open when the re-read fails, and keeps the secret it read', async () => {
+    const { idp } = cognito({}, [SECRET, refusal('TooManyRequestsException')]);
+    const relay = environment(idp);
+    const access = await holding(relay);
+    expect((await relay(asking(PASSKEY_LIST_ROUTE, { access: 'A'.repeat(60) }))).statusCode).toBe(
+      401,
+    );
+    expect((await relay(asking(PASSKEY_LIST_ROUTE, { access }))).statusCode).toBe(200);
+  });
+
+  // `UserPoolClientRead` allows five a second per pool, so junk cookies cost one read in five minutes.
+  it('reads the secret again for a cookie it cannot open at most once every five minutes', async () => {
+    let clock = 0;
+    const { idp, of } = cognito();
+    const relay = environment(idp, () => clock);
+    const junk = asking(PASSKEY_LIST_ROUTE, { access: 'A'.repeat(60) });
+    expect((await relay(junk)).statusCode).toBe(401);
+    expect((await relay(junk)).statusCode).toBe(401);
+    expect(of('describeUserPoolClient')).toHaveLength(2);
+    clock += 300_000;
+    await relay(junk);
+    expect(of('describeUserPoolClient')).toHaveLength(3);
   });
 });
 
@@ -922,11 +1097,10 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
     expect(res.statusCode).toBe(200);
     expect(bodyOf(res)).toEqual({
       idToken: ID,
-      accessToken: ACCESS,
       expiresIn: 3600,
       google: false,
     });
-    expect(res.cookies).toEqual([kept(ROTATED)]);
+    expect(res.cookies).toEqual([kept(ROTATED), sealed]);
     expect(res.body).not.toContain(ROTATED);
     expect(of('getTokensFromRefreshToken')).toEqual([
       { RefreshToken: REFRESH, ClientId: CLIENT, ClientSecret: SECRET },
@@ -941,7 +1115,7 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
       }),
     });
     const res = await environment(idp)(carrying(REFRESH_ROUTE));
-    expect(res.cookies).toEqual([kept(REFRESH)]);
+    expect(res.cookies).toEqual([kept(REFRESH), sealed]);
   });
 
   // THE CLIENT IS READ, AND NOTHING ELSE: whether Google is on is what a signed-out page asks this
@@ -952,7 +1126,7 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       401,
       '{"error":"not_authorized","google":false}',
-      [CLEARED],
+      ENDED,
     ]);
     expect(calls.map((c) => c.op)).toEqual(['describeUserPoolClient']);
   });
@@ -964,7 +1138,7 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       401,
       '{"error":"not_authorized","google":false}',
-      [CLEARED],
+      ENDED,
     ]);
     expect(calls.map((c) => c.op)).toEqual(['describeUserPoolClient']);
   });
@@ -988,7 +1162,7 @@ describe('a refresh trades the cookie for fresh tokens and a rotated cookie', ()
       expect([res.statusCode, res.body, res.cookies]).toEqual([
         401,
         '{"error":"not_authorized","google":false}',
-        [CLEARED],
+        ENDED,
       ]);
       expect(of('revokeToken')).toEqual([]);
     });
@@ -1145,7 +1319,7 @@ describe('a sign-out revokes every token before it forgets them', () => {
     const relay = environment(idp);
     await relay(carrying(SIGN_OUT_ROUTE));
     const replayed = await relay(carrying(REFRESH_ROUTE));
-    expect([replayed.statusCode, replayed.cookies]).toEqual([401, [CLEARED]]);
+    expect([replayed.statusCode, replayed.cookies]).toEqual([401, ENDED]);
   });
 
   it('clears both cookies of a caller who had neither, asking Cognito for the client alone', async () => {
@@ -1331,8 +1505,8 @@ describe('Google: complete redeems the code in the browser that began, and only 
     const { idp, of } = google();
     const res = await environment(idp)(completing());
     expect(res.statusCode).toBe(200);
-    expect(bodyOf(res)).toEqual({ idToken: ID, accessToken: ACCESS, expiresIn: 3600 });
-    expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH), FLOW_CLEARED]);
+    expect(bodyOf(res)).toEqual({ idToken: ID, expiresIn: 3600 });
+    expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH), sealed, FLOW_CLEARED]);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).not.toContain(REFRESH);
     expect(of('redeemCode')).toEqual([
@@ -1542,7 +1716,6 @@ describe('a refresh says whether Google is on', () => {
     const res = await environment(idp)(carrying(REFRESH_ROUTE));
     expect(bodyOf(res)).toEqual({
       idToken: ID,
-      accessToken: ACCESS,
       expiresIn: 3600,
       google: true,
     });
@@ -1614,7 +1787,7 @@ describe('a refresh says whether Google is on', () => {
     expect([res.statusCode, res.body, res.cookies]).toEqual([
       401,
       '{"error":"not_authorized","google":false}',
-      [CLEARED],
+      ENDED,
     ]);
   });
 });
@@ -1659,6 +1832,234 @@ describe('a sign-out names Cognito’s logout while Google is on', () => {
   });
 });
 
+// RFC 10017 §6.2.2.3: a token wider than the frontend needs "SHOULD NOT" go back to it, and this
+// one's scope authorizes `DeleteUser` too, so the relay spends it on the passkey calls alone.
+describe('the passkey calls, made with the token the relay holds', () => {
+  const routes = [
+    [PASSKEY_LIST_ROUTE, {}],
+    [PASSKEY_START_ROUTE, {}],
+    [PASSKEY_COMPLETE_ROUTE, { credential: CREDENTIAL }],
+  ] as const;
+  const passkeyCalls = (calls: { op: keyof IdentityClient }[]) =>
+    calls.filter((c) => c.op.endsWith('WebAuthnCredentials') || c.op.endsWith('Registration'));
+
+  for (const [credentials, passkey] of [
+    [[], false],
+    [[{ CredentialId: 'x' }], true],
+  ] as const) {
+    it(`lists with the token it sealed, and says ${passkey} for ${credentials.length} passkeys`, async () => {
+      const { idp, of } = cognito({
+        listWebAuthnCredentials: async () => ({ Credentials: [...credentials] }),
+      });
+      const relay = environment(idp);
+      const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+      expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([200, { passkey }, undefined]);
+      expect(res.headers['cache-control']).toBe('no-store');
+      expect(of('listWebAuthnCredentials')).toEqual([{ AccessToken: ACCESS, MaxResults: 1 }]);
+    });
+  }
+
+  it('starts a registration with the token, and hands back Cognito’s options', async () => {
+    const { idp, of } = cognito();
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_START_ROUTE, { access: await holding(relay) }));
+    expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+      200,
+      { options: CREATION_OPTIONS },
+      undefined,
+    ]);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(of('startWebAuthnRegistration')).toEqual([{ AccessToken: ACCESS }]);
+  });
+
+  it('completes it with the token and the credential the dialog made', async () => {
+    const { idp, of } = cognito();
+    const relay = environment(idp);
+    const res = await relay(
+      asking(
+        PASSKEY_COMPLETE_ROUTE,
+        { access: await holding(relay) },
+        { sub: ACCOUNT, credential: CREDENTIAL },
+      ),
+    );
+    expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+      200,
+      { status: 'registered' },
+      undefined,
+    ]);
+    expect(of('completeWebAuthnRegistration')).toEqual([
+      { AccessToken: ACCESS, Credential: CREDENTIAL },
+    ]);
+  });
+
+  // AN ANSWER COGNITO CANNOT GIVE OFFERS NOTHING: read as no passkeys, it would offer one.
+  it('answers a list that carries no credentials as its own failure, never as none', async () => {
+    const { idp } = cognito({ listWebAuthnCredentials: async () => ({}) });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+    // NAMED, where reading the length of nothing would log a TypeError nobody could act on.
+    expect(console.error).toHaveBeenCalledWith('auth-relay: Cognito listed no credentials');
+  });
+
+  it('answers a start that carries no options as its own failure', async () => {
+    const { idp } = cognito({ startWebAuthnRegistration: async () => ({}) });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_START_ROUTE, { access: await holding(relay) }));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+  });
+
+  // NOTHING A BROWSER COULD FORGE OR CARRY IN FROM ELSEWHERE OPENS: no cookie, the token itself in
+  // the clear, a sealed value altered or cut short, or one sealed under a secret since replaced.
+  const unopenable: [string, (sealed: string) => Jar][] = [
+    ['no access cookie', () => ({})],
+    ['the token itself, unsealed', () => ({ access: ACCESS })],
+    ['an empty cookie', () => ({ access: '' })],
+    // IN THE MIDDLE, where every bit of a base64url character is data; the last may be padding.
+    [
+      'a sealed value with one character changed',
+      (s) => ({ access: s.slice(0, 20) + (s[20] === 'A' ? 'B' : 'A') + s.slice(21) }),
+    ],
+    ['a sealed value cut short', (s) => ({ access: s.slice(0, 20) })],
+  ];
+  for (const [route, extra] of routes) {
+    const body = { sub: ACCOUNT, ...extra };
+    for (const [what, jar] of unopenable) {
+      it(`refuses ${what} on ${route}, asking for no passkey`, async () => {
+        const { idp, calls } = cognito();
+        const relay = environment(idp);
+        const res = await relay(asking(route, jar(await holding(relay)), body));
+        expect([res.statusCode, res.body, res.cookies]).toEqual([
+          401,
+          '{"error":"not_authorized"}',
+          undefined,
+        ]);
+        expect(passkeyCalls(calls)).toEqual([]);
+      });
+    }
+
+    // THE COOKIE IS THE BROWSER'S, and another tab's sign-in replaces it: a tab acts for the account
+    // it shows, or not at all.
+    it(`refuses on ${route} a token sealed for another account than the tab names`, async () => {
+      const { idp, calls } = cognito();
+      const relay = environment(idp);
+      const access = await holding(relay);
+      const res = await relay(asking(route, { access }, { ...body, sub: 'another-account' }));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        401,
+        '{"error":"not_authorized"}',
+        undefined,
+      ]);
+      expect(passkeyCalls(calls)).toEqual([]);
+    });
+
+    it(`refuses on ${route} a sealed token that names no account`, async () => {
+      const { idp, calls } = cognito({
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken: jwt({}) },
+        }),
+      });
+      const relay = environment(idp);
+      const res = await relay(asking(route, { access: await holding(relay) }, body));
+      expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
+      expect(passkeyCalls(calls)).toEqual([]);
+    });
+
+    it(`refuses on ${route} a token sealed under a secret since replaced`, async () => {
+      const access = await holding(environment(cognito().idp));
+      const { idp, calls } = cognito({}, [ROTATED_SECRET]);
+      const res = await environment(idp)(asking(route, { access }, body));
+      expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
+      expect(passkeyCalls(calls)).toEqual([]);
+    });
+
+    // THE TOKEN COGNITO NO LONGER TAKES — expired, revoked, a user gone — is a session to renew;
+    // a request it refuses is the caller's; anything else is a fault, and logged.
+    const refusals: [string, number, string][] = [
+      ['NotAuthorizedException', 401, '{"error":"not_authorized"}'],
+      ['UserNotFoundException', 401, '{"error":"not_authorized"}'],
+      ['PasswordResetRequiredException', 401, '{"error":"not_authorized"}'],
+      ['InvalidParameterException', 400, '{"error":"invalid_request"}'],
+      ['LimitExceededException', 400, '{"error":"invalid_request"}'],
+      ['WebAuthnChallengeNotFoundException', 400, '{"error":"invalid_request"}'],
+      ['WebAuthnClientMismatchException', 400, '{"error":"invalid_request"}'],
+      ['WebAuthnCredentialNotSupportedException', 400, '{"error":"invalid_request"}'],
+      ['WebAuthnOriginNotAllowedException', 400, '{"error":"invalid_request"}'],
+      ['WebAuthnRelyingPartyMismatchException', 400, '{"error":"invalid_request"}'],
+      ['TooManyRequestsException', 500, '{"error":"internal"}'],
+      ['WebAuthnNotEnabledException', 500, '{"error":"internal"}'],
+    ];
+    for (const [name, status, answer] of refusals) {
+      it(`answers ${name} on ${route} with ${status}, setting no cookie`, async () => {
+        const refused = async () => {
+          throw refusal(name);
+        };
+        const { idp } = cognito({
+          listWebAuthnCredentials: refused,
+          startWebAuthnRegistration: refused,
+          completeWebAuthnRegistration: refused,
+        });
+        const relay = environment(idp);
+        const res = await relay(asking(route, { access: await holding(relay) }, body));
+        expect([res.statusCode, res.body, res.cookies]).toEqual([status, answer, undefined]);
+        expect(vi.mocked(console.error).mock.calls.length > 0).toBe(status === 500);
+      });
+    }
+  }
+
+  const malformed: [string, unknown][] = [
+    ...[PASSKEY_LIST_ROUTE, PASSKEY_START_ROUTE].flatMap((route) =>
+      [{}, { sub: '' }, { sub: 7 }, { sub: ACCOUNT, extra: 'x' }, [ACCOUNT], 'text', null].map(
+        (body): [string, unknown] => [route, body],
+      ),
+    ),
+    ...[
+      { credential: CREDENTIAL },
+      { sub: ACCOUNT },
+      { sub: '', credential: CREDENTIAL },
+      { sub: ACCOUNT, credential: 'text' },
+      { sub: ACCOUNT, credential: null },
+      { sub: ACCOUNT, credential: [CREDENTIAL] },
+      { sub: ACCOUNT, credential: CREDENTIAL, extra: 'x' },
+      [CREDENTIAL],
+      'text',
+    ].map((body): [string, unknown] => [PASSKEY_COMPLETE_ROUTE, body]),
+  ];
+  for (const [route, body] of malformed) {
+    it(`refuses ${route} with ${JSON.stringify(body)}, asking Cognito nothing`, async () => {
+      const { idp, calls } = cognito();
+      const relay = environment(idp);
+      const access = await holding(relay);
+      calls.length = 0;
+      const res = await relay(asking(route, { access }, body));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        400,
+        '{"error":"invalid_request"}',
+        undefined,
+      ]);
+      expect(calls).toEqual([]);
+    });
+  }
+
+  it('never puts the token or its sealed form in a log line', async () => {
+    const { idp } = cognito({
+      startWebAuthnRegistration: async () => {
+        throw refusal('InternalErrorException');
+      },
+    });
+    const relay = environment(idp);
+    const access = await holding(relay);
+    await relay(asking(PASSKEY_START_ROUTE, { access }));
+    expect(console.error).toHaveBeenCalled();
+    const logged = JSON.stringify(vi.mocked(console.error).mock.calls, (_, v: unknown) =>
+      v instanceof Error ? `${v.name}: ${v.message}` : v,
+    );
+    for (const needle of [ACCESS, access, SECRET]) {
+      expect([needle, logged.includes(needle)]).toEqual([needle, false]);
+    }
+  });
+});
+
 describe('a request the relay does not answer at all', () => {
   const ROUTES: [string, ApiEvent][] = [
     [START_ROUTE, post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' })],
@@ -1679,6 +2080,17 @@ describe('a request the relay does not answer at all', () => {
         ...post(GOOGLE_COMPLETE_ROUTE, { code: CODE, state: STATE }),
         cookies: cookiesOf({ google: `${STATE}.${VERIFIER}` }),
       },
+    ],
+    // `SEALED` IS A PLACEHOLDER: only a sign-in in the same environment seals a token it can open.
+    [PASSKEY_LIST_ROUTE, asking(PASSKEY_LIST_ROUTE, { access: 'SEALED' })],
+    [PASSKEY_START_ROUTE, asking(PASSKEY_START_ROUTE, { access: 'SEALED' })],
+    [
+      PASSKEY_COMPLETE_ROUTE,
+      asking(
+        PASSKEY_COMPLETE_ROUTE,
+        { access: 'SEALED' },
+        { sub: ACCOUNT, credential: CREDENTIAL },
+      ),
     ],
   ];
   const forged: [string, Record<string, string | undefined>][] = [
@@ -1707,9 +2119,16 @@ describe('a request the relay does not answer at all', () => {
     }
 
     it(`admits a same-origin fetch on ${route}`, async () => {
-      const res = await environment(cognito({}, [SECRET], WITH_GOOGLE).idp)({
+      const relay = environment(cognito({}, [SECRET], WITH_GOOGLE).idp);
+      const access = event.cookies?.includes('__Host-Http-access=SEALED')
+        ? await holding(relay)
+        : undefined;
+      const res = await relay({
         ...event,
         headers: { ...event.headers, 'sec-fetch-site': 'same-origin' },
+        cookies: event.cookies?.map((cookie) =>
+          cookie === '__Host-Http-access=SEALED' ? `__Host-Http-access=${access}` : cookie,
+        ),
       });
       expect(res.statusCode).toBe(200);
     });
@@ -1736,6 +2155,41 @@ describe('the handler answers rather than throwing', () => {
       post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' }),
     );
     expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+  });
+});
+
+// THE PAGE HOLDS THE ID TOKEN ALONE (*Auth model*): over every answer this file was given and every
+// example the document publishes, the access token is in no body, and in no cookie unsealed.
+describe('no answer carries the access token, on any route', () => {
+  const NAMED = /"access_?token"/i;
+
+  it('puts the token in no body, no header and no cookie', () => {
+    if (answered.length < 60) {
+      throw new Error(`only ${answered.length} answers were recorded — run the whole file`);
+    }
+    const leaking = answered.filter((res) =>
+      [res.body, JSON.stringify(res.headers), JSON.stringify(res.cookies ?? [])].some(
+        (part) => part.includes(ACCESS) || NAMED.test(part),
+      ),
+    );
+    expect(leaking).toEqual([]);
+  });
+
+  it('names no access token in any answer a route declares', () => {
+    const examples = Object.entries(RESPONSES).flatMap(([route, answers]) =>
+      answers.map(
+        (answer) => [route, 'example' in answer ? JSON.stringify(answer.example) : ''] as const,
+      ),
+    );
+    expect(examples.length).toBeGreaterThan(0);
+    expect(examples.filter(([, example]) => NAMED.test(example))).toEqual([]);
+  });
+
+  it('names none in a body a route answers as written', () => {
+    const bodies = Object.values(RESPONSES).flatMap((answers) =>
+      answers.flatMap((answer) => ('body' in answer ? [answer.body] : [])),
+    );
+    expect(bodies.filter((body) => NAMED.test(body))).toEqual([]);
   });
 });
 

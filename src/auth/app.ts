@@ -9,7 +9,7 @@ import type { Answer } from './access';
 import { createApply } from './apply';
 import { environmentFor } from './environment';
 import { beginGoogle } from './google';
-import { type PasskeyDeps, createCognito, hasPasskey } from './passkey';
+import { type PasskeyDeps, hasPasskey } from './passkey';
 import { createRelay } from './relay';
 import { createSession } from './session';
 import type { SignInDeps } from './sign-in';
@@ -25,13 +25,10 @@ const unlocked = { request: (_: string, call: () => unknown) => call() } as unkn
 /** This tab's session, tokens in memory only; the portfolio shell and `/sign-in` restore it. */
 export const session = createSession({ relay, locks: navigator.locks ?? unlocked });
 
-/** The account's own passkeys, through Cognito's endpoint in the pool's region, the id's prefix. */
+/** The account's own passkeys, through the relay, which holds the access token they take. */
 export const passkeyDeps: PasskeyDeps = {
-  cognito: createCognito({
-    region: environment?.userPoolId.split('_')[0],
-    fetch: (input, init) => fetch(input, init),
-  }),
-  getAccessToken: () => session.getAccessToken(),
+  relay,
+  account: () => session.getAccount(),
   register: (optionsJSON) => startRegistration({ optionsJSON }),
 };
 

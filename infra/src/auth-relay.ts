@@ -1,17 +1,29 @@
 // `/auth/*` — the only way a browser obtains a token, and the only holder of the client secret.
 //
 // RFC 10017's token-mediating backend on a confidential client (*Auth model*): the refresh token
-// goes into an HttpOnly cookie on this host and nowhere else, and the ID and access tokens go back
-// in the body for the app to hold in memory. Data routes never see this function.
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+// goes into an HttpOnly cookie on this host, the ID token back in the body, and the access token —
+// it authorizes `DeleteUser` too — into a cookie only this function opens. Data routes never see it.
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  hkdfSync,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto';
 import {
   type ChallengeNameType,
+  type CompleteWebAuthnRegistrationCommandInput,
   CognitoIdentityProviderClient,
+  CompleteWebAuthnRegistrationCommand,
   DescribeUserPoolClientCommand,
   GetTokensFromRefreshTokenCommand,
   InitiateAuthCommand,
+  ListWebAuthnCredentialsCommand,
   RespondToAuthChallengeCommand,
   RevokeTokenCommand,
+  StartWebAuthnRegistrationCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
 import {
@@ -33,6 +45,11 @@ export const SIGN_OUT_ROUTE = 'POST /auth/sign-out';
  *  domain on the authorization-code grant, so the browser leaves between these two. */
 export const GOOGLE_BEGIN_ROUTE = 'POST /auth/google/begin';
 export const GOOGLE_COMPLETE_ROUTE = 'POST /auth/google/complete';
+/** THE ACCOUNT'S PASSKEYS, which take the access token: RFC 10017 §6.2.2.3 keeps a token wider than
+ *  the frontend needs with the backend, and this one's scope authorizes `DeleteUser` as well. */
+export const PASSKEY_LIST_ROUTE = 'POST /auth/passkey/list';
+export const PASSKEY_START_ROUTE = 'POST /auth/passkey/start';
+export const PASSKEY_COMPLETE_ROUTE = 'POST /auth/passkey/complete';
 
 /** RFC 10017 §6.1.3.3.2: a static custom header forces a preflight, which CORS refuses to every
  *  origin it does not name. Duende BFF's spelling; the value is checked exactly. */
@@ -56,8 +73,66 @@ export const ORIGIN_SECONDS = 86400;
 const ATTRIBUTES = 'Path=/; Secure; HttpOnly; SameSite=Strict';
 const cookieOf = (token: string) => `${COOKIE}=${token}; Max-Age=${IDLE_SECONDS}; ${ATTRIBUTES}`;
 const originOf = (token: string) => `${ORIGIN}=${token}; Max-Age=${ORIGIN_SECONDS}; ${ATTRIBUTES}`;
+/** THE ACCESS TOKEN, SEALED, as RFC 10017 §6.1.3.2 asks of a BFF's cookie holding one: a copied
+ *  cookie store holds no token Cognito takes. It lives as long as the token. */
+const ACCESS = '__Host-Http-access';
+const accessOf = (sealed: string, seconds: number) =>
+  `${ACCESS}=${sealed}; Max-Age=${seconds}; ${ATTRIBUTES}`;
 const CLEARED = `${COOKIE}=; Max-Age=0; ${ATTRIBUTES}`;
-const FORGOTTEN = [CLEARED, `${ORIGIN}=; Max-Age=0; ${ATTRIBUTES}`] as const;
+const ACCESS_CLEARED = `${ACCESS}=; Max-Age=0; ${ATTRIBUTES}`;
+/** A session that ended: the refresh cookie, and the access token sealed beside it. */
+const ENDED = [CLEARED, ACCESS_CLEARED] as const;
+const FORGOTTEN = [CLEARED, `${ORIGIN}=; Max-Age=0; ${ATTRIBUTES}`, ACCESS_CLEARED] as const;
+
+/** AES-256-GCM under a key HKDF draws from the client secret, the cookie's name as salt (RFC 5869),
+ *  as Auth.js draws its own from `AUTH_SECRET`: no second secret to store. */
+const NONCE_BYTES = 12;
+const TAG_BYTES = 16;
+const keyOf = (secret: string) =>
+  Buffer.from(hkdfSync('sha256', secret, ACCESS, 'quirenote relay: the access token', 32));
+
+/** A FRESH RANDOM 96-BIT NONCE EVERY SEAL, NIST SP 800-38D §8.2.2's construction: GCM loses both
+ *  its secrecy and its integrity once a nonce repeats under one key. */
+const seal = (secret: string, token: string): string => {
+  const nonce = randomBytes(NONCE_BYTES);
+  const cipher = createCipheriv('aes-256-gcm', keyOf(secret), nonce, {
+    authTagLength: TAG_BYTES,
+  });
+  const sealed = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
+  return Buffer.concat([nonce, sealed, cipher.getAuthTag()]).toString('base64url');
+};
+
+/** The token, or nothing for a value this key did not seal: altered, cut short, or another key's.
+ *  GCM refuses each of them at `final`, and a value too short to hold a tag before that. */
+const unseal = (secret: string, value: string): string | undefined => {
+  const bytes = Buffer.from(value, 'base64url');
+  try {
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      keyOf(secret),
+      bytes.subarray(0, NONCE_BYTES),
+      { authTagLength: TAG_BYTES },
+    ).setAuthTag(bytes.subarray(bytes.length - TAG_BYTES));
+    const token = Buffer.concat([
+      decipher.update(bytes.subarray(NONCE_BYTES, bytes.length - TAG_BYTES)),
+      decipher.final(),
+    ]);
+    return token.toString('utf8');
+  } catch {
+    return undefined;
+  }
+};
+
+/** The account a token names, read and never verified: the relay sealed it, so nobody else wrote it. */
+const accountOf = (token: string): unknown => {
+  try {
+    const payload = Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8');
+    return (JSON.parse(payload) as { sub?: unknown } | null)?.sub;
+  } catch {
+    return undefined;
+  }
+};
+
 /** A GOOGLE FLOW'S STATE AND PKCE VERIFIER, bound to the browser that began it (RFC 9700 §2.1.1)
  *  for as long as Auth.js keeps its own pair; Cognito's code itself lives five minutes. */
 const FLOW = '__Host-Http-google';
@@ -152,6 +227,23 @@ export const GOOGLE_COMPLETE_BODY = {
   content: { 'application/json': { schema: exactObject(COMPLETE_KEYS) } },
 };
 
+/** What each passkey call names: the account its tab shows, the `sub` of that tab's ID token. */
+const PASSKEY_KEYS = ['sub'] as const;
+export const PASSKEY_BODY = {
+  required: true,
+  content: { 'application/json': { schema: exactObject(PASSKEY_KEYS) } },
+};
+
+/** And what the OS dialog made, as `PublicKeyCredential.toJSON()` spells it; Cognito reads it. */
+export const PASSKEY_COMPLETE_BODY = {
+  required: true,
+  content: {
+    'application/json': {
+      schema: exactObject([...PASSKEY_KEYS, 'credential'], { credential: { type: 'object' } }),
+    },
+  },
+};
+
 const ASKING_FOR_THE_HEADER = [
   {
     name: CSRF_HEADER,
@@ -165,7 +257,7 @@ const TOKENS = derived({
   statusCode: 200,
   name: 'tokens',
   headers: ['set-cookie', 'cache-control'],
-  example: { idToken: '<JWT>', accessToken: '<JWT>', expiresIn: 3600 },
+  example: { idToken: '<JWT>', expiresIn: 3600 },
 });
 const CHALLENGE = derived({
   statusCode: 200,
@@ -188,7 +280,7 @@ const REFRESHED = derived({
   statusCode: 200,
   name: 'tokens',
   headers: ['set-cookie', 'cache-control'],
-  example: { idToken: '<JWT>', accessToken: '<JWT>', expiresIn: 3600, google: true },
+  example: { idToken: '<JWT>', expiresIn: 3600, google: true },
 });
 /** `logout` WHILE GOOGLE IS ON: `GlobalSignOut` "doesn't clear the managed login session cookie",
  *  and only a browser sent to Cognito's logout endpoint can have it cleared. */
@@ -219,6 +311,22 @@ const FLOW_SPENT = derived({
   example: { error: 'not_authorized' },
 });
 
+/** Whether the account holds a passkey: the offer follows a password sign-in while it holds none. */
+const PASSKEYS = derived({
+  statusCode: 200,
+  name: 'passkeys',
+  headers: ['cache-control'],
+  example: { passkey: false },
+});
+/** `StartWebAuthnRegistration`'s options, for the OS dialog; its challenge is single-use. */
+const CREATION_OPTIONS = derived({
+  statusCode: 200,
+  name: 'creation_options',
+  headers: ['cache-control'],
+  example: { options: { challenge: '<base64url>', rp: { id: '<apex>', name: '<apex>' } } },
+});
+const REGISTERED = json(200, '{"status":"registered"}');
+
 const NOT_AUTHORIZED = json(401, '{"error":"not_authorized"}');
 const INVALID_PASSWORD = json(400, '{"error":"invalid_password"}');
 /** The pool's history refusing the temporary password as the new one, which meets the rule. */
@@ -248,6 +356,9 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [SIGN_OUT_ROUTE]: [SIGNED_OUT, CSRF, INTERNAL],
   [GOOGLE_BEGIN_ROUTE]: [AUTHORIZE, GOOGLE_DISABLED, CSRF, INTERNAL],
   [GOOGLE_COMPLETE_ROUTE]: [TOKENS, NOT_AUTHORIZED, FLOW_SPENT, INVALID, CSRF, INTERNAL],
+  [PASSKEY_LIST_ROUTE]: [PASSKEYS, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
+  [PASSKEY_START_ROUTE]: [CREATION_OPTIONS, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
+  [PASSKEY_COMPLETE_ROUTE]: [REGISTERED, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
 };
 
 /** What a request must carry beyond its body, for the document to publish: every route the relay
@@ -278,6 +389,21 @@ const SESSION_OVER = new Set([
   'NotAuthorizedException',
   'UserNotFoundException',
   'InvalidParameterException',
+]);
+
+/** A passkey call's refusals the app can act on: a token Cognito does not take — expired, revoked,
+ *  or a Google sign-in's, which lacks the scope — and a request it refuses. Anything else is logged. */
+const PASSKEY_REFUSED_AS = new Map<string, ApiResult>([
+  ['NotAuthorizedException', NOT_AUTHORIZED],
+  ['UserNotFoundException', NOT_AUTHORIZED],
+  ['PasswordResetRequiredException', NOT_AUTHORIZED],
+  ['InvalidParameterException', INVALID],
+  ['LimitExceededException', INVALID],
+  ['WebAuthnChallengeNotFoundException', INVALID],
+  ['WebAuthnClientMismatchException', INVALID],
+  ['WebAuthnCredentialNotSupportedException', INVALID],
+  ['WebAuthnOriginNotAllowedException', INVALID],
+  ['WebAuthnRelyingPartyMismatchException', INVALID],
 ]);
 
 /** The refusals `RevokeToken` documents for a token it will not take — an access token, or input it
@@ -316,7 +442,7 @@ type Answer = {
   AuthenticationResult?: Tokens;
 };
 
-/** Narrowed to the six calls this file makes, so a test injects a double rather than the SDK. */
+/** Narrowed to the nine calls this file makes, so a test injects a double rather than the SDK. */
 export type IdentityClient = {
   describeUserPoolClient(input: { UserPoolId: string; ClientId: string }): Promise<{
     UserPoolClient?: {
@@ -344,6 +470,18 @@ export type IdentityClient = {
   revokeToken(input: { Token: string; ClientId: string; ClientSecret: string }): Promise<unknown>;
   /** `/oauth2/token`, which no SDK command covers; a refusal throws under its OAuth `error`. */
   redeemCode(input: RedeemInput): Promise<CodeTokens>;
+  /** The three passkey calls, which the user's access token authorizes: no secret, and no IAM. */
+  listWebAuthnCredentials(input: {
+    AccessToken: string;
+    MaxResults: number;
+  }): Promise<{ Credentials?: unknown[] }>;
+  startWebAuthnRegistration(input: {
+    AccessToken: string;
+  }): Promise<{ CredentialCreationOptions?: unknown }>;
+  completeWebAuthnRegistration(input: {
+    AccessToken: string;
+    Credential: unknown;
+  }): Promise<unknown>;
 };
 
 /** THE READ'S OWN FAILURE, kept apart: `DescribeUserPoolClient` answers a missing grant with
@@ -478,30 +616,28 @@ const challenged = (answer: Answer): ApiResult => {
   );
 };
 
-/** The refresh token into the cookie, the other two into the body. A sign-in's is the family's
- *  original too; a refresh's `sent` is the cookie's own, kept when Cognito rotates nothing. */
+/** The refresh token into the cookie, the access token sealed into its own, the ID token into the
+ *  body. A sign-in's is the family's original too; a refresh's `sent` is kept if nothing rotates. */
 const issued = (
   tokens: Tokens | undefined,
+  secret: string,
   from: 'sign-in' | 'google' | { sent: string; google: boolean },
 ): ApiResult => {
   const refresh = tokens?.RefreshToken ?? (typeof from === 'string' ? undefined : from.sent);
-  if (!tokens?.IdToken || !tokens.AccessToken || !refresh) {
+  if (!tokens?.IdToken || !tokens.AccessToken || !tokens.ExpiresIn || !refresh) {
     console.error('auth-relay: Cognito answered without the tokens a session needs');
     return INTERNAL;
   }
-  const body = {
-    idToken: tokens.IdToken,
-    accessToken: tokens.AccessToken,
-    expiresIn: tokens.ExpiresIn,
-  };
+  const body = { idToken: tokens.IdToken, expiresIn: tokens.ExpiresIn };
+  const access = accessOf(seal(secret, tokens.AccessToken), tokens.ExpiresIn);
   if (typeof from !== 'string') {
     return respond(
       REFRESHED,
-      { 'set-cookie': [cookieOf(refresh)], 'cache-control': NO_STORE },
+      { 'set-cookie': [cookieOf(refresh), access], 'cache-control': NO_STORE },
       JSON.stringify({ ...body, google: from.google }),
     );
   }
-  const signedIn = [cookieOf(refresh), originOf(refresh)] as const;
+  const signedIn = [cookieOf(refresh), originOf(refresh), access] as const;
   return respond(
     TOKENS,
     {
@@ -687,7 +823,7 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
         }),
       );
       if (answered.AuthenticationResult === undefined) return challenged(answered);
-      const signedIn = issued(answered.AuthenticationResult, 'sign-in');
+      const signedIn = issued(answered.AuthenticationResult, (await cached(ids)).secret, 'sign-in');
       // A SIGN-IN REVOKES EVERY TOKEN THIS BROWSER STILL CARRIES, whose family an idle expiry does
       // not end. A revocation that errors costs no sign-in: that family is capped by its own lifetime.
       if (signedIn.statusCode === 200) {
@@ -704,7 +840,7 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
   const refresh = async (event: ApiEvent): Promise<ApiResult> => {
     const ids = idsOf();
     const token = cookieIn(event, COOKIE);
-    if (token === undefined) return ended([CLEARED], await googleOn(ids));
+    if (token === undefined) return ended(ENDED, await googleOn(ids));
     if (ids === undefined) return INTERNAL;
     try {
       const { AuthenticationResult } = await withSecret(ids, 'NotAuthorizedException', (s) =>
@@ -714,7 +850,9 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           ClientSecret: s,
         }),
       );
-      return issued(AuthenticationResult, { sent: token, google: await googleOn(ids) });
+      // THE FLAG FIRST: its re-read may bring a rotated secret, which the seal must then be under.
+      const google = await googleOn(ids);
+      return issued(AuthenticationResult, (await cached(ids)).secret, { sent: token, google });
     } catch (err) {
       // RFC 9700 §4.14.2: WHICH HOLDER REPLAYED CANNOT BE TOLD, AND THE ACTIVE TOKEN IS REVOKED —
       // here every branch, through the original this browser carries; Cognito revokes nothing.
@@ -732,7 +870,7 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
       }
       // AN EXPIRED OR REVOKED TOKEN SAYS NOTHING OF A THIEF: the original stays, for the next
       // sign-in to revoke.
-      if (SESSION_OVER.has(nameOf(err) ?? '')) return ended([CLEARED], await googleOn(ids));
+      if (SESSION_OVER.has(nameOf(err) ?? '')) return ended(ENDED, await googleOn(ids));
       // A FAULT IS NOT A DEAD SESSION: the cookie stays, so the next refresh can still succeed.
       console.error('auth-relay: refresh failed', err);
       return INTERNAL;
@@ -815,7 +953,7 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           verifier: flow.verifier,
         }),
       );
-      const signedIn = issued(tokensOf(answered), 'google');
+      const signedIn = issued(tokensOf(answered), (await cached(ids)).secret, 'google');
       // AS ANY SIGN-IN DOES: every token this browser still carries is revoked, at no cost to it.
       if (signedIn.statusCode === 200) {
         for (const err of await revokeEach(ids, carried(event))) {
@@ -836,6 +974,97 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
     }
   };
 
+  /** A SECRET ROTATED IN PLACE leaves environments holding different ones, so a cookie this one cannot
+   *  open reads again the secret Cognito describes; one sealed under the other waits for a refresh. */
+  const opened = async (ids: Ids, sealed: string): Promise<string | undefined> => {
+    const known = await cached(ids);
+    const token = unseal(known.secret, sealed);
+    if (token !== undefined || now() - rereadAt < REREAD_MS) return token;
+    rereadAt = now();
+    const fresh = await read(ids).catch(() => undefined);
+    if (fresh === undefined) return undefined;
+    client = { value: Promise.resolve(fresh), at: now() };
+    return unseal(fresh.secret, sealed);
+  };
+
+  /** A PASSKEY CALL, for the account the tab names, with the token a sign-in sealed: the cookie is
+   *  the browser's, and another tab's sign-in replaces it. It writes no cookie, so takes no lock. */
+  const withToken = async (
+    event: ApiEvent,
+    route: string,
+    sub: string,
+    call: (token: string) => Promise<ApiResult>,
+  ): Promise<ApiResult> => {
+    const sealed = cookieIn(event, ACCESS);
+    if (sealed === undefined) return NOT_AUTHORIZED;
+    const ids = idsOf();
+    if (ids === undefined) return INTERNAL;
+    const token = await opened(ids, sealed);
+    if (token === undefined || accountOf(token) !== sub) return NOT_AUTHORIZED;
+    try {
+      return await call(token);
+    } catch (err) {
+      const known = PASSKEY_REFUSED_AS.get(nameOf(err) ?? '');
+      if (known !== undefined) return known;
+      console.error(`auth-relay: ${route} failed`, err);
+      return INTERNAL;
+    }
+  };
+
+  const listPasskeys = (event: ApiEvent) => {
+    const asked = exactly(parsed(event), PASSKEY_KEYS);
+    if (asked === undefined) return Promise.resolve(INVALID);
+    return withToken(event, PASSKEY_LIST_ROUTE, asked.sub, async (token) => {
+      const { Credentials } = await idp.listWebAuthnCredentials({
+        AccessToken: token,
+        MaxResults: 1,
+      });
+      // AN ANSWER COGNITO CANNOT GIVE OFFERS NOTHING (*Auth model*), so no list is not an empty one.
+      if (!Array.isArray(Credentials)) {
+        console.error('auth-relay: Cognito listed no credentials');
+        return INTERNAL;
+      }
+      return respond(
+        PASSKEYS,
+        { 'cache-control': NO_STORE },
+        JSON.stringify({ passkey: Credentials.length > 0 }),
+      );
+    });
+  };
+
+  const startRegistration = (event: ApiEvent) => {
+    const asked = exactly(parsed(event), PASSKEY_KEYS);
+    if (asked === undefined) return Promise.resolve(INVALID);
+    return withToken(event, PASSKEY_START_ROUTE, asked.sub, async (token) => {
+      const { CredentialCreationOptions: options } = await idp.startWebAuthnRegistration({
+        AccessToken: token,
+      });
+      if (typeof options !== 'object' || options === null) {
+        console.error('auth-relay: Cognito started a registration with no options');
+        return INTERNAL;
+      }
+      return respond(CREATION_OPTIONS, { 'cache-control': NO_STORE }, JSON.stringify({ options }));
+    });
+  };
+
+  const completeRegistration = (event: ApiEvent) => {
+    // EVERY PASSKEY CALL'S KEYS, and an object under `credential`, which Cognito reads.
+    const { credential, ...given } = (parsed(event) ?? {}) as Record<string, unknown>;
+    const asked = exactly(given, PASSKEY_KEYS);
+    if (
+      asked === undefined ||
+      typeof credential !== 'object' ||
+      credential === null ||
+      Array.isArray(credential)
+    ) {
+      return Promise.resolve(INVALID);
+    }
+    return withToken(event, PASSKEY_COMPLETE_ROUTE, asked.sub, async (token) => {
+      await idp.completeWebAuthnRegistration({ AccessToken: token, Credential: credential });
+      return REGISTERED;
+    });
+  };
+
   return async (event: ApiEvent): Promise<ApiResult> => {
     // THE GATE IS FIRST, before the body, the environment or Cognito: RFC 10017 §6.2.3.3 puts these
     // defences exactly on the endpoints where the application obtains its tokens.
@@ -854,6 +1083,12 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
           return await begin();
         case GOOGLE_COMPLETE_ROUTE:
           return await complete(event);
+        case PASSKEY_LIST_ROUTE:
+          return await listPasskeys(event);
+        case PASSKEY_START_ROUTE:
+          return await startRegistration(event);
+        case PASSKEY_COMPLETE_ROUTE:
+          return await completeRegistration(event);
         default:
           return INVALID;
       }
@@ -906,6 +1141,16 @@ const sdk: IdentityClient = {
   getTokensFromRefreshToken: (input) => cognito.send(new GetTokensFromRefreshTokenCommand(input)),
   revokeToken: (input) => cognito.send(new RevokeTokenCommand(input)),
   redeemCode: redeemWith((url, init) => fetch(url, init)),
+  listWebAuthnCredentials: (input) => cognito.send(new ListWebAuthnCredentialsCommand(input)),
+  startWebAuthnRegistration: (input) => cognito.send(new StartWebAuthnRegistrationCommand(input)),
+  completeWebAuthnRegistration: (input) =>
+    cognito.send(
+      new CompleteWebAuthnRegistrationCommand({
+        ...input,
+        // A JSON DOCUMENT, as the dialog made it: `completeRegistration` admits an object alone.
+        Credential: input.Credential as CompleteWebAuthnRegistrationCommandInput['Credential'],
+      }),
+    ),
 };
 
 export const handler = createRelay(sdk);

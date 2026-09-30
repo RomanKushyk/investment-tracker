@@ -668,7 +668,19 @@ describe('nothing explains itself by a lifetime that is gone', () => {
       expect([f, text.split('deleted during the month').length - 1]).toEqual([f, PLACES[f]]);
       expect([f, text.includes('admindeleteuser')]).toEqual([f, true]);
       expect([f, /\bdeleteuser\b/.test(text)]).toEqual([f, true]);
+      // `DeleteUser` takes an access token, and an app sign-in's is one only the relay holds.
+      expect([f, text.includes('only the relay holds')]).toEqual([f, true]);
     }
+  });
+
+  // THE PAGE HOLDS NO ACCESS TOKEN (*Auth model*), so no sentence may say a user deletes their
+  // identity with one of their own.
+  it('says nowhere that a user deletes their identity with a token of their own', () => {
+    const SELF = /\bdeleteuser\b[^.]{0,60}\bown\b[^.]{0,30}\btoken\b/;
+    // The sentence it was written against, so a needle that matches nothing cannot pass.
+    // Split, as NEEDLES are, or this line would be the first thing the census finds.
+    expect(SELF.test('so does delete' + 'user with the user’s own access token')).toBe(true);
+    expect(searched.filter((f) => SELF.test(prose(f)))).toEqual([]);
   });
 
   it('records that the idle half of the practice is not Cognito to give', () => {

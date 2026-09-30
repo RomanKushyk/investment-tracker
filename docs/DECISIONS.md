@@ -346,8 +346,16 @@ registered against it, and `reference/COGNITO-POOL-PARAMS.md` carries its cost. 
 A RELAY ON A CONFIDENTIAL CLIENT — RFC 10017's token-mediating backend, `/auth/*` on the API — which
 holds the only copy of the client secret, so no sign-in skips it. WHERE EACH TOKEN LIVES: the
 refresh token in a `__Host-Http-` cookie on the API host, HttpOnly, Secure and SameSite=Strict,
-which the relay alone sets and reads; the ID token, which the authorizer checks, and the access
-token, which registers a passkey, come back in the relay's body and are held in the app's memory.
+which the relay alone sets and reads; the ID token, which the authorizer checks, comes back in the
+relay's body and is held in the app's memory. THE ACCESS TOKEN STAYS WITH THE RELAY: it registers a
+passkey, and it also authorizes `DeleteUser` and an address change the pool asks no verification
+for, and RFC 10017 §6.2.2.3 says a backend whose token "features a superset of the scopes requested
+by the frontend" "SHOULD NOT return it to the frontend". It is sealed into one more `__Host-Http-`
+cookie, because §6.1.3.2 says a BFF whose cookies hold access tokens "SHOULD encrypt its cookie
+contents": AES-256-GCM under a key HKDF draws from the client secret, as Auth.js draws its own from
+`AUTH_SECRET`, so there is no second secret to store. The cookie lives as long as the token and is
+cleared wherever the refresh cookie is, and revoking a refresh token revokes every access token it
+issued (AWS, *Ending user sessions with token revocation*).
 SIGN-IN IS THE APP'S OWN SCREEN, not managed login: a deviation from RFC 10017 §7.3, which says a
 browser app on OAuth or OpenID Connect "MUST use a redirect-based flow", ruled by the owner knowing
 it. It is IDENTIFIER-FIRST because the pool is — Cognito issues no passkey challenge without a
@@ -367,8 +375,20 @@ answers that refusal apart from a weak password, and the app says it in a senten
 names the temporary password, since under a history of 1 it can be no other. THEN A PASSKEY IS
 OFFERED, and again after every password sign-in while
 `ListWebAuthnCredentials` lists none; an answer Cognito cannot give offers nothing, and no «not now»
-is remembered. Registration and that list are the app's own calls to Cognito's endpoint with the
-access token: token-authorized operations, which take no client and no secret. COGNITO'S LOCKOUT ANSWERS
+is remembered. REGISTRATION AND THAT LIST GO THROUGH THE RELAY, `/auth/passkey/list`, `/start` and
+`/complete`, which makes each call with the token it sealed: token-authorized operations, which take
+no secret and no IAM grant. No passkey call writes a cookie, so none takes the lock below, and Start
+stays the one fetch before the OS dialog, the most Safari before 17.4 waits through. EACH CALL NAMES
+THE ACCOUNT ITS TAB SHOWS, the ID token's `sub`, and the relay acts only when the sealed token is that
+account's: the cookie is the browser's, and another tab's sign-in replaces it. The sealed token lives
+as long as the ID token set beside it. The list and Start each first ask for the account, which
+refreshes both when under a minute is left; Complete, after the OS dialog, names the account Start
+was given. A GOOGLE SIGN-IN'S TOKEN MAKES NO PASSKEY CALL: those calls require
+`aws.cognito.signin.user.admin`, which every API sign-in's token carries and a Google sign-in's lacks,
+the client allowing only `openid email profile`. So no offer follows a Google sign-in, and a tab whose
+cookie another tab's Google sign-in replaced lists and registers none until it signs in with its
+password again.
+COGNITO'S LOCKOUT ANSWERS
 429, told from a wrong password by its message alone. OWASP's Authentication Cheat Sheet lists a
 locked account among the cases one generic error should cover. What that guards against, a
 difference that shows whether an account exists (CWE-204), the lockout does not add: an address
@@ -402,11 +422,12 @@ succeeds and forks the family, so the app refreshes once at a time across tabs. 
 FAMILY'S ORIGINAL, to revoke on a replay that arrives with it: only the live token or the sign-in's
 own ends every branch when revoked, and the relay cannot know which branch is live. A second
 `__Host-Http-` cookie holds it, set at sign-in and never re-set; a replay revokes the original sent
-beside it. SIGN-OUT AND A COMPLETED SIGN-IN REVOKE BOTH COOKIES' TOKENS, a token both hold once:
+beside it. SIGN-OUT AND A COMPLETED SIGN-IN REVOKE BOTH REFRESH COOKIES' TOKENS, a token both hold
+once:
 the two can belong to two families — a refresh answering after a new sign-in overwrites one —
 Cognito revokes a family and never the browser, and a token forgotten unrevoked refreshes until its
 family's lifetime ends, while revoking a dead one costs a call (RFC 7009 §2.2). A sign-out that
-cannot revoke one keeps both cookies for its retry; a sign-in completes regardless, the old family
+cannot revoke one keeps every cookie for its retry; a sign-in completes regardless, the old family
 capped by its own lifetime. Cognito has no inactivity expiry, so the idle timeout is the refresh
 cookie's `Max-Age`, re-set on every refresh — a UX bound and not a security boundary. The original's cookie
 lives as long as the family can instead — each rotated token is valid "for the remaining
@@ -438,7 +459,12 @@ the bundle's own G cropped to its box.
 Registration is an APPLICATION,
 not an open door — threat protection is a paid tier, so a public door has only quotas: sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
-Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. THE APPLICATION IS THE APP'S
+Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. AN IDENTITY IS DELETED BY
+HAND OR NOT AT ALL: no handler holds `AdminDeleteUser`, and `DeleteUser` takes an access token no
+page holds. Cognito fires no trigger on a deletion, so whoever deletes an identity clears its
+`app_user` row, as Auth0, Okta and Entra keep deletion on the backend, and nothing watches for one.
+Until the app offers a deletion of its own, the operator erases an account on request. THE
+APPLICATION IS THE APP'S
 OWN FORM, `/apply`, one address posted with no cookie, since its route reads none; the endpoint
 answers every address with one constant, so the form can say only that it was recorded. A CALLER THE
 API REFUSES on a route every user may call — pending, rejected, no application, forbidden — sees that
@@ -452,7 +478,10 @@ and the page forgets it once read.
 **Why.** Nothing decided at token-issue time can revoke anything, at any lifetime, so authorization
 belongs to the API, read from that row on every request. A refresh token script can read outlives
 the page that stole it; one in an HttpOnly cookie, exchangeable only with a secret the browser never
-holds, leaves injected script an access token and nothing longer-lived.
+holds, leaves injected script the ID token and nothing longer-lived. The access token is kept off the
+page because nothing in Cognito narrows what its holder may do: `DeleteUser` evaluates no IAM, an
+API sign-in's token carries `aws.cognito.signin.user.admin` and no other scope, and the pool offers
+no trigger on a deletion. `DeleteUser` refuses the ID token (`reference/COGNITO-POOL-PARAMS.md`).
 A finished sign-out should land on a page that "clearly indicates" the user is no longer signed in
 (web.dev, *sign-out best practices*), announced as a status without taking focus (WCAG 4.1.3); the
 browser keeps `history.state` across a reload and Back/Forward, so a fact read and left in place
@@ -490,16 +519,30 @@ the session in the live dataset only: demo is the default a sign-in lands on, an
 user no way out. · The signed-out confirmation as a toast: it leaves on a timer, and a toast here
 reports on the page the user stays on. · Deciding the offer from the address step's answer, a
 `SELECT_CHALLENGE` without `WEB_AUTHN`: it depends on which way the user reached the password, and no
-source documents it as a signal. · Registration through the relay: no secret is involved, so it
-would only carry the access token one hop further. · Beginning Google as the sign-in page loads,
+source documents it as a signal. · The access token in the page, where the relay handed it: any
+script there could delete the account or change its address. · WAF on the pool, which does block
+`DeleteUser`: a fixed monthly charge per web ACL and per rule, on the standing "no" list. ·
+Suppressing that scope in a pre-token-generation trigger: the three passkey calls require it, so it
+ends passkeys. · The access token in a plain HttpOnly cookie: RFC 10017 §6.1.3.2 asks for it
+encrypted, and malware reading the cookie store would hold a token that calls `DeleteUser`, which the
+refresh token cannot do without the secret. · A refresh per passkey call, keeping no access token:
+each call rotates the family, so each would take the cross-tab lock, and Start would wait on it
+before its fetch — a wait after which Safari before 17.4 opens no dialog. · Passkey calls for
+whichever account the cookie holds: a tab another tab's sign-in replaced would bind a passkey to an
+account it does not show. · A standing watch for a
+deleted identity: an EventBridge rule on `DeleteUser` needs a CloudTrail trail, which this account
+has none of, and is delivered best effort; a daily reconciliation would add alarms under
+*Alerting*. With the token off the page, nobody deletes an identity unseen. · Beginning Google as
+the sign-in page loads,
 Ory's flow-first shape: an invocation and a flow cookie for every visit, and a flow gone stale by
 the time of a late click. · A Google flag in the host table: a deploy that drops the credentials
-would leave the button standing. · Leaving through Cognito's logout only after a Google sign-in: a
-third cookie to remember one, and the relay guessing at a session only Cognito can see. ·
+would leave the button standing. · Leaving through Cognito's logout only after a Google sign-in: one
+more cookie to remember one, and the relay guessing at a session only Cognito can see. ·
 `prompt` left out, or `login`: without it a live Google session signs the last account straight
 back in; `login` asks for Google's password every time. · The flow's pair encrypted, as Auth.js
-keeps its own: HttpOnly and `__Host-` already keep it from script and other hosts, and a key would
-be a second secret to store. · A reset-required account answered apart, as Amplify JS makes it a
+keeps its own: HttpOnly and `__Host-` already keep it from script and other hosts, and neither half
+is a token — the verifier redeems nothing without the code Cognito sends to this browser, which
+lives five minutes. · A reset-required account answered apart, as Amplify JS makes it a
 `RESET_PASSWORD` step: the app has no reset to lead it to.
 
 ## User schema and deletes

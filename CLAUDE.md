@@ -1,6 +1,6 @@
 # Quirenote — investment portfolio tracker
 
-Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, one pnpm workspace: the SPA at the root, `infra/` the AWS backend (a daily price archive on Aurora DSQL), and `packages/core` the domain layer both import. Persistence today is Dexie on IndexedDB; the app calls the backend only to apply for access and, through its auth relay, for the session: asked once on every portfolio load, and to sign in and out. The account's passkeys it asks Cognito for itself, with the access token.
+Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, one pnpm workspace: the SPA at the root, `infra/` the AWS backend (a daily price archive on Aurora DSQL), and `packages/core` the domain layer both import. Persistence today is Dexie on IndexedDB; the app calls the backend only to apply for access and, through its auth relay, for the session: asked once on every portfolio load, and to sign in and out, and for the account's passkeys, which the relay asks Cognito for with an access token the page never holds.
 
 ## Commands
 - `pnpm dev` — port and `strictPort` live in `vite.config.ts`, nowhere else. It refuses to boot on a conflict instead of drifting: check what holds the port, attach if it is this app, else `pnpm dev --port N`. The owner usually has one running.
@@ -27,7 +27,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 
 ## Invariants — the why is in `docs/DECISIONS.md`, under the topic in brackets
 - Every portfolio figure is derived from stored data; nothing is hard-coded. [Derived figures and the seed]
-- The app is local: Dexie, two databases (demo, live). `infra/` archives prices, and the app calls it only through the auth relay, to apply for access, and Cognito with the access token for the account's passkeys — what the two share is `packages/core`, not data. [Persistence today · The price archive]
+- The app is local: Dexie, two databases (demo, live). `infra/` archives prices, and the app calls it only to apply for access and through the auth relay, the account's passkeys included — what the two share is `packages/core`, not data. [Persistence today · The price archive]
 - Alarms carry no `AlarmActions` and there is no SNS topic. Deliberate; do not add one. [Alerting]
 - Inzhur dealer quotes and NBU fair values are different bases and are never merged. [The price archive]
 - Nothing is a capsule: standalone radius `round(min(w,h) × 0.26)`, nested `outer = inner + gap`, and a full-bleed band takes square corners. Only avatars and colour dots are round; the mark is drawn geometry. [Shape system]

@@ -357,9 +357,10 @@ Resources:
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn
 
-  # `POST /v1/applications` AND THE RELAY'S SIX ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
+  # `POST /v1/applications` AND THE RELAY'S NINE ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
   # the first creates the very `app_user` row every other route is checked against, and the relay
-  # is how a token is obtained at all (*Auth model*). EVERY OTHER ROUTE NAMES THE AUTHORIZER and
+  # is how a token is obtained at all, and where the access token is spent (*Auth model*).
+  # EVERY OTHER ROUTE NAMES THE AUTHORIZER and
   # `DefaultAuthorizer` is deliberately NOT set — SAM renders an opted-out route against a scheme it never declares, and
   # `FailOnWarnings` would roll the stack back on a warning nobody can predict before a deploy.
   PublicApi:
@@ -398,7 +399,7 @@ Resources:
         'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
-        # The relay's six. A ceiling per route bounds its requests, not the concurrency they share.
+        # The relay's nine. A ceiling per route bounds its requests, not the concurrency they share.
         'POST /auth/start':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -415,6 +416,15 @@ Resources:
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
         'POST /auth/google/complete':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/passkey/list':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/passkey/start':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/passkey/complete':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
@@ -480,9 +490,9 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /v1/applications
-            # NO `Auth` BLOCK, AND ABSENCE IS THE DECISION, as on the relay's six: this endpoint creates
+            # NO `Auth` BLOCK, AND ABSENCE IS THE DECISION, as on the relay's nine: this endpoint creates
             # the row every other route is checked against, so there is nothing to check it with.
-            # `public-api.test.ts` names these seven as the only routes allowed to be here.
+            # `public-api.test.ts` names these ten as the only routes allowed to be here.
 
   ApplicationsLogGroup:
     Type: AWS::Logs::LogGroup
@@ -556,8 +566,8 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${ApproveFunction}
       RetentionInDays: 30
 
-  # THE ONE HOLDER OF THE CLIENT SECRET: its callers hold no token yet, so the custom header and
-  # `Sec-Fetch-Site` guard it instead (*Auth model*). No cluster: it reads no rows.
+  # THE ONE HOLDER OF THE CLIENT SECRET AND READER OF THE ACCESS TOKEN IT SEALS, with no cluster. Its
+  # routes take no bearer token, only its cookies, so `x-csrf` and `Sec-Fetch-Site` guard them.
   AuthRelayFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -582,8 +592,8 @@ Resources:
       Policies:
         - Statement:
             # ONE READ, AND IT IS POOL-WIDE — any client in the pool can be described, the accepted
-            # cost of storing the secret nowhere. The sign-in calls themselves need no grant, and the
-            # token endpoint is not an AWS API: the secret is its credential.
+            # cost of storing the secret nowhere. The sign-in and passkey calls themselves need no
+            # grant, and the token endpoint is not an AWS API: the secret is its credential.
             - Sid: ReadTheClientSecret
               Effect: Allow
               Action: cognito-idp:DescribeUserPoolClient
@@ -625,6 +635,24 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /auth/google/complete
+        PasskeyList:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/passkey/list
+        PasskeyStart:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/passkey/start
+        PasskeyComplete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/passkey/complete
 
   AuthRelayLogGroup:
     Type: AWS::Logs::LogGroup
@@ -807,7 +835,8 @@ Resources:
 
   # THERE IS NO CLOUDWATCH METRIC FOR MONTHLY ACTIVES, so the pool's TOTAL user count stands in:
   # an upper bound only while no user is deleted during the month, by `AdminDeleteUser` or
-  # `DeleteUser`, as `PoolUsersAlarm`'s description says. IN THIS STACK, NOT THE CAPTURE'S, the
+  # `DeleteUser`, as `PoolUsersAlarm`'s description says: either made by hand, an app sign-in's
+  # access token being one only the relay holds. IN THIS STACK, NOT THE CAPTURE'S, the
   # pool being per-environment — handing the capture a pool id is the coupling the check above
   # already refused (*Alerting*). Dev identities count too, so this bounds prod's share alone.
   PoolUsageFunction:
@@ -907,9 +936,10 @@ Resources:
         the root account. This is TOTAL USERS, not MAU, and an upper bound on the month's
         actives only while no user is deleted during the month: a user created or active in
         the month and then deleted stays among its actives but leaves this count. No handler
-        deletes a user; AdminDeleteUser by hand does, and so does DeleteUser with the user's
-        own access token. Check the sign-up path, the approval queue, and CloudTrail for
-        either call this month: each can leave the count one short.
+        deletes a user, and no page can: DeleteUser takes an access token, and an app
+        sign-in's is one only the relay holds. AdminDeleteUser or DeleteUser by hand can.
+        Check the sign-up path, the approval queue, and CloudTrail for either call this
+        month: each can leave the count one short.
       Namespace: Quirenote
       MetricName: PoolUsers
       Statistic: Maximum

@@ -24,8 +24,9 @@ export interface Session {
   /** `false` when the relay could not revoke, which keeps both cookies for a retry. */
   signOut(): Promise<false | SignedOut>;
   getIdToken(): Promise<string | undefined>;
-  /** Of the same pair as the ID token; it authorizes the user's own Cognito calls. */
-  getAccessToken(): Promise<string | undefined>;
+  /** The `sub` of the same pair: each passkey call names it, so the relay acts only for the account
+   *  this tab shows. */
+  getAccount(): Promise<string | undefined>;
 }
 
 // ONE LOCK FOR EVERY CALL THAT WRITES THE COOKIES, held until the answer lands: without it two tabs
@@ -33,15 +34,16 @@ export interface Session {
 const LOCK = 'quirenote-auth';
 const EARLY_MS = 60_000;
 
-// READ, NEVER VERIFIED: it only labels a row, and the API verifies every token it is sent. The ID
-// token is the client's to read (OIDC Core §2); its payload is base64url JSON, UTF-8 inside.
-function addressOf(idToken: string): string | undefined {
+// READ, NEVER VERIFIED: a claim labels a row or names an account, and the API verifies every token it
+// is sent. The ID token is the client's to read (OIDC Core §2); its payload is base64url JSON.
+function claimOf(idToken: string, name: 'email' | 'sub'): string | undefined {
   try {
     const payload = (idToken.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
     const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
-    const email: unknown = (JSON.parse(new TextDecoder().decode(bytes)) as { email?: unknown })
-      .email;
-    return typeof email === 'string' && email !== '' ? email : undefined;
+    const claim: unknown = (JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>)[
+      name
+    ];
+    return typeof claim === 'string' && claim !== '' ? claim : undefined;
   } catch {
     return undefined;
   }
@@ -69,7 +71,7 @@ export function createSession({
   // `answered` is set before anyone is told: a subscriber reads it along with the status.
   const set = (next: SessionStatus, tokens?: Tokens, answered = true) => {
     held = tokens && { ...tokens, until: now() + tokens.expiresIn * 1000 };
-    address = tokens && addressOf(tokens.idToken);
+    address = tokens && claimOf(tokens.idToken, 'email');
     status = next;
     unanswered = !answered;
     for (const listener of listeners) listener();
@@ -131,6 +133,9 @@ export function createSession({
         return answer.logout === undefined ? {} : { logout: answer.logout };
       }).finally(() => (leaving = undefined))),
     getIdToken: async () => (await fresh())?.idToken,
-    getAccessToken: async () => (await fresh())?.accessToken,
+    getAccount: async () => {
+      const pair = await fresh();
+      return pair && claimOf(pair.idToken, 'sub');
+    },
   };
 }

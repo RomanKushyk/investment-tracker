@@ -1,9 +1,18 @@
 export type RelayRoute =
-  'start' | 'respond' | 'refresh' | 'sign-out' | 'google/begin' | 'google/complete';
+  | 'start'
+  | 'respond'
+  | 'refresh'
+  | 'sign-out'
+  | 'google/begin'
+  | 'google/complete'
+  | 'passkey/list'
+  | 'passkey/start'
+  | 'passkey/complete';
 
+/** THE ID TOKEN ALONE: the relay keeps the access token, which also authorizes `DeleteUser`, and
+ *  makes the passkey calls with it (*Auth model*). */
 export interface Tokens {
   idToken: string;
-  accessToken: string;
   /** Seconds. */
   expiresIn: number;
 }
@@ -27,12 +36,16 @@ export type Refusal =
   | 'failed';
 
 /** `google` is a refresh's word on whether Google is on; `logout`, Cognito's logout endpoint, which
- *  a sign-out names while it is. */
+ *  a sign-out names while it is. The passkey calls answer whether the account holds one, the OS
+ *  dialog's options, and a registration done. */
 export type RelayAnswer =
   | { kind: 'tokens'; tokens: Tokens; google?: boolean }
   | { kind: 'challenge'; challenge: Challenge }
   | { kind: 'signedOut'; logout?: string }
   | { kind: 'authorize'; url: string }
+  | { kind: 'passkey'; listed: boolean }
+  | { kind: 'options'; options: Record<string, unknown> }
+  | { kind: 'registered' }
   | { kind: 'refused'; reason: Refusal; google?: boolean };
 
 export type RelayCall = (route: RelayRoute, body?: unknown) => Promise<RelayAnswer>;
@@ -57,15 +70,10 @@ function googleIn(body: unknown): { google?: boolean } {
 function read(body: unknown): RelayAnswer {
   if (typeof body !== 'object' || body === null) return { kind: 'refused', reason: 'failed' };
   const b = body as Record<string, unknown>;
-  if (
-    typeof b.idToken === 'string' &&
-    typeof b.accessToken === 'string' &&
-    typeof b.expiresIn === 'number' &&
-    b.expiresIn > 0
-  ) {
+  if (typeof b.idToken === 'string' && typeof b.expiresIn === 'number' && b.expiresIn > 0) {
     return {
       kind: 'tokens',
-      tokens: { idToken: b.idToken, accessToken: b.accessToken, expiresIn: b.expiresIn },
+      tokens: { idToken: b.idToken, expiresIn: b.expiresIn },
       ...googleIn(b),
     };
   }
@@ -85,6 +93,11 @@ function read(body: unknown): RelayAnswer {
   if (typeof b.authorize === 'string' && b.authorize !== '') {
     return { kind: 'authorize', url: b.authorize };
   }
+  if (typeof b.passkey === 'boolean') return { kind: 'passkey', listed: b.passkey };
+  if (typeof b.options === 'object' && b.options !== null && !Array.isArray(b.options)) {
+    return { kind: 'options', options: b.options as Record<string, unknown> };
+  }
+  if (b.status === 'registered') return { kind: 'registered' };
   return { kind: 'refused', reason: 'failed' };
 }
 

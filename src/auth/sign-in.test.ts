@@ -17,7 +17,7 @@ const v = vectors[0]!;
 
 const TOKENS: RelayAnswer = {
   kind: 'tokens',
-  tokens: { idToken: 'id', accessToken: 'access', expiresIn: 3600 },
+  tokens: { idToken: 'id', expiresIn: 3600 },
 };
 const challenge = (name: string, parameters: Record<string, string> = {}, available?: string[]) =>
   ({

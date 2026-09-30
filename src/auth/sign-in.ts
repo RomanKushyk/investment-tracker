@@ -179,8 +179,8 @@ export async function signInWithPassword(
   const proof = await verified(email, password, deps);
   if (typeof proof === 'string') return refused(proof);
   const { answer } = proof;
-  // Cognito is asked with the access token these carry, so only once they have landed; an answer
-  // it cannot give offers nothing, and the offer comes back on the next sign-in.
+  // The relay asks Cognito with the access token this answer sealed, so only once it has landed;
+  // an answer it cannot give offers nothing, and the offer comes back on the next sign-in.
   if (answer.kind === 'tokens') return signedIn((await deps.hasPasskey()) === false);
   if (answer.kind === 'refused') return refused(STEP[answer.reason]);
   // A temporary password: the first sign-in, where the account sets its own.

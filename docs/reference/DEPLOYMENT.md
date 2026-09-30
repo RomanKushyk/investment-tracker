@@ -301,8 +301,9 @@ Alert preferences, automatic for an individual account but opt-in for an Organiz
 account. **The thing to verify is that somebody reads it.** `PoolUsersAlarm` sits at 80% of the same
 10,000, ahead of that mail **for prod's share of the allowance, and only while no prod user is
 deleted during the month**: a user created or active in the month and then deleted, by
-`AdminDeleteUser` or by `DeleteUser` with their own access token, stays metered but leaves the
-count. It is not ahead for the account's allowance, since dev's pool spends the same 10,000 and
+`AdminDeleteUser` or by `DeleteUser`, stays metered but leaves the count. Either is made by hand:
+`DeleteUser` takes an access token, and an app sign-in's is one only the relay holds. It is not
+ahead for the account's allowance, since dev's pool spends the same 10,000 and
 nothing here measures it.
 
 **2. The free-tier dashboard — NOT YET CREATED.** Two widgets in `eu-north-1`: `Quirenote` /

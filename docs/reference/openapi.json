@@ -761,7 +761,6 @@
                   "tokens": {
                     "value": {
                       "idToken": "<JWT>",
-                      "accessToken": "<JWT>",
                       "expiresIn": 3600
                     }
                   },
@@ -903,7 +902,6 @@
                   "tokens": {
                     "value": {
                       "idToken": "<JWT>",
-                      "accessToken": "<JWT>",
                       "expiresIn": 3600,
                       "google": true
                     }
@@ -1191,7 +1189,6 @@
                   "tokens": {
                     "value": {
                       "idToken": "<JWT>",
-                      "accessToken": "<JWT>",
                       "expiresIn": 3600
                     }
                   }
@@ -1235,6 +1232,366 @@
               "set-cookie": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/passkey/list": {
+      "post": {
+        "operationId": "postAuthPasskeyList",
+        "summary": "POST /auth/passkey/list",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sub"
+                ],
+                "properties": {
+                  "sub": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "passkeys": {
+                    "value": {
+                      "passkey": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/passkey/start": {
+      "post": {
+        "operationId": "postAuthPasskeyStart",
+        "summary": "POST /auth/passkey/start",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sub"
+                ],
+                "properties": {
+                  "sub": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "creation_options": {
+                    "value": {
+                      "options": {
+                        "challenge": "<base64url>",
+                        "rp": {
+                          "id": "<apex>",
+                          "name": "<apex>"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/passkey/complete": {
+      "post": {
+        "operationId": "postAuthPasskeyComplete",
+        "summary": "POST /auth/passkey/complete",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sub",
+                  "credential"
+                ],
+                "properties": {
+                  "sub": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "credential": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "registered": {
+                    "value": {
+                      "status": "registered"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
                 }
               }
             }

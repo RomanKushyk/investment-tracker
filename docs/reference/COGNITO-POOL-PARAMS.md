@@ -357,6 +357,19 @@ credential the page forged answered `CompleteWebAuthnRegistration` with `Invalid
 "Credential data is not valid". The user was deleted afterwards, and `AdminGetUser` answered
 `UserNotFoundException`.
 
+**Made from a server, the same calls register a passkey the next sign-in uses.** With a
+throwaway user's access token, `StartWebAuthnRegistration` from Node, with no page involved,
+answered options for `rp.id` `dev.quirenote.com`. A focused page on `https://dev.quirenote.com`
+made the credential from them, and `CompleteWebAuthnRegistration` from Node took it.
+`ListWebAuthnCredentials` then listed it, and the next sign-in at `dev.quirenote.com` opened the
+passkey sheet and signed in. The origin travels inside `clientDataJSON`, which the browser builds,
+and Cognito does not ask who carried it. So the relay can make these calls
+(`infra/src/auth-relay.ts`).
+
+**`DeleteUser` refuses an ID token.** The ID token `/auth/respond` handed the page, given to
+`aws cognito-idp delete-user --access-token`, answered `NotAuthorizedException`, "Invalid Access
+Token", and `AdminGetUser` still found the user, confirmed and enabled.
+
 ## Password history, rehearsed on a second throwaway pool
 
 AWS does not say whether a temporary password counts in `PasswordPolicy.PasswordHistorySize`. The

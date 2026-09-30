@@ -12,6 +12,9 @@ import {
   CSRF_HEADER,
   GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_ROUTE,
+  PASSKEY_COMPLETE_ROUTE,
+  PASSKEY_LIST_ROUTE,
+  PASSKEY_START_ROUTE,
   REFRESH_ROUTE,
   RESPOND_ROUTE,
   SIGN_OUT_ROUTE,
@@ -137,6 +140,9 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     SIGN_OUT_ROUTE,
     GOOGLE_BEGIN_ROUTE,
     GOOGLE_COMPLETE_ROUTE,
+    PASSKEY_LIST_ROUTE,
+    PASSKEY_START_ROUTE,
+    PASSKEY_COMPLETE_ROUTE,
   ];
 
   // A `Globals:` block is the one way auth can move without a route moving: `Globals.HttpApi.Auth`
@@ -201,12 +207,12 @@ describe('the route is throttled below the stage it sits in', () => {
   });
 });
 
-describe('the relay: six POSTs outside the authorizer, holding one grant', () => {
+describe('the relay: nine POSTs outside the authorizer, holding one grant', () => {
   const relay = ['Resources', 'AuthRelayFunction', 'Properties', 'Policies', 0, 'Statement'];
 
-  // OUTSIDE THE AUTHORIZER BECAUSE THEY ARE HOW A TOKEN IS OBTAINED: a caller reaching them holds
-  // none yet, or holds only the cookie. [*Auth model*]
-  it('routes the six sign-in routes at the relay, each a POST with no authorizer', () => {
+  // OUTSIDE THE AUTHORIZER BECAUSE THEY ARE HOW A TOKEN IS OBTAINED OR SPENT: a caller reaching them
+  // holds none yet, or holds only the cookies. [*Auth model*]
+  it('routes the six sign-in routes and the three passkey calls at the relay, each a POST with no authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'AuthRelayFunction');
     expect(routes.map((r) => r.key)).toEqual([
       START_ROUTE,
@@ -215,6 +221,9 @@ describe('the relay: six POSTs outside the authorizer, holding one grant', () =>
       SIGN_OUT_ROUTE,
       GOOGLE_BEGIN_ROUTE,
       GOOGLE_COMPLETE_ROUTE,
+      PASSKEY_LIST_ROUTE,
+      PASSKEY_START_ROUTE,
+      PASSKEY_COMPLETE_ROUTE,
     ]);
     for (const route of routes) {
       expect([route.key, route.api, route.authorizer]).toEqual([route.key, 'PublicApi', undefined]);
@@ -238,8 +247,8 @@ describe('the relay: six POSTs outside the authorizer, holding one grant', () =>
     }
   });
 
-  // ONE ACTION ON ONE POOL: the secret is read from Cognito, so there is no store to grant. The
-  // action is pool-wide — it describes any client in the pool — and that is the accepted cost.
+  // ONE ACTION ON ONE POOL, pool-wide by the accepted cost of storing the secret nowhere; the passkey
+  // calls take the user's access token, and Cognito evaluates no IAM for them.
   it('may read the client secret in this pool, and do nothing else', () => {
     const policies = props('AuthRelayFunction').Policies as { Statement: unknown[] }[];
     expect(policies).toHaveLength(1);
@@ -425,7 +434,7 @@ describe('the approval handler holds exactly two grants, and they are different 
   // This function can mint an identity and disable one, so the pool is named, never wildcarded,
   // and the actions are the four the handler makes and no fifth. `AdminEnableUser` undoes this
   // file's own disable and grants no access by itself: an enabled identity with no `active` row is
-  // refused by every route. `AdminDeleteUser` is absent — deleting a user is not decided.
+  // refused by every route. `AdminDeleteUser` is absent — a user is deleted by hand. [*Auth model*]
   it('may create, read, disable and re-enable a user in ONE pool, and nothing else', () => {
     expect(policies).toHaveLength(1);
     expect(policies[0].Statement).toHaveLength(2);

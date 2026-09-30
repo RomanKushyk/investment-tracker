@@ -8,7 +8,8 @@ import {
 // A COUNT STANDS IN FOR MONTHLY ACTIVES because CloudWatch publishes no MAU metric. Total users
 // bounds this pool's share from above only while no user is deleted during the month: one
 // created or active in it, then deleted by `AdminDeleteUser` or `DeleteUser`, stays metered but
-// leaves the count.
+// leaves the count. Either is made by hand, an app sign-in's access token being one only the relay
+// holds (*Auth model*).
 // Dev identities count toward the same account tier and are NOT here, so it bounds prod's share
 // only (*Alerting*).
 

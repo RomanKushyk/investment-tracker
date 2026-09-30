@@ -5,7 +5,7 @@ import { createSession, type Locks } from './session';
 
 const TOKENS = (id: string): RelayAnswer => ({
   kind: 'tokens',
-  tokens: { idToken: `id.${id}`, accessToken: `access.${id}`, expiresIn: 3600 },
+  tokens: { idToken: `id.${id}`, expiresIn: 3600 },
 });
 const REFUSED = (reason: 'notAuthorized' | 'failed' | 'offline'): RelayAnswer => ({
   kind: 'refused',
@@ -22,7 +22,7 @@ const jwt = (claims: object) => {
 };
 const ID_TOKEN = (idToken: string): RelayAnswer => ({
   kind: 'tokens',
-  tokens: { idToken, accessToken: 'access', expiresIn: 3600 },
+  tokens: { idToken, expiresIn: 3600 },
 });
 
 // ONE JAR EVERY TAB SHARES and families that rotate, fork in the grace window and end when revoked
@@ -284,20 +284,22 @@ describe('one tab', () => {
     expect(relay).toHaveBeenCalledTimes(2);
   });
 
-  // The access token registers a passkey; it is issued, refreshed and expired with the ID token.
-  it('hands out the access token of the same pair, refreshed on the same schedule', async () => {
+  // THE ACCOUNT THE TAB SHOWS, which each passkey call names: read from the same pair, never verified.
+  it('names the account of the pair it holds, refreshed on the same schedule', async () => {
     let now = 0;
-    const relay = scripted(TOKENS('1'), TOKENS('2'));
+    const relay = scripted(ID_TOKEN(jwt({ sub: 'user-1' })), ID_TOKEN(jwt({ sub: 'user-2' })));
     const session = createSession({ relay, locks: webLocks(), now: () => now });
     await session.restore();
-    expect(await session.getAccessToken()).toBe('access.1');
-
+    expect(await session.getAccount()).toBe('user-1');
     now = 3_541_000;
-    expect(await Promise.all([session.getAccessToken(), session.getIdToken()])).toEqual([
-      'access.2',
-      'id.2',
-    ]);
+    expect(await session.getAccount()).toBe('user-2');
     expect(relay).toHaveBeenCalledTimes(2);
+  });
+
+  it('names no account for a token that carries none', async () => {
+    const session = createSession({ relay: scripted(ID_TOKEN(jwt({}))), locks: webLocks() });
+    await session.restore();
+    expect(await session.getAccount()).toBeUndefined();
   });
 
   it('hands out no token once it has expired and the refresh could not run', async () => {
@@ -416,7 +418,7 @@ describe('Google', () => {
       [
         {
           kind: 'tokens',
-          tokens: { idToken: 'id.1', accessToken: 'access.1', expiresIn: 3600 },
+          tokens: { idToken: 'id.1', expiresIn: 3600 },
           google: true,
         },
         true,

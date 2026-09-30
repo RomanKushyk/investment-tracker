@@ -29,6 +29,31 @@ describe('a relay call', () => {
     });
   });
 
+  // THE PASSKEY CALLS GO TO THE RELAY, which holds the token they take; Cognito's endpoint is
+  // never the page's to call (*Auth model*).
+  it('reaches the passkey routes under /auth/passkey, the credential as JSON', async () => {
+    const fetch = answer(200, { status: 'registered' });
+    const relay = createRelay({ base: 'https://api.test', fetch });
+    await relay('passkey/list', { sub: 'u' });
+    await relay('passkey/start', { sub: 'u' });
+    await relay('passkey/complete', { sub: 'u', credential: { id: 'cred' } });
+    const sent = (route: string, body: string) => [
+      `https://api.test/auth/passkey/${route}`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'x-csrf': '1', 'content-type': 'application/json' },
+        body,
+        signal: expect.any(AbortSignal),
+      },
+    ];
+    expect(fetch.mock.calls).toEqual([
+      sent('list', '{"sub":"u"}'),
+      sent('start', '{"sub":"u"}'),
+      sent('complete', '{"sub":"u","credential":{"id":"cred"}}'),
+    ]);
+  });
+
   it('sends no body where the relay reads none', async () => {
     const fetch = answer(401, { error: 'not_authorized' });
     await createRelay({ base: '/relay', fetch })('refresh');
@@ -43,8 +68,14 @@ describe('a relay call', () => {
   it.each([
     [
       200,
+      { idToken: 'i', expiresIn: 3600 },
+      { kind: 'tokens', tokens: { idToken: 'i', expiresIn: 3600 } },
+    ],
+    // THE PAGE KEEPS NO ACCESS TOKEN, even from a relay deployed before it stopped sending one.
+    [
+      200,
       { idToken: 'i', accessToken: 'a', expiresIn: 3600 },
-      { kind: 'tokens', tokens: { idToken: 'i', accessToken: 'a', expiresIn: 3600 } },
+      { kind: 'tokens', tokens: { idToken: 'i', expiresIn: 3600 } },
     ],
     [
       200,
@@ -71,14 +102,22 @@ describe('a relay call', () => {
       { challenge: 'PASSWORD_VERIFIER', session: 's', parameters: null },
       { kind: 'refused', reason: 'failed' },
     ],
-    [200, { idToken: 'i', accessToken: 'a' }, { kind: 'refused', reason: 'failed' }],
+    [200, { idToken: 'i' }, { kind: 'refused', reason: 'failed' }],
+    [200, { passkey: false }, { kind: 'passkey', listed: false }],
+    [200, { passkey: true }, { kind: 'passkey', listed: true }],
+    [200, { passkey: 'yes' }, { kind: 'refused', reason: 'failed' }],
+    [200, { options: { challenge: 'c' } }, { kind: 'options', options: { challenge: 'c' } }],
+    [200, { options: null }, { kind: 'refused', reason: 'failed' }],
+    [200, { options: 'c' }, { kind: 'refused', reason: 'failed' }],
+    [200, { options: [] }, { kind: 'refused', reason: 'failed' }],
+    [200, { status: 'registered' }, { kind: 'registered' }],
     // WHETHER GOOGLE IS ON rides a refresh's answers, both of them, and nothing else is read as it.
     [
       200,
-      { idToken: 'i', accessToken: 'a', expiresIn: 3600, google: true },
+      { idToken: 'i', expiresIn: 3600, google: true },
       {
         kind: 'tokens',
-        tokens: { idToken: 'i', accessToken: 'a', expiresIn: 3600 },
+        tokens: { idToken: 'i', expiresIn: 3600 },
         google: true,
       },
     ],

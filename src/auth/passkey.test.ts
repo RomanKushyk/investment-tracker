@@ -1,16 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { type PasskeyDeps, addPasskey, createCognito, hasPasskey } from './passkey';
+import { type PasskeyDeps, addPasskey, hasPasskey } from './passkey';
+import { createRelay } from './relay';
 
+const BASE = 'https://api.test';
 const OPTIONS = { challenge: 'c', rp: { id: 'dev.quirenote.com', name: 'quirenote' } };
 const CREDENTIAL = { id: 'cred', response: { attestationObject: 'a' } };
 /** The offer is still on screen when Start answers. */
 const HERE = () => true;
+/** The account the tab's ID token names. */
+const ACCOUNT = 'user-1';
 
 type Sent = { url: string; init: RequestInit };
 
-/** Cognito's endpoint, answering each operation in turn. */
-function endpoint(...answers: (Response | Error)[]) {
+/** The relay, answering each call in turn; what was asked reads back as the path and the body. */
+function relayAnswering(...answers: (Response | Error)[]) {
   const sent: Sent[] = [];
   const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     sent.push({ url: String(url), init: init ?? {} });
@@ -18,133 +22,71 @@ function endpoint(...answers: (Response | Error)[]) {
     if (answer instanceof Error) throw answer;
     return answer;
   });
-  const operations = () =>
+  const asked = () =>
     sent.map((s) => [
-      (s.init.headers as Record<string, string>)['x-amz-target'],
-      JSON.parse(String(s.init.body)),
+      s.url.slice(BASE.length),
+      s.init.body === undefined ? undefined : JSON.parse(String(s.init.body)),
     ]);
-  return { fetch, sent, operations };
+  return { relay: createRelay({ base: BASE, fetch }), fetch, sent, asked };
 }
 
-const ok = (body: unknown = {}) => new Response(JSON.stringify(body), { status: 200 });
-// Cognito's JSON protocol names the refusal in `__type`.
-const refusal = (type: string) =>
-  new Response(JSON.stringify({ __type: type, message: 'no' }), { status: 400 });
+const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+const refused = (status: number, error: string) =>
+  new Response(JSON.stringify({ error }), { status });
 
 function deps(
   answers: (Response | Error)[],
-  { token = 'access.1', register }: { token?: string; register?: PasskeyDeps['register'] } = {},
+  { signedIn = true, register }: { signedIn?: boolean; register?: PasskeyDeps['register'] } = {},
 ) {
-  const cognito = endpoint(...answers);
+  const relay = relayAnswering(...answers);
   const d: PasskeyDeps = {
-    cognito: createCognito({ region: 'eu-north-1', fetch: cognito.fetch }),
-    getAccessToken: vi.fn(async () => token || undefined),
+    relay: relay.relay,
+    account: vi.fn(async () => (signedIn ? ACCOUNT : undefined)),
     register: register ?? vi.fn(async () => CREDENTIAL),
   };
-  return { d, ...cognito };
+  return { d, ...relay };
 }
 
-describe('a Cognito call', () => {
-  // Amplify JS's own transport: an unsigned JSON POST naming the operation, never cached.
-  it('posts the operation to the region endpoint as Amplify JS does', async () => {
-    const { fetch, sent } = endpoint(ok({ a: 1 }));
-    const cognito = createCognito({ region: 'eu-north-1', fetch });
-    expect(await cognito('ListWebAuthnCredentials', { AccessToken: 't' })).toEqual({
-      kind: 'ok',
-      body: { a: 1 },
-    });
-    expect(sent).toEqual([
-      {
-        url: 'https://cognito-idp.eu-north-1.amazonaws.com/',
-        init: {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/x-amz-json-1.1',
-            'x-amz-target': 'AWSCognitoIdentityProviderService.ListWebAuthnCredentials',
-            'cache-control': 'no-store',
-          },
-          body: '{"AccessToken":"t"}',
-          signal: expect.any(AbortSignal),
-        },
-      },
+// THE PAGE HOLDS NO ACCESS TOKEN (*Auth model*): each passkey call goes to the relay, naming the
+// account the tab shows, and none reaches Cognito's endpoint.
+describe('the passkey calls', () => {
+  it('go to the relay, each with its cookies and the header it asks for, and nowhere else', async () => {
+    const { d, sent } = deps([
+      ok({ passkey: false }),
+      ok({ options: OPTIONS }),
+      ok({ status: 'registered' }),
     ]);
-  });
-
-  // A signed-in page waits on the list before it leaves, so a stalled answer must end, and at the
-  // same bound as every relay call.
-  it('gives up on an answer that has not come in 30 seconds, as offline', async () => {
-    vi.useFakeTimers();
-    try {
-      const fetch = vi.fn(
-        (_: string | URL | Request, init?: RequestInit) =>
-          new Promise<Response>((_, reject) =>
-            init?.signal?.addEventListener('abort', () =>
-              reject(new DOMException('', 'AbortError')),
-            ),
-          ),
-      );
-      let settled: unknown;
-      void createCognito({ region: 'eu-north-1', fetch })('X', {}).then((a) => (settled = a));
-      await vi.advanceTimersByTimeAsync(29_999);
-      expect(settled).toBeUndefined();
-      await vi.advanceTimersByTimeAsync(1);
-      expect(settled).toEqual({ kind: 'refused', reason: 'offline' });
-    } finally {
-      vi.useRealTimers();
+    await hasPasskey(d);
+    await addPasskey(d, HERE);
+    expect(sent.map((s) => s.url)).toEqual([
+      `${BASE}/auth/passkey/list`,
+      `${BASE}/auth/passkey/start`,
+      `${BASE}/auth/passkey/complete`,
+    ]);
+    for (const { init } of sent) {
+      expect(init.credentials).toBe('include');
+      expect((init.headers as Record<string, string>)['x-csrf']).toBe('1');
     }
-  });
-
-  it('reads an empty 200, as CompleteWebAuthnRegistration answers, as done', async () => {
-    const { fetch } = endpoint(new Response('', { status: 200 }));
-    expect(await createCognito({ region: 'eu-north-1', fetch })('X', {})).toEqual({
-      kind: 'ok',
-      body: {},
-    });
-  });
-
-  it.each([
-    ['a refusal', refusal('NotAuthorizedException'), 'failed'],
-    ['a fault', new Response('', { status: 500 }), 'failed'],
-    ['no network', new TypeError('Failed to fetch'), 'offline'],
-  ])('reads %s as %s', async (_, answer, reason) => {
-    const { fetch } = endpoint(answer);
-    expect(await createCognito({ region: 'eu-north-1', fetch })('X', {})).toEqual({
-      kind: 'refused',
-      reason,
-    });
-  });
-
-  it('sends nothing where the host has no pool', async () => {
-    const { fetch } = endpoint();
-    expect(await createCognito({ region: undefined, fetch })('X', {})).toEqual({
-      kind: 'refused',
-      reason: 'failed',
-    });
-    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
 describe('whether the account has a passkey', () => {
   it.each([
-    [{ Credentials: [] }, false],
-    [{ Credentials: [{ CredentialId: 'x' }] }, true],
+    [{ passkey: false }, false],
+    [{ passkey: true }, true],
     [{}, undefined],
-    [{ Credentials: 'x' }, undefined],
+    [{ passkey: 'yes' }, undefined],
   ])('reads %j as %s', async (body, expected) => {
-    const { d, operations } = deps([ok(body)]);
+    const { d, asked } = deps([ok(body)]);
     expect(await hasPasskey(d)).toBe(expected);
-    expect(operations()).toEqual([
-      [
-        'AWSCognitoIdentityProviderService.ListWebAuthnCredentials',
-        { AccessToken: 'access.1', MaxResults: 1 },
-      ],
-    ]);
+    expect(asked()).toEqual([['/auth/passkey/list', { sub: ACCOUNT }]]);
   });
 
-  it('does not know when Cognito cannot say, or there is no token to ask with', async () => {
-    expect(await hasPasskey(deps([refusal('InternalErrorException')]).d)).toBeUndefined();
+  it('does not know when the relay cannot say, or nobody is signed in to ask for', async () => {
+    expect(await hasPasskey(deps([refused(401, 'not_authorized')]).d)).toBeUndefined();
+    expect(await hasPasskey(deps([refused(500, 'internal')]).d)).toBeUndefined();
     expect(await hasPasskey(deps([new TypeError('offline')]).d)).toBeUndefined();
-    const none = deps([], { token: '' });
+    const none = deps([], { signedIn: false });
     expect(await hasPasskey(none.d)).toBeUndefined();
     expect(none.fetch).not.toHaveBeenCalled();
   });
@@ -156,20 +98,31 @@ describe('adding a passkey', () => {
       expect(options).toEqual(OPTIONS);
       return CREDENTIAL;
     });
-    const { d, operations } = deps([ok({ CredentialCreationOptions: OPTIONS }), ok()], {
+    const { d, asked } = deps([ok({ options: OPTIONS }), ok({ status: 'registered' })], {
       register,
     });
 
     expect(await addPasskey(d, HERE)).toBe('created');
 
     expect(register).toHaveBeenCalledOnce();
-    expect(operations()).toEqual([
-      ['AWSCognitoIdentityProviderService.StartWebAuthnRegistration', { AccessToken: 'access.1' }],
-      [
-        'AWSCognitoIdentityProviderService.CompleteWebAuthnRegistration',
-        { AccessToken: 'access.1', Credential: CREDENTIAL },
-      ],
+    expect(asked()).toEqual([
+      ['/auth/passkey/start', { sub: ACCOUNT }],
+      ['/auth/passkey/complete', { sub: ACCOUNT, credential: CREDENTIAL }],
     ]);
+  });
+
+  // SAFARI BEFORE 17.4 OPENS THE DIALOG ONLY AFTER ONE FETCH AND NO OTHER WAIT, so while the session
+  // is fresh Start is the only request before it.
+  it('sends Start alone before the dialog opens', async () => {
+    let before = -1;
+    const { d, fetch } = deps([ok({ options: OPTIONS }), ok({ status: 'registered' })], {
+      register: vi.fn(async () => {
+        before = fetch.mock.calls.length;
+        return CREDENTIAL;
+      }),
+    });
+    await addPasskey(d, HERE);
+    expect(before).toBe(1);
   });
 
   // Cancelled, timed out, or nowhere to store one: WebAuthn does not say which, and nothing was made.
@@ -177,47 +130,46 @@ describe('adding a passkey', () => {
     const register = vi.fn(async () => {
       throw Object.assign(new Error('not allowed'), { name: 'NotAllowedError' });
     });
-    const { d, operations } = deps([ok({ CredentialCreationOptions: OPTIONS })], { register });
+    const { d, asked } = deps([ok({ options: OPTIONS })], { register });
     expect(await addPasskey(d, HERE)).toBe('notCreated');
-    expect(operations()).toHaveLength(1);
+    expect(asked()).toHaveLength(1);
   });
 
   it.each([
-    ['a refused start', [refusal('WebAuthnNotEnabledException')], 'failed'],
-    ['a start with no network', [new TypeError('offline')], 'offline'],
-    [
-      'a refused completion',
-      [ok({ CredentialCreationOptions: OPTIONS }), refusal('WebAuthnOriginNotAllowedException')],
-      'failed',
-    ],
+    ['a start the token no longer admits', 'failed', [refused(401, 'not_authorized')]],
+    ['a refused start', 'failed', [refused(400, 'invalid_request')]],
+    ['a throttled start', 'failed', [refused(429, 'too_many_requests')]],
+    ['a start with no network', 'offline', [new TypeError('offline')]],
+    ['a refused completion', 'failed', [ok({ options: OPTIONS }), refused(400, 'invalid_request')]],
+    ['a completion that fails', 'failed', [ok({ options: OPTIONS }), refused(500, 'internal')]],
     [
       'a completion with no network',
-      [ok({ CredentialCreationOptions: OPTIONS }), new TypeError('offline')],
       'offline',
+      [ok({ options: OPTIONS }), new TypeError('offline')],
     ],
-  ])('reads %s as %s', async (_, answers, expected) => {
+  ])('reads %s as %s', async (_, expected, answers) => {
     const { d } = deps(answers);
     expect(await addPasskey(d, HERE)).toBe(expected);
   });
 
   // The offer can be left while Start is in flight; its answer must not open a dialog over the app.
   it('opens no dialog once the step has been left, and completes nothing', async () => {
-    const { d, operations, fetch } = deps([ok({ CredentialCreationOptions: OPTIONS }), ok()]);
+    const { d, asked, fetch } = deps([ok({ options: OPTIONS }), ok({ status: 'registered' })]);
     // Still on screen when the press sent Start; left by the time it answers.
     expect(await addPasskey(d, () => fetch.mock.calls.length === 0)).toBe('notCreated');
     expect(d.register).not.toHaveBeenCalled();
-    expect(operations()).toHaveLength(1);
+    expect(asked()).toHaveLength(1);
   });
 
   it('opens no dialog for a start that carries no options', async () => {
-    const { d, operations } = deps([ok({}), ok()]);
+    const { d, asked } = deps([ok({}), ok({ status: 'registered' })]);
     expect(await addPasskey(d, HERE)).toBe('failed');
     expect(d.register).not.toHaveBeenCalled();
-    expect(operations()).toHaveLength(1);
+    expect(asked()).toHaveLength(1);
   });
 
-  it('asks nothing without an access token', async () => {
-    const { d, fetch } = deps([], { token: '' });
+  it('asks nothing when nobody is signed in', async () => {
+    const { d, fetch } = deps([], { signedIn: false });
     expect(await addPasskey(d, HERE)).toBe('failed');
     expect(fetch).not.toHaveBeenCalled();
     expect(d.register).not.toHaveBeenCalled();

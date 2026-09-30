@@ -11,7 +11,7 @@ import type { RelayAnswer, RelayCall } from './relay';
 
 const TOKENS: RelayAnswer = {
   kind: 'tokens',
-  tokens: { idToken: 'i', accessToken: 'a', expiresIn: 3600 },
+  tokens: { idToken: 'i', expiresIn: 3600 },
 };
 
 describe('beginning a Google sign-in', () => {

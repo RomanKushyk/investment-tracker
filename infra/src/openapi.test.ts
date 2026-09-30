@@ -24,6 +24,11 @@ import {
   GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_BODY,
   GOOGLE_COMPLETE_ROUTE,
+  PASSKEY_BODY,
+  PASSKEY_COMPLETE_BODY,
+  PASSKEY_COMPLETE_ROUTE,
+  PASSKEY_LIST_ROUTE,
+  PASSKEY_START_ROUTE,
   REFRESH_ROUTE,
   RESPOND_BODY,
   RESPOND_ROUTE,
@@ -264,6 +269,9 @@ describe('each operation publishes its own route’s answers', () => {
       [START_ROUTE, START_BODY],
       [RESPOND_ROUTE, RESPOND_BODY],
       [GOOGLE_COMPLETE_ROUTE, GOOGLE_COMPLETE_BODY],
+      [PASSKEY_LIST_ROUTE, PASSKEY_BODY],
+      [PASSKEY_START_ROUTE, PASSKEY_BODY],
+      [PASSKEY_COMPLETE_ROUTE, PASSKEY_COMPLETE_BODY],
     ]);
   });
 
@@ -318,9 +326,12 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     SIGN_OUT_ROUTE,
     GOOGLE_BEGIN_ROUTE,
     GOOGLE_COMPLETE_ROUTE,
+    PASSKEY_LIST_ROUTE,
+    PASSKEY_START_ROUTE,
+    PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the nine routes and no others', () => {
+  it('declares the twelve routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, ...RELAY].sort(),
     );
