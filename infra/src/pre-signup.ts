@@ -55,10 +55,22 @@ export const REFUSAL =
 // text and `Boolean('false')` is `true`. Read per call, not at module load.
 const registrationIsOpen = () => process.env.OPEN_REGISTRATION === 'true';
 
+// A FAILURE THROWN IN `admit` REFUSES IN REFUSAL'S WORDS: AWS passes the message on, into the
+// callback URL on Google's flow, where a denial would name the role and the account. It is logged.
 export async function preSignUp(
   event: PreSignUpEvent,
   idp: IdentityClient,
 ): Promise<PreSignUpEvent> {
+  try {
+    return await admit(event, idp);
+  } catch (err) {
+    if (err instanceof Error && err.message === REFUSAL) throw err;
+    console.error('pre-signup: the sign-up failed', err);
+    throw new Error(REFUSAL);
+  }
+}
+
+async function admit(event: PreSignUpEvent, idp: IdentityClient): Promise<PreSignUpEvent> {
   // APPROVAL ITSELF REACHES HERE, and must never be refused: AWS invokes this trigger on
   // `AdminCreateUser` too, and that IS the approval call. A refusal covering this source would
   // close the door on exactly the people who were let through it.
@@ -73,9 +85,8 @@ export async function preSignUp(
 
   const { email, email_verified: verified } = event.request.userAttributes;
 
-  // THE APPROVAL TEST RUNS FIRST, AHEAD OF EVERY LINKING QUESTION: asked the other way round, each
-  // linking check returned the event and Cognito minted a standalone federated profile for an
-  // address with no application. NONE OF THE CHECKS BELOW MAY MOVE ABOVE THIS LINE.
+  // THE APPROVAL TEST RUNS FIRST: behind a linking check that returns the event, Cognito would mint
+  // a standalone profile for an address with no application. NO CHECK BELOW MAY MOVE ABOVE IT.
 
   if (!email) {
     // Its own message: the likeliest cause is a dropped `email` mapping on the provider.

@@ -69,7 +69,8 @@ export async function signInWithAddress(
   if (!email) return refused('emailInvalid');
 
   const answer = await deps.relay('start', { USERNAME: email, PREFERRED_CHALLENGE: 'WEB_AUTHN' });
-  // No password was asked for, and the relay checks no address pattern: a 401 or a 400 is a fault.
+  // No password was asked for, so a 401 names no wrong one: Cognito refuses some addresses at the
+  // start. The relay checks no address pattern, so a 400 is a fault.
   if (answer.kind === 'refused') {
     return refused(answer.reason === 'notAuthorized' ? 'failed' : STEP[answer.reason]);
   }

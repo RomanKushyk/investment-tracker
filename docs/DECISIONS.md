@@ -351,7 +351,12 @@ access token: token-authorized operations, which take no client and no secret. C
 locked account among the cases one generic error should cover. What that guards against, a
 difference that shows whether an account exists (CWE-204), the lockout does not add: an address
 with no account is locked out after as many failures and answered alike, and a locked-out account
-with a passkey is still offered it (`reference/COGNITO-POOL-PARAMS.md`). The SRP maths is Amplify
+with a passkey is still offered it (`reference/COGNITO-POOL-PARAMS.md`). THE RELAY ANSWERS
+`PasswordResetRequiredException` AS A WRONG PASSWORD, 401, the app offering no reset: AWS documents
+that answer in its place for an imported user while user existence errors are prevented (*Managing
+user existence error responses*), and some addresses with no account meet it at every start, so a
+401 there does not show that the address holds one. The address step, having asked for no
+password, shows it as a sign-in that couldn't finish. The SRP maths is Amplify
 JS's, ported onto `BigInt` and WebCrypto; the WebAuthn JSON is `@simplewebauthn/browser`, because
 the native `parseRequestOptionsFromJSON` arrives in Safari 18.4 and the build targets Safari 16 —
 though sign-in starts at 16.4, the first to send the `Sec-Fetch-Site` the relay admits a caller by. ONE
@@ -472,7 +477,8 @@ third cookie to remember one, and the relay guessing at a session only Cognito c
 `prompt` left out, or `login`: without it a live Google session signs the last account straight
 back in; `login` asks for Google's password every time. · The flow's pair encrypted, as Auth.js
 keeps its own: HttpOnly and `__Host-` already keep it from script and other hosts, and a key would
-be a second secret to store.
+be a second secret to store. · A reset-required account answered apart, as Amplify JS makes it a
+`RESET_PASSWORD` step: the app has no reset to lead it to.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

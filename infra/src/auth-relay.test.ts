@@ -826,7 +826,8 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
     // The temporary password taken back as the new one, which the pool's history refuses.
     ['PasswordHistoryPolicyViolationException', 400, '{"error":"reused_password"}'],
     ['InvalidParameterException', 400, '{"error":"invalid_request"}'],
-    ['PasswordResetRequiredException', 500, '{"error":"internal"}'],
+    // AWS documents a wrong password's answer in its place.
+    ['PasswordResetRequiredException', 401, '{"error":"not_authorized"}'],
   ];
   for (const [name, status, body] of answers) {
     it(`answers ${name} with ${status}`, async () => {
@@ -872,17 +873,23 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
     });
   }
 
-  it('answers a start that Cognito refuses with 401', async () => {
-    const { idp } = cognito({
-      initiateAuth: async () => {
-        throw refusal('NotAuthorizedException');
-      },
+  // `PasswordResetRequiredException` COMES AT THE START: some addresses with no account get it.
+  for (const name of ['NotAuthorizedException', 'PasswordResetRequiredException']) {
+    it(`answers a start that Cognito refuses with ${name} with 401, either preference`, async () => {
+      const { idp } = cognito({
+        initiateAuth: async () => {
+          throw refusal(name);
+        },
+      });
+      for (const body of [
+        { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' },
+        { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' },
+      ]) {
+        const res = await environment(idp)(post(START_ROUTE, body));
+        expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
+      }
     });
-    const res = await environment(idp)(
-      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' }),
-    );
-    expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
-  });
+  }
 
   // A START NEVER SIGNS ANYBODY IN: both preferences it admits answer with a challenge, so tokens
   // here mean Cognito took a path this relay did not ask for.
@@ -1055,7 +1062,7 @@ describe('a replayed token ends its whole family', () => {
   });
 
   // A BROWSER WITH NO ORIGINAL GETS NOTHING REVOKED: every sign-in sets one, and a replayed token
-  // other than the original, revoked, reaches no branch (measured).
+  // other than the original, revoked, reaches no branch.
   it('clears both cookies of a browser that carries no original, revoking nothing', async () => {
     const { idp, of } = replayed();
     const res = await environment(idp)(carrying(REFRESH_ROUTE));

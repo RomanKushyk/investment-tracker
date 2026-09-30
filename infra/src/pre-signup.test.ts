@@ -41,9 +41,15 @@ const native = [{ Username: LOCAL_SUB, UserStatus: 'CONFIRMED' }];
 // `OPEN_REGISTRATION=true` would turn them red for a reason naming nothing.
 beforeEach(() => {
   vi.stubEnv('OPEN_REGISTRATION', '');
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
+// A REFUSAL AND A CRASH LEAVE IN THE SAME WORDS, and only a crash is logged: a test that makes one
+// clears what it read, so anything still logged fails the test that logged it.
 afterEach(() => {
+  const logged = [...vi.mocked(console.error).mock.calls];
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+  expect(logged).toEqual([]);
 });
 
 describe('the pre-sign-up trigger links a federated identity to the account that already owns the data', () => {
@@ -166,13 +172,54 @@ describe('the pre-sign-up trigger links a federated identity to the account that
   // an address already an alias for a DIFFERENT profile, which this code cannot tell from the
   // benign reading — and swallowing the wrong one logs reassurance while Cognito mints a profile.
   it('fails the sign-up rather than guessing what a link error meant', async () => {
+    const logged = vi.mocked(console.error);
     for (const name of ['AliasExistsException', 'TooManyRequestsException']) {
       const { idp } = spy(native);
       idp.adminLinkProviderForUser = async () => {
         throw Object.assign(new Error(name), { name });
       };
-      await expect(preSignUp(event(), idp)).rejects.toThrow(name);
+      await expect(preSignUp(event(), idp)).rejects.toMatchObject({ message: REFUSAL });
+      expect(logged.mock.calls).toEqual([[expect.any(String), expect.objectContaining({ name })]]);
+      logged.mockClear();
     }
+  });
+
+  // AWS RENDERS THE THROWN MESSAGE INTO THE CALLBACK URL, and a denial names the role and the
+  // account: what AWS said is logged, and the URL carries the registration message instead.
+  const denied = (action: string) =>
+    Object.assign(
+      new Error(
+        'User: arn:aws:sts::123456789012:assumed-role/pre-signup-role/pre-signup is not ' +
+          `authorized to perform: cognito-idp:${action} on resource: ` +
+          'arn:aws:cognito-idp:eu-north-1:123456789012:userpool/eu-north-1_EXAMPLE',
+      ),
+      { name: 'AccessDeniedException' },
+    );
+  for (const [call, action] of [
+    ['listUsers', 'ListUsers'],
+    ['adminLinkProviderForUser', 'AdminLinkProviderForUser'],
+  ] as const) {
+    it(`refuses in its own words when ${call} is denied, and logs what AWS said`, async () => {
+      const logged = vi.mocked(console.error);
+      const denial = denied(action);
+      const { idp } = spy(native);
+      idp[call] = async () => {
+        throw denial;
+      };
+      await expect(preSignUp(event(), idp)).rejects.toMatchObject({ message: REFUSAL });
+      expect(logged.mock.calls).toEqual([[expect.any(String), denial]]);
+      logged.mockClear();
+    });
+  }
+
+  it('refuses in its own words whatever else fails', async () => {
+    const logged = vi.mocked(console.error);
+    const malformed = { ...event(), request: {} } as PreSignUpEvent;
+    await expect(preSignUp(malformed, spy(native).idp)).rejects.toMatchObject({
+      message: REFUSAL,
+    });
+    expect(logged.mock.calls).toEqual([[expect.any(String), expect.any(TypeError)]]);
+    logged.mockClear();
   });
 
   // `Google_` parses as a valid prefix and an EMPTY subject, which the link would reject — and its
@@ -202,8 +249,8 @@ describe('the pre-sign-up trigger links a federated identity to the account that
     expect([linked, listed]).toEqual([[], []]);
   });
 
-  // SEVEN EXITS, NOT ONE: every check ahead of the refusal used to return the event, so an
-  // unverified claim or a dropped `email` mapping still got a standalone federated profile.
+  // SEVEN EXITS, NOT ONE: a check ahead of the refusal that returned the event would give an
+  // unverified claim or a dropped `email` mapping a standalone federated profile.
   it('refuses an unverified claim for an address with no local account', async () => {
     const { idp, linked } = spy([]);
     const unverified = event();

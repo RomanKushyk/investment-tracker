@@ -245,7 +245,8 @@ addresses answered one of three things:
 - a `WEB_AUTHN` challenge whose `AvailableChallenges` adds `WEB_AUTHN`, with
   `CREDENTIAL_REQUEST_OPTIONS` carrying `rpId: dev.quirenote.com`, `userVerification: required` and
   one to three invented credentials;
-- `PasswordResetRequiredException`, which the relay answers as a 500.
+- `PasswordResetRequiredException`, which the relay answers as a wrong password, `401
+  not_authorized` (*Auth model*).
 
 Each invented address kept its answer on every repeat: the same challenge, the same credential ids
 and the same count. Only the challenge nonce and the order inside each credential's `transports`

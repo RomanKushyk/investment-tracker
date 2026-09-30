@@ -260,6 +260,9 @@ export const PARAMETERS: Record<string, typeof ASKING_FOR_THE_HEADER> = Object.f
 const REFUSED_AS = new Map<string, ApiResult>([
   ['NotAuthorizedException', NOT_AUTHORIZED],
   ['UserNotFoundException', NOT_AUTHORIZED],
+  // SOME ADDRESSES WITH NO ACCOUNT GET IT AT EVERY START, so a 401 there does not show that one
+  // exists; AWS documents a wrong password's answer in its place.
+  ['PasswordResetRequiredException', NOT_AUTHORIZED],
   ['InvalidPasswordException', INVALID_PASSWORD],
   ['PasswordHistoryPolicyViolationException', REUSED_PASSWORD],
   ['InvalidParameterException', INVALID],
@@ -278,7 +281,7 @@ const SESSION_OVER = new Set([
 ]);
 
 /** The refusals `RevokeToken` documents for a token it will not take — an access token, or input it
- *  cannot parse. A revoked or unknown refresh token revokes without complaint (measured). */
+ *  cannot parse. A revoked or unknown refresh token revokes without complaint. */
 const ALREADY_DEAD = new Set(['UnsupportedTokenTypeException', 'InvalidParameterException']);
 
 /** The token endpoint's refusals of a code (Cognito, *Token endpoint*): spent or unknown, a redirect
