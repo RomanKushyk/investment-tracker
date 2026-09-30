@@ -841,6 +841,45 @@ describe('the sentences `parseBackup` prints are a contract', () => {
   });
 });
 
+describe('the backup carries a formula note as typed', () => {
+  it('writes it verbatim, and a re-import writes the same bytes', () => {
+    // The CSV export guards a cell that starts a formula; this file is restored into the
+    // store, so a guard here would change the note on every round trip.
+    const notes = [0x3d, 0x2b, 0x2d, 0x40, 0x09, 0x0d, 0x0a, 0xff1d, 0xff0b, 0xff0d, 0xff20].map(
+      (c) => `${String.fromCodePoint(c)}1+2`,
+    );
+    const noted: Transaction[] = notes.map((note, i) => ({
+      id: `f${i}`,
+      date: '2026-09-30',
+      type: 'interest_payout',
+      assetId: 'reit',
+      amount: 100,
+      note,
+    }));
+    const text = JSON.stringify(
+      buildBackup(
+        ASSETS,
+        SNAPSHOTS,
+        [...TRANSACTIONS, ...noted],
+        SETTINGS,
+        'live',
+        '2026-09-30T12:00:00',
+        2,
+      ),
+    );
+    for (const note of notes) expect(text, JSON.stringify(note)).toContain(JSON.stringify(note));
+    const back = parseBackup(text);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    const { assets, snapshots, transactions, settings, dataset, exportedAt, dbVersion } = back.data;
+    expect(
+      JSON.stringify(
+        buildBackup(assets, snapshots, transactions, settings, dataset, exportedAt, dbVersion),
+      ),
+    ).toBe(text);
+  });
+});
+
 describe('a note of whitespace is a note nobody typed', () => {
   it('refuses one, rather than storing a row that renders an empty line', () => {
     // `.min(1)` accepts a single space and so does `transaction_note_ck`'s `length > 0`.

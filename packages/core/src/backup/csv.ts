@@ -12,6 +12,9 @@
 // **AN EMPTY CELL MEANS PENDING, NEVER 0** — a day that recorded no quote writes
 // nothing there, so a spreadsheet’s own SUM and AVERAGE skip it rather than
 // averaging in a zero.
+//
+// **A TEXT CELL NEVER STARTS A FORMULA** — one beginning with a character OWASP lists gets
+// an apostrophe; a number never does, so a negative amount stays one. *Persistence today*
 import type { Asset, Snapshot, Transaction } from '../types';
 
 /** U+FEFF — written as an escape so the byte can never be lost in an edit. */
@@ -69,23 +72,44 @@ export function snapshotColumnHeader(asset: Asset): string {
   return `${asset.name} (${asset.id})`;
 }
 
-function csvField(value: string): string {
+/**
+ * The one cell never guarded, so only `money` and `plain` make one, and only from a value
+ * that is a number at run time: the store is unvalidated, and anything else stays text.
+ */
+class NumberCell {
+  readonly number: string;
+  constructor(number: string) {
+    this.number = number;
+  }
+}
+
+// OWASP's list; the full-width four are escapes so an edit cannot swap them for look-alikes.
+const FORMULA_START = /^[=+\-@\t\r\n\uFF1D\uFF0B\uFF0D\uFF20]/;
+
+// Anything but a NumberCell is text, so a column added later is guarded unasked; a value
+// the row lacks writes an empty cell.
+function csvField(cell: string | NumberCell): string {
+  if (cell instanceof NumberCell) return cell.number;
+  const text = String(cell ?? '');
+  const value = FORMULA_START.test(text) ? `'${text}` : text;
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-function csvFile(rows: string[][]): string {
+function csvFile(rows: (string | NumberCell)[][]): string {
   return CSV_BOM + rows.map((cells) => cells.map(csvField).join(',')).join(CSV_EOL) + CSV_EOL;
 }
 
 /** 2 dp minimum, more only when the value actually carries more. */
-function money(value: number): string {
+function money(value: number): string | NumberCell {
+  if (typeof value !== 'number') return value; // text at run time, so `csvField` guards it
   const fixed = value.toFixed(2);
-  return Number(fixed) === value ? fixed : String(value);
+  return new NumberCell(Number(fixed) === value ? fixed : String(value));
 }
 
 /** Counts and percentages: exactly the number, no padding, no grouping. */
-function plain(value: number): string {
-  return String(value);
+function plain(value: number): string | NumberCell {
+  if (typeof value !== 'number') return value; // text at run time, so `csvField` guards it
+  return new NumberCell(String(value));
 }
 
 function optional(value: string | undefined): string {
@@ -137,10 +161,6 @@ export function serializeTransactionsCsv(transactions: Transaction[]): string {
       // spreadsheet this file exists for.
       t.unitPrice === undefined ? '' : money(t.unitPrice),
       t.taxWithheld === undefined ? '' : money(t.taxWithheld),
-      // A NOTE BEGINNING `=` OR `@` IS PASSED THROUGH AS TYPED, accepted rather
-      // than overlooked: quoting does not stop a spreadsheet evaluating it, and the
-      // usual defence is a leading apostrophe that corrupts the value for every
-      // other reader. This is the user’s own data going to their own spreadsheet.
       t.note ?? '',
     ]),
   ]);
@@ -156,7 +176,7 @@ export function serializeSnapshotsCsv(snapshots: Snapshot[], assets: Asset[]): s
     [...SNAPSHOT_WIDE_LEAD_COLUMNS, ...assets.map(snapshotColumnHeader)],
     ...dated.map((s) => [
       s.date,
-      ...assets.map((a) => (a.id in s.quotes ? money(s.quotes[a.id]) : '')),
+      ...assets.map((a) => (Object.hasOwn(s.quotes, a.id) ? money(s.quotes[a.id]) : '')),
     ]),
   ]);
 }

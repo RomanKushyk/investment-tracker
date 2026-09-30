@@ -37,8 +37,11 @@ projects is how the backend's tests get lost.
 seeded, and live, never auto-seeded — bound once at boot. Every persisted setting joins `partialize`
 in the commit that adds it. The JSON backup envelope refuses a newer, an older and an unreadable
 version; import validates fully, shows a diff, then replaces in one transaction — a key the file
-omits is REMOVED — after a safety backup that cannot be cancelled. CSV is export-only and writes
-data rather than formulas: a cell beginning `=` or `@` is passed through as typed. THE BACKUP WRITES
+omits is REMOVED — after a safety backup that cannot be cancelled. CSV is export-only, and A TEXT
+CELL NEVER STARTS A FORMULA: one beginning with a character OWASP's CSV Injection page lists — `=`,
+`+`, `-`, `@`, tab, CR, LF, or the full-width `＝＋－＠` — is written after an apostrophe. A number
+is never guarded, so a negative amount stays a number; the JSON backup writes every note as typed,
+since it is restored into the store rather than opened in a spreadsheet. THE BACKUP WRITES
 THE MODEL'S SHAPE, NOT THE STORE'S: `buildBackup` projects every row onto its schema's keys, so a key
 the model retired, still sitting in IndexedDB, never reaches the file and needs no migration. A
 VALUE the reader refuses — a moving row with no count, the retired `tax` type — has nothing to
@@ -51,11 +54,30 @@ fields — which is why a projecting writer bumps nothing. A strict reader needs
 spread, the store's leftovers rode into the file and the file's own parser refused it, shutting
 the download, both destructive dialogs' backup and the import's safety backup at once. The export
 is terminal, the store the only truth and the file there to be restored into it, so nothing
-downstream waits for a field this build has never heard of.
+downstream waits for a field this build has never heard of. OWASP lists those characters as ones a
+spreadsheet can read as starting a formula, and names exfiltrating the sheet's contents among the
+attacks; a note and an asset's name are free text. The guard goes by the value's run-time type, as
+`csv-stringify`'s `escape_formulas` does: only a number is exempt here, and in an unvalidated store
+every other value is text, a column added later included. Every other reader pays for it: a
+program reading the file gets the apostrophe as part of the cell, and the JSON backup stays the
+lossless copy. It holds while the file is as exported — OWASP warns Excel may drop it on a save
+and re-open.
 **Rejected.** A library's own dump format: the envelope has to be app-owned, human-readable and
 domain-validated. · Preserving unknown keys through the round trip, as a relay does: it becomes
 right the day the backup carries data between two builds as a sync or merge channel, where a
-projecting writer would destroy the other build's fields.
+projecting writer would destroy the other build's fields. · Passing a formula cell through as
+typed: quoting does not stop a spreadsheet evaluating it. · Quoting every cell, OWASP's other
+sanitisation step: for a comma reader RFC 4180 already quotes a cell a comma, a quote or a line
+break would split, and read at `;` any cell but a line's first opens its quote after a comma,
+mid-field, so wrapping does not reach the residual below. · OWASP's tab prefix, offered as
+Excel-resistant: the cell would then begin with a tab, which the same page lists among the
+characters no cell should begin with, and neither `csv-stringify` nor Papa Parse uses it. ·
+Guarding by content, a numeric-looking text exempt: the note `-5` is text and would reach the sheet
+as a number. · Guarding past the first character: OWASP warns a separator inside a cell starts a
+new one — read with `;` as its separator, uk-UA's list separator, the comma file splits at a
+note's `;`, and `x;=…` opens as a formula. Neither library guards past the first character, and
+whether such a guard is complete turns on spreadsheet parsing no test here reaches, so that
+residual is accepted.
 
 ## Derived figures and the seed
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a

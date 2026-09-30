@@ -258,6 +258,13 @@ describe('empty cell = pending, never 0', () => {
     expect(lines(csv)[1]).toBe('2026-07-27,68702.10,'); // pending → empty
     expect(lines(csv)[2]).toBe('2026-07-28,68702.10,0.00'); // zero → 0.00
   });
+
+  it('reads only a quote the day itself holds, whatever the asset id', () => {
+    // An id is any string a backup carried, and `constructor` is found on every object.
+    const odd: Asset = { ...REIT, id: 'constructor' };
+    const csv = serializeSnapshotsCsv([{ date: '2026-07-27', quotes: { reit: 1 } }], [odd]);
+    expect(lines(csv)[1]).toBe('2026-07-27,');
+  });
 });
 
 describe('the withholding and the note ride the export, APPENDED', () => {
@@ -317,5 +324,167 @@ describe('the withholding and the note ride the export, APPENDED', () => {
     };
     const [, row] = readCsv(serializeTransactionsCsv([tx]));
     expect(row[row.length - 1]).toBe('Звірено, з "випискою"');
+  });
+});
+
+describe('a text cell never starts a formula (OWASP CSV Injection)', () => {
+  // OWASP's list as code points, so this file does not share the writer's pattern:
+  // = + - @, tab, CR, LF, and the full-width variants of the first four.
+  const FORMULA_STARTS = [
+    0x3d, 0x2b, 0x2d, 0x40, 0x09, 0x0d, 0x0a, 0xff1d, 0xff0b, 0xff0d, 0xff20,
+  ].map((c) => String.fromCodePoint(c));
+
+  // The number columns, named. Every other column is text, so one added later is
+  // guarded without this list changing.
+  const NUMBER_COLUMNS = new Set([
+    'expectedPct',
+    'targetPct',
+    'couponAmount',
+    'inzhurUnits',
+    'couponRatePct',
+    'amount',
+    'quantity',
+    'unitPrice',
+    'taxWithheld',
+  ]);
+
+  const byColumn = (csv: string) => {
+    const [header, row] = readCsv(csv);
+    return Object.fromEntries(header.map((column, i) => [column, row[i]]));
+  };
+
+  const payout = (note: string): Transaction => ({
+    id: 'tx-0200',
+    date: '2026-09-30',
+    type: 'interest_payout',
+    assetId: 'ovdp8976',
+    amount: 100,
+    note,
+  });
+
+  it('writes an apostrophe before a note that starts with any of them', () => {
+    for (const start of FORMULA_STARTS) {
+      const label = `U+${start.codePointAt(0)!.toString(16).toUpperCase()}`;
+      expect(byColumn(serializeTransactionsCsv([payout(`${start}1+2`)])).note, label).toBe(
+        `'${start}1+2`,
+      );
+    }
+  });
+
+  it('leaves a number alone, so a negative amount stays a number in the same export', () => {
+    // The same `-` in both cells: the note is text and is guarded, the amount is a
+    // number and keeps its sign.
+    const tx: Transaction = {
+      ...payout('-5'),
+      type: 'sell',
+      amount: -500,
+      quantity: -3,
+      unitPrice: -166.67,
+      taxWithheld: -1.5,
+    };
+    expect(byColumn(serializeTransactionsCsv([tx]))).toMatchObject({
+      amount: '-500.00',
+      quantity: '-3',
+      unitPrice: '-166.67',
+      taxWithheld: '-1.50',
+      note: "'-5",
+    });
+    const asset: Asset = {
+      ...REIT,
+      expectedPct: -2.5,
+      targetPct: -1,
+      couponAmount: -120,
+      couponRatePct: -16,
+      inzhur: { kind: 'fund', ref: 'inzhur-reit', units: -6164 },
+    };
+    expect(byColumn(serializeAssetsCsv([asset]))).toMatchObject({
+      expectedPct: '-2.5',
+      targetPct: '-1',
+      couponAmount: '-120.00',
+      inzhurUnits: '-6164',
+      couponRatePct: '-16',
+    });
+    expect(
+      lines(serializeSnapshotsCsv([{ date: '2026-09-30', quotes: { reit: -68702.1 } }], [REIT]))[1],
+    ).toBe('2026-09-30,-68702.10');
+  });
+
+  it('guards every text column, the snapshot header included, not only the note', () => {
+    const at = '@x';
+    // Enum and date fields too: the serializer writes whatever the store hands it.
+    const asset = {
+      id: at,
+      name: at,
+      code: at,
+      colorKey: at,
+      yieldType: at,
+      expectedPct: 1,
+      targetPct: 1,
+      payoutSchedule: at,
+      firstPurchase: at,
+      createdAt: at,
+      maturity: at,
+      couponAmount: 1,
+      nextCoupon: at,
+      inzhur: { kind: at, ref: at, units: 1 },
+      couponRatePct: 1,
+    } as unknown as Asset;
+    const tx = {
+      id: at,
+      date: at,
+      type: at,
+      assetId: at,
+      amount: 1,
+      quantity: 1,
+      unitPrice: 1,
+      taxWithheld: 1,
+      note: at,
+    } as unknown as Transaction;
+    for (const cells of [
+      byColumn(serializeAssetsCsv([asset])),
+      byColumn(serializeTransactionsCsv([tx])),
+    ]) {
+      for (const [column, cell] of Object.entries(cells)) {
+        expect(cell, column).toMatch(NUMBER_COLUMNS.has(column) ? /^1(\.00)?$/ : /^'@x$/);
+      }
+    }
+    expect(
+      readCsv(serializeSnapshotsCsv([{ date: at, quotes: {} }], [{ ...REIT, name: at }])),
+    ).toEqual([
+      ['date', `'${at} (reit)`],
+      [`'${at}`, ''],
+    ]);
+  });
+
+  it('writes an empty cell for an amount, asset id, name or quote that is missing or null', () => {
+    // The export validates nothing, being the exit for a store the envelope refuses, so
+    // a row can arrive with a field missing or null. *Persistence today*
+    const legacy = { id: 'tx-0300', date: '2026-02-03', type: 'deposit' } as unknown as Transaction;
+    expect(byColumn(serializeTransactionsCsv([legacy]))).toMatchObject({ assetId: '', amount: '' });
+    const nameless = { ...REIT, name: null } as unknown as Asset;
+    expect(byColumn(serializeAssetsCsv([nameless])).name).toBe('');
+    const unquoted = [{ date: '2026-09-30', quotes: { reit: null } }] as unknown as Snapshot[];
+    expect(lines(serializeSnapshotsCsv(unquoted, [REIT]))[1]).toBe('2026-09-30,');
+  });
+
+  it('guards a number column holding text: only a number at run time is exempt', () => {
+    const asset = { ...REIT, expectedPct: '=x' } as unknown as Asset;
+    expect(byColumn(serializeAssetsCsv([asset])).expectedPct).toBe("'=x");
+    const tx = { ...payout('n'), amount: '@x', quantity: '-x' } as unknown as Transaction;
+    expect(byColumn(serializeTransactionsCsv([tx]))).toMatchObject({
+      amount: "'@x",
+      quantity: "'-x",
+    });
+    const quoted = [{ date: '2026-09-30', quotes: { reit: '+x' } }] as unknown as Snapshot[];
+    expect(lines(serializeSnapshotsCsv(quoted, [REIT]))[1]).toBe("2026-09-30,'+x");
+  });
+
+  it('never takes a value for a number cell by its shape, in a text or a number column', () => {
+    const forged = { number: '=x' };
+    const tx = { ...payout('n'), amount: forged, note: forged } as unknown as Transaction;
+    expect(byColumn(serializeTransactionsCsv([tx]))).toMatchObject({
+      amount: '[object Object]',
+      note: '[object Object]',
+    });
   });
 });
