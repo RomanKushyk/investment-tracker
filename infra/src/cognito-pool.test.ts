@@ -582,6 +582,14 @@ describe('nothing explains itself by a lifetime that is gone', () => {
     const text = readFileSync(join(REPO, file), 'utf8').toLowerCase();
     return NEEDLES.filter((n) => text.includes(n));
   };
+  // READ AS SENTENCES, NOT LINES, and two things break that: these files are hand-wrapped, so a
+  // claim wraps mid-phrase; and a wrap carries a comment marker, so collapsing whitespace alone
+  // leaves "singles # out". STRIP THE MARKER, THEN COLLAPSE — both, or it reports a clean file.
+  const prose = (f: string) =>
+    readFileSync(join(REPO, f), 'utf8')
+      .toLowerCase()
+      .replace(/^[ \t]*(#|\/\/)[ \t]?/gm, '')
+      .replace(/\s+/g, ' ');
 
   // THE TWO WAYS THE GUARD BELOW PASSES WITHOUT CHECKING ANYTHING: a walk that returned nothing,
   // and a needle that matches nothing because its concatenation was mistyped.
@@ -614,14 +622,6 @@ describe('nothing explains itself by a lifetime that is gone', () => {
     // Concatenated for the reason NEEDLES is: spelled out, this list is the first thing the guard
     // would find, in the guard.
     const OVERCLAIM = ['bcp ' + 'whole', 'bcp ' + 'outright', 'meets the ' + 'bcp'];
-    // READ AS SENTENCES, NOT LINES, and two things break that: these files are hand-wrapped, so a
-    // claim wraps mid-phrase; and a wrap carries a comment marker, so collapsing whitespace alone
-    // leaves "singles # out". STRIP THE MARKER, THEN COLLAPSE — both, or it reports a clean file.
-    const prose = (f: string) =>
-      readFileSync(join(REPO, f), 'utf8')
-        .toLowerCase()
-        .replace(/^[ \t]*(#|\/\/)[ \t]?/gm, '')
-        .replace(/\s+/g, ' ');
     const mentions = searched.filter((f) => /browser-based-apps|browser bcp/.test(prose(f)));
     // A floor, because "no file mentions it" would otherwise pass every assertion below.
     expect(mentions.length).toBeGreaterThanOrEqual(3);
@@ -631,6 +631,43 @@ describe('nothing explains itself by a lifetime that is gone', () => {
       // Every site says which three it answers, and that the section binds more than three.
       expect([f, text.includes('singles out')]).toEqual([f, true]);
       expect([f, /rfc 9700/.test(text)]).toEqual([f, true]);
+    }
+  });
+
+  // The same shape for a second claim: the pool's user count set against the month's actives.
+  // Cognito keeps metering a user deleted during the month while the count drops it, so each file
+  // that makes the claim states that condition and both calls that delete a user.
+  it('holds the pool count to the month’s actives only while no user is deleted', () => {
+    // Word-bounded, or "whenever latency" would read as an overclaim.
+    const OVERCLAIM = [
+      'strict upper ' + 'bound',
+      'never ' + 'late',
+      'errs ' + 'early',
+      'early rather ' + 'than late',
+    ].map((p) => new RegExp(`\\b${p}\\b`));
+    const CLAIM = new RegExp('upper ' + 'bound|from ' + 'above');
+    const COUNT = /poolusers|user count|total users|total identities/;
+    // AN ALLOW-LIST, AND THE CONDITION COUNTED PER FILE, as many as it has places: carried once,
+    // it would cover a second place that had dropped it. The two calls are checked per file only.
+    // A new file making the claim should be read, not counted.
+    const PLACES: Record<string, number> = {
+      'docs/reference/DEPLOYMENT.md': 2,
+      'infra/README.md': 1,
+      'infra/src/pool-usage.ts': 1,
+      'infra/template-user.yaml': 2,
+    };
+    const texts = searched.map((f) => ({ f, text: prose(f) }));
+    const overclaims = texts.flatMap(({ f, text }) =>
+      OVERCLAIM.filter((p) => p.test(text)).map((p) => `${f}: ${p.source}`),
+    );
+    expect(overclaims).toEqual([]);
+    const claims = texts.filter(({ text }) => CLAIM.test(text) && COUNT.test(text));
+    // Sorted: `readdirSync` promises no order, and CI's filesystem is not this one.
+    expect(claims.map(({ f }) => f).sort()).toEqual(Object.keys(PLACES).sort());
+    for (const { f, text } of claims) {
+      expect([f, text.split('deleted during the month').length - 1]).toEqual([f, PLACES[f]]);
+      expect([f, text.includes('admindeleteuser')]).toEqual([f, true]);
+      expect([f, /\bdeleteuser\b/.test(text)]).toEqual([f, true]);
     }
   });
 

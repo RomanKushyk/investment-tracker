@@ -6,8 +6,11 @@ import {
 // How many identities the pool holds, published nightly as a number.
 //
 // A COUNT STANDS IN FOR MONTHLY ACTIVES because CloudWatch publishes no MAU metric. Total users
-// is a strict upper bound on this pool's share, so the alarm errs early — but dev identities count
-// toward the same account tier and are NOT here, so it bounds prod's share only (*Alerting*).
+// bounds this pool's share from above only while no user is deleted during the month: one
+// created or active in it, then deleted by `AdminDeleteUser` or `DeleteUser`, stays metered but
+// leaves the count.
+// Dev identities count toward the same account tier and are NOT here, so it bounds prod's share
+// only (*Alerting*).
 
 /** What Cognito Essentials bills nothing below, in monthly active users. The alarm's threshold is
  *  derived from this rather than written beside it: `stack-split.test.ts` pins it to 80% of this

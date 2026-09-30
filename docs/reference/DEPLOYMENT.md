@@ -299,12 +299,16 @@ meanwhile on `Quirenote/PoolUsers` and its alarm, which are in the stack. AWS al
 Free Tier limit, to the account root user's address unless changed under Billing → Preferences →
 Alert preferences, automatic for an individual account but opt-in for an Organizations management
 account. **The thing to verify is that somebody reads it.** `PoolUsersAlarm` sits at 80% of the same
-10,000, ahead of that mail **for prod's share of the allowance** — not for the account's, since
-dev's pool spends the same 10,000 and nothing here measures it.
+10,000, ahead of that mail **for prod's share of the allowance, and only while no prod user is
+deleted during the month**: a user created or active in the month and then deleted, by
+`AdminDeleteUser` or by `DeleteUser` with their own access token, stays metered but leaves the
+count. It is not ahead for the account's allowance, since dev's pool spends the same 10,000 and
+nothing here measures it.
 
 **2. The free-tier dashboard — NOT YET CREATED.** Two widgets in `eu-north-1`: `Quirenote` /
 `PoolUsers`, annotated at 8,000 where the alarm sits, and `AWS/Cognito` / `SignUpSuccesses` for the
 prod pool, whose dimensions should be confirmed against the console rather than assumed. **Title
-each with what it is not: neither is MAU.** `PoolUsers` is total identities, an upper bound useful
-early and wrong as a measurement; `SignUpSuccesses` shows the risk open registration adds, and has
-datapoints only once somebody signs up.
+each with what it is not: neither is MAU.** `PoolUsers` is total identities, an upper bound on the
+month's actives only while no user is deleted during the month (by `AdminDeleteUser` or
+`DeleteUser`), useful early and wrong as a measurement; `SignUpSuccesses` shows the risk open
+registration adds, and has datapoints only once somebody signs up.

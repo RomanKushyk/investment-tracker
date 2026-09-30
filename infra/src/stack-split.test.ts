@@ -52,6 +52,7 @@ type Resource = {
     ComparisonOperator?: string;
     TreatMissingData?: string;
     AlarmActions?: unknown;
+    AlarmDescription?: string;
     Roles?: unknown[];
     AssumeRolePolicyDocument?: unknown;
     ScheduleExpression?: string;
@@ -650,6 +651,14 @@ describe('the user stack watches its pool against the free tier', () => {
     expect(alarm?.ComparisonOperator).toBe('GreaterThanThreshold');
     expect(alarm?.Statistic).toBe('Maximum');
     expect(alarm?.TreatMissingData).toBe('notBreaching');
+  });
+
+  // What an operator reads when the alarm fires or stays quiet. The comment above the function
+  // says the same in the same file, so only the parsed property tells the two apart.
+  it('says in its description when the count stops leading the month’s actives', () => {
+    const description = user.Resources.PoolUsersAlarm.Properties?.AlarmDescription ?? '';
+    expect(description).toMatch(/deleted during the month/);
+    expect(description.length).toBeLessThanOrEqual(1024);
   });
 
   it('reads the metric off the line the handler emits', () => {

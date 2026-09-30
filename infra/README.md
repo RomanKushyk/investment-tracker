@@ -67,13 +67,16 @@ and to sign in and out. Design and rationale live in
   exact dimension set and rolling nothing up across them. A vault-wide count replaces neither: with
   ONE vault and ONE selection, the archive's job would hold that number up while prod's user cluster
   had silently left the selection.
-- **The pool's user count is a bound, not a measurement.** There is no CloudWatch metric for monthly
-  actives, so prod's pool publishes `EstimatedNumberOfUsers` daily and the alarm sits at 8,000 — 80%
-  of the 10,000 Essentials bills nothing for, deliberately ahead of the 85% at which AWS mails the
-  root account, because a guard that fires with the bill is not a guard. It bounds prod's actives
-  from ABOVE and the ACCOUNT's only in part, dev's pool spending the same allowance. An absent count
-  THROWS rather than publishing zero: zero is the healthy side of a `GreaterThan`, the same
-  inversion `backup-age.ts` refuses in the other direction. The usage budget and the dashboard
+- **The pool's user count is a bound while no user is deleted, not a measurement.** There is no
+  CloudWatch metric for monthly actives, so prod's pool publishes `EstimatedNumberOfUsers` daily
+  and the alarm sits at 8,000 — 80% of the 10,000 Essentials bills nothing for, deliberately ahead
+  of the 85% at which AWS mails the root account, because a guard that fires with the bill is not a
+  guard. It bounds prod's actives from ABOVE only while no user is deleted during the month: a user
+  created or active in the month and then deleted stays among its actives but leaves the count. No
+  handler deletes one; `AdminDeleteUser` by hand does, and so does `DeleteUser` with the user's own
+  access token. It bounds the ACCOUNT's only in part, dev's pool spending the same allowance. An
+  absent count THROWS rather than publishing zero: zero is the healthy side of a `GreaterThan`, the
+  same inversion `backup-age.ts` refuses in the other direction. The usage budget and the dashboard
   beside it are console artefacts — `docs/reference/DEPLOYMENT.md` re-creates them.
 - **Never let an output alias shadow the column you `ORDER BY`.** A bare name resolves to the
   aliased output column first, so the sort cannot inherit index order and the planner falls back to

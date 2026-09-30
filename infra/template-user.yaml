@@ -806,7 +806,8 @@ Resources:
       TreatMissingData: notBreaching
 
   # THERE IS NO CLOUDWATCH METRIC FOR MONTHLY ACTIVES, so the pool's TOTAL user count stands in:
-  # a strict upper bound, firing EARLY and never late. IN THIS STACK, NOT THE CAPTURE'S, the
+  # an upper bound only while no user is deleted during the month, by `AdminDeleteUser` or
+  # `DeleteUser`, as `PoolUsersAlarm`'s description says. IN THIS STACK, NOT THE CAPTURE'S, the
   # pool being per-environment — handing the capture a pool id is the coupling the check above
   # already refused (*Alerting*). Dev identities count too, so this bounds prod's share alone.
   PoolUsageFunction:
@@ -901,10 +902,14 @@ Resources:
     Condition: IsProd
     Properties:
       AlarmDescription: >-
-        Prod's Cognito pool holds more than 8,000 identities — 80% of the 10,000 monthly
-        actives Essentials bills nothing for. This is TOTAL USERS, not MAU: it is an upper
-        bound, so it fires early rather than late, and it is set ahead of the 85% free-tier
-        alert AWS mails the root account. Check the sign-up path and the approval queue.
+        Prod's Cognito pool holds more than 8,000 identities, 80% of the 10,000 monthly
+        actives Essentials bills nothing for, set ahead of the 85% free-tier alert AWS mails
+        the root account. This is TOTAL USERS, not MAU, and an upper bound on the month's
+        actives only while no user is deleted during the month: a user created or active in
+        the month and then deleted stays among its actives but leaves this count. No handler
+        deletes a user; AdminDeleteUser by hand does, and so does DeleteUser with the user's
+        own access token. Check the sign-up path, the approval queue, and CloudTrail for
+        either call this month: each can leave the count one short.
       Namespace: Quirenote
       MetricName: PoolUsers
       Statistic: Maximum
