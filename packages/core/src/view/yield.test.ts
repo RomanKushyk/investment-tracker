@@ -10,7 +10,9 @@ import {
   xirrIsExtrapolated,
   yieldTableRows,
   yieldTableRowsIn,
+  yieldView,
 } from './yield';
+import { TEST_LEDGERS } from './test-ledgers';
 import { resolveWindow } from '../period';
 import type { PeriodOption } from '../period';
 import { portfolioStart } from '../derive';
@@ -101,6 +103,24 @@ describe('yieldTableRows', () => {
     expect(byId.energy.xirr! * 100).toBeCloseTo(3.14, 1);
     expect(byId.ovdp8976.xirr! * 100).toBeCloseTo(25.81, 1);
     expect(byId.ovdp6475.xirr! * 100).toBeCloseTo(99.43, 1);
+  });
+});
+
+describe("yieldTableRows — the quotes card's figures are /yield's row at «Від початку»", () => {
+  // The ledger sells part of energy's holding and holds an asset no snapshot quotes.
+  const input = TEST_LEDGERS.find((l) => l.name === 'sold-and-unquoted')!.input;
+  const rows = yieldTableRows(input.assets, input.snapshots, input.transactions);
+
+  it("every Δ is /yield's at the full history, the sale proceeds included", () => {
+    expect(rows.map((r) => [r.asset.id, r.deltaTotal])).toStrictEqual(
+      yieldView({ ...input, period: 'all' }).rows.map((r) => [r.asset.id, r.deltaTotal]),
+    );
+    const energy = rows.find((r) => r.asset.id === 'energy')!;
+    expect(energy.deltaTotal).toBeCloseTo((60_086.09 + 10_000) / 59_208 - 1, 10);
+  });
+
+  it('an asset no snapshot quotes has no figure, never −100 %', () => {
+    expect(rows.find((r) => r.asset.id === 'fresh')!.deltaTotal).toBeUndefined();
   });
 });
 

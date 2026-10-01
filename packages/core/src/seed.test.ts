@@ -9,11 +9,11 @@ import {
   incomeReceived,
   incomeReceivedNet,
   investedByAsset,
-  latestQuotes,
   netDeposits,
   netResult,
   portfolioStart,
   portfolioXirr,
+  quotesAsOf,
   reinvestedByAsset,
   reinvestedTotal,
   totalCapital,
@@ -103,7 +103,7 @@ describe('seed aggregates reproduce renderVals (D5)', () => {
   });
 
   it('net result +₴4,452.61 = +3.08%', () => {
-    const values = latestQuotes(snaps);
+    const values = quotesAsOf(snaps);
     const { reit, energy, ovdp8976, ovdp6475 } = investedByAsset(SEED_TRANSACTIONS);
     const r = netResult(values, { reit, energy, ovdp8976, ovdp6475 });
     expect(r.uah).toBeCloseTo(4452.61, 2);

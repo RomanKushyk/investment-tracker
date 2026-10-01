@@ -86,10 +86,6 @@ export function quotesAsOf(snaps: Snapshot[], asOf?: string): Record<string, num
   return out;
 }
 
-export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
-  return quotesAsOf(snaps);
-}
-
 /** `quotesAsOf`, with a position worth 0 that the ledger holds no units of at `asOf`, or held none
  *  of on the last valuation day: a last quote outlives a sale. *Metric families and windows* */
 export function heldQuotesAsOf(

@@ -9,9 +9,10 @@ import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
 import { couponReminderId, dueCoupons } from '@quirenote/core/accrual';
 import { dayBefore, kyivDateIso, todayIso } from '@quirenote/core/dates';
-import { investedByAsset, latestQuotes, ledgerUnits, unitsByAsset } from '@quirenote/core/derive';
+import { investedByAsset, ledgerUnits, unitsByAsset } from '@quirenote/core/derive';
 import type { QuoteVerdict } from '@quirenote/core/inzhur/dcf';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import { yieldTableRows } from '@quirenote/core/view/yield';
 import { useDraft } from '../state/draft';
 import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
@@ -39,6 +40,7 @@ const NO_ASSETS: Asset[] = [];
 // the `unitsByAsset` memo would recompute forever and hand `useQuoteFetch` a new
 // object each time.
 const NO_TRANSACTIONS: Transaction[] = [];
+const NO_SNAPSHOTS: Snapshot[] = [];
 
 /**
  * Publishes the action bar's RENDERED height as `--action-bar-h` while the bar
@@ -77,7 +79,7 @@ export function DailyQuotes() {
   const f = useFormat();
   const t = useT();
   const assets = useAssets().data ?? NO_ASSETS;
-  const snapshots = useSnapshots().data ?? [];
+  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
   const transactions = useTransactions().data ?? NO_TRANSACTIONS;
   const { date, quotes, setDate, setQuote, fillQuote } = useDraft();
   const saveSnapshot = useSaveSnapshot();
@@ -174,7 +176,12 @@ export function DailyQuotes() {
   const actionBarRef = useActionBarHeight(stickyActions);
 
   const lastSavedAt = maxSavedAt(snapshots);
-  const values = latestQuotes(snapshots);
+  // `/yield`'s own row at «Від початку», the figure the yield card shows. Memoized as `/yield`
+  // memoizes it: each row solves an XIRR, and this screen re-renders per keystroke.
+  const yields = useMemo(
+    () => yieldTableRows(assets, snapshots, transactions),
+    [assets, snapshots, transactions],
+  );
   const invested = investedByAsset(transactions);
 
   // A suggestion, never a draft. Accepting it is the only path into the draft
@@ -382,7 +389,7 @@ export function DailyQuotes() {
               snapshots={snapshots}
               selectedDate={selectedDate}
             />
-            <YieldTeaser assets={assets} values={values} invested={invested} />
+            <YieldTeaser rows={yields} />
             {/* The side column's copy of the same line — see the action row. `px-1` lines it
                 up with the card text above it rather than with the card's edge. */}
             <span className="hidden px-1 text-xs text-muted lg:block">

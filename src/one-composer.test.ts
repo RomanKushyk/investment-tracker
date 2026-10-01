@@ -252,19 +252,21 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
     'period#resolveWindow': "its hints; window.test.ts holds them equal to windowView's",
   },
   'src/state/settings.ts': { 'period#PERIOD_OPTIONS': 'validates a stored period' },
-  'src/screens/DailyQuotes.tsx': each(
-    QUOTES,
-    'accrual#couponReminderId',
-    'accrual#dueCoupons',
-    'dates#dayBefore',
-    'derive#investedByAsset',
-    'derive#latestQuotes',
-    'derive#ledgerUnits',
-    'derive#unitsByAsset',
-  ),
+  'src/screens/DailyQuotes.tsx': {
+    ...each(
+      QUOTES,
+      'accrual#couponReminderId',
+      'accrual#dueCoupons',
+      'dates#dayBefore',
+      'derive#investedByAsset',
+      'derive#ledgerUnits',
+      'derive#unitsByAsset',
+    ),
+    'view/yield#yieldTableRows':
+      "the yield card is /yield's row at «Від початку»; yield.test.ts holds it equal to yieldView's",
+  },
   'src/screens/daily-quotes/CouponDueCard.tsx': each(QUOTES, 'accrual#rollNextCoupon'),
   'src/screens/daily-quotes/QuoteRow.tsx': each(QUOTES, 'derive#yieldSinceStart'),
-  'src/screens/daily-quotes/YieldTeaser.tsx': each(QUOTES, 'derive#yieldSinceStart'),
   'src/screens/daily-quotes/suggestions.ts': each(
     QUOTES,
     'accrual#couponPerPayment',

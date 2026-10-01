@@ -17,7 +17,6 @@ import {
   incomeReceivedNet,
   investedOwnByAsset,
   latestCompleteSnapshot,
-  latestQuotes,
   netDeposits,
   netResult,
   startDateByAsset,
@@ -73,7 +72,7 @@ const LEDGER: Transaction[] = [
 
 describe('headline derivations (latest quote per asset, partials included)', () => {
   it('merges the partial snapshot over the last complete one', () => {
-    expect(latestQuotes(snaps)).toEqual({
+    expect(quotesAsOf(snaps)).toEqual({
       reit: 68702.1,
       energy: 60086.09,
       ovdp8976: 15846.3,
@@ -87,7 +86,7 @@ describe('headline derivations (latest quote per asset, partials included)', () 
   });
 
   it('net result excludes cash: +₴4,452.61 = +3.08% since 03.02', () => {
-    const r = netResult(latestQuotes(snaps), invested);
+    const r = netResult(quotesAsOf(snaps), invested);
     expect(r.uah).toBeCloseTo(4452.61, 2);
     expect(r.pct).toBeCloseTo(0.0308, 4);
   });
@@ -627,10 +626,8 @@ describe('windowed accessors', () => {
     expect(headlineTotalAsOf(snaps, [], '2026-07-24')).toBe(0);
   });
 
-  it('the unbounded accessors are the same function with no bound', () => {
-    // One implementation of the merge, two names. A second copy of this arithmetic
-    // would be a second answer.
-    expect(quotesAsOf(snaps)).toEqual(latestQuotes(snaps));
+  it('the unbounded accessor is the same function with no bound', () => {
+    // One implementation, two names. A second copy of this arithmetic would be a second answer.
     expect(headlineTotalAsOf(snaps, LEDGER)).toBeCloseTo(headlineTotal(snaps, LEDGER), 10);
   });
 

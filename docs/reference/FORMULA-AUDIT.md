@@ -15,7 +15,7 @@ capital-gain-versus-total-return pair (whose figures are pinned in `packages/cor
 
 ## Where the implementation departs from the doc
 
-- **An unquoted asset is ABSENT, never 0.** `latestQuotes` merges partial snapshots per asset, so a
+- **An unquoted asset is ABSENT, never 0.** `quotesAsOf` merges partial snapshots per asset, so a
   headline figure is built from each asset's own most recent quote rather than from one complete
   day — "previous close" as merge behaviour. An asset never quoted contributes nothing to a headline
   figure — its Balances cell reads "pending" on and after its first purchase and "—" before it —

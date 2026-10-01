@@ -2,32 +2,23 @@ import { Fragment } from 'react';
 import { Link } from 'react-router';
 
 import { Card } from '../../components/ui/Card';
-import { yieldSinceStart } from '@quirenote/core/derive';
-import type { Asset } from '@quirenote/core/types';
+import type { YieldTableRow } from '@quirenote/core/view/yield';
 import { shortLabel } from './quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 
 /**
- * THE RAIL'S YIELD CARD, and it is a REDRAW rather than a move. The one-line
- * ribbon it replaced wrapped to eleven lines at 360 with a word broken
- * mid-syllable, so shipping the compact form only above the breakpoint would be
- * one element with two forms, the broken one reserved for the smaller screen.
+ * THE RAIL'S YIELD CARD. Each figure is `/yield`'s Δ at «Від початку», read off its
+ * row: computed here, it would be a second answer to the same question.
+ *
+ * The same list at every width: a compact form only above the breakpoint would be
+ * one element with two forms.
  *
  * TWO `max-content` COLUMNS, so the labels and the figures each take exactly
  * their own width and the gap between them is the only one in the card. A
- * `justify-between` row stretches that gap to whatever the rail has spare, which
- * is what made the old ribbon unreadable.
+ * `justify-between` row stretches that gap to whatever the rail has spare.
  */
-export function YieldTeaser({
-  assets,
-  values,
-  invested,
-}: {
-  assets: Asset[];
-  values: Record<string, number>;
-  invested: Record<string, number>;
-}) {
+export function YieldTeaser({ rows }: { rows: YieldTableRow[] }) {
   const f = useFormat();
   const t = useT();
   return (
@@ -37,18 +28,18 @@ export function YieldTeaser({
           without it: a `max-content` track always equals its own text, so the ellipsis
           never triggers and a long asset name pushes the tracks past the card. */}
       <div className="mt-2.5 grid grid-cols-[minmax(0,max-content)_max-content] gap-x-4 gap-y-[5px] text-[12.5px] text-muted">
-        {assets.map((a) => {
-          const pct = yieldSinceStart(values[a.id] ?? 0, invested[a.id] ?? 0);
-          return (
-            <Fragment key={a.id}>
-              <span className="min-w-0 truncate">{shortLabel(a)}</span>
-              {/* The sign decides the tint: a loss is not drawn in the same colour as a gain. */}
-              <span className={`text-right font-bold ${pct < 0 ? 'text-neg' : 'text-pos'}`}>
-                {f.pct(pct)}
-              </span>
-            </Fragment>
-          );
-        })}
+        {rows.map(({ asset: a, deltaTotal }) => (
+          <Fragment key={a.id}>
+            <span className="min-w-0 truncate">{shortLabel(a)}</span>
+            {/* The sign decides the tint: a loss is not drawn in the same colour as a gain.
+                An asset with no quote has no figure: «—», muted, as `/yield` renders it. */}
+            <span
+              className={`text-right font-bold ${deltaTotal === undefined ? 'text-muted' : deltaTotal < 0 ? 'text-neg' : 'text-pos'}`}
+            >
+              {deltaTotal === undefined ? '—' : f.pct(deltaTotal)}
+            </span>
+          </Fragment>
+        ))}
       </div>
       {/* Plain text rather than a button, so the height stays the drawing's — and that
           is exactly why it may NOT take `TAP_44`, which is for a control that already

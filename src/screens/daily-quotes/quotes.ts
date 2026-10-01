@@ -68,9 +68,9 @@ export function yesterdayQuote(
 // block exists to avoid.
 //
 // THE BASELINE IS `yesterdayQuote`, and the trap is worth naming because the
-// wrong function looks right: `latestQuotes` is unbounded, so on any day the
-// picker is not sitting on today it measures against a snapshot LATER than the
-// one every row's own subline compares to.
+// wrong function looks right: `quotesAsOf` with no date is unbounded, so on any
+// day the picker is not sitting on today it measures against a snapshot LATER
+// than the one every row's own subline compares to.
 //
 // A row can be FILLED without changing anything, so this counts rows whose value
 // DIFFERS from its baseline.
