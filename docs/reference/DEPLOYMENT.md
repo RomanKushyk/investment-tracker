@@ -276,8 +276,8 @@ effectively $0/mo solo. The two guardrails below are console artefacts, `quireno
 granting neither `budgets:*` nor `cloudwatch:PutDashboard`. **Nothing re-creates either one.
 Deleted, they are a repair by hand, and this section is the whole of the instructions.**
 
-**1. The Cognito usage budget — NOT YET CREATED.** A **usage** budget, not a cost budget, named
-`cognito-free-tier`, alerting at 100% actual with the owner's email as the only subscriber. The free
+**1. The Cognito usage budget.** It exists, a **usage** budget and not a cost budget. How its usage
+type and limit were chosen comes first, since a re-creation repeats that choice. The free
 tier is 10,000 monthly active users on Essentials, per ACCOUNT rather than per pool, and **the usage
 type follows the pool's TIER** — this pool is `UserPoolTier: ESSENTIALS`. AWS's public pricing offer
 file (`https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonCognito/current/index.json`)
@@ -293,18 +293,45 @@ unit reads `CognitoUserPoolsMAU`, a label and not the classic usage type above. 
 Essentials meter while the bill is $0 means the
 free tier is applied as a credit and the limit is 10,000; usage on the `Global-` line instead means
 only the excess is billed, so the limit is near zero — any billable Essentials MAU says the
-allowance is gone. **If the console offers no Cognito usage line yet** — possible while the pool is
-nearly empty — the budget cannot be created honestly; say so rather than guessing, and lean
-meanwhile on `Quirenote/PoolUsers` and its alarm, which are in the stack. AWS also mails at 85% of a
-Free Tier limit, to the account root user's address unless changed under Billing → Preferences →
-Alert preferences, automatic for an individual account but opt-in for an Organizations management
-account. **The thing to verify is that somebody reads it.** `PoolUsersAlarm` sits at 80% of the same
-10,000, ahead of that mail **for prod's share of the allowance, and only while no prod user is
-deleted during the month**: a user created or active in the month and then deleted, by
-`AdminDeleteUser` or by `DeleteUser`, stays metered but leaves the count. Either is made by hand:
-`DeleteUser` takes an access token, and an app sign-in's is one only the relay holds. It is not
-ahead for the account's allowance, since dev's pool spends the same 10,000 and
-nothing here measures it.
+allowance is gone.
+
+Unless that reading finds the actives on another line, a re-creation sets these fields, as
+`describe-budget`, `describe-notifications-for-budget` and `describe-subscribers-for-notification`
+read them back:
+
+| Field | Value |
+|-------|-------|
+| `BudgetName` | `cognito-free-tier` |
+| `BudgetType` | `USAGE` |
+| `BudgetLimit` | `Amount` `10000.0`, `Unit` `CognitoUserPoolsMAU` |
+| `TimeUnit` | `MONTHLY` |
+| `Metrics` | `UsageQuantity` |
+| `FilterExpression` | `Dimensions`, `Key` `USAGE_TYPE`, `Values` `EUN1-CognitoEssentialsMAU` |
+| Notification | `NotificationType` `ACTUAL`, `ComparisonOperator` `GREATER_THAN`, `Threshold` `100.0`, `ThresholdType` `PERCENTAGE`, which the notification read-back omits: the subscriber lookup finds the subscriber under it |
+| Subscriber | `SubscriptionType` `EMAIL`, `Address` the owner's, the only subscriber |
+
+Creating it needs `budgets:ModifyBudget`, and `budgets:TagResource` to create it with tags; the
+three reads need `budgets:ViewBudget`. The Service Authorization Reference lists
+`aws-portal:ModifyBilling` and `aws-portal:ViewBilling` beside them, from the legacy namespace AWS
+has ended standard support for. **The check that a budget re-created from the table reads the right
+line:** its read-back equals the table, and its `CalculatedSpend.ActualSpend` is above zero and
+agrees with the Essentials line's month-to-date usage in the Cost Explorer view above, allowing for the two
+services refreshing at different times. Early in a month the budget can still hold the month
+before's total until its next refresh; after that, while no Cognito line shows usage in the month,
+`ActualSpend` is zero whichever line the budget watches. Either way, repeat the check once the
+month's usage appears, and lean meanwhile on `Quirenote/PoolUsers` and its alarm, which are in
+prod's stack and count prod's pool alone.
+
+AWS also mails at 85% of a Free Tier limit, to the account root user's address unless changed
+under Billing → Preferences → Alert preferences, automatic for an individual account but opt-in for
+an Organizations management account. **The thing to verify is that somebody reads it.**
+`PoolUsersAlarm` sits at 80% of the same 10,000, ahead of that mail **for prod's share of the
+allowance, and only while no prod user is deleted during the month**: a user created or active in
+the month and then deleted, by `AdminDeleteUser` or by `DeleteUser`, stays metered but leaves the
+count. Either is made by hand: `DeleteUser` takes an access token, and an app sign-in's is one only
+the relay holds. It is not ahead for the account's allowance, since dev's pool spends the same
+10,000 and `PoolUsers` leaves dev's pool out; the usage budget counts dev's pool too, but alerts
+only past the whole allowance.
 
 **2. The free-tier dashboard — NOT YET CREATED.** Two widgets in `eu-north-1`: `Quirenote` /
 `PoolUsers`, annotated at 8,000 where the alarm sits, and `AWS/Cognito` / `SignUpSuccesses` for the
