@@ -12,6 +12,7 @@ import {
   headlineKpis,
   headlineTotal,
   headlineTotalAsOf,
+  heldQuotesAsOf,
   incomeReceived,
   incomeReceivedNet,
   investedOwnByAsset,
@@ -391,6 +392,42 @@ describe('value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))
   it('a position sold down to nothing is worth nothing, not absent', () => {
     const closed = [...held, { ...tx('s', 'sell', 1400, 'a1', '2026-06-01'), quantity: 105 }];
     expect(valueAsOf('a1', '2026-06-01', closed, () => 12, none)).toBe(0);
+  });
+});
+
+describe('heldQuotesAsOf — a position counts while the ledger holds units of it', () => {
+  const buy = { ...tx('b', 'buy', 1000, 'a1', '2026-03-01'), quantity: 100 };
+  const sellAll = { ...tx('s', 'sell', 1100, 'a1', '2026-05-01'), quantity: 100 };
+  const quoted: Snapshot[] = [
+    { date: '2026-02-01', quotes: { a1: 990 } },
+    { date: '2026-04-01', quotes: { a1: 1050 } },
+    { date: '2026-06-01', quotes: { a1: 1100 } },
+  ];
+
+  it('keeps the quote of a position still held', () => {
+    expect(heldQuotesAsOf(quoted, [buy], '2026-04-01')).toEqual({ a1: 1050 });
+    expect(heldQuotesAsOf(quoted, [buy])).toEqual({ a1: 1100 });
+  });
+
+  it('values a sold-out position at 0 from its sale on, a quote dated after it included', () => {
+    expect(heldQuotesAsOf(quoted, [buy, sellAll], '2026-04-01')).toEqual({ a1: 1050 });
+    expect(heldQuotesAsOf(quoted, [buy, sellAll], '2026-06-01')).toEqual({ a1: 0 });
+    expect(heldQuotesAsOf(quoted, [buy, sellAll])).toEqual({ a1: 0 });
+  });
+
+  it('keeps the quote where the ledger cannot count the units', () => {
+    const uncounted = tx('s', 'sell', 1100, 'a1', '2026-05-01');
+    expect(heldQuotesAsOf(quoted, [buy, uncounted], '2026-06-01')).toEqual({ a1: 1100 });
+  });
+
+  it('counts nothing for a quote dated before the first buy, while the cash is still cash', () => {
+    expect(heldQuotesAsOf(quoted, [buy], '2026-02-01')).toEqual({ a1: 0 });
+  });
+
+  it('leaves an asset no snapshot quotes absent, sold out or not', () => {
+    const other = { ...tx('b2', 'buy', 500, 'a2', '2026-03-01'), quantity: 5 };
+    const otherOut = { ...tx('s2', 'sell', 520, 'a2', '2026-03-15'), quantity: 5 };
+    expect(heldQuotesAsOf(quoted, [buy, other, otherOut])).toEqual({ a1: 1100 });
   });
 });
 

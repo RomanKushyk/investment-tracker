@@ -2,6 +2,7 @@
 import {
   annualizedPct,
   basisIsShort,
+  heldQuotesAsOf,
   startDateByAsset,
   investedByAsset,
   investedOwnByAsset,
@@ -106,7 +107,7 @@ export function windowedBasisByAsset(
   transactions: Transaction[],
   w: PeriodWindow | undefined,
 ): { open: Record<string, number>; basis: Record<string, number> } {
-  const open = w === undefined ? {} : quotesAsOf(snapshots, dayBefore(w.from));
+  const open = w === undefined ? {} : heldQuotesAsOf(snapshots, transactions, dayBefore(w.from));
   const invested = investedByAsset(transactionsFromWindow(transactions, w));
   const basis: Record<string, number> = {};
   for (const asset of assets) basis[asset.id] = (open[asset.id] ?? 0) + (invested[asset.id] ?? 0);
@@ -141,7 +142,10 @@ export function yieldTableRowsIn(
   // means no valuation date, not no ledger.
   const flows = transactionsFromWindow(transactions, w);
   const { open, basis } = windowedBasisByAsset(assets, snapshots, transactions, w);
-  const values = w === undefined ? {} : quotesAsOf(snapshots, w.to);
+  // Priced to the window's end, with units to the ledger's last row, where `flows` end too: a
+  // sale entered since the last valuation takes the position's units with it.
+  const valued = w === undefined ? [] : snapshots.filter((s) => s.date <= w.to);
+  const values = w === undefined ? {} : heldQuotesAsOf(valued, transactions);
   const investedOwn = investedOwnByAsset(flows);
   const reinvested = reinvestedByAsset(flows);
   const payoutsNet = payoutsNetByAsset(flows);

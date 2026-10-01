@@ -1,5 +1,6 @@
 // The golden master's ledgers: the seed, and the edges it never reaches — empty, a sale, an
-// unquoted asset, a short ledger, a linked bond — where a moved line can change silently.
+// unquoted asset, a position sold out, a short ledger, a linked bond — where a moved line can
+// change silently.
 import { parseAssetsFeed } from '../inzhur/parse';
 import fixture from '../inzhur/__fixtures__/assets-sample.json';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
@@ -34,6 +35,12 @@ const SOLD: Transaction[] = [
   { id: 'b9', date: '2026-07-20', type: 'buy', assetId: 'fresh', amount: 5000, quantity: 500 },
 ];
 
+// Two positions sold out: …8976 while later snapshots still quote it, energy after its last quote.
+const SOLD_OUT: Transaction[] = [
+  { id: 's2', date: '2026-07-01', type: 'sell', assetId: 'ovdp8976', amount: 15800, quantity: 15 },
+  { id: 's3', date: '2026-07-26', type: 'sell', assetId: 'energy', amount: 60500, quantity: 6000 },
+];
+
 // attributes.test.ts's linked bond: its feed entry solves a YTM at the paid price.
 const LINKED_BOND: Asset = {
   id: 'ovdp8976',
@@ -61,6 +68,15 @@ export const TEST_LEDGERS: TestLedger[] = [
       assets: [...SEED_ASSETS, FRESH],
       snapshots,
       transactions: [...SEED_TRANSACTIONS, ...SOLD],
+      today: TODAY,
+    },
+  },
+  {
+    name: 'sold-out',
+    input: {
+      assets: SEED_ASSETS,
+      snapshots,
+      transactions: [...SEED_TRANSACTIONS, ...SOLD_OUT],
       today: TODAY,
     },
   },

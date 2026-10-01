@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { unitsByAsset } from '../derive';
 import { PERIOD_OPTIONS } from '../period';
 import type { Asset } from '../types';
 import { allocationView } from './allocation';
@@ -101,6 +102,13 @@ describe('the ledgers reach the branches they exist for', () => {
     expect(input.transactions.some((t) => t.type === 'sell')).toBe(true);
     const rows = yieldView({ ...input, period: 'all' }).rows;
     expect(rows.find((r) => r.asset.id === 'fresh')?.value).toBeUndefined();
+  });
+  it('sold-out holds no units of two positions, one quoted after its sale and one not', () => {
+    const { snapshots, transactions } = ledger('sold-out');
+    const units = unitsByAsset(transactions);
+    expect([units.ovdp8976, units.energy]).toEqual([0, 0]);
+    expect(snapshots.some((s) => s.date > '2026-07-01' && 'ovdp8976' in s.quotes)).toBe(true);
+    expect(snapshots.some((s) => s.date > '2026-07-26' && 'energy' in s.quotes)).toBe(false);
   });
   it('cash-short is short', () => {
     expect(portfolioView(ledger('cash-short')).cashShort).toBe(true);

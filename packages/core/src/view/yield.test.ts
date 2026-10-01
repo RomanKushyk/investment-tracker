@@ -312,6 +312,14 @@ describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
     expect(at('all').annualized! * 100).toBeCloseTo(10.9, 1);
   });
 
+  it('a window that ends before the last snapshot reads no snapshot after its end', () => {
+    const w = { from: '2026-03-01', to: '2026-05-31', clamped: false };
+    const upTo = snaps.filter((s) => s.date <= w.to);
+    expect(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, w)).toEqual(
+      yieldTableRowsIn(SEED_ASSETS, upTo, SEED_TRANSACTIONS, w),
+    );
+  });
+
   it('a SELL inside the window is not a loss — the case the seed cannot show (F-7)', () => {
     // The seed has no disposals, which is why the formula could omit the term
     // without a single figure moving. A REAL disposal REDUCES THE POSITION, so the
@@ -337,6 +345,23 @@ describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
     // Selling at market is return-neutral: drop the `+ sold` term and this reports a loss on a position that merely returned cash.
     expect(withSell.deltaTotal! * 100).toBeCloseTo(without.deltaTotal! * 100, 1);
     expect(withSell.deltaTotal!).toBeGreaterThan(0);
+  });
+});
+
+describe('a position sold out before the window opens', () => {
+  it('values it at 0 at both ends, though the seed goes on quoting it', () => {
+    const sell: Transaction = {
+      id: 'sell-8976',
+      date: '2026-04-01',
+      type: 'sell',
+      assetId: 'ovdp8976',
+      amount: 15_800,
+      quantity: 15,
+    };
+    const w = resolveWindow('3m', '2026-02-03', '2026-07-27')!;
+    const rows = yieldTableRowsIn(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, sell], w);
+    const row = rows.find((r) => r.asset.id === 'ovdp8976')!;
+    expect([row.value, row.invested, row.deltaTotal]).toEqual([0, 0, 0]);
   });
 });
 

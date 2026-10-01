@@ -106,7 +106,12 @@ regression.
 return. The annualized column divides every row by ONE span, the selected window's, and a row whose
 holding falls well short of it renders muted; per-asset XIRR is the money-weighted column, and its
 annualization mark tests the WINDOW's length, not the asset's. A window's opening position is valued
-the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total; free
+the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total; a
+position's value counts at a date only while the ledger holds units of it, both then and on the
+last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger
+cannot count keeps its last quote; the close of Overview's capital gain and of `/yield`'s table
+counts units to the ledger's last row, where their flows end too, though its quotes stop at the
+window's end; free
 cash AT A DATE is the ledger's signed sum up to it, a payout contributing
 `amount − coalesce(tax_withheld, 0)`; a coupon derives from its RATE. A withholding is a FIELD on
 the payout it was taken from, never a row of its own. Nothing bounds free cash, so a share is taken
@@ -118,7 +123,9 @@ it; a field's own value stays the field boundary's. A bond's price ON the paymen
 before maturity is EX that coupon: the DCF re-derivation (`futureFlows`) discounts only flows
 strictly after the pricing date, and a quote suggested for that date already deducts the coupon.
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
-makes the full history collapse onto its unwindowed twin. A stored coupon amount goes stale on the
+makes the full history collapse onto its unwindowed twin. Capital gain is realized plus unrealized,
+and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
+last quote outlives its sale and would count it twice. A stored coupon amount goes stale on the
 next purchase where a rate does not; tax runs the other way, rates changing, so a computed
 withholding eventually lies where a recorded one cannot. The withholding is READ off the payout
 rather than skipped, which is two columns of one row and not an exclusion returning by another
@@ -135,7 +142,8 @@ cum disagree, which confirms `futureFlows`' same-day rule.
 **Rejected.** Per-asset annualization: a fixed-coupon bond would beat its own contract, and XIRR is
 already the per-asset answer. · A stored balance beside the derived one: no screen ever let anyone
 enter the observation, so the second source of truth could only ever carry the previous figure
-forward, and a chip comparing the two reported a gap neither of them could close. · Counting a flow
+forward, and a chip comparing the two reported a gap neither of them could close. · Dropping the
+closing quote of any asset sold in a window: it zeroed a part-sold position. · Counting a flow
 due on the pricing date: on such a payment date the provider's quote misses that reading by the
 whole coupon.
 

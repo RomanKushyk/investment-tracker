@@ -4,7 +4,7 @@ import {
   cashIsShort,
   freeCashFromLedger,
   headlineTotal,
-  latestQuotes,
+  heldQuotesAsOf,
   sharePct,
   shareTotal,
   topUpAmount,
@@ -101,7 +101,7 @@ export interface AllocationView {
 /** The Allocation screen's figures, against the share base the rest of the app uses.
  *  A DRAFTED target is the editor's, never a figure: it moves only the tick. */
 export function allocationView({ assets, snapshots, transactions }: LedgerInput): AllocationView {
-  const values = latestQuotes(snapshots);
+  const values = heldQuotesAsOf(snapshots, transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
   const base = shareTotal(total, cash);

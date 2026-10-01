@@ -9,11 +9,10 @@ import {
   freeCashFromLedger,
   incomeReceived,
   incomeReceivedNet,
-  latestQuotes,
-  quotesAsOf,
+  heldQuotesAsOf,
   reinvestedTotal,
   shareTotal,
-  soldAmountByAsset,
+  soldAmount,
   transactionsFrom,
   transactionsFromWindow,
   headlineTotal,
@@ -124,20 +123,15 @@ export function netResultIn(
 ): { uah: number; pct: number } {
   const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
   if (w !== undefined && !hasBaseline(snapshots, transactions, w)) return { uah: 0, pct: 0 };
-  const closeQuotes = quotesAsOf(snapshots, w?.to);
-  const open = w === undefined ? 0 : sum(quotesAsOf(snapshots, dayBefore(w.from)));
+  // Held positions only. The close prices to `w.to` but counts units to the ledger's last row,
+  // where `inside` ends too: a sale entered since the last valuation takes its units with it.
+  const valued = w === undefined ? snapshots : snapshots.filter((s) => s.date <= w.to);
+  const close = sum(heldQuotesAsOf(valued, transactions));
+  const open =
+    w === undefined ? 0 : sum(heldQuotesAsOf(snapshots, transactions, dayBefore(w.from)));
   const inside = w === undefined ? transactions : transactionsFrom(transactions, w.from);
-
-  // A SOLD POSITION KEEPS ITS LAST QUOTE, so the disposal term double-counts it unless
-  // the quote is dropped: `quotesAsOf` MERGES snapshots, so an asset absent from every
-  // later one keeps its last value forever.
-  const soldByAsset = soldAmountByAsset(inside);
-  const close = Object.entries(closeQuotes).reduce(
-    (acc, [id, v]) => acc + (soldByAsset[id] === undefined ? v : 0),
-    0,
-  );
   const basis = open + sum(investedByAsset(inside));
-  const uah = close + sum(soldByAsset) - basis;
+  const uah = close + soldAmount(inside) - basis;
   return { uah, pct: basis === 0 ? 0 : uah / basis };
 }
 
@@ -303,7 +297,7 @@ export interface OverviewView {
  *  window; the next payouts count from `today`, as "what comes next" asks the calendar. */
 export function overviewView(input: LedgerInput & PeriodInput & ClockInput): OverviewView {
   const { assets, snapshots, transactions, today } = input;
-  const values = latestQuotes(snapshots);
+  const values = heldQuotesAsOf(snapshots, transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
   const base = shareTotal(total, cash);

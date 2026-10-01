@@ -585,7 +585,7 @@ export const en = {
       ytmDerived: (stored: string) =>
         `Solved from the price you paid. The stored expected return is ${stored}, and that is what /yield compares against.`,
       capitalGainNote:
-        'Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total return on the Yield screen.',
+        'Capital gain = value + sale and redemption proceeds − invested (incl. reinvested payouts). Payout income counts in Total return on the Yield screen.',
       inWeeks: (pct: string, weeks: number) => `${pct} in ${weeks} weeks`,
       watchVsExpected: (pct: string, expected: string) => `${pct} · watch vs ${expected} expected`,
       ofReceivedIncome: (pct: string) => `${pct} of received income`,
@@ -1654,7 +1654,7 @@ export const uk: Dict = {
       ytmDerived: (stored: string) =>
         `Виведено з ціни, яку ви заплатили. Збережена очікувана дохідність — ${stored}, і саме з нею порівнює «Дохідність».`,
       capitalGainNote:
-        'Приріст капіталу = вартість − вкладено (з реінвестованими виплатами). Дохід від виплат враховується в загальній дохідності на екрані «Дохідність».',
+        'Приріст капіталу = вартість + надходження від продажів і погашень − вкладено (з реінвестованими виплатами). Дохід від виплат враховується в загальній дохідності на екрані «Дохідність».',
       inWeeks: (pct: string, weeks: number) => `${pct} за ${weeks} тиж.`,
       watchVsExpected: (pct: string, expected: string) => `${pct} · проти очікуваних ${expected}`,
       ofReceivedIncome: (pct: string) => `${pct} отриманого доходу`,

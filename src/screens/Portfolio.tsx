@@ -31,6 +31,11 @@ function signClass(v: number): string {
   return v < 0 ? 'text-neg' : 'text-pos';
 }
 
+// An asset with no quote has no return: «—», muted, as `/yield` renders it.
+function pctClass(v: number | undefined): string {
+  return v === undefined ? 'text-muted' : signClass(v);
+}
+
 export function Portfolio() {
   const f = useFormat();
   const t = useT();
@@ -143,8 +148,8 @@ export function Portfolio() {
                     <td className={`py-2 text-right font-bold ${signClass(r.pnl)}`}>
                       {f.signedNum(r.pnl)}
                     </td>
-                    <td className={`py-2 text-right font-bold ${signClass(r.pnlPct)}`}>
-                      {f.pct(r.pnlPct)}
+                    <td className={`py-2 text-right font-bold ${pctClass(r.pnlPct)}`}>
+                      {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
                     </td>
                     <td className="py-2 text-right">
                       <Share pct={r.share} />
@@ -212,7 +217,9 @@ export function Portfolio() {
                 <span className={signClass(r.pnl)}>{f.signedNum(r.pnl)}</span>
               </Fact>
               <Fact label={t.analytics.capitalGainPct}>
-                <span className={signClass(r.pnlPct)}>{f.pct(r.pnlPct)}</span>
+                <span className={pctClass(r.pnlPct)}>
+                  {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
+                </span>
               </Fact>
             </RecordCard>
           ))}

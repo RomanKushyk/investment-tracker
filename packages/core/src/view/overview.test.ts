@@ -352,8 +352,53 @@ describe('the windowed edge cases the seed cannot show (A40 review)', () => {
   });
 
   it('a SELL does not count twice, though the sold asset keeps its last quote', () => {
-    // `quotesAsOf` merges snapshots, so an asset absent after its sale keeps
-    // its final value forever. Counting that AND the proceeds invents a gain.
+    // The seed goes on quoting …8976 after all 15 units are sold, and `quotesAsOf` would
+    // carry a last quote forward even if it stopped. Counting that AND the proceeds invents a gain.
+    const sell: Transaction = {
+      id: 'sell-8976',
+      date: '2026-06-01',
+      type: 'sell',
+      assetId: 'ovdp8976',
+      amount: 15_800,
+      quantity: 15,
+    };
+    const withSell = netResultIn(snaps, [...SEED_TRANSACTIONS, sell], m3);
+    const without = netResultIn(snaps, SEED_TRANSACTIONS, m3);
+    // Selling near market is close to return-neutral; a double count would add
+    // the whole ~15 800 to the gain.
+    expect(Math.abs(withSell.uah - without.uah)).toBeLessThan(1_000);
+  });
+
+  it('a window that ends before the last snapshot reads no snapshot after its end', () => {
+    const w = { from: '2026-03-01', to: '2026-05-31', clamped: false };
+    const upTo = snaps.filter((s) => s.date <= w.to);
+    expect(netResultIn(snaps, SEED_TRANSACTIONS, w)).toEqual(
+      netResultIn(upTo, SEED_TRANSACTIONS, w),
+    );
+  });
+
+  it('a position sold out before the window opens adds nothing to it', () => {
+    // The seed goes on quoting …8976 after the sale, at the window's opening end too.
+    const sell: Transaction = {
+      id: 'sell-8976',
+      date: '2026-04-01',
+      type: 'sell',
+      assetId: 'ovdp8976',
+      amount: 15_800,
+      quantity: 15,
+    };
+    const without8976 = snaps.map((s) => ({
+      ...s,
+      quotes: Object.fromEntries(Object.entries(s.quotes).filter(([id]) => id !== 'ovdp8976')),
+    }));
+    const others = SEED_TRANSACTIONS.filter((t) => t.assetId !== 'ovdp8976');
+    expect(netResultIn(snaps, [...SEED_TRANSACTIONS, sell], m3).uah).toBeCloseTo(
+      netResultIn(without8976, others, m3).uah,
+      6,
+    );
+  });
+
+  it('a sale with no units keeps the quote: the ledger cannot tell it sold out', () => {
     const sell: Transaction = {
       id: 'sell-8976',
       date: '2026-06-01',
@@ -363,9 +408,7 @@ describe('the windowed edge cases the seed cannot show (A40 review)', () => {
     };
     const withSell = netResultIn(snaps, [...SEED_TRANSACTIONS, sell], m3);
     const without = netResultIn(snaps, SEED_TRANSACTIONS, m3);
-    // Selling near market is close to return-neutral; a double count would add
-    // the whole ~15 800 to the gain.
-    expect(Math.abs(withSell.uah - without.uah)).toBeLessThan(1_000);
+    expect(withSell.uah - without.uah).toBeCloseTo(15_800, 6);
   });
 });
 

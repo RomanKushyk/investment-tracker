@@ -90,8 +90,27 @@ export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
   return quotesAsOf(snaps);
 }
 
+/** `quotesAsOf`, with a position worth 0 that the ledger holds no units of at `asOf`, or held none
+ *  of on the last valuation day: a last quote outlives a sale. *Metric families and windows* */
+export function heldQuotesAsOf(
+  snaps: Snapshot[],
+  txs: Transaction[],
+  asOf?: string,
+): Record<string, number> {
+  const quotes = quotesAsOf(snaps, asOf);
+  const valuedOn = byDate(snaps)
+    .filter((s) => asOf === undefined || s.date <= asOf)
+    .at(-1)?.date;
+  const now = ledgerUnits(txs, asOf).units;
+  const then = ledgerUnits(txs, valuedOn).units;
+  // Units the ledger cannot count are `undefined`, and keep the quote.
+  const none = (n: number | undefined) => n !== undefined && n <= 0;
+  for (const id of Object.keys(quotes)) if (none(now[id]) || none(then[id])) quotes[id] = 0;
+  return quotes;
+}
+
 /**
- * Both halves at one instant WHEN BOUND: the quotes merged up to `asOf` and the
+ * Both halves at one instant WHEN BOUND: the held positions valued up to `asOf` and the
  * ledger summed to the same day. A date before the first valuation returns the cash
  * alone rather than 0 — money deposited before anything was valued is still capital.
  *
@@ -105,7 +124,7 @@ export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
  */
 export function headlineTotalAsOf(snaps: Snapshot[], txs: Transaction[], asOf?: string): number {
   return (
-    Object.values(quotesAsOf(snaps, asOf)).reduce((a, b) => a + b, 0) +
+    Object.values(heldQuotesAsOf(snaps, txs, asOf)).reduce((a, b) => a + b, 0) +
     freeCashFromLedger(txs, asOf)
   );
 }
@@ -337,7 +356,7 @@ export function headlineKpis(
 ): { total: number; net: { uah: number; pct: number } } {
   return {
     total: headlineTotal(snaps, txs),
-    net: netResult(latestQuotes(snaps), investedByAsset(txs), soldAmount(txs)),
+    net: netResult(heldQuotesAsOf(snaps, txs), investedByAsset(txs), soldAmount(txs)),
   };
 }
 

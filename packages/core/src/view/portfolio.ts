@@ -4,57 +4,47 @@ import {
   cashIsShort,
   freeCashFromLedger,
   headlineTotal,
+  heldQuotesAsOf,
   investedByAsset,
-  latestQuotes,
   netResult,
   reinvestedByAsset,
   reinvestedTotal,
   sharePct,
   shareTotal,
   soldAmount,
+  soldAmountByAsset,
   usableTotal,
-  yieldSinceStart,
 } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
 import type { LedgerInput } from './input';
+import { yieldView } from './yield';
 
 export interface PerformanceResult {
   asset: Asset;
   yield: number;
 }
 
+type Ranked = Pick<PortfolioRow, 'asset' | 'pnlPct'>;
+
 function extreme(
-  assets: Asset[],
-  values: Record<string, number>,
-  invested: Record<string, number>,
+  rows: Ranked[],
   pick: (a: number, b: number) => boolean,
 ): PerformanceResult | undefined {
-  // No asset has ever been quoted: every yield would default to 0 and the first
-  // asset would win by tie-break, which reads as a real result. Bail out instead.
-  if (!assets.some((a) => a.id in values)) return undefined;
-
+  // An asset with no quote has no return, and ranking it at −100 % reads as a real result.
   let best: PerformanceResult | undefined;
-  for (const asset of assets) {
-    const y = yieldSinceStart(values[asset.id] ?? 0, invested[asset.id] ?? 0);
-    if (!best || pick(y, best.yield)) best = { asset, yield: y };
+  for (const { asset, pnlPct } of rows) {
+    if (pnlPct === undefined) continue;
+    if (!best || pick(pnlPct, best.yield)) best = { asset, yield: pnlPct };
   }
   return best;
 }
 
-export function bestPerformer(
-  assets: Asset[],
-  values: Record<string, number>,
-  invested: Record<string, number>,
-): PerformanceResult | undefined {
-  return extreme(assets, values, invested, (y, best) => y > best);
+export function bestPerformer(rows: Ranked[]): PerformanceResult | undefined {
+  return extreme(rows, (y, best) => y > best);
 }
 
-export function laggard(
-  assets: Asset[],
-  values: Record<string, number>,
-  invested: Record<string, number>,
-): PerformanceResult | undefined {
-  return extreme(assets, values, invested, (y, best) => y < best);
+export function laggard(rows: Ranked[]): PerformanceResult | undefined {
+  return extreme(rows, (y, best) => y < best);
 }
 
 export interface IncomeEngineResult {
@@ -114,9 +104,10 @@ export interface PortfolioRow {
   value: number;
   invested: number;
   reinvested: number;
-  /** Both omit the sale proceeds that the Total row's `net` adds (#323). */
+  /** Value plus the asset's sale proceeds, less what went in: the Total row's `net`, per row. */
   pnl: number;
-  pnlPct: number;
+  /** `/yield`'s Δ at the full history; absent for an asset with no quote. */
+  pnlPct: number | undefined;
   share: number | null;
 }
 
@@ -150,29 +141,33 @@ export interface PortfolioView {
 /** The Portfolio screen's figures: one row per asset, and the table and the cards read
  *  the same rows. Over the whole ledger, to the latest valuation. */
 export function portfolioView({ assets, snapshots, transactions }: LedgerInput): PortfolioView {
-  const values = latestQuotes(snapshots);
+  const values = heldQuotesAsOf(snapshots, transactions);
   const invested = investedByAsset(transactions);
   const reinvested = reinvestedByAsset(transactions);
+  const sold = soldAmountByAsset(transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
   const base = shareTotal(total, cash);
-  const best = bestPerformer(assets, values, invested);
+  // The return is `/yield`'s own row, as Overview and Attributes read it.
+  const returns = yieldView({ assets, snapshots, transactions, period: 'all' }).rows;
+  const rows = returns.map(({ asset, deltaTotal }) => {
+    const value = values[asset.id] ?? 0;
+    const inv = invested[asset.id] ?? 0;
+    return {
+      asset,
+      value,
+      invested: inv,
+      reinvested: reinvested[asset.id] ?? 0,
+      pnl: value + (sold[asset.id] ?? 0) - inv,
+      pnlPct: deltaTotal,
+      share: sharePct(value, base),
+    };
+  });
+  const best = bestPerformer(rows);
   const now = latestSnapshotDate(snapshots);
   const engine = incomeEngine(assets, transactions);
   return {
-    rows: assets.map((asset) => {
-      const value = values[asset.id] ?? 0;
-      const inv = invested[asset.id] ?? 0;
-      return {
-        asset,
-        value,
-        invested: inv,
-        reinvested: reinvested[asset.id] ?? 0,
-        pnl: value - inv,
-        pnlPct: yieldSinceStart(value, inv),
-        share: sharePct(value, base),
-      };
-    }),
+    rows,
     totals: {
       invested: Object.values(invested).reduce((a, b) => a + b, 0),
       reinvested: reinvestedTotal(transactions),
@@ -184,7 +179,7 @@ export function portfolioView({ assets, snapshots, transactions }: LedgerInput):
     cashShort: cashIsShort(cash),
     best,
     bestWeeks: best && now ? Math.round(daysBetween(best.asset.firstPurchase, now) / 7) : undefined,
-    worst: laggard(assets, values, invested),
+    worst: laggard(rows),
     engine: engine && {
       ...engine,
       kind: engine.dividends >= engine.coupons ? 'dividends' : 'coupons',
