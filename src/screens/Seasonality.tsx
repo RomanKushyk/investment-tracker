@@ -7,20 +7,9 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import { couponPerPayment } from '@quirenote/core/accrual';
-import { transactionsFromWindow, unitsByAsset } from '@quirenote/core/derive';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { shortLabel } from './daily-quotes/quotes';
-import {
-  anchorAssetGrowth,
-  bondCouponInfo,
-  dominantAssetOnDay,
-  dominantExpectedAssetOnDay,
-  incomeAnchorDay,
-  quietStretch,
-  seasonalityDaysIn,
-  seasonalityMonthsIn,
-} from '@quirenote/core/view/seasonality';
+import { seasonalityView } from '@quirenote/core/view/seasonality';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 
@@ -43,17 +32,12 @@ export function Seasonality() {
   const transactions = useTransactions().data ?? NO_TRANSACTIONS;
   const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
 
-  const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
-
-  // THE LEDGER THIS SCREEN READS FOR EVERY *FLOW* QUESTION. Everything derived
-  // from the windowed bars must be read on the same side of the boundary, or a
-  // windowed height wears an unwindowed colour and the card beneath it names an
-  // asset that paid nothing inside the window.
-  const windowed = useMemo(() => transactionsFromWindow(transactions, win), [transactions, win]);
-
-  const days = useMemo(
-    () => seasonalityDaysIn(transactions, assets, win),
-    [transactions, assets, win],
+  const { period, control } = usePeriodWindow(assets, snapshots, transactions);
+  // Every FLOW figure here reads the windowed ledger, so a bar and the card beneath it
+  // are on the same side of the boundary (`seasonalityView`).
+  const view = useMemo(
+    () => seasonalityView({ assets, snapshots, transactions, period }),
+    [assets, snapshots, transactions, period],
   );
 
   /**
@@ -64,36 +48,27 @@ export function Seasonality() {
    * opposite answer for the opposite reason.
    */
   const [axis, setAxis] = useState<'day' | 'month'>('day');
-  const anchor = incomeAnchorDay(days);
+  const { anchor, anchorAsset, anchorGrowth: growth, bigBond: big, bigBondInfo: bigInfo } = view;
 
-  // The month axis carries no per-bucket colour: a month aggregates several assets
-  // by construction, so a "dominant asset" hue would be a claim the bucket does not
-  // support. MEMOISED, and built only for the axis on screen — the day set walks
-  // the whole ledger once per day of the month.
+  // The month axis carries no per-bucket colour: a month aggregates several assets, so a
+  // "dominant asset" hue would be a claim the bucket does not support.
   const monthData: SeasonalityChartPoint[] = useMemo(
     () =>
-      axis === 'month'
-        ? seasonalityMonthsIn(transactions, assets, win).map((m): SeasonalityChartPoint => ({
-            day: m.month,
-            actual: m.actual,
-            expected: m.expected,
-            actualLabel: m.actual > 0 ? f.moneyWhole(m.actual) : undefined,
-            expectedLabel: m.expected !== undefined ? `${f.moneyWhole(m.expected)}*` : undefined,
-          }))
-        : [],
-    [axis, transactions, assets, win, f],
+      view.months.map((m): SeasonalityChartPoint => ({
+        day: m.month,
+        actual: m.actual,
+        expected: m.expected,
+        actualLabel: m.actual > 0 ? f.moneyWhole(m.actual) : undefined,
+        expectedLabel: m.expected !== undefined ? `${f.moneyWhole(m.expected)}*` : undefined,
+      })),
+    [view, f],
   );
 
   const chartData: SeasonalityChartPoint[] = useMemo(
     () =>
-      days.map((d): SeasonalityChartPoint => {
-        const dominantId = d.actual > 0 ? dominantAssetOnDay(windowed, d.day) : undefined;
-        const dominantAsset = assets.find((a) => a.id === dominantId);
-        const expectedId =
-          d.expected !== undefined
-            ? dominantExpectedAssetOnDay(assets, transactions, d.day)
-            : undefined;
-        const expectedAsset = assets.find((a) => a.id === expectedId);
+      view.days.map((d): SeasonalityChartPoint => {
+        const dominantAsset = assets.find((a) => a.id === d.dominantAssetId);
+        const expectedAsset = assets.find((a) => a.id === d.expectedAssetId);
         return {
           day: d.day,
           actual: d.actual,
@@ -109,39 +84,8 @@ export function Seasonality() {
           expectedLabel: d.expected !== undefined ? `${f.moneyWhole(d.expected)}*` : undefined,
         };
       }),
-    [days, windowed, transactions, assets, anchor, f, t],
+    [view, assets, anchor, f, t],
   );
-
-  const anchorAssetId =
-    anchor && anchor.actual > 0 ? dominantAssetOnDay(windowed, anchor.day) : undefined;
-  const anchorAsset = assets.find((a) => a.id === anchorAssetId);
-  // WINDOWED, because the DAY this sentence names already is. `bondCouponInfo`
-  // below stays on the whole ledger on purpose: it describes a SCHEDULE, which the
-  // spine classifies as FORECAST.
-  const growth = anchorAsset ? anchorAssetGrowth(windowed, anchorAsset.id) : undefined;
-
-  // RANKED BY THE DERIVED COUPON, not by the stored rate: what a bond PAYS depends
-  // on how much is held, so ranking off the rate headlines the wrong bond.
-  const bondUnits = useMemo(() => unitsByAsset(transactions), [transactions]);
-  const bonds = assets
-    .map((a) => ({ asset: a, coupon: couponPerPayment(a, bondUnits[a.id]) }))
-    // `coupon !== undefined` ALONE: `couponPerPayment` returns `undefined` for any
-    // non-`fixed_coupon` asset, so re-checking the yield type was a second gate.
-    .filter((b): b is { asset: Asset; coupon: number } => b.coupon !== undefined)
-    .sort((x, y) => y.coupon - x.coupon)
-    .map((b) => b.asset);
-  const big = bonds[0];
-  // HALF OF THIS IS HISTORY, AND THAT HALF WINDOWS: the months a bond HAS PAID in
-  // come from the ledger, so leaving them whole headlined a month the chart drew no
-  // bar for. The schedule half is genuinely a forecast.
-  const bigInfo = big ? bondCouponInfo(big, windowed) : undefined;
-  const others = bonds.slice(1);
-
-  // THE THIRD CARD WINDOWS TOO, and stating it is the point: under a narrow window
-  // it reports the quiet the WINDOW made rather than a seasonal shape. Every card
-  // that summarises the bars must agree with the bars above it, and the risk
-  // belongs in the copy rather than the derivation.
-  const quiet = quietStretch(days);
 
   return (
     <div>
@@ -222,9 +166,7 @@ export function Seasonality() {
                   )}
                 </strong>
                 {t.analytics.seasonality.couponRest(shortLabel(big), bigInfo.months.length)}
-                {others.map((o) => {
-                  const info = bondCouponInfo(o, windowed);
-                  const month = info?.historicalMonths[0] ?? info?.months[0];
+                {view.otherBonds.map(({ asset: o, info, month }) => {
                   return info && month ? (
                     <span key={o.id}>
                       {t.analytics.seasonality.couponOther(
@@ -248,9 +190,9 @@ export function Seasonality() {
             {t.analytics.seasonality.quietStretch}
           </div>
           <div className="text-[13.5px] leading-[1.5]">
-            {quiet ? (
+            {view.quiet ? (
               <>
-                <strong>{t.analytics.seasonality.quietDays(quiet.from, quiet.to)}</strong>
+                <strong>{t.analytics.seasonality.quietDays(view.quiet.from, view.quiet.to)}</strong>
                 {t.analytics.seasonality.quietRest}
               </>
             ) : (

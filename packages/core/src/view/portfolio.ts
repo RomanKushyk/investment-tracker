@@ -1,6 +1,22 @@
 // Pure glue for the Portfolio screen. Covered by portfolio.test.ts.
-import { yieldSinceStart } from '../derive';
+import { daysBetween, latestSnapshotDate } from '../dates';
+import {
+  cashIsShort,
+  freeCashFromLedger,
+  headlineTotal,
+  investedByAsset,
+  latestQuotes,
+  netResult,
+  reinvestedByAsset,
+  reinvestedTotal,
+  sharePct,
+  shareTotal,
+  soldAmount,
+  usableTotal,
+  yieldSinceStart,
+} from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
+import type { LedgerInput } from './input';
 
 export interface PerformanceResult {
   asset: Asset;
@@ -90,5 +106,90 @@ export function cascadeCounts(
   return {
     transactions: transactions.filter((t) => t.assetId === assetId).length,
     quoteDays: snapshots.filter((s) => assetId in s.quotes).length,
+  };
+}
+
+export interface PortfolioRow {
+  asset: Asset;
+  value: number;
+  invested: number;
+  reinvested: number;
+  /** Both omit the sale proceeds that the Total row's `net` adds (#323). */
+  pnl: number;
+  pnlPct: number;
+  share: number | null;
+}
+
+export interface IncomeEngineView extends IncomeEngineResult {
+  /** The larger of the two flows, which the card names. */
+  kind: 'dividends' | 'coupons';
+  amount: number;
+  /** Any of its payouts went straight back in. */
+  autoReinvested: boolean;
+}
+
+export interface PortfolioView {
+  rows: PortfolioRow[];
+  totals: {
+    invested: number;
+    reinvested: number;
+    value: number;
+    net: { uah: number; pct: number };
+    /** 100 like any share, and absent on the same total the rows' shares are. */
+    share: number | null;
+  };
+  cash: number;
+  cashShort: boolean;
+  best: PerformanceResult | undefined;
+  /** Weeks from the best performer's first purchase to the latest valuation. */
+  bestWeeks: number | undefined;
+  worst: PerformanceResult | undefined;
+  engine: IncomeEngineView | undefined;
+}
+
+/** The Portfolio screen's figures: one row per asset, and the table and the cards read
+ *  the same rows. Over the whole ledger, to the latest valuation. */
+export function portfolioView({ assets, snapshots, transactions }: LedgerInput): PortfolioView {
+  const values = latestQuotes(snapshots);
+  const invested = investedByAsset(transactions);
+  const reinvested = reinvestedByAsset(transactions);
+  const total = headlineTotal(snapshots, transactions);
+  const cash = freeCashFromLedger(transactions);
+  const base = shareTotal(total, cash);
+  const best = bestPerformer(assets, values, invested);
+  const now = latestSnapshotDate(snapshots);
+  const engine = incomeEngine(assets, transactions);
+  return {
+    rows: assets.map((asset) => {
+      const value = values[asset.id] ?? 0;
+      const inv = invested[asset.id] ?? 0;
+      return {
+        asset,
+        value,
+        invested: inv,
+        reinvested: reinvested[asset.id] ?? 0,
+        pnl: value - inv,
+        pnlPct: yieldSinceStart(value, inv),
+        share: sharePct(value, base),
+      };
+    }),
+    totals: {
+      invested: Object.values(invested).reduce((a, b) => a + b, 0),
+      reinvested: reinvestedTotal(transactions),
+      value: total,
+      net: netResult(values, invested, soldAmount(transactions)),
+      share: usableTotal(base) ? 100 : null,
+    },
+    cash,
+    cashShort: cashIsShort(cash),
+    best,
+    bestWeeks: best && now ? Math.round(daysBetween(best.asset.firstPurchase, now) / 7) : undefined,
+    worst: laggard(assets, values, invested),
+    engine: engine && {
+      ...engine,
+      kind: engine.dividends >= engine.coupons ? 'dividends' : 'coupons',
+      amount: engine.dividends >= engine.coupons ? engine.dividends : engine.coupons,
+      autoReinvested: (reinvested[engine.asset.id] ?? 0) > 0,
+    },
   };
 }

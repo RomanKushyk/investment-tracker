@@ -6,6 +6,7 @@ import { parseAssetsFeed } from '../inzhur/parse';
 import fixture from '../inzhur/__fixtures__/assets-sample.json';
 import {
   actualAnnualizedPct,
+  attributesView,
   derivedYtmPct,
   dividendDayOfMonth,
   payoutScheduleFact,
@@ -149,5 +150,26 @@ describe('derivedYtmPct — YTM at purchase, solved rather than typed (D120)', (
 
   it('is undefined for anything that is not a fixed-coupon asset', () => {
     expect(derivedYtmPct(bond({ yieldType: 'div_cap' }), [buy()], feed)).toBeUndefined();
+  });
+});
+
+describe('attributesView — the Next coupon fact', () => {
+  // The transaction form records a coupon without moving `asset.nextCoupon`, so the
+  // stored pointer stays on a settled date; the card carries the ledger's walk instead.
+  it('is the first occurrence the ledger has not settled, not the stored pointer', () => {
+    const paid: Transaction = {
+      id: 'p9',
+      date: '2026-08-25',
+      type: 'interest_payout',
+      assetId: 'ovdp8976',
+      amount: 1240,
+    };
+    const card = attributesView({
+      assets: SEED_ASSETS,
+      snapshots: [],
+      transactions: [...SEED_TRANSACTIONS, paid],
+    }).cards.find((c) => c.asset.id === 'ovdp8976')!;
+    expect(card.kind === 'bond' && card.nextCoupon).toBe('2027-02-25');
+    expect(card.asset.nextCoupon).toBe('2026-08-25');
   });
 });

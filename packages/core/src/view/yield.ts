@@ -11,12 +11,15 @@ import {
   reinvestedByAsset,
   soldAmountByAsset,
   totalReturnPct,
+  transactionsFromWindow,
   yieldSinceStart,
 } from '../derive';
 import { unnamedType, type Asset, type Snapshot, type Transaction } from '../types';
 import type { PeriodWindow } from '../period';
 import { dayBefore, daysBetween, latestSnapshotDate } from '../dates';
 import { xirr, type CashFlow } from '../xirr';
+import type { LedgerInput, PeriodInput } from './input';
+import { windowView } from './window';
 
 export interface YieldTableRow {
   asset: Asset;
@@ -95,6 +98,29 @@ export function yieldTableRows(
   return yieldTableRowsIn(assets, snapshots, transactions, { from, to, clamped: false });
 }
 
+/** What a window measures each position against: its value the day before the window opens,
+ *  plus what was bought inside it. Shared with Overview's yield column, so the sum is one. */
+export function windowedBasisByAsset(
+  assets: Asset[],
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  w: PeriodWindow | undefined,
+): { open: Record<string, number>; basis: Record<string, number> } {
+  const open = w === undefined ? {} : quotesAsOf(snapshots, dayBefore(w.from));
+  const invested = investedByAsset(transactionsFromWindow(transactions, w));
+  const basis: Record<string, number> = {};
+  for (const asset of assets) basis[asset.id] = (open[asset.id] ?? 0) + (invested[asset.id] ?? 0);
+  return { open, basis };
+}
+
+/** Whether an annualized figure is spread over time its asset did not exist for. Shared with
+ *  Attributes, which marks the same figure. */
+export function shortBasisIn(start: string | undefined, w: PeriodWindow | undefined): boolean {
+  if (w === undefined || start === undefined) return false;
+  const held = daysBetween(start > w.from ? start : w.from, w.to);
+  return basisIsShort(held, daysBetween(w.from, w.to));
+}
+
 /**
  * The table over a WINDOW. EVERY COLUMN REDUCES TO ITS UNWINDOWED FORM at the full
  * history, which is what lets the delegation above work, and the reduction turns on
@@ -114,10 +140,9 @@ export function yieldTableRowsIn(
   // SINCE the last valuation — which every other screen counts, so clipping both ends
   // made a buy dated after the last snapshot vanish from this screen alone. No window
   // means no valuation date, not no ledger.
-  const flows = w === undefined ? transactions : transactions.filter((t) => t.date >= w.from);
-  const open = w === undefined ? {} : quotesAsOf(snapshots, dayBefore(w.from));
+  const flows = transactionsFromWindow(transactions, w);
+  const { open, basis } = windowedBasisByAsset(assets, snapshots, transactions, w);
   const values = w === undefined ? {} : quotesAsOf(snapshots, w.to);
-  const invested = investedByAsset(flows);
   const investedOwn = investedOwnByAsset(flows);
   const reinvested = reinvestedByAsset(flows);
   const payoutsNet = payoutsNetByAsset(flows);
@@ -131,18 +156,11 @@ export function yieldTableRowsIn(
   // `daysHeld` is one span for every row by decision, so an asset bought partway through
   // is annualized over time it did not exist for. One pass, or it is quadratic.
   const startByAsset = startDateByAsset(assets, transactions);
-  const shortBasisOf = (asset: Asset): boolean => {
-    if (w === undefined) return false;
-    const start = startByAsset[asset.id];
-    if (start === undefined) return false;
-    const held = daysBetween(start > w.from ? start : w.from, w.to);
-    return basisIsShort(held, daysHeld);
-  };
 
   return assets.map((asset) => {
     const value = values[asset.id];
     const openValue = open[asset.id] ?? 0;
-    const inv = openValue + (invested[asset.id] ?? 0);
+    const inv = basis[asset.id];
     if (value === undefined || now === undefined) {
       return {
         asset,
@@ -166,7 +184,7 @@ export function yieldTableRowsIn(
       value,
       deltaTotal,
       annualized,
-      shortBasis: annualized === undefined ? false : shortBasisOf(asset),
+      shortBasis: annualized === undefined ? false : shortBasisIn(startByAsset[asset.id], w),
       vsExpectedPp: annualized === undefined ? undefined : annualized * 100 - asset.expectedPct,
       // THE DENOMINATOR CHANGES MEANING UNDER A WINDOW. `totalReturnPct` counts
       // external capital only, but `openValue` is a MARKET value and embeds every
@@ -184,6 +202,27 @@ export function yieldTableRowsIn(
       xirr: xirr(assetCashFlows(asset.id, flows, value, now, openValue, w?.from)),
     };
   });
+}
+
+export interface YieldView {
+  window: PeriodWindow | undefined;
+  rows: YieldTableRow[];
+  xirrExtrapolated: boolean;
+  /** Any row's annualized figure is muted, so the footnote names the short basis. */
+  shortBasisMarked: boolean;
+}
+
+/** `/yield`'s figures, the curve aside: it is one value per asset per date, and is
+ *  read one period at a time. */
+export function yieldView(input: LedgerInput & PeriodInput): YieldView {
+  const w = windowView(input);
+  const rows = yieldTableRowsIn(input.assets, input.snapshots, input.transactions, w);
+  return {
+    window: w,
+    rows,
+    xirrExtrapolated: xirrIsExtrapolatedIn(w),
+    shortBasisMarked: rows.some((r) => r.shortBasis),
+  };
 }
 
 /** Whether the money-weighted rate is an extrapolation. IT MEASURES THE WINDOW, not

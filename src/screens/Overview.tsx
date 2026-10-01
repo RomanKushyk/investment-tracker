@@ -10,41 +10,16 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import { xirrIsExtrapolatedIn } from '@quirenote/core/view/yield';
-import { dayBefore } from '@quirenote/core/dates';
 import { ShareBar } from '../components/ui/ShareBar';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
+import { useToday } from '../hooks/useToday';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
-import {
-  depositedTotal,
-  headlineTotal,
-  quotesAsOf,
-  transactionsFrom,
-  incomeReceived,
-  incomeReceivedNet,
-  investedByAsset,
-  freeCashFromLedger,
-  cashIsShort,
-  latestQuotes,
-  reinvestedTotal,
-  sharePct,
-  shareTotal,
-  usableTotal,
-  yieldSinceStart,
-} from '@quirenote/core/derive';
-import { todayIso } from '@quirenote/core/dates';
 import { toUsd } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
-import {
-  mostUnderweightAsset,
-  nextPayoutRows,
-  netResultIn,
-  totalReturnKpiIn,
-  portfolioXirrIn,
-} from '@quirenote/core/view/overview';
+import { overviewView } from '@quirenote/core/view/overview';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
@@ -68,42 +43,17 @@ export function Overview() {
   const usdRate = useSettings((s) => s.usdRate);
   const usd = currency === 'USD';
 
-  const values = latestQuotes(snapshots);
-  const total = headlineTotal(snapshots, transactions);
-  const cash = freeCashFromLedger(transactions);
-  const cashShort = cashIsShort(cash);
-  const base = shareTotal(total, cash);
-  const deposited = depositedTotal(transactions);
-  const reinvested = reinvestedTotal(transactions);
-  const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
-  const windowedBasis = useMemo(() => {
-    if (win === undefined) return investedByAsset(transactions);
-    const open = quotesAsOf(snapshots, dayBefore(win.from));
-    const bought = investedByAsset(transactionsFrom(transactions, win.from));
-    const out: Record<string, number> = { ...open };
-    for (const [id, amount] of Object.entries(bought)) out[id] = (out[id] ?? 0) + amount;
-    return out;
-  }, [snapshots, transactions, win]);
-
-  const windowed = useMemo(
-    () => (win === undefined ? transactions : transactionsFrom(transactions, win.from)),
-    [transactions, win],
+  const { period, control } = usePeriodWindow(assets, snapshots, transactions);
+  // Memoized: five tweens re-render this every frame. `today` is state, so the next payouts and
+  // the subtitle move on at midnight: a payout dated before today is not next.
+  const today = useToday();
+  const view = useMemo(
+    () => overviewView({ assets, snapshots, transactions, period, today }),
+    [assets, snapshots, transactions, period, today],
   );
-  // MEMOIZED, because five `useTweenedNumber`s drive this component from rAF: one
-  // press re-renders it many times in 300 ms, and without this each frame re-ran an
-  // XIRR solve and a dozen sorts of the snapshot array for the same numbers.
-  const { totalReturn, pXirr, net, income, incomeNet } = useMemo(
-    () => ({
-      totalReturn: totalReturnKpiIn(snapshots, transactions, win),
-      pXirr: portfolioXirrIn(snapshots, transactions, win),
-      net: netResultIn(snapshots, transactions, win),
-      // THE ONE FLOW CARD ON THE SCREEN, and a flow that refuses to move reads as a
-      // broken control. Income is the only figure here measured BETWEEN the two ends.
-      income: incomeReceived(windowed),
-      incomeNet: incomeReceivedNet(windowed),
-    }),
-    [snapshots, transactions, win, windowed],
-  );
+  const { total, cash, cashShort, deposited, reinvested, net, totalReturn, income, incomeNet } =
+    view;
+  const win = view.window;
   // Only these headline cards convert; tables and every other card stay ₴.
   const capitalUsd = toUsd(total, usdRate);
   const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
@@ -144,19 +94,14 @@ export function Overview() {
 
   const tweenedCash = useTweenedNumber(usd ? toUsd(cash, usdRate) : cash);
   const cashValue = usd ? f.money(tweenedCash, 'USD') : f.money(tweenedCash);
-  const cashSharePct = sharePct(cash, base);
 
-  const shareSegments = assets.map((a) => ({
-    colorKey: a.colorKey,
+  const shareSegments = view.rows.map((r) => ({
+    colorKey: r.asset.colorKey,
     // A bar has no «—»: an absent share draws no segment.
-    pct: sharePct(values[a.id] ?? 0, base) ?? 0,
+    pct: r.share ?? 0,
   }));
 
-  const underweight = mostUnderweightAsset(assets, values, base);
-  // The reference is TODAY, not `latestSnapshotDate`. Every other figure here is
-  // measured to the data's as-of, but this card answers "what comes next", which is
-  // a question about the calendar: a payout dated before today is not next.
-  const payoutRows = nextPayoutRows(assets, transactions, todayIso());
+  const { underweight, nextPayouts: payoutRows } = view;
 
   return (
     <div>
@@ -164,7 +109,7 @@ export function Overview() {
       <ReminderStrip place="overview" />
       <ScreenHeader
         title={t.screen.overview.title}
-        subtitle={t.screen.overview.subtitle(f.date(todayIso()), f.units(usdRate))}
+        subtitle={t.screen.overview.subtitle(f.date(today), f.units(usdRate))}
         actions={control}
       />
 
@@ -209,11 +154,11 @@ export function Overview() {
                   measured at the ASSET boundary, so this number has no honest cell in that
                   table — under the XIRR column it reads as the assets' total, and in a Total
                   row of dashes it reads as a table that broke. */}
-              {pXirr !== null && (
+              {view.portfolioXirr !== null && (
                 <div className="mt-1 text-xs font-normal text-muted">
-                  {xirrIsExtrapolatedIn(win)
-                    ? t.period.portfolioXirrAnn(f.pct(pXirr))
-                    : t.period.portfolioXirr(f.pct(pXirr))}
+                  {view.xirrExtrapolated
+                    ? t.period.portfolioXirrAnn(f.pct(view.portfolioXirr))
+                    : t.period.portfolioXirr(f.pct(view.portfolioXirr))}
                 </div>
               )}
             </>
@@ -236,10 +181,10 @@ export function Overview() {
           value={cashValue}
           sub={
             <>
-              {cashSharePct === null ? (
+              {view.cashShare === null ? (
                 <Share pct={null} />
               ) : (
-                t.analytics.prose.ofAccount(f.pctPlain(cashSharePct, 2))
+                t.analytics.prose.ofAccount(f.pctPlain(view.cashShare, 2))
               )}
               {cashShort && (
                 <div className="mt-2">
@@ -261,12 +206,7 @@ export function Overview() {
               and the ShareBar must stay put. */}
           <Scroller orientation="horizontal">
             <div className="flex flex-col gap-3">
-              {assets.map((a, i) => {
-                const value = values[a.id] ?? 0;
-                // WINDOWED, so it is the same number `/yield`'s Δ shows under the same period.
-                // Value and share are STOCK and stand still; this column is a RETURN, and two
-                // screens disagreeing about one asset is worse than either being wrong.
-                const yield_ = yieldSinceStart(value, windowedBasis[a.id] ?? 0);
+              {view.rows.map(({ asset: a, value, share, yield: yield_ }, i) => {
                 return (
                   // THE FIXED VALUE COLUMNS DROP BELOW THE BREAKPOINT, and the row folds to two
                   // lines instead of losing a field. Those widths exist to align five rows'
@@ -284,7 +224,7 @@ export function Overview() {
                       {a.name}
                     </span>
                     <span className="text-xs whitespace-nowrap text-muted">
-                      {t.asset.yieldShort[a.yieldType]} · <Share pct={sharePct(value, base)} />
+                      {t.asset.yieldShort[a.yieldType]} · <Share pct={share} />
                     </span>
                     <strong className="w-[110px] text-right text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
                       {f.money(value)}
@@ -331,7 +271,7 @@ export function Overview() {
               {t.analytics.overview.rebalanceHint}
             </div>
             {/* A short ledger proposes nothing and says why; no total at all is the empty state. */}
-            {!usableTotal(base) ? (
+            {!view.usable ? (
               cashShort ? (
                 <CashShortChip />
               ) : (

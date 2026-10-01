@@ -1,8 +1,10 @@
 // Pure data-shaping for the Seasonality screen. Covered by seasonality.test.ts.
-import { couponProjection, scheduledCouponMonths } from '../accrual';
+import { couponPerPayment, couponProjection, scheduledCouponMonths } from '../accrual';
 import { investedByAsset, transactionsFromWindow, unitsByAsset } from '../derive';
 import type { PeriodWindow } from '../period';
 import type { Asset, Transaction } from '../types';
+import type { LedgerInput, PeriodInput } from './input';
+import { windowView } from './window';
 
 export interface SeasonalityDay {
   day: number; // 1-31
@@ -238,4 +240,86 @@ export function bondCouponInfo(
       ? dayOfMonth(historical[0].date)
       : 0;
   return { day, months: [...months].sort((a, b) => a - b), historicalMonths };
+}
+
+export interface SeasonalityDayRow {
+  day: number;
+  actual: number;
+  expected: number | undefined;
+  /** Whose payouts this day's ACTUAL bar is mostly, read inside the window. */
+  dominantAssetId: string | undefined;
+  /** Whose projected coupon the EXPECTED bar is, read over the whole ledger. */
+  expectedAssetId: string | undefined;
+}
+
+export interface OtherBond {
+  asset: Asset;
+  info: BondCouponInfo | undefined;
+  /** The month the card names: the first it has paid in, else the first scheduled. */
+  month: number | undefined;
+}
+
+export interface SeasonalityView {
+  days: SeasonalityDayRow[];
+  months: SeasonalityMonth[];
+  anchor: SeasonalityDay | undefined;
+  anchorAsset: Asset | undefined;
+  anchorGrowth: { first: number; last: number } | undefined;
+  bigBond: Asset | undefined;
+  bigBondInfo: BondCouponInfo | undefined;
+  otherBonds: OtherBond[];
+  quiet: { from: number; to: number } | undefined;
+}
+
+/** The Seasonality screen's figures: the bars, and the three cards that summarise them. */
+export function seasonalityView(input: LedgerInput & PeriodInput): SeasonalityView {
+  const { assets, transactions } = input;
+  const w = windowView(input);
+  // Every FLOW reads this windowed ledger, or a windowed bar wears an unwindowed colour and a
+  // card names an asset that paid nothing inside the window.
+  const windowed = transactionsFromWindow(transactions, w);
+  const days = seasonalityDaysIn(transactions, assets, w);
+  const anchor = incomeAnchorDay(days);
+  const anchorAssetId =
+    anchor && anchor.actual > 0 ? dominantAssetOnDay(windowed, anchor.day) : undefined;
+  const anchorAsset = assets.find((a) => a.id === anchorAssetId);
+  // RANKED BY THE DERIVED COUPON, not by the stored rate: what a bond PAYS depends
+  // on how much is held, so ranking off the rate headlines the wrong bond.
+  const units = unitsByAsset(transactions);
+  const bonds = assets
+    .map((a) => ({ asset: a, coupon: couponPerPayment(a, units[a.id]) }))
+    // `coupon !== undefined` ALONE: `couponPerPayment` already returns `undefined` for any
+    // non-`fixed_coupon` asset.
+    .filter((b): b is { asset: Asset; coupon: number } => b.coupon !== undefined)
+    .sort((x, y) => y.coupon - x.coupon)
+    .map((b) => b.asset);
+  const bigBond = bonds[0];
+  return {
+    days: days.map((d) => ({
+      day: d.day,
+      actual: d.actual,
+      expected: d.expected,
+      dominantAssetId: d.actual > 0 ? dominantAssetOnDay(windowed, d.day) : undefined,
+      expectedAssetId:
+        d.expected !== undefined
+          ? dominantExpectedAssetOnDay(assets, transactions, d.day)
+          : undefined,
+    })),
+    months: seasonalityMonthsIn(transactions, assets, w),
+    anchor,
+    anchorAsset,
+    // WINDOWED, because the DAY this sentence names already is.
+    anchorGrowth: anchorAsset ? anchorAssetGrowth(windowed, anchorAsset.id) : undefined,
+    bigBond,
+    // The months a bond HAS PAID are read in window, or the card names a month the chart drew
+    // no bar for; the schedule half is a forecast.
+    bigBondInfo: bigBond ? bondCouponInfo(bigBond, windowed) : undefined,
+    otherBonds: bonds.slice(1).map((asset) => {
+      const info = bondCouponInfo(asset, windowed);
+      return { asset, info, month: info?.historicalMonths[0] ?? info?.months[0] };
+    }),
+    // Windowed too, to agree with the bars above it: under a narrow window it reports the quiet
+    // the window made, a risk for the copy rather than the derivation.
+    quiet: quietStretch(days),
+  };
 }

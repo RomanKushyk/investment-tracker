@@ -4,9 +4,18 @@ import { couponProjection, rollNextCoupon } from '../accrual';
 import { addMonths, dayBefore, latestSnapshotDate } from '../dates';
 import {
   allocationDeltaPp,
+  cashIsShort,
+  depositedTotal,
+  freeCashFromLedger,
+  incomeReceived,
+  incomeReceivedNet,
+  latestQuotes,
   quotesAsOf,
+  reinvestedTotal,
+  shareTotal,
   soldAmountByAsset,
   transactionsFrom,
+  transactionsFromWindow,
   headlineTotal,
   headlineTotalAsOf,
   portfolioXirr,
@@ -16,8 +25,12 @@ import {
   sharePct,
   topUpAmount,
   usableTotal,
+  yieldSinceStart,
 } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
+import type { ClockInput, LedgerInput, PeriodInput } from './input';
+import { windowView } from './window';
+import { windowedBasisByAsset, xirrIsExtrapolatedIn } from './yield';
 
 export interface UnderweightResult {
   asset: Asset;
@@ -254,4 +267,75 @@ export function nextPayoutRows(
   }
 
   return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export interface OverviewAssetRow {
+  asset: Asset;
+  value: number;
+  share: number | null;
+  /** WINDOWED, so it is meant to be `/yield`'s Δ under the same period — but it omits
+   *  the sale proceeds `/yield` adds and reads an unquoted asset as −1 (#288). */
+  yield: number;
+}
+
+export interface OverviewView {
+  window: PeriodWindow | undefined;
+  total: number;
+  cash: number;
+  cashShort: boolean;
+  cashShare: number | null;
+  /** Whether any share can be taken: the rebalance hint is gated on it. */
+  usable: boolean;
+  deposited: number;
+  reinvested: number;
+  net: { uah: number; pct: number };
+  totalReturn: TotalReturnKpi;
+  portfolioXirr: number | null;
+  xirrExtrapolated: boolean;
+  /** THE ONE FLOW CARD, measured between the window's two ends. */
+  income: ReturnType<typeof incomeReceived>;
+  incomeNet: ReturnType<typeof incomeReceivedNet>;
+  rows: OverviewAssetRow[];
+  underweight: UnderweightResult | undefined;
+  nextPayouts: PayoutRow[];
+}
+
+/** The Overview screen's figures: stock figures stand still across the period and returns
+ *  window; the next payouts count from `today`, as "what comes next" asks the calendar. */
+export function overviewView(input: LedgerInput & PeriodInput & ClockInput): OverviewView {
+  const { assets, snapshots, transactions, today } = input;
+  const values = latestQuotes(snapshots);
+  const total = headlineTotal(snapshots, transactions);
+  const cash = freeCashFromLedger(transactions);
+  const base = shareTotal(total, cash);
+  const w = windowView(input);
+  const { basis } = windowedBasisByAsset(assets, snapshots, transactions, w);
+  const windowed = transactionsFromWindow(transactions, w);
+  return {
+    window: w,
+    total,
+    cash,
+    cashShort: cashIsShort(cash),
+    cashShare: sharePct(cash, base),
+    usable: usableTotal(base),
+    deposited: depositedTotal(transactions),
+    reinvested: reinvestedTotal(transactions),
+    net: netResultIn(snapshots, transactions, w),
+    totalReturn: totalReturnKpiIn(snapshots, transactions, w),
+    portfolioXirr: portfolioXirrIn(snapshots, transactions, w),
+    xirrExtrapolated: xirrIsExtrapolatedIn(w),
+    income: incomeReceived(windowed),
+    incomeNet: incomeReceivedNet(windowed),
+    rows: assets.map((asset) => {
+      const value = values[asset.id] ?? 0;
+      return {
+        asset,
+        value,
+        share: sharePct(value, base),
+        yield: yieldSinceStart(value, basis[asset.id] ?? 0),
+      };
+    }),
+    underweight: mostUnderweightAsset(assets, values, base),
+    nextPayouts: nextPayoutRows(assets, transactions, today),
+  };
 }

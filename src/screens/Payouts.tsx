@@ -5,14 +5,12 @@ import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useTransactions } from '../hooks/queries';
-import { incomeReceived, reinvestedTotal } from '@quirenote/core/derive';
-import { todayIso } from '@quirenote/core/dates';
-import { nextPayoutRows } from '@quirenote/core/view/overview';
-import { monthlyPayouts, payoutLogRows } from '@quirenote/core/view/payouts';
+import { payoutsView } from '@quirenote/core/view/payouts';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import { useToday } from '../hooks/useToday';
 
 export function Payouts() {
   const f = useFormat();
@@ -21,20 +19,19 @@ export function Payouts() {
   const assets = useAssets().data ?? [];
   const transactions = useTransactions().data ?? [];
 
-  const income = incomeReceived(transactions);
-  const reinvested = reinvestedTotal(transactions);
-  const reinvestedPct = income.total === 0 ? 0 : (reinvested / income.total) * 100;
   // Today, not the last snapshot — see the note in Overview.tsx.
-  const payoutRows = nextPayoutRows(assets, transactions, todayIso());
+  const today = useToday();
+  const view = payoutsView({ assets, transactions, today });
+  const { income, reinvested, reinvestedPct, nextPayouts: payoutRows } = view;
 
-  const chartData = monthlyPayouts(transactions).map((m) => ({
+  const chartData = view.months.map((m) => ({
     monthLabel: t.dates.monthShort[Number(m.month.slice(5, 7)) - 1],
     dividends: m.dividends,
     coupons: m.coupons,
     totalLabel: f.num(m.total),
   }));
 
-  const logRows = payoutLogRows(transactions);
+  const logRows = view.log;
   const assetName = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
   // The type Tag's paint is the row's KIND, not the asset's, exactly as the table does.
   const typeColorKey = (type: string): 'reit' | 'ovdp8976' =>

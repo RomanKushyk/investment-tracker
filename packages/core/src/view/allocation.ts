@@ -1,19 +1,25 @@
 // Pure data-shaping for the Allocation screen. Covered by allocation.test.ts.
-import { allocationDeltaPp, sharePct, topUpAmount, trimAmount, usableTotal } from '../derive';
+import {
+  allocationDeltaPp,
+  cashIsShort,
+  freeCashFromLedger,
+  headlineTotal,
+  latestQuotes,
+  sharePct,
+  shareTotal,
+  topUpAmount,
+  trimAmount,
+  usableTotal,
+} from '../derive';
 import type { Asset } from '../types';
+import type { LedgerInput } from './input';
 
 // Off-target colour encodes SEVERITY, not sign: within the threshold reads near
 // even on a negative delta, and beyond it reads off even on a positive one.
 const NEAR_TARGET_PP = 0.5;
 
-/**
- * The one place the threshold is applied. `Allocation.tsx` has to re-derive
- * severity against a DRAFTED target while the editor is open, and a second
- * inline copy of the rule is one `allocation.test.ts` only covers through
- * `allocationRows` — moving `NEAR_TARGET_PP` would then change the rebalance
- * plan and the pill colour apart while the suite stayed green.
- */
-export function severityOf(deltaPp: number): 'near' | 'off' {
+// A row's pill colour, by the threshold above.
+function severityOf(deltaPp: number): 'near' | 'off' {
   return Math.abs(deltaPp) <= NEAR_TARGET_PP ? 'near' : 'off';
 }
 
@@ -80,4 +86,31 @@ export function rebalancePlan(
 
   actions.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'buy' ? -1 : 1));
   return { actions, withinRange };
+}
+
+export interface AllocationView {
+  total: number;
+  cashShort: boolean;
+  /** Whether any share can be taken: the donut and the plan are gated on it. */
+  usable: boolean;
+  slices: { asset: Asset; value: number }[];
+  rows: AllocationRow[];
+  plan: RebalancePlan;
+}
+
+/** The Allocation screen's figures, against the share base the rest of the app uses.
+ *  A DRAFTED target is the editor's, never a figure: it moves only the tick. */
+export function allocationView({ assets, snapshots, transactions }: LedgerInput): AllocationView {
+  const values = latestQuotes(snapshots);
+  const total = headlineTotal(snapshots, transactions);
+  const cash = freeCashFromLedger(transactions);
+  const base = shareTotal(total, cash);
+  return {
+    total,
+    cashShort: cashIsShort(cash),
+    usable: usableTotal(base),
+    slices: assets.map((asset) => ({ asset, value: values[asset.id] ?? 0 })),
+    rows: allocationRows(assets, values, base),
+    plan: rebalancePlan(assets, values, base),
+  };
 }

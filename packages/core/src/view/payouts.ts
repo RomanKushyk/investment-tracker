@@ -1,5 +1,8 @@
 // Pure data-shaping for the Payouts screen: imports core/ only. Covered by payouts.test.ts.
+import { incomeReceived, reinvestedTotal } from '../derive';
 import type { Transaction, TxType } from '../types';
+import type { ClockInput, LedgerInput } from './input';
+import { nextPayoutRows, type PayoutRow } from './overview';
 
 export interface MonthlyPayout {
   month: string; // 'YYYY-MM'
@@ -70,4 +73,33 @@ export function payoutLogRows(transactions: Transaction[]): PayoutLogRow[] {
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export interface PayoutsView {
+  income: ReturnType<typeof incomeReceived>;
+  reinvested: number;
+  /** Of everything paid out, the share put straight back in; 0 when nothing was paid. */
+  reinvestedPct: number;
+  nextPayouts: PayoutRow[];
+  months: MonthlyPayout[];
+  log: PayoutLogRow[];
+}
+
+/** The Payouts screen's figures, over the whole ledger; the next payouts are measured
+ *  from `today`, as on Overview. */
+export function payoutsView({
+  assets,
+  transactions,
+  today,
+}: Pick<LedgerInput, 'assets' | 'transactions'> & ClockInput): PayoutsView {
+  const income = incomeReceived(transactions);
+  const reinvested = reinvestedTotal(transactions);
+  return {
+    income,
+    reinvested,
+    reinvestedPct: income.total === 0 ? 0 : (reinvested / income.total) * 100,
+    nextPayouts: nextPayoutRows(assets, transactions, today),
+    months: monthlyPayouts(transactions),
+    log: payoutLogRows(transactions),
+  };
 }

@@ -19,6 +19,10 @@
 # machine-written JSON does not silently miss it.
 *.json text eol=lf
 
+# Vitest writes snapshots LF and compares the committed file byte for byte, so a
+# CRLF checkout would read every `.snap` as changed on the next update.
+*.snap text eol=lf
+
 # A captured page keeps the LF line endings it was served with, which a Windows
 # checkout would turn CRLF. Scoped to fixtures: `design/` holds immutable drawings.
 packages/core/src/**/__fixtures__/*.html text eol=lf

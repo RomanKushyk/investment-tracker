@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { YieldLines } from '../components/charts/YieldLines';
 import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
@@ -6,11 +8,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import {
-  cumulativeYieldSeriesIn,
-  xirrIsExtrapolatedIn,
-  yieldTableRowsIn,
-} from '@quirenote/core/view/yield';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import { cumulativeYieldSeriesIn, yieldView } from '@quirenote/core/view/yield';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
@@ -24,29 +23,38 @@ function signClass(v: number | null | undefined): string {
   return v == null ? 'text-muted' : v < 0 ? 'text-neg' : 'text-pos';
 }
 
+// Stable empties, so `?? []` does not hand `useMemo` a new array every render.
+const NO_ASSETS: Asset[] = [];
+const NO_SNAPSHOTS: Snapshot[] = [];
+const NO_TRANSACTIONS: Transaction[] = [];
+
 export function Yield() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const assets = useAssets().data ?? [];
-  const snapshots = useSnapshots().data ?? [];
-  const transactions = useTransactions().data ?? [];
+  const assets = useAssets().data ?? NO_ASSETS;
+  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
+  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
 
-  // One call gives the window and the control that sets it, so the two cannot
-  // resolve differently.
-  const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
+  const { period, control } = usePeriodWindow(assets, snapshots, transactions);
+  // MEMOIZED: every row solves an XIRR, and only the ledger or the period changes them.
+  const view = useMemo(
+    () => yieldView({ assets, snapshots, transactions, period }),
+    [assets, snapshots, transactions, period],
+  );
+  const win = view.window;
+  const rows = view.rows;
 
+  // The curve is one value per asset per date, and stays out of `/view` (#189).
   const series = cumulativeYieldSeriesIn(snapshots, transactions, assets, win);
-  const rows = yieldTableRowsIn(assets, snapshots, transactions, win);
-  const xirrHeader = xirrIsExtrapolatedIn(win) ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
+  const xirrHeader = view.xirrExtrapolated ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
 
   // The basis is DERIVED, so it can be absent, and a footnote naming no start is
   // worse than none — the table it annotates is empty too. It names the basis, so
   // it follows the window rather than the portfolio.
-  const marked = rows.some((r) => r.shortBasis);
   const note = win
     ? t.analytics.prose.yieldNote(f.date(win.from)) +
-      (marked ? ` ${t.analytics.prose.shortBasisNote}` : '')
+      (view.shortBasisMarked ? ` ${t.analytics.prose.shortBasisNote}` : '')
     : undefined;
 
   return (

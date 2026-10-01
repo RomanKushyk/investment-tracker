@@ -11,20 +11,10 @@ import { useEditMode } from '../hooks/useEditMode';
 import { useAssets, useSnapshots, useTransactions, useUpdateAsset } from '../hooks/queries';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
 import { useSettings } from '../state/settings';
-import { severityOf } from '@quirenote/core/view/allocation';
-import {
-  cashIsShort,
-  freeCashFromLedger,
-  headlineTotal,
-  latestQuotes,
-  sharePct,
-  shareTotal,
-  usableTotal,
-} from '@quirenote/core/derive';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
 import type { Asset, ColorKey } from '@quirenote/core/types';
-import { allocationRows, rebalancePlan } from '@quirenote/core/view/allocation';
+import { allocationView } from '@quirenote/core/view/allocation';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
@@ -51,16 +41,13 @@ export function Allocation() {
   // Keyed by asset id and raw: `targetRowStates` owns the parsing.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const values = latestQuotes(snapshots);
-  const total = headlineTotal(snapshots, transactions);
-  // No free-cash figure lives on this screen, so the warning heads the plan built on it.
-  const cash = freeCashFromLedger(transactions);
-  const cashShort = cashIsShort(cash);
-  const base = shareTotal(total, cash);
-
-  const slices = assets.map((a) => ({ asset: a, value: values[a.id] ?? 0 }));
-  const rows = allocationRows(assets, values, base);
-  const { actions, withinRange } = rebalancePlan(assets, values, base);
+  // No free-cash figure lives on this screen, so `cashShort` heads the plan built on it.
+  const { total, cashShort, usable, slices, rows, plan } = allocationView({
+    assets,
+    snapshots,
+    transactions,
+  });
+  const { actions, withinRange } = plan;
 
   // THE LANGUAGE, because the grammar is a language rule: under Ukrainian `17,500`
   // is 17.5, and this editor used to read it as 17500 while the asset form beside
@@ -156,7 +143,7 @@ export function Allocation() {
         >
           {/* No donut while no share can be taken, and "no snapshots yet" only when there is no
               total at all: assets offset by negative cash can sum to 0 without being empty. */}
-          {usableTotal(base) ? (
+          {usable ? (
             <AllocationDonut
               slices={slices}
               centerTop={t.analytics.allocation.centerTotal(Math.round(total / 1000))}
@@ -167,12 +154,12 @@ export function Allocation() {
             !cashShort && <EmptyState message={t.analytics.empty.allocation} height={220} />
           )}
           <div className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
-            {assets.map((a) => (
+            {rows.map(({ asset: a, share }) => (
               <div key={a.id} className="flex items-center gap-2">
                 <ColorDot colorKey={a.colorKey} />
                 <span className="min-w-0 flex-1 truncate">{a.name}</span>
                 <span className="font-bold">
-                  <Share pct={sharePct(values[a.id] ?? 0, base)} />
+                  <Share pct={share} />
                 </span>
               </div>
             ))}
@@ -188,8 +175,10 @@ export function Allocation() {
             <div className="flex flex-col gap-3.5">
               {rows.map((r, i) => {
                 const target = shownTarget(i);
-                const deltaPp = r.share === null ? null : r.share - target;
-                const off = deltaPp !== null && severityOf(deltaPp) === 'off';
+                // Rendered only while NOT editing, where `target` is the stored one, so the
+                // row's own delta and severity are the ones to show.
+                const { deltaPp } = r;
+                const off = r.severity === 'off';
                 const error = editing && targetRows[i].value === null;
                 return (
                   <div key={r.asset.id}>

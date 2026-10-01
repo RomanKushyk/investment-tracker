@@ -5,6 +5,8 @@ import type { Asset, Snapshot, Transaction } from '../types';
 import {
   cumulativeYieldSeries,
   cumulativeYieldSeriesIn,
+  shortBasisIn,
+  windowedBasisByAsset,
   xirrIsExtrapolated,
   yieldTableRows,
   yieldTableRowsIn,
@@ -464,5 +466,46 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
     const r = rowsAt('all').find((x) => x.asset.id === 'ovdp6475')!;
     expect(r.shortBasis).toBe(true);
     expect(r.annualized! * 100).toBeCloseTo(10.9, 1);
+  });
+});
+
+// The two pieces Overview's and Attributes' composers share with this table, pinned on the seed.
+describe('windowedBasisByAsset and shortBasisIn', () => {
+  const windowAt = (period: PeriodOption) =>
+    resolveWindow(
+      period,
+      portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+      latestSnapshotDate(snaps),
+    );
+
+  it('is what was bought over the full history: no position is inherited', () => {
+    expect(windowedBasisByAsset(SEED_ASSETS, snaps, SEED_TRANSACTIONS, windowAt('all'))).toEqual({
+      open: {},
+      basis: { reit: 65800, energy: 59208, ovdp8976: 15390, ovdp6475: 4158 },
+    });
+  });
+
+  // …6475 was bought inside the window, so it inherits nothing: 3 942 + the 216 reinvested.
+  it('adds the value inherited the day before a window opens to what was bought inside it', () => {
+    expect(
+      windowedBasisByAsset(SEED_ASSETS, snaps, SEED_TRANSACTIONS, windowAt('3m')).basis,
+    ).toEqual({
+      reit: 66829.06,
+      energy: 59622.54,
+      ovdp8976: 15652.65,
+      ovdp6475: 4158,
+    });
+  });
+
+  it('marks …6475 short over the full history and 3 months, not over 1 month; …8976 never', () => {
+    expect(shortBasisIn('2026-06-02', windowAt('all'))).toBe(true);
+    expect(shortBasisIn('2026-06-02', windowAt('3m'))).toBe(true);
+    expect(shortBasisIn('2026-06-02', windowAt('1m'))).toBe(false);
+    expect(shortBasisIn('2026-02-05', windowAt('all'))).toBe(false);
+  });
+
+  it('marks nothing without a window or a start', () => {
+    expect(shortBasisIn(undefined, windowAt('all'))).toBe(false);
+    expect(shortBasisIn('2026-06-02', undefined)).toBe(false);
   });
 });

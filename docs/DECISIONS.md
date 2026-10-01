@@ -12,7 +12,12 @@ each compile the same files and a browser-only type fails one of them. `infra/` 
 member, so ONE INSTALL covers both trees and the backend's handlers bundle the package rather than
 externalising it. The zone is enforced by lint KEYED TO THE PACKAGE PATH, and because a selector
 that stops matching still parses green, a test lints text at a path inside the package rather than
-reading the config back. Pure modules return keys and tokens, never assembled prose. New code calls
+reading the config back. Pure modules return keys and tokens, never assembled prose. EVERY SCREEN
+TAKES ITS FIGURES FROM ONE COMPOSER in `view/`, a function of the ledger and of whichever of the
+period option, the caller's `today` and the Inzhur feed that screen reads; the component formats,
+tweens and converts what it returns, and a source test holds each screen to one call. `buildView`
+runs them all, the windowed ones once per period option and the rest once, and its type is
+`/view`'s payload. The clock is an input: nothing in the package reads it for a figure. New code calls
 `repository.ts`, never `db.ts`. A dependency is a decision, and it is recorded under the topic it
 serves rather than in a register of its own. The seam test against `infra/schema/user.ts` sits in
 `infra/src/`, so the edge between them runs one way.
@@ -21,8 +26,13 @@ seam it replaces. A `package.json` is a boundary and relative imports were cross
 what a package removes; it was taken while the shared surface was small rather than after server
 derivation widened it. Two programs compiling one source is the property worth paying for — it is
 what catches a browser-only type before a backend build does, and it is the reason no compiled
-artifact sits between them.
+artifact sits between them. A figure a screen composes for itself is one the server does not have,
+so `/view` would have to rebuild it — a second implementation, which is what serving the import
+rules out.
 **Rejected.** A component reaching for `db.ts`: it bypasses the one surface the migration swaps. ·
+A composer only the server calls: the screens' inline copies would stay a second implementation with
+nothing checking that the two agree. · Every screen in every period block: the Balances chart is one
+point per snapshot, six times over. ·
 English returned from the package: the language is a parameter, never a default. · Project
 references and `composite`: a referenced project may not set `noEmit`, and references check against
 emitted `.d.ts` — the dual-source check above, given up. · `--packages=external` on the handler

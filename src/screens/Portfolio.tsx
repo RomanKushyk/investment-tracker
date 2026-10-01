@@ -15,25 +15,9 @@ import { Tag } from '../components/ui/Tag';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import {
-  headlineTotal,
-  investedByAsset,
-  freeCashFromLedger,
-  latestQuotes,
-  netResult,
-  reinvestedByAsset,
-  reinvestedTotal,
-  sharePct,
-  shareTotal,
-  soldAmount,
-  yieldSinceStart,
-  cashIsShort,
-  usableTotal,
-} from '@quirenote/core/derive';
-import { daysBetween, latestSnapshotDate } from '@quirenote/core/dates';
 import type { Asset } from '@quirenote/core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
-import { bestPerformer, incomeEngine, laggard } from '@quirenote/core/view/portfolio';
+import { portfolioView } from '@quirenote/core/view/portfolio';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
@@ -55,25 +39,13 @@ export function Portfolio() {
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
 
-  const values = latestQuotes(snapshots);
-  const invested = investedByAsset(transactions);
-  const reinvested = reinvestedByAsset(transactions);
-  const total = headlineTotal(snapshots, transactions);
-  const cash = freeCashFromLedger(transactions);
-  const cashShort = cashIsShort(cash);
-  const base = shareTotal(total, cash);
-  // The Total row's 100 % is a share like the others, absent on the same total.
-  const totalShare = usableTotal(base) ? 100 : null;
-  const net = netResult(values, invested, soldAmount(transactions));
-  const investedTotal = Object.values(invested).reduce((a, b) => a + b, 0);
-
-  const best = bestPerformer(assets, values, invested);
-  const worst = laggard(assets, values, invested);
-  const engine = incomeEngine(assets, transactions);
-
-  const now = latestSnapshotDate(snapshots);
-  const bestWeeks =
-    best && now ? Math.round(daysBetween(best.asset.firstPurchase, now) / 7) : undefined;
+  // One shape for both forms, so the table and the cards read the same numbers
+  // from the same place rather than each doing the arithmetic again.
+  const { rows, totals, cash, cashShort, best, bestWeeks, worst, engine } = portfolioView({
+    assets,
+    snapshots,
+    transactions,
+  });
 
   // THE PER-ENTITY VARIANT: `Done` alone, no Save and no Cancel, because create /
   // edit / delete each commit through their own dialog. A Save would have nothing
@@ -105,15 +77,6 @@ export function Portfolio() {
       </Button>
     </>
   );
-
-  // One shape for both forms, so the table and the cards read the same numbers
-  // from the same place rather than each doing the arithmetic again.
-  const rows = assets.map((a) => {
-    const value = values[a.id] ?? 0;
-    const inv = invested[a.id] ?? 0;
-    const reinv = reinvested[a.id] ?? 0;
-    return { asset: a, value, inv, reinv, pnl: value - inv, pnlPct: yieldSinceStart(value, inv) };
-  });
 
   return (
     <div>
@@ -172,8 +135,10 @@ export function Portfolio() {
                     <td className="py-2">
                       <Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>
                     </td>
-                    <td className="py-2 text-right">{f.num(r.inv)}</td>
-                    <td className="py-2 text-right">{r.reinv > 0 ? f.num(r.reinv) : '—'}</td>
+                    <td className="py-2 text-right">{f.num(r.invested)}</td>
+                    <td className="py-2 text-right">
+                      {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
+                    </td>
                     <td className="py-2 text-right">{f.num(r.value)}</td>
                     <td className={`py-2 text-right font-bold ${signClass(r.pnl)}`}>
                       {f.signedNum(r.pnl)}
@@ -182,7 +147,7 @@ export function Portfolio() {
                       {f.pct(r.pnlPct)}
                     </td>
                     <td className="py-2 text-right">
-                      <Share pct={sharePct(r.value, base)} />
+                      <Share pct={r.share} />
                     </td>
                     {editing && (
                       <td className="py-2 pl-4">
@@ -198,19 +163,17 @@ export function Portfolio() {
                     {t.analytics.prose.totalPlusCash(f.money(cash))}
                   </td>
                   <td className="py-2"></td>
-                  <td className="py-2 text-right font-bold">{f.num(investedTotal)}</td>
-                  <td className="py-2 text-right font-bold">
-                    {f.num(reinvestedTotal(transactions))}
+                  <td className="py-2 text-right font-bold">{f.num(totals.invested)}</td>
+                  <td className="py-2 text-right font-bold">{f.num(totals.reinvested)}</td>
+                  <td className="py-2 text-right font-bold">{f.num(totals.value)}</td>
+                  <td className={`py-2 text-right font-bold ${signClass(totals.net.uah)}`}>
+                    {f.signedNum(totals.net.uah)}
                   </td>
-                  <td className="py-2 text-right font-bold">{f.num(total)}</td>
-                  <td className={`py-2 text-right font-bold ${signClass(net.uah)}`}>
-                    {f.signedNum(net.uah)}
-                  </td>
-                  <td className={`py-2 text-right font-bold ${signClass(net.pct)}`}>
-                    {f.pct(net.pct)}
+                  <td className={`py-2 text-right font-bold ${signClass(totals.net.pct)}`}>
+                    {f.pct(totals.net.pct)}
                   </td>
                   <td className="py-2 text-right font-bold">
-                    <Share pct={totalShare} fractionDigits={0} />
+                    <Share pct={totals.share} fractionDigits={0} />
                   </td>
                   {/* The Total row gets no actions — a sum is not an entity. */}
                   {editing && <td className="py-2" />}
@@ -237,11 +200,13 @@ export function Portfolio() {
               // cancels the wrap the band exists to provide.
               footer={editing ? rowActions(r.asset) : undefined}
             >
-              <Fact label={t.analytics.invested}>{f.num(r.inv)}</Fact>
-              <Fact label={t.analytics.ofItReinvested}>{r.reinv > 0 ? f.num(r.reinv) : '—'}</Fact>
+              <Fact label={t.analytics.invested}>{f.num(r.invested)}</Fact>
+              <Fact label={t.analytics.ofItReinvested}>
+                {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
+              </Fact>
               <Fact label={t.analytics.valueNow}>{f.num(r.value)}</Fact>
               <Fact label={t.analytics.share}>
-                <Share pct={sharePct(r.value, base)} />
+                <Share pct={r.share} />
               </Fact>
               <Fact label={t.analytics.capitalGainUah}>
                 <span className={signClass(r.pnl)}>{f.signedNum(r.pnl)}</span>
@@ -257,17 +222,17 @@ export function Portfolio() {
             className="border-t-2 border-panel-border"
             footer={cashShort ? <CashShortChip /> : undefined}
           >
-            <Fact label={t.analytics.invested}>{f.num(investedTotal)}</Fact>
-            <Fact label={t.analytics.ofItReinvested}>{f.num(reinvestedTotal(transactions))}</Fact>
-            <Fact label={t.analytics.valueNow}>{f.num(total)}</Fact>
+            <Fact label={t.analytics.invested}>{f.num(totals.invested)}</Fact>
+            <Fact label={t.analytics.ofItReinvested}>{f.num(totals.reinvested)}</Fact>
+            <Fact label={t.analytics.valueNow}>{f.num(totals.value)}</Fact>
             <Fact label={t.analytics.share}>
-              <Share pct={totalShare} fractionDigits={0} />
+              <Share pct={totals.share} fractionDigits={0} />
             </Fact>
             <Fact label={t.analytics.capitalGainUah}>
-              <span className={signClass(net.uah)}>{f.signedNum(net.uah)}</span>
+              <span className={signClass(totals.net.uah)}>{f.signedNum(totals.net.uah)}</span>
             </Fact>
             <Fact label={t.analytics.capitalGainPct}>
-              <span className={signClass(net.pct)}>{f.pct(net.pct)}</span>
+              <span className={signClass(totals.net.pct)}>{f.pct(totals.net.pct)}</span>
             </Fact>
           </RecordCard>
           <div className="px-1 text-[11.5px] text-muted">{t.analytics.prose.capitalGainNote}</div>
@@ -336,16 +301,14 @@ export function Portfolio() {
           sub={
             engine
               ? (() => {
-                  const isDividends = engine.dividends >= engine.coupons;
-                  const amount = isDividends ? engine.dividends : engine.coupons;
-                  const kind = isDividends
-                    ? t.analytics.portfolio.dividendsWord
-                    : t.analytics.portfolio.couponsWord;
-                  const reinvestedNote =
-                    (reinvested[engine.asset.id] ?? 0) > 0
-                      ? t.analytics.portfolio.autoReinvested
-                      : '';
-                  return `${f.moneyWhole(amount)} ${kind}${reinvestedNote}`;
+                  const kind =
+                    engine.kind === 'dividends'
+                      ? t.analytics.portfolio.dividendsWord
+                      : t.analytics.portfolio.couponsWord;
+                  const reinvestedNote = engine.autoReinvested
+                    ? t.analytics.portfolio.autoReinvested
+                    : '';
+                  return `${f.moneyWhole(engine.amount)} ${kind}${reinvestedNote}`;
                 })()
               : undefined
           }

@@ -1,5 +1,5 @@
-import { headlineKpis } from '@quirenote/core/derive';
 import { toUsd } from '@quirenote/core/money';
+import { capitalView } from '@quirenote/core/view/capital';
 import { useSettings } from '../state/settings';
 import { useFormat } from './useFormat';
 import { useSnapshots, useTransactions } from './queries';
@@ -9,8 +9,8 @@ import { useTweenedNumber } from './useTweenedNumber';
  * The one capital figure, and it has TWO renderers now — the sidebar's Total
  * capital card and the mobile header bar. It lives here rather
  * than in either of them precisely so there is never a second derivation: both
- * read `core/derive.headlineKpis`, through this, and a change to the number is a
- * change to one function.
+ * read `capitalView`, through this, and a change to the number is a change to one
+ * function.
  *
  * Returns the PARTS, not a sentence. The sidebar joins
  * them with a middot on one line; the header stacks them, paints the percentage
@@ -38,7 +38,7 @@ export function useCapitalCard(): CapitalCard {
   const { currency, usdRate } = useSettings();
   const snapshots = useSnapshots().data;
   const transactions = useTransactions().data;
-  const kpis = snapshots && transactions ? headlineKpis(snapshots, transactions) : undefined;
+  const kpis = snapshots && transactions ? capitalView({ snapshots, transactions }) : undefined;
   const total = kpis?.total ?? 0;
   const usdTotal = toUsd(total, usdRate);
   const tweened = useTweenedNumber(currency === 'UAH' ? total : usdTotal);

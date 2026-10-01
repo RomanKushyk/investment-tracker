@@ -1,10 +1,22 @@
 // Pure glue for the Attributes screen's facts: imports core/ only and returns
 // structured tokens, so the label words and the ordinal assembly live in the
 // component layer.
-import { annualizedPct, purchaseUnitPrice } from '../derive';
+import { couponPerPayment, nextUnsettledCouponDate } from '../accrual';
+import { daysBetween } from '../dates';
+import {
+  annualizedPct,
+  investedByAsset,
+  latestQuotes,
+  purchaseUnitPrice,
+  startDateByAsset,
+  unitsByAsset,
+} from '../derive';
 import { impliedYield } from '../inzhur/dcf';
 import { matchAssets, NO_UNITS, type ParsedFeed } from '../inzhur/parse';
 import type { Asset, PayoutSchedule, Transaction } from '../types';
+import type { FeedInput, LedgerInput } from './input';
+import { windowView } from './window';
+import { shortBasisIn } from './yield';
 
 export function dividendDayOfMonth(
   transactions: Transaction[],
@@ -84,4 +96,65 @@ export function derivedYtmPct(
   // yield can produce, or a schedule already spent — but neither is a figure to
   // print, so both read the same way here.
   return solved.kind === 'solved' ? solved.yieldPct : undefined;
+}
+
+export interface BondCard {
+  kind: 'bond';
+  asset: Asset;
+  /** Solved from the paid price against the feed's schedule; absent without either. */
+  ytm: number | undefined;
+  /** What one payment pays THIS position, from the rate and the ledger's units. */
+  coupon: number | undefined;
+  /** The ledger's walk, never the stored pointer, which a recorded payout leaves behind. */
+  nextCoupon: string | undefined;
+}
+
+export interface MarketCard {
+  kind: 'market';
+  asset: Asset;
+  /** Over the full history's one span, and without the sale proceeds `/yield` adds (#288). */
+  actualAnnualized: number | undefined;
+  /** The mark `/yield` puts on the same figure, so the two screens agree on it. */
+  shortBasis: boolean;
+  payoutSchedule: PayoutScheduleFact;
+}
+
+export type AttributeCard = BondCard | MarketCard;
+
+/** The Attributes screen's facts, one card per asset. A market asset's return is read
+ *  over the full history, which is `/yield`'s window at `all`. */
+export function attributesView(input: LedgerInput & FeedInput): { cards: AttributeCard[] } {
+  const { assets, snapshots, transactions, feed } = input;
+  const units = unitsByAsset(transactions);
+  const values = latestQuotes(snapshots);
+  const invested = investedByAsset(transactions);
+  const w = windowView({ ...input, period: 'all' });
+  const daysHeld = w ? daysBetween(w.from, w.to) : 0;
+  const startByAsset = startDateByAsset(assets, transactions);
+  return {
+    cards: assets.map((asset): AttributeCard => {
+      if (asset.yieldType === 'fixed_coupon') {
+        return {
+          kind: 'bond',
+          asset,
+          ytm: derivedYtmPct(asset, transactions, feed),
+          coupon: couponPerPayment(asset, units[asset.id]),
+          nextCoupon: nextUnsettledCouponDate(asset, transactions),
+        };
+      }
+      const actualAnnualized = actualAnnualizedPct(
+        values[asset.id],
+        invested[asset.id] ?? 0,
+        daysHeld,
+      );
+      return {
+        kind: 'market',
+        asset,
+        actualAnnualized,
+        shortBasis:
+          actualAnnualized === undefined ? false : shortBasisIn(startByAsset[asset.id], w),
+        payoutSchedule: payoutScheduleFact(asset, transactions),
+      };
+    }),
+  };
 }

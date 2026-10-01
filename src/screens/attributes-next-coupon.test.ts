@@ -96,28 +96,30 @@ describe('the two readings the fact chooses between', () => {
 
 describe('the Next coupon fact on /attributes', () => {
   it('never reads the stored pointer', () => {
+    // Any `.nextCoupon` but the card's walk and the label's key is the stored pointer.
+    const other = SCREEN.replace(
+      /\bcard\.nextCoupon\b|\bt\.analytics\.attributes\.nextCoupon\b/g,
+      '',
+    );
     expect(
-      SCREEN,
-      'the screen reads `a.nextCoupon`, which a payout recorded from the form leaves on a ' +
-        'settled date',
-    ).not.toMatch(/\ba\.nextCoupon\b/);
+      other,
+      'the screen reads `nextCoupon` off an asset, which a payout recorded from the form ' +
+        'leaves on a settled date',
+    ).not.toMatch(/\bnextCoupon\b/);
   });
 
-  it('renders the walk, and «—» when the walk answers nothing', () => {
+  // The walk itself moved into `attributesView`, and is held there
+  // (`view/attributes.test.ts`): the screen renders the card's answer.
+  it("renders the card's walk, and «—» when the walk answers nothing", () => {
+    expect(SCREEN, '`card` is not a card from `attributesView`').toMatch(
+      /\bview\.cards\.map\(\(card\b/,
+    );
     const fact = SCREEN.match(
       /<Fact label=\{t\.analytics\.attributes\.nextCoupon\}>([\s\S]*?)<\/Fact>/,
     );
     expect(fact, 'the Next coupon fact is gone').not.toBeNull();
-    const shown = fact![1].match(/([\w.]+) \? f\.date\(\1\) : '—'/);
-    expect(shown, 'the fact no longer renders one date or «—»').not.toBeNull();
-    const name = shown![1];
-    expect(
-      SCREEN,
-      `\`${name}\` is not the walk's answer for this asset over the whole ledger`,
-    ).toMatch(
-      new RegExp(
-        `const ${name.replace(/\./g, '\\.')} = nextUnsettledCouponDate\\(a, transactions\\);`,
-      ),
+    expect(fact![1], "the fact no longer renders the card's date or «—»").toMatch(
+      /\{card\.nextCoupon \? f\.date\(card\.nextCoupon\) : '—'\}/,
     );
   });
 });

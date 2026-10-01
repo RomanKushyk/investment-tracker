@@ -1,6 +1,7 @@
 // Pure data-shaping for the Balances screen. Covered by balances.test.ts.
 import { freeCashFromLedger, totalCapital } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
+import type { LedgerInput } from './input';
 
 // A snapshot is "complete" if every asset that existed by that date has a quote;
 // an asset not yet purchased does not need one.
@@ -92,4 +93,18 @@ export function paginateSnapshots(snapshots: Snapshot[], page: number, pageSize 
   const clamped = Math.min(Math.max(page, 0), totalPages - 1);
   const rows = sorted.slice(clamped * pageSize, clamped * pageSize + pageSize);
   return { rows, page: clamped, totalPages, total: sorted.length };
+}
+
+export interface BalancesView {
+  chart: BalanceChartPoint[];
+  /** The first snapshot's date, which the pager states; the table itself is read page
+   *  by page. */
+  earliest: string | undefined;
+}
+
+export function balancesView({ assets, snapshots, transactions }: LedgerInput): BalancesView {
+  return {
+    chart: balanceChartData(snapshots, assets, transactions),
+    earliest: [...snapshots].sort((a, b) => a.date.localeCompare(b.date))[0]?.date,
+  };
 }
