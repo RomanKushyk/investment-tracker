@@ -932,14 +932,13 @@ Resources:
     Properties:
       AlarmDescription: >-
         Prod's Cognito pool holds more than 8,000 identities, 80% of the 10,000 monthly
-        actives Essentials bills nothing for, set ahead of the 85% free-tier alert AWS mails
-        the root account. This is TOTAL USERS, not MAU, and an upper bound on the month's
-        actives only while no user is deleted during the month: a user created or active in
-        the month and then deleted stays among its actives but leaves this count. No handler
-        deletes a user, and no page can: DeleteUser takes an access token, and an app
-        sign-in's is one only the relay holds. AdminDeleteUser or DeleteUser by hand can.
-        Check the sign-up path, the approval queue, and CloudTrail for either call this
-        month: each can leave the count one short.
+        actives Essentials bills nothing for. This is TOTAL USERS, not MAU, and an upper
+        bound on the month's actives only while no user is deleted during the month: a user
+        created or active in the month and then deleted stays among its actives but leaves
+        this count. No handler deletes a user, and no page can: DeleteUser takes an access
+        token, and an app sign-in's is one only the relay holds. AdminDeleteUser or
+        DeleteUser by hand can. Check the sign-up path, the approval queue, and CloudTrail
+        for either call this month: each can leave the count one short.
       Namespace: Quirenote
       MetricName: PoolUsers
       Statistic: Maximum

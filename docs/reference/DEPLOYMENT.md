@@ -285,6 +285,7 @@ carries ours as `EUN1-CognitoEssentialsMAU`, $0.015/MAU from unit 0, beside
 `Global-CognitoFreeTierMAU`, a 0–10,000 quantity range at $0.00. Two traps beside them: the singular
 regional `EUN1-CognitoUserPoolMAU` **does not exist** — the regional classic type is plural,
 `EUN1-CognitoUserPoolsMAU` at $0.0055/MAU over 0–50,000 — and AWS's Free Tier tracking documentation
+(`https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/tracking-free-tier-usage.html`)
 still lists `CognitoUserPoolMAU`, that legacy 50,000 line, not the 10,000 this budget is about. Read
 which line carries non-zero usage before choosing the usage type — paired wrong, the budget reads
 zero across the whole range it watches. Cost Explorer filtered to the Amazon Cognito service and
@@ -334,16 +335,17 @@ Inactive row's **Send Notification** mails one and moves the row to Pending.
 `status` `active`. An address it does not list, or lists as `inactive`, is not verified. The call
 needs `notifications-contacts:ListEmailContacts`.
 
-AWS also mails at 85% of a Free Tier limit, to the account root user's address unless changed
-under Billing → Preferences → Alert preferences, automatic for an individual account but opt-in for
-an Organizations management account. **The thing to verify is that somebody reads it.**
-`PoolUsersAlarm` sits at 80% of the same 10,000, ahead of that mail **for prod's share of the
-allowance, and only while no prod user is deleted during the month**: a user created or active in
-the month and then deleted, by `AdminDeleteUser` or by `DeleteUser`, stays metered but leaves the
+Nothing establishes that AWS's own Free Tier usage alerts warn before the 10,000 Essentials
+allowance runs out: the tracking documentation above gives the Amazon Cognito row's usage types as
+`CognitoEnterpriseMAU` and `CognitoUserPoolMAU`, and no Essentials type is among them.
+`PoolUsersAlarm`'s threshold, 80% of the same 10,000, is crossed before prod's actives alone spend
+the allowance, **but only while no prod user is deleted during the month**: a user created or active
+in the month and then deleted, by `AdminDeleteUser` or by `DeleteUser`, stays metered but leaves the
 count. Either is made by hand: `DeleteUser` takes an access token, and an app sign-in's is one only
-the relay holds. It is not ahead for the account's allowance, since dev's pool spends the same
-10,000 and `PoolUsers` leaves dev's pool out; the usage budget counts dev's pool too, but alerts
-only past the whole allowance.
+the relay holds. The threshold gives no such lead on the account's allowance, since dev's pool
+spends the same 10,000 and `PoolUsers` leaves dev's pool out; the usage budget counts dev's pool
+too, but alerts only past the whole allowance. The count is read once a day, so growth from under
+the threshold to past the allowance between two readings reaches the bill first.
 
 **2. The free-tier dashboard — NOT YET CREATED.** Two widgets in `eu-north-1`: `Quirenote` /
 `PoolUsers`, annotated at 8,000 where the alarm sits, and `AWS/Cognito` / `SignUpSuccesses` for the

@@ -619,7 +619,7 @@ const EXEMPT: [file: string, site: string, reason: string][] = [
   [
     'infra/src/cognito-pool.test.ts',
     'prose',
-    'the same file’s compliance-claim sweep, which reads comment markers off as prose',
+    'the reader every claim census in the same file shares, which reads comment markers off as prose',
   ],
   [
     'src/palette-mirror.test.ts',

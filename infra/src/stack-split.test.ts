@@ -647,7 +647,6 @@ describe('the user stack watches its pool against the free tier', () => {
   it('alarms at 80% of the free tier, and in the direction the argument assumes', () => {
     const alarm = user.Resources.PoolUsersAlarm.Properties;
     expect(alarm?.Threshold).toBe(FREE_TIER_USERS * 0.8);
-    expect(alarm?.Threshold ?? Infinity).toBeLessThan(FREE_TIER_USERS * 0.85);
     expect(alarm?.ComparisonOperator).toBe('GreaterThanThreshold');
     expect(alarm?.Statistic).toBe('Maximum');
     expect(alarm?.TreatMissingData).toBe('notBreaching');

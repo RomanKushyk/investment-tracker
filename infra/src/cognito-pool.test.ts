@@ -544,6 +544,33 @@ describe('the stack still takes its environment the way it did', () => {
   });
 });
 
+// THE WALK EVERY PROSE CENSUS BELOW SHARES, and the reader the claim censuses share.
+const walk = (dir: string): string[] =>
+  readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) return skipped(e.name) ? [] : walk(rel);
+    // `.tsx` is most of `src/` and `\.ts$` does not match it — the trailing x defeats the anchor.
+    return /\.(tsx?|md|ya?ml|sql)$/.test(e.name) ? [rel] : [];
+  });
+
+const searched = ['docs', 'infra', 'src'].flatMap(walk);
+
+// READ AS SENTENCES: strip each line's comment marker (`#`, `//`, `--`, `>`) and every `*`, then
+// collapse whitespace, or a claim wrapped across lines or bolded mid-phrase reads clean.
+const PROSE = new Map<string, string>();
+const prose = (f: string) => {
+  let text = PROSE.get(f);
+  if (text === undefined) {
+    text = readFileSync(join(REPO, f), 'utf8')
+      .toLowerCase()
+      .replace(/^[ \t]*(#|\/\/|--|>)[ \t]?/gm, '')
+      .replace(/\*+/g, '')
+      .replace(/\s+/g, ' ');
+    PROSE.set(f, text);
+  }
+  return text;
+};
+
 // The lifetime was load-bearing for two decisions and is not any more, so the prose that leaned on
 // it goes with it: this repository reviews prose as factual claims. Both conclusions survive on
 // arguments that hold at ANY lifetime — a claim stamped at issue time is never current.
@@ -551,7 +578,7 @@ describe('the stack still takes its environment the way it did', () => {
 // THE NEEDLES ARE BUILT FROM PARTS so this file does not match itself: spelling one out here would
 // make the guard pass by describing its own text, the failure mode a grep-shaped test has.
 describe('nothing explains itself by a lifetime that is gone', () => {
-  // CASE-FOLDED: a lower-cased needle was once blind to this file's own retired comment. The bare
+  // CASE-FOLDED, text and needle both, so a capital cannot hide a retired comment. The bare
   // number is a needle by itself because a revert produces a property and a CLI flag, neither of
   // which carries a word to match on.
   const NEEDLES = ['36' + '50', 'refresh token ' + 'lasts years', 'token that ' + 'lasts years'];
@@ -569,28 +596,10 @@ describe('nothing explains itself by a lifetime that is gone', () => {
   // rather than a reason for our own number.
   const EXEMPT = 'docs/reference/COGNITO-POOL-PARAMS.md';
 
-  const walk = (dir: string): string[] =>
-    readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
-      const rel = `${dir}/${e.name}`;
-      if (e.isDirectory()) return skipped(e.name) ? [] : walk(rel);
-      // `.tsx` is most of `src/` and `\.ts$` does not match it — the trailing x defeats the anchor.
-      return /\.(tsx?|md|ya?ml|sql)$/.test(e.name) ? [rel] : [];
-    });
-
-  const searched = ['docs', 'infra', 'src'].flatMap(walk);
   const hits = (file: string) => {
     const text = readFileSync(join(REPO, file), 'utf8').toLowerCase();
     return NEEDLES.filter((n) => text.includes(n));
   };
-  // READ AS SENTENCES, NOT LINES, and two things break that: these files are hand-wrapped, so a
-  // claim wraps mid-phrase; and a wrap carries a comment marker, so collapsing whitespace alone
-  // leaves "singles # out". STRIP THE MARKER, THEN COLLAPSE — both, or it reports a clean file.
-  const prose = (f: string) =>
-    readFileSync(join(REPO, f), 'utf8')
-      .toLowerCase()
-      .replace(/^[ \t]*(#|\/\/)[ \t]?/gm, '')
-      .replace(/\s+/g, ' ');
-
   // THE TWO WAYS THE GUARD BELOW PASSES WITHOUT CHECKING ANYTHING: a walk that returned nothing,
   // and a needle that matches nothing because its concatenation was mistyped.
   it('is actually looking, and every needle actually matches', () => {
@@ -615,9 +624,9 @@ describe('nothing explains itself by a lifetime that is gone', () => {
     expect(entry).toMatch(/hour/);
   });
 
-  // One compliance claim lives in three files in three phrasings and nothing bound them, so each
-  // review round narrowed one copy and left the others asserting what had just been corrected. The
-  // claim is bounded, so a statement of unqualified compliance is wrong wherever it appears.
+  // One compliance claim lives in three files in three phrasings, and narrowing one copy leaves the
+  // others asserting what was corrected. The claim is bounded, so a statement of unqualified
+  // compliance is wrong wherever it appears.
   it('claims only what was checked about the BCP, in every file that mentions it', () => {
     // Concatenated for the reason NEEDLES is: spelled out, this list is the first thing the guard
     // would find, in the guard.
@@ -690,5 +699,44 @@ describe('nothing explains itself by a lifetime that is gone', () => {
       readFileSync(join(REPO, 'docs/DECISIONS.md'), 'utf8'),
     )?.[0];
     expect(auth).toMatch(/no inactivity expiry/i);
+  });
+});
+
+// THE RETIRED SENTENCES, NOT THE CLAIM: they set PoolUsersAlarm ahead of AWS's Free Tier mail,
+// which nothing shows covers Essentials (DEPLOYMENT.md §7.1). A paraphrase needs a reader.
+describe('no sentence sets the pool alarm ahead of AWS’s mail again', () => {
+  // As `prose()` reads each place before the fix, split so this file cannot match itself.
+  const RETIRED: [file: string, extract: string][] = [
+    ['docs/reference/DEPLOYMENT.md', 'sits at 80% of the same 10,000, ahead of that ' + 'mail for'],
+    ['infra/README.md', 'bills nothing for, deliberately ahead of the 8' + '5% at which aws mails'],
+    ['infra/src/pool-usage.ts', 'pins it to 80% of this value, under the 8' + '5% at which aws'],
+    ['infra/template-user.yaml', 'bills nothing for, set ahead of the 8' + '5% free-tier alert'],
+  ];
+  const NEEDLES = [
+    '10,000, ahead of that ' + 'mail',
+    'ahead of the 8' + '5%',
+    'under the 8' + '5%',
+  ];
+  // Literal but for a space the docs often set before `%`; word-bounded by lookaround, since `\b`
+  // cannot follow a `%`.
+  const FINDERS = NEEDLES.map((n) => {
+    const literal = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, ' ?%');
+    return [n, new RegExp(`(?<!\\w)${literal}(?!\\w)`)] as const;
+  });
+
+  it('cuts every needle from a retired sentence, and has one for every place', () => {
+    const matches = (r: RegExp) => RETIRED.filter(([, extract]) => r.test(extract));
+    expect(FINDERS.filter(([, r]) => matches(r).length === 0).map(([n]) => n)).toEqual([]);
+    const caught = new Set(FINDERS.flatMap(([, r]) => matches(r).map(([file]) => file)));
+    expect(RETIRED.map(([file]) => file).filter((f) => !caught.has(f))).toEqual([]);
+    // A walk that stopped reaching a place would leave the test below passing blind.
+    expect(searched).toEqual(expect.arrayContaining(RETIRED.map(([file]) => file)));
+  });
+
+  it('finds none of them under docs, infra or src', () => {
+    const offenders = searched.flatMap((f) =>
+      FINDERS.filter(([, r]) => r.test(prose(f))).map(([n]) => `${f}: ${n}`),
+    );
+    expect(offenders).toEqual([]);
   });
 });

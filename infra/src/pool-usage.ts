@@ -14,8 +14,7 @@ import {
 // only (*Alerting*).
 
 /** What Cognito Essentials bills nothing below, in monthly active users. The alarm's threshold is
- *  derived from this rather than written beside it: `stack-split.test.ts` pins it to 80% of this
- *  value, under the 85% at which AWS's own Free Tier alert mails the root account. */
+ *  a literal in `template-user.yaml`, and `stack-split.test.ts` pins it to 80% of this value. */
 export const FREE_TIER_USERS = 10_000;
 
 export type PoolReader = {

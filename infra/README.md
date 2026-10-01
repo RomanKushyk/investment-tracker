@@ -69,8 +69,8 @@ and to sign in and out. Design and rationale live in
   had silently left the selection.
 - **The pool's user count is a bound while no user is deleted, not a measurement.** There is no
   CloudWatch metric for monthly actives, so prod's pool publishes `EstimatedNumberOfUsers` daily
-  and the alarm sits at 8,000 — 80% of the 10,000 Essentials bills nothing for, deliberately ahead
-  of the 85% at which AWS mails the root account, because a guard that fires with the bill is not a
+  and the alarm sits at 8,000 — 80% of the 10,000 Essentials bills nothing for, deliberately short
+  of the allowance rather than at it, because a guard that fires with the bill is not a
   guard. It bounds prod's actives from ABOVE only while no user is deleted during the month: a user
   created or active in the month and then deleted stays among its actives but leaves the count. No
   handler deletes one, and no page can: `DeleteUser` takes an access token, and an app sign-in's is

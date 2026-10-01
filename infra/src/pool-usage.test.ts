@@ -90,7 +90,7 @@ describe('poolUsage', () => {
 
   // THE CEILING ONLY: the alarm's threshold lives in the template, and
   // `stack-split.test.ts` is where the two are held against each other.
-  it('names the ceiling the threshold is derived from', () => {
+  it('names the ceiling the threshold is pinned to', () => {
     expect(FREE_TIER_USERS).toBe(10_000);
   });
 });
