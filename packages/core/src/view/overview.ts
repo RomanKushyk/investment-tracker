@@ -25,12 +25,11 @@ import {
   sharePct,
   topUpAmount,
   usableTotal,
-  yieldSinceStart,
 } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
 import type { ClockInput, LedgerInput, PeriodInput } from './input';
 import { windowView } from './window';
-import { windowedBasisByAsset, xirrIsExtrapolatedIn } from './yield';
+import { xirrIsExtrapolatedIn, yieldTableRowsIn } from './yield';
 
 export interface UnderweightResult {
   asset: Asset;
@@ -273,9 +272,9 @@ export interface OverviewAssetRow {
   asset: Asset;
   value: number;
   share: number | null;
-  /** WINDOWED, so it is meant to be `/yield`'s Δ under the same period — but it omits
-   *  the sale proceeds `/yield` adds and reads an unquoted asset as −1 (#288). */
-  yield: number;
+  /** WINDOWED: `/yield`'s Δ under the same period, read off its row, so a sale's proceeds
+   *  count and an asset with no quote has no figure. */
+  yield: number | undefined;
 }
 
 export interface OverviewView {
@@ -309,7 +308,6 @@ export function overviewView(input: LedgerInput & PeriodInput & ClockInput): Ove
   const cash = freeCashFromLedger(transactions);
   const base = shareTotal(total, cash);
   const w = windowView(input);
-  const { basis } = windowedBasisByAsset(assets, snapshots, transactions, w);
   const windowed = transactionsFromWindow(transactions, w);
   return {
     window: w,
@@ -326,14 +324,9 @@ export function overviewView(input: LedgerInput & PeriodInput & ClockInput): Ove
     xirrExtrapolated: xirrIsExtrapolatedIn(w),
     income: incomeReceived(windowed),
     incomeNet: incomeReceivedNet(windowed),
-    rows: assets.map((asset) => {
+    rows: yieldTableRowsIn(assets, snapshots, transactions, w).map(({ asset, deltaTotal }) => {
       const value = values[asset.id] ?? 0;
-      return {
-        asset,
-        value,
-        share: sharePct(value, base),
-        yield: yieldSinceStart(value, basis[asset.id] ?? 0),
-      };
+      return { asset, value, share: sharePct(value, base), yield: deltaTotal };
     }),
     underweight: mostUnderweightAsset(assets, values, base),
     nextPayouts: nextPayoutRows(assets, transactions, today),

@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
 import type { Asset, Transaction } from '../types';
 import { parseAssetsFeed } from '../inzhur/parse';
 import fixture from '../inzhur/__fixtures__/assets-sample.json';
 import {
-  actualAnnualizedPct,
   attributesView,
   derivedYtmPct,
   dividendDayOfMonth,
   payoutScheduleFact,
 } from './attributes';
+import { TEST_LEDGERS } from './test-ledgers';
+import { yieldView } from './yield';
 
 describe('dividendDayOfMonth', () => {
   it("finds the LATEST dividend_accrual's day-of-month for the asset (REIT -> 10th)", () => {
@@ -57,24 +58,6 @@ describe('payoutScheduleFact', () => {
   it('omits the day token when there is no accrual history yet (UI renders the bare label)', () => {
     const reit = SEED_ASSETS.find((a) => a.id === 'reit')!;
     expect(payoutScheduleFact(reit, [])).toEqual({ schedule: 'monthly', day: undefined });
-  });
-});
-
-describe('actualAnnualizedPct', () => {
-  it('returns undefined when the asset has no quote yet (value undefined) instead of a bogus huge negative %', () => {
-    // Reproduces the reported bug: a freshly created asset with invested capital but
-    // no snapshot quote would compute a −100% and then annualize it against the
-    // global basis.
-    expect(actualAnnualizedPct(undefined, 10000, 174)).toBeUndefined();
-  });
-
-  it('computes normally once a quote exists (value 0 is a real, quoted zero — not "missing")', () => {
-    expect(actualAnnualizedPct(0, 10000, 174)).toBeCloseTo((-1 * 365) / 174);
-  });
-
-  it('matches annualizedPct for a real seed figure', () => {
-    const pct = actualAnnualizedPct(68629.36, 65800, 174)!;
-    expect(pct).toBeGreaterThan(0);
   });
 });
 
@@ -171,5 +154,50 @@ describe('attributesView — the Next coupon fact', () => {
     }).cards.find((c) => c.asset.id === 'ovdp8976')!;
     expect(card.kind === 'bond' && card.nextCoupon).toBe('2027-02-25');
     expect(card.asset.nextCoupon).toBe('2026-08-25');
+  });
+});
+
+describe("attributesView — Actual is /yield's annualized return at the full history", () => {
+  // The ledger sells part of energy's holding and holds an asset no snapshot quotes.
+  const input = TEST_LEDGERS.find((l) => l.name === 'sold-and-unquoted')!.input;
+
+  it("every market card is /yield's figure and mark, the sale proceeds included", () => {
+    const cards = attributesView(input).cards.flatMap((c) => (c.kind === 'market' ? [c] : []));
+    const rows = yieldView({ ...input, period: 'all' }).rows;
+    expect(cards.map((c) => [c.asset.id, c.actualAnnualized, c.shortBasis])).toStrictEqual(
+      rows
+        .filter((r) => r.asset.yieldType !== 'fixed_coupon')
+        .map((r) => [r.asset.id, r.annualized, r.shortBasis]),
+    );
+  });
+
+  it('an asset no snapshot quotes has no figure', () => {
+    const fresh = attributesView(input).cards.find((c) => c.asset.id === 'fresh')!;
+    expect(fresh.kind === 'market' && fresh.actualAnnualized).toBeUndefined();
+  });
+
+  it('marks a market asset bought partway through the history, as /yield does', () => {
+    // No market asset in the ledger above is short; …6475, bought partway through the seed, is.
+    const assets = SEED_ASSETS.map((a) =>
+      a.id === 'ovdp6475' ? { ...a, yieldType: 'capitalization' as const } : a,
+    );
+    const at = { assets, snapshots: buildSeedSnapshots(), transactions: SEED_TRANSACTIONS };
+    const card = attributesView(at).cards.find((c) => c.asset.id === 'ovdp6475')!;
+    expect(card.kind === 'market' && card.shortBasis).toBe(true);
+  });
+
+  it('has no figure over a one-day history, where /yield has none either', () => {
+    // A zero-length span would annualize to a fabricated 0.
+    const day = '2026-07-01';
+    const asset = { ...SEED_ASSETS.find((a) => a.id === 'energy')!, firstPurchase: day };
+    const at = {
+      assets: [asset],
+      snapshots: [{ date: day, quotes: { energy: 10_100 } }],
+      transactions: [
+        { id: 'b1', date: day, type: 'buy' as const, assetId: 'energy', amount: 10_000 },
+      ],
+    };
+    const card = attributesView(at).cards[0]!;
+    expect(card.kind === 'market' && card.actualAnnualized).toBeUndefined();
   });
 });

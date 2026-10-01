@@ -101,7 +101,7 @@ On seed:
 | Income, net of tax | 4 945,66 ₴ | 1 973,76 ₴ — `p7` is inside this window, so the withholding moves with it |
 | Assets yield column | +4,41 / +1,48 / +2,96 / +5,20 % | +2,80 / +0,78 / +1,24 / +5,20 % |
 
-- XIRR appears only on the net-return KPI: it is measured at the portfolio's external-capital boundary, while every `/yield` column is measured at the asset boundary. The "(ann.)" mark disappears once a window reaches 365 days. The assets card's yield column equals `/yield`'s Δ for the same asset and window.
+- XIRR appears only on the net-return KPI: it is measured at the portfolio's external-capital boundary, while every `/yield` column is measured at the asset boundary. The "(ann.)" mark disappears once a window reaches 365 days. The assets card's yield column equals `/yield`'s Δ for the same asset and window, a sale's proceeds included. An asset no snapshot quotes yet reads «—» there, muted, as on `/yield`, never −100 %.
 - A window's opening position is valued the day BEFORE it opens (not ON the from-date) — the only boundary that counts each transaction once.
 
 ## `/balances`

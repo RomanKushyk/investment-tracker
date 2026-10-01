@@ -2,21 +2,12 @@
 // structured tokens, so the label words and the ordinal assembly live in the
 // component layer.
 import { couponPerPayment, nextUnsettledCouponDate } from '../accrual';
-import { daysBetween } from '../dates';
-import {
-  annualizedPct,
-  investedByAsset,
-  latestQuotes,
-  purchaseUnitPrice,
-  startDateByAsset,
-  unitsByAsset,
-} from '../derive';
+import { purchaseUnitPrice, unitsByAsset } from '../derive';
 import { impliedYield } from '../inzhur/dcf';
 import { matchAssets, NO_UNITS, type ParsedFeed } from '../inzhur/parse';
 import type { Asset, PayoutSchedule, Transaction } from '../types';
 import type { FeedInput, LedgerInput } from './input';
-import { windowView } from './window';
-import { shortBasisIn } from './yield';
+import { yieldView } from './yield';
 
 export function dividendDayOfMonth(
   transactions: Transaction[],
@@ -40,19 +31,6 @@ export interface PayoutScheduleFact {
 export function payoutScheduleFact(asset: Asset, transactions: Transaction[]): PayoutScheduleFact {
   if (asset.payoutSchedule === 'none') return { schedule: 'none' };
   return { schedule: asset.payoutSchedule, day: dividendDayOfMonth(transactions, asset.id) };
-}
-
-// Undefined until the asset has an actual quote: a freshly created asset has
-// invested capital but no snapshot, so value would fall back to 0 and the
-// annualized figure would blow that up against the global basis. Guarding here
-// keeps `annualizedPct` itself a plain numeric derivation.
-export function actualAnnualizedPct(
-  value: number | undefined,
-  invested: number,
-  daysHeld: number,
-): number | undefined {
-  if (value === undefined) return undefined;
-  return annualizedPct(value, invested, daysHeld);
 }
 
 /**
@@ -112,7 +90,7 @@ export interface BondCard {
 export interface MarketCard {
   kind: 'market';
   asset: Asset;
-  /** Over the full history's one span, and without the sale proceeds `/yield` adds (#288). */
+  /** `/yield`'s annualized figure at the full history, read off its row. */
   actualAnnualized: number | undefined;
   /** The mark `/yield` puts on the same figure, so the two screens agree on it. */
   shortBasis: boolean;
@@ -121,18 +99,14 @@ export interface MarketCard {
 
 export type AttributeCard = BondCard | MarketCard;
 
-/** The Attributes screen's facts, one card per asset. A market asset's return is read
- *  over the full history, which is `/yield`'s window at `all`. */
+/** The Attributes screen's facts, one card per asset. A market asset's return is `/yield`'s
+ *  row at `all`, the full history. */
 export function attributesView(input: LedgerInput & FeedInput): { cards: AttributeCard[] } {
-  const { assets, snapshots, transactions, feed } = input;
+  const { transactions, feed } = input;
   const units = unitsByAsset(transactions);
-  const values = latestQuotes(snapshots);
-  const invested = investedByAsset(transactions);
-  const w = windowView({ ...input, period: 'all' });
-  const daysHeld = w ? daysBetween(w.from, w.to) : 0;
-  const startByAsset = startDateByAsset(assets, transactions);
   return {
-    cards: assets.map((asset): AttributeCard => {
+    cards: yieldView({ ...input, period: 'all' }).rows.map((row): AttributeCard => {
+      const { asset } = row;
       if (asset.yieldType === 'fixed_coupon') {
         return {
           kind: 'bond',
@@ -142,17 +116,11 @@ export function attributesView(input: LedgerInput & FeedInput): { cards: Attribu
           nextCoupon: nextUnsettledCouponDate(asset, transactions),
         };
       }
-      const actualAnnualized = actualAnnualizedPct(
-        values[asset.id],
-        invested[asset.id] ?? 0,
-        daysHeld,
-      );
       return {
         kind: 'market',
         asset,
-        actualAnnualized,
-        shortBasis:
-          actualAnnualized === undefined ? false : shortBasisIn(startByAsset[asset.id], w),
+        actualAnnualized: row.annualized,
+        shortBasis: row.shortBasis,
         payoutSchedule: payoutScheduleFact(asset, transactions),
       };
     }),

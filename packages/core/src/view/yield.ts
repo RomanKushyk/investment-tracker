@@ -99,7 +99,7 @@ export function yieldTableRows(
 }
 
 /** What a window measures each position against: its value the day before the window opens,
- *  plus what was bought inside it. Shared with Overview's yield column, so the sum is one. */
+ *  plus what was bought inside it. */
 export function windowedBasisByAsset(
   assets: Asset[],
   snapshots: Snapshot[],
@@ -113,8 +113,7 @@ export function windowedBasisByAsset(
   return { open, basis };
 }
 
-/** Whether an annualized figure is spread over time its asset did not exist for. Shared with
- *  Attributes, which marks the same figure. */
+/** Whether an annualized figure is spread over time its asset did not exist for. */
 export function shortBasisIn(start: string | undefined, w: PeriodWindow | undefined): boolean {
   if (w === undefined || start === undefined) return false;
   const held = daysBetween(start > w.from ? start : w.from, w.to);

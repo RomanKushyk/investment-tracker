@@ -2,15 +2,19 @@ import { describe, expect, it } from 'vitest';
 
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
 import { netDeposits } from '../derive';
+import { PERIOD_OPTIONS } from '../period';
 import type { Asset, Transaction } from '../types';
 import {
   mostUnderweightAsset,
   nextPayoutRows,
+  overviewView,
   totalReturnKpi,
   totalReturnKpiIn,
   portfolioXirrIn,
   netResultIn,
 } from './overview';
+import { TEST_LEDGERS } from './test-ledgers';
+import { yieldView } from './yield';
 
 const TOTAL = 149016.36;
 const VALUES = { reit: 68702.1, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 };
@@ -362,5 +366,28 @@ describe('the windowed edge cases the seed cannot show (A40 review)', () => {
     // Selling near market is close to return-neutral; a double count would add
     // the whole ~15 800 to the gain.
     expect(Math.abs(withSell.uah - without.uah)).toBeLessThan(1_000);
+  });
+});
+
+describe("overviewView — the assets card's yield column is /yield's Δ", () => {
+  // The ledger sells part of energy's holding and holds an asset no snapshot quotes.
+  const input = TEST_LEDGERS.find((l) => l.name === 'sold-and-unquoted')!.input;
+
+  it.each(PERIOD_OPTIONS)(
+    "%s: every row is /yield's figure, the sale proceeds included",
+    (period) => {
+      const at = { ...input, period };
+      const view = overviewView(at);
+      // Every period's window holds the sale, so each case counts its proceeds.
+      expect(view.window!.from <= '2026-07-15').toBe(true);
+      expect(view.rows.map((r) => [r.asset.id, r.yield])).toStrictEqual(
+        yieldView(at).rows.map((r) => [r.asset.id, r.deltaTotal]),
+      );
+    },
+  );
+
+  it('an asset no snapshot quotes has no figure, never −100 %', () => {
+    const rows = overviewView({ ...input, period: 'all' }).rows;
+    expect(rows.find((r) => r.asset.id === 'fresh')!.yield).toBeUndefined();
   });
 });

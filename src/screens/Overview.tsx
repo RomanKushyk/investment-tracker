@@ -230,9 +230,9 @@ export function Overview() {
                       {f.money(value)}
                     </strong>
                     <span
-                      className={`w-[60px] text-right text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ < 0 ? 'text-neg' : 'text-pos'}`}
+                      className={`w-[60px] text-right text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ === undefined ? 'text-muted' : yield_ < 0 ? 'text-neg' : 'text-pos'}`}
                     >
-                      {f.pct(yield_)}
+                      {yield_ === undefined ? '—' : f.pct(yield_)}
                     </span>
                   </div>
                 );

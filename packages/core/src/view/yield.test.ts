@@ -74,6 +74,15 @@ describe('yieldTableRows', () => {
     expect(energy.xirr).toBeUndefined();
   });
 
+  it('a quoted zero is a figure, not a missing quote', () => {
+    const zero: Snapshot[] = [{ date: '2026-07-25', quotes: { reit: 0 } }];
+    const reit = yieldTableRows(SEED_ASSETS, zero, SEED_TRANSACTIONS).find(
+      (r) => r.asset.id === 'reit',
+    )!;
+    expect(reit.deltaTotal).toBe(-1);
+    expect(reit.annualized).toBeLessThan(0);
+  });
+
   // REIT is NET of the seeded withholding, so it falls while the three untaxed
   // assets stand: a figure that had NOT moved here would be the defect.
   it('Total return (net of tax, incl. payouts): REIT +9.98%, Energy +1.48%, …8976 +10.65%, …6475 +10.96%', () => {
@@ -469,7 +478,7 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
   });
 });
 
-// The two pieces Overview's and Attributes' composers share with this table, pinned on the seed.
+// The two pieces yieldTableRowsIn builds its basis and its mark from, pinned on the seed.
 describe('windowedBasisByAsset and shortBasisIn', () => {
   const windowAt = (period: PeriodOption) =>
     resolveWindow(
