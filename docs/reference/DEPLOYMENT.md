@@ -322,6 +322,18 @@ before's total until its next refresh; after that, while no Cognito line shows u
 month's usage appears, and lean meanwhile on `Quirenote/PoolUsers` and its alarm, which are in
 prod's stack and count prod's pool alone.
 
+**The check that its recipient is verified:** a re-created budget's subscriber receives nothing
+until its address is verified in the account. An address already verified there, for another
+budget or another service using AWS User Notifications, is Active at once. Any other is mailed a
+verification link and stays Pending until that link is followed while signed in to this account.
+The Budgets console shows the status on each recipient's row of the budget's detail page. A Pending
+row's **Resend verification** mails a fresh link, for one that never arrived or has expired; an
+Inactive row's **Send Notification** mails one and moves the row to Pending.
+`describe-subscribers-for-notification` returns the address without its status.
+`aws notificationscontacts list-email-contacts --region us-east-1` lists a verified address with
+`status` `active`. An address it does not list, or lists as `inactive`, is not verified. The call
+needs `notifications-contacts:ListEmailContacts`.
+
 AWS also mails at 85% of a Free Tier limit, to the account root user's address unless changed
 under Billing → Preferences → Alert preferences, automatic for an individual account but opt-in for
 an Organizations management account. **The thing to verify is that somebody reads it.**
