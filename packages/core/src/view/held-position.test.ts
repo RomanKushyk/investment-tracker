@@ -58,6 +58,48 @@ describe('a position sold out while later snapshots still quote it', () => {
   });
 });
 
+describe('a position of fractional units sold out', () => {
+  // All 6 269,0996 of the seed's REIT units, bought as 6164 + 43.4835 + 61.6161, are sold on
+  // 26 July for 69 000; the 27 July snapshot still quotes REIT at 68 702,10.
+  const input = {
+    ...ledger('seed'),
+    transactions: [
+      ...ledger('seed').transactions,
+      {
+        id: 'out',
+        date: '2026-07-26',
+        type: 'sell' as const,
+        assetId: 'reit',
+        amount: 69_000,
+        quantity: 6269.0996,
+      },
+    ],
+  };
+  const at = { ...input, period: 'all' as const };
+
+  it('adds none of its last quote to total capital', () => {
+    // The seed's 149 016,36, less REIT's 68 702,10, plus the 69 000.
+    for (const total of [
+      capitalView(input).total,
+      portfolioView(input).totals.value,
+      overviewView(at).total,
+    ]) {
+      expect(total).toBeCloseTo(149314.26, 2);
+    }
+  });
+
+  it('adds its proceeds and none of its last quote to every capital gain', () => {
+    for (const net of [
+      capitalView(input).net,
+      portfolioView(input).totals.net,
+      overviewView(at).net,
+    ]) {
+      expect(net.uah).toBeCloseTo(4750.51, 2);
+    }
+    expect(byId(portfolioView(input).rows, 'reit').value).toBe(0);
+  });
+});
+
 describe('a position sold out after its last quote', () => {
   // Energy: 59 208 in and 60 500 out on 26 July. Its last quote, 25 July, carries forward
   // in the merge, and the full history spans 174 days.

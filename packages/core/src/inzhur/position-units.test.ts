@@ -261,4 +261,32 @@ describe('what a count of zero or less MEANS, at every consumer', () => {
     expect(match.value).toBe(positionValue(6_000, SELL_UAH));
     expect(match.noValue).toBeUndefined();
   });
+
+  // The sale is the typed quantity: in binary floating point 15 + 1.1486 is above 16.1486 and
+  // 15 + 1.1502 below 16.1502.
+  it.each([
+    [1.1486, 16.1486],
+    [1.1502, 16.1502],
+  ])(
+    'a bond of 15 + %d units sold as %d is no position, whichever side of 0 a float sum lands',
+    (reinvested, sold) => {
+      const bond: Asset = {
+        ...reit(15),
+        id: 'ovdp8976',
+        inzhur: { kind: 'bond', ref: 'UA4000238976' },
+      };
+      const row = (id: string, type: Transaction['type'], quantity: number): Transaction => ({
+        id,
+        date: '2026-07-01',
+        type,
+        assetId: 'ovdp8976',
+        amount: 1000,
+        quantity,
+      });
+      const txs = [row('b', 'buy', 15), row('r', 'reinvest', reinvested), row('s', 'sell', sold)];
+      const [match] = matchAssets([bond], feed, unitsByAsset(txs)).linked;
+      expect(match.noValue).toBe('no-position');
+      expect(match.value).toBeUndefined();
+    },
+  );
 });

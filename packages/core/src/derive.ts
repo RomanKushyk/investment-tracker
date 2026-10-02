@@ -233,7 +233,8 @@ export function purchaseUnitPrice(
 /**
  * A LEDGER CARRYING NO QUANTITIES MUST BE DISTINGUISHABLE FROM ONE HOLDING ZERO
  * UNITS — the first still needs `Asset.inzhur.units` to be valued, the second is
- * closed. NOT rounded.
+ * closed. Counted in whole 1e-8 units: quantities of up to 8 decimals sum exactly,
+ * so a sale of every unit bought reads 0, and a finer quantity counts rounded to 8.
  */
 export interface LedgerUnits {
   /** Units held, per asset that the ledger can count completely. */
@@ -245,6 +246,17 @@ export interface LedgerUnits {
 
 export function unitsByAsset(txs: Transaction[], asOf?: string): Record<string, number> {
   return ledgerUnits(txs, asOf).units;
+}
+
+// Portfolio Performance's share precision. Fractional quantities summed as floats can miss 0 after
+// a full sale: a residue above it reads as held, and the feed reads one below it as an over-sale.
+const UNIT_SCALE = 1e8;
+
+// The quantity is rounded before it is signed, as Portfolio Performance signs a share count by
+// its type: `Math.round` takes a half up, so a rounded −x.5 would not cancel x.5.
+function scaledDelta(tx: Transaction): number {
+  const delta = unitDelta(tx);
+  return Math.sign(delta) * Math.round(Math.abs(delta) * UNIT_SCALE);
 }
 
 /** `unitsByAsset` plus the assets it declined to count — one walk, both answers. */
@@ -272,8 +284,9 @@ export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
 
   for (const tx of txs) {
     if (!within(tx) || !(tx.assetId in out)) continue;
-    out[tx.assetId] += unitDelta(tx);
+    out[tx.assetId] += scaledDelta(tx);
   }
+  for (const assetId of Object.keys(out)) out[assetId] /= UNIT_SCALE;
   return { units: out, incomplete: [...incomplete] };
 }
 

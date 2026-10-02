@@ -17,6 +17,7 @@ import {
   incomeReceivedNet,
   investedOwnByAsset,
   latestCompleteSnapshot,
+  ledgerUnits,
   netDeposits,
   netResult,
   startDateByAsset,
@@ -43,6 +44,7 @@ import {
   yieldSinceStart,
 } from './derive';
 import type { PriceLookup } from './derive';
+import { SEED_TRANSACTIONS } from './seed';
 import { unitDelta } from './types';
 import type { Asset, Snapshot, Transaction } from './types';
 
@@ -793,6 +795,36 @@ describe('unitDelta — the sign rule units depend on', () => {
   it('is zero without a quantity, and zero on a row that moves nothing', () => {
     expect(unitDelta(tx({ type: 'buy' }))).toBe(0);
     expect(unitDelta(tx({ type: 'interest_payout', quantity: 10 }))).toBe(0);
+  });
+});
+
+describe('ledgerUnits counts whole 1e-8 units, so a full sale reads exactly 0', () => {
+  const held = (assetId: string) =>
+    SEED_TRANSACTIONS.filter((t) => t.assetId === assetId && t.quantity !== undefined);
+  const sale = (assetId: string, quantity: number) => ({
+    ...tx('s', 'sell', 1, assetId, '2026-07-26'),
+    quantity,
+  });
+
+  it("sums the seed's REIT rows less a sale of all 6 269,0996 units to 0", () => {
+    // 6164 + 43.4835 + 61.6161 in binary floating point is not 6269.0996.
+    expect(ledgerUnits(held('reit')).units.reit).toBe(6269.0996);
+    expect(ledgerUnits([...held('reit'), sale('reit', 6269.0996)]).units.reit).toBe(0);
+  });
+
+  it("sums …6475's 4 + 0,2192 less 4,2192 to 0", () => {
+    expect(ledgerUnits([...held('ovdp6475'), sale('ovdp6475', 4.2192)]).units.ovdp6475).toBe(0);
+  });
+
+  it('counts a quantity of more than 8 decimals rounded to 8', () => {
+    const buy = { ...tx('b', 'buy', 1, 'a1'), quantity: 1.123456789 };
+    expect(ledgerUnits([buy]).units.a1).toBe(1.12345679);
+  });
+
+  it('cancels a buy with a sale of the same quantity whose last half-unit rounds', () => {
+    // ×1e8 is exactly 100000000.5, and `Math.round` takes a half up whatever the sign.
+    const buy = { ...tx('b', 'buy', 1, 'a1'), quantity: 1.000000005 };
+    expect(ledgerUnits([buy, sale('a1', 1.000000005)]).units.a1).toBe(0);
   });
 });
 

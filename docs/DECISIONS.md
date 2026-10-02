@@ -106,8 +106,9 @@ regression.
 return. The annualized column divides every row by ONE span, the selected window's, and a row whose
 holding falls well short of it renders muted; per-asset XIRR is the money-weighted column, and its
 annualization mark tests the WINDOW's length, not the asset's. A window's opening position is valued
-the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total; a
-position's value counts at a date only while the ledger holds units of it, both then and on the
+the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total, each
+quantity counted as a whole number of 1e-8 units; a position's value counts at a date only while
+the ledger holds units of it, both then and on the
 last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger
 cannot count keeps its last quote; a position held, or uncounted, that no snapshot values, never
 quoted or bought back since the last valuation day, has its own value, share and capital gain
@@ -128,7 +129,10 @@ strictly after the pricing date, and a quote suggested for that date already ded
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. Capital gain is realized plus unrealized,
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
-last quote outlives its sale and would count it twice. A stored coupon amount goes stale on the
+last quote outlives its sale and would count it twice. Fractional quantities summed as floats
+can miss 0 after a full sale: a residue above it reads as held, and the feed reads one below it as
+more sold than bought; whole 1e-8 units sum exactly, and 1e-8 is Portfolio Performance's share
+precision. A stored coupon amount goes stale on the
 next purchase where a rate does not; tax runs the other way, rates changing, so a computed
 withholding eventually lies where a recorded one cannot. The withholding is READ off the payout
 rather than skipped, which is two columns of one row and not an exclusion returning by another
@@ -151,7 +155,10 @@ forward, and a chip comparing the two reported a gap neither of them could close
 closing quote of any asset sold in a window: it zeroed a part-sold position. · Counting a flow
 due on the pricing date: on such a payment date the provider's quote misses that reading by the
 whole coupon. · Valuing an unquoted position at cost: it changes total capital on every screen and
-rewrites the documented seam, where a buy lowers it until its day is quoted.
+rewrites the documented seam, where a buy lowers it until its day is quoted. · A decimal library
+for units: a runtime dependency in the pure package the app and the server both bundle. · A
+tolerance in each closed-position test: the residue would still reach every figure that multiplies
+units.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

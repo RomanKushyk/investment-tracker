@@ -16,6 +16,7 @@ import {
   suggestedQuote,
   scheduledCouponMonths,
 } from './accrual';
+import { unitsByAsset } from './derive';
 import type { Asset, Transaction } from './types';
 
 // The demo seed's two bonds (seed.ts) are the fixture basis: …8976 pays
@@ -516,6 +517,16 @@ describe('couponProjection', () => {
       couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'none' }), 15390, undefined),
     ).toBeUndefined();
     expect(couponProjection(bond({ yieldType: 'div_cap' }), 15390, undefined)).toBeUndefined();
+  });
+
+  it('projects nothing for a bond sold out of a fractional holding', () => {
+    // 15 + 1.1486 − 16.1486 in binary floating point is not 0.
+    const txs = [
+      tx({ id: 'b', date: '2026-02-05', type: 'buy', amount: 15390, quantity: 15 }),
+      tx({ id: 'r', date: '2026-02-25', type: 'reinvest', amount: 1183.5, quantity: 1.1486 }),
+      tx({ id: 's', date: '2026-07-01', type: 'sell', amount: 16900, quantity: 16.1486 }),
+    ];
+    expect(couponProjection(bond(), 15390, unitsByAsset(txs).ovdp8976)).toBeUndefined();
   });
 });
 
