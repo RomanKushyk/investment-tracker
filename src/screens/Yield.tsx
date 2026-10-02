@@ -115,7 +115,9 @@ export function Yield() {
                     className="border-t border-hairline transition-colors hover:bg-page/60"
                   >
                     <td className="py-2 font-semibold">{r.asset.name}</td>
-                    <td className="py-2 text-right">{f.num(r.invested)}</td>
+                    <td className="py-2 text-right">
+                      {r.invested === undefined ? '—' : f.num(r.invested)}
+                    </td>
                     <td className="py-2 text-right">
                       {r.value === undefined ? '—' : f.num(r.value)}
                     </td>
@@ -162,7 +164,9 @@ export function Yield() {
               avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
               title={r.asset.name}
             >
-              <Fact label={t.analytics.invested}>{f.num(r.invested)}</Fact>
+              <Fact label={t.analytics.invested}>
+                {r.invested === undefined ? '—' : f.num(r.invested)}
+              </Fact>
               <Fact label={t.analytics.valueNow}>
                 {r.value === undefined ? '—' : f.num(r.value)}
               </Fact>

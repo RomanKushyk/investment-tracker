@@ -11,7 +11,10 @@ import {
   yieldTableRows,
   yieldTableRowsIn,
   yieldView,
+  type YieldTableRow,
 } from './yield';
+import type { ViewInput } from './input';
+import { overviewView } from './overview';
 import { TEST_LEDGERS } from './test-ledgers';
 import { resolveWindow } from '../period';
 import type { PeriodOption } from '../period';
@@ -402,6 +405,28 @@ describe('a position sold out before the window opens', () => {
     const row = rows.find((r) => r.asset.id === 'ovdp8976')!;
     expect([row.value, row.invested, row.deltaTotal]).toEqual([0, 0, 0]);
   });
+
+  it('measures a buy-back inside the window against that buy, the opening a known 0', () => {
+    // Units held at the ledger's last row, none the day before the window opens.
+    const input = TEST_LEDGERS.find((l) => l.name === 'sold-out')!.input;
+    const back: Transaction = {
+      id: 'back-8976',
+      date: '2026-07-15',
+      type: 'buy',
+      assetId: 'ovdp8976',
+      amount: 5_300,
+      quantity: 5,
+    };
+    const w = { from: '2026-07-10', to: '2026-07-27', clamped: false };
+    const row = yieldTableRowsIn(
+      input.assets,
+      input.snapshots,
+      [...input.transactions, back],
+      w,
+    ).find((r) => r.asset.id === 'ovdp8976')!;
+    expect(row.invested).toBe(5_300);
+    expect(row.deltaTotal).toBeDefined();
+  });
 });
 
 describe('the two regressions A39 shipped and its review caught', () => {
@@ -510,6 +535,167 @@ describe('the curve over a position sold out while later snapshots still quote i
   });
 });
 
+// Every figure of a row, Invested included, and all of them absent.
+const columns = (r: YieldTableRow) => [
+  r.invested,
+  r.value,
+  r.deltaTotal,
+  r.annualized,
+  r.vsExpectedPp,
+  r.totalReturn,
+  r.xirr,
+];
+const ABSENT = Array<undefined>(7).fill(undefined);
+
+// The window inherits units that no snapshot values on the day before it opens, so its basis is
+// unknown. Read at 0, the basis turned Δ into 0 %, or into hundreds of percent once a buy landed.
+describe('a window opening on a position no snapshot values the day before', () => {
+  const w = { from: '2026-07-10', to: '2026-07-27', clamped: false };
+  const figures = (assets: Asset[], snapshots: Snapshot[], txs: Transaction[], id: string) =>
+    columns(yieldTableRowsIn(assets, snapshots, txs, w).find((x) => x.asset.id === id)!);
+  const drawn = (assets: Asset[], snapshots: Snapshot[], txs: Transaction[], id: string) =>
+    cumulativeYieldSeriesIn(snapshots, txs, assets, w).some((p) => p[id] !== undefined);
+  // No snapshot from 05.07 to 09.07, so the last valuation day before the window is 04.07.
+  const gap = snaps.filter((s) => s.date < '2026-07-05' || s.date > '2026-07-09');
+
+  // …8976 sold out on 01.07 and 5 bought back on 06.07; its quotes follow the units held.
+  const sell: Transaction = {
+    id: 'sell-8976',
+    date: '2026-07-01',
+    type: 'sell',
+    assetId: 'ovdp8976',
+    amount: 15_800,
+    quantity: 15,
+  };
+  const back: Transaction = {
+    id: 'back-8976',
+    date: '2026-07-06',
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 5_300,
+    quantity: 5,
+  };
+  const uncounted: Transaction = {
+    id: 'back-8976',
+    date: '2026-07-06',
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 5_300,
+  };
+  const more: Transaction = {
+    id: 'more-8976',
+    date: '2026-07-15',
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 1_060,
+    quantity: 1,
+  };
+  const scaled = (units: (date: string) => number): Snapshot[] =>
+    gap.map((s) =>
+      s.date >= '2026-07-10' && s.quotes.ovdp8976 !== undefined
+        ? { ...s, quotes: { ...s.quotes, ovdp8976: (s.quotes.ovdp8976 * units(s.date)) / 15 } }
+        : s,
+    );
+
+  describe.each<[string, Transaction[], Snapshot[]]>([
+    ['bought back', [sell, back], scaled(() => 5)],
+    ['bought back, its units uncounted', [sell, uncounted], scaled(() => 5)],
+    [
+      'bought back, then bought inside the window',
+      [sell, back, more],
+      scaled((d) => (d >= '2026-07-15' ? 6 : 5)),
+    ],
+    // Units held when the window opens, though the ledger holds none at its last row.
+    [
+      'bought back, then sold out inside the window',
+      [sell, back, { ...sell, id: 'resell-8976', date: '2026-07-20', amount: 5_350, quantity: 5 }],
+      scaled((d) => (d >= '2026-07-20' ? 0 : 5)),
+    ],
+  ])('…8976 %s', (_, extra, snapshots) => {
+    const txs = [...SEED_TRANSACTIONS, ...extra];
+
+    it('reads «—» in every column, Invested included', () => {
+      expect(figures(SEED_ASSETS, snapshots, txs, 'ovdp8976')).toStrictEqual(ABSENT);
+    });
+
+    it('draws no line', () => {
+      expect(drawn(SEED_ASSETS, snapshots, txs, 'ovdp8976')).toBe(false);
+    });
+  });
+
+  // A new position first bought on 06.07 and first quoted on 10.07.
+  const fresh: Asset = { ...SEED_ASSETS[3]!, id: 'new', firstPurchase: '2026-07-06' };
+  const bought: Transaction[] = [
+    ...SEED_TRANSACTIONS,
+    { id: 'd-new', date: '2026-07-06', type: 'deposit', assetId: '', amount: 5_000 },
+    { id: 'b-new', date: '2026-07-06', type: 'buy', assetId: 'new', amount: 5_000, quantity: 5 },
+  ];
+  const quotedFrom10 = (ss: Snapshot[]): Snapshot[] =>
+    ss.map((s) => (s.date >= '2026-07-10' ? { ...s, quotes: { ...s.quotes, new: 5_100 } } : s));
+
+  describe.each<[string, Snapshot[]]>([
+    ['first bought in a snapshot gap', quotedFrom10(gap)],
+    ['held while the snapshots before the window omit its quote', quotedFrom10(snaps)],
+  ])('a position %s', (_, snapshots) => {
+    const assets = [...SEED_ASSETS, fresh];
+
+    it('reads «—» in every column, Invested included', () => {
+      expect(figures(assets, snapshots, bought, 'new')).toStrictEqual(ABSENT);
+    });
+
+    it('draws no line', () => {
+      expect(drawn(assets, snapshots, bought, 'new')).toBe(false);
+    });
+  });
+});
+
+describe('…8976 bought back in a snapshot gap before «1 місяць» opens', () => {
+  // Sold out on 01.06 and 5 bought back on 20.06; no snapshot from 20.06 to 26.06, so the last
+  // valuation day before 27.06 held none of it.
+  const input: ViewInput = {
+    assets: SEED_ASSETS,
+    snapshots: snaps.filter((s) => s.date < '2026-06-20' || s.date > '2026-06-26'),
+    transactions: [
+      ...SEED_TRANSACTIONS,
+      {
+        id: 'sell-8976',
+        date: '2026-06-01',
+        type: 'sell',
+        assetId: 'ovdp8976',
+        amount: 15_700,
+        quantity: 15,
+      },
+      {
+        id: 'back-8976',
+        date: '2026-06-20',
+        type: 'buy',
+        assetId: 'ovdp8976',
+        amount: 5_200,
+        quantity: 5,
+      },
+    ],
+    today: '2026-07-28',
+  };
+  const yieldRow = (period: PeriodOption) =>
+    yieldView({ ...input, period }).rows.find((r) => r.asset.id === 'ovdp8976')!;
+  const overviewYield = (period: PeriodOption) =>
+    overviewView({ ...input, period }).rows.find((r) => r.asset.id === 'ovdp8976')!.yield;
+
+  it("reads «—» on /yield and in Overview's yield column under «1 місяць»", () => {
+    expect(columns(yieldRow('1m'))).toStrictEqual(ABSENT);
+    expect(overviewYield('1m')).toBeUndefined();
+  });
+
+  it('keeps its figures under «Від початку», whose opening precedes every ledger row', () => {
+    const r = yieldRow('all');
+    expect([r.invested, r.value]).toStrictEqual([20_590, 15_846.3]);
+    expect(r.deltaTotal).toBeCloseTo((15_846.3 + 15_700) / 20_590 - 1, 10);
+    expect(r.totalReturn).toBeCloseTo(0.5895968916949975, 10);
+    expect(r.xirr).toBeCloseTo(3.7052935398, 6);
+    expect(overviewYield('all')).toBe(r.deltaTotal);
+  });
+});
+
 describe('shortBasis — F-3/D80, the rows whose basis their holding cannot support', () => {
   const rowsAt = (period: PeriodOption) => {
     const w = resolveWindow(
@@ -588,7 +774,7 @@ describe('windowedBasisByAsset and shortBasisIn', () => {
 
   it('is what was bought over the full history: no position is inherited', () => {
     expect(windowedBasisByAsset(SEED_ASSETS, snaps, SEED_TRANSACTIONS, windowAt('all'))).toEqual({
-      open: {},
+      open: { reit: 0, energy: 0, ovdp8976: 0, ovdp6475: 0 },
       basis: { reit: 65800, energy: 59208, ovdp8976: 15390, ovdp6475: 4158 },
     });
   });

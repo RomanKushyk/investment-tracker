@@ -71,6 +71,12 @@ export function basisIsShort(heldDays: number, basisDays: number): boolean {
 
 const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCompare(b.date));
 
+// The last valuation day on or before `asOf`.
+const valuedOnAsOf = (snaps: Snapshot[], asOf?: string) =>
+  byDate(snaps)
+    .filter((s) => asOf === undefined || s.date <= asOf)
+    .at(-1)?.date;
+
 /**
  * A STOCK, so a window gives it the window’s END. AN ASSET NEVER QUOTED STAYS
  * ABSENT, never 0 — a deliberate deviation from doc §4.1
@@ -94,11 +100,8 @@ export function heldQuotesAsOf(
   asOf?: string,
 ): Record<string, number> {
   const quotes = quotesAsOf(snaps, asOf);
-  const valuedOn = byDate(snaps)
-    .filter((s) => asOf === undefined || s.date <= asOf)
-    .at(-1)?.date;
   const now = ledgerUnits(txs, asOf).units;
-  const then = ledgerUnits(txs, valuedOn).units;
+  const then = ledgerUnits(txs, valuedOnAsOf(snaps, asOf)).units;
   for (const id of Object.keys(quotes)) {
     if (holdsNone(now[id]) || holdsNone(then[id])) quotes[id] = 0;
   }
@@ -117,27 +120,32 @@ export function needsQuote(asset: Asset, date: string, units: number | undefined
   return units === undefined ? asset.firstPurchase <= date : units > 0;
 }
 
-/** `heldQuotesAsOf`, less a position held, or uncounted, now and none on the last valuation day:
- *  its last quote values none of these units, so it is ABSENT. *Metric families and windows* */
-export function valuedQuotes(snaps: Snapshot[], txs: Transaction[]): Record<string, number> {
-  const quotes = heldQuotesAsOf(snaps, txs);
-  const now = ledgerUnits(txs).units;
-  const then = ledgerUnits(txs, byDate(snaps).at(-1)?.date).units;
+/** `heldQuotesAsOf`, less a position held, or uncounted, at `asOf` and none on the last valuation
+ *  day: its last quote values none of these units, so it is ABSENT. *Metric families and windows* */
+export function valuedQuotes(
+  snaps: Snapshot[],
+  txs: Transaction[],
+  asOf?: string,
+): Record<string, number> {
+  const quotes = heldQuotesAsOf(snaps, txs, asOf);
+  const now = ledgerUnits(txs, asOf).units;
+  const then = ledgerUnits(txs, valuedOnAsOf(snaps, asOf)).units;
   for (const id of Object.keys(quotes)) {
     if (!holdsNone(now[id]) && holdsNone(then[id])) delete quotes[id];
   }
   return quotes;
 }
 
-/** `valuedQuotes`, plus 0 for an asset held none of, or moved by no row and quoted by none.
- *  A held or uncounted one no snapshot values has no key: ABSENT. *Metric families and windows* */
+/** `valuedQuotes`, plus 0 for an asset held none of at `asOf`, or moved by no row and quoted by
+ *  none. A held or uncounted one no snapshot values has no key: ABSENT. *Metric families and windows* */
 export function heldValues(
   assets: Asset[],
   snaps: Snapshot[],
   txs: Transaction[],
+  asOf?: string,
 ): Record<string, number> {
-  const values = valuedQuotes(snaps, txs);
-  const now = ledgerUnits(txs);
+  const values = valuedQuotes(snaps, txs, asOf);
+  const now = ledgerUnits(txs, asOf);
   for (const { id } of assets) {
     const units = now.units[id];
     if (units === undefined && !now.incomplete.includes(id)) {

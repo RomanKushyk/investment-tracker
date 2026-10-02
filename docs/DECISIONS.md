@@ -106,7 +106,9 @@ regression.
 return. The annualized column divides every row by ONE span, the selected window's, and a row whose
 holding falls well short of it renders muted; per-asset XIRR is the money-weighted column, and its
 annualization mark tests the WINDOW's length, not the asset's. A window's opening position is valued
-the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total, each
+the day BEFORE it opens. Where the rule below leaves a position ABSENT on that day, `/yield` leaves
+its basis, its row and its line absent over the window. Units are `Σ quantity deltas` over the
+ledger, never a stored total, each
 quantity counted as a whole number of 1e-8 units; a position's value counts at a date only while
 the ledger holds units of it, both then and on the
 last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger

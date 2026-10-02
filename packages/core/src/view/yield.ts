@@ -2,7 +2,7 @@
 import {
   annualizedPct,
   basisIsShort,
-  heldQuotesAsOf,
+  heldValues,
   holdsNone,
   startDateByAsset,
   investedByAsset,
@@ -26,7 +26,9 @@ import { windowView } from './window';
 
 export interface YieldTableRow {
   asset: Asset;
-  invested: number;
+  // undefined = no quote values the units the window inherited the day before it opens, and so is
+  // every figure below: read at 0, that basis turns Δ into 0 % or into hundreds of percent.
+  invested: number | undefined;
   // undefined = no quote values its units (never quoted, or bought back since the last valuation
   // day), and so is every figure below: read at 0, those units are a total loss at a huge rate.
   value: number | undefined;
@@ -102,17 +104,22 @@ export function yieldTableRows(
 }
 
 /** What a window measures each position against: its value the day before the window opens,
- *  plus what was bought inside it. */
+ *  plus what was bought inside it. A position no snapshot values that day has no key in either:
+ *  the window's basis is ABSENT. *Metric families and windows* */
 export function windowedBasisByAsset(
   assets: Asset[],
   snapshots: Snapshot[],
   transactions: Transaction[],
   w: PeriodWindow | undefined,
 ): { open: Record<string, number>; basis: Record<string, number> } {
-  const open = w === undefined ? {} : heldQuotesAsOf(snapshots, transactions, dayBefore(w.from));
+  const open =
+    w === undefined ? {} : heldValues(assets, snapshots, transactions, dayBefore(w.from));
   const invested = investedByAsset(transactionsFromWindow(transactions, w));
   const basis: Record<string, number> = {};
-  for (const asset of assets) basis[asset.id] = (open[asset.id] ?? 0) + (invested[asset.id] ?? 0);
+  for (const asset of assets) {
+    if (w !== undefined && !Object.hasOwn(open, asset.id)) continue;
+    basis[asset.id] = (open[asset.id] ?? 0) + (invested[asset.id] ?? 0);
+  }
   return { open, basis };
 }
 
@@ -165,8 +172,8 @@ export function yieldTableRowsIn(
   return assets.map((asset) => {
     const value = values[asset.id];
     const openValue = open[asset.id] ?? 0;
-    const inv = basis[asset.id];
-    if (value === undefined || now === undefined) {
+    const inv = Object.hasOwn(basis, asset.id) ? basis[asset.id] : undefined;
+    if (value === undefined || inv === undefined || now === undefined) {
       return {
         asset,
         invested: inv,
@@ -274,13 +281,15 @@ export function cumulativeYieldSeriesIn(
   const inWindow =
     w === undefined ? snapshots : snapshots.filter((s) => s.date >= w.from && s.date <= w.to);
   const sorted = [...inWindow].sort((a, b) => a.date.localeCompare(b.date));
-  const { open } = windowedBasisByAsset(assets, snapshots, transactions, w);
+  const { open, basis: windowed } = windowedBasisByAsset(assets, snapshots, transactions, w);
   const openedOn = w?.from;
 
   return sorted.map((s) => {
     const point: YieldSeriesPoint = { date: s.date };
     const units = ledgerUnits(transactions, s.date).units;
     for (const asset of assets) {
+      // The table's absent basis: no line, whatever is bought inside the window.
+      if (!Object.hasOwn(windowed, asset.id)) continue;
       // Valued as total capital values it that day: a position the ledger holds none of is a
       // known 0, quoted or not, so a closed line runs on at its proceeds.
       const quote = holdsNone(units[asset.id]) ? 0 : s.quotes[asset.id];
