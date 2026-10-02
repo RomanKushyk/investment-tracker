@@ -207,4 +207,50 @@ describe('quoteProgress — the pill counts only the assets the day needs quoted
       total: 4,
     });
   });
+
+  it('has nothing to count on a day no asset needs a quote, so there is no pill', () => {
+    // 01.02 is before every first purchase.
+    const before = ledgerUnits(SEED_TRANSACTIONS, '2026-02-01').units;
+    expect(quoteProgress(SEED_ASSETS, before, '2026-02-01', {})).toBeUndefined();
+    // Literal quantities: each sums its position's rows to exactly 0 units.
+    const sales: Transaction[] = [
+      {
+        id: 'x1',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'reit',
+        amount: 69000,
+        quantity: 6269.0996,
+      },
+      {
+        id: 'x2',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'energy',
+        amount: 60500,
+        quantity: 6000,
+      },
+      {
+        id: 'x3',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'ovdp8976',
+        amount: 15800,
+        quantity: 15,
+      },
+      {
+        id: 'x4',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'ovdp6475',
+        amount: 4400,
+        quantity: 4.2192,
+      },
+    ];
+    const allSold = ledgerUnits([...SEED_TRANSACTIONS, ...sales], '2026-07-28').units;
+    // A quote typed for a position sold out is still nothing to count.
+    expect(quoteProgress(SEED_ASSETS, allSold, '2026-07-28', heldThree)).toBeUndefined();
+    // An empty dataset.
+    expect(quoteProgress([], {}, '2026-07-28', {})).toBeUndefined();
+  });
 });

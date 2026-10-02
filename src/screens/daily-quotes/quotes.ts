@@ -40,13 +40,15 @@ export function collectQuotes(
 
 // The pill counts only the assets the day needs quoted, by the rule Balances reads a snapshot
 // as complete by: a quote typed for a position sold out that day is saved, and counts nowhere.
+// A day that needs none has nothing to count, so there is no pill rather than «0 з 0».
 export function quoteProgress(
   assets: Asset[],
   units: Record<string, number>,
   date: string,
   quotes: Record<string, number>,
-): { filled: number; total: number } {
+): { filled: number; total: number } | undefined {
   const needed = assets.filter((a) => needsQuote(a, date, units[a.id]));
+  if (needed.length === 0) return undefined;
   return { filled: needed.filter((a) => Object.hasOwn(quotes, a.id)).length, total: needed.length };
 }
 

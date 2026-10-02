@@ -257,12 +257,14 @@ export function DailyQuotes() {
             the title's own subject. */}
         <div className="mb-1 flex flex-wrap items-center gap-3">
           <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
-          <span
-            key={progress.filled}
-            className="animate-in rounded-[6px] bg-info-tint px-3 py-1 text-xs font-semibold text-info-tint-text duration-150 zoom-in-95"
-          >
-            {t.dailyQuotes.filled(progress.filled, progress.total)}
-          </span>
+          {progress && (
+            <span
+              key={progress.filled}
+              className="animate-in rounded-[6px] bg-info-tint px-3 py-1 text-xs font-semibold text-info-tint-text duration-150 zoom-in-95"
+            >
+              {t.dailyQuotes.filled(progress.filled, progress.total)}
+            </span>
+          )}
         </div>
         <p className="mb-[18px] text-[13px] text-muted">{t.screen.dailyQuotes.subtitle}</p>
 
