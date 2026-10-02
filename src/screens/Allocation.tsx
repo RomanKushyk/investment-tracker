@@ -210,13 +210,22 @@ export function Allocation() {
                         <span className="ml-auto">
                           <Share pct={r.share} /> /{' '}
                           {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}
-                          {deltaPp !== null && (
+                          {deltaPp !== null ? (
                             <>
                               {' '}
                               <strong className={off ? 'text-neg' : 'text-pos'}>
                                 {f.pp(deltaPp)}
                               </strong>
                             </>
+                          ) : (
+                            // Absent on a usable total, the share is an unvalued position's; a short
+                            // ledger's absent shares carry no delta at all.
+                            usable && (
+                              <>
+                                {' '}
+                                <span className="text-muted">—</span>
+                              </>
+                            )
                           )}
                         </span>
                       )}

@@ -39,6 +39,13 @@ describe('mostUnderweightAsset', () => {
     expect(mostUnderweightAsset(SEED_ASSETS, VALUES, -10000)).toBeUndefined();
     expect(mostUnderweightAsset(SEED_ASSETS, VALUES, NaN)).toBeUndefined();
   });
+
+  it('returns undefined when no asset is under its target — never a negative top-up', () => {
+    // Targets summing to 92: Energy, the least over, would read "top up −799,24 ₴".
+    const targets: Record<string, number> = { reit: 40, energy: 40, ovdp8976: 10, ovdp6475: 2 };
+    const assets = SEED_ASSETS.map((a) => ({ ...a, targetPct: targets[a.id] }));
+    expect(mostUnderweightAsset(assets, VALUES, TOTAL)).toBeUndefined();
+  });
 });
 
 describe('totalReturnKpi (S9a — audit §5 family, additive to the pinned Capital gain)', () => {

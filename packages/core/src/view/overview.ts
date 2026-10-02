@@ -10,6 +10,8 @@ import {
   incomeReceived,
   incomeReceivedNet,
   heldQuotesAsOf,
+  heldValueOf,
+  heldValues,
   reinvestedTotal,
   shareTotal,
   soldAmount,
@@ -47,10 +49,14 @@ export function mostUnderweightAsset(
 
   let best: UnderweightResult | undefined;
   for (const asset of assets) {
-    const value = values[asset.id] ?? 0;
+    // A missing value is a held position no snapshot values: it has no share to fall short.
+    const value = heldValueOf(values, asset.id);
+    if (value === undefined) continue;
     const share = sharePct(value, total);
     if (share === null) continue;
     const deltaPp = allocationDeltaPp(share, asset.targetPct);
+    // At or over its target `topUpAmount` is zero or negative: only an asset under it is a hint.
+    if (deltaPp >= 0) continue;
     if (!best || deltaPp < best.deltaPp) {
       best = { asset, deltaPp, topUp: topUpAmount(value, asset.targetPct, total) };
     }
@@ -264,7 +270,8 @@ export function nextPayoutRows(
 
 export interface OverviewAssetRow {
   asset: Asset;
-  value: number;
+  /** Absent for a held position no snapshot values. */
+  value: number | undefined;
   share: number | null;
   /** WINDOWED: `/yield`'s Δ under the same period, read off its row, so a sale's proceeds
    *  count and an asset with no quote has no figure. */
@@ -297,7 +304,7 @@ export interface OverviewView {
  *  window; the next payouts count from `today`, as "what comes next" asks the calendar. */
 export function overviewView(input: LedgerInput & PeriodInput & ClockInput): OverviewView {
   const { assets, snapshots, transactions, today } = input;
-  const values = heldQuotesAsOf(snapshots, transactions);
+  const values = heldValues(assets, snapshots, transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
   const base = shareTotal(total, cash);
@@ -319,8 +326,9 @@ export function overviewView(input: LedgerInput & PeriodInput & ClockInput): Ove
     income: incomeReceived(windowed),
     incomeNet: incomeReceivedNet(windowed),
     rows: yieldTableRowsIn(assets, snapshots, transactions, w).map(({ asset, deltaTotal }) => {
-      const value = values[asset.id] ?? 0;
-      return { asset, value, share: sharePct(value, base), yield: deltaTotal };
+      const value = heldValueOf(values, asset.id);
+      const share = value === undefined ? null : sharePct(value, base);
+      return { asset, value, share, yield: deltaTotal };
     }),
     underweight: mostUnderweightAsset(assets, values, base),
     nextPayouts: nextPayoutRows(assets, transactions, today),

@@ -31,8 +31,8 @@ function signClass(v: number): string {
   return v < 0 ? 'text-neg' : 'text-pos';
 }
 
-// An asset with no quote has no return: «—», muted, as `/yield` renders it.
-function pctClass(v: number | undefined): string {
+// An asset with no quote has no gain, in ₴ or in %: «—», muted, as `/yield` renders it.
+function gainClass(v: number | undefined): string {
   return v === undefined ? 'text-muted' : signClass(v);
 }
 
@@ -144,11 +144,13 @@ export function Portfolio() {
                     <td className="py-2 text-right">
                       {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
                     </td>
-                    <td className="py-2 text-right">{f.num(r.value)}</td>
-                    <td className={`py-2 text-right font-bold ${signClass(r.pnl)}`}>
-                      {f.signedNum(r.pnl)}
+                    <td className="py-2 text-right">
+                      {r.value === undefined ? '—' : f.num(r.value)}
                     </td>
-                    <td className={`py-2 text-right font-bold ${pctClass(r.pnlPct)}`}>
+                    <td className={`py-2 text-right font-bold ${gainClass(r.pnl)}`}>
+                      {r.pnl === undefined ? '—' : f.signedNum(r.pnl)}
+                    </td>
+                    <td className={`py-2 text-right font-bold ${gainClass(r.pnlPct)}`}>
                       {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
                     </td>
                     <td className="py-2 text-right">
@@ -209,15 +211,19 @@ export function Portfolio() {
               <Fact label={t.analytics.ofItReinvested}>
                 {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
               </Fact>
-              <Fact label={t.analytics.valueNow}>{f.num(r.value)}</Fact>
+              <Fact label={t.analytics.valueNow}>
+                {r.value === undefined ? '—' : f.num(r.value)}
+              </Fact>
               <Fact label={t.analytics.share}>
                 <Share pct={r.share} />
               </Fact>
               <Fact label={t.analytics.capitalGainUah}>
-                <span className={signClass(r.pnl)}>{f.signedNum(r.pnl)}</span>
+                <span className={gainClass(r.pnl)}>
+                  {r.pnl === undefined ? '—' : f.signedNum(r.pnl)}
+                </span>
               </Fact>
               <Fact label={t.analytics.capitalGainPct}>
-                <span className={pctClass(r.pnlPct)}>
+                <span className={gainClass(r.pnlPct)}>
                   {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
                 </span>
               </Fact>

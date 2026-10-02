@@ -105,6 +105,38 @@ export function heldQuotesAsOf(
   return quotes;
 }
 
+/** `heldQuotesAsOf`, plus 0 for an asset held none of, or moved by no row and quoted by none.
+ *  A held or uncounted one no snapshot values has no key: ABSENT. *Metric families and windows* */
+export function heldValues(
+  assets: Asset[],
+  snaps: Snapshot[],
+  txs: Transaction[],
+): Record<string, number> {
+  const values = heldQuotesAsOf(snaps, txs);
+  const now = ledgerUnits(txs);
+  const then = ledgerUnits(txs, byDate(snaps).at(-1)?.date).units;
+  for (const { id } of assets) {
+    const units = now.units[id];
+    if (units === undefined && !now.incomplete.includes(id)) {
+      // No row moves it: never bought, unless a snapshot quotes it, a quote the total keeps.
+      if (!Object.hasOwn(values, id)) values[id] = 0;
+    } else if (units !== undefined && units <= 0) {
+      values[id] = 0;
+    } else if (then[id] !== undefined && then[id] <= 0) {
+      // Held, or uncounted, now and none on the last valuation day, so `heldQuotesAsOf` zeroed
+      // it: its last quote values none of these units.
+      delete values[id];
+    }
+  }
+  return values;
+}
+
+/** One asset's entry in `heldValues`, typed as what a missing key means. `Object.hasOwn`, because
+ *  an asset id can be any string, `toString` included. */
+export function heldValueOf(values: Record<string, number>, assetId: string): number | undefined {
+  return Object.hasOwn(values, assetId) ? values[assetId] : undefined;
+}
+
 /**
  * Both halves at one instant WHEN BOUND: the held positions valued up to `asOf` and the
  * ledger summed to the same day. A date before the first valuation returns the cash

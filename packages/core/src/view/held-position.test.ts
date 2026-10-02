@@ -105,7 +105,7 @@ describe('a position sold out after the last snapshot', () => {
     const delta = 60_500 / 59_208 - 1;
     expect(byId(yieldView(at).rows, 'energy').deltaTotal).toBeCloseTo(delta, 10);
     const row = byId(portfolioView(input).rows, 'energy');
-    expect(row.pnl / row.invested).toBeCloseTo(row.pnlPct!, 10);
+    expect(row.pnl! / row.invested).toBeCloseTo(row.pnlPct!, 10);
   });
 });
 
@@ -145,7 +145,10 @@ describe("Portfolio's per-asset return is /yield's Δ at the full history", () =
       expect(view.rows.map((r) => [r.asset.id, r.pnlPct])).toStrictEqual(
         yieldView({ ...input, period: 'all' }).rows.map((r) => [r.asset.id, r.deltaTotal]),
       );
-      expect(view.rows.reduce((sum, r) => sum + r.pnl, 0)).toBeCloseTo(view.totals.net.uah, 6);
+      // An unvalued position's row has no gain, while the Total counts what went into it as
+      // spent: the seam `headlineTotalAsOf` documents. Neither ledger sells one.
+      const gains = view.rows.reduce((sum, r) => sum + (r.pnl ?? -r.invested), 0);
+      expect(gains).toBeCloseTo(view.totals.net.uah, 6);
     },
   );
 

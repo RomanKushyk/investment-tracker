@@ -4,7 +4,8 @@ import {
   cashIsShort,
   freeCashFromLedger,
   headlineTotal,
-  heldQuotesAsOf,
+  heldValueOf,
+  heldValues,
   investedByAsset,
   netResult,
   reinvestedByAsset,
@@ -101,11 +102,12 @@ export function cascadeCounts(
 
 export interface PortfolioRow {
   asset: Asset;
-  value: number;
+  /** Absent for a held position no snapshot values, and its gain with it. */
+  value: number | undefined;
   invested: number;
   reinvested: number;
   /** Value plus the asset's sale proceeds, less what went in: the Total row's `net`, per row. */
-  pnl: number;
+  pnl: number | undefined;
   /** `/yield`'s Δ at the full history; absent for an asset with no quote. */
   pnlPct: number | undefined;
   share: number | null;
@@ -141,7 +143,7 @@ export interface PortfolioView {
 /** The Portfolio screen's figures: one row per asset, and the table and the cards read
  *  the same rows. Over the whole ledger, to the latest valuation. */
 export function portfolioView({ assets, snapshots, transactions }: LedgerInput): PortfolioView {
-  const values = heldQuotesAsOf(snapshots, transactions);
+  const values = heldValues(assets, snapshots, transactions);
   const invested = investedByAsset(transactions);
   const reinvested = reinvestedByAsset(transactions);
   const sold = soldAmountByAsset(transactions);
@@ -151,16 +153,16 @@ export function portfolioView({ assets, snapshots, transactions }: LedgerInput):
   // The return is `/yield`'s own row, as Overview and Attributes read it.
   const returns = yieldView({ assets, snapshots, transactions, period: 'all' }).rows;
   const rows = returns.map(({ asset, deltaTotal }) => {
-    const value = values[asset.id] ?? 0;
+    const value = heldValueOf(values, asset.id);
     const inv = invested[asset.id] ?? 0;
     return {
       asset,
       value,
       invested: inv,
       reinvested: reinvested[asset.id] ?? 0,
-      pnl: value + (sold[asset.id] ?? 0) - inv,
+      pnl: value === undefined ? undefined : value + (sold[asset.id] ?? 0) - inv,
       pnlPct: deltaTotal,
-      share: sharePct(value, base),
+      share: value === undefined ? null : sharePct(value, base),
     };
   });
   const best = bestPerformer(rows);

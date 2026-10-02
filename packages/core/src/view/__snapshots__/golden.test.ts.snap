@@ -6126,7 +6126,7 @@ exports[`linked > 1m > overview 1`] = `
     {
       "asset": Asset ovdp8976,
       "share": null,
-      "value": 0,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -6493,7 +6493,7 @@ exports[`linked > 3m > overview 1`] = `
     {
       "asset": Asset ovdp8976,
       "share": null,
-      "value": 0,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -6860,7 +6860,7 @@ exports[`linked > 6m > overview 1`] = `
     {
       "asset": Asset ovdp8976,
       "share": null,
-      "value": 0,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -7227,7 +7227,7 @@ exports[`linked > 12m > overview 1`] = `
     {
       "asset": Asset ovdp8976,
       "share": null,
-      "value": 0,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -7594,7 +7594,7 @@ exports[`linked > all > overview 1`] = `
     {
       "asset": Asset ovdp8976,
       "share": null,
-      "value": 0,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -7949,12 +7949,7 @@ exports[`linked > allocation 1`] = `
       "target": 17,
     },
   ],
-  "slices": [
-    {
-      "asset": Asset ovdp8976,
-      "value": 0,
-    },
-  ],
+  "slices": [],
   "total": 0,
   "usable": false,
 }
@@ -8017,11 +8012,11 @@ exports[`linked > portfolio 1`] = `
     {
       "asset": Asset ovdp8976,
       "invested": 10576.7,
-      "pnl": -10576.7,
+      "pnl": undefined,
       "pnlPct": undefined,
       "reinvested": 0,
       "share": null,
-      "value": 0,
+      "value": undefined,
     },
   ],
   "totals": {
@@ -8066,7 +8061,7 @@ exports[`linked > ytd > overview 1`] = `
     {
       "asset": Asset ovdp8976,
       "share": null,
-      "value": 0,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -12455,8 +12450,8 @@ exports[`sold-and-unquoted > 1m > overview 1`] = `
     },
     {
       "asset": Asset fresh,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -12951,8 +12946,8 @@ exports[`sold-and-unquoted > 3m > overview 1`] = `
     },
     {
       "asset": Asset fresh,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -13453,8 +13448,8 @@ exports[`sold-and-unquoted > 6m > overview 1`] = `
     },
     {
       "asset": Asset fresh,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -13958,8 +13953,8 @@ exports[`sold-and-unquoted > 12m > overview 1`] = `
     },
     {
       "asset": Asset fresh,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -14463,8 +14458,8 @@ exports[`sold-and-unquoted > all > overview 1`] = `
     },
     {
       "asset": Asset fresh,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
       "yield": undefined,
     },
   ],
@@ -14915,7 +14910,6 @@ exports[`sold-and-unquoted > allocation 1`] = `
     ],
     "withinRange": [
       Asset ovdp6475,
-      Asset fresh,
     ],
   },
   "rows": [
@@ -14949,9 +14943,9 @@ exports[`sold-and-unquoted > allocation 1`] = `
     },
     {
       "asset": Asset fresh,
-      "deltaPp": 0,
-      "severity": "near",
-      "share": 0,
+      "deltaPp": null,
+      "severity": null,
+      "share": null,
       "target": 0,
     },
   ],
@@ -14971,10 +14965,6 @@ exports[`sold-and-unquoted > allocation 1`] = `
     {
       "asset": Asset ovdp6475,
       "value": 4374.12,
-    },
-    {
-      "asset": Asset fresh,
-      "value": 0,
     },
   ],
   "total": 159016.36,
@@ -15936,11 +15926,11 @@ exports[`sold-and-unquoted > portfolio 1`] = `
     {
       "asset": Asset fresh,
       "invested": 5000,
-      "pnl": -5000,
+      "pnl": undefined,
       "pnlPct": undefined,
       "reinvested": 0,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
     },
   ],
   "totals": {
@@ -16036,8 +16026,8 @@ exports[`sold-and-unquoted > ytd > overview 1`] = `
     },
     {
       "asset": Asset fresh,
-      "share": 0,
-      "value": 0,
+      "share": null,
+      "value": undefined,
       "yield": undefined,
     },
   ],

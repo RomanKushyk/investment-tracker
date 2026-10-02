@@ -4,7 +4,8 @@ import {
   cashIsShort,
   freeCashFromLedger,
   headlineTotal,
-  heldQuotesAsOf,
+  heldValueOf,
+  heldValues,
   sharePct,
   shareTotal,
   topUpAmount,
@@ -25,7 +26,7 @@ function severityOf(deltaPp: number): 'near' | 'off' {
 
 export interface AllocationRow {
   asset: Asset;
-  share: number | null; // pct 0-100; null when the total is not usable
+  share: number | null; // pct 0-100; null when the total is not usable or the value is absent
   target: number;
   deltaPp: number | null; // share - target
   severity: 'near' | 'off' | null;
@@ -37,7 +38,8 @@ export function allocationRows(
   total: number,
 ): AllocationRow[] {
   return assets.map((asset) => {
-    const share = sharePct(values[asset.id] ?? 0, total);
+    const value = heldValueOf(values, asset.id);
+    const share = value === undefined ? null : sharePct(value, total);
     const deltaPp = share === null ? null : allocationDeltaPp(share, asset.targetPct);
     return {
       asset,
@@ -71,7 +73,9 @@ export function rebalancePlan(
   if (!usableTotal(total)) return { actions, withinRange };
 
   for (const asset of assets) {
-    const value = values[asset.id] ?? 0;
+    // A held position no snapshot values has no share: neither a buy nor "within range".
+    const value = heldValueOf(values, asset.id);
+    if (value === undefined) continue;
     const share = sharePct(value, total);
     if (share === null) continue;
     const deltaPp = allocationDeltaPp(share, asset.targetPct);
@@ -101,7 +105,7 @@ export interface AllocationView {
 /** The Allocation screen's figures, against the share base the rest of the app uses.
  *  A DRAFTED target is the editor's, never a figure: it moves only the tick. */
 export function allocationView({ assets, snapshots, transactions }: LedgerInput): AllocationView {
-  const values = heldQuotesAsOf(snapshots, transactions);
+  const values = heldValues(assets, snapshots, transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
   const base = shareTotal(total, cash);
@@ -109,7 +113,11 @@ export function allocationView({ assets, snapshots, transactions }: LedgerInput)
     total,
     cashShort: cashIsShort(cash),
     usable: usableTotal(base),
-    slices: assets.map((asset) => ({ asset, value: values[asset.id] ?? 0 })),
+    // An absent value draws no segment.
+    slices: assets.flatMap((asset) => {
+      const value = heldValueOf(values, asset.id);
+      return value === undefined ? [] : [{ asset, value }];
+    }),
     rows: allocationRows(assets, values, base),
     plan: rebalancePlan(assets, values, base),
   };

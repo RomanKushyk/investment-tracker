@@ -109,9 +109,12 @@ annualization mark tests the WINDOW's length, not the asset's. A window's openin
 the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total; a
 position's value counts at a date only while the ledger holds units of it, both then and on the
 last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger
-cannot count keeps its last quote; the close of Overview's capital gain and of `/yield`'s table
-counts units to the ledger's last row, where their flows end too, though its quotes stop at the
-window's end; free
+cannot count keeps its last quote; a position held, or uncounted, that no snapshot values, never
+quoted or bought back since the last valuation day, has its own value, share and capital gain
+ABSENT and the rebalance plan proposes nothing for it, while one the ledger holds none of, or that
+no row moves and no snapshot quotes, is worth 0; the close of Overview's capital gain and of
+`/yield`'s table counts units to the ledger's last row, where their flows end too, though its
+quotes stop at the window's end; free
 cash AT A DATE is the ledger's signed sum up to it, a payout contributing
 `amount − coalesce(tax_withheld, 0)`; a coupon derives from its RATE. A withholding is a FIELD on
 the payout it was taken from, never a row of its own. Nothing bounds free cash, so a share is taken
@@ -135,17 +138,20 @@ off one is a negative buy, and `Intl` prints `NaN` as a word — each keeps rend
 wrong, where an absent figure says it cannot be computed. Negative cash that leaves the total
 positive still shrinks it: the shares sum past 100 %, a deep enough shortfall puts one past it
 alone, and the plan trims off the shortfall. The «—» alone is silent about the cause; the ledger is
-the cause nothing else can see, so a short ledger is named. Ex on the payment date is the provider's
-own convention, OBSERVED across a coupon boundary in the archive rather than inferred: each row
-there fits its own date, and the step lands on the payment date itself, the one date where ex and
-cum disagree, which confirms `futureFlows`' same-day rule.
+the cause nothing else can see, so a short ledger is named. An unvalued position read as 0 is a
+total loss and a buy of its whole target, from its first buy until its day is quoted; one the
+ledger holds none of is a known 0, which is how a new asset's first buy is proposed. Ex on the
+payment date is the provider's own convention, OBSERVED across a coupon boundary in the archive
+rather than inferred: each row there fits its own date, and the step lands on the payment date
+itself, the one date where ex and cum disagree, which confirms `futureFlows`' same-day rule.
 **Rejected.** Per-asset annualization: a fixed-coupon bond would beat its own contract, and XIRR is
 already the per-asset answer. · A stored balance beside the derived one: no screen ever let anyone
 enter the observation, so the second source of truth could only ever carry the previous figure
 forward, and a chip comparing the two reported a gap neither of them could close. · Dropping the
 closing quote of any asset sold in a window: it zeroed a part-sold position. · Counting a flow
 due on the pricing date: on such a payment date the provider's quote misses that reading by the
-whole coupon.
+whole coupon. · Valuing an unquoted position at cost: it changes total capital on every screen and
+rewrites the documented seam, where a buy lowers it until its day is quoted.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar
