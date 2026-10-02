@@ -18878,7 +18878,7 @@ exports[`sold-out > attributes 1`] = `
       "asset": Asset ovdp8976,
       "coupon": undefined,
       "kind": "bond",
-      "nextCoupon": "2026-08-25",
+      "nextCoupon": undefined,
       "ytm": undefined,
     },
     {

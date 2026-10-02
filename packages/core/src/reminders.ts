@@ -7,9 +7,14 @@
 // goes inert, so nothing needs pruning.
 //
 // Tokens only; the banner sentences live in `components/ui/reminder-labels.ts`.
-import { couponReminderId, COUPON_MATCH_WINDOW_DAYS, nextUnsettledCouponDate } from './accrual';
+import {
+  couponReminderId,
+  COUPON_MATCH_WINDOW_DAYS,
+  nextUnsettledCouponDate,
+  unitsOnRecordDate,
+} from './accrual';
 import { daysBetween } from './dates';
-import { ledgerUnits, needsQuote } from './derive';
+import { holdsNone, ledgerUnits, needsQuote } from './derive';
 import type { Asset, Snapshot, Transaction } from './types';
 
 export type ReminderKind = 'quote-missing' | 'coupon' | 'coupon-overdue' | 'maturity';
@@ -105,11 +110,8 @@ function isDismissed(reminder: Reminder, dismissed: readonly string[]): boolean 
   );
 }
 
-/**
- * Ordered overdue → warn → info and already filtered against the dismissed ids.
- * Both coupon kinds read `nextUnsettledCouponDate`, so a coupon recorded by hand
- * is never announced, whichever side of its date the recording sits on.
- */
+/** Ordered overdue → warn → info, dismissals filtered. Never announced: a coupon recorded by hand,
+ *  and a coupon or a maturity the ledger held none of on its record date. */
 export function computeReminders(
   assets: Asset[],
   snapshots: Snapshot[],
@@ -131,11 +133,18 @@ export function computeReminders(
     });
   }
 
+  // One pass groups the ledger by asset, so each record-date count below reads only its asset’s
+  // rows: this runs on the header render path. THE DATE-ONLY WALK: no amount is read here.
+  const rowsOf = new Map<string, Transaction[]>();
+  for (const t of transactions) {
+    const rows = rowsOf.get(t.assetId);
+    if (rows === undefined) rowsOf.set(t.assetId, [t]);
+    else rows.push(t);
+  }
+
   for (const asset of assets) {
-    // THE DATE-ONLY WALK: this reads the occurrence’s date and never its amount, and
-    // the amount costs a full `unitsByAsset` traversal of the ledger per asset — on a
-    // derivation that runs on the header render path.
-    const coupon = nextUnsettledCouponDate(asset, transactions, {
+    const own = rowsOf.get(asset.id) ?? [];
+    const coupon = nextUnsettledCouponDate(asset, own, {
       windowDays: COUPON_MATCH_WINDOW_DAYS,
       dismissed,
     });
@@ -169,7 +178,11 @@ export function computeReminders(
     const maturity = asset.maturity;
     if (maturity !== undefined && maturity !== '') {
       const days = daysBetween(today, maturity);
-      if (days >= 0 && days <= MATURITY_LEAD_DAYS) {
+      if (
+        days >= 0 &&
+        days <= MATURITY_LEAD_DAYS &&
+        !holdsNone(unitsOnRecordDate(own, asset.id, maturity))
+      ) {
         reminders.push({
           id: maturityReminderId(asset.id, maturity),
           kind: 'maturity',

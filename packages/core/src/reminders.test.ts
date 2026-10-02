@@ -518,3 +518,88 @@ describe('quote-missing asks only for an asset that needs a quote that day', () 
     expect(quoteMissing(SEED_ASSETS, seedSnaps, [...SEED_TRANSACTIONS, ...sales])).toEqual([]);
   });
 });
+
+// The NBU depository pays a coupon or a redemption to the holders it fixes at the end of the day
+// before the payment date, so a bond the ledger holds none of then is owed nothing.
+describe('coupon and maturity reminders ask only for what the record date owes', () => {
+  const seedSnaps = buildSeedSnapshots();
+  const sale = (date: string): Transaction => ({
+    id: 's2',
+    date,
+    type: 'sell',
+    assetId: 'ovdp8976',
+    amount: 15800,
+    quantity: 15,
+  });
+  const buyBack: Transaction = {
+    id: 'b9',
+    date: '2026-09-01',
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 5300,
+    quantity: 5,
+  };
+  const of8976 = (rows: Transaction[], today: string) =>
+    computeReminders(SEED_ASSETS, seedSnaps, [...SEED_TRANSACTIONS, ...rows], today)
+      .filter((r) => r.assetId === 'ovdp8976')
+      .map((r) => r.id);
+
+  it('raises no coupon and no maturity for a bond sold before its coupon', () => {
+    expect(of8976([sale('2026-07-01')], '2026-10-02')).toEqual([]);
+    expect(of8976([sale('2026-07-01')], '2027-02-01')).toEqual([]);
+  });
+
+  it('owes nothing after a sale on the record day, and the coupon after one on the payment day', () => {
+    expect(of8976([sale('2026-08-24')], '2026-10-02')).toEqual([]);
+    expect(of8976([sale('2026-08-25')], '2026-10-02')).toEqual([
+      couponOverdueReminderId('ovdp8976', '2026-08-25'),
+    ]);
+  });
+
+  it('announces the next occurrence owed to units bought back, and the maturity', () => {
+    const rows = [sale('2026-07-01'), buyBack];
+    expect(of8976(rows, '2026-10-02')).toEqual([]);
+    expect(of8976(rows, '2027-02-01')).toEqual([maturityReminderId('ovdp8976', '2027-02-25')]);
+    expect(of8976(rows, '2027-02-20')).toEqual([
+      couponReminderId('ovdp8976', '2027-02-25'),
+      maturityReminderId('ovdp8976', '2027-02-25'),
+    ]);
+  });
+
+  it('keeps both where the ledger cannot count the units', () => {
+    const uncounted = SEED_TRANSACTIONS.map((t) =>
+      t.id === 'b3' ? { ...t, quantity: undefined } : t,
+    );
+    const ids = (today: string) =>
+      computeReminders(SEED_ASSETS, seedSnaps, [...uncounted, sale('2026-07-01')], today)
+        .filter((r) => r.assetId === 'ovdp8976')
+        .map((r) => r.id);
+    expect(ids('2026-10-02')).toEqual([couponOverdueReminderId('ovdp8976', '2026-08-25')]);
+    expect(ids('2027-02-01')).toEqual([
+      couponOverdueReminderId('ovdp8976', '2026-08-25'),
+      maturityReminderId('ovdp8976', '2027-02-25'),
+    ]);
+  });
+
+  it('raises nothing, and throws nothing, for a coupon date no calendar has', () => {
+    const assets = SEED_ASSETS.map((a) =>
+      a.id === 'ovdp8976' ? { ...a, nextCoupon: '2026-13-01' } : a,
+    );
+    const ids = computeReminders(assets, seedSnaps, SEED_TRANSACTIONS, '2026-10-02')
+      .filter((r) => r.assetId === 'ovdp8976')
+      .map((r) => r.id);
+    expect(ids).toEqual([]);
+  });
+
+  it('leaves the seed alone: 04.08 raises quote-missing, and a 21-day lead adds the coupon', () => {
+    const ids = (leadDays?: number) =>
+      computeReminders(SEED_ASSETS, seedSnaps, SEED_TRANSACTIONS, TODAY, { leadDays }).map(
+        (r) => r.id,
+      );
+    expect(ids()).toEqual([quoteMissingReminderId(TODAY)]);
+    expect(ids(21)).toEqual([
+      quoteMissingReminderId(TODAY),
+      couponReminderId('ovdp8976', '2026-08-25'),
+    ]);
+  });
+});

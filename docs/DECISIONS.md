@@ -116,7 +116,10 @@ cannot count keeps its last quote; Balances and `/yield`'s curve read each snaps
 its own day, and a Balances cell shows a quote the rule leaves out, marked, the mark meaning only
 that; a day asks for an asset's quote only while the ledger holds units of it, or, where it cannot
 count them, from its first purchase on, and Balances' complete row, the quote-missing reminder and
-`/`'s progress pill ask by that one rule; a position held, or uncounted, that no snapshot values, never
+`/`'s progress pill ask by that one rule; a coupon or a redemption is owed only while the ledger
+holds units at the end of the day before its date, or cannot count them, and the coupon and
+maturity reminders, `/`'s coupon card, `/attributes`' next coupon and Seasonality's expected coupon
+months pass one it held none of; a position held, or uncounted, that no snapshot values, never
 quoted or bought back since the last valuation day, has its own value, share and capital gain
 ABSENT and the rebalance plan proposes nothing for it, while one the ledger holds none of, or that
 no row moves and no snapshot quotes, is worth 0; the close of Overview's capital gain and of
@@ -140,7 +143,11 @@ quote the position, the same double count one day at a time; the cell shows it b
 stored is hidden, and the mark says the total left it out. A reader that asked for a quote of a
 position no longer held would nag every day after a sell-out or a maturity, for a quote the total
 then leaves out; Portfolio Performance's held-securities price update asks only for the positions in
-that day's snapshot, which holds none with 0 shares. Fractional quantities summed as floats
+that day's snapshot, which holds none with 0 shares. The NBU depository pays a coupon or a
+redemption to the holders it fixes at the end of the operational day before the payment date
+(`reference/OVDP-COUPON-STRUCTURE.md`), so a holder who sold by then is owed nothing, and a
+reminder would ask for a payout that never comes; the calendar day before differs from it only
+across a non-working day, when the depository settles nothing. Fractional quantities summed as floats
 can miss 0 after a full sale: a residue above it reads as held, and the feed reads one below it as
 more sold than bought; whole 1e-8 units sum exactly, and 1e-8 is Portfolio Performance's share
 precision. A stored coupon amount goes stale on the

@@ -11,6 +11,7 @@ import {
   OVDP_FACE_UAH,
   dueCoupons,
   nextUnsettledCoupon,
+  nextUnsettledCouponDate,
   rollNextCoupon,
   rollbackNextCoupon,
   suggestedQuote,
@@ -402,6 +403,92 @@ describe('nextUnsettledCoupon', () => {
     expect(nextUnsettledCoupon(bond({ nextCoupon: undefined }), [])).toBeUndefined();
     expect(nextUnsettledCoupon(bond({ nextCoupon: '' }), [])).toBeUndefined();
     expect(nextUnsettledCoupon(bond({ yieldType: 'dividends' }), [])).toBeUndefined();
+  });
+});
+
+// The record date: the NBU depository pays whoever holds the bond at the end of the day before.
+describe('the walk passes an occurrence the ledger held none of on its record date', () => {
+  const buy = tx({ id: 'b3', date: '2026-02-05', type: 'buy', amount: 15390, quantity: 15 });
+  const sale = (date: string) => tx({ id: 's2', date, type: 'sell', amount: 15800, quantity: 15 });
+  const buyBack = tx({ id: 'b9', date: '2026-09-01', type: 'buy', amount: 5300, quantity: 5 });
+
+  it('offers no card for a bond sold before its record date, or on it', () => {
+    expect(dueCoupons([bond()], [buy, sale('2026-07-01')], '2026-10-02')).toEqual([]);
+    expect(dueCoupons([bond()], [buy, sale('2026-08-24')], '2026-10-02')).toEqual([]);
+  });
+
+  it('still offers the coupon to a bond sold on its payment day', () => {
+    expect(dueCoupons([bond()], [buy, sale('2026-08-25')], '2026-10-02')).toEqual([
+      { assetId: 'ovdp8976', date: '2026-08-25', overdueDays: 38, amount: 1240 },
+    ]);
+  });
+
+  it('walks on to the occurrence owed to units bought back', () => {
+    expect(nextUnsettledCouponDate(bond(), [buy, sale('2026-07-01')])).toBeUndefined();
+    expect(nextUnsettledCouponDate(bond(), [buy, sale('2026-07-01'), buyBack])).toBe('2027-02-25');
+    // Bought back on the payment day itself: not that coupon, but the next one.
+    const onTheDay = { ...buyBack, date: '2026-08-25' };
+    expect(nextUnsettledCouponDate(bond(), [buy, sale('2026-07-01'), onTheDay])).toBe('2027-02-25');
+  });
+
+  it('expects a later month only on units held on its record date', () => {
+    // Held through 25.08, sold out on 01.09, 5 bought back on 01.03.2027: 25.02.2027 is not owed.
+    const longer = bond({ maturity: '2027-08-25' });
+    const rows = [
+      buy,
+      sale('2026-09-01'),
+      tx({ id: 'b9', date: '2027-03-01', type: 'buy', amount: 5300, quantity: 5 }),
+    ];
+    expect(scheduledCouponMonths(longer, rows)).toEqual([8]);
+  });
+
+  it("drops a passed occurrence's month from the schedule", () => {
+    expect(scheduledCouponMonths(bond(), [buy, sale('2026-07-01'), buyBack])).toEqual([2]);
+    expect(scheduledCouponMonths(bond(), [buy, sale('2026-07-01')])).toEqual([]);
+  });
+
+  it('stops at the first occurrence a sold-out bond is not owed once no later row can change it', () => {
+    // No maturity ends this walk, so without the stop it runs its whole step budget, reading the
+    // sale's date at every step.
+    let reads = 0;
+    const counted = Object.defineProperty({ ...sale('2026-07-01') }, 'date', {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        return '2026-07-01';
+      },
+    });
+    // A payout far ahead moves no units, so it does not hold the stop off.
+    const far = tx({ id: 'p9', date: '2099-01-01' });
+    expect(
+      nextUnsettledCouponDate(bond({ maturity: undefined }), [buy, counted, far]),
+    ).toBeUndefined();
+    expect(reads).toBeLessThan(10);
+  });
+
+  it('expects a maturity-only payment only on units held on its record date', () => {
+    const maturityOnly = bond({ nextCoupon: undefined, maturity: '2026-12-10' });
+    const backOn = (date: string) => tx({ id: 'b9', date, type: 'buy', amount: 3000, quantity: 3 });
+    const rows = (back: string) => [buy, sale('2026-07-01'), backOn(back)];
+    expect(scheduledCouponMonths(maturityOnly, rows('2026-12-10'))).toEqual([]);
+    expect(scheduledCouponMonths(maturityOnly, rows('2026-12-01'))).toEqual([12]);
+  });
+
+  it('reads no occurrence off a date no calendar has, and throws on none', () => {
+    // A backup can carry `2026-13-01`, which has no day before it. As a string it sorts before
+    // 2027-01-05, so a card would be offered for it.
+    const unreadable = bond({ nextCoupon: '2026-13-01' });
+    expect(nextUnsettledCouponDate(unreadable, [buy, sale('2026-07-01')])).toBeUndefined();
+    expect(dueCoupons([unreadable], [buy], '2027-01-05')).toEqual([]);
+    const finalOnly = bond({ nextCoupon: undefined, maturity: '2026-13-01' });
+    expect(() => scheduledCouponMonths(finalOnly, [buy])).not.toThrow();
+  });
+
+  it('still owes where the ledger cannot count the units', () => {
+    const uncounted = [{ ...buy, quantity: undefined }, sale('2026-07-01')];
+    expect(dueCoupons([bond()], uncounted, '2026-10-02')).toEqual([
+      { assetId: 'ovdp8976', date: '2026-08-25', overdueDays: 38, amount: 1240 },
+    ]);
   });
 });
 

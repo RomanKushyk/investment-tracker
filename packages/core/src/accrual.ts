@@ -5,8 +5,8 @@
 // cash flow rather than annualising a rate, so it divides by the real period.
 // Money this module CREATES is rounded ONCE, at creation, to kopecks.
 import { addMonths, dayBefore, daysBetween } from './dates';
-import { unitsByAsset } from './derive';
-import type { Asset, PayoutSchedule, Transaction } from './types';
+import { holdsNone, unitsByAsset } from './derive';
+import { movesPosition, type Asset, type PayoutSchedule, type Transaction } from './types';
 // The coupon convention lives in a LEAF module — `ovdp.ts` says why.
 import { OVDP_FACE_UAH, PAYMENTS_PER_YEAR } from './ovdp';
 
@@ -51,9 +51,8 @@ export function couponPerPayment(asset: Asset, units: number | undefined): numbe
   // count is `undefined` only when NOBODY knows.
   const held = units ?? asset.inzhur?.units;
 
-  // A CLOSED POSITION PAYS NO COUPON, whichever figure would have answered, which
-  // is why this sits ABOVE the rate branch. It lived inside, and a legacy bond
-  // fell past it to `couponAmount` and reported a coupon for a holding that is gone.
+  // A CLOSED POSITION PAYS NO COUPON, whichever figure would answer: inside the rate branch, a
+  // legacy bond would fall past this to `couponAmount` and report a coupon for a closed holding.
   if (held !== undefined && held <= 0) return undefined;
   if (rate !== undefined && rate > 0 && perYear > 0) {
     // UNKNOWN AND ZERO ARE DIFFERENT QUESTIONS: `undefined` means the ledger cannot
@@ -65,13 +64,8 @@ export function couponPerPayment(asset: Asset, units: number | undefined): numbe
   return asset.couponAmount;
 }
 
-/**
- * **Pass `periodDays` whenever the real period is known** — accrual is then
- * ACT/ACT in-period and lands EXACTLY on the coupon. Without it the annualised
- * approximation never lands: the real bonds pay every 182 days, not six calendar
- * months, so the error is structural at the boundary, where the confirm card
- * prefills an amount. Kept because `payoutSchedule` alone carries no dates.
- */
+/** **Pass `periodDays` whenever the real period is known**: accrual then lands EXACTLY on the
+ *  coupon, where the annualised fallback for a dateless schedule misses the confirm’s prefill. */
 export function dailyAccrual(
   couponAmount: number | undefined,
   schedule: PayoutSchedule,
@@ -125,9 +119,8 @@ export function couponsInGap(
   // built from the drafted date’s holding, which the caller holds and this does
   // not. It lives in `accrualSuggestion`.
 
-  // The provider’s own dates beat any grid derived from them — the real bonds pay
-  // every 182 days and almost always on a Wednesday. Deduped because the last
-  // the principal share the maturity date, and only one is a coupon.
+  // The provider’s own dates beat any grid derived from them (OVDP-COUPON-STRUCTURE.md), deduped
+  // because the final coupon and the principal share the maturity date and only one is a coupon.
   if (schedule !== undefined && schedule.length > 0) {
     const dates = [...new Set(schedule)];
     return dates
@@ -201,6 +194,22 @@ export function couponRecorded(
   );
 }
 
+// A date no calendar has, which a backup can carry (`2026-13-01`), has no day before it.
+function noCalendarDate(iso: string): boolean {
+  return Number.isNaN(Date.parse(`${iso}T00:00:00Z`));
+}
+
+/** Units held at the end of the day before `date`: the record date on which the NBU depository
+ *  fixes who a coupon or redemption is paid to. `undefined` where the ledger cannot count them. */
+export function unitsOnRecordDate(
+  transactions: Transaction[],
+  assetId: string,
+  date: string,
+): number | undefined {
+  if (noCalendarDate(date)) return undefined;
+  return unitsByAsset(transactions, dayBefore(date))[assetId];
+}
+
 export interface CouponOccurrence {
   date: string;
   amount: number | undefined;
@@ -213,12 +222,8 @@ export interface CouponWalkOptions {
   dismissed?: readonly string[];
 }
 
-/**
- * A WALK AND NOT `asset.nextCoupon`: the pointer moves only through the confirm,
- * so a coupon recorded in the Transaction panel left it frozen on a settled date
- * and the dedupe silenced the card AND the banners forever. SPLIT from the
- * amount-bearing version, which costs a whole-ledger walk per asset per render.
- */
+/** A WALK AND NOT `asset.nextCoupon`, which only the confirm moves. It passes an occurrence
+ *  recorded, dismissed, or not owed: the ledger held none of the bond on its record date. */
 export function nextUnsettledCouponDate(
   asset: Asset,
   transactions: Transaction[],
@@ -226,16 +231,26 @@ export function nextUnsettledCouponDate(
 ): string | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
   let date = asset.nextCoupon;
-  if (!date) return undefined;
+  if (!date || noCalendarDate(date)) return undefined;
 
   const windowDays = opts.windowDays ?? COUPON_MATCH_WINDOW_DAYS;
   const dismissed = opts.dismissed ?? [];
+  // One pass over the ledger: each occurrence then reads only the asset’s own rows.
+  const own = transactions.filter((t) => t.assetId === asset.id);
+  // Past the last row that moves the asset’s units, a holding of none stays none.
+  const lastRow = own.reduce(
+    (last, t) => (movesPosition(t.type) && t.date > last ? t.date : last),
+    '',
+  );
 
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
     const settled =
-      couponRecorded(transactions, asset.id, date, windowDays) ||
+      couponRecorded(own, asset.id, date, windowDays) ||
       dismissed.includes(couponReminderId(asset.id, date));
-    if (!settled) return date;
+    if (!settled) {
+      if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) return date;
+      if (lastRow < date) return undefined;
+    }
     // The same stepper the confirm writes with, so the walk cannot land on a date
     // the roll would not produce.
     const roll = rollNextCoupon(asset, date);
@@ -252,10 +267,9 @@ export function nextUnsettledCoupon(
 ): CouponOccurrence | undefined {
   const date = nextUnsettledCouponDate(asset, transactions, opts);
   if (date === undefined) return undefined;
-  // UNITS AS OF THE DAY THE COUPON DATE OPENED, not today’s, and it must be the
-  // SAME bound `DailyQuotes` computes `unitsOnCouponDate` with — two bounds for one
-  // quantity is the divergence `couponsInGap` was fixed for.
-  const held = unitsByAsset(transactions, dayBefore(date))[asset.id];
+  // THE RECORD DATE’S UNITS, not today’s, and the SAME bound `DailyQuotes` computes
+  // `unitsOnCouponDate` with: two bounds for one quantity diverge.
+  const held = unitsOnRecordDate(transactions, asset.id, date);
   return { date, amount: couponPerPayment(asset, held) };
 }
 
@@ -332,8 +346,8 @@ export function couponProjection(
   asset: Asset,
   invested: number,
   /**
-   * REQUIRED rather than optional: while it defaulted, a caller that forgot got
-   * the whole-position figure AND skipped the closed-position guard below.
+   * REQUIRED rather than optional: with a default, a caller that forgot would get
+   * the whole-position figure AND skip the closed-position guard below.
    */
   units: number | undefined,
 ): CouponProjection | undefined {
@@ -341,9 +355,8 @@ export function couponProjection(
   const date = asset.nextCoupon || asset.maturity;
   if (!date) return undefined;
 
-  // A CLOSED POSITION PROJECTS NOTHING, asked BEFORE the estimate: only "no stated
-  // figure" may fall through, and `investedByAsset` is never reduced by a `sell`,
-  // so a sold-out bond kept projecting, relabelled `estimated: true`.
+  // A CLOSED POSITION PROJECTS NOTHING, asked BEFORE the estimate: `investedByAsset` ignores a
+  // `sell`, so a sold-out bond would keep projecting, relabelled `estimated: true`.
   if (units !== undefined && units <= 0) return undefined;
   const stated = couponPerPayment(asset, units);
   if (stated !== undefined && stated > 0) return { amount: stated, date, estimated: false };
@@ -356,27 +369,23 @@ export function couponProjection(
 
 const MONTHS_IN_YEAR = 12;
 
-/**
- * THE SCHEDULE IS DERIVABLE, AND IT IS NOT DERIVED HERE. A private month grid
- * disagreed with `rollNextCoupon` twice: it broke where the roll CLAMPS to
- * `maturity`, and it gated on today where the app gates on SETTLEMENT. THE
- * ANCHOR IS THE OCCURRENCE THE APP STILL OWES, not the stored pointer.
- */
+/** `rollNextCoupon` steps the months, CLAMPING to `maturity` as the roll does, from THE OCCURRENCE
+ *  THE APP STILL OWES; a month counts only on units held on its payment’s record date. */
 export function scheduledCouponMonths(asset: Asset, transactions: Transaction[]): number[] {
   if (asset.yieldType !== 'fixed_coupon') return [];
+  const own = transactions.filter((t) => t.assetId === asset.id);
   // The DATE-ONLY walk: the amount would cost a full ledger traversal per asset
   // per render, and this never reads it.
-  const open = nextUnsettledCouponDate(asset, transactions);
+  const open = nextUnsettledCouponDate(asset, own);
   const anchor = open ?? (asset.nextCoupon === undefined ? asset.maturity : undefined);
   if (anchor === undefined) return [];
 
   let date = anchor;
   const months = new Set<number>();
-  // Bounded by the calendar rather than by MAX_GRID_STEPS: `maturity` is optional,
-  // so a semiannual bond without one never reports 'matured', collects only two
-  // distinct months, and ran its full step budget on every render.
+  // Bounded by the calendar, not MAX_GRID_STEPS: a semiannual bond with no `maturity` never
+  // reports 'matured' and collects two months, so it would run its whole step budget each render.
   for (let i = 0; i < MONTHS_IN_YEAR; i++) {
-    months.add(Number(date.slice(5, 7)));
+    if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) months.add(Number(date.slice(5, 7)));
     if (months.size === MONTHS_IN_YEAR) break;
     const roll = rollNextCoupon(asset, date);
     if (roll === undefined || roll.kind === 'matured') break;
@@ -391,12 +400,8 @@ export function couponReminderId(assetId: string, date: string): string {
   return `coupon:${assetId}:${date}`;
 }
 
-/**
- * The occurrence a DELETED payout was settling — the confirm rolls the pointer
- * forward, and the forward-only walk never looks behind it, so deleting the row
- * alone made the occurrence vanish from every surface at once. THE PAYOUT’S OWN
- * DATE IS THE RESTORE POINT, needing no backward stepper.
- */
+/** The occurrence a DELETED payout settled: the confirm rolled the pointer past it, and the walk
+ *  only looks forward. THE PAYOUT’S OWN DATE IS THE RESTORE POINT, needing no backward stepper. */
 export function rollbackNextCoupon(
   asset: Asset,
   deleted: Transaction,

@@ -100,6 +100,21 @@ couponPerPayment = ratePct / 100 / paymentsPerYear × FACE × units
 `units` comes from the ledger for **any** asset, linked or not (*Metric families and windows*), so
 the amount scales with the holding instead of being a constant somebody has to remember to edit.
 
+## Who is paid: the record date
+
+A coupon and a redemption go to the holders the NBU depository fixes on the record date, «дата
+обліку», as NBU Board Resolution No. 140 defines it
+([v0140500-17](https://zakon.rada.gov.ua/laws/show/v0140500-17)): «Для цінних паперів, номінованих
+у національній валюті, дата обліку встановлюється на кінець операційного дня, що передує даті
+платежу сум доходів та/або погашень». A holder who sells by the end of the day before the payment
+date is owed nothing; one who sells on the payment date is still paid.
+
+[`accrual.ts`](../../packages/core/src/accrual.ts) `unitsOnRecordDate` reads the ledger's units at
+the end of the calendar day before, which differs from the operational day only across a non-working
+day, when the depository settles nothing. A ledger row dated on such a day counts by then, though the
+depository would settle it on the next working day; a coupon date almost always falls on a Wednesday
+(above), where the two days agree. Units the ledger cannot count are treated as held.
+
 ## The one assumption, stated
 
 **`FACE = ₴1000` is the UAH OVDP nominal.** True for all 32 measured and the standard denomination,

@@ -155,6 +155,35 @@ describe('attributesView — the Next coupon fact', () => {
     expect(card.kind === 'bond' && card.nextCoupon).toBe('2027-02-25');
     expect(card.asset.nextCoupon).toBe('2026-08-25');
   });
+
+  it('passes an occurrence the ledger held none of the day before it', () => {
+    const sale: Transaction = {
+      id: 's2',
+      date: '2026-07-01',
+      type: 'sell',
+      assetId: 'ovdp8976',
+      amount: 15800,
+      quantity: 15,
+    };
+    const back: Transaction = {
+      id: 'b9',
+      date: '2026-09-01',
+      type: 'buy',
+      assetId: 'ovdp8976',
+      amount: 5300,
+      quantity: 5,
+    };
+    const nextCoupon = (rows: Transaction[]) => {
+      const card = attributesView({
+        assets: SEED_ASSETS,
+        snapshots: [],
+        transactions: [...SEED_TRANSACTIONS, ...rows],
+      }).cards.find((c) => c.asset.id === 'ovdp8976')!;
+      return card.kind === 'bond' ? card.nextCoupon : 'not a bond';
+    };
+    expect(nextCoupon([sale])).toBeUndefined();
+    expect(nextCoupon([sale, back])).toBe('2027-02-25');
+  });
 });
 
 describe("attributesView — Actual is /yield's annualized return at the full history", () => {
