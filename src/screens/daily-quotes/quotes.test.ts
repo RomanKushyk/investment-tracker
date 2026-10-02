@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { SEED_ASSETS } from '@quirenote/core/seed';
-import type { Snapshot } from '@quirenote/core/types';
-import { bondAbbrev, collectQuotes, maxSavedAt, pendingChange, yesterdayQuote } from './quotes';
+import { ledgerUnits } from '@quirenote/core/derive';
+import { SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
+import type { Snapshot, Transaction } from '@quirenote/core/types';
+import {
+  bondAbbrev,
+  collectQuotes,
+  maxSavedAt,
+  pendingChange,
+  quoteProgress,
+  yesterdayQuote,
+} from './quotes';
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
@@ -164,5 +172,39 @@ describe('collectQuotes — what Save reads, and what it refuses', () => {
     expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets, 'en').unreadable).toEqual([
       'energy',
     ]);
+  });
+});
+
+describe('quoteProgress — the pill counts only the assets the day needs quoted', () => {
+  const sale: Transaction = {
+    id: 's2',
+    date: '2026-07-01',
+    type: 'sell',
+    assetId: 'ovdp8976',
+    amount: 15800,
+    quantity: 15,
+  };
+  const soldOut = ledgerUnits([...SEED_TRANSACTIONS, sale], '2026-07-28').units;
+  const heldThree = { reit: 68702.1, energy: 60086.09, ovdp6475: 4374.12 };
+
+  it('leaves a position sold out that day out of both counts', () => {
+    expect(quoteProgress(SEED_ASSETS, soldOut, '2026-07-28', heldThree)).toEqual({
+      filled: 3,
+      total: 3,
+    });
+    // A quote typed for it is still saved, and moves nothing here.
+    const typed = { ...heldThree, ovdp8976: 15846.3 };
+    expect(quoteProgress(SEED_ASSETS, soldOut, '2026-07-28', typed)).toEqual({
+      filled: 3,
+      total: 3,
+    });
+  });
+
+  it("reads 1 of 4 on the seed's partial 27.07", () => {
+    const units = ledgerUnits(SEED_TRANSACTIONS, '2026-07-27').units;
+    expect(quoteProgress(SEED_ASSETS, units, '2026-07-27', partial2707.quotes)).toEqual({
+      filled: 1,
+      total: 4,
+    });
   });
 });

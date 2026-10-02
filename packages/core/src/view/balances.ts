@@ -1,13 +1,7 @@
 // Pure data-shaping for the Balances screen. Covered by balances.test.ts.
-import { freeCashFromLedger, holdsNone, ledgerUnits, totalCapital } from '../derive';
+import { freeCashFromLedger, holdsNone, ledgerUnits, needsQuote, totalCapital } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
 import type { LedgerInput } from './input';
-
-// Whether an asset needs a quote on `date`: while the ledger holds units of it, or, where the
-// ledger cannot count them, from its recorded first purchase on.
-function needsQuote(asset: Asset, date: string, units: number | undefined): boolean {
-  return units === undefined ? asset.firstPurchase <= date : units > 0;
-}
 
 // A snapshot is "complete" if every asset that needs a quote that day has one.
 export function isCompleteSnapshot(

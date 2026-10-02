@@ -111,6 +111,12 @@ export function holdsNone(units: number | undefined): boolean {
   return units !== undefined && units <= 0;
 }
 
+// Whether an asset needs a quote on `date`: while the ledger holds units of it, or, where the
+// ledger cannot count them, from its recorded first purchase on.
+export function needsQuote(asset: Asset, date: string, units: number | undefined): boolean {
+  return units === undefined ? asset.firstPurchase <= date : units > 0;
+}
+
 /** `heldQuotesAsOf`, less a position held, or uncounted, now and none on the last valuation day:
  *  its last quote values none of these units, so it is ABSENT. *Metric families and windows* */
 export function valuedQuotes(snaps: Snapshot[], txs: Transaction[]): Record<string, number> {

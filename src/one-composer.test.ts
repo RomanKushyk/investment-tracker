@@ -267,6 +267,7 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
   },
   'src/screens/daily-quotes/CouponDueCard.tsx': each(QUOTES, 'accrual#rollNextCoupon'),
   'src/screens/daily-quotes/QuoteRow.tsx': each(QUOTES, 'derive#yieldSinceStart'),
+  'src/screens/daily-quotes/quotes.ts': each(QUOTES, 'derive#needsQuote'),
   'src/screens/daily-quotes/suggestions.ts': each(
     QUOTES,
     'accrual#couponPerPayment',

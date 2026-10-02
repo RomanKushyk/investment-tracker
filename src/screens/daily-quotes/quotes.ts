@@ -1,4 +1,5 @@
 // Pure helpers for the Daily quotes screen. Covered by quotes.test.ts.
+import { needsQuote } from '@quirenote/core/derive';
 import { amountInputSchema } from '@quirenote/core/schemas';
 import type { Lang } from '@quirenote/core/money';
 
@@ -35,6 +36,18 @@ export function collectQuotes(
     else unreadable.push(a.id);
   }
   return { quotes, unreadable };
+}
+
+// The pill counts only the assets the day needs quoted, by the rule Balances reads a snapshot
+// as complete by: a quote typed for a position sold out that day is saved, and counts nowhere.
+export function quoteProgress(
+  assets: Asset[],
+  units: Record<string, number>,
+  date: string,
+  quotes: Record<string, number>,
+): { filled: number; total: number } {
+  const needed = assets.filter((a) => needsQuote(a, date, units[a.id]));
+  return { filled: needed.filter((a) => Object.hasOwn(quotes, a.id)).length, total: needed.length };
 }
 
 // The latest quote strictly BEFORE the selected date, WITH its date: the accrual

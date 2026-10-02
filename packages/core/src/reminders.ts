@@ -9,6 +9,7 @@
 // Tokens only; the banner sentences live in `components/ui/reminder-labels.ts`.
 import { couponReminderId, COUPON_MATCH_WINDOW_DAYS, nextUnsettledCouponDate } from './accrual';
 import { daysBetween } from './dates';
+import { ledgerUnits, needsQuote } from './derive';
 import type { Asset, Snapshot, Transaction } from './types';
 
 export type ReminderKind = 'quote-missing' | 'coupon' | 'coupon-overdue' | 'maturity';
@@ -72,15 +73,20 @@ export function maturityReminderId(assetId: string, date: string): string {
 const SEVERITY_RANK: Record<ReminderSeverity, number> = { overdue: 0, warn: 1, info: 2 };
 
 /**
- * TRUE when no snapshot exists for the date AND when one exists but is PARTIAL —
- * an asset without a quote key is "pending", never 0, so the ritual is unfinished
- * and the reminder must still fire.
+ * TRUE while an asset that needs a quote today has none, by Balances' rule for a complete
+ * snapshot: a missing key is "pending", never 0, and a position not held is never asked for.
  */
-function quotesMissing(assets: Asset[], snapshots: Snapshot[], today: string): boolean {
-  if (assets.length === 0) return false;
+function quotesMissing(
+  assets: Asset[],
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  today: string,
+): boolean {
+  const units = ledgerUnits(transactions, today).units;
   const snapshot = snapshots.find((s) => s.date === today);
-  if (snapshot === undefined) return true;
-  return assets.some((a) => snapshot.quotes[a.id] === undefined);
+  return assets.some(
+    (a) => needsQuote(a, today, units[a.id]) && snapshot?.quotes[a.id] === undefined,
+  );
 }
 
 /**
@@ -115,7 +121,7 @@ export function computeReminders(
   const dismissed = opts.dismissed ?? [];
   const reminders: Reminder[] = [];
 
-  if (quotesMissing(assets, snapshots, today)) {
+  if (quotesMissing(assets, snapshots, transactions, today)) {
     reminders.push({
       id: quoteMissingReminderId(today),
       kind: 'quote-missing',

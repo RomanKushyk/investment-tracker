@@ -9,6 +9,7 @@ import {
   maturityReminderId,
   quoteMissingReminderId,
 } from './reminders';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 import type { Asset, Snapshot, Transaction } from './types';
 
 // Fixture basis = the demo seed (seed.ts): …8976 pays 1 240,00 semiannually
@@ -405,5 +406,115 @@ describe('the demo seed on 04.08.2026', () => {
     expect(computeReminders(assets, snapshots, [], TODAY).map((r) => r.id)).toEqual([
       'quote-missing:2026-08-04',
     ]);
+  });
+});
+
+// The rule Balances reads a snapshot as complete by: an asset needs a quote on a date while the
+// ledger holds units of it, or, where the ledger cannot count them, from its first purchase on.
+describe('quote-missing asks only for an asset that needs a quote that day', () => {
+  const DAY = '2026-07-28';
+  const seedSnaps = buildSeedSnapshots();
+  const sale: Transaction = {
+    id: 's2',
+    date: '2026-07-01',
+    type: 'sell',
+    assetId: 'ovdp8976',
+    amount: 15800,
+    quantity: 15,
+  };
+  const heldThree = { reit: 68702.1, energy: 60086.09, ovdp6475: 4374.12 };
+  const quoteMissing = (assets: Asset[], snaps: Snapshot[], txs: Transaction[], today = DAY) =>
+    computeReminders(assets, snaps, txs, today)
+      .filter((r) => r.kind === 'quote-missing')
+      .map((r) => r.id);
+
+  it('is silent after a sell-out once every position still held is quoted', () => {
+    const snaps = [...seedSnaps, snapshot(DAY, heldThree)];
+    expect(quoteMissing(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, sale])).toEqual([]);
+  });
+
+  it('does not ask for an asset with no ledger row whose first purchase is still ahead', () => {
+    const ahead = fund({
+      id: 'fresh',
+      name: 'Fresh fund',
+      code: 'FR',
+      firstPurchase: '2026-08-15',
+    });
+    const allFour = { ...heldThree, ovdp8976: 15846.3 };
+    const assets = [...SEED_ASSETS, ahead];
+    expect(quoteMissing(assets, [...seedSnaps, snapshot(DAY, allFour)], SEED_TRANSACTIONS)).toEqual(
+      [],
+    );
+    // From its first purchase on, it is asked for.
+    const onTheDay = [...seedSnaps, snapshot('2026-08-15', allFour)];
+    expect(quoteMissing(assets, onTheDay, SEED_TRANSACTIONS, '2026-08-15')).toEqual([
+      quoteMissingReminderId('2026-08-15'),
+    ]);
+  });
+
+  it('still asks for a held position with no quote that day', () => {
+    const snaps = [...seedSnaps, snapshot(DAY, heldThree)];
+    expect(quoteMissing(SEED_ASSETS, snaps, SEED_TRANSACTIONS)).toEqual([
+      quoteMissingReminderId(DAY),
+    ]);
+  });
+
+  it('asks for a position whose units the ledger cannot count, from its first purchase on', () => {
+    const uncounted = SEED_TRANSACTIONS.map((t) =>
+      t.id === 'b3' ? { ...t, quantity: undefined } : t,
+    );
+    // The sale cannot zero a position the ledger cannot count.
+    const snaps = [...seedSnaps, snapshot(DAY, heldThree)];
+    expect(quoteMissing(SEED_ASSETS, snaps, [...uncounted, sale])).toEqual([
+      quoteMissingReminderId(DAY),
+    ]);
+    // On its first purchase, 05.02, the unquantified row leaves it uncounted. On 04.02 that row is
+    // still ahead, so the ledger counts it at 0 units. …6475 is bought on 02.06.
+    const funds = { reit: 64648.47, energy: 59214.04 };
+    expect(
+      quoteMissing(SEED_ASSETS, [snapshot('2026-02-05', funds)], uncounted, '2026-02-05'),
+    ).toEqual([quoteMissingReminderId('2026-02-05')]);
+    expect(
+      quoteMissing(SEED_ASSETS, [snapshot('2026-02-04', funds)], uncounted, '2026-02-04'),
+    ).toEqual([]);
+  });
+
+  it('is silent with every position sold out and no snapshot for the day', () => {
+    // Literal quantities: each sums its position's rows to exactly 0 units.
+    const sales: Transaction[] = [
+      {
+        id: 'x1',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'reit',
+        amount: 69000,
+        quantity: 6269.0996,
+      },
+      {
+        id: 'x2',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'energy',
+        amount: 60500,
+        quantity: 6000,
+      },
+      {
+        id: 'x3',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'ovdp8976',
+        amount: 15800,
+        quantity: 15,
+      },
+      {
+        id: 'x4',
+        date: '2026-07-27',
+        type: 'sell',
+        assetId: 'ovdp6475',
+        amount: 4400,
+        quantity: 4.2192,
+      },
+    ];
+    expect(quoteMissing(SEED_ASSETS, seedSnaps, [...SEED_TRANSACTIONS, ...sales])).toEqual([]);
   });
 });
