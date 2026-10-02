@@ -14,6 +14,7 @@ import {
   soldAmountByAsset,
   totalReturnPct,
   transactionsFromWindow,
+  valuedQuotes,
   yieldSinceStart,
 } from '../derive';
 import { unnamedType, type Asset, type Snapshot, type Transaction } from '../types';
@@ -26,8 +27,8 @@ import { windowView } from './window';
 export interface YieldTableRow {
   asset: Asset;
   invested: number;
-  // undefined = no quote yet, and every field below too: an unquoted asset would
-  // otherwise read -100% and scale into a huge annualized figure.
+  // undefined = no quote values its units (never quoted, or bought back since the last valuation
+  // day), and so is every figure below: read at 0, those units are a total loss at a huge rate.
   value: number | undefined;
   deltaTotal: number | undefined; // fraction, e.g. 0.0441 -> "+4.41%"
   annualized: number | undefined; // fraction, on the WINDOW's span, not the portfolio's
@@ -146,7 +147,7 @@ export function yieldTableRowsIn(
   // Priced to the window's end, with units to the ledger's last row, where `flows` end too: a
   // sale entered since the last valuation takes the position's units with it.
   const valued = w === undefined ? [] : snapshots.filter((s) => s.date <= w.to);
-  const values = w === undefined ? {} : heldQuotesAsOf(valued, transactions);
+  const values = w === undefined ? {} : valuedQuotes(valued, transactions);
   const investedOwn = investedOwnByAsset(flows);
   const reinvested = reinvestedByAsset(flows);
   const payoutsNet = payoutsNetByAsset(flows);

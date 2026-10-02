@@ -122,6 +122,25 @@ describe("yieldTableRows — the quotes card's figures are /yield's row at «В�
   it('an asset no snapshot quotes has no figure, never −100 %', () => {
     expect(rows.find((r) => r.asset.id === 'fresh')!.deltaTotal).toBeUndefined();
   });
+
+  it('an asset bought back since the last valuation day has no figure, never a loss', () => {
+    // Energy is sold out after its last quote, so that quote values none of these units.
+    const soldOut = TEST_LEDGERS.find((l) => l.name === 'sold-out')!.input;
+    const back: Transaction = {
+      id: 'back',
+      date: '2026-07-30',
+      type: 'buy',
+      assetId: 'energy',
+      amount: 1000,
+      quantity: 100,
+    };
+    const energy = yieldTableRows(soldOut.assets, soldOut.snapshots, [
+      ...soldOut.transactions,
+      back,
+    ]).find((r) => r.asset.id === 'energy')!;
+    expect(energy.value).toBeUndefined();
+    expect(energy.deltaTotal).toBeUndefined();
+  });
 });
 
 // The illusion-of-loss triple: a capital-gain loss coexists with a positive

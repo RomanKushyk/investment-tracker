@@ -111,16 +111,27 @@ export function holdsNone(units: number | undefined): boolean {
   return units !== undefined && units <= 0;
 }
 
-/** `heldQuotesAsOf`, plus 0 for an asset held none of, or moved by no row and quoted by none.
+/** `heldQuotesAsOf`, less a position held, or uncounted, now and none on the last valuation day:
+ *  its last quote values none of these units, so it is ABSENT. *Metric families and windows* */
+export function valuedQuotes(snaps: Snapshot[], txs: Transaction[]): Record<string, number> {
+  const quotes = heldQuotesAsOf(snaps, txs);
+  const now = ledgerUnits(txs).units;
+  const then = ledgerUnits(txs, byDate(snaps).at(-1)?.date).units;
+  for (const id of Object.keys(quotes)) {
+    if (!holdsNone(now[id]) && holdsNone(then[id])) delete quotes[id];
+  }
+  return quotes;
+}
+
+/** `valuedQuotes`, plus 0 for an asset held none of, or moved by no row and quoted by none.
  *  A held or uncounted one no snapshot values has no key: ABSENT. *Metric families and windows* */
 export function heldValues(
   assets: Asset[],
   snaps: Snapshot[],
   txs: Transaction[],
 ): Record<string, number> {
-  const values = heldQuotesAsOf(snaps, txs);
+  const values = valuedQuotes(snaps, txs);
   const now = ledgerUnits(txs);
-  const then = ledgerUnits(txs, byDate(snaps).at(-1)?.date).units;
   for (const { id } of assets) {
     const units = now.units[id];
     if (units === undefined && !now.incomplete.includes(id)) {
@@ -128,10 +139,6 @@ export function heldValues(
       if (!Object.hasOwn(values, id)) values[id] = 0;
     } else if (units !== undefined && units <= 0) {
       values[id] = 0;
-    } else if (then[id] !== undefined && then[id] <= 0) {
-      // Held, or uncounted, now and none on the last valuation day, so `heldQuotesAsOf` zeroed
-      // it: its last quote values none of these units.
-      delete values[id];
     }
   }
   return values;

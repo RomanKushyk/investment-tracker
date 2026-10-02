@@ -176,6 +176,24 @@ describe("attributesView — Actual is /yield's annualized return at the full hi
     expect(fresh.kind === 'market' && fresh.actualAnnualized).toBeUndefined();
   });
 
+  it('an asset bought back since the last valuation day has no figure, never a loss', () => {
+    // Energy is sold out after its last quote, so that quote values none of these units.
+    const soldOut = TEST_LEDGERS.find((l) => l.name === 'sold-out')!.input;
+    const back: Transaction = {
+      id: 'back',
+      date: '2026-07-30',
+      type: 'buy',
+      assetId: 'energy',
+      amount: 1000,
+      quantity: 100,
+    };
+    const energy = attributesView({
+      ...soldOut,
+      transactions: [...soldOut.transactions, back],
+    }).cards.find((c) => c.asset.id === 'energy')!;
+    expect(energy.kind === 'market' && energy.actualAnnualized).toBeUndefined();
+  });
+
   it('marks a market asset bought partway through the history, as /yield does', () => {
     // No market asset in the ledger above is short; …6475, bought partway through the seed, is.
     const assets = SEED_ASSETS.map((a) =>

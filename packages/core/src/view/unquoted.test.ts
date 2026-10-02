@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { PERIOD_OPTIONS } from '../period';
 import type { Asset, Transaction } from '../types';
 import { allocationView } from './allocation';
 import { capitalView } from './capital';
@@ -7,6 +8,7 @@ import type { ViewInput } from './input';
 import { overviewView } from './overview';
 import { portfolioView } from './portfolio';
 import { TEST_LEDGERS } from './test-ledgers';
+import { yieldView } from './yield';
 
 // A position the ledger holds and no snapshot values has no value: its value, share and
 // capital gain in ₴ are absent, and nothing proposes buying it. One it holds none of is worth 0.
@@ -104,6 +106,25 @@ describe.each<[string, string, ViewInput]>([
     expect(row.value).toBeUndefined();
     expect(row.pnl).toBeUndefined();
     expect(row.share).toBeNull();
+  });
+
+  it('has no /yield row under any period, so no gain in %, no yield on Overview and no rank', () => {
+    for (const period of PERIOD_OPTIONS) {
+      const row = byId(yieldView({ ...input, period }).rows, id)!;
+      expect([
+        row.value,
+        row.deltaTotal,
+        row.annualized,
+        row.vsExpectedPp,
+        row.totalReturn,
+        row.xirr,
+      ]).toStrictEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+      expect(byId(overviewView({ ...input, period }).rows, id)!.yield).toBeUndefined();
+    }
+    const portfolio = portfolioView(input);
+    expect(byId(portfolio.rows, id)!.pnlPct).toBeUndefined();
+    expect(portfolio.best!.asset.id).not.toBe(id);
+    expect(portfolio.worst!.asset.id).not.toBe(id);
   });
 });
 
