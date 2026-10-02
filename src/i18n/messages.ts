@@ -562,10 +562,10 @@ export const en = {
     },
     balances: {
       pending: 'pending',
-      // The legend the mark points at, and the marked cell's own `title`. It
-      // names the RECORDED first purchase, not the asset's true history —
-      // whether those differ is the asset record's problem, not this row's.
-      earlyQuote: 'Quote saved for a date before the first purchase recorded for this asset.',
+      // The legend the mark points at, and the marked cell's own `title`. It says
+      // the total leaves the value out, which is why the row still adds up.
+      notHeldQuote:
+        'Quote saved for a day on which your transactions hold no units of this asset: shown, not counted in the row total.',
     },
     attributes: {
       ytmAtPurchase: 'YTM at purchase',
@@ -1636,7 +1636,8 @@ export const uk: Dict = {
     },
     balances: {
       pending: 'очікується',
-      earlyQuote: 'Котирування збережене на дату, ранішу за записану першу купівлю цього активу.',
+      notHeldQuote:
+        'Котирування збережене на день, коли за транзакціями одиниць цього активу не було: показане, але не враховане в сумі рядка.',
     },
     attributes: {
       ytmAtPurchase: 'YTM на купівлі',

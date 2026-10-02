@@ -18,7 +18,8 @@ capital-gain-versus-total-return pair (whose figures are pinned in `packages/cor
 - **An unquoted asset is ABSENT, never 0.** `quotesAsOf` merges partial snapshots per asset, so a
   headline figure is built from each asset's own most recent quote rather than from one complete
   day — "previous close" as merge behaviour. An asset never quoted contributes nothing to a headline
-  figure — its Balances cell reads "pending" on and after its first purchase and "—" before it —
+  figure — its Balances cell reads "pending" on a day the transactions hold units of it, or, where
+  they cannot count them, on and after its first purchase, and "—" otherwise —
   where the doc's "return 0" would corrupt `headlineTotal` and every share and net figure downstream.
 - **`topUpAmount`'s clamp lives in the callers.** The formula is
   `(target×total − value) / (1 − target)`, identical to the doc's; the doc's

@@ -99,10 +99,16 @@ export function heldQuotesAsOf(
     .at(-1)?.date;
   const now = ledgerUnits(txs, asOf).units;
   const then = ledgerUnits(txs, valuedOn).units;
-  // Units the ledger cannot count are `undefined`, and keep the quote.
-  const none = (n: number | undefined) => n !== undefined && n <= 0;
-  for (const id of Object.keys(quotes)) if (none(now[id]) || none(then[id])) quotes[id] = 0;
+  for (const id of Object.keys(quotes)) {
+    if (holdsNone(now[id]) || holdsNone(then[id])) quotes[id] = 0;
+  }
   return quotes;
+}
+
+/** Whether the ledger counts an asset's units and holds none. Units it cannot count are
+ *  `undefined`, and keep the quote. */
+export function holdsNone(units: number | undefined): boolean {
+  return units !== undefined && units <= 0;
 }
 
 /** `heldQuotesAsOf`, plus 0 for an asset held none of, or moved by no row and quoted by none.
@@ -193,9 +199,10 @@ export function latestCompleteSnapshot(
   return undefined;
 }
 
-// Σ quotes of ONE snapshot + the free cash on ITS day (Balances rows / area chart).
+// Total capital read off ONE snapshot on ITS day (Balances rows / area chart): a quote of a
+// position the ledger holds none of that day is not counted.
 export function totalCapital(s: Snapshot, txs: Transaction[]): number {
-  return Object.values(s.quotes).reduce((a, b) => a + b, 0) + freeCashFromLedger(txs, s.date);
+  return headlineTotalAsOf([s], txs, s.date);
 }
 
 function sumByAsset(txs: Transaction[], types: readonly Transaction['type'][]) {

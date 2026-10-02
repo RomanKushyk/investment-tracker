@@ -110,7 +110,9 @@ the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a
 quantity counted as a whole number of 1e-8 units; a position's value counts at a date only while
 the ledger holds units of it, both then and on the
 last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger
-cannot count keeps its last quote; a position held, or uncounted, that no snapshot values, never
+cannot count keeps its last quote; Balances and `/yield`'s curve read each snapshot by that rule on
+its own day, and a Balances cell shows a quote the rule leaves out, marked, the mark meaning only
+that; a position held, or uncounted, that no snapshot values, never
 quoted or bought back since the last valuation day, has its own value, share and capital gain
 ABSENT and the rebalance plan proposes nothing for it, while one the ledger holds none of, or that
 no row moves and no snapshot quotes, is worth 0; the close of Overview's capital gain and of
@@ -129,7 +131,9 @@ strictly after the pricing date, and a quote suggested for that date already ded
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. Capital gain is realized plus unrealized,
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
-last quote outlives its sale and would count it twice. Fractional quantities summed as floats
+last quote outlives its sale and would count it twice. A snapshot dated after the sale can still
+quote the position, the same double count one day at a time; the cell shows it because nothing
+stored is hidden, and the mark says the total left it out. Fractional quantities summed as floats
 can miss 0 after a full sale: a residue above it reads as held, and the feed reads one below it as
 more sold than bought; whole 1e-8 units sum exactly, and 1e-8 is Portfolio Performance's share
 precision. A stored coupon amount goes stale on the

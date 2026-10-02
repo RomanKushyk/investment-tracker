@@ -456,6 +456,41 @@ describe('cumulativeYieldSeriesIn (A39) — the half that had no tests', () => {
   });
 });
 
+describe('the curve over a position sold out while later snapshots still quote it', () => {
+  // One position is sold out while later snapshots quote it, one after its last quote. A point
+  // values each position as total capital does.
+  const input = TEST_LEDGERS.find((l) => l.name === 'sold-out')!.input;
+  const view = yieldView({ ...input, period: 'all' });
+  const series = cumulativeYieldSeriesIn(
+    input.snapshots,
+    input.transactions,
+    input.assets,
+    view.window,
+  );
+  const at = (date: string) => series.find((p) => p.date === date)!;
+
+  it('reads the proceeds against the basis after the sale, never the proceeds plus a quote', () => {
+    for (const date of ['2026-07-01', '2026-07-25']) {
+      expect(at(date).ovdp8976).toBeCloseTo((15_800 / 15_390 - 1) * 100, 10);
+    }
+  });
+
+  it("ends every asset's line on its table Δ, a sold-out position included", () => {
+    for (const row of view.rows) {
+      const last = series.filter((p) => p[row.asset.id] !== undefined).at(-1)!;
+      expect(last[row.asset.id]).toBeCloseTo(row.deltaTotal! * 100, 10);
+    }
+  });
+
+  it("opens on the table's basis, so a window opening after the sale draws none of it", () => {
+    const w = { from: '2026-07-10', to: '2026-07-27', clamped: false };
+    const { open } = windowedBasisByAsset(input.assets, input.snapshots, input.transactions, w);
+    expect(open.ovdp8976).toBe(0);
+    const pts = cumulativeYieldSeriesIn(input.snapshots, input.transactions, input.assets, w);
+    expect(pts.some((p) => p.ovdp8976 !== undefined)).toBe(false);
+  });
+});
+
 describe('shortBasis — F-3/D80, the rows whose basis their holding cannot support', () => {
   const rowsAt = (period: PeriodOption) => {
     const w = resolveWindow(

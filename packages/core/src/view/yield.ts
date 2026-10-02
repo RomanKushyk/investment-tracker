@@ -3,12 +3,13 @@ import {
   annualizedPct,
   basisIsShort,
   heldQuotesAsOf,
+  holdsNone,
   startDateByAsset,
   investedByAsset,
   investedOwnByAsset,
+  ledgerUnits,
   payoutsNetByAsset,
   portfolioStart,
-  quotesAsOf,
   reinvestedByAsset,
   soldAmountByAsset,
   totalReturnPct,
@@ -272,13 +273,16 @@ export function cumulativeYieldSeriesIn(
   const inWindow =
     w === undefined ? snapshots : snapshots.filter((s) => s.date >= w.from && s.date <= w.to);
   const sorted = [...inWindow].sort((a, b) => a.date.localeCompare(b.date));
-  const open = w === undefined ? {} : quotesAsOf(snapshots, dayBefore(w.from));
+  const { open } = windowedBasisByAsset(assets, snapshots, transactions, w);
   const openedOn = w?.from;
 
   return sorted.map((s) => {
     const point: YieldSeriesPoint = { date: s.date };
+    const units = ledgerUnits(transactions, s.date).units;
     for (const asset of assets) {
-      const quote = s.quotes[asset.id];
+      // Valued as total capital values it that day: a position the ledger holds none of is a
+      // known 0, quoted or not, so a closed line runs on at its proceeds.
+      const quote = holdsNone(units[asset.id]) ? 0 : s.quotes[asset.id];
       if (quote === undefined) continue;
       const upTo = (t: Transaction) =>
         t.assetId === asset.id &&

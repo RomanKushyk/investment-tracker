@@ -111,7 +111,8 @@ On seed:
 On seed:
 - Area chart of total capital per complete snapshot (Feb→Jul, rising to ~149k): the line, the last-point dot and the hover dot read the accent, the fill its tint — not the gain green, which belongs to deltas. Neither dot carries a ring. The hover cursor is the `hairline`.
 - Snapshot table, newest first: 27.07 row shows `68 702,10` then "pending" ×3, cash `7,75`, total "—"; 25.07 row total `148 943,62`; rows continue 24.07 → 21.07 (no 26.07 row). Footer: "Showing last 6 snapshots · 174 total since 03.02.2026" + Prev/Next pagination over the full history. After saving all 4 quotes on `/` for today: the pending cells fill and the row total computes.
-- A quote saved on `/` for a day before that asset's own first purchase is shown, not withheld: save `15 390,00` for …8976 on 04.02 and the last page's 04.02 row reads `64 648,47 · 59 214,04 · 15 390,00* · — · 7,75 · 139 260,26` — it adds up, and one footnote under the table explains the `*`. The footnote is absent on a page with no such cell.
+- A quote saved on `/` for a day on which the transactions hold no units of that asset is shown, marked, and not counted: save `15 390,00` for …8976 on 04.02, a day before its first buy, and the last page's 04.02 row reads `64 648,47 · 59 214,04 · 15 390,00* · — · 7,75 · 123 870,26`. One footnote under the table says such a value is shown and not counted in the row total; it is absent on a page with no such cell.
+- Sell …8976's 15 units for `15 800` on 01.07 and every row from 01.07 that quotes it marks the quote and leaves it out: the 25.07 row reads `68 629,36 · 60 086,09 · 15 846,30* · 4 374,12 · 15 807,75 · 148 897,32`, and so does the chart's 25.07 point. …8976 then needs no quote: the 27.07 row reads «—» for it between its two pending cells, and a later snapshot that quotes every other held asset is complete and has a total.
 
 ## `/payouts`
 
@@ -138,6 +139,7 @@ On seed:
 | 1 month · 30 d | +2,76 % | +33,6 % | +2,76 % | +39,3 % | +18,4 pp |
 
 - Rows 1 and 2 carry byte-identical flows — both windows open before the 02.06 purchase — so only the divisor changed: annualization is LINEAR, so the annualized figure triples while Δ stands still, and "vs expected" can flip sign on a fixed-coupon bond against its own contract.
+- With …8976's 15 units sold for `15 800` on 01.07, at «Від початку» its line holds at the table's Δ, `+2,66 %`, from 01.07 to 27.07: a point after the sale counts the proceeds alone, never them and a quote.
 - The curve rebases per window, not merely clips: full history spans 08.02→27.07, 1 month spans 29.06→27.07, and a window's first point opens near 0. The footnote names the window, not the first purchase: full history reads "from 03.02.2026", 3 months reads "from 27.04.2026".
 - **A row that fell well short of the window's span renders GREY** (muted, not suppressed — the figure does not move): on the default window …6475's Annualized +10,9% and vs-expected −4,3pp render muted (bought 02.06.2026 into a basis opening 03.02.2026: 55 of 174 days). …8976 is NOT greyed despite being bought two days after the start (172 of 174, 1,15% short) — that pair fixes the threshold. Under 3 months …6475 is grey (55 of 91, 39,6% short); under 1 month it is NOT grey (lived through all 30 days). The legend appears only when a row is actually marked.
 

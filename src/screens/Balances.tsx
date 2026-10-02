@@ -10,7 +10,7 @@ import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import {
   balancesView,
   buildBalanceRow,
-  pageHasEarlyQuote,
+  pageHasNotHeldQuote,
   paginateSnapshots,
 } from '@quirenote/core/view/balances';
 import { useFormat } from '../hooks/useFormat';
@@ -19,7 +19,7 @@ import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
 // One source for the glyph: the cell that wears it and the legend that explains it must never disagree.
-const EARLY_MARK = '*';
+const NOT_HELD_MARK = '*';
 
 export function Balances() {
   const f = useFormat();
@@ -36,7 +36,7 @@ export function Balances() {
   // Derived once for both forms: the footnote has to know whether this page holds
   // a marked cell before either form has drawn one.
   const built = rows.map((s) => buildBalanceRow(s, assets, transactions));
-  const hasEarlyQuote = pageHasEarlyQuote(built);
+  const hasNotHeldQuote = pageHasNotHeldQuote(built);
 
   const pager = (
     <div className="flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
@@ -64,9 +64,9 @@ export function Balances() {
     </div>
   );
 
-  const note = hasEarlyQuote && (
+  const note = hasNotHeldQuote && (
     <div className="text-[11.5px] text-muted">
-      {EARLY_MARK} {t.analytics.balances.earlyQuote}
+      {NOT_HELD_MARK} {t.analytics.balances.notHeldQuote}
     </div>
   );
 
@@ -123,8 +123,8 @@ export function Balances() {
                         key={assets[i].id}
                         className="py-2 text-right"
                         title={
-                          cell.status === 'value' && cell.beforeFirstPurchase
-                            ? t.analytics.balances.earlyQuote
+                          cell.status === 'value' && cell.notHeld
+                            ? t.analytics.balances.notHeldQuote
                             : undefined
                         }
                       >
@@ -136,9 +136,9 @@ export function Balances() {
                         {/* A FIXED SLOT, not an appended glyph: the column is right-aligned, so hanging
                             the mark off the digits would push a marked row out of line. Every cell gets
                             the slot or none does. */}
-                        {hasEarlyQuote && (
+                        {hasNotHeldQuote && (
                           <span className="inline-block w-2 text-left text-muted">
-                            {cell.status === 'value' && cell.beforeFirstPurchase ? EARLY_MARK : ''}
+                            {cell.status === 'value' && cell.notHeld ? NOT_HELD_MARK : ''}
                           </span>
                         )}
                       </td>
@@ -178,12 +178,10 @@ export function Balances() {
                   {/* The same mark in both shells, and it names itself — a glyph with nothing in
                       the accessible tree behind it is not a message. */}
                   {cell.status === 'value' && (
-                    <span
-                      title={cell.beforeFirstPurchase ? t.analytics.balances.earlyQuote : undefined}
-                    >
+                    <span title={cell.notHeld ? t.analytics.balances.notHeldQuote : undefined}>
                       {f.num(cell.amount)}
-                      {cell.beforeFirstPurchase && (
-                        <span className="font-normal text-muted">{EARLY_MARK}</span>
+                      {cell.notHeld && (
+                        <span className="font-normal text-muted">{NOT_HELD_MARK}</span>
                       )}
                     </span>
                   )}

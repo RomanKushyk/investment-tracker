@@ -74,7 +74,7 @@ const RULES: Record<string, Rule> = {
     allow: {
       'view/balances#paginateSnapshots': 'the table is one row per snapshot: #189',
       'view/balances#buildBalanceRow': 'the table is one row per snapshot: #189',
-      'view/balances#pageHasEarlyQuote': 'the table is one row per snapshot: #189',
+      'view/balances#pageHasNotHeldQuote': 'the table is one row per snapshot: #189',
     },
   },
   'src/hooks/useCapitalCard.ts': {

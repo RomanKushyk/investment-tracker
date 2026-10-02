@@ -1,19 +1,33 @@
 // Pure data-shaping for the Balances screen. Covered by balances.test.ts.
-import { freeCashFromLedger, totalCapital } from '../derive';
+import { freeCashFromLedger, holdsNone, ledgerUnits, totalCapital } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
 import type { LedgerInput } from './input';
 
-// A snapshot is "complete" if every asset that existed by that date has a quote;
-// an asset not yet purchased does not need one.
-export function isCompleteSnapshot(snapshot: Snapshot, assets: Asset[]): boolean {
+// Whether an asset needs a quote on `date`: while the ledger holds units of it, or, where the
+// ledger cannot count them, from its recorded first purchase on.
+function needsQuote(asset: Asset, date: string, units: number | undefined): boolean {
+  return units === undefined ? asset.firstPurchase <= date : units > 0;
+}
+
+// A snapshot is "complete" if every asset that needs a quote that day has one.
+export function isCompleteSnapshot(
+  snapshot: Snapshot,
+  assets: Asset[],
+  transactions: Transaction[],
+): boolean {
+  const units = ledgerUnits(transactions, snapshot.date).units;
   return assets.every(
-    (a) => a.firstPurchase > snapshot.date || snapshot.quotes[a.id] !== undefined,
+    (a) => !needsQuote(a, snapshot.date, units[a.id]) || snapshot.quotes[a.id] !== undefined,
   );
 }
 
-export function completeSnapshots(snapshots: Snapshot[], assets: Asset[]): Snapshot[] {
+export function completeSnapshots(
+  snapshots: Snapshot[],
+  assets: Asset[],
+  transactions: Transaction[],
+): Snapshot[] {
   return snapshots
-    .filter((s) => isCompleteSnapshot(s, assets))
+    .filter((s) => isCompleteSnapshot(s, assets, transactions))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -27,19 +41,19 @@ export function balanceChartData(
   assets: Asset[],
   transactions: Transaction[],
 ): BalanceChartPoint[] {
-  return completeSnapshots(snapshots, assets).map((s) => ({
+  return completeSnapshots(snapshots, assets, transactions).map((s) => ({
     date: s.date,
     total: totalCapital(s, transactions),
   }));
 }
 
 export type BalanceCell =
-  // `beforeFirstPurchase` flags a stored quote dated earlier than the asset's own
-  // first purchase — two stored facts that disagree, which the row states rather
-  // than resolves.
-  | { status: 'value'; amount: number; beforeFirstPurchase?: true }
+  // `notHeld` flags a stored quote for a day the ledger holds no units of the asset: shown,
+  // and left out of the row's total.
+  | { status: 'value'; amount: number; notHeld?: true }
   | { status: 'pending' }
-  | { status: 'none' }; // no quote, and the asset did not exist yet on this date
+  // No quote, and none is needed on this date.
+  | { status: 'none' };
 
 export interface BalanceRow {
   date: string;
@@ -53,18 +67,20 @@ export function buildBalanceRow(
   assets: Asset[],
   transactions: Transaction[],
 ): BalanceRow {
+  const units = ledgerUnits(transactions, snapshot.date).units;
   const cells = assets.map((a): BalanceCell => {
-    // A stored quote is never hidden: `totalCapital` counts every one, so a cell
-    // that withheld one printed a total its own row could not make.
+    // A stored quote is never hidden. `totalCapital` leaves out the one the ledger holds no
+    // units behind, and the mark says so, so the row still adds up.
     const amount = snapshot.quotes[a.id];
-    const early = a.firstPurchase > snapshot.date;
-    if (amount === undefined) return early ? { status: 'none' } : { status: 'pending' };
-    return early
-      ? { status: 'value', amount, beforeFirstPurchase: true }
+    if (amount === undefined) {
+      return needsQuote(a, snapshot.date, units[a.id]) ? { status: 'pending' } : { status: 'none' };
+    }
+    return holdsNone(units[a.id])
+      ? { status: 'value', amount, notHeld: true }
       : { status: 'value', amount };
   });
   // The same predicate the chart filters on — named once so the two cannot drift.
-  const complete = isCompleteSnapshot(snapshot, assets);
+  const complete = isCompleteSnapshot(snapshot, assets, transactions);
   return {
     date: snapshot.date,
     cells,
@@ -76,8 +92,8 @@ export function buildBalanceRow(
 }
 
 /** Whether a page carries a marked cell — the only question the footnote asks. */
-export function pageHasEarlyQuote(rows: BalanceRow[]): boolean {
-  return rows.some((r) => r.cells.some((c) => c.status === 'value' && c.beforeFirstPurchase));
+export function pageHasNotHeldQuote(rows: BalanceRow[]): boolean {
+  return rows.some((r) => r.cells.some((c) => c.status === 'value' && c.notHeld));
 }
 
 export interface SnapshotPage {
