@@ -15,12 +15,12 @@ import {
   NO_UNITS,
   type ParsedFeed,
 } from '@quirenote/core/inzhur/parse';
-import type { Asset, Snapshot } from '@quirenote/core/types';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 
 import { lastQuoteBefore } from './quotes';
 
 /** One extractor: the divisor, the gap count and the roll have to agree about which
- *  dates exist. Undefined falls a caller back to the month grid. */
+ *  dates exist. Undefined falls a caller back to the roll's own step. */
 export function feedSchedule(asset: Asset, feed: ParsedFeed | undefined): string[] | undefined {
   if (feed === undefined) return undefined;
   const [match] = matchAssets([asset], feed, NO_UNITS).linked;
@@ -73,14 +73,16 @@ export function accrualSuggestion(
    *  annualised approximation stands rather than the suggestion being withheld. */
   feed: ParsedFeed | undefined,
   /** Units held on `selectedDate`. REQUIRED, not optional: an explicit `undefined` says
-   *  the ledger cannot answer, and an omitted argument said it by accident — which
-   *  made the buggy path the cheap one. */
+   *  the ledger cannot answer, where an omitted argument would say it by accident. */
   unitsHeld: number | undefined,
   /** Units held ON A GIVEN DATE, and A DIFFERENT QUESTION from `unitsHeld` rather than
    *  an inconsistency: the rate climbs FORWARD to the next coupon, sized on the drafted
    *  date, while the gap drops coupons already paid, each sized BACKWARD on its own.
    *  Required for the same reason. */
   unitsAt: (couponDate: string) => number | undefined,
+  /** The ledger, REQUIRED for the same reason: the gap reads a coupon behind the stored date off the
+   *  payout recorded for it. */
+  transactions: readonly Transaction[],
 ): number | null {
   if (asset.yieldType !== 'fixed_coupon') return null;
   // A CLOSED POSITION ACCRUES NOTHING, asked BEFORE the estimate: `couponPerPayment`
@@ -114,6 +116,7 @@ export function accrualSuggestion(
             (couponDate) => couponPerPayment(asset, unitsAt(couponDate)),
             last.date,
             selectedDate,
+            transactions,
             feedSchedule(asset, feed),
           ),
     maturity: asset.maturity,

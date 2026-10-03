@@ -4,19 +4,19 @@
 // with ONE exception — spreading a KNOWN coupon over its own period amortises a
 // cash flow rather than annualising a rate, so it divides by the real period.
 // Money this module CREATES is rounded ONCE, at creation, to kopecks.
-import { addMonths, dayBefore, daysBetween } from './dates';
+import { addDays, addMonths, dayBefore, daysBetween } from './dates';
 import { holdsNone, unitsByAsset } from './derive';
 import { movesPosition, type Asset, type PayoutSchedule, type Transaction } from './types';
 // The coupon convention lives in a LEAF module — `ovdp.ts` says why.
-import { OVDP_FACE_UAH, PAYMENTS_PER_YEAR } from './ovdp';
+import { OVDP_COUPON_PERIOD_DAYS, OVDP_FACE_UAH, PAYMENTS_PER_YEAR } from './ovdp';
 
 // Re-exported because every existing citation of these two names points here.
 export { OVDP_FACE_UAH, PAYMENTS_PER_YEAR };
 
-const MONTHS_PER_PERIOD: Record<PayoutSchedule, number | undefined> = {
+// A semiannual coupon steps in days, `OVDP_COUPON_PERIOD_DAYS`, never on this grid.
+const MONTHS_PER_PERIOD: Record<Exclude<PayoutSchedule, 'semiannual'>, number | undefined> = {
   monthly: 1,
   quarterly: 3,
-  semiannual: 6,
   maturity: undefined, // one payment, on the maturity date
   none: undefined,
 };
@@ -111,6 +111,8 @@ export function couponsInGap(
   perCouponAt: (couponDate: string) => number | undefined,
   fromExclusive: string,
   toInclusive: string,
+  /** REQUIRED: a semiannual coupon behind the stored date is the payout recorded for it. */
+  transactions: readonly Transaction[],
   schedule?: readonly string[],
 ): number {
   const anchor = asset.nextCoupon;
@@ -126,6 +128,50 @@ export function couponsInGap(
     return dates
       .filter((d) => d > fromExclusive && d <= toInclusive)
       .reduce((sum, d) => sum + (perCouponAt(d) ?? 0), 0);
+  }
+
+  if (asset.payoutSchedule === 'semiannual') {
+    // `addDays` throws on a date no calendar has, and the walk owes nothing off one.
+    if (noCalendarDate(anchor)) return 0;
+    let total = 0;
+    // Forward through the roll itself, so the gap counts the dates the walk and the confirm reach.
+    let date: string | undefined = anchor;
+    for (let i = 0; date !== undefined && date <= toInclusive && i < MAX_GRID_STEPS; i++) {
+      if (noCalendarDate(date)) break; // a maturity no calendar has, which the walk owes nothing on
+      if (date > fromExclusive) total += perCouponAt(date) ?? 0;
+      const roll = rollNextCoupon(asset, date);
+      date = roll?.kind === 'rolled' ? roll.nextCoupon : undefined;
+    }
+    // Back from the anchor, the coupons the confirm rolled past, on the 182-day grid. Only a pointer
+    // folded or clamped onto the maturity is off it, so the coupon before is the payout recorded for it.
+    let after = anchor;
+    if (fromExclusive < anchor && anchor === asset.maturity) {
+      // Outside the window that settles the maturity itself, within a folded period and a window of it.
+      const lo = addDays(
+        anchor,
+        -(OVDP_COUPON_PERIOD_DAYS + FINAL_FOLD_DAYS + COUPON_MATCH_WINDOW_DAYS),
+      );
+      const hi = addDays(anchor, -COUPON_MATCH_WINDOW_DAYS);
+      const near = transactions
+        .filter((t) => t.type === 'interest_payout' && t.assetId === asset.id)
+        .map((t) => t.date)
+        .filter((d) => !noCalendarDate(d) && d >= lo && d < hi)
+        .sort();
+      // The latest coupon recorded, dated by its first entry: another inside the window is the same one.
+      const last = near.at(-1);
+      const recorded = last && near.find((d) => d >= addDays(last, -COUPON_MATCH_WINDOW_DAYS));
+      if (recorded) {
+        if (recorded <= fromExclusive) return total;
+        if (recorded <= toInclusive) total += perCouponAt(recorded) ?? 0;
+        after = recorded;
+      }
+    }
+    for (let k = 1; k < MAX_GRID_STEPS; k++) {
+      const before = addDays(after, -k * OVDP_COUPON_PERIOD_DAYS);
+      if (before <= fromExclusive) break;
+      if (before <= toInclusive) total += perCouponAt(before) ?? 0;
+    }
+    return total;
   }
 
   const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
@@ -177,6 +223,10 @@ export function suggestedQuote(input: QuoteSuggestionInput): number | null {
 /** Every schedule’s period is far wider, so a catch-up roll cannot be silenced
  *  by the coupon before it. */
 export const COUPON_MATCH_WINDOW_DAYS = 7;
+
+/** A final period no longer than this joins the one before it, as Strata's SMART_FINAL folds a stub:
+ *  one payout settles every occurrence within the window, so it could settle both ends of it. */
+const FINAL_FOLD_DAYS = 2 * COUPON_MATCH_WINDOW_DAYS;
 
 /** The ONE dedupe predicate, shared with `core/reminders` so a manually entered
  *  coupon silences both surfaces by the same rule. */
@@ -345,10 +395,21 @@ export function rollNextCoupon(
   const maturity = asset.maturity;
   if (maturity !== undefined && current >= maturity) return { kind: 'matured' };
 
-  const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
-  const scheduled =
+  let next =
     schedule === undefined ? undefined : [...new Set(schedule)].sort().find((d) => d > current);
-  const next = scheduled ?? (months === undefined ? maturity : addMonths(current, months));
+  if (next === undefined) {
+    if (asset.payoutSchedule === 'semiannual') {
+      // `addDays` throws on a date no calendar has, where there is nothing to step from.
+      if (noCalendarDate(current)) return undefined;
+      const step = addDays(current, OVDP_COUPON_PERIOD_DAYS);
+      // A step past the maturity folds too; the clamp below reaches a maturity no calendar has.
+      next =
+        maturity !== undefined && daysBetween(step, maturity) <= FINAL_FOLD_DAYS ? maturity : step;
+    } else {
+      const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
+      next = months === undefined ? maturity : addMonths(current, months);
+    }
+  }
   if (next === undefined) return { kind: 'matured' }; // no period and no maturity date
   if (maturity !== undefined && next > maturity) return { kind: 'rolled', nextCoupon: maturity };
   return { kind: 'rolled', nextCoupon: next };
@@ -395,7 +456,7 @@ export function couponProjection(
 
 const MONTHS_IN_YEAR = 12;
 
-/** `rollNextCoupon` steps the months, CLAMPING to `maturity` as the roll does, from THE OCCURRENCE
+/** `rollNextCoupon` steps the occurrences, CLAMPING to `maturity` as the roll does, from THE OCCURRENCE
  *  THE APP STILL OWES; a month counts only on units held on its payment’s record date. */
 export function scheduledCouponMonths(asset: Asset, transactions: Transaction[]): number[] {
   if (asset.yieldType !== 'fixed_coupon') return [];
@@ -407,10 +468,17 @@ export function scheduledCouponMonths(asset: Asset, transactions: Transaction[])
 
   let date = anchor;
   const months = new Set<number>();
-  // Bounded by the calendar, not MAX_GRID_STEPS: a semiannual bond with no `maturity` never
-  // reports 'matured' and collects two months, so it would run its whole step budget each render.
+  // A periodic coupon is named by its first year's month at its place in the cycle: 182-day steps
+  // cross month ends over the years, and Seasonality adds a whole coupon per month named.
+  const perYear = PAYMENTS_PER_YEAR[asset.payoutSchedule];
+  const cycle: number[] = [];
+  // Bounded by the calendar, not MAX_GRID_STEPS: a bond with no `maturity` never reports 'matured'.
   for (let i = 0; i < MONTHS_IN_YEAR; i++) {
-    if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) months.add(Number(date.slice(5, 7)));
+    const month = Number(date.slice(5, 7));
+    if (i < perYear) cycle.push(month);
+    // The final coupon, folded or clamped onto the maturity, lands with the principal in its own month.
+    const named = perYear > 1 && date !== asset.maturity ? (cycle[i % perYear] ?? month) : month;
+    if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) months.add(named);
     if (months.size === MONTHS_IN_YEAR) break;
     const roll = rollNextCoupon(asset, date);
     if (roll === undefined || roll.kind === 'matured') break;

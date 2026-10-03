@@ -33,21 +33,15 @@ export function CouponDueCard({
   due: DueCoupon;
   /** Amount to prefill (feed forecast or the stated coupon); undefined = empty. */
   prefill: number | undefined;
-  /**
-   * The provider's published payment dates, when the asset is linked. The roll
-   * below uses them instead of a month grid: the real bonds pay every 182 days on
-   * a Wednesday, and `addMonths` drifts far enough to land the pointer on a date
-   * the asset never pays on.
-   */
+  /** The provider's published payment dates, when the asset is linked: the roll prefers them to its
+   *  own step, which reaches the real dates only from a stored date on them. */
   schedule: readonly string[] | undefined;
   onSkip: () => void;
 }) {
   const t = useT();
   const f = useFormat();
   // THE LANGUAGE IS A PARSE RULE HERE TOO. This card writes a `Transaction`, not a
-  // display, so «1,240» must mean here exactly what it means in the transaction
-  // panel — on the module-level schema the two recorded the identical text a
-  // thousandfold apart into one ledger.
+  // display, so «1,240» must mean here exactly what it means in the transaction panel.
   const language = useSettings((state) => state.language);
   // The field mirrors the prefill until the user touches it — `edited` is the
   // discriminator, so a prefill that only arrives LATER (a linked bond's forecast

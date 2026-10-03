@@ -1,11 +1,7 @@
 // The OVDP coupon convention. A LEAF MODULE, importing nothing but the type of
-// its own key: `accrual.ts` and `inzhur/parse.ts` both need these, and two
-// private copies is a second answer waiting for one of them to change.
-//
-// NOT AN IMPORT OF `accrual.ts` FROM `parse.ts`, which is what it was: `infra`
-// compiles `parse.ts`, so that pulled `derive.ts`, `period.ts` and `xirr.ts` into
-// the backend typecheck, and every edit to `derive.ts` then silently owed an
-// infra gate nothing asks for until `deploy-backend.yml` runs, after the merge.
+// its own key: `inzhur/parse.ts` shares it with `accrual.ts`, and `infra` compiles
+// `parse.ts`, so importing `accrual.ts` there would pull `derive.ts`, `period.ts`
+// and `xirr.ts` into the backend typecheck.
 import type { PayoutSchedule } from './types';
 
 export const PAYMENTS_PER_YEAR: Record<PayoutSchedule, number> = {
@@ -15,6 +11,10 @@ export const PAYMENTS_PER_YEAR: Record<PayoutSchedule, number> = {
   maturity: 1,
   none: 0,
 };
+
+/** A semiannual OVDP's coupon period: an issue's published dates fall 182 days apart, not on a
+ *  month grid, with a rare day's shift. The feed-fixture test in `accrual.test.ts` measures it. */
+export const OVDP_COUPON_PERIOD_DAYS = 182;
 
 /**
  * The UAH OVDP nominal — MEASURED, not assumed, with the limits of that

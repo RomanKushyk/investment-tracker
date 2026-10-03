@@ -184,6 +184,42 @@ tolerance in each closed-position test: the residue would still reach every figu
 units. · Testing the last quote's own day in place of the last valuation day: the quote of a
 sold-out holding would value a different one bought back after a day that held none.
 
+## Coupon cadence
+**Decision.** Where no published dates are passed, a semiannual fixed coupon steps
+`OVDP_COUPON_PERIOD_DAYS` from the stored date: in the walk, the gap a suggested quote subtracts
+and the confirm's roll on `/`. A step past the maturity, or one falling short of it by no more than
+twice the payout dedupe window, lands on the maturity, so the final period absorbs a short stub.
+The schedule's months name each occurrence by the month of its place in the first year's cycle,
+and the final coupon, paid with the principal, by its own. Behind the stored date the gap counts
+back in the same steps; only when the stored date is the maturity, folded or clamped onto, is the
+coupon before it the latest one recorded in the ledger, where one is, dated by its first entry. A monthly or
+quarterly coupon keeps the month grid, whose roll clamps to a shorter month's last day and onto the
+maturity.
+**Why.** Resolution No. 80 sets an OVDP coupon as a fixed amount per period, the number of periods a
+year being the issuer's ([80-2001-п](https://zakon.rada.gov.ua/laws/show/80-2001-%D0%BF)), and an
+issue's published dates are spaced by one fixed period, which the feed-fixture test in
+`accrual.test.ts` measures. A month grid misses most of the provider's dates, and clamping a 31st
+to a shorter month moves every later date for good. A period counted in days has no month end:
+QuantLib applies its end-of-month rule only to tenors in months or years
+([schedule.cpp](https://github.com/lballabio/QuantLib/blob/master/ql/time/schedule.cpp)). A fixed
+step can land just short of a maturity off its grid; Strata's `SMART_FINAL` combines a final stub
+of less than 7 days with the period before it and keeps one of 7 days or more
+([StubConvention.java](https://github.com/OpenGamma/Strata/blob/main/modules/basics/src/main/java/com/opengamma/strata/basics/schedule/StubConvention.java)).
+The fold here is wider because a recorded payout settles every occurrence within the dedupe window
+of it: a final period up to twice that could be settled at both ends by one payout, and its coupon
+and principal never offered. Seasonality adds a whole coupon for each month the schedule names, and
+fixed-day steps cross month ends over the years, so naming each occurrence's own month would count
+a semiannual coupon three or four times a year. Behind a stored date on the grid, the grid's date is
+the coupon's, whatever day a payout was entered on. A fold or a clamp leaves no step back from the
+maturity, and the confirm records each payout on its occurrence's date before it rolls.
+**Rejected.** The stored date as a fixed anchor for the grid: it overloads the "Next coupon" field,
+and an edit silently rewrites the rule. · A month grid keeping the first date's day: it changes
+none of the misses. · A stored roll convention for the month-based schedules now: it reaches the
+asset row, the backup format, the CSV and the cluster's schema, so it waits for the cutover. · A
+schedule's months bounded to its first year: a month the position pays in again after a sale and
+a buy-back drops out. · Reading every coupon behind the stored date off the ledger: a payout
+entered days late moves the coupon onto its own date, and an earlier stray entry stands in for it.
+
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar
 separates completely per language: Ukrainian groups on whitespace and reads both `,` and `.` as the

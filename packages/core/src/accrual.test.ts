@@ -18,7 +18,10 @@ import {
   suggestedQuote,
   scheduledCouponMonths,
 } from './accrual';
+import { addDays, daysBetween } from './dates';
 import { unitsByAsset } from './derive';
+import fixture0924 from './inzhur/__fixtures__/assets-2026-09-24.json';
+import { parseAssetsFeed } from './inzhur/parse';
 import type { Asset, Transaction } from './types';
 
 // The demo seed's two bonds (seed.ts) are the fixture basis: …8976 pays
@@ -104,6 +107,7 @@ describe('couponsInGap', () => {
       },
       '2026-01-01',
       '2026-08-31',
+      [],
     );
     // ONLY the counted dates reach the resolver — it makes no probe of its own.
     expect(seen).toEqual(['2026-02-25', '2026-05-25', '2026-08-25']);
@@ -113,12 +117,12 @@ describe('couponsInGap', () => {
     const b = bond({ nextCoupon: '2026-08-25', payoutSchedule: 'semiannual' });
     const schedule = ['2026-02-25', '2026-08-25'];
     const perDate = (d: string) => (d === '2026-02-25' ? 784 : 1568);
-    expect(couponsInGap(b, perDate, '2026-01-01', '2026-12-31', schedule)).toBe(784 + 1568);
+    expect(couponsInGap(b, perDate, '2026-01-01', '2026-12-31', [], schedule)).toBe(784 + 1568);
     // A single figure for every date is the answer the old signature could not avoid.
-    expect(couponsInGap(b, () => 1568, '2026-01-01', '2026-12-31', schedule)).toBe(3136);
+    expect(couponsInGap(b, () => 1568, '2026-01-01', '2026-12-31', [], schedule)).toBe(3136);
     // A date the ledger cannot count contributes nothing rather than NaN. Nothing
     // short-circuits ahead of the reduce any more, so this exercises the `?? 0` itself.
-    expect(couponsInGap(b, () => undefined, '2026-01-01', '2026-12-31', schedule)).toBe(0);
+    expect(couponsInGap(b, () => undefined, '2026-01-01', '2026-12-31', [], schedule)).toBe(0);
     // THE ORDINARY MIXED CASE, uncovered while a guard swallowed it: a bond bought
     // after the February coupon answers for August and not February, so exactly one is subtracted.
     expect(
@@ -127,47 +131,54 @@ describe('couponsInGap', () => {
         (d) => (d === '2026-02-25' ? undefined : 1568),
         '2026-01-01',
         '2026-12-31',
+        [],
         schedule,
       ),
     ).toBe(1568);
   });
 
   it('finds the scheduled coupon inside the gap', () => {
-    expect(couponsInGap(bond(), () => 1240, '2026-08-20', '2026-08-27')).toBe(1240);
+    expect(couponsInGap(bond(), () => 1240, '2026-08-20', '2026-08-27', [])).toBe(1240);
   });
 
   it('excludes the gap start and includes its end', () => {
     // A coupon ON the last-quote date is already priced into that quote.
-    expect(couponsInGap(bond(), () => 1240, '2026-08-25', '2026-08-27')).toBe(0);
-    expect(couponsInGap(bond(), () => 1240, '2026-08-24', '2026-08-25')).toBe(1240);
+    expect(couponsInGap(bond(), () => 1240, '2026-08-25', '2026-08-27', [])).toBe(0);
+    expect(couponsInGap(bond(), () => 1240, '2026-08-24', '2026-08-25', [])).toBe(1240);
   });
 
   it('is 0 when no coupon date falls in the gap', () => {
-    expect(couponsInGap(bond(), () => 1240, '2026-07-25', '2026-08-04')).toBe(0);
+    expect(couponsInGap(bond(), () => 1240, '2026-07-25', '2026-08-04', [])).toBe(0);
   });
 
   it('finds a gap coupon that sits BEHIND the anchor (nextCoupon already rolled)', () => {
     expect(
-      couponsInGap(bond({ nextCoupon: '2027-02-25' }), () => 1240, '2026-08-20', '2026-08-27'),
+      couponsInGap(bond({ nextCoupon: '2027-02-25' }), () => 1240, '2026-08-20', '2026-08-27', []),
     ).toBe(1240);
   });
 
   it('sums every coupon of a long gap', () => {
-    expect(couponsInGap(bond(), () => 1240, '2026-01-01', '2026-09-01')).toBe(2480);
+    expect(couponsInGap(bond(), () => 1240, '2026-01-01', '2026-09-01', [])).toBe(2480);
   });
 
   it('treats a maturity-only schedule as its single payment', () => {
     const single = bond({ payoutSchedule: 'maturity', nextCoupon: '2027-02-25' });
-    expect(couponsInGap(single, () => 1240, '2027-02-20', '2027-02-27')).toBe(1240);
-    expect(couponsInGap(single, () => 1240, '2026-08-20', '2026-08-27')).toBe(0);
+    expect(couponsInGap(single, () => 1240, '2027-02-20', '2027-02-27', [])).toBe(1240);
+    expect(couponsInGap(single, () => 1240, '2026-08-20', '2026-08-27', [])).toBe(0);
   });
 
   it('is 0 without the attributes it needs', () => {
     expect(
-      couponsInGap(bond({ couponAmount: undefined }), () => undefined, '2026-08-20', '2026-08-27'),
+      couponsInGap(
+        bond({ couponAmount: undefined }),
+        () => undefined,
+        '2026-08-20',
+        '2026-08-27',
+        [],
+      ),
     ).toBe(0);
     expect(
-      couponsInGap(bond({ nextCoupon: undefined }), () => 1240, '2026-08-20', '2026-08-27'),
+      couponsInGap(bond({ nextCoupon: undefined }), () => 1240, '2026-08-20', '2026-08-27', []),
     ).toBe(0);
   });
 
@@ -179,23 +190,41 @@ describe('couponsInGap', () => {
 
     it('counts the real monthly dates, not the drifted ones', () => {
       expect(
-        couponsInGap(eom({ payoutSchedule: 'monthly' }), () => 1240, '2026-06-15', '2026-08-30'),
+        couponsInGap(
+          eom({ payoutSchedule: 'monthly' }),
+          () => 1240,
+          '2026-06-15',
+          '2026-08-30',
+          [],
+        ),
       ).toBe(2 * 1240);
     });
 
     it('counts the real quarterly date', () => {
       expect(
-        couponsInGap(eom({ payoutSchedule: 'quarterly' }), () => 1240, '2026-04-01', '2026-08-30'),
+        couponsInGap(
+          eom({ payoutSchedule: 'quarterly' }),
+          () => 1240,
+          '2026-04-01',
+          '2026-08-30',
+          [],
+        ),
       ).toBe(1240);
     });
 
     it('counts the real semiannual date', () => {
-      expect(couponsInGap(eom(), () => 1240, '2025-12-01', '2026-08-30')).toBe(1240);
+      expect(couponsInGap(eom(), () => 1240, '2025-12-01', '2026-08-30', [])).toBe(1240);
     });
 
     it('keeps the anchor itself on the grid it reconstructs', () => {
       expect(
-        couponsInGap(eom({ payoutSchedule: 'monthly' }), () => 1240, '2026-08-30', '2026-08-31'),
+        couponsInGap(
+          eom({ payoutSchedule: 'monthly' }),
+          () => 1240,
+          '2026-08-30',
+          '2026-08-31',
+          [],
+        ),
       ).toBe(1240);
     });
   });
@@ -562,7 +591,7 @@ describe('rollNextCoupon', () => {
   it('keeps rolling a bond with no maturity date on record', () => {
     expect(rollNextCoupon(bond({ maturity: undefined }))).toEqual({
       kind: 'rolled',
-      nextCoupon: '2027-02-25',
+      nextCoupon: '2027-02-23',
     });
   });
 
@@ -574,7 +603,7 @@ describe('rollNextCoupon', () => {
     // The card offers one occurrence while the stored pointer still sits on a settled one.
     expect(rollNextCoupon(bond(), '2026-02-25')).toEqual({
       kind: 'rolled',
-      nextCoupon: '2026-08-25',
+      nextCoupon: '2026-08-26',
     });
     expect(rollNextCoupon(bond(), '2027-02-25')).toEqual({ kind: 'matured' });
     expect(rollNextCoupon(bond({ nextCoupon: undefined }), '2026-08-25')).toEqual({
@@ -694,8 +723,8 @@ describe('dailyAccrual over a real coupon period', () => {
   });
 });
 
-describe('the published schedule beats the month grid', () => {
-  // The feed's published dates, against the month grid this bond carries —
+describe('the published schedule beats the grid', () => {
+  // The feed's published dates, against the grid this bond carries —
   // `nextCoupon` on the 25th where the feed pays on the 23rd.
   const REAL = ['2026-03-24', '2026-09-23', '2027-03-24'];
   const linked = () =>
@@ -704,19 +733,19 @@ describe('the published schedule beats the month grid', () => {
   it('counts the coupon on the real date, not the grid date', () => {
     const a = linked();
     // A gap that contains the REAL date but ends before the grid’s 25th.
-    expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24', REAL)).toBe(1240);
+    expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24', [], REAL)).toBe(1240);
     // Without the schedule the same gap sees nothing — the defect, pinned.
-    expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24')).toBe(0);
+    expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24', [])).toBe(0);
   });
 
   it('does not count it twice when the gap spans both dates', () => {
-    expect(couponsInGap(linked(), () => 1240, '2026-09-01', '2026-09-30', REAL)).toBe(1240);
+    expect(couponsInGap(linked(), () => 1240, '2026-09-01', '2026-09-30', [], REAL)).toBe(1240);
   });
 
   it('counts the maturity date once, though the schedule lists it twice', () => {
     // The final row is coupon AND principal on one date; only one is a coupon.
     const withDuplicate = [...REAL, '2027-03-24'];
-    expect(couponsInGap(linked(), () => 1240, '2027-03-01', '2027-03-31', withDuplicate)).toBe(
+    expect(couponsInGap(linked(), () => 1240, '2027-03-01', '2027-03-31', [], withDuplicate)).toBe(
       1240,
     );
   });
@@ -726,10 +755,10 @@ describe('the published schedule beats the month grid', () => {
       kind: 'rolled',
       nextCoupon: '2026-09-23',
     });
-    // Without the schedule the same call drifts to the 24th of the grid month.
+    // Without the schedule the same call steps 182 days, a day short of the published date.
     expect(rollNextCoupon(linked(), '2026-03-24')).toEqual({
       kind: 'rolled',
-      nextCoupon: '2026-09-24',
+      nextCoupon: '2026-09-22',
     });
   });
 
@@ -739,11 +768,273 @@ describe('the published schedule beats the month grid', () => {
 
   it('falls back to the grid for an asset with no linked schedule', () => {
     // The non-regression that protects every existing seed-coupled test.
-    expect(couponsInGap(linked(), () => 1240, '2026-09-20', '2026-09-26', undefined)).toBe(1240);
+    expect(couponsInGap(linked(), () => 1240, '2026-09-20', '2026-09-26', [], undefined)).toBe(
+      1240,
+    );
     expect(rollNextCoupon(linked(), '2026-03-25', undefined)).toEqual({
       kind: 'rolled',
-      nextCoupon: '2026-09-25',
+      nextCoupon: '2026-09-23',
     });
+  });
+});
+
+describe('a semiannual coupon with no published schedule steps 182 days', () => {
+  const buy = (date: string) => tx({ id: 'b0', date, type: 'buy', amount: 10000, quantity: 10 });
+  // Records each occurrence the walk owes, as the confirm would, until it owes none.
+  const walk = (asset: Asset, ledger: Transaction[]): string[] => {
+    const rows = [...ledger];
+    const owed: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const date = nextUnsettledCouponDate(asset, rows);
+      if (date === undefined) break;
+      owed.push(date);
+      rows.push(tx({ id: `c${i}`, date }));
+    }
+    return owed;
+  };
+
+  it("walks UA4000236475's published dates, on its terms, to the maturity", () => {
+    const a = bond({ nextCoupon: '2025-10-01', maturity: '2028-09-27' });
+    expect(walk(a, [buy('2025-09-01')])).toEqual([
+      '2025-10-01',
+      '2026-04-01',
+      '2026-09-30',
+      '2027-03-31',
+      '2027-09-29',
+      '2028-03-29',
+      '2028-09-27',
+    ]);
+  });
+
+  describe('from 31.08.2026, every reader names the same dates', () => {
+    const a = bond({ nextCoupon: '2026-08-31', maturity: '2028-08-31' });
+    const ledger = [buy('2026-07-01')];
+    // The 28.08.2028 step falls three days short of the maturity, so it is the maturity.
+    const DATES = ['2026-08-31', '2027-03-01', '2027-08-30', '2028-02-28', '2028-08-31'];
+
+    it('the confirm rolls onto them, then matures', () => {
+      const rolls = DATES.slice(0, -1).map((from) => rollNextCoupon(a, from));
+      expect(rolls).toEqual(DATES.slice(1).map((nextCoupon) => ({ kind: 'rolled', nextCoupon })));
+      expect(rollNextCoupon(a, '2028-08-31')).toEqual({ kind: 'matured' });
+    });
+
+    it('the walk owes them in turn', () => {
+      expect(walk(a, ledger)).toEqual(DATES);
+      expect(owedCouponDate(a, ledger, '2027-08-01')).toBe('2027-08-30');
+    });
+
+    it("the schedule names the months of a year's coupons", () => {
+      expect(scheduledCouponMonths(a, ledger)).toEqual([3, 8]);
+    });
+
+    it('the gap counts them, from the stored pointer or a rolled one', () => {
+      expect(couponsInGap(a, () => 1240, '2027-02-28', '2027-03-01', [])).toBe(1240);
+      expect(couponsInGap(a, () => 1240, '2028-08-28', '2028-08-31', [])).toBe(1240);
+      expect(couponsInGap(a, () => 1240, '2028-08-26', '2028-08-28', [])).toBe(0);
+      // The maturity counts once, though the step after 28.02.2028 lands on it too.
+      expect(couponsInGap(a, () => 1240, '2026-08-30', '2028-12-31', [])).toBe(5 * 1240);
+      const rolled = bond({ nextCoupon: '2027-03-01', maturity: '2028-08-31' });
+      expect(couponsInGap(rolled, () => 1240, '2027-08-29', '2027-08-30', [])).toBe(1240);
+      expect(couponsInGap(rolled, () => 1240, '2026-08-30', '2026-08-31', [])).toBe(1240);
+      // Two periods behind the pointer: the 01.03.2027 step back lies after the gap.
+      const twice = bond({ nextCoupon: '2027-08-30', maturity: '2028-08-31' });
+      expect(couponsInGap(twice, () => 1240, '2026-08-30', '2026-08-31', [])).toBe(1240);
+    });
+  });
+
+  it('names two months a year, though the 182-day step crosses month ends over the years', () => {
+    // Seasonality adds a whole coupon per month named: a longer walk would count four a year.
+    const drifting = bond({ nextCoupon: '2026-03-03', maturity: undefined });
+    expect(scheduledCouponMonths(drifting, [])).toEqual([3, 9]);
+  });
+
+  it('names the final coupon by its own month, where it carries the principal', () => {
+    // 23.02.2027 is 15 days short of 10.03, so the final period stays its own.
+    expect(scheduledCouponMonths(bond({ maturity: '2027-03-10' }), [])).toEqual([2, 3, 8]);
+    const quarterly = bond({
+      payoutSchedule: 'quarterly',
+      nextCoupon: '2026-01-15',
+      maturity: '2026-12-01',
+    });
+    expect(scheduledCouponMonths(quarterly, [])).toEqual([1, 4, 7, 10, 12]);
+  });
+
+  it('keeps a month the position pays in again after a sale and a buy-back', () => {
+    const b = bond({ maturity: '2030-08-25' });
+    const ledger = [
+      tx({ id: 'b1', date: '2026-02-05', type: 'buy', amount: 15000, quantity: 15 }),
+      tx({ id: 's1', date: '2026-12-01', type: 'sell', amount: 15000, quantity: 15 }),
+      tx({ id: 'b2', date: '2027-03-01', type: 'buy', amount: 5000, quantity: 5 }),
+    ];
+    // 23.02.2027 is not owed; 22.02.2028 is, and it is February's coupon.
+    expect(scheduledCouponMonths(b, ledger)).toEqual([2, 8]);
+  });
+
+  it('lets no single payout settle both ends of the final period', () => {
+    // A payout settles an occurrence within ±7 days of it, so two no further apart than twice that
+    // could both read as paid. 25.08.2026 + 182 is 23.02.2027; each maturity sits `stub` days after.
+    const tooClose: string[] = [];
+    for (let stub = 1; stub <= 21; stub++) {
+      const maturity = addDays('2027-02-23', stub);
+      const dates = ['2026-08-25'];
+      for (let roll = rollNextCoupon(bond({ maturity })); roll?.kind === 'rolled';) {
+        dates.push(roll.nextCoupon);
+        roll = rollNextCoupon(bond({ maturity }), roll.nextCoupon);
+      }
+      const gaps = dates.slice(1).map((d, i) => daysBetween(dates[i]!, d));
+      if (gaps.some((g) => g <= 2 * COUPON_MATCH_WINDOW_DAYS)) tooClose.push(`${stub}: ${dates}`);
+    }
+    expect(tooClose).toEqual([]);
+    // The fold is no wider than that: a 15-day final period stays its own.
+    expect(walk(bond({ maturity: '2027-03-10' }), [buy('2026-02-05')])).toEqual([
+      '2026-08-25',
+      '2027-02-23',
+      '2027-03-10',
+    ]);
+  });
+
+  it("folds the seed's 23.02.2027 step into its 25.02.2027 maturity", () => {
+    expect(walk(bond(), [buy('2026-02-05')])).toEqual(['2026-08-25', '2027-02-25']);
+    expect(couponsInGap(bond(), () => 1240, '2027-02-21', '2027-02-23', [])).toBe(0);
+    expect(couponsInGap(bond(), () => 1240, '2027-02-23', '2027-02-25', [])).toBe(1240);
+  });
+
+  it('leaves a monthly and a quarterly schedule on the month grid', () => {
+    const eom = bond({ nextCoupon: '2027-01-31', maturity: '2028-01-31' });
+    expect(rollNextCoupon({ ...eom, payoutSchedule: 'monthly' })).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2027-02-28',
+    });
+    expect(rollNextCoupon({ ...eom, payoutSchedule: 'quarterly' })).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2027-04-30',
+    });
+    expect(
+      couponsInGap(
+        { ...eom, payoutSchedule: 'monthly' },
+        () => 1240,
+        '2027-02-27',
+        '2027-02-28',
+        [],
+      ),
+    ).toBe(1240);
+  });
+
+  it('steps nothing off a date no calendar has, and throws on none', () => {
+    const unreadable = bond({ nextCoupon: '2026-13-01' });
+    expect(rollNextCoupon(unreadable)).toBeUndefined();
+    expect(couponsInGap(unreadable, () => 1240, '2026-08-01', '2027-03-01', [])).toBe(0);
+    // Reached by stepping, as the walk reaches it: it sorts between these bounds as a string.
+    const steppedOnto = bond({ maturity: '2026-13-01' });
+    expect(couponsInGap(steppedOnto, () => 1240, '2026-12-20', '2027-01-05', [])).toBe(0);
+  });
+
+  describe('a coupon behind the pointer', () => {
+    const paid = (id: string, date: string) => tx({ id, date });
+    // Sized by date, so a coupon counted on any other day shows in the sum.
+    const on = (date: string) => (d: string) => (d === date ? 1240 : 99999);
+
+    it('sits on the grid behind a pointer on it, whatever day its payout was entered', () => {
+      const a = bond({ nextCoupon: '2027-03-01', maturity: '2028-08-31' });
+      // Entered by hand three days late, and a stray entry well before it.
+      const ledger = [paid('p0', '2026-08-20'), paid('p1', '2026-09-03')];
+      expect(couponsInGap(a, on('2026-08-31'), '2026-08-30', '2026-09-01', ledger)).toBe(1240);
+      expect(couponsInGap(a, on('2026-08-31'), '2026-09-01', '2026-09-04', ledger)).toBe(0);
+    });
+
+    describe('a pointer folded or clamped onto the maturity is the payout recorded for it', () => {
+      it('after the confirm folds the seed onto its maturity', () => {
+        const confirmed = bond({ nextCoupon: '2027-02-25' });
+        const ledger = [
+          buy('2026-02-05'),
+          paid('p2', '2026-02-25'),
+          paid('p0', '2026-08-10'),
+          paid('p3', '2026-08-25'),
+          // Neither a buy nor another asset's payout is a coupon of this one.
+          tx({ id: 'b9', date: '2026-09-05', type: 'buy', amount: 1000, quantity: 1 }),
+          tx({ id: 'o1', date: '2026-09-05', assetId: 'other' }),
+        ];
+        const sized = on('2026-08-25');
+        expect(couponsInGap(confirmed, sized, '2026-08-24', '2026-08-26', ledger)).toBe(1240);
+        expect(couponsInGap(confirmed, sized, '2026-08-26', '2026-08-28', ledger)).toBe(0);
+      });
+
+      it('the coupon just before a final period of 15 days', () => {
+        // 25.08.2026 + 182 is 23.02.2027, 15 days short of 10.03.2027: the walk owes both.
+        const clamped = bond({ nextCoupon: '2027-03-10', maturity: '2027-03-10' });
+        const ledger = [paid('p3', '2026-08-25'), paid('p4', '2027-02-23')];
+        expect(couponsInGap(clamped, on('2027-02-23'), '2027-02-22', '2027-02-24', ledger)).toBe(
+          1240,
+        );
+        expect(couponsInGap(clamped, () => 1240, '2026-08-20', '2027-03-10', ledger)).toBe(
+          3 * 1240,
+        );
+      });
+
+      it('across the widest fold, recorded as early as the window allows', () => {
+        // 25.08.2026 + 182 is 23.02.2027, 14 days short of 09.03.2027: the coupon sits 196 days back.
+        const folded = bond({ nextCoupon: '2027-03-09', maturity: '2027-03-09' });
+        for (const p of ['2026-08-25', '2026-08-18']) {
+          const gap = (from: string, to: string) =>
+            couponsInGap(folded, on(p), from, to, [paid('p3', p)]);
+          expect(gap(addDays(p, -1), addDays(p, 1))).toBe(1240);
+          // Nothing between it and the maturity: no step lands a coupon of its own there.
+          expect(gap(addDays(p, 1), '2027-03-08')).toBe(0);
+        }
+      });
+
+      it('not a payout that settles the pointer’s own coupon, recorded days early', () => {
+        const due = bond({ nextCoupon: '2027-02-25' });
+        const ledger = [paid('p4', '2027-02-20')];
+        expect(couponsInGap(due, () => 1240, '2027-02-19', '2027-02-21', ledger)).toBe(0);
+      });
+
+      it('after the confirm clamps …6475 onto its maturity', () => {
+        const clamped = bond({ nextCoupon: '2027-05-27', maturity: '2027-05-27' });
+        const ledger = [paid('p6', '2026-06-03'), paid('p7', '2026-12-03')];
+        expect(couponsInGap(clamped, on('2026-12-03'), '2026-12-01', '2026-12-04', ledger)).toBe(
+          1240,
+        );
+        expect(couponsInGap(clamped, () => 1240, '2026-11-25', '2026-11-26', ledger)).toBe(0);
+      });
+
+      it('never a payout dated on a day no calendar has, which sorts after December', () => {
+        const clamped = bond({ nextCoupon: '2027-06-30', maturity: '2027-06-30' });
+        const ledger = [paid('p1', '2026-12-20'), paid('px', '2026-13-01')];
+        expect(couponsInGap(clamped, on('2026-12-20'), '2026-12-19', '2026-12-21', ledger)).toBe(
+          1240,
+        );
+      });
+
+      it('once, dated by its first entry, though two payouts settle it', () => {
+        const confirmed = bond({ nextCoupon: '2027-02-25' });
+        const ledger = [paid('p3', '2026-08-25'), paid('p4', '2026-08-27')];
+        expect(couponsInGap(confirmed, on('2026-08-25'), '2026-08-20', '2026-08-31', ledger)).toBe(
+          1240,
+        );
+      });
+    });
+  });
+
+  it('steps onto every date the feed publishes but one, a day off', () => {
+    const bonds = parseAssetsFeed(fixture0924).entries.filter((e) => e.kind === 'bond');
+    let gaps = 0;
+    const misses: string[] = [];
+    for (const b of bonds) {
+      const dates = [...new Set(b.paymentSchedule.map((p) => p.date))].sort();
+      const a = bond({ id: b.ref, nextCoupon: dates[0], maturity: b.maturity });
+      // From the first date, as an unlinked bond would: each step off the one before it.
+      let from = dates[0]!;
+      for (const published of dates.slice(1)) {
+        gaps += 1;
+        const roll = rollNextCoupon(a, from);
+        const stepped = roll?.kind === 'rolled' ? roll.nextCoupon : String(roll?.kind);
+        if (stepped !== published) misses.push(`${b.ref} ${published} stepped ${stepped}`);
+        from = stepped;
+      }
+    }
+    expect(gaps).toBe(98);
+    expect(misses).toEqual(['UA4000235782 2027-06-03 stepped 2027-06-02']);
   });
 });
 

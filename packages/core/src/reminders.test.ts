@@ -208,7 +208,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
   it('announces the next occurrence once the pointer one is settled', () => {
     const asset = bond({ nextCoupon: '2026-07-25' }); // recorded by hand on the day
     const recorded = [payout({ date: '2026-07-25' })];
-    // 2027-01-25 is the next date: silent now, announced inside its lead window.
+    // 182 days on, 2027-01-23 is the next date: silent now, announced inside its lead window.
     expect(computeReminders([asset], quoted, recorded, TODAY)).toEqual([]);
     const later = computeReminders(
       [asset],
@@ -216,7 +216,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
       recorded,
       '2027-01-20',
     );
-    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-25']);
+    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-23']);
   });
 
   it('announces the next occurrence after a skip (S5 → S6 hand-over)', () => {
@@ -230,7 +230,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
       '2027-01-20',
       skipped,
     );
-    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-25']);
+    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-23']);
   });
 });
 

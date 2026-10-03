@@ -210,6 +210,7 @@ export function DailyQuotes() {
       // rejects. If a portfolio ever makes the walk bite, the fix is to lift
       // `suggestionFor` into a memo keyed on the ledger, not to cache underneath it.
       (couponDate) => unitsByAsset(transactions, dayBefore(couponDate))[assetId],
+      transactions,
     );
     return value === null ? undefined : value;
   }

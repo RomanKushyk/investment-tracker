@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
 import { investedByAsset } from '@quirenote/core/derive';
-import type { Asset } from '@quirenote/core/types';
+import type { Asset, Transaction } from '@quirenote/core/types';
 import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { accrualSuggestion, couponPrefill } from './suggestions';
@@ -28,6 +28,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBe(4376.49);
     expect(
@@ -39,6 +40,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBe(15859.89);
   });
@@ -54,6 +56,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBe(14823.72);
     // Same accrual, coupon grid shifted a month later → nothing to subtract.
@@ -66,8 +69,32 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBe(16063.72);
+  });
+
+  it('subtracts the coupon the confirm recorded before rolling onto the maturity', () => {
+    // The confirm paid 25.08 and folded the pointer onto 25.02.2027: the same gap, the same coupon.
+    const paid: Transaction = {
+      id: 'c825',
+      date: '2026-08-25',
+      type: 'interest_payout',
+      assetId: 'ovdp8976',
+      amount: 1240,
+    };
+    expect(
+      accrualSuggestion(
+        { ...seedAsset('ovdp8976'), nextCoupon: '2027-02-25' },
+        snapshots,
+        invested.ovdp8976,
+        '2026-08-26',
+        undefined,
+        undefined,
+        () => undefined,
+        [...SEED_TRANSACTIONS, paid],
+      ),
+    ).toBe(14823.72);
   });
 
   it('suggests nothing for a non-bond, an unquoted asset or an already-quoted date', () => {
@@ -80,11 +107,21 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBeNull();
     const fresh: Asset = { ...seedAsset('ovdp6475'), id: 'new' };
     expect(
-      accrualSuggestion(fresh, snapshots, 0, '2026-07-27', undefined, undefined, () => undefined),
+      accrualSuggestion(
+        fresh,
+        snapshots,
+        0,
+        '2026-07-27',
+        undefined,
+        undefined,
+        () => undefined,
+        SEED_TRANSACTIONS,
+      ),
     ).toBeNull();
     // The first seed snapshot — nothing before it to carry forward.
     expect(
@@ -96,6 +133,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBeNull();
   });
@@ -116,6 +154,7 @@ describe('accrualSuggestion', () => {
       undefined,
       20,
       held,
+      SEED_TRANSACTIONS,
     );
     const flat = accrualSuggestion(
       bond,
@@ -125,6 +164,7 @@ describe('accrualSuggestion', () => {
       undefined,
       20,
       () => 20,
+      SEED_TRANSACTIONS,
     );
     // The gap subtracts the smaller holding's coupon, so the per-date answer is higher by the difference.
     expect(perDate).not.toBeNull();
@@ -147,6 +187,7 @@ describe('accrualSuggestion', () => {
         undefined,
         0,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBeNull();
     // The estimate is what it would otherwise have returned, so this is the number
@@ -161,6 +202,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBe(15860.13);
     // UNKNOWN IS NOT ZERO: a bond with no quantities still accrues.
@@ -173,6 +215,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).not.toBeNull();
   });
@@ -188,6 +231,7 @@ describe('accrualSuggestion', () => {
         undefined,
         undefined,
         () => undefined,
+        SEED_TRANSACTIONS,
       ),
     ).toBe(15860.13);
   });
