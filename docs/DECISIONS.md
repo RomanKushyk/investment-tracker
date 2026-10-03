@@ -110,9 +110,9 @@ the day BEFORE it opens. Where the rule below leaves a position ABSENT on that d
 its basis, its row and its line absent over the window. Units are `Σ quantity deltas` over the
 ledger, never a stored total, each
 quantity counted as a whole number of 1e-8 units; a position's value counts at a date only while
-the ledger holds units of it, both then and on the
+the ledger holds units of it then, on its last quote's own day, and on the
 last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger
-cannot count keeps its last quote; Balances and `/yield`'s curve read each snapshot by that rule on
+cannot count on those days keeps its last quote; Balances and `/yield`'s curve read each snapshot by that rule on
 its own day, and a Balances cell shows a quote the rule leaves out, marked, the mark meaning only
 that; a day asks for an asset's quote only while the ledger holds units of it, or, where it cannot
 count them, from its first purchase on, and Balances' complete row, the quote-missing reminder and
@@ -121,8 +121,8 @@ or a redemption is owed only while the ledger
 holds units at the end of the day before its date, or cannot count them, and the coupon and
 maturity reminders, `/`'s coupon card, `/attributes`' next coupon, the next payouts on Overview and
 Payouts, and Seasonality's expected coupons and coupon-season card pass one it held none of; a
-position held, or uncounted, that no snapshot values, never
-quoted or bought back since the last valuation day, has its own value, share and capital gain
+position held, or uncounted, that no snapshot values, never quoted, or bought after its
+last quote's day or the last valuation day held none of it, has its own value, share and capital gain
 ABSENT and the rebalance plan proposes nothing for it, while one the ledger holds none of, or that
 no row moves and no snapshot quotes, is worth 0; the close of Overview's capital gain and of
 `/yield`'s table counts units to the ledger's last row, where their flows end too, though its
@@ -142,7 +142,10 @@ makes the full history collapse onto its unwindowed twin. Capital gain is realiz
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
 last quote outlives its sale and would count it twice. A snapshot dated after the sale can still
 quote the position, the same double count one day at a time; the cell shows it because nothing
-stored is hidden, and the mark says the total left it out. A reader that asked for a quote of a
+stored is hidden, and the mark says the total left it out. A snapshot stores a value, not a price
+per unit: a quote taken on a day the ledger held none values none of the units bought later,
+wherever the latest snapshot falls, and a last valuation day that held none values the position at
+nothing, so units bought after it wait for their own quote. A reader that asked for a quote of a
 position no longer held would nag every day after a sell-out or a maturity, for a quote the total
 then leaves out; Portfolio Performance's held-securities price update asks only for the positions in
 that day's snapshot, which holds none with 0 shares. The NBU depository pays a coupon or a
@@ -178,7 +181,8 @@ whole coupon. · Valuing an unquoted position at cost: it changes total capital 
 rewrites the documented seam, where a buy lowers it until its day is quoted. · A decimal library
 for units: a runtime dependency in the pure package the app and the server both bundle. · A
 tolerance in each closed-position test: the residue would still reach every figure that multiplies
-units.
+units. · Testing the last quote's own day in place of the last valuation day: the quote of a
+sold-out holding would value a different one bought back after a day that held none.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

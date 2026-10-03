@@ -13,6 +13,8 @@ import {
   headlineTotal,
   headlineTotalAsOf,
   heldQuotesAsOf,
+  heldValueOf,
+  heldValues,
   incomeReceived,
   incomeReceivedNet,
   investedOwnByAsset,
@@ -41,10 +43,11 @@ import {
   transactionsIn,
   trimAmount,
   valueAsOf,
+  valuedQuotes,
   yieldSinceStart,
 } from './derive';
 import type { PriceLookup } from './derive';
-import { SEED_TRANSACTIONS } from './seed';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 import { unitDelta } from './types';
 import type { Asset, Snapshot, Transaction } from './types';
 
@@ -429,6 +432,93 @@ describe('heldQuotesAsOf — a position counts while the ledger holds units of i
     const other = { ...tx('b2', 'buy', 500, 'a2', '2026-03-01'), quantity: 5 };
     const otherOut = { ...tx('s2', 'sell', 520, 'a2', '2026-03-15'), quantity: 5 };
     expect(heldQuotesAsOf(quoted, [buy, other, otherOut])).toEqual({ a1: 1100 });
+  });
+
+  it('values no bought-back unit at a quote taken while none were held, a later snapshot or not', () => {
+    // a1's last quote, 06-01, follows its sale; the 06-15 snapshot quotes a2 alone.
+    const other = { ...tx('b2', 'buy', 500, 'a2', '2026-03-01'), quantity: 5 };
+    const back = { ...tx('b3', 'buy', 550, 'a1', '2026-06-10'), quantity: 50 };
+    const later = [...quoted, { date: '2026-06-15', quotes: { a2: 510 } }];
+    const rows = [buy, sellAll, other, back];
+    expect(heldQuotesAsOf(later, rows)).toEqual({ a1: 0, a2: 510 });
+    expect(valuedQuotes(later, rows)).toEqual({ a2: 510 });
+    expect(heldQuotesAsOf(quoted, rows)).toEqual({ a1: 0 });
+  });
+
+  it('values none of a first buy at a quote taken before it', () => {
+    const other = { ...tx('b2', 'buy', 500, 'a2', '2026-01-15'), quantity: 5 };
+    const early: Snapshot[] = [
+      { date: '2026-02-01', quotes: { a1: 990, a2: 500 } },
+      { date: '2026-04-01', quotes: { a2: 510 } },
+    ];
+    expect(heldQuotesAsOf(early, [buy, other])).toEqual({ a1: 0, a2: 510 });
+    expect(valuedQuotes(early, [buy, other])).toEqual({ a2: 510 });
+  });
+});
+
+describe('a last quote taken while the ledger held none of the asset', () => {
+  // The seed quotes …8976 to 25.07, after its 15 units are sold on 01.07; 27.07 quotes REIT alone.
+  const snapshots = buildSeedSnapshots();
+  const sale: Transaction = {
+    id: 's',
+    date: '2026-07-01',
+    type: 'sell',
+    assetId: 'ovdp8976',
+    amount: 15800,
+    quantity: 15,
+  };
+  const back = (date: string, quantity: number | undefined = 10): Transaction => ({
+    id: 'back',
+    date,
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 10500,
+    ...(quantity === undefined ? {} : { quantity }),
+  });
+  // The seed's 149 016,36, less …8976's 15 846,30, plus the 5 300 of net cash.
+  const BOUGHT_BACK_TOTAL = 138470.06;
+
+  it.each([
+    ['26.07', back('2026-07-26')],
+    ['27.07, beside the latest snapshot', back('2026-07-27')],
+    ['28.07, after the latest snapshot', back('2026-07-28')],
+    ['27.07, its units uncounted', back('2026-07-27', undefined)],
+  ])('values none of the units bought back on %s', (_, buyBack) => {
+    const txs = [...SEED_TRANSACTIONS, sale, buyBack];
+    expect(heldQuotesAsOf(snapshots, txs).ovdp8976).toBe(0);
+    expect(Object.hasOwn(valuedQuotes(snapshots, txs), 'ovdp8976')).toBe(false);
+    expect(heldValueOf(heldValues(SEED_ASSETS, snapshots, txs), 'ovdp8976')).toBeUndefined();
+    expect(headlineKpis(snapshots, txs).total).toBeCloseTo(BOUGHT_BACK_TOTAL, 2);
+  });
+
+  it('counts the proceeds alone with no buy-back, and the seed keeps every quote', () => {
+    const txs = [...SEED_TRANSACTIONS, sale];
+    expect(heldValueOf(heldValues(SEED_ASSETS, snapshots, txs), 'ovdp8976')).toBe(0);
+    expect(headlineKpis(snapshots, txs).total).toBeCloseTo(149016.36 - 15846.3 + 15800, 2);
+    expect(headlineKpis(snapshots, SEED_TRANSACTIONS).total).toBeCloseTo(149016.36, 2);
+  });
+
+  it('a quote taken while units were held values none bought back after a day that held none', () => {
+    // Energy's last quote, 25.07, values 6 000 units; sold out on 26.07, it holds none on 27.07.
+    const out: Transaction = {
+      id: 'out',
+      date: '2026-07-26',
+      type: 'sell',
+      assetId: 'energy',
+      amount: 60500,
+      quantity: 6000,
+    };
+    const again: Transaction = {
+      id: 'again',
+      date: '2026-07-28',
+      type: 'buy',
+      assetId: 'energy',
+      amount: 10100,
+      quantity: 1000,
+    };
+    const txs = [...SEED_TRANSACTIONS, out, again];
+    expect(heldQuotesAsOf(snapshots, txs).energy).toBe(0);
+    expect(Object.hasOwn(valuedQuotes(snapshots, txs), 'energy')).toBe(false);
   });
 });
 
