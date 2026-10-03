@@ -116,7 +116,8 @@ cannot count keeps its last quote; Balances and `/yield`'s curve read each snaps
 its own day, and a Balances cell shows a quote the rule leaves out, marked, the mark meaning only
 that; a day asks for an asset's quote only while the ledger holds units of it, or, where it cannot
 count them, from its first purchase on, and Balances' complete row, the quote-missing reminder and
-`/`'s progress pill ask by that one rule; a coupon or a redemption is owed only while the ledger
+`/`'s progress pill ask by that one rule, which `/`'s pending-change block counts by too; a coupon
+or a redemption is owed only while the ledger
 holds units at the end of the day before its date, or cannot count them, and the coupon and
 maturity reminders, `/`'s coupon card, `/attributes`' next coupon and Seasonality's expected coupon
 months pass one it held none of; a position held, or uncounted, that no snapshot values, never

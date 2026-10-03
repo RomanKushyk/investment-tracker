@@ -19,11 +19,13 @@ import { useSettings } from '../../state/settings';
  */
 export function PendingChange({
   assets,
+  units,
   drafts,
   snapshots,
   selectedDate,
 }: {
   assets: Asset[];
+  units: Record<string, number>;
   drafts: Record<string, string | undefined>;
   snapshots: Snapshot[];
   selectedDate: string;
@@ -31,7 +33,14 @@ export function PendingChange({
   const f = useFormat();
   const t = useT();
   const language = useSettings((s) => s.language);
-  const { sum, changed } = pendingChange(assets, drafts, snapshots, selectedDate, language);
+  const { sum, changed, total } = pendingChange(
+    assets,
+    units,
+    drafts,
+    snapshots,
+    selectedDate,
+    language,
+  );
   // Rounded to kopiykas for the same reason the comparison is: a sum of −1e−9 is a zero the display would sign.
   const net = Math.round(sum * 100);
   const copy = t.dailyQuotes.pendingChange;
@@ -54,7 +63,7 @@ export function PendingChange({
           >
             {net === 0 ? f.money(0) : f.signedMoney(sum)}
           </p>
-          <p className="mt-0.5 text-[12.5px] text-muted">{copy.count(changed, assets.length)}</p>
+          <p className="mt-0.5 text-[12.5px] text-muted">{copy.count(changed, total)}</p>
         </>
       )}
     </Card>

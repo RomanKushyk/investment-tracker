@@ -19,6 +19,15 @@ const complete2507: Snapshot = {
 };
 const partial2707: Snapshot = { date: '2026-07-27', quotes: { reit: 68702.1 } };
 const snaps = [complete2507, partial2707];
+// …8976's 15 units, sold out on 01.07.
+const sale: Transaction = {
+  id: 's2',
+  date: '2026-07-01',
+  type: 'sell',
+  assetId: 'ovdp8976',
+  amount: 15800,
+  quantity: 15,
+};
 
 describe('yesterdayQuote', () => {
   it('finds the latest prior snapshot with a quote for the asset, skipping the gap day (no 26.07)', () => {
@@ -71,23 +80,30 @@ describe('pendingChange — what the rail names', () => {
   const snapshots = [complete2507];
   const assets = SEED_ASSETS;
   const on = '2026-07-27';
+  const units = ledgerUnits(SEED_TRANSACTIONS, on).units;
 
   it('is silent until a draft differs from its baseline', () => {
-    expect(pendingChange(assets, {}, snapshots, on, 'uk')).toEqual({ sum: 0, changed: 0 });
+    expect(pendingChange(assets, units, {}, snapshots, on, 'uk')).toEqual({
+      sum: 0,
+      changed: 0,
+      total: 4,
+    });
   });
 
   it('counts a row that is FILLED but unchanged as no change at all', () => {
     // Exactly what the baseline holds for REIT — the row is filled, the portfolio
     // moves by nothing, and `filled(n, m)` would still count it.
-    expect(pendingChange(assets, { reit: '68629.36' }, snapshots, on, 'uk')).toEqual({
+    expect(pendingChange(assets, units, { reit: '68629.36' }, snapshots, on, 'uk')).toEqual({
       sum: 0,
       changed: 0,
+      total: 4,
     });
   });
 
   it('sums the deltas and counts only the rows that moved', () => {
     const got = pendingChange(
       assets,
+      units,
       { reit: '68702.10', energy: '60086.09', ovdp8976: '15900' },
       snapshots,
       on,
@@ -98,16 +114,17 @@ describe('pendingChange — what the rail names', () => {
   });
 
   it('subtracts a NEGATIVE move too — it is a change, not a total', () => {
-    const got = pendingChange(assets, { reit: '68000' }, snapshots, on, 'uk');
+    const got = pendingChange(assets, units, { reit: '68000' }, snapshots, on, 'uk');
     expect(got.changed).toBe(1);
     expect(got.sum).toBeCloseTo(-629.36, 2);
   });
 
   it('ignores a draft the schema refuses', () => {
     for (const bad of ['', 'abc', '-5', '0']) {
-      expect(pendingChange(assets, { reit: bad }, snapshots, on, 'uk')).toEqual({
+      expect(pendingChange(assets, units, { reit: bad }, snapshots, on, 'uk')).toEqual({
         sum: 0,
         changed: 0,
+        total: 4,
       });
     }
   });
@@ -116,7 +133,14 @@ describe('pendingChange — what the rail names', () => {
   // against a LATER snapshot than the sublines beside it.
   it('reads the baseline strictly BEFORE the picked date, never the latest', () => {
     const later: Snapshot = { date: '2026-07-28', quotes: { reit: 70000 } };
-    const got = pendingChange(assets, { reit: '68700' }, [complete2507, later], '2026-07-26', 'uk');
+    const got = pendingChange(
+      assets,
+      ledgerUnits(SEED_TRANSACTIONS, '2026-07-26').units,
+      { reit: '68700' },
+      [complete2507, later],
+      '2026-07-26',
+      'uk',
+    );
     expect(got.changed).toBe(1);
     expect(got.sum).toBeCloseTo(70.64, 2); // 68 700 − 68 629,36, not 68 700 − 70 000
   });
@@ -125,8 +149,39 @@ describe('pendingChange — what the rail names', () => {
     // Its row shows no «учора», so there is nothing to be less than — and a first
     // quote is not a change of anything.
     const fresh: Snapshot = { date: '2026-07-25', quotes: { reit: 68629.36 } };
-    const got = pendingChange(assets, { energy: '60000' }, [fresh], on, 'uk');
-    expect(got).toEqual({ sum: 0, changed: 0 });
+    const got = pendingChange(assets, units, { energy: '60000' }, [fresh], on, 'uk');
+    expect(got).toEqual({ sum: 0, changed: 0, total: 4 });
+  });
+});
+
+describe("pendingChange — only the assets the day needs quoted count, over the pill's total", () => {
+  // 28.07 drafts against REIT's 27.07 quote and the others' 25.07.
+  const on = '2026-07-28';
+  const four = { reit: '68800', energy: '60100', ovdp6475: '4380', ovdp8976: '15900' };
+  const soldOut = ledgerUnits([...SEED_TRANSACTIONS, sale], on).units;
+
+  it('leaves a position sold out that day out of the net and of both counts', () => {
+    // 97,90 + 13,91 + 5,88; …8976's +53,70 against its 25.07 quote moves nothing 28.07 values.
+    const got = pendingChange(SEED_ASSETS, soldOut, four, snaps, on, 'uk');
+    expect(got.changed).toBe(3);
+    expect(got.total).toBe(3);
+    expect(got.sum).toBeCloseTo(117.69, 2);
+  });
+
+  it('reads nothing entered when only the sold-out position is drafted', () => {
+    expect(pendingChange(SEED_ASSETS, soldOut, { ovdp8976: '15900' }, snaps, on, 'uk')).toEqual({
+      sum: 0,
+      changed: 0,
+      total: 3,
+    });
+  });
+
+  it('counts all four on the seed, where all four are held', () => {
+    const units = ledgerUnits(SEED_TRANSACTIONS, on).units;
+    const got = pendingChange(SEED_ASSETS, units, four, snaps, on, 'uk');
+    expect(got.changed).toBe(4);
+    expect(got.total).toBe(4);
+    expect(got.sum).toBeCloseTo(171.39, 2);
   });
 });
 
@@ -176,14 +231,6 @@ describe('collectQuotes — what Save reads, and what it refuses', () => {
 });
 
 describe('quoteProgress — the pill counts only the assets the day needs quoted', () => {
-  const sale: Transaction = {
-    id: 's2',
-    date: '2026-07-01',
-    type: 'sell',
-    assetId: 'ovdp8976',
-    amount: 15800,
-    quantity: 15,
-  };
   const soldOut = ledgerUnits([...SEED_TRANSACTIONS, sale], '2026-07-28').units;
   const heldThree = { reit: 68702.1, energy: 60086.09, ovdp6475: 4374.12 };
 

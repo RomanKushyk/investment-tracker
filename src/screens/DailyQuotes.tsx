@@ -388,6 +388,7 @@ export function DailyQuotes() {
             })}
             <PendingChange
               assets={assets}
+              units={ledger.units}
               drafts={quotes}
               snapshots={snapshots}
               selectedDate={selectedDate}

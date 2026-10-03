@@ -38,6 +38,11 @@ export function collectQuotes(
   return { quotes, unreadable };
 }
 
+// The pill and the pending rail count over the same assets, so their «N з M» share one M.
+function neededAssets(assets: Asset[], units: Record<string, number>, date: string): Asset[] {
+  return assets.filter((a) => needsQuote(a, date, units[a.id]));
+}
+
 // The pill counts only the assets the day needs quoted, by the rule Balances reads a snapshot
 // as complete by: a quote typed for a position sold out that day is saved, and counts nowhere.
 // A day that needs none has nothing to count, so there is no pill rather than «0 з 0».
@@ -47,7 +52,7 @@ export function quoteProgress(
   date: string,
   quotes: Record<string, number>,
 ): { filled: number; total: number } | undefined {
-  const needed = assets.filter((a) => needsQuote(a, date, units[a.id]));
+  const needed = neededAssets(assets, units, date);
   if (needed.length === 0) return undefined;
   return { filled: needed.filter((a) => Object.hasOwn(quotes, a.id)).length, total: needed.length };
 }
@@ -96,19 +101,24 @@ export function yesterdayQuote(
 //
 // THE COMPARISON IS ROUNDED TO KOPIYKAS, because `===` on floats made "Copy
 // yesterday" — which changes nothing by definition — report a change.
+//
+// ONLY THE ASSETS THE DAY NEEDS QUOTED COUNT, the pill's: a quote for a position
+// held none of that day moves nothing the snapshot values.
 export function pendingChange(
   assets: Asset[],
+  units: Record<string, number>,
   drafts: Record<string, string | undefined>,
   snapshots: Snapshot[],
   selectedDate: string,
   lang: Lang,
-): { sum: number; changed: number } {
+): { sum: number; changed: number; total: number } {
   let sum = 0;
   let changed = 0;
+  const needed = neededAssets(assets, units, selectedDate);
   // The screen's own reading, not a second parse of the same string: only what
   // `collectQuotes` accepts counts.
-  const { quotes } = collectQuotes(drafts, assets, lang);
-  for (const a of assets) {
+  const { quotes } = collectQuotes(drafts, needed, lang);
+  for (const a of needed) {
     const value = quotes[a.id];
     if (value === undefined) continue;
     const baseline = yesterdayQuote(snapshots, a.id, selectedDate);
@@ -116,7 +126,7 @@ export function pendingChange(
     sum += value - baseline;
     changed += 1;
   }
-  return { sum, changed };
+  return { sum, changed, total: needed.length };
 }
 
 // Only snapshots actually saved through the Save button carry `savedAt`.
