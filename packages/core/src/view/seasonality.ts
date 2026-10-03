@@ -1,5 +1,10 @@
 // Pure data-shaping for the Seasonality screen. Covered by seasonality.test.ts.
-import { couponPerPayment, couponProjection, scheduledCouponMonths } from '../accrual';
+import {
+  couponPerPayment,
+  couponProjection,
+  owedCouponDate,
+  scheduledCouponMonths,
+} from '../accrual';
 import { investedByAsset, transactionsFromWindow, unitsByAsset } from '../derive';
 import type { PeriodWindow } from '../period';
 import type { Asset, Transaction } from '../types';
@@ -36,7 +41,7 @@ function expectedByDayOfMonth(
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id]);
+    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id], transactions);
     if (coupon === undefined) continue;
     const day = dayOfMonth(coupon.date);
     out[day] = (out[day] ?? 0) + coupon.amount;
@@ -89,7 +94,7 @@ function expectedByMonth(assets: Asset[], transactions: Transaction[]): Record<n
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id]);
+    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id], transactions);
     if (coupon === undefined) continue;
     for (const month of scheduledCouponMonths(a, transactions)) {
       out[month] = (out[month] ?? 0) + coupon.amount;
@@ -176,7 +181,7 @@ export function dominantExpectedAssetOnDay(
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id]);
+    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id], transactions);
     if (coupon === undefined || dayOfMonth(coupon.date) !== day) continue;
     if (coupon.amount > bestAmount) {
       bestAmount = coupon.amount;
@@ -225,20 +230,22 @@ export interface BondCouponInfo {
 // day-of-month — feeds the "Coupon season" card.
 export function bondCouponInfo(
   asset: Asset,
+  /** The months it has paid in are read here, which the caller may window. */
+  paid: Transaction[],
+  /** The whole ledger: the payment still owed depends on every unit ever bought. */
   transactions: Transaction[],
 ): BondCouponInfo | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
-  const historical = transactions
+  const historical = paid
     .filter((t) => t.type === 'interest_payout' && t.assetId === asset.id)
     .sort((a, b) => a.date.localeCompare(b.date));
-  const historicalMonths = historical.map((t) => Number(t.date.slice(5, 7))).sort((a, b) => a - b);
+  // In date order: the card names the first month it paid in, beside that payout's day.
+  const historicalMonths = historical.map((t) => Number(t.date.slice(5, 7)));
   const months = new Set(historicalMonths);
-  if (asset.nextCoupon) months.add(Number(asset.nextCoupon.slice(5, 7)));
-  const day = asset.nextCoupon
-    ? dayOfMonth(asset.nextCoupon)
-    : historical.length
-      ? dayOfMonth(historical[0].date)
-      : 0;
+  const owed = owedCouponDate(asset, transactions);
+  if (owed) months.add(Number(owed.slice(5, 7)));
+  // A paid day first: the payment still owed can be a short final coupon on the maturity.
+  const day = historical.length ? dayOfMonth(historical[0].date) : owed ? dayOfMonth(owed) : 0;
   return { day, months: [...months].sort((a, b) => a - b), historicalMonths };
 }
 
@@ -292,7 +299,10 @@ export function seasonalityView(input: LedgerInput & PeriodInput): SeasonalityVi
     // non-`fixed_coupon` asset.
     .filter((b): b is { asset: Asset; coupon: number } => b.coupon !== undefined)
     .sort((x, y) => y.coupon - x.coupon)
-    .map((b) => b.asset);
+    // The months a bond HAS PAID are read in window, or the card names a month the chart drew
+    // no bar for; the schedule half is a forecast. A bond with neither has no season to name.
+    .map((b) => ({ asset: b.asset, info: bondCouponInfo(b.asset, windowed, transactions) }))
+    .filter((b): b is { asset: Asset; info: BondCouponInfo } => !!b.info?.months.length);
   const bigBond = bonds[0];
   return {
     days: days.map((d) => ({
@@ -310,14 +320,13 @@ export function seasonalityView(input: LedgerInput & PeriodInput): SeasonalityVi
     anchorAsset,
     // WINDOWED, because the DAY this sentence names already is.
     anchorGrowth: anchorAsset ? anchorAssetGrowth(windowed, anchorAsset.id) : undefined,
-    bigBond,
-    // The months a bond HAS PAID are read in window, or the card names a month the chart drew
-    // no bar for; the schedule half is a forecast.
-    bigBondInfo: bigBond ? bondCouponInfo(bigBond, windowed) : undefined,
-    otherBonds: bonds.slice(1).map((asset) => {
-      const info = bondCouponInfo(asset, windowed);
-      return { asset, info, month: info?.historicalMonths[0] ?? info?.months[0] };
-    }),
+    bigBond: bigBond?.asset,
+    bigBondInfo: bigBond?.info,
+    otherBonds: bonds.slice(1).map(({ asset, info }) => ({
+      asset,
+      info,
+      month: info?.historicalMonths[0] ?? info?.months[0],
+    })),
     // Windowed too, to agree with the bars above it: under a narrow window it reports the quiet
     // the window made, a risk for the copy rather than the derivation.
     quiet: quietStretch(days),

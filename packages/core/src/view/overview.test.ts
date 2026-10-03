@@ -231,9 +231,8 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
   });
 
   it('rolls a COUPON too — the pointer is as stale as the accrual was', () => {
-    // `couponProjection` reads `nextCoupon` verbatim, and that field only ever moves
-    // through the confirm — so an unrecorded coupon leaves it frozen in the past
-    // exactly as the dividend was.
+    // `nextCoupon` only ever moves through the confirm, so an unrecorded coupon leaves
+    // it frozen in the past exactly as the dividend was; the card walks on from it.
     const bond = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!;
     const rows = nextPayoutRows([bond], [buy('ovdp8976')], '2026-09-01');
     expect(rows[0].date).toBe('2027-02-25'); // 25.08 was missed; the next is half a year on
@@ -253,6 +252,78 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
         expect(row.date >= on).toBe(true);
       }
     }
+  });
+});
+
+// The walk's occurrence, not the stored pointer: a coupon recorded ahead, or one the ledger held
+// none of at the end of the day before it, is not next. *Metric families and windows*
+describe('nextPayoutRows — a coupon the walk passes is not next', () => {
+  const sale = (date: string): Transaction => ({
+    id: 's2',
+    date,
+    type: 'sell',
+    assetId: 'ovdp8976',
+    amount: 15800,
+    quantity: 15,
+  });
+  const buyBack = (date: string): Transaction => ({
+    id: 'b9',
+    date,
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 5300,
+    quantity: 5,
+  });
+  const payout = (date: string): Transaction => ({
+    id: 'p9',
+    date,
+    type: 'interest_payout',
+    assetId: 'ovdp8976',
+    amount: 1240,
+  });
+  const bondRow = (rows: Transaction[], on: string) =>
+    nextPayoutRows(SEED_ASSETS, [...SEED_TRANSACTIONS, ...rows], on).find(
+      (r) => r.assetId === 'ovdp8976',
+    );
+
+  it('passes a coupon the ledger held none of on its record date', () => {
+    // Sold out on 01.07 and 5 bought back on the payment day: none were held at the end of 24.08.
+    expect(bondRow([sale('2026-07-01'), buyBack('2026-08-25')], '2026-08-20')?.date).toBe(
+      '2027-02-25',
+    );
+  });
+
+  it('passes a coupon recorded ahead of its date', () => {
+    expect(bondRow([payout('2026-08-20')], '2026-08-20')?.date).toBe('2027-02-25');
+  });
+
+  it('passes the occurrence after a missed one when it is recorded ahead, or not owed', () => {
+    // 25.08.2026 was never recorded. Stepping off it lands on 25.02.2027, which is settled by a
+    // payout five days early in one ledger and held none of on 24.02.2027 in the other.
+    expect(bondRow([payout('2027-02-20')], '2027-02-20')).toBeUndefined();
+    expect(bondRow([sale('2026-09-01'), buyBack('2027-02-25')], '2027-02-20')).toBeUndefined();
+  });
+
+  it('dates a maturity-only payment on or after the day, never before it', () => {
+    const maturityOnly = userBond({ couponAmount: 500, maturity: '2027-03-01' });
+    const buy: Transaction = {
+      id: 'b9',
+      date: '2026-07-27',
+      type: 'buy',
+      assetId: 'bond2',
+      amount: 10000,
+    };
+    expect(nextPayoutRows([maturityOnly], [buy], '2027-03-01')[0]?.date).toBe('2027-03-01');
+    expect(nextPayoutRows([maturityOnly], [buy], '2027-03-02')).toEqual([]);
+  });
+
+  it('passes a maturity-only payment recorded ahead, as it passes a coupon', () => {
+    const maturityOnly = userBond({ couponAmount: 500, maturity: '2027-03-01' });
+    const rows: Transaction[] = [
+      { id: 'b9', date: '2026-07-27', type: 'buy', assetId: 'bond2', amount: 10000, quantity: 10 },
+      { id: 'p9', date: '2027-02-26', type: 'interest_payout', assetId: 'bond2', amount: 500 },
+    ];
+    expect(nextPayoutRows([maturityOnly], rows, '2027-02-26')).toEqual([]);
   });
 });
 

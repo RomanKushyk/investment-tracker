@@ -12,6 +12,7 @@ import {
   dueCoupons,
   nextUnsettledCoupon,
   nextUnsettledCouponDate,
+  owedCouponDate,
   rollNextCoupon,
   rollbackNextCoupon,
   suggestedQuote,
@@ -404,6 +405,11 @@ describe('nextUnsettledCoupon', () => {
     expect(nextUnsettledCoupon(bond({ nextCoupon: '' }), [])).toBeUndefined();
     expect(nextUnsettledCoupon(bond({ yieldType: 'dividends' }), [])).toBeUndefined();
   });
+
+  it('passes an occurrence dated before the day it is asked from, and keeps one on it', () => {
+    expect(owedCouponDate(bond(), [], '2026-08-26')).toBe('2027-02-25');
+    expect(owedCouponDate(bond(), [], '2026-08-25')).toBe('2026-08-25');
+  });
 });
 
 // The record date: the NBU depository pays whoever holds the bond at the end of the day before.
@@ -429,6 +435,11 @@ describe('the walk passes an occurrence the ledger held none of on its record da
     // Bought back on the payment day itself: not that coupon, but the next one.
     const onTheDay = { ...buyBack, date: '2026-08-25' };
     expect(nextUnsettledCouponDate(bond(), [buy, sale('2026-07-01'), onTheDay])).toBe('2027-02-25');
+  });
+
+  it('dates the projection at the occurrence owed, not at the stored pointer', () => {
+    const rows = [buy, sale('2026-07-01'), buyBack];
+    expect(couponProjection(bond(), 15390, 5, rows)?.date).toBe('2027-02-25');
   });
 
   it('expects a later month only on units held on its record date', () => {
@@ -472,6 +483,19 @@ describe('the walk passes an occurrence the ledger held none of on its record da
     const rows = (back: string) => [buy, sale('2026-07-01'), backOn(back)];
     expect(scheduledCouponMonths(maturityOnly, rows('2026-12-10'))).toEqual([]);
     expect(scheduledCouponMonths(maturityOnly, rows('2026-12-01'))).toEqual([12]);
+    expect(couponProjection(maturityOnly, 3000, 3, rows('2026-12-10'))).toBeUndefined();
+    expect(couponProjection(maturityOnly, 3000, 3, rows('2026-12-01'))?.date).toBe('2026-12-10');
+  });
+
+  it('judges a maturity-only payment as the walk judges a coupon', () => {
+    const maturityOnly = bond({ nextCoupon: undefined, maturity: '2026-12-10' });
+    expect(owedCouponDate(maturityOnly, [buy])).toBe('2026-12-10');
+    // Recorded two days early, as a coupon recorded ahead is passed.
+    expect(
+      owedCouponDate(maturityOnly, [buy, tx({ id: 'p9', date: '2026-12-08' })]),
+    ).toBeUndefined();
+    const unreadable = bond({ nextCoupon: undefined, maturity: '2026-13-01' });
+    expect(owedCouponDate(unreadable, [buy])).toBeUndefined();
   });
 
   it('reads no occurrence off a date no calendar has, and throws on none', () => {
@@ -482,6 +506,9 @@ describe('the walk passes an occurrence the ledger held none of on its record da
     expect(dueCoupons([unreadable], [buy], '2027-01-05')).toEqual([]);
     const finalOnly = bond({ nextCoupon: undefined, maturity: '2026-13-01' });
     expect(() => scheduledCouponMonths(finalOnly, [buy])).not.toThrow();
+    // Reached by stepping: the roll clamps 25.02.2027 onto it once 25.08 is recorded.
+    const steppedOnto = bond({ maturity: '2026-13-01' });
+    expect(nextUnsettledCouponDate(steppedOnto, [buy, tx({ id: 'p1' })])).toBeUndefined();
   });
 
   it('still owes where the ledger cannot count the units', () => {
@@ -559,18 +586,18 @@ describe('rollNextCoupon', () => {
 
 describe('couponProjection', () => {
   it('uses the stated attributes when the asset carries them (the seed case)', () => {
-    expect(couponProjection(bond(), 15390, undefined)).toEqual({
+    expect(couponProjection(bond(), 15390, undefined, [])).toEqual({
       amount: 1240,
       date: '2026-08-25',
       estimated: false,
     });
     // Invested capital is irrelevant to a stated coupon.
-    expect(couponProjection(bond(), 0, undefined)?.amount).toBe(1240);
+    expect(couponProjection(bond(), 0, undefined, [])?.amount).toBe(1240);
   });
 
   it('estimates the amount from expectedPct × invested when no coupon is stated', () => {
     const user = bond({ couponAmount: undefined });
-    expect(couponProjection(user, 15390, undefined)).toEqual({
+    expect(couponProjection(user, 15390, undefined, [])).toEqual({
       amount: 1261.98,
       date: '2026-08-25',
       estimated: true,
@@ -580,30 +607,40 @@ describe('couponProjection', () => {
         bond({ couponAmount: undefined, payoutSchedule: 'monthly' }),
         15390,
         undefined,
+        [],
       ),
     ).toEqual({ amount: 210.33, date: '2026-08-25', estimated: true });
   });
 
   it('falls back to the maturity date when no next coupon is stated', () => {
-    expect(couponProjection(bond({ nextCoupon: undefined }), 15390, undefined)).toEqual({
+    expect(couponProjection(bond({ nextCoupon: undefined }), 15390, undefined, [])).toEqual({
       amount: 1240,
       date: '2027-02-25',
       estimated: false,
     });
+    // A legacy row can store an empty pointer, which names no coupon date either.
+    expect(couponProjection(bond({ nextCoupon: '' }), 15390, undefined, [])?.date).toBe(
+      '2027-02-25',
+    );
   });
 
   it('never invents a date or an amount', () => {
     expect(
-      couponProjection(bond({ nextCoupon: undefined, maturity: undefined }), 15390, undefined),
+      couponProjection(bond({ nextCoupon: undefined, maturity: undefined }), 15390, undefined, []),
     ).toBeUndefined();
-    expect(couponProjection(bond({ couponAmount: undefined }), 0, undefined)).toBeUndefined();
+    expect(couponProjection(bond({ couponAmount: undefined }), 0, undefined, [])).toBeUndefined();
     expect(
-      couponProjection(bond({ couponAmount: undefined, expectedPct: 0 }), 15390, undefined),
+      couponProjection(bond({ couponAmount: undefined, expectedPct: 0 }), 15390, undefined, []),
     ).toBeUndefined();
     expect(
-      couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'none' }), 15390, undefined),
+      couponProjection(
+        bond({ couponAmount: undefined, payoutSchedule: 'none' }),
+        15390,
+        undefined,
+        [],
+      ),
     ).toBeUndefined();
-    expect(couponProjection(bond({ yieldType: 'div_cap' }), 15390, undefined)).toBeUndefined();
+    expect(couponProjection(bond({ yieldType: 'div_cap' }), 15390, undefined, [])).toBeUndefined();
   });
 
   it('projects nothing for a bond sold out of a fractional holding', () => {
@@ -613,7 +650,7 @@ describe('couponProjection', () => {
       tx({ id: 'r', date: '2026-02-25', type: 'reinvest', amount: 1183.5, quantity: 1.1486 }),
       tx({ id: 's', date: '2026-07-01', type: 'sell', amount: 16900, quantity: 16.1486 }),
     ];
-    expect(couponProjection(bond(), 15390, unitsByAsset(txs).ovdp8976)).toBeUndefined();
+    expect(couponProjection(bond(), 15390, unitsByAsset(txs).ovdp8976, txs)).toBeUndefined();
   });
 });
 
@@ -767,9 +804,8 @@ describe('scheduledCouponMonths — D-5, answered forward', () => {
   });
 
   it('answers for a bond with a maturity and NO nextCoupon (F-18)', () => {
-    // `couponProjection` falls back to the maturity date and still projects where
-    // `bondCouponInfo` does not, which is why the two axes could disagree about one
-    // bond. This matches the projection.
+    // The maturity is the anchor `couponProjection` and `bondCouponInfo` read too, through
+    // `owedCouponDate`, so the axes and the card agree about one bond.
     expect(scheduledCouponMonths(bond({ nextCoupon: undefined }), [])).toEqual([2]);
   });
 

@@ -119,8 +119,9 @@ count them, from its first purchase on, and Balances' complete row, the quote-mi
 `/`'s progress pill ask by that one rule, which `/`'s pending-change block counts by too; a coupon
 or a redemption is owed only while the ledger
 holds units at the end of the day before its date, or cannot count them, and the coupon and
-maturity reminders, `/`'s coupon card, `/attributes`' next coupon and Seasonality's expected coupon
-months pass one it held none of; a position held, or uncounted, that no snapshot values, never
+maturity reminders, `/`'s coupon card, `/attributes`' next coupon, the next payouts on Overview and
+Payouts, and Seasonality's expected coupons and coupon-season card pass one it held none of; a
+position held, or uncounted, that no snapshot values, never
 quoted or bought back since the last valuation day, has its own value, share and capital gain
 ABSENT and the rebalance plan proposes nothing for it, while one the ledger holds none of, or that
 no row moves and no snapshot quotes, is worth 0; the close of Overview's capital gain and of

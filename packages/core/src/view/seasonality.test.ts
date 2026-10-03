@@ -13,7 +13,9 @@ import {
   seasonalityDaysIn,
   seasonalityMonths,
   seasonalityMonthsIn,
+  seasonalityView,
 } from './seasonality';
+import { scheduledCouponMonths } from '../accrual';
 import { buildSeedSnapshots } from '../seed';
 import { resolveWindow } from '../period';
 import type { PeriodOption } from '../period';
@@ -127,6 +129,7 @@ describe('bondCouponInfo', () => {
     const info = bondCouponInfo(
       SEED_ASSETS.find((a) => a.id === 'ovdp8976')!,
       SEED_TRANSACTIONS,
+      SEED_TRANSACTIONS,
     )!;
     expect(info.day).toBe(25);
     expect(info.months).toEqual([2, 8]);
@@ -135,6 +138,7 @@ describe('bondCouponInfo', () => {
   it('…6475: historical June, day 3', () => {
     const info = bondCouponInfo(
       SEED_ASSETS.find((a) => a.id === 'ovdp6475')!,
+      SEED_TRANSACTIONS,
       SEED_TRANSACTIONS,
     )!;
     expect(info.day).toBe(3);
@@ -146,8 +150,124 @@ describe('bondCouponInfo', () => {
       bondCouponInfo(
         SEED_ASSETS.find((a) => a.id === 'reit')!,
         SEED_TRANSACTIONS,
+        SEED_TRANSACTIONS,
       ),
     ).toBeUndefined();
+  });
+});
+
+// The card forecasts the walk's occurrence, not the stored pointer, over the whole ledger: the
+// paid months are the window's, the coupon still owed is not. *Metric families and windows*
+describe('bondCouponInfo — the forecast is the occurrence the ledger is owed', () => {
+  const b8976 = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!;
+  // …8976's 15 units sold on 01.07 and 5 bought back on 01.09: none were held at the end of 24.08.
+  const boughtBack: Transaction[] = [
+    ...SEED_TRANSACTIONS,
+    {
+      id: 's2',
+      date: '2026-07-01',
+      type: 'sell',
+      assetId: 'ovdp8976',
+      amount: 15800,
+      quantity: 15,
+    },
+    { id: 'b9', date: '2026-09-01', type: 'buy', assetId: 'ovdp8976', amount: 5300, quantity: 5 },
+  ];
+  const view = (period: PeriodOption) =>
+    seasonalityView({
+      assets: SEED_ASSETS,
+      snapshots: buildSeedSnapshots(),
+      transactions: boughtBack,
+      period,
+    });
+
+  it('names February alone after a buy-back on 01.09, as the expected months do', () => {
+    const info = bondCouponInfo(b8976, boughtBack, boughtBack)!;
+    expect(info.months).toEqual([2]);
+    expect(info.day).toBe(25);
+    expect(scheduledCouponMonths(b8976, boughtBack)).toEqual([2]);
+    const all = view('all');
+    expect(all.bigBond?.id).toBe('ovdp8976');
+    expect(all.bigBondInfo?.months).toEqual([2]);
+  });
+
+  it('reads the coupon owed over the whole ledger under a window that drops the purchase', () => {
+    // Under 3 months the window opens after the 05.02 purchase and the 25.02 coupon, so only the
+    // sale and the buy-back are inside it.
+    const q = view('3m');
+    expect(q.bigBondInfo?.historicalMonths).toEqual([]);
+    expect(q.bigBondInfo?.months).toEqual([2]);
+    expect(q.bigBondInfo?.day).toBe(25);
+  });
+
+  it('names no bond with nothing paid in the window and nothing still owed', () => {
+    // …8976's final coupon confirmed, so the pointer stays on it and the walk owes nothing; under
+    // 1 month to 10.04.2027 the window holds none of its payouts.
+    const assets = SEED_ASSETS.map((a) =>
+      a.id === 'ovdp8976' ? { ...a, nextCoupon: '2027-02-25' } : a,
+    );
+    const paid = (id: string, date: string): Transaction => ({
+      id,
+      date,
+      type: 'interest_payout',
+      assetId: 'ovdp8976',
+      amount: 1240,
+    });
+    const at = (period: PeriodOption) =>
+      seasonalityView({
+        assets,
+        snapshots: [...buildSeedSnapshots(), { date: '2027-04-10', quotes: {} }],
+        transactions: [...SEED_TRANSACTIONS, paid('p8', '2026-08-25'), paid('p9', '2027-02-25')],
+        period,
+      });
+    const month = at('1m');
+    expect(month.bigBond?.id).toBe('ovdp6475');
+    expect(month.bigBondInfo?.months).toEqual([12]);
+    expect(month.otherBonds).toEqual([]);
+    expect(at('all').bigBond?.id).toBe('ovdp8976');
+  });
+
+  it('names the day of a payment it names, not the short final coupon still owed', () => {
+    // …6475's 03.12 coupon recorded: the walk owes the 27.05.2027 maturity, while the card names
+    // June, which it paid on the 3rd.
+    const view = seasonalityView({
+      assets: SEED_ASSETS,
+      snapshots: [...buildSeedSnapshots(), { date: '2026-12-10', quotes: {} }],
+      transactions: [
+        ...SEED_TRANSACTIONS,
+        { id: 'p9', date: '2026-12-03', type: 'interest_payout', assetId: 'ovdp6475', amount: 216 },
+      ],
+      period: 'all',
+    });
+    const b6475 = view.otherBonds.find((o) => o.asset.id === 'ovdp6475');
+    expect(b6475?.month).toBe(6);
+    expect(b6475?.info?.day).toBe(3);
+  });
+
+  it('names the month of the first payout, whose day it names, across a year boundary', () => {
+    // Paid on 26.08.2025 and 12.02.2026 before the seed's 03.06: February is the lowest month
+    // number, but August is the first it paid in.
+    const view = seasonalityView({
+      assets: SEED_ASSETS,
+      snapshots: buildSeedSnapshots(),
+      transactions: [
+        ...SEED_TRANSACTIONS,
+        {
+          id: 'x1',
+          date: '2025-07-01',
+          type: 'buy',
+          assetId: 'ovdp6475',
+          amount: 1000,
+          quantity: 1,
+        },
+        { id: 'x2', date: '2025-08-26', type: 'interest_payout', assetId: 'ovdp6475', amount: 54 },
+        { id: 'x3', date: '2026-02-12', type: 'interest_payout', assetId: 'ovdp6475', amount: 54 },
+      ],
+      period: 'all',
+    });
+    const b6475 = view.otherBonds.find((o) => o.asset.id === 'ovdp6475');
+    expect(b6475?.month).toBe(8);
+    expect(b6475?.info?.day).toBe(26);
   });
 });
 

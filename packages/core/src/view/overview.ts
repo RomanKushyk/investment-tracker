@@ -1,6 +1,6 @@
 // Pure glue for the Overview screen's derived cards; structured tokens only.
 import type { PeriodWindow } from '../period';
-import { couponProjection, rollNextCoupon } from '../accrual';
+import { couponProjection } from '../accrual';
 import { addMonths, dayBefore, latestSnapshotDate } from '../dates';
 import {
   allocationDeltaPp,
@@ -199,25 +199,8 @@ function rollMonthlyTo(date: string, monthsPer: number, onIso: string): string {
   return out;
 }
 
-/** The coupon half of the same roll, needed for the same reason: the stored pointer
- *  only moves through the confirm, so an unrecorded coupon leaves it frozen in the
- *  past. It steps with the SAME stepper the confirm writes with, so this card cannot
- *  show a date the roll would not produce. A missed occurrence is NOT hidden by it —
- *  this answers "what comes next", not "what did you forget". */
-function rollCouponTo(asset: Asset, date: string, onIso: string): string | undefined {
-  let out = date;
-  for (let i = 0; i < MAX_STEPS && out < onIso; i++) {
-    const roll = rollNextCoupon(asset, out);
-    if (roll === undefined || roll.kind === 'matured') return undefined;
-    out = roll.nextCoupon;
-  }
-  return out < onIso ? undefined : out;
-}
-
-// A dividend row estimates from the latest accrual, so it is always `approx`. AN ASSET
-// THE CARD CANNOT ANSWER FOR IS OMITTED IN SILENCE: no schedule, nothing to estimate
-// from, a bond already matured, or a `maturity` schedule — whose zero months make the
-// falsy guard below deliberate.
+// A dividend row estimates from the latest accrual, so it is always `approx`; a coupon is the
+// walk's first occurrence from the day on. AN ASSET THE CARD CANNOT ANSWER FOR IS OMITTED IN SILENCE.
 export function nextPayoutRows(
   assets: Asset[],
   transactions: Transaction[],
@@ -229,17 +212,21 @@ export function nextPayoutRows(
 
   for (const asset of assets) {
     if (asset.yieldType === 'fixed_coupon') {
-      const coupon = couponProjection(asset, invested[asset.id] ?? 0, units[asset.id]);
+      const coupon = couponProjection(
+        asset,
+        invested[asset.id] ?? 0,
+        units[asset.id],
+        transactions,
+        onIso,
+      );
       if (coupon === undefined) continue;
-      const date = rollCouponTo(asset, coupon.date, onIso);
-      if (date === undefined) continue; // matured before the reference date
       rows.push({
         assetId: asset.id,
         kind: 'coupon',
         assetRef: `…${asset.name.slice(-4)}`,
         amount: coupon.amount,
         approx: coupon.estimated,
-        date,
+        date: coupon.date,
       });
       continue;
     }
@@ -254,6 +241,7 @@ export function nextPayoutRows(
     const monthsPer = { monthly: 1, quarterly: 3, semiannual: 6, maturity: 0 }[
       asset.payoutSchedule
     ];
+    // Falsy on purpose: a `maturity` schedule has 0 months.
     if (!monthsPer) continue;
     rows.push({
       assetId: asset.id,

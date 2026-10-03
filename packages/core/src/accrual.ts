@@ -229,9 +229,29 @@ export function nextUnsettledCouponDate(
   transactions: Transaction[],
   opts: CouponWalkOptions = {},
 ): string | undefined {
+  return walkFrom(asset, asset.nextCoupon, transactions, opts, undefined);
+}
+
+/** The payment still owed, none before `onOrAfter`. With no coupon date stored, the maturity is the
+ *  one occurrence, judged as a coupon is. The projection and the schedule anchor on it. */
+export function owedCouponDate(
+  asset: Asset,
+  transactions: Transaction[],
+  onOrAfter?: string,
+): string | undefined {
+  return walkFrom(asset, asset.nextCoupon || asset.maturity, transactions, {}, onOrAfter);
+}
+
+function walkFrom(
+  asset: Asset,
+  start: string | undefined,
+  transactions: Transaction[],
+  opts: CouponWalkOptions,
+  onOrAfter: string | undefined,
+): string | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
-  let date = asset.nextCoupon;
-  if (!date || noCalendarDate(date)) return undefined;
+  let date = start;
+  if (!date) return undefined;
 
   const windowDays = opts.windowDays ?? COUPON_MATCH_WINDOW_DAYS;
   const dismissed = opts.dismissed ?? [];
@@ -244,10 +264,13 @@ export function nextUnsettledCouponDate(
   );
 
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
-    const settled =
+    // The start or a step: a maturity no calendar has is reached by clamping onto it.
+    if (noCalendarDate(date)) return undefined;
+    const passed =
+      (onOrAfter !== undefined && date < onOrAfter) ||
       couponRecorded(own, asset.id, date, windowDays) ||
       dismissed.includes(couponReminderId(asset.id, date));
-    if (!settled) {
+    if (!passed) {
       if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) return date;
       if (lastRow < date) return undefined;
     }
@@ -339,8 +362,8 @@ export interface CouponProjection {
 
 /**
  * Neither attribute is required: the amount falls back to the per-period share
- * of `expectedPct × invested` and the date to `maturity`. NO DATE IS EVER
- * INVENTED — with neither, the projection stays absent.
+ * of `expectedPct × invested`, and the date is `owedCouponDate`'s. NO DATE IS EVER
+ * INVENTED — with nothing owed, the projection stays absent.
  */
 export function couponProjection(
   asset: Asset,
@@ -350,14 +373,17 @@ export function couponProjection(
    * the whole-position figure AND skip the closed-position guard below.
    */
   units: number | undefined,
+  /** Walked for the date: the stored pointer may be settled, or not owed. */
+  transactions: Transaction[],
+  onOrAfter?: string,
 ): CouponProjection | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
-  const date = asset.nextCoupon || asset.maturity;
+  // A CLOSED POSITION PROJECTS NOTHING, asked BEFORE the estimate and the walk: `investedByAsset`
+  // ignores a `sell`, so a sold-out bond would keep projecting, relabelled `estimated: true`.
+  if (units !== undefined && units <= 0) return undefined;
+  const date = owedCouponDate(asset, transactions, onOrAfter);
   if (!date) return undefined;
 
-  // A CLOSED POSITION PROJECTS NOTHING, asked BEFORE the estimate: `investedByAsset` ignores a
-  // `sell`, so a sold-out bond would keep projecting, relabelled `estimated: true`.
-  if (units !== undefined && units <= 0) return undefined;
   const stated = couponPerPayment(asset, units);
   if (stated !== undefined && stated > 0) return { amount: stated, date, estimated: false };
 
@@ -376,8 +402,7 @@ export function scheduledCouponMonths(asset: Asset, transactions: Transaction[])
   const own = transactions.filter((t) => t.assetId === asset.id);
   // The DATE-ONLY walk: the amount would cost a full ledger traversal per asset
   // per render, and this never reads it.
-  const open = nextUnsettledCouponDate(asset, own);
-  const anchor = open ?? (asset.nextCoupon === undefined ? asset.maturity : undefined);
+  const anchor = owedCouponDate(asset, own);
   if (anchor === undefined) return [];
 
   let date = anchor;
