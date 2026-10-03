@@ -1,6 +1,7 @@
 ---
 name: plan-epic
 description: 'Use when the owner hands over a multi-part ask — a pre-plan, a feature paragraph, "let''s build X", a list of wishes — that will not fit one issue and one branch, or asks to plan, decompose, or turn something into an epic; also when triage finds an issue whose parts need research or sequencing (a plain two-way split stays triage-issue''s step 3). Not for a single bug or a one-branch change (that is triage-issue) and not for executing an issue (work-issue).'
+model: fable
 ---
 
 # Plan an epic
@@ -71,7 +72,7 @@ S2=$(gh issue create --repo $R --title "<Epic>: <change 2>" --body-file "$D/sub-
 gh issue edit $S1 --repo $R --parent $E $M; gh issue edit $S2 --repo $R --parent $E $M   # every sub-issue, adopted ones too
 gh issue edit $S2 --repo $R --add-blocked-by $S1                                     # every edge from step 4, one call per edge
 ```
-Then: ONE `gh project item-list 2 --owner RomanKushyk --format json --limit 500 > "$D/items.json"`, read the item ids from it, `gh project item-edit` each new or adopted issue and the epic to `Ready`; verify with one more item-list fetch, not one per issue; rewrite the epic's `## Scope` table with the real numbers (`gh issue edit $E --repo $R --body-file "$D/epic.md"`); report `#E` and the sub-issue numbers. GitHub's GraphQL budget is small — never fetch the item list per issue, never poll.
+Then: ONE `gh project item-list 2 --owner RomanKushyk --format json --limit 500 > "$D/items.json"`, read the item ids from it, `gh project item-edit` each new or adopted issue and the epic to `Ready`; verify with one more item-list fetch, not one per issue; rewrite the epic's `## Scope` table with the real numbers (`gh issue edit $E --repo $R --body-file "$D/epic.md"`); report `#E` and the sub-issue numbers. Last, run the `order-milestone` skill: the new cards sit at the bottom of the board. GitHub's GraphQL budget is small — never fetch the item list per issue, never poll.
 
 ## Rules that hold throughout
 - Research lives in subagent reports and search results, cited by `file:line` and URL; you read reports, not the codebase.

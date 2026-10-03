@@ -676,13 +676,17 @@ check can verify — one issue, one branch, closed by `Closes #N`. Milestones ar
 open issue, once triaged, sits in the version milestone it is planned for, none below the next
 release; work is picked from the lowest open one, so milestone order is work order, except that an
 `observation` is picked once the date in its title has come, whatever its milestone, and never
-before. Delete, never archive; a figure lives in a test or not at all; `CLAUDE.md` is rules.
+before. Inside that milestone the order of its cards on the Project board is the pick order when
+the owner names no issue, a `bug` first; the `order-milestone` skill rewrites it after a triage, a
+planned epic and a version cut. Delete, never archive; a figure lives in a test or not at all;
+`CLAUDE.md` is rules.
 **Why.** A task list in two places disagrees with itself. An issue with no milestone has no place in
 that order, and the sort decays one triage at a time; an observation waits for its day, not its
 turn. A figure written into prose goes stale in silence and passes every gate; a test fails.
 **Rejected.** Jira or ticket keys: one person, no board. · A `Backlog` milestone: it holds exactly
-the issues nobody has ordered. · Documentation ratchets: a guard bumped on every routine edit is a
-rehearsal for bumping it unread.
+the issues nobody has ordered. · A pick-order file in the repository: a closed issue stays in it
+until the next triage, where a closed card leaves its column by itself. · Documentation ratchets: a
+guard bumped on every routine edit is a rehearsal for bumping it unread.
 
 ## Review, gates, tests
 **Decision.** `/code-review` runs on the whole branch diff before every squash-merge, documentation

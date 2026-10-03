@@ -1,6 +1,7 @@
 ---
 name: triage-issue
 description: 'Turn a raw GitHub issue (Project Status "Triage") into a Ready one — reproduce, write the standard body with acceptance criteria, set labels, relations and milestone, move it to Ready. Use at session start when the Triage column is non-empty, or when asked to triage, groom or refine an issue. Never writes code.'
+model: opus
 ---
 
 # Triage an issue
@@ -27,3 +28,5 @@ For each issue in `triage_list` (skip closed ones):
 6. `set_status N Ready`.
 
 Definition of Ready, checked before step 6: original preserved · context says why · scope fits one branch · every criterion verifiable · type and area labels · relations set · planned version milestone set. **No code is written during triage.**
+
+After the last issue, run the `order-milestone` skill: triage changed what can be picked next.

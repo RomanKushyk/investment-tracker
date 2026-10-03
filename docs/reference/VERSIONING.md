@@ -92,6 +92,8 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
    **Carrying is mechanical; fitting is not.** A patch takes no new capability (the MINOR row below; [semver.org §6](https://semver.org/#spec-item-6)), so a carried issue that is one is re-placed by the triage rule in this same step — carried into the lowest open milestone, it is pickable at once. No label decides it: a patch milestone can rightly hold an `enhancement` that changes nothing a user sees.
 
+   **Then the board.** Run the `order-milestone` skill: the next milestone is now the lowest open one, and its cards are not yet on top of the board.
+
 ## When to bump what (SemVer)
 
 | Part | Bump when |
