@@ -88,7 +88,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(8);
+    expect(env.formatVersion).toBe(9);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -319,13 +319,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 9 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 9)));
+  it('rejects formatVersion 10 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 10)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 9/);
-    expect(result.issues[0]).toMatch(/formatVersion 8/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 10/);
+    expect(result.issues[0]).toMatch(/formatVersion 9/);
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
@@ -351,19 +351,18 @@ describe('parseBackup rejections', () => {
   });
 
   it('refuses a file the PREVIOUS build wrote, on the VERSION and not per row', () => {
-    // Every formatVersion 7 snapshot carried a cash balance. Without the bump the refusal
-    // arrives as one `unrecognized_keys` per snapshot — a wall of 174 row errors for one
-    // fact about the file.
+    // A formatVersion 8 build read `2026-02-30` as a date. Without the bump its file is
+    // refused once per such row, naming a date instead of the file's version.
     const result = parseBackup(
       mutated((env) => {
-        env.formatVersion = 7;
-        for (const row of env.snapshots as Record<string, unknown>[]) row.cash = 7.75;
+        env.formatVersion = 8;
+        for (const row of env.transactions as Record<string, unknown>[]) row.date = '2026-02-30';
       }),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 7/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 8/);
   });
 
   it('refuses an unknown key by CODE and key list, never by the message', () => {
@@ -427,7 +426,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(8);
+    expect(env.formatVersion).toBe(9);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -900,5 +899,61 @@ describe('a note of whitespace is a note nobody typed', () => {
       );
       expect(result.ok, JSON.stringify(note)).toBe(false);
     }
+  });
+});
+
+describe('a backup’s dates are calendar dates (#341)', () => {
+  // RFC 3339 §5.7 bounds the day by its month and year: `addDays` throws on `2026-13-01`,
+  // and `Date` reads `2026-02-30` as 02.03.
+  type Row = Record<string, unknown>;
+  // The five date fields the rows carry, one setter each.
+  const FIELDS: Record<string, (env: Row, v: string) => void> = {
+    'assets.0.firstPurchase': (env, v) => void ((env.assets as Row[])[0].firstPurchase = v),
+    'assets.0.maturity': (env, v) => void ((env.assets as Row[])[0].maturity = v),
+    'assets.0.nextCoupon': (env, v) => void ((env.assets as Row[])[0].nextCoupon = v),
+    'snapshots.0.date': (env, v) => void ((env.snapshots as Row[])[0].date = v),
+    'transactions.0.date': (env, v) => void ((env.transactions as Row[])[0].date = v),
+  };
+  const dated = (path: string, value: string) =>
+    parseBackup(mutated((env) => FIELDS[path](env, value)));
+  const refused = (path: string) => ({
+    ok: false,
+    issues: [`${path}: expected a real date (yyyy-MM-dd)`],
+  });
+
+  it('refuses a month no calendar has, naming the field', () => {
+    expect(dated('assets.0.nextCoupon', '2026-13-01')).toEqual(refused('assets.0.nextCoupon'));
+  });
+
+  it('refuses a day its month does not have', () => {
+    expect(dated('transactions.0.date', '2026-02-30')).toEqual(refused('transactions.0.date'));
+    expect(dated('snapshots.0.date', '2026-04-31')).toEqual(refused('snapshots.0.date'));
+    // The 31st itself is fine in a month that has one.
+    expect(dated('snapshots.0.date', '2026-03-31').ok).toBe(true);
+  });
+
+  it('reads February 29 by the year, centuries included', () => {
+    expect(dated('assets.0.maturity', '2028-02-29').ok).toBe(true);
+    expect(dated('assets.0.maturity', '2000-02-29').ok).toBe(true);
+    expect(dated('assets.0.maturity', '2026-02-29')).toEqual(refused('assets.0.maturity'));
+    expect(dated('assets.0.maturity', '2100-02-29')).toEqual(refused('assets.0.maturity'));
+  });
+
+  it('holds each of the five date fields to the calendar', () => {
+    for (const path of Object.keys(FIELDS)) {
+      expect(dated(path, '2026-02-30'), path).toEqual(refused(path));
+    }
+  });
+
+  it('leaves a missing date to zod’s own words', () => {
+    // The sentence describes a date that cannot be; an absent one is another fault.
+    const result = parseBackup(
+      mutated((env) => void delete (env.assets as Row[])[0].firstPurchase),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/^assets\.0\.firstPurchase: /);
+    expect(result.issues[0]).not.toMatch(/real date/);
   });
 });

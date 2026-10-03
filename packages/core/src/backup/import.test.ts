@@ -209,14 +209,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 9 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 9)));
+  it('rejects formatVersion 10 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 10)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(9);
+    expect(result.rejection.version).toBe(10);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 9 — this app reads formatVersion 8 only.',
+      'Unsupported formatVersion 10 — this app reads formatVersion 9 only.',
     );
   });
 
@@ -235,7 +235,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 9;
+        env.formatVersion = 10;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -536,6 +536,23 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     });
   });
 
+  it('names a date no calendar has with the date code (#341)', () => {
+    const result = validateImport(
+      mutated(
+        (env) => void ((env.transactions as Record<string, unknown>[])[0].date = '2026-02-30'),
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok || result.rejection.kind !== 'rows') return;
+    expect(result.rejection.issues).toHaveLength(1);
+    expect(result.rejection.issues[0]).toMatchObject({
+      table: 'transactions',
+      at: 'd1',
+      field: 'date',
+      code: 'expected-date',
+    });
+  });
+
   it('keeps envelope-level and settings issues out of the row tables', () => {
     const result = validateImport(mutated((env) => void (env.dataset = 'staging')));
     expect(result.ok).toBe(false);
@@ -781,7 +798,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 8');
+    expect(result.rejection.detail).toContain('formatVersion 9');
   });
 });
 

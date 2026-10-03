@@ -22,19 +22,22 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * starts requiring a count accepts strictly less than the one before it. A WRITER
  * NARROWING bumps nothing: `buildBackup` projecting its rows leaves the parser as it was.
  *
- * "No build ever WROTE that shape" is not an exemption, and was tried: true about
- * the writer and beside the point. Two live sites run from two branches, so a dev
- * backup cannot be imported into production between a merge and the next
- * promotion — and without the bump that refusal arrives as a wall of per-row
- * errors for one fact.
+ * "No build ever WROTE that shape" is not an exemption: true about the writer and
+ * beside the point. Two live sites run from two branches, so a dev backup cannot be
+ * imported into production between a merge and the next promotion — and without
+ * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 8;
+export const BACKUP_FORMAT_VERSION = 9;
 
 export type Dataset = 'demo' | 'live';
 
+// A CALENDAR date (RFC 3339 §5.7), not a shape: `Date` rolls `2026-02-30` into March.
+// Any string that is not one takes the sentence; a missing or non-string value keeps zod's.
+const isoDate = z.iso.date({
+  error: (iss) => (iss.code === 'invalid_format' ? 'expected a real date (yyyy-MM-dd)' : undefined),
+});
 // Timezone-less ISO by PLAIN REGEX, deliberately NOT `z.iso.datetime()`: the
 // pinned convention is `toISOString().slice(0, 19)`, so offsets are rejected.
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected yyyy-MM-dd');
 const isoDateTime = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, 'expected timezone-less yyyy-MM-ddTHH:mm:ss');
