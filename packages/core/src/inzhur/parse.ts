@@ -118,11 +118,16 @@ const entrySchema = z.object({
 });
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// A written day, bare or leading an instant; `z.regexes.date` is its calendar check.
+const WRITTEN_DAY = /^\d{4}-\d{2}-\d{2}(?!\d)/;
 
 // `paymentSchedule` dates are instants at MIDNIGHT KYIV, so they must be read in
 // Kyiv time or they land a day early and contradict `maturityDate`.
 function feedDate(raw: string): string | undefined {
   const value = raw.trim();
+  // A CALENDAR day, not a shape: V8 reads `2026-02-30`, bare or as an instant, as March 2.
+  // A day written as `yyyy-MM-dd` that no calendar has is unreadable, never guessed at.
+  if (WRITTEN_DAY.test(value) && !z.regexes.date.test(value.slice(0, 10))) return undefined;
   if (ISO_DATE.test(value)) return value;
   const ms = Date.parse(value);
   return Number.isNaN(ms) ? undefined : kyivDateIso(new Date(ms));

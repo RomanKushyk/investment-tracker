@@ -271,6 +271,49 @@ describe('tolerance — a bad entry never kills the parse', () => {
     expect(parsed.entries[0].paymentSchedule).toEqual([{ date: '2026-09-23', amount: 78.4 }]);
   });
 
+  it('reads a day no calendar has as unreadable — bare, or as an instant', () => {
+    // V8 rolls `2026-02-30` into March 2, bare or as an instant. A guess is not a reading:
+    // the maturity is left off and the payment skipped, as an unparseable value is.
+    const payload = [
+      {
+        slug: 'ovdp',
+        assetDetails: {
+          isin: 'UA4000238976',
+          maturityDate: '2027-02-30',
+          prices: { sellUAH: 1057.67 },
+          paymentSchedule: [
+            { date: '2026-02-30', amount: '7840' },
+            { date: '2026-02-30T21:00:00.000Z', amount: '7840' },
+            { date: '2026-09-22T21:00:00.000Z', amount: '7840' },
+          ],
+        },
+      },
+    ];
+    const parsed = parseAssetsFeed(payload);
+    expect(parsed.skipped).toEqual([]);
+    expect(parsed.entries[0].maturity).toBeUndefined();
+    expect(parsed.entries[0].paymentSchedule).toEqual([{ date: '2026-09-23', amount: 78.4 }]);
+  });
+
+  it('still reads a leap day, bare or as an instant', () => {
+    // No fixture carries a 29 February, so this is the one test a February check
+    // without leap years would fail.
+    const payload = [
+      {
+        slug: 'ovdp',
+        assetDetails: {
+          isin: 'UA4000238976',
+          maturityDate: '2028-02-29',
+          prices: { sellUAH: 1057.67 },
+          paymentSchedule: [{ date: '2028-02-29T21:00:00.000Z', amount: '7840' }],
+        },
+      },
+    ];
+    const parsed = parseAssetsFeed(payload);
+    expect(parsed.entries[0].maturity).toBe('2028-02-29');
+    expect(parsed.entries[0].paymentSchedule).toEqual([{ date: '2028-02-29', amount: 78.4 }]);
+  });
+
   it('reports a payload that is not an array', () => {
     const notAnArray = { entries: [], skipped: [{ ref: '(root)', reason: 'not_an_array' }] };
     expect(parseAssetsFeed({ assets: [] })).toEqual(notAnArray);

@@ -158,6 +158,15 @@ describe('transactionSchema', () => {
     ).toBe(true);
     expect(transactionSchema('en').safeParse({ ...base, type: 'redemption' }).success).toBe(true);
   });
+
+  it('refuses a date no calendar has, and reads a leap day', () => {
+    // THE SCHEMA, NOT THE PICKER, holds the date to the calendar: the backup refuses
+    // `2026-02-30` on this field (#341), whatever door wrote it.
+    for (const date of ['2026-02-30', '2026-13-01', 'nonsense']) {
+      expect(transactionSchema('en').safeParse({ ...base, date }).success, date).toBe(false);
+    }
+    expect(transactionSchema('en').safeParse({ ...base, date: '2028-02-29' }).success).toBe(true);
+  });
 });
 
 describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
@@ -320,6 +329,26 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
       assetFormSchema('create', 'en').safeParse({ ...base, maturity: '25.02.2027' }).success,
     ).toBe(false);
     expect(assetFormSchema('create', 'en').safeParse({ ...base, maturity: '' }).success).toBe(true);
+  });
+
+  it('refuses a day no calendar has in every date field, and still takes the optionals empty', () => {
+    // A CALENDAR date, not a shape: the backup refuses `2026-02-30` on these same fields
+    // (#341).
+    for (const field of ['firstPurchase', 'maturity', 'nextCoupon'] as const) {
+      for (const date of ['2026-02-30', '2026-13-01']) {
+        expect(
+          assetFormSchema('create', 'en').safeParse({ ...base, [field]: date }).success,
+          `${field}=${date}`,
+        ).toBe(false);
+      }
+      expect(
+        assetFormSchema('create', 'en').safeParse({ ...base, [field]: '2028-02-29' }).success,
+        field,
+      ).toBe(true);
+    }
+    const parsed = assetFormSchema('create', 'en').parse({ ...base, maturity: '', nextCoupon: '' });
+    expect(parsed.maturity).toBeUndefined();
+    expect(parsed.nextCoupon).toBeUndefined();
   });
 });
 

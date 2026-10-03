@@ -162,7 +162,9 @@ export function percentInputSchemaFor(lang: Lang) {
   return PERCENT_INPUT[lang];
 }
 
-const isoDateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+// A CALENDAR date (RFC 3339 §5.7), not a shape: the backup refuses `2026-02-30` on these
+// same fields, and a date the export refuses leaves the data unrestorable.
+const isoDateInput = z.iso.date();
 
 const optionalDate = z
   .string()
@@ -244,7 +246,7 @@ export type AssetFormValues = z.output<ReturnType<typeof assetFormSchema>>;
 function transactionObjectFor(lang: Lang) {
   const groupsWithComma = groupsWithCommaFor(lang);
   return z.object({
-    date: z.string().min(1),
+    date: isoDateInput,
     type: z.enum([
       'buy',
       'sell',
