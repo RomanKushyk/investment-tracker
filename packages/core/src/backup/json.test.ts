@@ -88,7 +88,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(9);
+    expect(env.formatVersion).toBe(10);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -319,13 +319,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 10 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 10)));
+  it('rejects formatVersion 11 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 11)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 10/);
-    expect(result.issues[0]).toMatch(/formatVersion 9/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 11/);
+    expect(result.issues[0]).toMatch(/formatVersion 10/);
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
@@ -351,18 +351,21 @@ describe('parseBackup rejections', () => {
   });
 
   it('refuses a file the PREVIOUS build wrote, on the VERSION and not per row', () => {
-    // A formatVersion 8 build read `2026-02-30` as a date. Without the bump its file is
-    // refused once per such row, naming a date instead of the file's version.
+    // A formatVersion 9 build read `2026-13-01T00:00:00` as a timestamp. Without the bump
+    // its file is refused once per such field, naming a timestamp instead of the version.
     const result = parseBackup(
       mutated((env) => {
-        env.formatVersion = 8;
-        for (const row of env.transactions as Record<string, unknown>[]) row.date = '2026-02-30';
+        env.formatVersion = 9;
+        env.exportedAt = '2026-13-01T00:00:00';
+        for (const row of env.assets as Record<string, unknown>[]) {
+          row.createdAt = '2026-13-01T00:00:00';
+        }
       }),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 8/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 9/);
   });
 
   it('refuses an unknown key by CODE and key list, never by the message', () => {
@@ -395,7 +398,7 @@ describe('parseBackup rejections', () => {
     );
   });
 
-  it("rejects a 'Z'-suffixed datetime (plain-regex convention, not z.iso.datetime)", () => {
+  it("rejects a 'Z'-suffixed datetime, which z.iso.datetime would accept", () => {
     const result = parseBackup(
       mutated(
         (env) =>
@@ -426,7 +429,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(9);
+    expect(env.formatVersion).toBe(10);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -955,5 +958,59 @@ describe('a backup’s dates are calendar dates (#341)', () => {
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatch(/^assets\.0\.firstPurchase: /);
     expect(result.issues[0]).not.toMatch(/real date/);
+  });
+});
+
+describe('a backup’s timestamps are real date-times (#346)', () => {
+  // RFC 3339 §5.6–5.7 bounds the month, the day and the hour. `daysBetween` reads
+  // `2026-13-01` as NaN, and the formatter prints it as `1 undefined 2026`.
+  type Row = Record<string, unknown>;
+  // The three timestamps the file carries, one setter each.
+  const FIELDS: Record<string, (env: Row, v: string) => void> = {
+    exportedAt: (env, v) => void (env.exportedAt = v),
+    'assets.0.createdAt': (env, v) => void ((env.assets as Row[])[0].createdAt = v),
+    'snapshots.0.savedAt': (env, v) => void ((env.snapshots as Row[])[0].savedAt = v),
+  };
+  const stamped = (path: string, value: string) =>
+    parseBackup(mutated((env) => FIELDS[path](env, value)));
+  const refused = (path: string) => ({
+    ok: false,
+    issues: [`${path}: expected a real timestamp (yyyy-MM-ddTHH:mm:ss, no time zone)`],
+  });
+
+  it('refuses a date or a time no calendar or clock has, naming the field', () => {
+    for (const path of Object.keys(FIELDS)) {
+      for (const value of ['2026-13-01T00:00:00', '2026-02-30T10:00:00', '2026-07-25T25:61:00']) {
+        expect(stamped(path, value), `${path} ${value}`).toEqual(refused(path));
+      }
+    }
+  });
+
+  it('accepts the last second of a day and a leap day, and nothing past 23:59:59', () => {
+    for (const path of Object.keys(FIELDS)) {
+      expect(stamped(path, '2026-07-25T23:59:59').ok, path).toBe(true);
+      expect(stamped(path, '2028-02-29T00:00:00').ok, path).toBe(true);
+      // ECMA-262 time values carry no leap second, so `toISOString` never writes `:60`.
+      for (const value of ['2026-07-25T24:00:00', '2026-06-30T23:59:60', '2026-07-25T23:59:59Z']) {
+        expect(stamped(path, value), `${path} ${value}`).toEqual(refused(path));
+      }
+    }
+  });
+
+  it('leaves a missing or non-string timestamp to zod’s own words', () => {
+    // The sentence describes a timestamp that cannot be; an absent one is another fault.
+    const missing = parseBackup(mutated((env) => void delete env.exportedAt));
+    if (missing.ok) throw new Error('expected a refusal');
+    expect(missing.issues).toHaveLength(1);
+    expect(missing.issues[0]).toMatch(/^exportedAt: /);
+    expect(missing.issues[0]).not.toMatch(/real timestamp/);
+
+    const epoch = parseBackup(
+      mutated((env) => void ((env.assets as Row[])[0].createdAt = 1785488400000)),
+    );
+    if (epoch.ok) throw new Error('expected a refusal');
+    expect(epoch.issues).toHaveLength(1);
+    expect(epoch.issues[0]).toMatch(/^assets\.0\.createdAt: /);
+    expect(epoch.issues[0]).not.toMatch(/real timestamp/);
   });
 });

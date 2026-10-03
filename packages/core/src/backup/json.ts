@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 9;
+export const BACKUP_FORMAT_VERSION = 10;
 
 export type Dataset = 'demo' | 'live';
 
@@ -36,11 +36,16 @@ export type Dataset = 'demo' | 'live';
 const isoDate = z.iso.date({
   error: (iss) => (iss.code === 'invalid_format' ? 'expected a real date (yyyy-MM-dd)' : undefined),
 });
-// Timezone-less ISO by PLAIN REGEX, deliberately NOT `z.iso.datetime()`: the
-// pinned convention is `toISOString().slice(0, 19)`, so offsets are rejected.
+// RFC 3339's date and time with no offset, as `toISOString().slice(0, 19)` writes them, and no :60,
+// which an ECMA-262 time value cannot hold. Not `z.iso.datetime()`: it always admits a trailing `Z`.
 const isoDateTime = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, 'expected timezone-less yyyy-MM-ddTHH:mm:ss');
+  .regex(
+    new RegExp(
+      `^(?:${z.regexes.date.source.slice(1, -1)})T(?:${z.regexes.time({ precision: 0 }).source.slice(1, -1)})$`,
+    ),
+    'expected a real timestamp (yyyy-MM-ddTHH:mm:ss, no time zone)',
+  );
 
 const inzhurSchema = z.strictObject({
   kind: z.enum(['fund', 'bond']),

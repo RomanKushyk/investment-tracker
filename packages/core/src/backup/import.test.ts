@@ -209,14 +209,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 10 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 10)));
+  it('rejects formatVersion 11 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 11)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(10);
+    expect(result.rejection.version).toBe(11);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 10 — this app reads formatVersion 9 only.',
+      'Unsupported formatVersion 11 — this app reads formatVersion 10 only.',
     );
   });
 
@@ -235,7 +235,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 10;
+        env.formatVersion = 11;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -257,7 +257,7 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     );
   });
 
-  it("rejects a 'Z'-suffixed datetime (plain-regex convention, not z.iso.datetime)", () => {
+  it("rejects a 'Z'-suffixed datetime, which z.iso.datetime would accept", () => {
     const result = validateImport(
       mutated(
         (env) =>
@@ -292,6 +292,19 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
       field: 'savedAt',
       code: 'expected-datetime',
     });
+  });
+
+  it('codes a refused exportedAt as a timestamp, like createdAt and savedAt (#346)', () => {
+    // Coded `invalid`, the report would print the validator's English in a Ukrainian app.
+    const result = validateImport(mutated((env) => void (env.exportedAt = '2026-13-01T00:00:00')));
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({
+        table: 'envelope',
+        field: 'exportedAt',
+        code: 'expected-datetime',
+      }),
+    ]);
   });
 
   it('rejects a transaction pointing at an unknown asset, addressed by its id', () => {
@@ -750,9 +763,8 @@ describe('the units rule reaches the reader in their own language', () => {
 
 describe('an OLDER backup is named as older, not as broken', () => {
   it('maps formatVersion 1 to `older-format`, with the version', () => {
-    // Every backup on disk today is a v1 file. It used to share a code — and therefore
-    // a sentence — with a hand-edited `0`, telling the owner their real backup was
-    // unreadable rather than superseded.
+    // A real backup from an older build must not share a sentence with a hand-edited `0`,
+    // which would call it unreadable rather than superseded.
     const result = validateImport(mutated((env) => void (env.formatVersion = 1)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
@@ -761,15 +773,28 @@ describe('an OLDER backup is named as older, not as broken', () => {
   });
 
   it('maps formatVersion 2 to `older-format` too', () => {
-    // 2 was current for days, not months, and was never promoted to production — but
-    // `dev` deploys on every push, so files written by a v2 build exist. The rule is the
-    // same one v1 got: a real backup from an older build must not share a sentence with
-    // a hand-edited `0`.
+    // A version only `dev` ever wrote is still a real backup: `dev` deploys on every push.
     const result = validateImport(mutated((env) => void (env.formatVersion = 2)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('older-format');
     expect(result.rejection.version).toBe(2);
+  });
+
+  it('maps formatVersion 9, the build before real timestamps, to `older-format` (#346)', () => {
+    // A v9 build read `2026-13-01T00:00:00` as a timestamp, so its file is refused ONCE, on
+    // the version, rather than once per timestamp this build cannot read.
+    const result = validateImport(
+      mutated((env) => {
+        env.formatVersion = 9;
+        env.exportedAt = '2026-13-01T00:00:00';
+      }),
+    );
+    if (result.ok || result.rejection.kind !== 'format') {
+      throw new Error('expected a format reject');
+    }
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(9);
   });
 
   it('does not call a fractional version an older backup', () => {
@@ -798,7 +823,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 9');
+    expect(result.rejection.detail).toContain('formatVersion 10');
   });
 });
 

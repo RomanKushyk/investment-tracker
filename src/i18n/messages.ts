@@ -110,7 +110,7 @@ export const en = {
       duplicateDate: (value: string) => `duplicate date ${value} (date is the primary key)`,
       duplicateId: (value: string) => `duplicate id "${value}" (id is the primary key)`,
       unknownKey: (value: string) => `unexpected field "${value}"`,
-      expectedDatetime: 'expected timezone-less yyyy-MM-ddTHH:mm:ss',
+      expectedDatetime: 'expected a real timestamp (yyyy-MM-ddTHH:mm:ss, no time zone)',
       expectedDate: 'expected a real date (yyyy-MM-dd)',
       expectedPositiveAmount: 'expected a positive number',
       unitsOnNonPositionRow: 'only a buy, sell, reinvest or redemption carries units',
@@ -1247,7 +1247,7 @@ export const uk: Dict = {
       duplicateId: (value: string) =>
         `дубльований ідентифікатор «${value}» (ідентифікатор — первинний ключ)`,
       unknownKey: (value: string) => `неочікуване поле «${value}»`,
-      expectedDatetime: 'очікується yyyy-MM-ddTHH:mm:ss без часового поясу',
+      expectedDatetime: 'очікується справжня мітка часу yyyy-MM-ddTHH:mm:ss без часового поясу',
       expectedDate: 'очікується справжня дата yyyy-MM-dd',
       expectedPositiveAmount: 'очікується додатне число',
       unitsOnNonPositionRow: 'одиниці має лише купівля, продаж, реінвест або погашення',

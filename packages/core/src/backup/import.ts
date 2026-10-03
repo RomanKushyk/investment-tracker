@@ -149,7 +149,7 @@ function rowsRejection(issues: RowIssue[]): RowsRejection {
   return { kind: 'rows', issues: issues.slice(0, ISSUE_LIST_CAP), total: issues.length };
 }
 
-const DATETIME_FIELDS = new Set(['createdAt', 'savedAt']);
+const DATETIME_FIELDS = new Set(['createdAt', 'savedAt', 'exportedAt']);
 const DATE_FIELDS = new Set(['date', 'firstPurchase', 'maturity', 'nextCoupon']);
 const ROW_TABLES = new Set<IssueTable>(['assets', 'snapshots', 'transactions']);
 
