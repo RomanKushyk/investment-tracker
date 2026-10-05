@@ -19,6 +19,7 @@ import {
   blankPortfolioAssetIds,
   integrityIssues,
   readEnvelopeHead,
+  temporalKindAt,
   type BackupEnvelope,
   type Dataset,
   type EnvelopeHeadCode,
@@ -149,8 +150,6 @@ function rowsRejection(issues: RowIssue[]): RowsRejection {
   return { kind: 'rows', issues: issues.slice(0, ISSUE_LIST_CAP), total: issues.length };
 }
 
-const DATETIME_FIELDS = new Set(['createdAt', 'savedAt', 'exportedAt']);
-const DATE_FIELDS = new Set(['date', 'firstPurchase', 'maturity', 'nextCoupon']);
 const ROW_TABLES = new Set<IssueTable>(['assets', 'snapshots', 'transactions']);
 
 interface ZodIssueLike {
@@ -174,10 +173,11 @@ function schemaIssues(issues: ZodIssueLike[], raw: Record<string, unknown>): Row
     ) as IssueTable;
 
     if (table === 'envelope' || table === 'settings') {
+      const field = path.join('.') || undefined;
       return {
         table,
-        field: path.join('.') || undefined,
-        code: codeFor(issue, path.at(-1)),
+        field,
+        code: codeFor(issue, field),
         ...valueOf(issue),
         detail: issue.message,
       };
@@ -188,17 +188,22 @@ function schemaIssues(issues: ZodIssueLike[], raw: Record<string, unknown>): Row
       table,
       at: rowAddress(table, raw, second, field),
       field,
-      code: codeFor(issue, path.at(-1)),
+      code: codeFor(issue, field),
       ...valueOf(issue),
       detail: issue.message,
     };
   });
 }
 
+// Never by the path's last segment, which for a quote is an asset id. The date arms walk the
+// issue's path from the envelope root; the rest key on `field`, the path below the row (the
+// whole path for an envelope or settings issue), so `quotes.amount` is not `amount`.
 function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
   if (issue.code === 'unrecognized_keys') return 'unknown-key';
-  if (field !== undefined && DATETIME_FIELDS.has(field)) return 'expected-datetime';
-  if (field !== undefined && DATE_FIELDS.has(field)) return 'expected-date';
+  // Any fault on a date field takes the date code, a missing or non-string value included.
+  const temporal = temporalKindAt(issue.path);
+  if (temporal === 'datetime') return 'expected-datetime';
+  if (temporal === 'date') return 'expected-date';
   if (field === 'amount') return 'expected-positive-amount';
   // The one-way units rule. `custom` with no message is the shape
   // `transactionRowsSchema` emits for it — this is where it gets its words.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import {
   POSITION_MOVING,
@@ -7,7 +8,13 @@ import {
   type Transaction,
   type TxType,
 } from '../types';
-import { buildBackup, type BackupEnvelope } from './json';
+import {
+  backupEnvelopeSchema,
+  buildBackup,
+  temporalKindAt,
+  type BackupEnvelope,
+  type TemporalKind,
+} from './json';
 import {
   classifyImportFiles,
   diffBackup,
@@ -878,4 +885,127 @@ describe('every way a note can be wrong reports ONE localised code', () => {
     expect(withNote('я'.repeat(100)).ok).toBe(true);
     expect(withNote('я').ok).toBe(true);
   });
+});
+
+describe('a quote is coded by its place, whatever asset id keys it (#352)', () => {
+  // A quote's key is an asset id, not a field name: `quotes.date` is a quote, not a date.
+  const codeOf = (key: string) => {
+    const result = validateImport(
+      mutated(
+        (env) =>
+          void (((env.snapshots as Record<string, unknown>[])[0].quotes as Record<string, unknown>)[
+            key
+          ] = 'abc'),
+      ),
+    );
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error(`${key}: expected rows`);
+    expect(result.rejection.issues, key).toHaveLength(1);
+    expect(result.rejection.issues[0], key).toMatchObject({
+      table: 'snapshots',
+      at: '2026-07-24',
+      field: `quotes.${key}`,
+    });
+    return result.rejection.issues[0].code;
+  };
+
+  it('gives a string under `reit` the invalid fallback', () => {
+    expect(codeOf('reit')).toBe('invalid');
+  });
+
+  for (const key of ['date', 'createdAt', 'exportedAt', 'amount']) {
+    it(`gives a string under \`${key}\` the code a string under \`reit\` gets`, () => {
+      expect(codeOf(key)).toBe(codeOf('reit'));
+    });
+  }
+});
+
+describe('a field is a date because of its schema, not its name (#352)', () => {
+  // THE ALLOW-LIST: every field the backup carries with the date or timestamp schema, as a
+  // path with arrays entered at 0. A ninth one is added here, not to a list beside the schemas.
+  const TEMPORAL: Record<string, TemporalKind> = {
+    'assets.0.firstPurchase': 'date',
+    'assets.0.maturity': 'date',
+    'assets.0.nextCoupon': 'date',
+    'assets.0.createdAt': 'datetime',
+    'snapshots.0.date': 'date',
+    'snapshots.0.savedAt': 'datetime',
+    'transactions.0.date': 'date',
+    exportedAt: 'datetime',
+  };
+
+  // Every leaf of the envelope schema with its path, through zod's public accessors — an
+  // array entered at 0, a record at one stand-in key. A schema kind not listed here throws,
+  // so a wrapper the walker does not step through cannot hide a field from this test.
+  const LEAF_KINDS = [z.ZodString, z.ZodISODate, z.ZodNumber, z.ZodEnum, z.ZodLiteral];
+  function leaves(
+    schema: z.ZodType,
+    path: PropertyKey[] = [],
+  ): { path: PropertyKey[]; leaf: z.ZodType }[] {
+    const s = schema instanceof z.ZodOptional ? (schema.unwrap() as z.ZodType) : schema;
+    if (s instanceof z.ZodObject) {
+      return Object.entries(s.shape as Record<string, z.ZodType>).flatMap(([key, field]) =>
+        leaves(field, [...path, key]),
+      );
+    }
+    if (s instanceof z.ZodArray) return leaves(s.element as z.ZodType, [...path, 0]);
+    if (s instanceof z.ZodRecord) return leaves(s.valueType as z.ZodType, [...path, 'reit']);
+    if (!LEAF_KINDS.some((kind) => s instanceof kind)) {
+      throw new Error(`a schema kind this test does not know, at ${path.join('.')}`);
+    }
+    return [{ path, leaf: s }];
+  }
+
+  // By what the field ACCEPTS, not by which schema object it is: the oracle the walker's
+  // identity check is held to.
+  const acceptsAs = (leaf: z.ZodType): TemporalKind | undefined =>
+    leaf.safeParse('abc').success
+      ? undefined
+      : leaf.safeParse('2026-02-03').success
+        ? 'date'
+        : leaf.safeParse('2026-02-03T10:00:00').success
+          ? 'datetime'
+          : undefined;
+
+  const temporalBy = (kindOf: (path: PropertyKey[], leaf: z.ZodType) => TemporalKind | undefined) =>
+    Object.fromEntries(
+      leaves(backupEnvelopeSchema).flatMap(({ path, leaf }) => {
+        const kind = kindOf(path, leaf);
+        return kind === undefined ? [] : [[path.join('.'), kind]];
+      }),
+    );
+
+  it('finds exactly the eight by what each field accepts', () => {
+    expect(temporalBy((_, leaf) => acceptsAs(leaf))).toEqual(TEMPORAL);
+  });
+
+  it('finds the same eight by walking the envelope and row schemas', () => {
+    expect(temporalBy((path) => temporalKindAt(path))).toEqual(TEMPORAL);
+  });
+
+  function setAt(env: Record<string, unknown>, path: string[], value: unknown): void {
+    const parent = path
+      .slice(0, -1)
+      .reduce<Record<string, unknown>>((o, k) => o[k] as Record<string, unknown>, env);
+    parent[String(path.at(-1))] = value;
+  }
+
+  for (const [place, kind] of Object.entries(TEMPORAL)) {
+    // A string no calendar has, and a number where a string belongs: #341's ruling is that
+    // any fault on a date field takes the date code, so neither prints zod's English.
+    for (const value of ['abc', 1]) {
+      it(`codes ${JSON.stringify(value)} at ${place} as expected-${kind}`, () => {
+        const path = place.split('.');
+        const [table, , ...rest] = path;
+        const result = validateImport(mutated((env) => setAt(env, path, value)));
+        if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected rows');
+        expect(result.rejection.issues).toEqual([
+          expect.objectContaining(
+            path.length === 1
+              ? { table: 'envelope', field: place, code: `expected-${kind}` }
+              : { table, field: rest.join('.'), code: `expected-${kind}` },
+          ),
+        ]);
+      });
+    }
+  }
 });

@@ -202,6 +202,36 @@ export const backupEnvelopeSchema = z.strictObject({
 
 export type BackupEnvelope = z.infer<typeof backupEnvelopeSchema>;
 
+export type TemporalKind = 'date' | 'datetime';
+
+// The schema an issue's path lands on, found by walking the envelope. Identity, not a list
+// of field names: a field is a date because it uses the date schema, and a quote keyed
+// `date` walks into the record's number and is nothing of the kind.
+export function temporalKindAt(path: PropertyKey[]): TemporalKind | undefined {
+  let schema: z.ZodType | undefined = backupEnvelopeSchema;
+  for (const key of path) {
+    schema = stepInto(schema, key);
+    if (schema === undefined) return undefined;
+  }
+  const leaf = unwrapOptional(schema);
+  return leaf === isoDate ? 'date' : leaf === isoDateTime ? 'datetime' : undefined;
+}
+
+// An object's shape by key, an array's element past the index, a record's value past the key.
+function stepInto(schema: z.ZodType, key: PropertyKey): z.ZodType | undefined {
+  const inner = unwrapOptional(schema);
+  if (inner instanceof z.ZodObject) {
+    return Object.hasOwn(inner.shape, key) ? (inner.shape[String(key)] as z.ZodType) : undefined;
+  }
+  if (inner instanceof z.ZodArray) return inner.element as z.ZodType;
+  if (inner instanceof z.ZodRecord) return inner.valueType as z.ZodType;
+  return undefined;
+}
+
+function unwrapOptional(schema: z.ZodType): z.ZodType {
+  return schema instanceof z.ZodOptional ? (schema.unwrap() as z.ZodType) : schema;
+}
+
 // THE MODEL'S SHAPE, NOT THE STORE'S: a retired key stays in IndexedDB, and the strict
 // reader refuses it. The keys come from the row schemas, so no list is written twice.
 function project<T extends object>(row: T, shape: object): T {
