@@ -101,7 +101,7 @@ export const en = {
       newerFormat: (version: string) =>
         `This backup was written by a newer version of the app (format ${version}). Update the app, or export again from the version that wrote it.`,
       olderFormat: (version: string) =>
-        `This backup is format version ${version}, from before this app's data model changed. It can no longer be imported.`,
+        `This backup was written by an older version of the app (format ${version}). It can no longer be imported.`,
       unsupportedFormat: "This backup's format version isn't one this app can read.",
     },
     issue: {
@@ -1237,7 +1237,7 @@ export const uk: Dict = {
       newerFormat: (version: string) =>
         `Цю копію створила новіша версія застосунку (формат ${version}). Оновіть застосунок або експортуйте знову з тієї версії, що її створила.`,
       olderFormat: (version: string) =>
-        `Ця копія має версію формату ${version} — з часів до зміни моделі даних. Імпортувати її вже не можна.`,
+        `Цю копію створила старіша версія застосунку (формат ${version}). Імпортувати її вже не можна.`,
       unsupportedFormat: 'Версію формату цієї копії застосунок прочитати не може.',
     },
     issue: {
