@@ -250,7 +250,78 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     if (result.ok) return;
     expect(result.rejection.kind).toBe('format');
   });
+
+  // `String` of a parsed value can throw: an array joins itself once per level of nesting, and
+  // an object whose own `toString` is not callable falls back to `valueOf` (#355). The door
+  // promises a result, so each is refused with its kind named, never converted.
+  describe('a format or formatVersion that is not a primitive is refused, not thrown (#355)', () => {
+    const formatRefusal = (text: string) => {
+      const result = validateImport(text);
+      if (result.ok || result.rejection.kind !== 'format') {
+        throw new Error('expected a format rejection');
+      }
+      return result.rejection;
+    };
+
+    it('refuses a format that is an array nested 20,000 deep as not-a-backup, naming an array', () => {
+      const rejection = formatRefusal(deepArrayAt('format'));
+      expect(rejection.code).toBe('not-a-backup');
+      expect(rejection.detail).toBe('Not a quirenote-backup file (format: an array).');
+    });
+
+    it('refuses a format whose toString is not callable as not-a-backup, naming an object', () => {
+      const rejection = formatRefusal(mutated((env) => void (env.format = { toString: 1 })));
+      expect(rejection.code).toBe('not-a-backup');
+      expect(rejection.detail).toBe('Not a quirenote-backup file (format: an object).');
+    });
+
+    it('refuses a format that is an array holding such an object, naming an array', () => {
+      const rejection = formatRefusal(mutated((env) => void (env.format = [{ toString: 1 }])));
+      expect(rejection.code).toBe('not-a-backup');
+      expect(rejection.detail).toBe('Not a quirenote-backup file (format: an array).');
+    });
+
+    it('refuses a formatVersion that is an array nested 20,000 deep as unsupported-format', () => {
+      const rejection = formatRefusal(deepArrayAt('formatVersion'));
+      expect(rejection.code).toBe('unsupported-format');
+      expect(rejection.version).toBeUndefined();
+      expect(rejection.detail).toBe(
+        'Unsupported formatVersion (an array) — this app reads formatVersion 12 only.',
+      );
+    });
+
+    it('refuses a formatVersion whose toString is not callable as unsupported-format', () => {
+      const rejection = formatRefusal(mutated((env) => void (env.formatVersion = { toString: 1 })));
+      expect(rejection.code).toBe('unsupported-format');
+      expect(rejection.version).toBeUndefined();
+      expect(rejection.detail).toBe(
+        'Unsupported formatVersion (an object) — this app reads formatVersion 12 only.',
+      );
+    });
+
+    it('refuses a formatVersion that is an array holding such an object as unsupported-format', () => {
+      const rejection = formatRefusal(
+        mutated((env) => void (env.formatVersion = [{ toString: 1 }])),
+      );
+      expect(rejection.code).toBe('unsupported-format');
+      expect(rejection.version).toBeUndefined();
+      expect(rejection.detail).toBe(
+        'Unsupported formatVersion (an array) — this app reads formatVersion 12 only.',
+      );
+    });
+  });
 });
+
+const DEEP = 20_000;
+
+/** The envelope with `field` set to an array nested `DEEP` levels, built as TEXT: a nesting
+ *  that deep is a stack hazard to build or stringify as a value, and the door reads text. */
+function deepArrayAt(field: 'format' | 'formatVersion'): string {
+  return mutated((env) => void (env[field] = '__DEEP__')).replace(
+    '"__DEEP__"',
+    '['.repeat(DEEP) + ']'.repeat(DEEP),
+  );
+}
 
 describe('validateImport — row-addressed rejections (S4 list)', () => {
   it('rejects an unknown key on a row (strictObject) and names the key', () => {

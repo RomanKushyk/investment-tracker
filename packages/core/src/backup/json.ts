@@ -283,6 +283,15 @@ export type EnvelopeHead =
   | { ok: true; raw: Record<string, unknown> }
   | { ok: false; code: EnvelopeHeadCode; version?: unknown; issue: string };
 
+// `String` of a parsed value can throw: an array joins itself once per level of nesting, and an
+// object whose own `toString` is not callable falls back to `valueOf`. A kind is named, never converted.
+const kindOf = (value: unknown): string | undefined =>
+  Array.isArray(value)
+    ? 'an array'
+    : typeof value === 'object' && value !== null
+      ? 'an object'
+      : undefined;
+
 export function readEnvelopeHead(text: string): EnvelopeHead {
   let raw: unknown;
   try {
@@ -302,17 +311,18 @@ export function readEnvelopeHead(text: string): EnvelopeHead {
     return {
       ok: false,
       code: 'not-a-backup',
-      issue: `Not a ${BACKUP_FORMAT} file (format: '${String(head.format)}').`,
+      issue: `Not a ${BACKUP_FORMAT} file (format: ${kindOf(head.format) ?? `'${String(head.format)}'`}).`,
     };
   }
   // Version gate BEFORE the row schemas, so a newer backup gets one clear message
   // instead of a wall of field errors.
   if (head.formatVersion !== BACKUP_FORMAT_VERSION) {
+    const kind = kindOf(head.formatVersion);
     return {
       ok: false,
       code: 'unsupported-version',
       version: head.formatVersion,
-      issue: `Unsupported formatVersion ${String(head.formatVersion)} — this app reads formatVersion ${BACKUP_FORMAT_VERSION} only.`,
+      issue: `Unsupported formatVersion ${kind ? `(${kind})` : String(head.formatVersion)} — this app reads formatVersion ${BACKUP_FORMAT_VERSION} only.`,
     };
   }
   return { ok: true, raw: head };

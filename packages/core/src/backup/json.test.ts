@@ -84,6 +84,17 @@ function mutated(mutate: (env: Record<string, unknown>) => void): string {
   return JSON.stringify(env);
 }
 
+const DEEP = 20_000;
+
+/** The envelope with `field` set to an array nested `DEEP` levels, built as TEXT: a nesting
+ *  that deep is a stack hazard to build or stringify as a value, and the door reads text. */
+function deepArrayAt(field: 'format' | 'formatVersion'): string {
+  return mutated((env) => void (env[field] = '__DEEP__')).replace(
+    '"__DEEP__"',
+    '['.repeat(DEEP) + ']'.repeat(DEEP),
+  );
+}
+
 describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
@@ -326,6 +337,54 @@ describe('parseBackup rejections', () => {
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatch(/Unsupported formatVersion 13/);
     expect(result.issues[0]).toMatch(/formatVersion 12/);
+  });
+
+  // `String` of a parsed value can throw: an array joins itself once per level of nesting, and
+  // an object whose own `toString` is not callable falls back to `valueOf` (#355). The door
+  // promises a result, so each is one issue naming the kind, never the converted value.
+  describe('a format or formatVersion that is not a primitive is one issue, not a throw (#355)', () => {
+    const oneIssue = (text: string): string => {
+      const result = parseBackup(text);
+      if (result.ok) throw new Error('expected a refusal');
+      expect(result.issues).toHaveLength(1);
+      return result.issues[0];
+    };
+
+    it('a format that is an array nested 20,000 deep', () => {
+      expect(oneIssue(deepArrayAt('format'))).toMatch(
+        /^Not a quirenote-backup file \(format: an array\)/,
+      );
+    });
+
+    it('a format whose toString is not callable', () => {
+      expect(oneIssue(mutated((env) => void (env.format = { toString: 1 })))).toMatch(
+        /^Not a quirenote-backup file \(format: an object\)/,
+      );
+    });
+
+    it('a format that is an array holding such an object', () => {
+      expect(oneIssue(mutated((env) => void (env.format = [{ toString: 1 }])))).toMatch(
+        /^Not a quirenote-backup file \(format: an array\)/,
+      );
+    });
+
+    it('a formatVersion that is an array nested 20,000 deep', () => {
+      expect(oneIssue(deepArrayAt('formatVersion'))).toMatch(
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 12 only\./,
+      );
+    });
+
+    it('a formatVersion whose toString is not callable', () => {
+      expect(oneIssue(mutated((env) => void (env.formatVersion = { toString: 1 })))).toMatch(
+        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 12 only\./,
+      );
+    });
+
+    it('a formatVersion that is an array holding such an object', () => {
+      expect(oneIssue(mutated((env) => void (env.formatVersion = [{ toString: 1 }])))).toMatch(
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 12 only\./,
+      );
+    });
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
