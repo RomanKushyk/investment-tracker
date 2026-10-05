@@ -114,40 +114,75 @@ now on.
 
 ## Derived figures and the seed
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a
-date is `units(a, D) × coalesce(user_price(a, D), archive(a, D))`, so nothing is prefilled because
-nothing is written. The app still stores and reads ₴ snapshots (*Persistence today*). Core can
-rebuild that series from the ledger and the user's per-unit prices instead, and nothing reads the
-rebuild yet: one snapshot per date that values anything, each priced asset at that day's units ×
-price, rounded once to the kopeck as the figure is made, and no save time. A position the ledger
-holds none of is worth 0 before any price is asked for; one the ledger cannot count, or that no
-price answers, is absent, never 0. A price lookup answers with the day it observed and which half of
-the coalesce answered — the user's or the archive's. Every golden ledger whose quotes a per-unit
-price can express, the seed among them, rebuilds to the series it was, and every composer's output
-over every period is pinned to that identity: exactly in each snapshot's own quote order, and to
-float noise in the store's order, since the composers sum in key order. Automation stays suggest-only wherever the app still
-decides: the user's Save is the sole write path. A hand-entered value is MARKED; an archive one is
-not.
+date is `units(a, D) × price(a, D)`, the price being the latest observation at or before D from
+either source, the user's or the archive's, the newer winning and the user's on a same-day tie, so
+nothing is prefilled because nothing is written. The app still stores and reads ₴ snapshots
+(*Persistence today*). Core can rebuild that series from the ledger and both sources' per-unit
+prices instead, and nothing reads the rebuild yet: one snapshot per grid day from the first that values anything —
+every day a held asset is observed on, every transaction day, and the day before each period opens,
+resolved by the window composer — each asset at that day's units × price, rounded once to the
+kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
+transaction dated after the last observation closes them at carried prices, a full exit at none. A
+position the ledger holds none of that day has no quote, as the quotes form asks for none, and every figure that
+values it reads 0 from the ledger; one the ledger cannot count, or a held one no source has observed at or
+before the day, is absent, never 0. Each quote names the
+observation that priced it, its date and its source, so a carried price can be told from one
+observed that day; how it renders is #64's. A bond's price carried across a coupon's payment date
+is the price before it, cum that coupon, beside the coupon already in cash until the next
+observation; the flag is what tells it. Every golden ledger whose quotes a per-unit price can
+express, the seed among them, rebuilds to a series holding every quote it stored, and every
+composer's output over every period is pinned to the stored series' but for the figures a carried
+price predicts — a day quoting some held positions and not others, which the rest complete at their
+carried price — listed per ledger, exactly in each snapshot's own quote order and to float noise in
+the store's order, since the composers sum in key order; on a ledger with archive rows every figure
+that moves is listed under the rule that moves it. Automation stays suggest-only wherever the app
+still decides: the user's Save is the sole write path. A hand-entered value is MARKED; an archive
+one is not.
 **Why.** The seed exists so the first run reproduces the reference, and it reconciles by
 construction rather than through exclusion rules — which is why its pinned figures MAY move when the
-ledger model requires it. Proving the rebuilt input identical before anything reads it keeps the
-archive join and its carried prices a separate, reversible change. A ₴ figure is kopeck-grained, as
-Portfolio Performance rounds a position's value to the currency's minor unit once, at valuation;
-unrounded, a value divided into a price and multiplied back carries float noise into every figure
-built on it. A non-zero quote of a position the ledger holds none of has no per-unit price that
-reproduces it, so a ledger carrying one is not expressible. `coalesce` is silent, so without the mark an observed value and a
-published one read identically.
+ledger model requires it. The identity was proven before the archive joined, so each figure the
+join and its carried prices move is listed, not absorbed. Every mature tool reads a price at a date
+as the latest at or before it — Beancount bisects its price list, hledger reads the price "on or
+before the valuation date", DuckDB's AsOf join and GnuCash's nearest-before lookup do the same, and
+Portfolio Performance's daily index values each security that way on every calendar day — where
+carrying the ₴ value valued a late buy at nothing until its day was quoted, the seam
+`headlineTotalAsOf` describes. The newer observation wins whatever its source because an OVDP price
+drops ex-coupon on the payment date (*Metric families and windows*), and a carried pre-coupon user
+price beside the coupon already recorded counts it twice; the user's wins a tie as hledger's P
+directive and GnuCash's price-editor source do. A carried price is flagged, not capped: regulators
+ask for stale-price monitoring, not a cutoff (SEC Rule 2a-5, GIPS 2020 2.A.21), and Ghostfolio
+stores its carried prices distinguished by `isCarriedForward`. The window bounds sit on the grid
+because the opening position is read the day before the window opens and the close on its last
+day, and a point there values that day's units where the last stored value before it valued another
+day's; transaction days because units and cash move then; an observation of an asset held none of
+makes no day, since the archive captures a fund sold out or not yet bought every night, and each
+such night would add a point at the held positions' carried prices. A ₴ figure is kopeck-grained, as Portfolio Performance rounds a position's value
+to the currency's minor unit once, at valuation; unrounded, a value divided into a price and
+multiplied back carries float noise into every figure built on it. A non-zero quote of a position
+the ledger holds none of has no per-unit price that reproduces it, so a ledger carrying one is not
+expressible. The lookup is silent, so without the mark an observed value and a carried one read
+identically.
 **Rejected.** A minimal purpose-built fixture: checkpoints that move with the fixture cannot catch a
-regression · Giving every known asset a value on every priced day: a held asset nobody priced that
-day has no value to give, and a 0 in its place is the corruption `quotesAsOf` refuses · A lookup
-that returns a bare number: a carried price could not be told from an observed one, and the mark
-would have nothing to read.
+regression · A 0 for a held asset no source has priced yet: the corruption `quotesAsOf` refuses · A
+quote without its observation: a carried price could not be told from an observed one, and the mark
+would have nothing to read · Valuing every calendar day, as Portfolio Performance does: the grid is
+where the data and the readers are, and a linked portfolio gets a day per archive capture anyway ·
+The user's price first wherever it is, as a `coalesce` reads: a carried user price outranking a
+newer archive one is Ghostfolio's #7775 · A cutoff on how far a price carries: the flag is the
+reader's to act on · Valuing a position before its first price at that first price, as Portfolio
+Performance does: a price from after the day is no observation of it · A 0 quote for a position held
+none of, before its first unit or after its last: Balances would show it on every such day as a
+saved quote of a position not held, marked, and Portfolio Performance's snapshot holds no position
+of 0 shares.
 
 ## Metric families and windows
 **Decision.** Two metric families, both permanent and never conflated: capital gain and total
 return. The annualized column divides every row by ONE span, the selected window's, and a row whose
 holding falls well short of it renders muted; per-asset XIRR is the money-weighted column, and its
 annualization mark tests the WINDOW's length, not the asset's. A window's opening position is valued
-the day BEFORE it opens. Where the rule below leaves a position ABSENT on that day, `/yield` leaves
+the day BEFORE it opens; on the rebuilt series that day, when it values anything, and the closing
+day are grid days, carried where nothing was observed on them, so the opening position is read off
+a point rather than off the last value before it. Where the rule below leaves a position ABSENT on that day, `/yield` leaves
 its basis, its row and its line absent over the window. Units are `Σ quantity deltas` over the
 ledger, never a stored total, each
 quantity counted as a whole number of 1e-8 units; a position's value counts at a date only while
@@ -186,7 +221,9 @@ quote the position, the same double count one day at a time; the cell shows it b
 stored is hidden, and the mark says the total left it out. A snapshot stores a value, not a price
 per unit: a quote taken on a day the ledger held none values none of the units bought later,
 wherever the latest snapshot falls, and a last valuation day that held none values the position at
-nothing, so units bought after it wait for their own quote. A reader that asked for a quote of a
+nothing, so units bought after it wait for their own quote; the rebuilt series carries prices, not
+values, so on it a late buy is valued from its own day, and these rules say what a stored ₴
+snapshot can say. A reader that asked for a quote of a
 position no longer held would nag every day after a sell-out or a maturity, for a quote the total
 then leaves out; Portfolio Performance's held-securities price update asks only for the positions in
 that day's snapshot, which holds none with 0 shares. The NBU depository pays a coupon or a

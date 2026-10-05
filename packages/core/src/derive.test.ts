@@ -42,11 +42,9 @@ import {
   totalReturnPct,
   transactionsIn,
   trimAmount,
-  valueAsOf,
   valuedQuotes,
   yieldSinceStart,
 } from './derive';
-import type { PriceLookup } from './derive';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 import { unitDelta } from './types';
 import type { Asset, Snapshot, Transaction } from './types';
@@ -343,68 +341,6 @@ describe('§1 free cash from ledger — the ledger’s signed sum, bounded by da
     expect(freeCashFromLedger([])).toBe(0);
     expect(freeCashFromLedger([], '2026-03-01')).toBe(0);
     expect(netDeposits([])).toBe(0);
-  });
-});
-
-describe('value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))', () => {
-  const held = [
-    { ...tx('b', 'buy', 1000, 'a1', '2026-03-01'), quantity: 100 },
-    { ...tx('r', 'reinvest', 60, 'a1', '2026-04-01'), quantity: 5 },
-  ];
-  const none: PriceLookup = () => undefined;
-  const user =
-    (price: number): PriceLookup =>
-    (_, asOf) => ({ price, observedOn: asOf, source: 'user' });
-  const archive =
-    (price: number): PriceLookup =>
-    (_, asOf) => ({ price, observedOn: asOf, source: 'archive' });
-
-  it('prefers the user’s price over the archive', () => {
-    expect(valueAsOf('a1', '2026-05-01', held, user(12), archive(11))).toBeCloseTo(1260, 10);
-  });
-
-  it('falls back to the archive when the user has no price that day', () => {
-    expect(valueAsOf('a1', '2026-05-01', held, none, archive(11))).toBeCloseTo(1155, 10);
-  });
-
-  it('neither lookup answers → undefined, never a fabricated 0', () => {
-    expect(valueAsOf('a1', '2026-05-01', held, none, none)).toBeUndefined();
-  });
-
-  it('units are taken AS OF the date, so a later purchase does not inflate an earlier value', () => {
-    expect(valueAsOf('a1', '2026-03-15', held, user(12), none)).toBeCloseTo(1200, 10);
-    expect(valueAsOf('a1', '2026-04-01', held, user(12), none)).toBeCloseTo(1260, 10);
-  });
-
-  it('an asset the ledger cannot count has no value — absent, not zero', () => {
-    // `ledgerUnits` withholds an asset whose position-moving rows lack a quantity; a
-    // price cannot rescue a unit count that was never captured.
-    const incomplete = [tx('b', 'buy', 1000, 'a2', '2026-03-01')];
-    expect(valueAsOf('a2', '2026-05-01', incomplete, user(12), none)).toBeUndefined();
-  });
-
-  it('an asset with no rows at all is absent too', () => {
-    expect(valueAsOf('a9', '2026-05-01', held, user(12), none)).toBeUndefined();
-  });
-
-  it('zero units before the first purchase is a DERIVED 0, where an unknown asset is absent', () => {
-    // The asymmetry is the formula's, not a special case: `units × price` with a unit
-    // count of zero IS zero, and the ledger knows the asset exists to hold none of.
-    // Absent is reserved for what the ledger cannot answer at all.
-    expect(valueAsOf('a1', '2026-02-01', held, user(12), none)).toBe(0);
-    expect(valueAsOf('a9', '2026-02-01', held, user(12), none)).toBeUndefined();
-  });
-
-  it('a position sold down to nothing is worth nothing, not absent', () => {
-    const closed = [...held, { ...tx('s', 'sell', 1400, 'a1', '2026-06-01'), quantity: 105 }];
-    expect(valueAsOf('a1', '2026-06-01', closed, user(12), none)).toBe(0);
-  });
-
-  it('a position of 0 units is worth 0 with no price source at all', () => {
-    // A redeemed bond's prices stop; its 0 units are still a derived 0, not a lookup miss.
-    const closed = [...held, { ...tx('s', 'sell', 1400, 'a1', '2026-06-01'), quantity: 105 }];
-    expect(valueAsOf('a1', '2026-06-01', closed, none, none)).toBe(0);
-    expect(valueAsOf('a1', '2026-02-01', held, none, none)).toBe(0);
   });
 });
 

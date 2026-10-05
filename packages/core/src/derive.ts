@@ -198,7 +198,8 @@ export function heldValueOf(values: Record<string, number>, assetId: string): nu
  * and a late BUY lowers it by the whole amount until the day is quoted, because the
  * units it bought are not valued yet. That is the seam, not a loss, and `quotesAsOf`
  * states the half it comes from: an unquoted asset is ABSENT, never 0. It closes when
- * value stops coming from snapshots — `valueAsOf` is that door.
+ * the composers read the rebuilt series, which values a late buy of an asset already
+ * observed on its own day, at the carried price (`valuation.ts`).
  */
 export function headlineTotalAsOf(snaps: Snapshot[], txs: Transaction[], asOf?: string): number {
   return (
@@ -340,40 +341,16 @@ export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
   return { units: out, incomplete: [...incomplete] };
 }
 
-/** Which half of `coalesce(user_price, archive)` answered: what marks a hand-entered value as
- *  the user's (*Derived figures and the seed*). */
+/** Which source's observation priced a quote: what marks a hand-entered value as the user's
+ *  (*Derived figures and the seed*). */
 export type PriceSource = 'user' | 'archive';
 
-/** A price per unit, with the day it was observed on — the day it was asked for until a
- *  price carries — and which half answered. */
+/** A price per unit, the day it was observed on — earlier than the day it values when it
+ *  carries — and its source. */
 export interface ObservedPrice {
   price: number;
   observedOn: string;
   source: PriceSource;
-}
-
-/** Resolves ONE price per unit for one asset on one date, or nothing. */
-export type PriceLookup = (assetId: string, asOf: string) => ObservedPrice | undefined;
-
-/**
- * `value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))`
- * (*Derived figures and the seed*). `undefined` where no price answers and where
- * the ledger cannot count the units — the rule `quotesAsOf` states above: an
- * unpriced asset stays ABSENT, because a fabricated 0 corrupts every total and
- * every share built on it. None held is 0 BEFORE any lookup: a redeemed bond's prices stop.
- */
-export function valueAsOf(
-  assetId: string,
-  asOf: string,
-  txs: Transaction[],
-  userPrice: PriceLookup,
-  archive: PriceLookup,
-): number | undefined {
-  const units = ledgerUnits(txs, asOf).units[assetId];
-  if (units === undefined) return undefined;
-  if (holdsNone(units)) return 0;
-  const observed = userPrice(assetId, asOf) ?? archive(assetId, asOf);
-  return observed === undefined ? undefined : units * observed.price;
 }
 
 export function reinvestedByAsset(txs: Transaction[]): Record<string, number> {

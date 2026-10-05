@@ -550,10 +550,9 @@ export const transaction = pgTable(
   ],
 );
 
-// The user's own price observations, left-joined at read time:
-//   value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))
-// The global archive stays provider-only; a hand-entered value stays the
-// account's own data.
+// The user's own price observations, one of the two sources a value at a date
+// reads (*Derived figures and the seed*). The global archive stays
+// provider-only; a hand-entered value stays the account's own data.
 export const userPrice = pgTable(
   'user_price',
   {
