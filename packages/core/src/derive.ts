@@ -217,8 +217,7 @@ export function transactionsIn(txs: Transaction[], w: PeriodWindow): Transaction
 
 /**
  * NO UPPER BOUND: a window ends at the latest valuation, so an upper clip can
- * only exclude rows entered SINCE it — which is how a buy dated after the last
- * snapshot once vanished from `/yield`.
+ * only exclude rows entered SINCE it.
  */
 export function transactionsFromWindow(
   txs: Transaction[],
@@ -341,17 +340,27 @@ export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
   return { units: out, incomplete: [...incomplete] };
 }
 
-/** Resolves ONE price per unit for one asset on one date, or nothing. The server
- *  passes the user’s overlay and the global archive; core never learns which is
- *  which, nor where either came from. */
-export type PriceLookup = (assetId: string, asOf: string) => number | undefined;
+/** Which half of `coalesce(user_price, archive)` answered: what marks a hand-entered value as
+ *  the user's (*Derived figures and the seed*). */
+export type PriceSource = 'user' | 'archive';
+
+/** A price per unit, with the day it was observed on — the day it was asked for until a
+ *  price carries — and which half answered. */
+export interface ObservedPrice {
+  price: number;
+  observedOn: string;
+  source: PriceSource;
+}
+
+/** Resolves ONE price per unit for one asset on one date, or nothing. */
+export type PriceLookup = (assetId: string, asOf: string) => ObservedPrice | undefined;
 
 /**
  * `value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))`
  * (*Derived figures and the seed*). `undefined` where no price answers and where
  * the ledger cannot count the units — the rule `quotesAsOf` states above: an
  * unpriced asset stays ABSENT, because a fabricated 0 corrupts every total and
- * every share built on it.
+ * every share built on it. None held is 0 BEFORE any lookup: a redeemed bond's prices stop.
  */
 export function valueAsOf(
   assetId: string,
@@ -362,8 +371,9 @@ export function valueAsOf(
 ): number | undefined {
   const units = ledgerUnits(txs, asOf).units[assetId];
   if (units === undefined) return undefined;
-  const price = userPrice(assetId, asOf) ?? archive(assetId, asOf);
-  return price === undefined ? undefined : units * price;
+  if (holdsNone(units)) return 0;
+  const observed = userPrice(assetId, asOf) ?? archive(assetId, asOf);
+  return observed === undefined ? undefined : units * observed.price;
 }
 
 export function reinvestedByAsset(txs: Transaction[]): Record<string, number> {

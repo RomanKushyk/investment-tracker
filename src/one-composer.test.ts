@@ -241,7 +241,7 @@ describe.each(Object.entries(RULES))('%s', (rel, rule) => {
 // What computes a portfolio figure: these modules whole, and every name of `dates` and
 // `inzhur/parse` but their clock and feed plumbing. A new figure module must join it.
 const FIGURE =
-  /^(?:(?:derive|accrual|xirr|period|inzhur\/dcf|view\/[^#]+)#.+|dates#(?!(?:todayIso|kyivDateIso|kyivTimeHm|msUntilNextKyivHour)$).+|inzhur\/parse#(?!(?:parseAssetsFeed|scheduleFacts|sameRef|NO_UNITS|matchAssets)$).+)$/;
+  /^(?:(?:derive|valuation|accrual|xirr|period|inzhur\/dcf|view\/[^#]+)#.+|dates#(?!(?:todayIso|kyivDateIso|kyivTimeHm|msUntilNextKyivHour)$).+|inzhur\/parse#(?!(?:parseAssetsFeed|scheduleFacts|sameRef|NO_UNITS|matchAssets)$).+)$/;
 
 // Every other file in src/ that takes a figure, by name, with why it is not a route's.
 const QUOTES = 'the `/` route, where quotes are entered: none of the eight';

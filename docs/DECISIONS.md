@@ -115,14 +115,32 @@ now on.
 ## Derived figures and the seed
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a
 date is `units(a, D) × coalesce(user_price(a, D), archive(a, D))`, so nothing is prefilled because
-nothing is written. Automation stays suggest-only wherever the app still decides: the user's Save is
-the sole write path. A hand-entered value is MARKED; an archive one is not.
+nothing is written. The app still stores and reads ₴ snapshots (*Persistence today*). Core can
+rebuild that series from the ledger and the user's per-unit prices instead, and nothing reads the
+rebuild yet: one snapshot per date that values anything, each priced asset at that day's units ×
+price, rounded once to the kopeck as the figure is made, and no save time. A position the ledger
+holds none of is worth 0 before any price is asked for; one the ledger cannot count, or that no
+price answers, is absent, never 0. A price lookup answers with the day it observed and which half of
+the coalesce answered — the user's or the archive's. Every golden ledger whose quotes a per-unit
+price can express, the seed among them, rebuilds to the series it was, and every composer's output
+over every period is pinned to that identity: exactly in each snapshot's own quote order, and to
+float noise in the store's order, since the composers sum in key order. Automation stays suggest-only wherever the app still
+decides: the user's Save is the sole write path. A hand-entered value is MARKED; an archive one is
+not.
 **Why.** The seed exists so the first run reproduces the reference, and it reconciles by
 construction rather than through exclusion rules — which is why its pinned figures MAY move when the
-ledger model requires it. `coalesce` is silent, so without the mark an observed value and a
+ledger model requires it. Proving the rebuilt input identical before anything reads it keeps the
+archive join and its carried prices a separate, reversible change. A ₴ figure is kopeck-grained, as
+Portfolio Performance rounds a position's value to the currency's minor unit once, at valuation;
+unrounded, a value divided into a price and multiplied back carries float noise into every figure
+built on it. A non-zero quote of a position the ledger holds none of has no per-unit price that
+reproduces it, so a ledger carrying one is not expressible. `coalesce` is silent, so without the mark an observed value and a
 published one read identically.
 **Rejected.** A minimal purpose-built fixture: checkpoints that move with the fixture cannot catch a
-regression.
+regression · Giving every known asset a value on every priced day: a held asset nobody priced that
+day has no value to give, and a 0 in its place is the corruption `quotesAsOf` refuses · A lookup
+that returns a bare number: a carried price could not be told from an observed one, and the mark
+would have nothing to read.
 
 ## Metric families and windows
 **Decision.** Two metric families, both permanent and never conflated: capital gain and total
