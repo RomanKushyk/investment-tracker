@@ -57,6 +57,8 @@ function issueReason(issue: RowIssue, t: Dict): string {
       return issue.field === 'date' ? m.duplicateDate(String(value)) : m.duplicateId(String(value));
     case 'unknown-key':
       return m.unknownKey(String(value));
+    case 'forbidden-key':
+      return m.forbiddenKey(String(value));
     case 'expected-datetime':
       return m.expectedDatetime;
     case 'expected-date':

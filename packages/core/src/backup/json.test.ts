@@ -88,7 +88,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(10);
+    expect(env.formatVersion).toBe(11);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -319,13 +319,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 11 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 11)));
+  it('rejects formatVersion 12 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 12)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 11/);
-    expect(result.issues[0]).toMatch(/formatVersion 10/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 12/);
+    expect(result.issues[0]).toMatch(/formatVersion 11/);
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
@@ -366,6 +366,16 @@ describe('parseBackup rejections', () => {
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatch(/Unsupported formatVersion 9/);
+  });
+
+  it('refuses a formatVersion 10 file on the VERSION, not on the key it let through (#353)', () => {
+    // A v10 build accepted a `__proto__` key and dropped it; this build refuses it, so it
+    // accepts strictly less and the version moves. The v10 file is refused once.
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 10)));
+    expect(result).toMatchObject({ ok: false });
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 10/);
   });
 
   it('refuses an unknown key by CODE and key list, never by the message', () => {
@@ -429,7 +439,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(10);
+    expect(env.formatVersion).toBe(11);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -1012,5 +1022,73 @@ describe('a backup’s timestamps are real date-times (#346)', () => {
     expect(epoch.issues).toHaveLength(1);
     expect(epoch.issues[0]).toMatch(/^assets\.0\.createdAt: /);
     expect(epoch.issues[0]).not.toMatch(/real timestamp/);
+  });
+});
+
+describe('a __proto__ key is refused wherever it sits (#353)', () => {
+  // `obj['__proto__'] = v` and `{ __proto__: v }` set the prototype and put no key in the file;
+  // only a defined own key reaches the text, and `refusedWith` checks that it did.
+  type Env = Record<string, unknown>;
+  const define = (target: unknown, value: unknown) =>
+    void Object.defineProperty(target, '__proto__', {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  const rows = (env: Env, table: string) => env[table] as Env[];
+  function refusedWith(text: string): string[] {
+    expect(text).toContain('"__proto__"');
+    const result = parseBackup(text);
+    if (result.ok) throw new Error('expected a refusal');
+    return result.issues;
+  }
+  const LINE = 'Forbidden key: "__proto__"';
+
+  const PLACES: Record<string, (env: Env) => void> = {
+    '(root)': (env) => define(env, 1),
+    settings: (env) => define(env.settings, 1),
+    'assets.0': (env) => define(rows(env, 'assets')[0], { x: 1 }),
+    'assets.0.inzhur': (env) => {
+      const asset = rows(env, 'assets')[0];
+      asset.inzhur = { kind: 'fund', ref: 'x' };
+      define(asset.inzhur, 1);
+    },
+    'snapshots.0': (env) => define(rows(env, 'snapshots')[0], 1),
+    'snapshots.0.quotes': (env) => define(rows(env, 'snapshots')[0].quotes, 1),
+    'transactions.0': (env) => define(rows(env, 'transactions')[0], 1),
+    // An id is a quote key, and a plain-object quote map cannot hold this one.
+    'assets.0.id': (env) => void (rows(env, 'assets')[0].id = '__proto__'),
+  };
+
+  for (const [path, set] of Object.entries(PLACES)) {
+    it(`names ${path}, in one line`, () => {
+      expect(refusedWith(mutated(set))).toEqual([`${path}: ${LINE}`]);
+    });
+  }
+
+  it('reports the key alone when a row schema would fail too: the key is read first', () => {
+    const text = mutated((env) => {
+      define(rows(env, 'snapshots')[0].quotes, 1);
+      rows(env, 'assets')[0].createdAt = 'nonsense';
+    });
+    expect(refusedWith(text)).toEqual([`snapshots.0.quotes: ${LINE}`]);
+  });
+
+  it('leaves a table of the wrong shape to the schema, an id of __proto__ in it included', () => {
+    const text = mutated((env) => void (env.assets = { x: { id: '__proto__' } }));
+    const result = parseBackup(text);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/^assets: /);
+    expect(result.issues[0]).not.toMatch(/__proto__/);
+  });
+
+  it('reports a file nested past the call stack as a stray key, without throwing', () => {
+    const deep = '['.repeat(20_000) + ']'.repeat(20_000);
+    const text = mutated((env) => void (env.x = 0)).replace('"x":0', `"x":${deep}`);
+    const result = parseBackup(text);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.issues).toEqual(['(root): Unrecognized key: "x"']);
   });
 });

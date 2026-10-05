@@ -17,6 +17,7 @@ import {
   BACKUP_FORMAT_VERSION,
   backupEnvelopeSchema,
   blankPortfolioAssetIds,
+  forbiddenKeyIssues,
   integrityIssues,
   readEnvelopeHead,
   temporalKindAt,
@@ -96,13 +97,17 @@ export type ImportValidation =
   { ok: true; envelope: BackupEnvelope } | { ok: false; rejection: ImportRejection };
 
 /**
- * Format marker → version → row schemas → referential integrity. NOTHING PARTIAL
- * EVER PASSES: one bad row stops the whole import.
+ * Format marker → version → forbidden keys → row schemas → referential integrity.
+ * NOTHING PARTIAL EVER PASSES: one bad row stops the whole import.
  */
 export function validateImport(text: string): ImportValidation {
   const head = readEnvelopeHead(text);
   if (!head.ok) {
     return { ok: false, rejection: formatRejection(head.code, head.version, head.issue) };
+  }
+  const forbidden = forbiddenKeyIssues(head.raw);
+  if (forbidden.length > 0) {
+    return { ok: false, rejection: rowsRejection(schemaIssues(forbidden, head.raw)) };
   }
   const parsed = backupEnvelopeSchema.safeParse(head.raw);
   if (!parsed.success) {
@@ -199,6 +204,7 @@ function schemaIssues(issues: ZodIssueLike[], raw: Record<string, unknown>): Row
 // issue's path from the envelope root; the rest key on `field`, the path below the row (the
 // whole path for an envelope or settings issue), so `quotes.amount` is not `amount`.
 function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
+  if (issue.code === 'forbidden_key') return 'forbidden-key';
   if (issue.code === 'unrecognized_keys') return 'unknown-key';
   // Any fault on a date field takes the date code, a missing or non-string value included.
   const temporal = temporalKindAt(issue.path);

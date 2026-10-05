@@ -110,6 +110,7 @@ export const en = {
       duplicateDate: (value: string) => `duplicate date ${value} (date is the primary key)`,
       duplicateId: (value: string) => `duplicate id "${value}" (id is the primary key)`,
       unknownKey: (value: string) => `unexpected field "${value}"`,
+      forbiddenKey: (value: string) => `forbidden key "${value}"`,
       expectedDatetime: 'expected a real timestamp (yyyy-MM-ddTHH:mm:ss, no time zone)',
       expectedDate: 'expected a real date (yyyy-MM-dd)',
       expectedPositiveAmount: 'expected a positive number',
@@ -1247,6 +1248,7 @@ export const uk: Dict = {
       duplicateId: (value: string) =>
         `дубльований ідентифікатор «${value}» (ідентифікатор — первинний ключ)`,
       unknownKey: (value: string) => `неочікуване поле «${value}»`,
+      forbiddenKey: (value: string) => `заборонений ключ «${value}»`,
       expectedDatetime: 'очікується справжня мітка часу yyyy-MM-ddTHH:mm:ss без часового поясу',
       expectedDate: 'очікується справжня дата yyyy-MM-dd',
       expectedPositiveAmount: 'очікується додатне число',

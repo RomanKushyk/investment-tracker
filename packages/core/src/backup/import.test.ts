@@ -216,14 +216,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 11 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 11)));
+  it('rejects formatVersion 12 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 12)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(11);
+    expect(result.rejection.version).toBe(12);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 11 — this app reads formatVersion 10 only.',
+      'Unsupported formatVersion 12 — this app reads formatVersion 11 only.',
     );
   });
 
@@ -242,7 +242,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 11;
+        env.formatVersion = 12;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -804,6 +804,17 @@ describe('an OLDER backup is named as older, not as broken', () => {
     expect(result.rejection.version).toBe(9);
   });
 
+  it('maps formatVersion 10, the build that accepted a __proto__ key, to `older-format` (#353)', () => {
+    // A v10 build dropped a `__proto__` key in silence; this one refuses it, so it accepts
+    // strictly less and the version moves. The v10 file is refused once, on the version.
+    const result = validateImport(mutated((env) => void (env.formatVersion = 10)));
+    if (result.ok || result.rejection.kind !== 'format') {
+      throw new Error('expected a format reject');
+    }
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(10);
+  });
+
   it('does not call a fractional version an older backup', () => {
     // `1.5` is below the current version and at least 1, so the bare `>= 1` read it as a
     // real backup from an older app and reported "version 1.5". A version counts format
@@ -830,7 +841,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 10');
+    expect(result.rejection.detail).toContain('formatVersion 11');
   });
 });
 
@@ -1008,4 +1019,117 @@ describe('a field is a date because of its schema, not its name (#352)', () => {
       });
     }
   }
+});
+
+describe('a __proto__ key is refused wherever it sits (#353)', () => {
+  // `obj['__proto__'] = v` and `{ __proto__: v }` set the prototype and put no key in the file;
+  // the helper defines the own key and checks the serialised text carries it.
+  type Env = Record<string, unknown>;
+  type Define = (target: unknown, value: unknown) => void;
+  const define: Define = (target, value) =>
+    void Object.defineProperty(target, '__proto__', {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  const rows = (env: Env, table: string) => env[table] as Env[];
+  function withProtoKey(mutate: (env: Env, define: Define) => void): string {
+    const text = mutated((env) => mutate(env, define));
+    expect(text).toContain('"__proto__"');
+    return text;
+  }
+  function theOneIssue(text: string) {
+    const result = validateImport(text);
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toHaveLength(1);
+    const [issue] = result.rejection.issues;
+    expect(issue).toMatchObject({ code: 'forbidden-key', value: '__proto__' });
+    return issue;
+  }
+
+  const PLACES: Record<
+    string,
+    { set: (env: Env, define: Define) => void; table: string; at?: string; field?: string }
+  > = {
+    'the envelope': { set: (env, d) => d(env, 1), table: 'envelope' },
+    // Addressed as `unknown-key` addresses a stray key there.
+    settings: { set: (env, d) => d(env.settings, 1), table: 'settings', field: 'settings' },
+    'an asset row': {
+      set: (env, d) => d(rows(env, 'assets')[0], { x: 1 }),
+      table: 'assets',
+      at: '0',
+    },
+    "an asset's inzhur": {
+      set: (env, d) => {
+        const asset = rows(env, 'assets')[0];
+        asset.inzhur = { kind: 'fund', ref: 'x' };
+        d(asset.inzhur, 1);
+      },
+      table: 'assets',
+      at: '0',
+      field: 'inzhur',
+    },
+    // A key on the row itself is addressed by index, as `unknown-key` is there; a fault below a
+    // named field takes the row's date or id.
+    'a snapshot row': {
+      set: (env, d) => d(rows(env, 'snapshots')[0], 1),
+      table: 'snapshots',
+      at: '0',
+    },
+    "a snapshot's quotes": {
+      set: (env, d) => d(rows(env, 'snapshots')[0].quotes, 1),
+      table: 'snapshots',
+      at: '2026-07-24',
+      field: 'quotes',
+    },
+    'a transaction row': {
+      set: (env, d) => d(rows(env, 'transactions')[0], 1),
+      table: 'transactions',
+      at: '0',
+    },
+  };
+
+  for (const [place, { set, table, at, field }] of Object.entries(PLACES)) {
+    it(`refuses the key on ${place}, naming the place`, () => {
+      const issue = theOneIssue(withProtoKey(set));
+      expect(issue.table).toBe(table);
+      expect(issue.at).toBe(at);
+      expect(issue.field).toBe(field);
+    });
+  }
+
+  it('refuses a quote keyed __proto__ whatever its value, which no schema ever reached', () => {
+    const issue = theOneIssue(withProtoKey((env, d) => d(rows(env, 'snapshots')[0].quotes, 'abc')));
+    expect(issue).toMatchObject({ table: 'snapshots', at: '2026-07-24', field: 'quotes' });
+  });
+
+  it('refuses an asset whose id is __proto__: a plain-object quote map cannot hold that key', () => {
+    const issue = theOneIssue(
+      withProtoKey((env) => void (rows(env, 'assets')[0].id = '__proto__')),
+    );
+    expect(issue).toMatchObject({ table: 'assets', at: '0', field: 'id' });
+  });
+
+  it('leaves a key no schema declares to the schema, whatever is below it', () => {
+    const text = withProtoKey((env, d) => {
+      rows(env, 'assets')[0].foo = {};
+      d(rows(env, 'assets')[0].foo, 1);
+    });
+    const result = validateImport(text);
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({ table: 'assets', at: '0', code: 'unknown-key', value: 'foo' }),
+    ]);
+  });
+
+  it('reports a file nested past the call stack as a stray key, without throwing', () => {
+    const deep = '['.repeat(20_000) + ']'.repeat(20_000);
+    const text = mutated((env) => void (env.x = 0)).replace('"x":0', `"x":${deep}`);
+    const result = validateImport(text);
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({ table: 'envelope', code: 'unknown-key', value: 'x' }),
+    ]);
+  });
 });

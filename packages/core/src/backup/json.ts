@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 10;
+export const BACKUP_FORMAT_VERSION = 11;
 
 export type Dataset = 'demo' | 'live';
 
@@ -318,16 +318,62 @@ export function readEnvelopeHead(text: string): EnvelopeHead {
   return { ok: true, raw: head };
 }
 
+const FORBIDDEN_KEY = '__proto__';
+
+/** Shaped like a zod issue, so both doors address and render it as they do zod's. */
+export interface ForbiddenKeyIssue {
+  code: 'forbidden_key';
+  path: PropertyKey[];
+  keys: string[];
+  message: string;
+}
+
+// zod skips `__proto__` in the record and the strict object alike, so no schema can refuse it.
+// The walk goes only where the schemas reach: its depth is theirs, and a stray key stays theirs.
+export function forbiddenKeyIssues(raw: Record<string, unknown>): ForbiddenKeyIssue[] {
+  const issues: ForbiddenKeyIssue[] = [];
+  const found = (path: PropertyKey[]) =>
+    issues.push({
+      code: 'forbidden_key',
+      path,
+      keys: [FORBIDDEN_KEY],
+      message: `Forbidden key: "${FORBIDDEN_KEY}"`,
+    });
+  const walk = (schema: z.ZodType, value: unknown, path: PropertyKey[]) => {
+    const inner = unwrapOptional(schema);
+    if (typeof value !== 'object' || value === null) return;
+    if (inner instanceof z.ZodArray) {
+      const element = inner.element as z.ZodType;
+      if (Array.isArray(value)) value.forEach((row, i) => walk(element, row, [...path, i]));
+      return;
+    }
+    if (Array.isArray(value) || !(inner instanceof z.ZodObject || inner instanceof z.ZodRecord)) {
+      return;
+    }
+    if (Object.hasOwn(value, FORBIDDEN_KEY)) found(path);
+    // An asset id is a quote key, and a plain-object quote map cannot hold this one.
+    if (inner === assetRowSchema && (value as { id?: unknown }).id === FORBIDDEN_KEY) {
+      found([...path, 'id']);
+    }
+    for (const [key, child] of Object.entries(value)) {
+      const next = stepInto(inner, key);
+      if (next !== undefined) walk(next, child, [...path, key]);
+    }
+  };
+  walk(backupEnvelopeSchema, raw, []);
+  return issues;
+}
+
+const pathLine = (issue: { path: PropertyKey[]; message: string }) =>
+  `${issue.path.join('.') || '(root)'}: ${issue.message}`;
+
 export function parseBackup(text: string): ParseBackupResult {
   const head = readEnvelopeHead(text);
   if (!head.ok) return { ok: false, issues: [head.issue] };
+  const forbidden = forbiddenKeyIssues(head.raw);
+  if (forbidden.length > 0) return { ok: false, issues: forbidden.map(pathLine) };
   const parsed = backupEnvelopeSchema.safeParse(head.raw);
-  if (!parsed.success) {
-    return {
-      ok: false,
-      issues: parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`),
-    };
-  }
+  if (!parsed.success) return { ok: false, issues: parsed.error.issues.map(pathLine) };
   const issues = integrityIssues(parsed.data);
   return issues.length > 0
     ? { ok: false, issues: issues.map(renderIssue) }
@@ -360,6 +406,7 @@ export type IssueCode =
   | 'unknown-quote-asset'
   | 'duplicate-key'
   | 'unknown-key'
+  | 'forbidden-key'
   | 'expected-datetime'
   | 'expected-date'
   | 'expected-positive-amount'
