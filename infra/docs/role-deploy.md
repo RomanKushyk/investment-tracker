@@ -75,7 +75,20 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
 
 For `prod`, the same with three substitutions: `stack/quirenote-backend-user-prod/*` replaces the
 two dev stacks, because the archive deploys from `dev` alone; the object prefix is `prod/*`; and the
-runner is `quirenote-backend-user-prod-MigrateFunction-*`.
+runner is `quirenote-backend-user-prod-MigrateFunction-*`. And one statement more, because the
+production deploy still READS the archive, for the identifier it passes as `ArchiveClusterId`:
+
+```json
+{
+  "Sid": "ReadTheArchiveIdentifier",
+  "Effect": "Allow",
+  "Action": "cloudformation:DescribeStacks",
+  "Resource": "arn:aws:cloudformation:eu-north-1:<account-id>:stack/quirenote-backend/*"
+}
+```
+
+A statement of its own rather than a line in `DriveTheStack`, which would let a `main` run update
+the archive. The dev role reads it through `DriveTheStack` already.
 
 **The trust names the environment AND the branch, and each closes a gap the other leaves.** The `sub`
 a job in an environment carries is `…:environment:<env>`, never `ref:refs/heads/…`. `ref` is a claim

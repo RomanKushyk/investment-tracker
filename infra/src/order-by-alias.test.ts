@@ -162,7 +162,8 @@ async function shadowedKeys(sql: string): Promise<string[]> {
 describe('no output alias shadows a sorted column', () => {
   const queries = sources().flatMap(({ file, text }) =>
     templateLiterals(text)
-      .filter((sql) => /\bSELECT\b/.test(sql))
+      // A GRANT or REVOKE names SELECT as a privilege and sorts nothing.
+      .filter((sql) => /\bSELECT\b/.test(sql) && !/^\s*(GRANT|REVOKE)\b/.test(sql))
       .map((sql) => ({ file, sql })),
   );
 
@@ -170,9 +171,10 @@ describe('no output alias shadows a sorted column', () => {
     // EXACT, not a floor: a floor cannot catch the scanner going blind, because
     // the count then goes DOWN. Update it deliberately, in the commit that adds
     // or removes a query. The file set is named rather than counted alone.
-    expect(queries.length).toBe(15);
+    expect(queries.length).toBe(28);
     expect(new Set(queries.map((q) => q.file))).toEqual(
       new Set([
+        'archive-reader-grant.ts',
         'capture.ts',
         'diagnose-reconciliation.ts',
         'asset-delete.ts',

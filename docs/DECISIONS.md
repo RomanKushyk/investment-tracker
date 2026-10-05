@@ -413,7 +413,8 @@ geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free.
 
 ## The price archive
-**Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet. It buys
+**Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet, and the
+one way into it from a user stack is `archive_reader`, read-only (*Cloud target*). It buys
 the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV series, both captured
 nightly from the provider's offer page (*External sources*); a night the page is not read is a
 dealer quote the archive will never hold. NBU
@@ -505,13 +506,46 @@ one archive serves every environment, and one DSQL cluster of user data per envi
 from the branch that owns it. The migration runner follows the schema it applies rather than the
 stack it started in, so each user cluster has a runner that can reach no other cluster at all. Any
 statement over the archive is bounded by a SQL date window, and completeness names both bounds, the
-row limit first.
+row limit first. A USER STACK READS THE ARCHIVE AS `archive_reader` ALONE: `SELECT` on every table
+in the archive's `public` schema, those the capture creates later included. Each time the grant
+runs it checks the reader's effective privileges over every object type PostgreSQL keeps
+privileges on, and what it owns, and fails the deploy when the reader can do more than read: write
+a table, column, sequence or large object it was given, create in a schema, database or tablespace,
+pass a read or a schema's use on, run a function as its owner, use a foreign server, alter a system
+setting, own anything, hold a role attribute beyond LOGIN or a membership, or be given by a default,
+its own or PUBLIC's, a write, a CREATE or a grant option. It repairs nothing it did not grant, and
+fails closed: the reader is left with no mapping until an admin removes the privilege.
+The role is mapped to `quirenote-backend-archive-reader`, a fixed-name role the ARCHIVE stack owns
+with `dsql:DbConnect` on that cluster and nothing else, whose trust admits a user stack's view
+function by a pattern on `aws:PrincipalArn`; nothing assumes it until that function exists. The
+archive's identifier reaches a user stack as a deploy parameter the workflow reads off the archive's
+outputs. The mapping is granted by a custom resource in the archive stack, admin's second holder
+there beside the capture, which revokes every mapping and grants the current one on its creation and
+whenever one of its properties changes: the role's ARN, the cluster, the hash of its own code or
+its timeout.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
-accumulation; user data is the opposite on both counts.
+accumulation; user data is the opposite on both counts. AWS's guidance for DSQL keeps the admin role
+out of everyday connections. A DSQL mapping binds the role behind an ARN, not the ARN: a role
+replaced under its own name is refused while the mapping still lists it, and only a revoke and a
+grant re-bind it (`infra/docs/dsql-constraints.md`). So the mapping names a role whose stack re-runs
+the grant, and the trust names a pattern, because IAM stores a `Principal` ARN as the role's unique
+id and a condition key's ARN as written. The grant runs at deploy and the capture creates its tables
+at run time, so the reader's tables come from default privileges, which DSQL applies to a table
+`admin` creates afterwards; the archive holds public reference data only, so no table in it is one
+the reader should not see, and a test lists the tables and views the infra modules create so that
+a new one is reviewed before the reader can read it. A privilege can come from a name, a column,
+`PUBLIC`, a membership or a default set for one schema or for all of them, so the check reads what
+the reader can do rather than where a grant came from.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
-the plan had already given up.
+the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
+from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
+roles by ARN: it goes stale when SAM replaces one. · `Fn::ImportValue` for the identifier: an
+imported output pins the stack exporting it, and the user stack deploys first. · A grant by a
+fixed list of table names: it ran before the capture had created a fresh archive's tables, or a
+newly added one, and failed the deploy. · Revoking each extra privilege by its source: a source the
+sweep does not name survives it, and there is always another to name.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER

@@ -81,6 +81,19 @@ Inline permission policy:
       "Resource": "arn:aws:lambda:eu-north-1:<account-id>:function:quirenote-backend-*"
     },
     {
+      "Sid": "InvokeTheGrantProvider",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:eu-north-1:<account-id>:function:quirenote-backend-ArchiveReaderGrantFunction-*"
+    },
+    {
+      "Sid": "ConfigureTheGrantProvidersInvocation",
+      "Effect": "Allow",
+      "Action": ["lambda:PutFunctionEventInvokeConfig", "lambda:GetFunctionEventInvokeConfig",
+                 "lambda:UpdateFunctionEventInvokeConfig", "lambda:DeleteFunctionEventInvokeConfig"],
+      "Resource": "arn:aws:lambda:eu-north-1:<account-id>:function:quirenote-backend-ArchiveReaderGrantFunction-*"
+    },
+    {
       "Sid": "RolesTheStackOwns",
       "Effect": "Allow",
       "Action": ["iam:CreateRole", "iam:DeleteRole",
@@ -298,6 +311,17 @@ trap above. **`apigateway:PUT` is not optional either**, though it reads as the 
 `AWS::Serverless::HttpApi` ALWAYS produces an OpenAPI body — SAM assembles the routes and the CORS
 block into one, which is the only reason `CorsConfiguration` works here. So every create and update
 goes through PUT, and the ARN it fails on FIRST is a tags one rather than `/apis`.
+
+**A custom resource is invoked AS THIS ROLE, so `InvokeTheGrantProvider` is the one invoke it
+holds.** CloudFormation calls the function behind `ArchiveReaderGrant` with the stack's service role,
+not as a service principal; without the grant the custom resource fails `CREATE` with `User:
+arn:aws:sts::<account-id>:assumed-role/quirenote-backend-cfn-exec/AWSCloudFormation is not authorized
+to perform: lambda:InvokeFunction on resource: …`. The resource is that one function's name prefix,
+never `function:quirenote-backend-*`, which would let a template deployed from `dev` point a custom
+resource at production's migration runner. **`ConfigureTheGrantProvidersInvocation` is what that
+function's `EventInvokeConfig` takes**, the four actions the `AWS::Lambda::EventInvokeConfig` type's
+create, read, update and delete handlers name: the invocation is asynchronous, and capping an
+event's age is what keeps a late one from running after CloudFormation has stopped waiting.
 
 **Edit from a readback.** Write every change from an `aws iam get-role-policy` readback rather than
 a fresh document, because `put-role-policy` REPLACES the whole inline document.

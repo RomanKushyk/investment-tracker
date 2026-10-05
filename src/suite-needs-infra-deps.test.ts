@@ -83,13 +83,14 @@ describe('every workflow that runs the suite installs what the suite imports', (
   // SDK the guards below are guarding nothing, and should be deleted rather than kept
   // green by accident.
   it('still has the import chain that makes infra deps a test-time dependency', () => {
-    expect(stripTs(read('infra/src/dsql.ts'), 'infra/src/dsql.ts')).toContain(
-      '@aws-sdk/dsql-signer',
-    );
+    const dsql = stripTs(read('infra/src/dsql.ts'), 'infra/src/dsql.ts');
+    expect(dsql).toContain('@aws-sdk/dsql-signer');
+    expect(dsql).toContain('@aws-sdk/credential-providers');
     const deps = JSON.parse(read('infra/package.json')) as {
       dependencies?: Record<string, string>;
     };
     expect(Object.keys(deps.dependencies ?? {})).toContain('@aws-sdk/dsql-signer');
+    expect(Object.keys(deps.dependencies ?? {})).toContain('@aws-sdk/credential-providers');
   });
 
   it('keeps infra/ in the workspace, which is what makes one install enough', () => {

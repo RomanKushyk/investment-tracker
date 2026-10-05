@@ -94,7 +94,81 @@ Resources:
     Properties:
       MessageRetentionPeriod: 1209600 # 14 days
 
-  # THE MIGRATION RUNNER IS NOT HERE — in `template-user.yaml`, or it would hold admin here.
+  # Admin on the archive has two holders, the capture and the grant provider below, which grants and
+  # never reads or writes a row; the migration runner stays in `template-user.yaml`.
+
+  # The one way in from a user stack, owned here so a `dev` deploy can re-grant whatever replaces it;
+  # fixed-name, so a user stack can build its ARN. [*Cloud target*]
+  ArchiveReaderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: quirenote-backend-archive-reader
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+            # By pattern, not a `Principal` ARN, which SAM's replacement of the role strands; the view
+            # function's role and the boundary each still need `sts:AssumeRole` on this one.
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/quirenote-backend-user-*-ViewFunctionRole-*'
+      Policies:
+        - PolicyName: ConnectAsArchiveReader
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: dsql:DbConnect
+                Resource: !GetAtt PriceCluster.ResourceArn
+
+  ArchiveReaderGrantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: archive-reader-grant.handler
+      Timeout: 60
+      # No event older than this starts, so no run, cold start included, outlives CloudFormation's wait.
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 520
+        MaximumRetryAttempts: 2
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            - Sid: GrantOnDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt PriceCluster.ResourceArn
+
+  ArchiveReaderGrantLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ArchiveReaderGrantFunction}
+      RetentionInDays: 30
+
+  # Run on Create and whenever a property changes: the role's ARN, the cluster, the timeout, or
+  # `Revision`, the hash of `archive-reader-grant.ts` and the `dsql.ts` it imports.
+  ArchiveReaderGrant:
+    Type: Custom::ArchiveReaderGrant
+    # Invoked during the deploy, so after its log group, which Lambda would otherwise create first,
+    # and after the age cap SAM generates from `EventInvokeConfig`, or the first event runs uncapped.
+    DependsOn: [ArchiveReaderGrantLogGroup, ArchiveReaderGrantFunctionEventInvokeConfig]
+    Properties:
+      ServiceToken: !GetAtt ArchiveReaderGrantFunction.Arn
+      # Over the oldest event that may start, its cold start and the function's timeout.
+      ServiceTimeout: 600
+      ReaderRoleArn: !GetAtt ArchiveReaderRole.Arn
+      # A cluster replaced is one with no `archive_reader` yet.
+      ClusterArn: !GetAtt PriceCluster.ResourceArn
+      # Quoted: an all-digit hash would read as a number.
+      Revision: '62a49e6cc90e'
 
   CaptureSchedule:
     Type: AWS::Scheduler::Schedule

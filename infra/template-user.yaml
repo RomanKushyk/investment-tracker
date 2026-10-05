@@ -33,6 +33,14 @@ Parameters:
     # own Region, where the pool's is fronted by CloudFront and reads us-east-1 only. Neither
     # parameter has a default, because no value would be right and both carry the account id.
 
+  # The archive, read off its stack by the workflow: an import would pin its output, and this stack
+  # deploys first. Read by no resource until the view function. [*Cloud target*]
+  ArchiveClusterId:
+    Type: String
+    MinLength: 1
+    AllowedPattern: ^[a-z0-9]+$
+    ConstraintDescription: must be the archive stack's ClusterIdentifier output
+
   OpenRegistration:
     Type: String
     AllowedValues: [closed, open]

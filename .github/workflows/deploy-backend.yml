@@ -92,7 +92,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage; do
+          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage archive-reader-grant; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -110,7 +110,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept: a guard derived
           # from the esbuild step alone let a handler deploy having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/archive-reader-grant.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -316,6 +316,23 @@ jobs:
               console.log('pool-usage bundle loads, counts an empty pool as zero, and refuses a count it could not read');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
+          # CloudFormation waits on this bundle's answer, so one that cannot load holds the archive
+          # deploy for the whole ServiceTimeout. The grant runs on a stub, in the shape it ships.
+          node -e "
+            const g = require('./archive-reader-grant.js');
+            if (typeof g.handler !== 'function') throw new Error('handler missing from archive-reader-grant bundle');
+            const sent = [];
+            const answers = (text) => text.includes('FROM pg_tables WHERE') ? [{ tablename: 'bond_terms' }] : text.includes('rolcanlogin') ? [{ rolcanlogin: true }] : [];
+            const client = { query: async (text) => { sent.push(text); return { rows: answers(text) }; } };
+            const arn = 'arn:aws:iam::123456789012:role/quirenote-backend-archive-reader';
+            g.grantReader(client, { ReaderRoleArn: arn }).then(() => {
+              if (!sent.some((s) => s.startsWith('AWS IAM GRANT archive_reader TO ') && s.includes(arn))) throw new Error('no mapping sent: ' + JSON.stringify(sent));
+              if (!sent.includes('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO archive_reader')) throw new Error('no default grant sent: ' + JSON.stringify(sent));
+              if (!sent.some((s) => s.includes('has_table_privilege'))) throw new Error('the effective privileges were not checked: ' + JSON.stringify(sent));
+              if (!sent.includes('GRANT SELECT ON public.\"bond_terms\" TO archive_reader')) throw new Error('no table grant sent: ' + JSON.stringify(sent));
+              console.log('archive-reader-grant bundle loads, sends the mapping, the default and the table grant, and checks the reader');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
 
       # NO DEPLOY GATE HERE, AND THAT IS STILL A DECISION, though half its reasoning has expired.
       # A `changed` step suppressing the deploy on a prose push was written and removed because
@@ -335,15 +352,28 @@ jobs:
           role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      # On `main` too, where the archive exists though it is not deployed. No `|| true`: a failed
+      # read fails with AWS's error, and an empty or `None` answer fails here rather than deploy.
+      - name: Read the archive cluster identifier
+        id: archive-id
+        run: |
+          id=$(aws cloudformation describe-stacks --stack-name quirenote-backend \
+            --query "Stacks[0].Outputs[?OutputKey=='ClusterIdentifier'].OutputValue" --output text)
+          if [ -z "$id" ] || [ "$id" = "None" ]; then
+            echo "::error::quirenote-backend answered no ClusterIdentifier output"
+            exit 1
+          fi
+          echo "cluster-id=$id" >> "$GITHUB_OUTPUT"
+
       # USER STACK FIRST, ARCHIVE SECOND, in two steps: the archive deploy DELETES the old
       # migration function, so running it first leaves the plan step below — and any later
       # dispatch of `migrate.yml` — resolving nothing.
       - name: Deploy the user stack
         working-directory: infra
         run: |
-          # The three on this line go every time: neither certificate has a default, so an unset
-          # secret has to fail rather than resolve.
-          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}")
+          # The four on this line go every time: none has a default, so an unset value has to
+          # fail rather than resolve.
+          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}" "ArchiveClusterId=${ARCHIVE_CLUSTER_ID}")
           # THE GOOGLE SWITCH GOES EVERY TIME, like `OpenRegistration` below: left out, it keeps its
           # previous value. The PAIR goes only when set, as `sam deploy` REFUSES an empty value.
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
@@ -388,8 +418,10 @@ jobs:
           OPEN_REGISTRATION: ${{ vars.OPEN_REGISTRATION }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          ARCHIVE_CLUSTER_ID: ${{ steps.archive-id.outputs.cluster-id }}
 
       # Skipped on `main`, so a dispatch there cannot repair the archive — dispatch on `dev`.
+      # NAMED_IAM for the reader role's fixed name.
       - name: Deploy the archive stack
         id: archive
         if: github.ref_name != 'main'
@@ -401,7 +433,7 @@ jobs:
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
             --s3-prefix "${ENVIRONMENT}" \
             --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_NAMED_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
         env:
@@ -447,7 +479,7 @@ jobs:
               echo "  aws cloudformation get-template --stack-name $1 --template-stage Original --query TemplateBody --output text > t.yaml"
               echo "  # replace the Description in t.yaml with the one in $2, then, with one"
               echo "  # ParameterKey=<name>,UsePreviousValue=true per parameter the stack declares:"
-              echo "  aws cloudformation update-stack --stack-name $1 --template-body file://t.yaml --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND --parameters ..."
+              echo "  aws cloudformation update-stack --stack-name $1 --template-body file://t.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --parameters ..."
               exit 1
             fi
             echo "$1 carries the description $2 ships"

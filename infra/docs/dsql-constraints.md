@@ -290,3 +290,96 @@ cluster, not another dispatch.
 
 [run 35599249065]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599249065
 [run 35599318279]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599318279
+
+## Roles and IAM mappings
+
+Sent to the **dev user cluster** as `admin`, with a throwaway IAM role granted `dsql:DbConnect` on
+that cluster and assumed through `fromTemporaryCredentials`, the path `infra/src/dsql.ts` takes.
+Never to the archive. Everything below was removed afterwards.
+
+| Statement | DSQL |
+|---|---|
+| `CREATE ROLE archive_reader WITH LOGIN` on a role that already exists | refused — `42710 role "archive_reader" already exists` |
+| `AWS IAM GRANT` repeated for a mapping already there | **accepted, and a no-op**: the mapping keeps its `iam_oid` |
+| `AWS IAM GRANT` to the ARN of a role that does not exist | **accepted**: a mapping row appears, nothing is checked at grant time |
+| `AWS IAM REVOKE` of an ARN no mapping names | refused — `42704 IAM role "<arn>" does not exist` |
+| `GRANT USAGE ON SCHEMA public` | refused — `0A000 feature not supported on system entity` |
+| `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES` | **accepted, and it takes effect**: a table `admin` created afterwards was readable by the role |
+| `ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES` | **accepted**: a default `INSERT` and a grant option on `SELECT` are both withdrawn, and a `GRANT SELECT` default sent after it leaves `SELECT` alone. **It does not reach a global default**, one set with no `IN SCHEMA`: a table created afterwards was still writable by the role |
+| `ALTER DEFAULT PRIVILEGES GRANT … ON TABLES` and `… REVOKE ALL ON TABLES`, with no schema | accepted: `pg_default_acl` holds the entry with `defaclnamespace = 0`, and the global REVOKE clears it |
+| `ALTER ROLE archive_reader WITH LOGIN` | accepted, on a role created without LOGIN and again on one that has it |
+| `GRANT SELECT ON ALL TABLES IN SCHEMA public` | accepted |
+| `GRANT SELECT ON public.<table>` | accepted |
+| `REVOKE GRANT OPTION FOR SELECT ON public.<table>` | accepted: the grant stays, its grant option goes |
+
+**A custom role reads a `public` table on a per-table grant alone**, with no `USAGE` on the schema,
+which it cannot be given. Read as `archive_reader`:
+
+| Statement | DSQL |
+|---|---|
+| `SELECT` from the granted table | answered |
+| `INSERT`, `UPDATE`, `DELETE` on the granted table | refused — `42501 permission denied for table <table>` |
+| `SELECT` from a table never granted | refused — `42501 permission denied for table <table>` |
+| `CREATE TABLE` | refused — `42501 permission denied for schema public` |
+| `SELECT` from `sys.iam_pg_role_mappings` | answered: the role can read every mapping's ARN |
+
+**The role's effective privileges are readable whatever their source.** Every privilege function
+for PostgreSQL's object types is answered: `has_table_privilege`, `has_any_column_privilege`,
+`has_sequence_privilege`, `has_schema_privilege`, `has_database_privilege`,
+`has_tablespace_privilege`, `has_function_privilege`, `has_parameter_privilege`,
+`has_foreign_data_wrapper_privilege` and `has_server_privilege`, with `pg_auth_members`,
+`pg_default_acl` and `pg_largeobject_metadata`. Checked through them, a global default, a column
+grant, a grant to `PUBLIC` and a membership in a writing role each show.
+
+What a role can be given beyond reading, and what DSQL refuses to give:
+
+| Given by hand | DSQL |
+|---|---|
+| a default to `PUBLIC` (`… IN SCHEMA public GRANT INSERT ON TABLES TO PUBLIC`) | accepted: the entry reads `=a/admin` |
+| `SELECT (column) … WITH GRANT OPTION` | accepted: only `has_any_column_privilege` shows the option |
+| `CREATE` on a schema made by admin | accepted |
+| a `SECURITY DEFINER` function | accepted, and `PUBLIC` may execute it by default |
+| `USAGE, UPDATE` on a sequence | accepted, on a sequence made with `CACHE 1` (`CREATE SEQUENCE` without a cache size is refused `0A000`) |
+| `ALTER ROLE … CREATEROLE` | accepted |
+| `ALTER ROLE … CREATEDB`, `BYPASSRLS`, `REPLICATION` | refused — `0A000 unsupported role option(s)` |
+| `GRANT CREATE ON DATABASE`, `GRANT SET ON PARAMETER` | refused — `0A000 unsupported object type in GRANT` |
+| `GRANT SELECT ON SEQUENCE … WITH GRANT OPTION` | accepted |
+| `GRANT USAGE ON SCHEMA public … WITH GRANT OPTION` | refused — `0A000 feature not supported on system entity` |
+| `GRANT MAINTAIN ON …` | refused — `42601 unrecognized privilege type "maintain"`: the server is PostgreSQL 16 |
+| `ALTER FUNCTION`, `ALTER DOMAIN` or `ALTER TABLE … OWNER TO archive_reader`, as admin | refused — `42501 must be able to SET ROLE "archive_reader"` |
+| `CREATE TYPE`, `CREATE TEMP TABLE`, `lo_create` | refused — `0A000`: no user type, no temporary table, no large object |
+
+`pg_shdepend` is answered: it lists each object the role is granted on (`deptype` `a`) and would
+list each it owns (`o`).
+
+`pg_parameter_acl` lists the planner settings DSQL publishes, `enable_bitmapscan` among them, so a
+role may `SET` those for its own session.
+
+**The connection is refused under two SQLSTATEs with one message**, `unable to accept connection,
+access denied`, so the code is what tells them apart:
+
+| Connection | DSQL |
+|---|---|
+| `getDbConnectAuthToken`, user `archive_reader`, the role mapped | connects; `current_user` is `archive_reader` |
+| the same, the role mapped but granted no `dsql:DbConnect` in IAM | `08006` |
+| the same, the role's ARN mapped to nothing | `28000` |
+| the same, a database role that does not exist | `28000` |
+| `getDbConnectAdminAuthToken`, user `archive_reader` | `08006` |
+| `getDbConnectAuthToken`, user `admin` | `08006` |
+
+**A mapping binds the IAM role, not its ARN.** Deleted and recreated under the same name, the role
+was refused `28000` for as long as it was watched, while `sys.iam_pg_role_mappings` still listed the
+identical ARN; `sys.iam_identity.principal_id` reads null throughout, so the catalog cannot show it.
+A repeated `AWS IAM GRANT` did not repair it. `AWS IAM REVOKE` followed by `AWS IAM GRANT` did, at
+once, under a new `iam_oid`. A control role granted as soon as IAM had created it, under a new
+name, connected on its first attempt. **So a grant is refreshed by a revoke and a grant, never by a grant alone, and
+nothing the cluster lists says one is stale.** In the other direction, the role could still be
+assumed and connect just after its deletion: IAM's eventual consistency, not the mapping.
+
+**A run of the grant provider is idempotent, though two of its statements are not.** `grantReader`
+in `infra/src/archive-reader-grant.ts` reads the role and the mappings before it creates or revokes
+either, and takes `42710` on its `CREATE ROLE` and `42704` on an `AWS IAM REVOKE` as the effect
+already holding. On this cluster it revokes a stale mapping and one naming a role that never
+existed, and on a second run over its own result fails on nothing; the reader connects straight
+after it. A privilege beyond reading fails the run, names itself, and is left in place. Through `connectAsArchiveReader()` the reader reads
+a granted table, is refused `42501` on an insert, and an unmapped role raises `ArchiveReaderRefused`.

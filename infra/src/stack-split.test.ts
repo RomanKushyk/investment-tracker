@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -256,6 +257,8 @@ describe('the archive stack holds the archive and nothing else', () => {
       'AWS::IAM::Role',
       'AWS::Logs::MetricFilter',
       'AWS::CloudWatch::Alarm',
+      // The one custom resource, by its own type name: a second provider arrives unlisted.
+      'Custom::ArchiveReaderGrant',
     ]);
     for (const [id, r] of resources(archive)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
   });
@@ -321,6 +324,326 @@ describe('the archive stack holds the archive and nothing else', () => {
       ],
       managed: [],
     });
+  });
+});
+
+// The one way into the archive from a user stack, owned by the archive so a `dev` deploy can
+// re-grant whatever replaces the role; assumed by pattern, never by a `Principal` ARN. [*Cloud target*]
+describe('the user stacks reach the archive through a read-only role the archive owns', () => {
+  const READER_ROLE = 'ArchiveReaderRole';
+  const GRANT = 'ArchiveReaderGrant';
+  const GRANT_FUNCTION = 'ArchiveReaderGrantFunction';
+  const READER_NAME = 'quirenote-backend-archive-reader';
+  const ROOT = 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root';
+  /** SAM names a function's role `<stack>-<LogicalId>Role-<suffix>`: the view function's logical id
+   *  is `ViewFunction` in either user stack. */
+  const TRUST_PATTERN =
+    'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/quirenote-backend-user-*-ViewFunctionRole-*';
+
+  /** The pattern as IAM reads it for one account: pseudo parameters resolved, `*` a wildcard. */
+  const arnLike = (pattern: string) =>
+    new RegExp(
+      `^${pattern
+        .replaceAll('${AWS::Partition}', 'aws')
+        .replaceAll('${AWS::AccountId}', '123456789012')
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replaceAll('*', '.*')}$`,
+    );
+
+  it('declares the reader as a fixed-name, bounded role of the archive stack', () => {
+    const role = archive.Resources[READER_ROLE];
+    expect(role?.Type).toBe('AWS::IAM::Role');
+    // The name is the contract a user stack builds the ARN from, under `cfn-exec`'s role prefix.
+    expect(Object.keys(role.Properties ?? {}).sort()).toEqual([
+      'AssumeRolePolicyDocument',
+      'PermissionsBoundary',
+      'Policies',
+      'RoleName',
+    ]);
+    expect(intrinsicAt(archiveDoc, 'Resources', READER_ROLE, 'Properties', 'RoleName')).toEqual({
+      tag: undefined,
+      value: READER_NAME,
+    });
+    expect(READER_NAME.startsWith('quirenote-backend-')).toBe(true);
+  });
+
+  it('may be assumed by the view function roles of either user stack, by pattern and never by ARN', () => {
+    const trust = ['Resources', READER_ROLE, 'Properties', 'AssumeRolePolicyDocument'];
+    expect(archive.Resources[READER_ROLE].Properties?.AssumeRolePolicyDocument).toEqual({
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          // The account: a role ARN here is stored as its id, which SAM's replacement strands.
+          Principal: { AWS: ROOT },
+          Action: 'sts:AssumeRole',
+          Condition: { ArnLike: { 'aws:PrincipalArn': TRUST_PATTERN } },
+        },
+      ],
+    });
+    expect(intrinsicAt(archiveDoc, ...trust, 'Statement', 0, 'Principal', 'AWS')).toEqual({
+      tag: '!Sub',
+      value: ROOT,
+    });
+    expect(
+      intrinsicAt(archiveDoc, ...trust, 'Statement', 0, 'Condition', 'ArnLike', 'aws:PrincipalArn'),
+    ).toEqual({ tag: '!Sub', value: TRUST_PATTERN });
+    // Two tags in the trust and no other: the two `!Sub` read above.
+    const tags: string[] = [];
+    visit(archiveDoc.getIn(trust, true) as Node, {
+      Node: (_, n) => {
+        if (n.tag) tags.push(n.tag);
+      },
+    });
+    expect(tags).toEqual(['!Sub', '!Sub']);
+    const admits = arnLike(TRUST_PATTERN);
+    for (const env of ['dev', 'prod']) {
+      const name = `quirenote-backend-user-${env}-ViewFunctionRole-1ABC2DEF3GH4`;
+      expect([env, admits.test(`arn:aws:iam::123456789012:role/${name}`)]).toEqual([env, true]);
+      // CloudFormation shortens a generated name past 64 characters (`…-user-pro-Applications…`),
+      // and a shortened one would miss the pattern.
+      expect([env, name.length <= 64]).toEqual([env, true]);
+    }
+    for (const other of [
+      'arn:aws:iam::123456789012:role/quirenote-backend-user-dev-MigrateFunctionRole-1ABC2DEF3GH4',
+      'arn:aws:iam::123456789012:role/quirenote-backend-CaptureFunctionRole-1ABC2DEF3GH4',
+      `arn:aws:iam::123456789012:role/${READER_NAME}`,
+      'arn:aws:iam::999999999999:role/quirenote-backend-user-dev-ViewFunctionRole-1ABC2DEF3GH4',
+    ])
+      expect([other, admits.test(other)]).toEqual([other, false]);
+  });
+
+  it('grants the reader dsql:DbConnect on the archive cluster and nothing else', () => {
+    const statements = [
+      'Resources',
+      READER_ROLE,
+      'Properties',
+      'Policies',
+      0,
+      'PolicyDocument',
+      'Statement',
+    ];
+    expect(grantAt(archiveDoc, statements, 'dsql:DbConnect')).toEqual({
+      tag: '!GetAtt',
+      value: 'PriceCluster.ResourceArn',
+    });
+    expect(roleGrants(archive, READER_ROLE)).toEqual({
+      statements: [expect.objectContaining({ Action: 'dsql:DbConnect' })],
+      managed: [],
+    });
+    expect(
+      intrinsicAt(archiveDoc, 'Resources', READER_ROLE, 'Properties', 'PermissionsBoundary'),
+    ).toEqual({ tag: '!Sub', value: BOUNDARY });
+  });
+
+  // CloudFormation sends an Update only when a property changes: a renamed role, or a change to
+  // the provider's statements, whose hash is a property too.
+  it('grants the database mapping from a custom resource keyed on the reader ARN and its code', () => {
+    const grant = archive.Resources[GRANT];
+    expect(grant?.Type).toBe('Custom::ArchiveReaderGrant');
+    // After its log group, which Lambda would otherwise create first, and after the age cap SAM
+    // generates from `EventInvokeConfig`, or the first event runs uncapped.
+    expect((grant as { DependsOn?: unknown }).DependsOn).toEqual([
+      'ArchiveReaderGrantLogGroup',
+      `${GRANT_FUNCTION}EventInvokeConfig`,
+    ]);
+    const props = ['Resources', GRANT, 'Properties'];
+    expect(Object.keys(grant.Properties ?? {}).sort()).toEqual([
+      'ClusterArn',
+      'ReaderRoleArn',
+      'Revision',
+      'ServiceTimeout',
+      'ServiceToken',
+    ]);
+    expect(intrinsicAt(archiveDoc, ...props, 'ServiceToken')).toEqual({
+      tag: '!GetAtt',
+      value: `${GRANT_FUNCTION}.Arn`,
+    });
+    expect(intrinsicAt(archiveDoc, ...props, 'ReaderRoleArn')).toEqual({
+      tag: '!GetAtt',
+      value: `${READER_ROLE}.Arn`,
+    });
+    // A replaced cluster holds no `archive_reader` yet, so the cluster is a property too.
+    expect(intrinsicAt(archiveDoc, ...props, 'ClusterArn')).toEqual({
+      tag: '!GetAtt',
+      value: 'PriceCluster.ResourceArn',
+    });
+    // The provider's code and the connect and SQLSTATE reading it imports, comments and whitespace
+    // gone, so a comment-only edit leaves the hash alone.
+    const code = ['./archive-reader-grant.ts', './dsql.ts']
+      .map((f) => stripTs(readFileSync(new URL(f, import.meta.url), 'utf8'), f))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const revision = createHash('sha256').update(code).digest('hex').slice(0, 12);
+    expect(intrinsicAt(archiveDoc, ...props, 'Revision')).toEqual({
+      tag: undefined,
+      value: revision,
+    });
+  });
+
+  // CloudFormation invokes the provider asynchronously, and Lambda can hold an event for hours when
+  // throttled: no event may start so late that its run, cold start included, outlives the wait.
+  it('starts no run of the provider that could outlive the wait for its answer', () => {
+    const service = Number(
+      (archive.Resources[GRANT].Properties as { ServiceTimeout?: unknown }).ServiceTimeout,
+    );
+    const fn = archive.Resources[GRANT_FUNCTION].Properties as {
+      Timeout?: number;
+      EventInvokeConfig?: Record<string, unknown>;
+    };
+    const timeout = Number(fn.Timeout ?? archive.Globals?.Function?.Timeout);
+    const age = Number(fn.EventInvokeConfig?.MaximumEventAgeInSeconds);
+    expect(timeout).toBeGreaterThan(0);
+    expect(age).toBeGreaterThanOrEqual(60);
+    // Lambda's Init phase runs outside the function's timeout, and takes up to ten seconds.
+    const INIT_ALLOWANCE = 20;
+    expect(age + INIT_ALLOWANCE + timeout).toBeLessThanOrEqual(service);
+    expect(service).toBeLessThanOrEqual(3600);
+    // A destination would add a policy no test here counts.
+    expect(Object.keys(fn.EventInvokeConfig ?? {}).sort()).toEqual([
+      'MaximumEventAgeInSeconds',
+      'MaximumRetryAttempts',
+    ]);
+  });
+
+  // Every table or view admin creates on the archive is readable by the reader on creation: a new
+  // one is reviewed as public reference data, then listed here, by module.
+  it('lists every table and view the infra modules create, each one reviewed', () => {
+    const DDL =
+      /CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|MATERIALIZED\s+VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?((?:\w+\.)?"?\w+"?)/gi;
+    // Every CREATE of a table or view, named or not: one whose name the pattern cannot read, built
+    // with `${}` or spelt `CREATE TEMP TABLE`, makes the two counts differ.
+    const ANY = /\bCREATE\s+(?:[A-Z]+\s+)*?(?:TABLE|VIEW)\b/gi;
+    const files = (readdirSync(new URL('.', import.meta.url), { recursive: true }) as string[])
+      .map((f) => f.replaceAll('\\', '/'))
+      .filter(
+        (f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.startsWith('__fixtures__/'),
+      );
+    const created = Object.fromEntries(
+      files
+        .map((f) => {
+          const code = stripTs(readFileSync(new URL(`./${f}`, import.meta.url), 'utf8'), f);
+          const names = [...code.matchAll(DDL)].map((m) => m[1]).sort();
+          expect([f, (code.match(ANY) ?? []).length]).toEqual([f, names.length]);
+          // `SELECT … INTO` makes a table too, and the default makes it readable the same way.
+          expect([
+            f,
+            code.match(
+              /\bSELECT\b[^;]*?\bINTO\s+(?:TEMP(?:ORARY)?\s+|UNLOGGED\s+|TABLE\s+)?"?\w+"?\s+FROM\b/gi,
+            ) ?? [],
+          ]).toEqual([f, []]);
+          return [f, names] as const;
+        })
+        .filter(([, names]) => names.length > 0),
+    );
+    expect(created).toEqual({
+      'capture.ts': ['bond_terms', 'instrument', 'price_capture', 'price_observation'],
+      // The runner's ledger, on the USER clusters: the reader never connects there.
+      'migrate.ts': ['schema_migration'],
+    });
+  });
+
+  // Admin's second holder on the archive: `AWS IAM GRANT` is admin's alone to run.
+  it('runs the grant as admin on the archive alone, from a function bounded like the rest', () => {
+    const fn = archive.Resources[GRANT_FUNCTION];
+    expect(fn?.Type).toBe('AWS::Serverless::Function');
+    expect(fn.Properties?.Handler).toBe('archive-reader-grant.handler');
+    expect(intrinsicAt(archiveDoc, ...envVars(GRANT_FUNCTION), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'PriceCluster.Endpoint',
+    });
+    expect(inlineStatements(archive, GRANT_FUNCTION)).toHaveLength(1);
+    expect(
+      grantAt(
+        archiveDoc,
+        ['Resources', GRANT_FUNCTION, 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'PriceCluster.ResourceArn' });
+    // CloudFormation waits on the answer itself: a DLQ would hold a grant nobody waits for.
+    expect(fn.Properties).not.toHaveProperty('DeadLetterQueue');
+    expect(
+      intrinsicAt(
+        archiveDoc,
+        'Resources',
+        'ArchiveReaderGrantLogGroup',
+        'Properties',
+        'LogGroupName',
+      ),
+    ).toEqual({ tag: '!Sub', value: `/aws/lambda/\${${GRANT_FUNCTION}}` });
+    expect(archive.Resources.ArchiveReaderGrantLogGroup.Properties).toHaveProperty(
+      'RetentionInDays',
+    );
+  });
+
+  // Read as grants, not text: until the view function adds the one `sts:AssumeRole`, no user-stack
+  // grant assumes a role, and every `dsql:DbConnectAdmin` there is on the user cluster.
+  it('reaches the archive as admin from no user-stack function, and lets no function assume a role', () => {
+    const admin: string[] = [];
+    const assumes: string[] = [];
+    for (const [id, r] of resources(user)) {
+      const p = (r.Properties ?? {}) as Record<string, unknown>;
+      const lists: [(string | number)[], { Action?: unknown }[]][] =
+        r.Type === 'AWS::Serverless::Function'
+          ? ((p.Policies ?? []) as { Statement?: { Action?: unknown }[] }[]).map((x, i) => {
+              if (!Array.isArray(x.Statement))
+                throw new Error(`${id}: a policy that is not a statement list`);
+              return [['Resources', id, 'Properties', 'Policies', i, 'Statement'], x.Statement];
+            })
+          : r.Type === 'AWS::IAM::Role'
+            ? (
+                (p.Policies ?? []) as { PolicyDocument: { Statement: { Action?: unknown }[] } }[]
+              ).map((x, i) => [
+                ['Resources', id, 'Properties', 'Policies', i, 'PolicyDocument', 'Statement'],
+                x.PolicyDocument.Statement,
+              ])
+            : r.Type === 'AWS::IAM::Policy'
+              ? [
+                  [
+                    ['Resources', id, 'Properties', 'PolicyDocument', 'Statement'],
+                    (p.PolicyDocument as { Statement: { Action?: unknown }[] }).Statement,
+                  ],
+                ]
+              : [];
+      // An action as IAM matches it: a wildcard such as `sts:*` or `*` reaches the target too.
+      const reaches = (target: string, actions: unknown[]) =>
+        actions.some((a) =>
+          new RegExp(
+            `^${String(a)
+              .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+              .replaceAll('*', '.*')}$`,
+            'i',
+          ).test(target),
+        );
+      for (const [path, statements] of lists)
+        statements.forEach((s, j) => {
+          const actions = [s.Action].flat();
+          if (reaches('sts:AssumeRole', actions)) assumes.push(id);
+          if (reaches('dsql:DbConnectAdmin', actions)) {
+            admin.push(id);
+            expect([id, intrinsicAt(userDoc, ...path, j, 'Resource')]).toEqual([
+              id,
+              { tag: '!GetAtt', value: 'UserCluster.ResourceArn' },
+            ]);
+          }
+        });
+    }
+    expect(admin.sort()).toEqual(['ApplicationsFunction', 'ApproveFunction', 'MigrateFunction']);
+    expect(assumes).toEqual([]);
+    expect(JSON.stringify(user.Resources)).not.toContain('PriceCluster');
+  });
+
+  // A parameter, not an import: an imported output pins the stack exporting it, and the user
+  // stack deploys first.
+  it('takes the archive cluster identifier as a parameter with no default', () => {
+    const p = user.Parameters?.ArchiveClusterId as
+      { Type: string; MinLength?: number; AllowedPattern?: string; Default?: unknown } | undefined;
+    expect(p?.Type).toBe('String');
+    expect(p).not.toHaveProperty('Default');
+    expect(p?.MinLength).toBe(1);
+    expect(p?.AllowedPattern).toBe('^[a-z0-9]+$');
+    expect(JSON.stringify(user)).not.toContain('ImportValue');
   });
 });
 
@@ -861,6 +1184,8 @@ describe('what reaches a role besides its own policies', () => {
       'DeadLetterQueue',
       'Events',
       'PermissionsBoundary',
+      // Grants only through a destination, which the grant provider's test refuses.
+      'EventInvokeConfig',
     ]);
     const bags = Object.entries({ archive, user }).flatMap(([name, t]) => [
       [`${name} Globals.Function`, t.Globals?.Function ?? {}] as const,
@@ -872,6 +1197,7 @@ describe('what reaches a role besides its own policies', () => {
     expect(bags.map(([id]) => id)).toEqual([
       'archive Globals.Function',
       'CaptureFunction',
+      'ArchiveReaderGrantFunction',
       'user Globals.Function',
       'MigrateFunction',
       'PreSignUpFunction',
@@ -888,6 +1214,9 @@ describe('what reaches a role besides its own policies', () => {
     }
     expect(bags.filter(([, bag]) => 'DeadLetterQueue' in bag).map(([id]) => id)).toEqual([
       'CaptureFunction',
+    ]);
+    expect(bags.filter(([, bag]) => 'EventInvokeConfig' in bag).map(([id]) => id)).toEqual([
+      'ArchiveReaderGrantFunction',
     ]);
     const dlq = ['Resources', 'CaptureFunction', 'Properties', 'DeadLetterQueue'];
     expect(intrinsicAt(archiveDoc, ...dlq, 'Type')).toEqual({ tag: undefined, value: 'SQS' });
@@ -937,7 +1266,10 @@ describe('what reaches a role besides its own policies', () => {
         return role;
       }),
     );
-    const declared = stackDocs.flatMap(([, t]) => idsOfType(t, 'AWS::IAM::Role'));
+    // Every declared role but the archive reader, whose trust is read under its own describe.
+    const declared = stackDocs
+      .flatMap(([, t]) => idsOfType(t, 'AWS::IAM::Role'))
+      .filter((id) => id !== 'ArchiveReaderRole');
     expect(declared).not.toEqual([]);
     // A role two schedules share is one role.
     expect([...new Set(roles)].sort()).toEqual(declared.sort());
@@ -1389,6 +1721,39 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(userStack.run).toContain('"OpenRegistration=');
   });
 
+  // Read off the archive's stack before the user deploy, on `main` too, where the archive exists
+  // though it is not deployed.
+  it('reads the archive cluster identifier off the archive stack, before the user deploy, and fails on none', () => {
+    const read = steps.find((s) => s.run?.includes("OutputKey=='ClusterIdentifier'"));
+    expect(read).toBeDefined();
+    const [userStack] = deploys;
+    expect(steps.indexOf(read as Step)).toBeLessThan(steps.indexOf(userStack));
+    // The archive's own name, which `quirenote-backend-user-` is not.
+    expect(read?.run).toMatch(/--stack-name quirenote-backend(?!-)/);
+    expect(read?.run).not.toContain('quirenote-backend-user-');
+    // A filter matching no output prints nothing, a stack with no outputs prints `None`.
+    expect(read?.run).toMatch(/\[ -z "\$\w+" \] \|\| \[ "\$\w+" = "None" \]/);
+    expect(read?.run).toContain('exit 1');
+    expect(read?.if).toBeUndefined();
+    expect(read?.['continue-on-error']).toBeUndefined();
+    // Handed on as a step output the deploy reads into its environment, then into the override.
+    expect(read?.id).toBeDefined();
+    expect(read?.run).toContain('>> "$GITHUB_OUTPUT"');
+    expect(userStack.env?.ARCHIVE_CLUSTER_ID).toBe(`\${{ steps.${read?.id}.outputs.cluster-id }}`);
+    expect(userStack.run).toContain('"ArchiveClusterId=${ARCHIVE_CLUSTER_ID}"');
+  });
+
+  // A `RoleName` needs `CAPABILITY_NAMED_IAM`; the user stack keeps the narrower flag, so a
+  // fixed-name role arriving there fails its deploy.
+  it('acknowledges the named reader role on the archive deploy, and on that deploy alone', () => {
+    const [userStack, archiveStack] = deploys;
+    expect(archiveStack.run).toContain('--capabilities CAPABILITY_NAMED_IAM');
+    expect(userStack.run).toContain('--capabilities CAPABILITY_IAM \\');
+    expect(userStack.run).not.toContain('CAPABILITY_NAMED_IAM');
+    expect(JSON.stringify(user.Resources)).not.toContain('"RoleName"');
+    expect(JSON.stringify(archive.Resources)).toContain('"RoleName"');
+  });
+
   it('passes every parameter the user template has no default for', () => {
     const [userStack] = deploys;
     const required = Object.entries(user.Parameters ?? {})
@@ -1473,7 +1838,8 @@ describe('a deploy that did not land its description fails the run', () => {
   const wf = workflow('deploy-backend.yml');
   const steps = wf.jobs.deploy.steps ?? [];
   const deploys = steps.filter((s) => s.run?.includes('sam deploy'));
-  const check = steps.find((s) => s.run?.includes('describe-stacks'));
+  // By the property it reads: the archive's identifier is read with `describe-stacks` as well.
+  const check = steps.find((s) => s.run?.includes("--query 'Stacks[0].Description'"));
 
   it('reads each stack back after both deploys, and fails on one that did not land', () => {
     expect(check).toBeDefined();
@@ -1500,6 +1866,8 @@ describe('a deploy that did not land its description fails the run', () => {
     // 0 would satisfy every assertion above it.
     expect(check?.run).toMatch(/if \[ "\$shipped" != "\$deployed" \]/);
     expect(check?.run).toContain('exit 1');
+    // The repair it prints must take the archive's fixed-name role, which `CAPABILITY_IAM` refuses.
+    expect(check?.run).toContain('--capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND');
   });
 
   it('takes the environment the deploy resolved, and carries no condition and no continue-on-error', () => {
