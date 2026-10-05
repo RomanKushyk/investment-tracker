@@ -107,23 +107,28 @@ function valueDays(txs: Transaction[], series: Series, grid: Grid): ValuedSnapsh
   return out;
 }
 
-/** In date order from the first day that values anything: every day a held asset is observed on,
- *  every transaction day and the day before each period opens; the latest closes every window. */
+/** In date order from the first day that values anything, none after the caller's `today`: every
+ *  day a held asset is observed on, every transaction day and the day before each period opens;
+ *  the latest closes every window. */
 export function rebuildSnapshots(
   assets: Asset[],
   txs: Transaction[],
   prices: PriceRows,
+  today: string,
 ): ValuedSnapshot[] {
   const series = priceSeries(prices);
+  // A day after the caller's would close every window in the future. Each eve precedes a window's
+  // close, so it needs no cap of its own.
   const observed = new Map<string, string[]>();
   for (const [assetId, list] of series) {
     for (const { observedOn } of list) {
+      if (observedOn > today) continue;
       let ids = observed.get(observedOn);
       if (ids === undefined) observed.set(observedOn, (ids = []));
       ids.push(assetId);
     }
   }
-  const forced = new Set(txs.map((t) => t.date));
+  const forced = new Set(txs.map((t) => t.date).filter((d) => d <= today));
   // The windows are read off a first pass. A kept eve cannot move them: it follows the first
   // valued day, a buy `portfolioStart` reads, and precedes the close.
   const first = valueDays(txs, series, { observed, forced });

@@ -17,12 +17,15 @@ const deposit = (id: string, date: string, amount = 100) =>
 const row = (assetId: string, asOf: string, price: number): PriceRow => ({ assetId, asOf, price });
 
 const NO_ASSETS: Asset[] = [];
+// Uncapped unless a test names the caller's day, so the cap never hides behind a grid rule.
+const NO_CAP = '9999-12-31';
 const rebuild = (
   txs: Transaction[],
   user: PriceRow[],
   archive: PriceRow[] = [],
   assets: Asset[] = NO_ASSETS,
-) => rebuildSnapshots(assets, txs, { user, archive });
+  today = NO_CAP,
+) => rebuildSnapshots(assets, txs, { user, archive }, today);
 const at = (series: ValuedSnapshot[], date: string) => series.find((s) => s.date === date);
 const dates = (series: ValuedSnapshot[]) => series.map((s) => s.date);
 
@@ -268,6 +271,42 @@ describe('rebuildSnapshots — the grid', () => {
       expect(at(snapshots, eve) !== undefined || !observedOrBefore(eve), period).toBe(true);
     }
   });
+
+  // The caller's day itself is kept, a transaction or a price on it making a day; a later one is not.
+  const today = '2026-07-28';
+  const capped = (txs: Transaction[], user: PriceRow[], archive: PriceRow[] = []) =>
+    rebuild(txs, user, archive, NO_ASSETS, today);
+  const priced = [row('a1', '2026-03-01', 10), row('a1', '2026-06-01', 13)];
+  const upToToday = [...held, deposit('d0', today)];
+
+  it('adds no day after the caller’s: a transaction dated later closes no window', () => {
+    const future = [...upToToday, deposit('d1', '2027-01-15')];
+    const snapshots = capped(future, priced);
+    expect(snapshots).toEqual(capped(upToToday, priced));
+    expect(dates(snapshots).at(-1)).toBe(today);
+    for (const period of PERIOD_OPTIONS) {
+      const w = windowView({ assets: NO_ASSETS, snapshots, transactions: future, period })!;
+      expect(w.to, period).toBe(today);
+    }
+  });
+
+  it.each(['user', 'archive'] as const)(
+    'adds no day after the caller’s: the %s’s price observed later makes none',
+    (source) => {
+      const later = row('a1', '2027-02-01', 14);
+      const snapshots =
+        source === 'user'
+          ? capped(upToToday, [...priced, later])
+          : capped(upToToday, priced, [later]);
+      expect(snapshots).toEqual(capped(upToToday, priced));
+    },
+  );
+
+  it('keeps the caller’s own day: a price observed on it makes a day, no transaction needed', () => {
+    const snapshots = capped(held, [...priced, row('a1', today, 14)]);
+    expect(dates(snapshots).at(-1)).toBe(today);
+    expect(at(snapshots, today)!.observed.a1.observedOn).toBe(today);
+  });
 });
 
 // Each stored quote is a ₴ position value; divided by the units held that day it is the per-unit
@@ -334,7 +373,7 @@ describe('every golden ledger a per-unit price can express rebuilds to its own f
   // The seed's case is the criterion: every composer over all six periods, through `buildView`.
   it.each(expressible.map((l) => [l.name, l.input] as const))('%s', (name, input) => {
     const user = asPriceRows(input.snapshots, input.transactions)!;
-    const rebuilt = rebuild(input.transactions, user, [], input.assets);
+    const rebuilt = rebuild(input.transactions, user, [], input.assets, input.today);
     expect(dates(rebuilt)).toEqual(stored(input.snapshots).map((s) => s.date));
     for (const s of input.snapshots) expect(at(rebuilt, s.date)!.quotes).toMatchObject(s.quotes);
     // Exact: each snapshot keeps its quotes in the stored order.
@@ -345,7 +384,8 @@ describe('every golden ledger a per-unit price can express rebuilds to its own f
 
   it('the seed’s last day completes at three carried prices, each naming the day it was observed', () => {
     const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
-    const rebuilt = rebuild(seed.transactions, asPriceRows(seed.snapshots, seed.transactions)!);
+    const user = asPriceRows(seed.snapshots, seed.transactions)!;
+    const rebuilt = rebuild(seed.transactions, user, [], NO_ASSETS, seed.today);
     const { observed } = at(rebuilt, '2026-07-27')!;
     expect(
       Object.fromEntries(Object.entries(observed).map(([id, o]) => [id, o.observedOn])),
@@ -363,7 +403,7 @@ describe('every golden ledger a per-unit price can express rebuilds to its own f
     const user = asPriceRows(seed.snapshots, seed.transactions)!.sort(
       (x, y) => x.assetId.localeCompare(y.assetId) || x.asOf.localeCompare(y.asOf),
     );
-    const rebuilt = rebuild(seed.transactions, user, [], seed.assets);
+    const rebuilt = rebuild(seed.transactions, user, [], seed.assets, seed.today);
     expect(beyondNoise(buildView({ ...seed, snapshots: rebuilt }), buildView(seed))).toEqual(
       MOVES.seed,
     );
@@ -389,7 +429,7 @@ describe('every figure that moves against the stored series on a ledger with arc
     row('ovdp6475', '2026-05-20', lastUser('ovdp6475')),
   ];
   const input = { ...seed, transactions, snapshots: buildSeedSnapshots() };
-  const rebuilt = rebuild(transactions, user, archive, seed.assets);
+  const rebuilt = rebuild(transactions, user, archive, seed.assets, seed.today);
   const moves = beyondNoise(buildView({ ...input, snapshots: rebuilt }), buildView(input));
 
   const periods = (path: string) => PERIOD_OPTIONS.map((p) => `$.periods.${p}.${path}`);

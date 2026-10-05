@@ -122,7 +122,8 @@ prices instead, and nothing reads the rebuild yet: one snapshot per grid day fro
 every day a held asset is observed on, every transaction day, and the day before each period opens,
 resolved by the window composer — each asset at that day's units × price, rounded once to the
 kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
-transaction dated after the last observation closes them at carried prices, a full exit at none. A
+transaction dated after the last observation closes them at carried prices, a full exit at none;
+no grid day falls after the caller's day, so a transaction or a price dated later adds none. A
 position the ledger holds none of that day has no quote, as the quotes form asks for none, and every figure that
 values it reads 0 from the ledger; one the ledger cannot count, or a held one no source has observed at or
 before the day, is absent, never 0. Each quote names the
@@ -156,7 +157,13 @@ because the opening position is read the day before the window opens and the clo
 day, and a point there values that day's units where the last stored value before it valued another
 day's; transaction days because units and cash move then; an observation of an asset held none of
 makes no day, since the archive captures a fund sold out or not yet bought every night, and each
-such night would add a point at the held positions' carried prices. A ₴ figure is kopeck-grained, as Portfolio Performance rounds a position's value
+such night would add a point at the held positions' carried prices. No grid day falls after the
+caller's day because one would close every window in the future, at a carried price or at one
+observed ahead of the day. Ghostfolio ends every range but a calendar year at `endOfDay(new Date())`
+when no end is given, and Portfolio Performance's last-X, since-X, month-to-date and year-to-date periods
+end on the day they are relative to; unlike both, the caller's day is a grid day only when
+something is observed or transacted on it, so a window closes on the latest grid day at or before
+it. A ₴ figure is kopeck-grained, as Portfolio Performance rounds a position's value
 to the currency's minor unit once, at valuation; unrounded, a value divided into a price and
 multiplied back carries float noise into every figure built on it. A non-zero quote of a position
 the ledger holds none of has no per-unit price that reproduces it, so a ledger carrying one is not
