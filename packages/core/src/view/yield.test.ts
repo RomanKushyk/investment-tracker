@@ -15,9 +15,9 @@ import {
 } from './yield';
 import type { ViewInput } from './input';
 import { overviewView } from './overview';
-import { TEST_LEDGERS } from './test-ledgers';
-import { resolveWindow } from '../period';
-import type { PeriodOption } from '../period';
+import { asPriceRows, TEST_LEDGERS } from './test-ledgers';
+import { PERIOD_OPTIONS, resolveWindow, type PeriodOption } from '../period';
+import { rebuildSnapshots } from '../valuation';
 import { portfolioStart } from '../derive';
 import { latestSnapshotDate } from '../dates';
 
@@ -532,6 +532,65 @@ describe('the curve over a position sold out while later snapshots still quote i
     expect(open.ovdp8976).toBe(0);
     const pts = cumulativeYieldSeriesIn(input.snapshots, input.transactions, input.assets, w);
     expect(pts.some((p) => p.ovdp8976 !== undefined)).toBe(false);
+  });
+});
+
+describe('a sale after the last stored snapshot, on the series rebuilt from per-unit prices', () => {
+  // The seed's last snapshot is 27.07. A sale on 28.07 is a grid day of the rebuilt series, so with
+  // the table and the curve reading that one series, the line reaches the sale. The caller's day is
+  // later, so the point is the sale's, not the caller's.
+  const saleDay = '2026-07-28';
+  const today = '2026-07-31';
+  const sale = (amount: number, quantity: number): Transaction => ({
+    id: 'late',
+    date: saleDay,
+    type: 'sell',
+    assetId: 'energy',
+    amount,
+    quantity,
+  });
+  const cases = [
+    { name: 'all 6 000 units', sold: sale(60_500, 6000), all: 60_500 / 59_208 - 1 },
+    // The 5 000 units left at the 25.07 per-unit price, their value rounded once to the kopeck,
+    // beside the proceeds.
+    {
+      name: '1 000 of 6 000 units',
+      sold: sale(10_000, 1000),
+      all: (50_071.74 + 10_000) / 59_208 - 1,
+    },
+  ];
+
+  describe.each(cases)('energy sells $name on 28.07', ({ sold, all }) => {
+    const transactions = [...SEED_TRANSACTIONS, sold];
+    // Inside each test, so a ledger no per-unit price can express fails its own tests, not the file.
+    const energy = (period: PeriodOption) => {
+      const user = asPriceRows(snaps, transactions);
+      expect(user).toBeDefined();
+      const snapshots = rebuildSnapshots(
+        SEED_ASSETS,
+        transactions,
+        { user: user!, archive: [] },
+        today,
+      );
+      const view = yieldView({ assets: SEED_ASSETS, snapshots, transactions, period });
+      const row = view.rows.find((r) => r.asset.id === 'energy')!;
+      const series = cumulativeYieldSeriesIn(snapshots, transactions, SEED_ASSETS, view.window);
+      return { row, last: series.filter((p) => p.energy !== undefined).at(-1)! };
+    };
+
+    it.each(PERIOD_OPTIONS)(
+      '%s: the line has a point on the sale day and ends on its row’s Δ',
+      (period) => {
+        const { row, last } = energy(period);
+        expect(last.date).toBe(saleDay);
+        expect(last.energy).toBeCloseTo(row.deltaTotal! * 100, 10);
+      },
+    );
+
+    // The line, not the row: the stored series' table already reads the full sale's figure.
+    it('«Від початку»: the line ends on what the sale left against the purchase', () => {
+      expect(energy('all').last.energy).toBeCloseTo(all * 100, 10);
+    });
   });
 });
 

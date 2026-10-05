@@ -1,10 +1,12 @@
 // The golden master's ledgers: the seed, and the edges it never reaches — empty, a sale, an
 // unquoted asset, a position sold out, a short ledger, a linked bond — where a moved line can
-// change silently.
+// change silently. Beside them, the stored quotes as per-unit price rows for the rebuild's suites.
 import { parseAssetsFeed } from '../inzhur/parse';
 import fixture from '../inzhur/__fixtures__/assets-sample.json';
+import { unitsByAsset } from '../derive';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
-import type { Asset, Transaction } from '../types';
+import type { Asset, Snapshot, Transaction } from '../types';
+import type { PriceRow } from '../valuation';
 import type { ViewInput } from './input';
 
 export interface TestLedger {
@@ -114,3 +116,18 @@ export const TEST_LEDGERS: TestLedger[] = [
     },
   },
 ];
+
+// Each stored quote is a ₴ position value; divided by the units held that day it is the per-unit
+// price the server would store for it. Any quote of a position held none of has no such price, and
+// the ledger is then not expressible: undefined.
+export const asPriceRows = (snapshots: Snapshot[], txs: Transaction[]): PriceRow[] | undefined => {
+  const out: PriceRow[] = [];
+  for (const s of snapshots) {
+    const units = unitsByAsset(txs, s.date);
+    for (const [assetId, quote] of Object.entries(s.quotes)) {
+      if (!(units[assetId] > 0)) return undefined;
+      out.push({ assetId, asOf: s.date, price: quote / units[assetId] });
+    }
+  }
+  return out;
+};

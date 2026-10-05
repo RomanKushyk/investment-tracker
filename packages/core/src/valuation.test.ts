@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { dayBefore } from './dates';
-import { heldQuotesAsOf, unitsByAsset } from './derive';
+import { heldQuotesAsOf } from './derive';
 import { PERIOD_OPTIONS } from './period';
 import { buildSeedSnapshots, SEED_TRANSACTIONS } from './seed';
 import type { Asset, Snapshot, Transaction } from './types';
 import { rebuildSnapshots, type PriceRow, type ValuedSnapshot } from './valuation';
 import { buildView } from './view/build';
-import { TEST_LEDGERS } from './view/test-ledgers';
+import { asPriceRows, TEST_LEDGERS } from './view/test-ledgers';
 import { windowView } from './view/window';
 
 const buy = (id: string, assetId: string, date: string, amount: number, quantity: number) =>
@@ -308,20 +308,6 @@ describe('rebuildSnapshots — the grid', () => {
     expect(at(snapshots, today)!.observed.a1.observedOn).toBe(today);
   });
 });
-
-// Each stored quote is a ₴ position value; divided by the units held that day it is the per-unit
-// price the server would store for it. A non-zero quote of a position held none of has no such price.
-const asPriceRows = (snapshots: Snapshot[], txs: Transaction[]): PriceRow[] | undefined => {
-  const out: PriceRow[] = [];
-  for (const s of snapshots) {
-    const units = unitsByAsset(txs, s.date);
-    for (const [assetId, quote] of Object.entries(s.quotes)) {
-      if (!(units[assetId] > 0)) return undefined;
-      out.push({ assetId, asOf: s.date, price: quote / units[assetId] });
-    }
-  }
-  return out;
-};
 
 const stored = (snapshots: Snapshot[]): Snapshot[] =>
   snapshots.map(({ date, quotes }) => ({ date, quotes }));
