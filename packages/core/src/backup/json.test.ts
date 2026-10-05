@@ -88,7 +88,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(11);
+    expect(env.formatVersion).toBe(12);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -319,13 +319,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 12 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 12)));
+  it('rejects formatVersion 13 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 13)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 12/);
-    expect(result.issues[0]).toMatch(/formatVersion 11/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 13/);
+    expect(result.issues[0]).toMatch(/formatVersion 12/);
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
@@ -376,6 +376,20 @@ describe('parseBackup rejections', () => {
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatch(/Unsupported formatVersion 10/);
+  });
+
+  it('refuses a formatVersion 11 file on the VERSION, not on the asset id it let through (#354)', () => {
+    // Refused once, on the version, even when it carries the id this build refuses.
+    const result = parseBackup(
+      mutated((env) => {
+        env.formatVersion = 11;
+        (env.assets as Record<string, unknown>[])[0].id = 'constructor';
+      }),
+    );
+    expect(result).toMatchObject({ ok: false });
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 11/);
   });
 
   it('refuses an unknown key by CODE and key list, never by the message', () => {
@@ -439,7 +453,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(11);
+    expect(env.formatVersion).toBe(12);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -1091,4 +1105,54 @@ describe('a __proto__ key is refused wherever it sits (#353)', () => {
     if (result.ok) throw new Error('expected a refusal');
     expect(result.issues).toEqual(['(root): Unrecognized key: "x"']);
   });
+});
+
+describe('an asset id named for a member every object inherits is refused (#354)', () => {
+  // THE ALLOW-LIST: every own property name of `Object.prototype`, held against the engine.
+  const INHERITED_NAMES = [
+    '__defineGetter__',
+    '__defineSetter__',
+    '__lookupGetter__',
+    '__lookupSetter__',
+    '__proto__',
+    'constructor',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    'toLocaleString',
+    'toString',
+    'valueOf',
+  ];
+
+  it('lists exactly the names Object.prototype owns', () => {
+    expect([...Object.getOwnPropertyNames(Object.prototype)].sort()).toEqual(INHERITED_NAMES);
+  });
+
+  for (const name of INHERITED_NAMES) {
+    it(`names assets.0.id for ${name}, in one line`, () => {
+      const result = parseBackup(
+        mutated((env) => void ((env.assets as Record<string, unknown>[])[0].id = name)),
+      );
+      if (result.ok) throw new Error('expected a refusal');
+      expect(result.issues).toEqual([`assets.0.id: Forbidden key: "${name}"`]);
+    });
+  }
+
+  // Ids that only look inherited, or that another prototype owns, are ordinary ids.
+  for (const id of ['prototype', 'Constructor', 'toJSON', 'name', 'length', 'call']) {
+    it(`reads back an asset whose id is ${id}, with its quotes`, () => {
+      const result = parseBackup(
+        mutated((env) => {
+          (env.assets as Record<string, unknown>[])[1].id = id;
+          for (const s of env.snapshots as { quotes: Record<string, unknown> }[]) {
+            s.quotes = { reit: s.quotes.reit, [id]: s.quotes.energy };
+          }
+        }),
+      );
+      if (!result.ok) throw new Error(`expected the file to pass: ${result.issues.join('; ')}`);
+      expect(result.data.assets[1].id).toBe(id);
+      expect(Object.hasOwn(result.data.snapshots[0].quotes, id)).toBe(true);
+      expect(result.data.snapshots[0].quotes[id]).toBe(60050.87);
+    });
+  }
 });

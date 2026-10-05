@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 11;
+export const BACKUP_FORMAT_VERSION = 12;
 
 export type Dataset = 'demo' | 'live';
 
@@ -332,12 +332,12 @@ export interface ForbiddenKeyIssue {
 // The walk goes only where the schemas reach: its depth is theirs, and a stray key stays theirs.
 export function forbiddenKeyIssues(raw: Record<string, unknown>): ForbiddenKeyIssue[] {
   const issues: ForbiddenKeyIssue[] = [];
-  const found = (path: PropertyKey[]) =>
+  const found = (path: PropertyKey[], key: string) =>
     issues.push({
       code: 'forbidden_key',
       path,
-      keys: [FORBIDDEN_KEY],
-      message: `Forbidden key: "${FORBIDDEN_KEY}"`,
+      keys: [key],
+      message: `Forbidden key: "${key}"`,
     });
   const walk = (schema: z.ZodType, value: unknown, path: PropertyKey[]) => {
     const inner = unwrapOptional(schema);
@@ -350,10 +350,14 @@ export function forbiddenKeyIssues(raw: Record<string, unknown>): ForbiddenKeyIs
     if (Array.isArray(value) || !(inner instanceof z.ZodObject || inner instanceof z.ZodRecord)) {
       return;
     }
-    if (Object.hasOwn(value, FORBIDDEN_KEY)) found(path);
-    // An asset id is a quote key, and a plain-object quote map cannot hold this one.
-    if (inner === assetRowSchema && (value as { id?: unknown }).id === FORBIDDEN_KEY) {
-      found([...path, 'id']);
+    if (Object.hasOwn(value, FORBIDDEN_KEY)) found(path, FORBIDDEN_KEY);
+    // An asset id is a quote key, so refuse here, before the row schemas, any name `Object.prototype`
+    // owns (`qs`'s predicate), and `__proto__` by name, since an engine may delete that accessor.
+    if (inner === assetRowSchema) {
+      const id = (value as { id?: unknown }).id;
+      if (typeof id === 'string' && (id === FORBIDDEN_KEY || Object.hasOwn(Object.prototype, id))) {
+        found([...path, 'id'], id);
+      }
     }
     for (const [key, child] of Object.entries(value)) {
       const next = stepInto(inner, key);

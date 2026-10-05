@@ -206,7 +206,7 @@ describe('backup envelope round-trip on the seed (D12)', () => {
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.formatVersion).toBe(11);
+    expect(result.data.formatVersion).toBe(12);
     expect(result.data.assets).toHaveLength(4);
     expect(result.data.snapshots).toHaveLength(174);
     expect(result.data.transactions).toHaveLength(25);

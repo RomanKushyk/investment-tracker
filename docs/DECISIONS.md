@@ -46,8 +46,10 @@ projects is how the backend's tests get lost.
 **Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; two databases — demo,
 seeded, and live, never auto-seeded — bound once at boot. Every persisted setting joins `partialize`
 in the commit that adds it. The JSON backup envelope refuses a newer, an older and an unreadable
-version, and A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
-`inzhur`, a snapshot's quotes — and an asset id of that name, by place and before the row schemas;
+version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
+`inzhur`, a snapshot's quotes — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
+(`__proto__`, `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest), both by place
+and before the row schemas;
 import validates fully, shows a diff, then replaces in one transaction — a key the file omits is
 REMOVED — after a safety backup that cannot be cancelled. CSV is export-only, and A TEXT CELL NEVER
 STARTS A FORMULA: one beginning with a character OWASP's CSV Injection page lists — `=`,
@@ -56,8 +58,8 @@ is never guarded, so a negative amount stays a number; the JSON backup writes ev
 since it is restored into the store rather than opened in a spreadsheet. THE BACKUP WRITES
 THE MODEL'S SHAPE, NOT THE STORE'S: `buildBackup` projects every row onto its schema's keys, so a key
 the model retired, still sitting in IndexedDB, never reaches the file and needs no migration. A
-VALUE the reader refuses — a moving row with no count, the retired `tax` type, an asset id of
-`__proto__` an older build imported — has nothing to project and still fails the envelope; that
+VALUE the reader refuses — a moving row with no count, the retired `tax` type, an asset id such as
+`constructor` an older build imported — has nothing to project and still fails the envelope; that
 store cannot back itself up, and its exit is the CSV export, which validates nothing, then
 Settings → Danger zone, erase on live and reseed on demo.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
@@ -71,7 +73,14 @@ downstream waits for a field this build has never heard of. zod drops a `__proto
 schema sees it, in the record and the strict object alike, and an assignment to that key on a plain
 quote map stores nothing, so a file carrying it would lose a quote, a key or an asset's prices in
 silence — against the rule that nothing partial passes; `secure-json-parse` and `bourne` refuse the
-key by default too. OWASP lists those characters as ones a
+key by default too. A plain quote map with no own key for an asset id such as `constructor` answers
+`quotes[id]` with the inherited member, so a quote the file never carried reads as present and the
+day as complete; `qs` drops any key `Object.prototype` owns by default, and the import refuses the
+file instead of dropping the asset, by the same rule. The import is the only door for an arbitrary
+asset id — the form stamps a UUID and the seed's ids are fixed — so from this build on no store gains
+such an id, and one check there covers every map keyed by an asset id, the ones built later
+included; a store an older build filled keeps its id and takes the exit above. OWASP lists those
+characters as ones a
 spreadsheet can read as starting a formula, and names exfiltrating the sheet's contents among the
 attacks; a note and an asset's name are free text. The guard goes by the value's run-time type, as
 `csv-stringify`'s `escape_formulas` does: only a number is exempt here, and in an unvalidated store
@@ -96,10 +105,12 @@ note's `;`, and `x;=…` opens as a formula. Neither library guards past the fir
 whether such a guard is complete turns on spreadsheet parsing no test here reaches, so that
 residual is accepted. · A hardened JSON parser in place of `JSON.parse`: it throws one `SyntaxError`
 for the whole text, where the report addresses every issue by table, row and field. · Quote maps as
-`Map` or null-prototype objects, OWASP's remedy: every quote map would pay for it, and for
-`__proto__` refusing the name at the door is enough. It is not enough for an asset id named after
-another inherited member, such as `constructor`: a plain quote map with no quote for that id
-answers it with the member.
+`Map` or null-prototype objects, OWASP's remedy: a `Map` turns every read into `.get` and needs
+converting at both ends of the JSON backup, which cannot hold one; a null-prototype object does not
+survive the store or the backup, since `structuredClone` and a JSON round trip both return an
+ordinary object, so that route is an `Object.hasOwn` read at every site that reads a map by an asset id, plus a guard
+to keep them that way. One refusal at the only door for such an id covers every file imported from
+now on.
 
 ## Derived figures and the seed
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a

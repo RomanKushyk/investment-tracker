@@ -216,14 +216,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 12 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 12)));
+  it('rejects formatVersion 13 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 13)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(12);
+    expect(result.rejection.version).toBe(13);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 12 — this app reads formatVersion 11 only.',
+      'Unsupported formatVersion 13 — this app reads formatVersion 12 only.',
     );
   });
 
@@ -242,7 +242,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 12;
+        env.formatVersion = 13;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -815,6 +815,21 @@ describe('an OLDER backup is named as older, not as broken', () => {
     expect(result.rejection.version).toBe(10);
   });
 
+  it('maps formatVersion 11, the build that accepted an asset id such as `constructor`, to `older-format` (#354)', () => {
+    // Refused once, on the version, even when it carries the id this build refuses.
+    const result = validateImport(
+      mutated((env) => {
+        env.formatVersion = 11;
+        (env.assets as Record<string, unknown>[])[0].id = 'constructor';
+      }),
+    );
+    if (result.ok || result.rejection.kind !== 'format') {
+      throw new Error('expected a format reject');
+    }
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(11);
+  });
+
   it('does not call a fractional version an older backup', () => {
     // `1.5` is below the current version and at least 1, so the bare `>= 1` read it as a
     // real backup from an older app and reported "version 1.5". A version counts format
@@ -841,7 +856,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 11');
+    expect(result.rejection.detail).toContain('formatVersion 12');
   });
 });
 
@@ -1130,6 +1145,122 @@ describe('a __proto__ key is refused wherever it sits (#353)', () => {
     if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
     expect(result.rejection.issues).toEqual([
       expect.objectContaining({ table: 'envelope', code: 'unknown-key', value: 'x' }),
+    ]);
+  });
+});
+
+describe('an asset id named for a member every object inherits is refused (#354)', () => {
+  // THE ALLOW-LIST: every own property name of `Object.prototype`, held against the engine;
+  // a plain quote map with no own key of that name answers `quotes[id]` with the member.
+  const INHERITED_NAMES = [
+    '__defineGetter__',
+    '__defineSetter__',
+    '__lookupGetter__',
+    '__lookupSetter__',
+    '__proto__',
+    'constructor',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    'toLocaleString',
+    'toString',
+    'valueOf',
+  ];
+
+  it('lists exactly the names Object.prototype owns', () => {
+    expect([...Object.getOwnPropertyNames(Object.prototype)].sort()).toEqual(INHERITED_NAMES);
+  });
+
+  for (const name of INHERITED_NAMES) {
+    it(`refuses an asset whose id is ${name}, naming the row and its id`, () => {
+      const result = validateImport(
+        mutated((env) => void ((env.assets as Record<string, unknown>[])[0].id = name)),
+      );
+      if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+      // One issue: the id is refused before the row schemas and before the transactions that
+      // still name the old id are checked against the table.
+      expect(result.rejection.issues).toEqual([
+        {
+          table: 'assets',
+          at: '0',
+          field: 'id',
+          code: 'forbidden-key',
+          value: name,
+          detail: expect.any(String),
+        },
+      ]);
+    });
+  }
+
+  it('refuses the id on any row, addressed by that row’s index', () => {
+    const result = validateImport(
+      mutated((env) => void ((env.assets as Record<string, unknown>[])[1].id = 'constructor')),
+    );
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({ table: 'assets', at: '1', field: 'id', code: 'forbidden-key' }),
+    ]);
+  });
+
+  it('refuses an id of __proto__ on an engine that deletes the accessor', () => {
+    // Node's `--disable-proto=delete` does, and `Object.prototype` then owns no such name.
+    const text = mutated(
+      (env) => void ((env.assets as Record<string, unknown>[])[0].id = '__proto__'),
+    );
+    const accessor = Object.getOwnPropertyDescriptor(Object.prototype, '__proto__');
+    if (accessor === undefined) throw new Error('expected the accessor');
+    let owned: boolean;
+    let result: ReturnType<typeof validateImport>;
+    expect(Reflect.deleteProperty(Object.prototype, '__proto__')).toBe(true);
+    try {
+      owned = Object.hasOwn(Object.prototype, '__proto__');
+      result = validateImport(text);
+    } finally {
+      Object.defineProperty(Object.prototype, '__proto__', accessor);
+    }
+    expect(owned).toBe(false);
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({ table: 'assets', at: '0', field: 'id', code: 'forbidden-key' }),
+    ]);
+  });
+
+  // Ids that only look inherited, or that another prototype owns, are ordinary ids.
+  for (const id of ['prototype', 'Constructor', 'toJSON', 'name', 'length', 'call']) {
+    it(`accepts an asset whose id is ${id}`, () => {
+      const result = validateImport(
+        mutated((env) => {
+          (env.assets as Record<string, unknown>[])[1].id = id;
+          for (const s of env.snapshots as { quotes: Record<string, unknown> }[]) {
+            s.quotes = { reit: s.quotes.reit, [id]: s.quotes.energy };
+          }
+        }),
+      );
+      if (!result.ok) throw new Error('expected the file to pass');
+      expect(result.envelope.assets[1].id).toBe(id);
+      expect(Object.hasOwn(result.envelope.snapshots[0].quotes, id)).toBe(true);
+      expect(result.envelope.snapshots[0].quotes[id]).toBe(60050.87);
+    });
+  }
+
+  it('leaves these names as quote KEYS to the integrity pass, which knows no such asset', () => {
+    // The names are refused as an asset ID; a quote keyed by one is still a quote for an
+    // asset the file does not carry, as #353 measured.
+    const result = validateImport(
+      mutated(
+        (env) =>
+          void Object.assign((env.snapshots as Record<string, unknown>[])[0].quotes as object, {
+            constructor: 1,
+          }),
+      ),
+    );
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({
+        table: 'snapshots',
+        code: 'unknown-quote-asset',
+        value: 'constructor',
+      }),
     ]);
   });
 });
