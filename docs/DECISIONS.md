@@ -923,6 +923,8 @@ ONE DERIVATION IDENTIFIER FOR BOTH BUILDS: the git tree hash of `HEAD:packages/c
 each define as `__DERIVATION_ID__`. A change to the derivation code moves it with no change to
 data. A commit touching only a test or a fixture there moves it too; a dependency bump does not,
 the lockfile lying outside the tree.
+NO STEP GATES THE BACKEND DEPLOY ON WHAT THE PUSH CHANGED: every run the path filter admits
+deploys, once its checks pass, the stacks its branch owns.
 Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
 certificate-validation CNAME and the mail records never are. A PUBLIC RUN CARRIES NO EMAIL ADDRESS:
 the repository is public, so a run's log and artifacts are readable by anyone while they are kept.
@@ -954,7 +956,12 @@ path filters. The two sides still disagree while either deploys, and for as long
 or is cancelled, so a reader of the identifier takes a mismatch as normal. And it is read from
 the commit, never the working tree, so the Windows checkout's CRLF and the runner's LF name one
 object. Rails includes the current action's template digest in its ETag by default for
-the same need: "When our views change, they should … bust browser caches."
+the same need: "When our views change, they should … bust browser caches." A deploy gated on
+the push's own diff is correct only against a watermark of the last commit deployed successfully:
+Nx's `nx-set-shas`, which computes that base, states the case — a few failed deployments in a row
+accumulate changes that are not getting deployed, so a retry must include "every commit since the
+last time we deployed successfully" — and reads that commit from the last successful run. A gate
+would have to keep that watermark, and a skipped deploy is worse than a wasted one.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
 certificate stops renewing. · An environment secret for the bootstrap's address: masked from the
 job's start, but an operator's input would become standing configuration in each environment. ·
@@ -963,7 +970,8 @@ for both environments with the workflow choosing the target: a `dev` job holds p
 its runner, whose `bootstrap` mode mints a super-admin. · A deploy id as the derivation
 identifier: the two builds' always differ. · A commit SHA: the two builds' differ whenever one
 side last deployed without the other. · A hash of each bundle: a Vite output and an esbuild
-output never agree.
+output never agree. · A `changed` step gating the backend deploy on the push's diff: correct only
+against a watermark of the last successful deploy.
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the

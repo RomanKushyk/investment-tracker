@@ -1705,7 +1705,7 @@ type Job = {
 };
 type Workflow = {
   on: {
-    push?: { branches?: string[] };
+    push?: { branches?: string[]; paths?: string[] };
     workflow_dispatch?: {
       inputs?: Record<string, { options?: string[]; required?: boolean; default?: string }>;
     };
@@ -1725,6 +1725,15 @@ const workflow = (file: string) =>
   parseDocument(readFileSync(join(REPO, '.github/workflows', file), 'utf8')).toJS() as Workflow;
 
 const REF_TO_ENV = "${{ github.ref_name == 'main' && 'prod' || 'dev' }}";
+
+// From PowerShell, `bash` on win32 is WSL's launcher; Git's own MSYS bash is the one to run.
+const BASH =
+  process.platform === 'win32'
+    ? join(
+        execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim(),
+        '../../../usr/bin/bash.exe',
+      )
+    : 'bash';
 
 /** GitHub's self-repository prefix: it resolves an action from THIS repository at the commit the
  *  run is on, with no checkout — which is what lets the gated migration job hold the property
@@ -1762,16 +1771,20 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(wf.on.push?.branches).toEqual(['dev', 'main']);
   });
 
+  // `.github/**` WHOLE, as the frontend's filter skips `**/*.md`: narrowed to a list, a push that
+  // touches only `.github/WORKFLOWS.md` matches no workflow and runs no gate at all.
+  it('fires on every file under .github, and takes no path back out', () => {
+    expect(wf.on.push?.paths).toContain('.github/**');
+    // No `!` pattern at all: one aimed elsewhere can still reach `.github`, as `!.*/**` does.
+    expect(wf.on.push?.paths?.filter((p) => p.startsWith('!'))).toEqual([]);
+  });
+
   it('takes its environment from the ref rather than a literal', () => {
     expect(wf.jobs.deploy.environment?.name).toBe(REF_TO_ENV);
   });
 
-  // THE WHOLE RUN, AND IT QUEUES. Two failures meet on this block once the apply is gated: a run
-  // holding a job that waits on a reviewer is not finished, so it keeps the group — grouped on the
-  // deploy job alone, the next push would `sam deploy` a new bundle under a rehearsal already in
-  // flight against the old one. And the default `queue: single` CANCELS the one pending run when
-  // another arrives, so an approval parked for a day would drop every push behind it but the last.
-  // `queue: max` is asserted because without it the workflow-level group reintroduces that drop.
+  // THE WHOLE RUN, AND IT QUEUES, for the reasons `deploy-backend.yml` gives beside `concurrency:`;
+  // without `queue: max` the default `single` cancels the pending run when another arrives.
   it('serialises the whole run per branch, and queues rather than dropping', () => {
     expect(wf.concurrency?.group).toContain('github.ref_name');
     expect(wf.concurrency?.['cancel-in-progress']).toBe(false);
@@ -1853,7 +1866,7 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(bundle?.run).toContain('--external:pg-native');
   });
 
-  it('smoke-tests every bundle it copies, and copies every one it bundles', () => {
+  it('smoke-tests every handler the templates declare, and copies each one in', () => {
     const smoke = steps.find((s) => s.run?.includes('bundle-check'));
     const entries = [archive, user].flatMap(handlers).map((h) => h.replace(/\.handler$/, ''));
     expect(smoke).toBeDefined();
@@ -2241,11 +2254,8 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
     expect(migrate.concurrency?.['cancel-in-progress']).toBe(false);
   });
 
-  // THE SAME ENVIRONMENT THE DEPLOY RESOLVED, which is the whole of the protection now that no
-  // reviewer stands in front of it: `prod` admits `main` alone by its deployment branch policy,
-  // before any credential exists. A `migrate-prod` of its own existed only to carry a required
-  // reviewer that `prod` could not take without holding every frontend release; the reviewer is
-  // gone, so the second environment is too. [*User schema and deletes*]
+  // THE SAME ENVIRONMENT THE DEPLOY RESOLVED: one for the deploy and the apply, since a
+  // `migrate-prod` of its own belonged to a rejected design [*User schema and deletes*].
   it('applies against the cluster the deploy resolved, in that same environment', () => {
     expect(deploy.environment?.name).toBe(REF_TO_ENV);
     expect(migrate.environment?.name).toBe(REF_TO_ENV);
@@ -2254,24 +2264,20 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
     for (const call of selfCalls(migrate)) expect(call.with?.target).toBe(deploy.environment?.name);
   });
 
-  // WHAT REPLACED THE REVIEWER, so it is held to the shape that makes it a replacement. A red run
-  // is an email governed by a personal setting no test here can read; an issue is durable, lands
-  // in the project's Triage column, and mentions the owner.
+  // THE SIGNAL, AND IT GATES NOTHING: a red run is an email governed by a personal setting no test
+  // here can read, and an issue is durable, lands in Triage and mentions the owner.
   describe('a failed apply opens an issue, because nobody is watching the run', () => {
     const notify = wf.jobs.notify;
     const step = notify?.steps?.[0];
 
-    // NOT `failure()`, AND THIS IS THE ASSERTION. GitHub documents it as true "if any ancestor
-    // job fails", and `deploy` is an ancestor — it runs the whole suite, so `if: failure()` filed
-    // a production-incident issue for a failing unit test, claiming stacks were live that
-    // `sam deploy` had never reached. Pinned as the three clauses rather than a literal so the
-    // property survives a rewording: the deploy succeeded, and the migration did not.
+    // NOT `failure()`: GitHub documents it as true "if any ancestor job fails", and `deploy` runs
+    // the whole suite, so a failing unit test would open an issue. Three clauses, not a literal.
     it('fires on the state it is for, and not on any red run', () => {
       expect(notify?.needs).toEqual(['deploy', 'migrate']);
       const when = notify?.if ?? '';
       expect(when).not.toMatch(/(^|[^.\w])failure\(\)/);
       expect(when).toContain('always()');
-      // The stacks updated — without this, a failing test or a failed plan reads as a migration.
+      // The stacks deployed — without this, a failing test or a failed plan reads as a migration.
       expect(when).toContain("needs.deploy.result == 'success'");
       // `!= success` rather than `== failure`, because a job CANCELLED while pending on the
       // cluster's group leaves the same state and is not a failure. `skipped` is the healthy one.
@@ -2296,10 +2302,64 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
     // issue this job ever writes will be a dev one; a body that says "production" regardless is
     // wrong in its first sentence, in the only durable record of the failure.
     it('says which cluster it means, and never hard-codes production', () => {
+      // From `marker=`, so the strings set before the `printf` are read too.
       const body =
-        step?.run?.slice(step.run.indexOf('body=$('), step.run.indexOf('existing=')) ?? '';
+        step?.run?.slice(step.run.indexOf('marker='), step.run.indexOf('existing=')) ?? '';
       expect(body).not.toMatch(/\bproduction\b/i);
       expect(body).toContain('$TARGET');
+    });
+
+    // WHICH STACKS THE RUN DEPLOYED, read off the archive deploy's outcome: `main` ships the user
+    // stack alone. Rendered under bash, because shell builds the sentence.
+    describe('says which stacks deployed, for the run it reports', () => {
+      const deploys = (deploy.steps ?? []).filter((s) => s.run?.includes('sam deploy'));
+
+      it('is handed the archive deploy’s outcome through the deploy job', () => {
+        const [, archiveStack] = deploys;
+        expect(archiveStack?.id).toBeDefined();
+        expect(deploy.outputs?.archive).toBe(`\${{ steps.${archiveStack?.id}.outcome }}`);
+        expect(step?.env?.ARCHIVE).toBe('${{ needs.deploy.outputs.archive }}');
+      });
+
+      const render = (target: string, archive: string) => {
+        const run = step?.run ?? '';
+        // Both ends found, or the slice would run the step's `gh` calls too.
+        const [from, to] = [run.indexOf('marker='), run.indexOf('existing=')];
+        expect([from >= 0, to > from]).toEqual([true, true]);
+        const script = run.slice(from, to);
+        expect(script).toContain('body=$(');
+        return execFileSync(
+          BASH,
+          ['--noprofile', '--norc', '-e', '-c', `${script}\nprintf '%s' "$body"`],
+          {
+            env: {
+              ...process.env,
+              TARGET: target,
+              ARCHIVE: archive,
+              OWNER: 'owner',
+              OUTCOME: 'failure',
+              RUN_URL: 'https://example.test/run/1',
+              SHA: 'abc123',
+              REPO: 'owner/repo',
+            },
+            encoding: 'utf8',
+          },
+        );
+      };
+
+      it.each([
+        ['dev', 'success', 'Both stacks deployed'],
+        ['prod', 'skipped', 'The user stack deployed'],
+      ])('on %s, with the archive deploy %s: "%s"', (target, archive, says) => {
+        const body = render(target, archive);
+        expect(body).toContain(
+          `${says} this commit, so the handlers of the \`${target}\` user stack run against a schema that has not followed them.`,
+        );
+        expect(body).toContain(`on \`${target}\` — the apply came back \`failure\``);
+        // One sentence about the stacks, and no claim that they changed.
+        expect(body.match(/stacks? deployed/gi)).toHaveLength(1);
+        expect(body).not.toMatch(/\bupdated\b|\bnew handlers\b/i);
+      });
     });
 
     // A REHEARSAL THE BUDGET REFUSED WAS NEVER JUDGED, and replaying the whole history it can never
@@ -2404,14 +2464,6 @@ describe('the invoke is written once, and both workflows call it', () => {
   // THE INVOKE PRINTS ITS `env:` BLOCK, ADDRESS INCLUDED, so every job handing it one masks it in
   // a first step that reads the event: a mask read through `env:` prints the value itself.
   describe('is handed an address only by a job whose first step masks it', () => {
-    // From PowerShell, `bash` on win32 is WSL's launcher; Git's own MSYS bash is the one to run.
-    const BASH =
-      process.platform === 'win32'
-        ? join(
-            execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim(),
-            '../../../usr/bin/bash.exe',
-          )
-        : 'bash';
     const passing = readdirSync(join(REPO, '.github/workflows'))
       .filter((file) => /\.ya?ml$/.test(file))
       .flatMap((file) => {
