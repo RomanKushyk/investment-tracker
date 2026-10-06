@@ -546,12 +546,14 @@ caller's prices and the archive's, the official rate and its day beside it. The 
 types to the body live in core (`view/serve.ts`), so the derivation identifier covers them; the
 mapping of rows into those types stays in `infra/`, outside it: `infra/src/ledger.ts` reads the
 caller's rows and `app_user.data_version` in one read-only transaction, and
-`infra/src/sell-observations.ts` reads the archive's sell rows and digests them. The
+`infra/src/sell-observations.ts` reads the archive's sell rows and, for each linked ref, the
+payment dates of its latest `bond_terms` row, each date once, and digests each. Core hands the
+dates to the build under the assets linked to that ref as a bond. The
 archive is read for the linked refs from a week before the first transaction on or before the
 caller's day, so the first held day finds the observation before it. TWO VALIDATORS, NEVER ONE:
-the read's tag is WEAK and composed from six inputs — the caller, `data_version`, a digest of the
-archive rows read, the rate served with its day, the Kyiv day and the derivation identifier — while a
-write's precondition is `data_version` alone. `If-None-Match` compares weakly and `*` matches;
+the read's tag is WEAK and composed from seven inputs — the caller, `data_version`, a digest of the
+sell rows read, a digest of the payment dates served, the rate served with its day, the Kyiv day and
+the derivation identifier — while a write's precondition is `data_version` alone. `If-None-Match` compares weakly and `*` matches;
 `If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
 `private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
 HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
@@ -579,7 +581,8 @@ because every `data_version` starts at 0 and RFC 9111 §4.3.1 lets a cache valid
 cannot choose. `must-revalidate` binds only a stale response and lets a shared cache reuse one sent
 with `Authorization` (RFC 9111 §5.2.2.2). None of AIP-185, Azure's, Zalando's or GitHub's API
 guidelines puts a version in a response body, which can neither route nor cheaply reject; Next.js
-sends its deployment id as a header. A header takes no `X-` (RFC 6648). The lookback only bounds
+sends its deployment id as a header. A header takes no `X-` (RFC 6648). The dates' digest leaves out the day of their row, which
+every nightly capture moves without changing the dates. The lookback only bounds
 the SQL window, wider than any gap between two of the archive's observations of one ref, since a
 cutoff on carrying a price is rejected (*Derived figures and the seed*). API Gateway's HTTP APIs do
 not compress.

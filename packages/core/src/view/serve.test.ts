@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { addDays } from '../dates';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
@@ -7,6 +7,12 @@ import { rebuildSnapshots, type PriceRow } from '../valuation';
 import { buildView } from './build';
 import { ARCHIVE_LOOKBACK_DAYS, archiveSpan, viewBody, type ArchiveRow } from './serve';
 import { asPriceRows } from './test-ledgers';
+
+// Watched, not replaced: no composer reads a bond's payment dates yet, so only the input shows them.
+vi.mock('./build', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./build')>();
+  return { ...actual, buildView: vi.fn(actual.buildView) };
+});
 
 const TODAY = '2026-07-28';
 const FX = { rate: 41.4983, date: TODAY };
@@ -92,6 +98,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
         assets: SEED_ASSETS,
         transactions,
         userPrices: user,
+        paymentDates: [],
         archiveRows: [],
         today: TODAY,
         fx: FX,
@@ -107,6 +114,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
       assets: [],
       transactions: [],
       userPrices: [],
+      paymentDates: [],
       archiveRows: [],
       today: TODAY,
       fx: undefined,
@@ -135,6 +143,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
           assets: order(assets),
           transactions: order(transactions),
           userPrices: order(seedPrices),
+          paymentDates: [],
           archiveRows: order(archiveRows),
           today: TODAY,
           fx: FX,
@@ -162,6 +171,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
           assets,
           transactions: SEED_TRANSACTIONS,
           userPrices: [],
+          paymentDates: [],
           archiveRows: rows,
           today: TODAY,
           fx: FX,
@@ -188,6 +198,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
           assets,
           transactions,
           userPrices: [],
+          paymentDates: [],
           archiveRows,
           today: '2026-09-30',
           fx: FX,
@@ -203,6 +214,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
       assets,
       transactions,
       userPrices: [],
+      paymentDates: [],
       archiveRows: [
         observed('UA4000238976', '2026-09-10', 1000),
         observed('UA4000238976', '2026-09-20', 1100),
@@ -245,6 +257,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
       assets,
       transactions,
       userPrices: [],
+      paymentDates: [],
       archiveRows: [before],
       today: '2026-09-30',
       fx: FX,
@@ -270,6 +283,7 @@ describe('viewBody — what GET /view answers, from rows', () => {
       assets,
       transactions,
       userPrices: user,
+      paymentDates: [],
       archiveRows: archive,
       today: '2026-09-30',
       fx: FX,
@@ -288,6 +302,43 @@ describe('viewBody — what GET /view answers, from rows', () => {
         ),
         today: '2026-09-30',
       }),
+    );
+  });
+
+  it('hands the build a bond’s dates under each asset linked to it in any case, a fund none', () => {
+    const bond = (id: string, ref: string, createdAt?: string): Asset => ({
+      ...fund(id, ref, createdAt),
+      yieldType: 'fixed_coupon',
+      payoutSchedule: 'semiannual',
+      inzhur: { kind: 'bond', ref },
+    });
+    const unlinked = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!;
+    expect(unlinked.inzhur).toBeUndefined();
+    const dates = ['2026-09-23', '2027-03-24'];
+    vi.mocked(buildView).mockClear();
+    viewBody({
+      assets: [
+        bond('a', 'UA4000238976'),
+        bond('b', 'ua4000238976', '2026-09-02T10:00:00'),
+        fund('f', 'inzhur-reit'),
+        unlinked,
+      ],
+      transactions: [],
+      userPrices: [],
+      paymentDates: [
+        { ref: 'UA4000238976', dates },
+        { ref: 'inzhur-reit', dates: ['2026-10-01'] },
+        { ref: 'UA4000999999', dates: ['2026-10-01'] },
+      ],
+      archiveRows: [],
+      today: TODAY,
+      fx: FX,
+    });
+    expect(vi.mocked(buildView).mock.calls[0][0].paymentDates).toEqual(
+      new Map([
+        ['a', dates],
+        ['b', dates],
+      ]),
     );
   });
 });

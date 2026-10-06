@@ -27,7 +27,7 @@ import {
 import { readLedger } from './ledger';
 import type { SqlClient } from './migrate';
 import { createOfficialRate, type StoredRate } from './official-rate';
-import { readSellObservations } from './sell-observations';
+import { readPaymentDates, readSellObservations } from './sell-observations';
 
 export const ROUTE = 'GET /view';
 
@@ -97,7 +97,10 @@ export const derivationId = (): string => __DERIVATION_ID__;
 async function readArchive(deps: ViewDeps, span: NonNullable<ReturnType<typeof archiveSpan>>) {
   const client = await deps.archive();
   try {
-    return await readSellObservations(client, span.refs, span.from, span.to);
+    // In turn, on one connection. The span's funds find no terms: the capture writes none for one.
+    const sell = await readSellObservations(client, span.refs, span.from, span.to);
+    const terms = await readPaymentDates(client, span.refs, span.from, span.to);
+    return { rows: sell.rows, digest: sell.digest, dates: terms.rows, datesDigest: terms.digest };
   } finally {
     await client
       .end()
@@ -135,6 +138,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
       gate.caller.userId,
       ledger.dataVersion,
       archive?.digest ?? null,
+      archive?.datesDigest ?? null,
       fx?.rate ?? null,
       fx?.date ?? null,
       today,
@@ -153,6 +157,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
       transactions: ledger.transactions,
       userPrices: ledger.userPrices,
       archiveRows: archive?.rows ?? [],
+      paymentDates: archive?.dates ?? [],
       today,
       fx,
     });

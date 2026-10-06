@@ -26,4 +26,11 @@ export interface FeedInput {
   feed?: ParsedFeed | undefined;
 }
 
-export type ViewInput = LedgerInput & ClockInput & FeedInput;
+/** A linked bond's published payment dates, by asset id, each once and in order: the archive's
+ *  latest terms within the span `/view` reads, which ends on the caller's day. A `Map`, so no id
+ *  can name a prototype key. */
+export interface PaymentDatesInput {
+  paymentDates?: ReadonlyMap<string, readonly string[]> | undefined;
+}
+
+export type ViewInput = LedgerInput & ClockInput & FeedInput & PaymentDatesInput;

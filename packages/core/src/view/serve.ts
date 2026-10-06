@@ -24,6 +24,12 @@ export interface ArchiveRow {
   price: number;
 }
 
+/** A bond's payment dates as the archive serves them; its ref is matched to assets here. */
+export interface PaymentDatesRow {
+  ref: string;
+  dates: readonly string[];
+}
+
 /** The official rate, under the day it is for. */
 export interface Fx {
   rate: number;
@@ -59,6 +65,7 @@ export function viewBody(input: {
   transactions: Transaction[];
   userPrices: PriceRow[];
   archiveRows: readonly ArchiveRow[];
+  paymentDates: readonly PaymentDatesRow[];
   today: string;
   fx: Fx | undefined;
 }): ViewBody {
@@ -94,8 +101,15 @@ export function viewBody(input: {
     { user: [...input.userPrices].sort(byAssetThenDay), archive },
     input.today,
   );
+  // A bond's schedule, by the link's kind: a fund pays no coupon, whatever row names its ref.
+  const served = new Map(input.paymentDates.map((r) => [normalizeRef(r.ref), r.dates]));
+  const paymentDates = new Map<string, readonly string[]>();
+  for (const a of assets) {
+    const dates = a.inzhur?.kind === 'bond' ? served.get(normalizeRef(a.inzhur.ref)) : undefined;
+    if (dates !== undefined) paymentDates.set(a.id, dates);
+  }
   return {
-    view: buildView({ assets, transactions, snapshots, today: input.today }),
+    view: buildView({ assets, transactions, snapshots, today: input.today, paymentDates }),
     fx: input.fx ?? null,
   };
 }

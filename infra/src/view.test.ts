@@ -40,6 +40,13 @@ vi.mock('./dsql', async (importOriginal) => ({
   connectAsArchiveReader: vi.fn(),
 }));
 
+// Watched, not replaced: the build's input is what the route hands core, and nothing in the body
+// reads a bond's payment dates yet.
+vi.mock('@quirenote/core/view/build', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@quirenote/core/view/build')>();
+  return { ...actual, buildView: vi.fn(actual.buildView) };
+});
+
 const { observed, record } = recorder(ROUTE);
 const view = async (deps: ViewDeps, event: ApiEvent) => record(event, await viewRoute(deps, event));
 
@@ -64,6 +71,24 @@ const LEDGER: LedgerRows = withUuids({
   userPrices: asPriceRows(buildSeedSnapshots(), SEED_TRANSACTIONS)!,
 });
 const ENERGY = LEDGER.assets.find((a) => a.inzhur?.ref === ENERGY_REF)!.id;
+const BOND = LEDGER.assets[SEED_ASSETS.findIndex((a) => a.id === 'ovdp8976')].id;
+const BOND_REF = 'UA4000238976';
+const PAYMENT_DATES = ['2026-02-25', '2026-08-26', '2027-02-24'];
+
+/** `BOND`, …8976 in the seed, linked to the provider as a bond. */
+async function linkBond() {
+  await db.query(`UPDATE asset SET provider_kind = 'bond', provider_ref = $1 WHERE id = $2`, [
+    BOND_REF,
+    BOND,
+  ]);
+}
+const terms = (asOf: string, ref: string, dates: readonly string[]) =>
+  db.query(
+    `INSERT INTO bond_terms (as_of, ref, terms_sha256, maturity, payment_schedule, observed_at,
+                             parser_version)
+     VALUES ($1, $2, '', NULL, $3, now(), '2')`,
+    [asOf, ref, JSON.stringify(dates.map((date) => ({ date, amount: 39.46 })))],
+  );
 const ARCHIVE: [asOf: string, price: number][] = [
   ['2026-07-26', 10.2],
   ['2026-07-27', 10.35],
@@ -222,6 +247,20 @@ describe('a signed-in caller gets every figure in one answer', () => {
     const res = (await view(deps(), event())) as ApiResult;
     expect(JSON.parse(res.body).fx).toBeNull();
   });
+
+  // A row under the fund's ref too, which the archive never writes: the fund is refused by its
+  // kind, not by the row's absence.
+  it('hands the build each linked bond’s payment dates, and none for a fund', async () => {
+    await linkBond();
+    await terms('2026-07-27', BOND_REF, PAYMENT_DATES);
+    await terms('2026-07-27', ENERGY_REF, ['2026-08-01']);
+    vi.mocked(buildView).mockClear();
+
+    expect((await view(deps(), event())).statusCode).toBe(200);
+    expect(vi.mocked(buildView)).toHaveBeenCalledTimes(1);
+    const [input] = vi.mocked(buildView).mock.calls[0];
+    expect(input.paymentDates).toEqual(new Map([[BOND, PAYMENT_DATES]]));
+  });
 });
 
 describe('the read’s validator', () => {
@@ -253,6 +292,14 @@ describe('the read’s validator', () => {
   it('moves with the archive rows the ledger reads', async () => {
     const before = await tagOf();
     await observe('2026-07-28', ENERGY_REF, 10.4);
+    expect(await tagOf()).not.toBe(before);
+  });
+
+  it('moves with the payment dates a linked bond is served', async () => {
+    await linkBond();
+    await terms('2026-07-27', BOND_REF, PAYMENT_DATES);
+    const before = await tagOf();
+    await terms('2026-07-28', BOND_REF, ['2026-02-25', '2026-08-25', '2027-02-24']);
     expect(await tagOf()).not.toBe(before);
   });
 

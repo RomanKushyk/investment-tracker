@@ -46,8 +46,9 @@
 --    happened.
 --
 -- 4. `payment_schedule` IS TEXT HOLDING JSON, NOT JSONB. A type change is one
---    of the two alterations DSQL cannot make later (D100) and nothing reads
---    this column yet, so the reversible choice is the plain one. A reader that
+--    of the two alterations DSQL cannot make later (*User schema and
+--    deletes*), and `GET /view`'s read parses the text in TypeScript and asks
+--    SQL for no JSON operator, so JSONB would buy it nothing. A reader that
 --    wants JSONB can cast; a table that guessed wrong cannot be migrated.
 --
 -- 5. NO DERIVED FACT IS STORED. `ScheduleFacts`, `couponRatePct`,
@@ -74,8 +75,8 @@ CREATE TABLE IF NOT EXISTS bond_terms (
   PRIMARY KEY (as_of, ref)
 );
 
--- "The schedule of THIS bond, latest first" — the read W10/W12 make against a
--- delisted instrument, which the key above cannot serve.
+-- "The schedule of THIS bond, latest first" — the read `GET /view` makes, and
+-- W10/W12's against a delisted instrument, which the key above cannot serve.
 --
 -- ASYNC, and no `USING btree`. DSQL rejects a `CREATE INDEX` without the first
 -- and rejects the second outright (D99, measured against the live cluster), so

@@ -265,8 +265,8 @@ async function ensureSchema(client: Client): Promise<void> {
        ON price_observation (instrument_ref, as_of)`,
   );
 
-  // "The schedule of THIS bond, latest first" is the read W10/W12 will make on a delisted
-  // instrument, and the key cannot serve it. ASYNC and no `USING btree`: DSQL rejects both.
+  // "The schedule of THIS bond, latest first" is the read `GET /view` makes, and W10/W12's on a
+  // delisted instrument; the key cannot serve it. ASYNC and no `USING btree`: DSQL rejects both.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS bond_terms_ref_as_of
        ON bond_terms (ref, as_of)`,
