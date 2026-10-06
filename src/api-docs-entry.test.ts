@@ -207,8 +207,46 @@ describe('the API reference is a second build, and production never runs it', ()
     expect(ignored).toEqual(expect.arrayContaining(['**/*.md', 'infra/**']));
   });
 
-  it('docs/ holds no non-Markdown file but the spec — the reason docs/** can be dropped', () => {
-    // THE WORKFLOW'S DROPPED `docs/**` FILTER IS WHAT THIS EXISTS TO HOLD, and nothing else
+  // THE RETIRED SENTENCE, NOT THE CLAIM: it listed `docs/**` among the filter's entries, which the
+  // assertion above holds absent. A paraphrase needs a reader. Split at each needle, so a search of
+  // the tree for the retired sentence does not find it here.
+  it('WORKFLOWS.md brings back none of the sentence that said the frontend ignores docs/**', () => {
+    // Read as a sentence: lower-cased, every `*` and `_` dropped and whitespace collapsed, so a
+    // bolded or wrapped copy cannot read clean. No needle holds an `_`.
+    const sentence = (text: string) =>
+      text.toLowerCase().replace(/[*_]+/g, '').replace(/\s+/g, ' ');
+    const needles = [
+      'ignoring `**/*.md`, `docs/' + '**`',
+      'docs-only commit ' + 'does not rebuild',
+    ];
+    const finders = needles.map(
+      (n) => new RegExp(`(?<!\\w)${sentence(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\w)`),
+    );
+    const missed = (text: string) => {
+      const prose = sentence(text);
+      return finders.filter((f) => !f.test(prose)).map(String);
+    };
+    // Every needle matches the sentence it was cut from, and a copy bolded both ways and wrapped
+    // inside each needle.
+    const retired =
+      'Frontend fires on push to `dev`/`main`, ignoring `**/*.md`, `docs/' +
+      '**`, `infra/**` and `deploy-backend.yml`: a backend-only or docs-only commit ' +
+      'does not rebuild the SPA.';
+    const bolded = retired
+      .replace('ignoring', '**Ignoring**')
+      .replace(', `docs/', ',\n  `docs/')
+      .replace('docs-only', '__Docs-only__')
+      .replace(' commit', '\n  commit');
+    expect(missed(retired)).toEqual([]);
+    expect(missed(bolded)).toEqual([]);
+
+    const text = read('.github/WORKFLOWS.md');
+    expect(text).toContain('deploy-frontend.yml');
+    expect(missed(text), '.github/WORKFLOWS.md says it again').toEqual(finders.map(String));
+  });
+
+  it('docs/ holds no non-Markdown file but the spec — what keeps docs/** out of the filter cheap', () => {
+    // THIS HOLDS THE PREMISE THAT KEEPS `docs/**`'S ABSENCE FROM THE FILTER CHEAP, and nothing else
     // would notice it changing: every non-Markdown file added under docs/ starts triggering
     // frontend deploys. That is the safe direction — an extra no-op run, never a stale page —
     // but it stops being free the moment docs/ carries something large.

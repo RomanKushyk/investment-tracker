@@ -79,12 +79,12 @@ jobs:
       # tree, and deploy-frontend skips an infra-only push, leaving these tests green but never run.
       - run: pnpm test
 
-      # Same asymmetry: prettier covers infra/, but only deploy-frontend ran it.
+      # Same asymmetry: prettier covers infra/, and an infra-only push runs it nowhere else.
       - run: pnpm format:check
 
-      # AND THE SAME AGAIN, TWICE: root `tsconfig.json` excludes infra/, so a type error there
-      # survived `pnpm typecheck`, esbuild stripped it, and it would have deployed. `pnpm exec`
-      # because infra resolves typescript from the ROOT tree. All of this before any credential.
+      # AND THE SAME AGAIN, TWICE: root `tsconfig.json` does not include infra/, and esbuild strips
+      # types without checking them. `pnpm exec` because infra resolves typescript from the ROOT
+      # tree. All of this before any credential.
       - run: pnpm exec tsc --noEmit -p infra
       - run: pnpm lint
 
@@ -115,8 +115,8 @@ jobs:
       - name: Smoke-test the bundle
         run: |
           mkdir -p /tmp/bundle-check
-          # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept: a guard derived
-          # from the esbuild step alone let a handler deploy having never once been loaded.
+          # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
+          # line is hand-kept: a handler left out of it deploys having never once been loaded.
           cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
@@ -362,14 +362,10 @@ jobs:
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 
-      # NO DEPLOY GATE HERE, AND THAT IS STILL A DECISION, though half its reasoning has expired.
-      # A `changed` step suppressing the deploy on a prose push was written and removed because
-      # `concurrency` cancelled PENDING runs, so a real infra push could be dropped from the queue
-      # while the next run's range no longer covered it — stack never updated, nothing red. That
-      # half is closed: `queue: max` above queues rather than cancels, so a push's range is no
-      # longer lost. What remains is that a range-based gate still needs a watermark of the last
-      # SHA actually deployed to be correct across a re-run or a revert, and a skipped deploy is
-      # worse than a wasted one. Reconsidering it is its own change, not a line here.
+      # NO DEPLOY GATE HERE, AND THAT IS A DECISION: a `changed` step suppressing the deploy on a
+      # prose push would need a watermark of the last SHA actually deployed to be correct across a
+      # re-run or a revert, and a skipped deploy is worse than a wasted one. Reconsidering it is its
+      # own change, not a line here.
 
       - uses: aws-actions/setup-sam@v3
         with:
@@ -475,10 +471,10 @@ jobs:
       # performed", `--no-fail-on-empty-changeset` above reports that as success, and the text an
       # operator reads in the console stays whatever it was — a correction merged, deployed green
       # and never applied. THE FLAG IS NOT THE FAULT: a commit that touches no backend resource
-      # SHOULD deploy green. What was missing is the run telling that apart from "what I shipped
-      # is not what is deployed", which nothing but a read of the stack afterwards can do. A
-      # `Metadata` key and a parameter default are refused the same way; an added `Output` is not,
-      # its change set being created rather than refused.
+      # SHOULD deploy green; what tells that apart from "what I shipped is not what is deployed" is
+      # a read of the stack afterwards, and nothing else can. A `Metadata` key and a parameter
+      # default are refused the same way; an added `Output` is not, its change set being created
+      # rather than refused.
       #
       # AND THE REPAIR WORKS: `update-stack`, which is not a change set, applies the very body
       # `create-change-set` refuses, so the failure below names a step that does something.
@@ -522,8 +518,8 @@ jobs:
 
       # LAST IN THIS JOB, AND THAT IS THE POINT: a plan read before `sam deploy` counts the
       # statements the PREVIOUS bundle carried, and would gate this run on them. It runs here
-      # rather than in the gated job below because this job already holds the parent environment's
-      # credentials, and because a plan contacts no object the migration owns.
+      # rather than in the gated job below because that job's `if:` reads its count, and because a
+      # plan contacts no object the migration owns.
       - name: Plan the migration
         id: plan
         uses: $/.github/actions/invoke-migration
@@ -531,13 +527,9 @@ jobs:
           target: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
           mode: dry-run
 
-  # THE APPLY, AND NO HUMAN IN FRONT OF IT. A required reviewer here was written and removed: it
-  # gates a whole ENVIRONMENT, so it lived in a `migrate-prod` of its own — `prod` also admits
-  # `deploy-frontend.yml`, and a rule there would hold every release for a click. What retired it
-  # is that the click carried no evidence: consent was spent before the rehearsal ran, on a
-  # statement count, by the same person who had just fast-forwarded `main`. The gate is replaced
-  # by the `notify` job below — a failure that reaches the task list beats a human asked to
-  # approve one. [*User schema and deletes*]
+  # THE APPLY, AND NO HUMAN IN FRONT OF IT: a required reviewer is a rejected design
+  # [*User schema and deletes*]. The `notify` job below is the signal instead — a failure that
+  # reaches the task list beats a human asked to approve one.
   #
   # SKIPPED OUTRIGHT WHEN NOTHING IS PENDING, so a version cut carrying no schema deploys
   # untouched.
@@ -546,7 +538,7 @@ jobs:
     # `!= '0'`, NOT A NUMERIC TEST, AND THE DIRECTION IS DELIBERATE: an output that failed to
     # resolve is the empty string, which this reads as "something might be pending" and runs. The
     # cost of being wrong that way is a rehearse and an apply that do nothing; the cost of the
-    # other way is a schema change nobody notices, which is what this whole job ended.
+    # other way is a schema change nobody notices, the state this job exists to prevent.
     if: needs.deploy.outputs.pending != '0'
     runs-on: ubuntu-latest
     # TWO INVOCATIONS OF A RUNNER WITH NO CLIENT TIMEOUT. The action drops `--cli-read-timeout`
@@ -584,10 +576,10 @@ jobs:
           target: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
           mode: apply
 
-  # THE SIGNAL THAT REPLACED THE REVIEWER, and the reason removing one was safe. Nobody watches an
-  # automatic apply, and the two things that would otherwise carry the news are both weak: a red run
-  # is an email governed by a personal notification setting this repository cannot read or test, and
-  # a log expires. An issue is durable and is this repository's only task list.
+  # THE SIGNAL INSTEAD OF A REVIEWER, and it gates nothing. Nobody watches an automatic apply, and
+  # the two things that would otherwise carry the news are both weak: a red run is an email governed
+  # by a personal notification setting this repository cannot read or test, and a log expires. An
+  # issue is durable and is this repository's only task list.
   #
   # THE CONDITION IS READ OFF THE RESULTS, NOT `failure()`, and that is not style. GitHub documents
   # `failure()` as true "if any ancestor job fails" — `deploy` is an ancestor, and it runs the whole
