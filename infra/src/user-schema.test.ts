@@ -109,7 +109,7 @@ describe('the draft applies as Postgres', () => {
     expect(applied).toBeGreaterThan(0);
   });
 
-  it('creates exactly the five tables the spec names', async () => {
+  it('creates exactly the six tables the spec and the official rate name', async () => {
     const { rows } = await db.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' ORDER BY table_name`,
@@ -118,6 +118,7 @@ describe('the draft applies as Postgres', () => {
       'account',
       'app_user',
       'asset',
+      'official_rate',
       'transaction',
       'user_price',
     ]);
@@ -147,10 +148,12 @@ describe('the draft applies as Postgres', () => {
         ORDER BY c.table_name`,
     );
     const leading = Object.fromEntries(rows.map((r) => [r.table_name, r.column_name]));
+    // `official_rate` is the one table no user owns: NBU's rate is every viewer's, keyed by its day.
     expect(leading).toEqual({
       account: 'user_id',
       app_user: 'user_id',
       asset: 'user_id',
+      official_rate: 'rate_date',
       transaction: 'user_id',
       user_price: 'user_id',
     });

@@ -40,13 +40,21 @@ const DEMO_ROW = '005_demo_user.sql';
 const CASE_RULE = '006_email_lower.sql';
 const DROP_POLICY = '007_drop_reinvest_policy.sql';
 const DEMO_ACCOUNT = '008_demo_account.sql';
+const OFFICIAL_RATE = '009_official_rate.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row, the case rule, the dropped column and the demo account, in that order, and nothing else', () => {
-    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE, DROP_POLICY, DEMO_ACCOUNT]);
+  it('names the user schema, the demo row, the case rule, the dropped column, the demo account and the official rate, in that order, and nothing else', () => {
+    expect(MIGRATIONS).toEqual([
+      USER_SCHEMA,
+      DEMO_ROW,
+      CASE_RULE,
+      DROP_POLICY,
+      DEMO_ACCOUNT,
+      OFFICIAL_RATE,
+    ]);
   });
 });
 
@@ -67,6 +75,10 @@ describe('statementsOf', () => {
 
   it('splits the demo account into its one statement', () => {
     expect(statementsOf(read(DEMO_ACCOUNT))).toHaveLength(1);
+  });
+
+  it('splits the official rate into its one statement', () => {
+    expect(statementsOf(read(OFFICIAL_RATE))).toHaveLength(1);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -568,6 +580,7 @@ describe('migrate', () => {
         { file: CASE_RULE, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: DROP_POLICY, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: DEMO_ACCOUNT, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: OFFICIAL_RATE, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
       ],
     });
   });
@@ -580,6 +593,7 @@ describe('migrate', () => {
     await applyFile(db, CASE_RULE, statementsOf(read(CASE_RULE)));
     await applyFile(db, DROP_POLICY, statementsOf(read(DROP_POLICY)));
     await applyFile(db, DEMO_ACCOUNT, statementsOf(read(DEMO_ACCOUNT)));
+    await applyFile(db, OFFICIAL_RATE, statementsOf(read(OFFICIAL_RATE)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -590,6 +604,7 @@ describe('migrate', () => {
         { file: CASE_RULE, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: DROP_POLICY, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: DEMO_ACCOUNT, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: OFFICIAL_RATE, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -668,6 +683,7 @@ describe('migrate', () => {
         { file: CASE_RULE, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DROP_POLICY, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DEMO_ACCOUNT, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: OFFICIAL_RATE, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -763,7 +779,7 @@ describe('the invocation budget', () => {
       undefined,
       left(TEARDOWN_RESERVE_MS + 1),
     );
-    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1]);
 
     // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
     const below = await freshDb();
@@ -779,8 +795,8 @@ describe('the invocation budget', () => {
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
-    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1]);
-    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0]);
+    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0]);
   });
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.

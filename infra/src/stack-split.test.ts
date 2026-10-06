@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { isScalar, parseDocument, visit, type Document, type Node } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
+import { NBU_RATE_SET_BY } from './dates';
+import { RATE_FETCH_TIMEOUT_MS } from './official-rate';
 import { FREE_TIER_USERS } from './pool-usage';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
@@ -629,7 +631,12 @@ describe('the user stacks reach the archive through a read-only role the archive
           }
         });
     }
-    expect(admin.sort()).toEqual(['ApplicationsFunction', 'ApproveFunction', 'MigrateFunction']);
+    expect(admin.sort()).toEqual([
+      'ApplicationsFunction',
+      'ApproveFunction',
+      'MigrateFunction',
+      'RateAheadFunction',
+    ]);
     expect(assumes).toEqual([]);
     expect(JSON.stringify(user.Resources)).not.toContain('PriceCluster');
   });
@@ -692,7 +699,7 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the relay and two watches', () => {
+  it('holds the runner, the trigger, the application, the approval, the relay, two watches and the rate job', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
@@ -701,6 +708,7 @@ describe('the user stack holds user data and nothing else', () => {
       'migrate.handler',
       'pool-usage.handler',
       'pre-signup.handler',
+      'rate-ahead.handler',
     ]);
   });
 
@@ -780,13 +788,19 @@ describe('the user stack watches its own cluster’s backups', () => {
     'AWS::Scheduler::Schedule',
   ];
 
+  /** A schedule that does work rather than watching it, so it runs in both environments: dev's
+   *  cluster holds the official rate the way prod's does. Its watch is prod's like every other. */
+  const IN_BOTH = ['RateAheadSchedule'];
+
   it('deploys the whole check on prod only', () => {
     for (const id of WATCH) {
       expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
       expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
     }
     for (const [id, r] of resources(user))
-      if (MONITORING.includes(r.Type)) expect([id, r.Condition]).toEqual([id, 'IsProd']);
+      if (MONITORING.includes(r.Type) && !IN_BOTH.includes(id))
+        expect([id, r.Condition]).toEqual([id, 'IsProd']);
+    for (const id of IN_BOTH) expect([id, user.Resources[id]?.Condition]).toEqual([id, undefined]);
   });
 
   it('reads the USER cluster’s ARN, and never the archive’s', () => {
@@ -1071,6 +1085,137 @@ describe('the user stack watches its pool against the free tier', () => {
   });
 });
 
+describe('the user stack stores the official rate ahead, in both environments', () => {
+  const JOB = [
+    'RateAheadFunction',
+    'RateAheadLogGroup',
+    'RateAheadSchedule',
+    'RateAheadSchedulerRole',
+  ];
+  const WATCH = [
+    'RateAgeMetricFilter',
+    'RateAgeAlarm',
+    'RateAheadSilenceAlarm',
+    'RateAheadErrorAlarm',
+  ];
+
+  it('runs the job in dev and prod, and watches it in prod alone', () => {
+    for (const id of JOB) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, undefined]);
+    }
+    for (const id of WATCH) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+    }
+  });
+
+  // NBU sets tomorrow's rate by 15:30 Kyiv, so the first firing is the first whole hour after
+  // that, and the later ones ask again, the capture's own pattern. Kyiv's clock, because the
+  // deadline is Kyiv's and moves an hour against UTC twice a year.
+  it('fires after NBU has set tomorrow’s rate, on Kyiv’s clock', () => {
+    const schedule = user.Resources.RateAheadSchedule.Properties;
+    expect(schedule?.ScheduleExpression).toBe('cron(0 16,18,20,22 * * ? *)');
+    expect(schedule?.ScheduleExpressionTimezone).toBe('Europe/Kyiv');
+    const [hours, minutes] = NBU_RATE_SET_BY.split(':').map(Number);
+    const firings = /^cron\(0 ([\d,]+) /.exec(schedule?.ScheduleExpression ?? '')?.[1] ?? '';
+    for (const hour of firings.split(',').map(Number))
+      expect(hour * 60).toBeGreaterThan(hours * 60 + minutes);
+  });
+
+  it('gives the job room for both of its fetches', () => {
+    const timeout = user.Resources.RateAheadFunction.Properties?.Timeout ?? 0;
+    expect(timeout * 1000).toBeGreaterThan(2 * RATE_FETCH_TIMEOUT_MS);
+  });
+
+  it('connects to this stack’s cluster and holds no other grant', () => {
+    expect(inlineStatements(user, 'RateAheadFunction')).toHaveLength(1);
+    expect(
+      grantAt(
+        userDoc,
+        ['Resources', 'RateAheadFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
+    expect(intrinsicAt(userDoc, ...envVars('RateAheadFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+  });
+
+  it('lets its scheduler invoke that job and nothing else', () => {
+    expect(
+      grantAt(
+        userDoc,
+        [
+          'Resources',
+          'RateAheadSchedulerRole',
+          'Properties',
+          'Policies',
+          0,
+          'PolicyDocument',
+          'Statement',
+        ],
+        'lambda:InvokeFunction',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'RateAheadFunction.Arn' });
+    expect(roleGrants(user, 'RateAheadSchedulerRole')).toEqual({
+      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      managed: [],
+    });
+  });
+
+  it('reads the age off the line the job emits, with no default', () => {
+    const filter = user.Resources.RateAgeMetricFilter.Properties;
+    expect(filter?.FilterPattern).toBe('{ $.metric = "rateAgeDays" }');
+    const [transformation] = filter?.MetricTransformations ?? [];
+    expect(transformation?.MetricNamespace).toBe('Quirenote');
+    expect(transformation?.MetricName).toBe('RateAgeDays');
+    expect(transformation?.MetricValue).toBe('$.value');
+    expect(transformation?.Dimensions).toBeUndefined();
+    expect(transformation && 'DefaultValue' in transformation).toBe(false);
+  });
+
+  // EVERY DATE ANSWERS, weekends carried forward, so a day whose firings all serve an earlier rate
+  // is the anomaly. MINIMUM over the default sliding window, so a failed firing and a later one
+  // that stored the rate read as the recovery they are.
+  it('alarms when a day ends serving an earlier day’s rate', () => {
+    const alarm = user.Resources.RateAgeAlarm.Properties;
+    expect(alarm?.Namespace).toBe('Quirenote');
+    expect(alarm?.MetricName).toBe('RateAgeDays');
+    expect(alarm?.Dimensions).toBeUndefined();
+    expect(alarm?.Statistic).toBe('Minimum');
+    expect(alarm?.Period).toBe(86400);
+    expect(alarm?.EvaluationPeriods).toBe(1);
+    expect(alarm?.Threshold).toBe(0);
+    expect(alarm?.ComparisonOperator).toBe('GreaterThanThreshold');
+    expect(alarm?.TreatMissingData).toBe('notBreaching');
+  });
+
+  it('watches the publisher as well as the number', () => {
+    const silence = user.Resources.RateAheadSilenceAlarm.Properties;
+    expect(silence?.Namespace).toBe('AWS/Lambda');
+    expect(silence?.MetricName).toBe('Invocations');
+    expect(silence?.Dimensions).toEqual([{ Name: 'FunctionName', Value: 'RateAheadFunction' }]);
+    expect(silence?.ComparisonOperator).toBe('LessThanThreshold');
+    expect(silence?.TreatMissingData).toBe('breaching');
+    expect(silence?.EvaluationPeriods).toBe(2);
+
+    const errors = user.Resources.RateAheadErrorAlarm.Properties;
+    expect(errors?.Namespace).toBe('AWS/Lambda');
+    expect(errors?.MetricName).toBe('Errors');
+    expect(errors?.Dimensions).toEqual([{ Name: 'FunctionName', Value: 'RateAheadFunction' }]);
+    expect(errors?.ComparisonOperator).toBe('GreaterThanOrEqualToThreshold');
+    expect(errors?.TreatMissingData).toBe('notBreaching');
+  });
+
+  // NO `AlarmActions` AND NO TOPIC, here as everywhere. [*Alerting*]
+  it('carries no alarm action', () => {
+    for (const id of ['RateAgeAlarm', 'RateAheadSilenceAlarm', 'RateAheadErrorAlarm'])
+      expect([id, user.Resources[id].Properties?.AlarmActions]).toEqual([id, undefined]);
+  });
+});
+
 describe('the capture pipeline exists exactly once across both templates', () => {
   const both = [archive, user];
 
@@ -1081,7 +1226,7 @@ describe('the capture pipeline exists exactly once across both templates', () =>
 
   // EACH TARGET AS THE INTRINSIC, and the capture's dead-letter queue with them: `toJS()` reads the
   // literal `CaptureFunction.Arn` as it reads the `!GetAtt`, and the literal is no function's ARN.
-  it('schedules the capture once, and the user stack schedules only its own watches', () => {
+  it('schedules the capture once, and the user stack schedules only its own watches and the rate job', () => {
     const target = (doc: Document, id: string) => [
       id,
       intrinsicAt(doc, 'Resources', id, 'Properties', 'Target', 'Arn'),
@@ -1103,6 +1248,7 @@ describe('the capture pipeline exists exactly once across both templates', () =>
     expect(idsOfType(user, 'AWS::Scheduler::Schedule').map((id) => target(userDoc, id))).toEqual([
       ['BackupFreshnessSchedule', { tag: '!GetAtt', value: 'BackupFreshnessFunction.Arn' }],
       ['PoolUsageSchedule', { tag: '!GetAtt', value: 'PoolUsageFunction.Arn' }],
+      ['RateAheadSchedule', { tag: '!GetAtt', value: 'RateAheadFunction.Arn' }],
     ]);
   });
 
@@ -1206,6 +1352,7 @@ describe('what reaches a role besides its own policies', () => {
       'AuthRelayFunction',
       'BackupFreshnessFunction',
       'PoolUsageFunction',
+      'RateAheadFunction',
     ]);
     for (const [id, bag] of bags) {
       expect([id, Object.keys(bag).filter((k) => !allowed.has(k))]).toEqual([id, []]);
@@ -1495,13 +1642,16 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
     ]);
   });
 
-  it('deploys six more from the user stack', () => {
+  it('deploys nine more from the user stack', () => {
     expect(idsOfType(user, ALARM).sort()).toEqual([
       'BackupFreshnessErrorAlarm',
       'BackupFreshnessSilenceAlarm',
       'PoolUsageErrorAlarm',
       'PoolUsageSilenceAlarm',
       'PoolUsersAlarm',
+      'RateAgeAlarm',
+      'RateAheadErrorAlarm',
+      'RateAheadSilenceAlarm',
       'UserBackupAgeAlarm',
     ]);
   });
@@ -1514,9 +1664,9 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
       }
   });
 
-  it('is two past the ten, which the Alerting decision takes knowingly', () => {
+  it('is five past the ten, which the Alerting decision takes knowingly', () => {
     const deployed = [archive, user].flatMap((t) => idsOfType(t, ALARM));
-    expect(deployed.length - FREE_TIER_ALARMS).toBe(2);
+    expect(deployed.length - FREE_TIER_ALARMS).toBe(5);
   });
 });
 

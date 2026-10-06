@@ -92,7 +92,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage archive-reader-grant; do
+          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -110,7 +110,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept: a guard derived
           # from the esbuild step alone let a handler deploy having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/archive-reader-grant.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -314,6 +314,27 @@ jobs:
               if (unknown !== 'refused') throw new Error('an unreadable count was published as a number');
               if (u.FREE_TIER_USERS !== 10000) throw new Error('the free-tier ceiling moved: ' + u.FREE_TIER_USERS);
               console.log('pool-usage bundle loads, counts an empty pool as zero, and refuses a count it could not read');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # 13:00Z is 16:00 Kyiv, the first firing: past NBU's 15:30, so tomorrow is due as well as
+          # today. And no stored rate must REFUSE, or an age nobody read sits on the alarm's healthy side.
+          node -e "
+            const r = require('./rate-ahead.js');
+            if (typeof r.handler !== 'function') throw new Error('handler missing from rate-ahead bundle');
+            const asked = [];
+            const rates = { ensure: async (client, date) => { asked.push(date); } };
+            const stored = { query: async (text, values) => ({ rows: [{ day: values[0], rate: '44.8153' }] }) };
+            const empty = { query: async () => ({ rows: [] }) };
+            const firing = new Date('2026-09-29T13:00:00Z');
+            Promise.all([
+              r.rateAhead(stored, rates, firing),
+              r.rateAhead(empty, rates, firing).then(() => 'published', () => 'refused'),
+            ]).then(([fresh, none]) => {
+              if (fresh.metric !== 'rateAgeDays') throw new Error('the metric key the filter reads is gone: ' + fresh.metric);
+              if (fresh.value !== 0) throw new Error('a rate stored for today did not read as age zero: ' + fresh.value);
+              if (none !== 'refused') throw new Error('no stored rate was published as an age');
+              if (asked.join() !== '2026-09-29,2026-09-30') throw new Error('16:00 Kyiv did not ask for today and tomorrow: ' + asked.join());
+              console.log('rate-ahead bundle loads, asks for today and tomorrow after 15:30 Kyiv, and refuses an age it could not read');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # CloudFormation waits on this bundle's answer, so one that cannot load holds the archive

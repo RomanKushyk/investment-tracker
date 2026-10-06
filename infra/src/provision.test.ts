@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
+import { freshDb, refusingFirstCommit } from './__fixtures__/pglite';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 import { provision } from './provision';
 
@@ -51,29 +51,6 @@ const failingOn = (needle: string): SqlClient => ({
     return db.query<R>(text, values) as Promise<{ rows: R[] }>;
   },
 });
-
-/**
- * The real cluster, except that the first `COMMIT` answers a code WITHOUT reaching it — which is
- * the state a conflicting transaction is really in: still open, waiting to be rolled back. Every
- * statement is recorded, so "it started again" is assertable rather than inferred from the rows.
- */
-const refusingFirstCommit = (code: string) => {
-  const sent: string[] = [];
-  let refused = false;
-  const client: SqlClient = {
-    query: async <R>(text: string, values?: unknown[]) => {
-      sent.push(text);
-      if (text === 'COMMIT' && !refused) {
-        refused = true;
-        throw Object.assign(new Error('change conflicts with another transaction (OC000)'), {
-          code,
-        });
-      }
-      return db.query<R>(text, values) as Promise<{ rows: R[] }>;
-    },
-  };
-  return { client, sent };
-};
 
 beforeEach(async () => {
   db = await freshDb();
@@ -117,7 +94,7 @@ describe('a user and their account are one write', () => {
 
 describe('contention is retried, and nothing else is', () => {
   it('starts the transaction again on 40001 and settles with one account', async () => {
-    const { client, sent } = refusingFirstCommit('40001');
+    const { client, sent } = refusingFirstCommit(db, '40001');
     expect(await provision(client, USER, writeUser(client))).toBe('created');
     expect(sent.filter((t) => t === 'BEGIN')).toHaveLength(2);
     expect(sent.filter((t) => t === 'ROLLBACK')).toHaveLength(1);
@@ -126,7 +103,7 @@ describe('contention is retried, and nothing else is', () => {
 
   // A REFUSAL IS REPORTED, NEVER HAMMERED — the runner's teardown draws the same line.
   it('reports a code that is not contention on the first attempt', async () => {
-    const { client, sent } = refusingFirstCommit('42501');
+    const { client, sent } = refusingFirstCommit(db, '42501');
     await expect(provision(client, USER, writeUser(client))).rejects.toThrow(/OC000/);
     expect(sent.filter((t) => t === 'BEGIN')).toHaveLength(1);
     expect(await accounts()).toEqual([]);

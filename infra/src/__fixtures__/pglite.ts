@@ -2,6 +2,8 @@
 // own, and an instance keeps the memory it booted with after `close()`.
 import { PGlite } from '@electric-sql/pglite';
 
+import type { SqlClient } from '../migrate';
+
 /** PostgreSQL numbers every object made after `initdb` from here up. */
 const FIRST_NORMAL_OID = 16384;
 
@@ -167,3 +169,27 @@ async function measures(db: PGlite): Promise<string> {
   ];
   return parts.join('\nUNION ALL\n');
 }
+
+/**
+ * The cluster, except that the first `COMMIT` answers a code WITHOUT reaching it — which is the
+ * state a conflicting transaction is really in: still open, waiting to be rolled back. PGlite is
+ * pessimistic and never answers `40001` itself. Every statement is recorded, so "it started again"
+ * is assertable rather than inferred from the rows.
+ */
+export const refusingFirstCommit = (db: PGlite, code: string) => {
+  const sent: string[] = [];
+  let refused = false;
+  const client: SqlClient = {
+    query: async <R>(text: string, values?: unknown[]) => {
+      sent.push(text);
+      if (text === 'COMMIT' && !refused) {
+        refused = true;
+        throw Object.assign(new Error('change conflicts with another transaction (OC000)'), {
+          code,
+        });
+      }
+      return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+    },
+  };
+  return { client, sent };
+};

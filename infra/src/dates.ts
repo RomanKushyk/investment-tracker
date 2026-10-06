@@ -1,5 +1,5 @@
 // The dating rule: for each source, the Kyiv day a run takes as current.
-import { addDays, kyivDateIso } from '@quirenote/core/dates';
+import { addDays, kyivDateIso, kyivTimeHm } from '@quirenote/core/dates';
 
 /**
  * Inzhur: the Kyiv date the run happens on, with no subtraction. The endpoint is LIVE, and what
@@ -17,4 +17,18 @@ export function inzhurAsOf(now: Date): string {
  */
 export function nbuAsOf(now: Date): string {
   return addDays(kyivDateIso(now), -1);
+}
+
+/** NBU Board Resolution 148 publishes the official rate "не пізніше 15.30 у день встановлення",
+ *  and it takes effect the next working day; the dates between carry the last one forward.
+ *  Compared as Kyiv's `HH:mm`, which orders as text. */
+export const NBU_RATE_SET_BY = '15:30';
+
+/**
+ * The official rate: today, and from `NBU_RATE_SET_BY` in Kyiv tomorrow too, which NBU has set by then.
+ * Every date answers, weekends and holidays carrying the last working day's rate forward.
+ */
+export function rateDatesDue(now: Date): string[] {
+  const today = kyivDateIso(now);
+  return kyivTimeHm(now) >= NBU_RATE_SET_BY ? [today, addDays(today, 1)] : [today];
 }

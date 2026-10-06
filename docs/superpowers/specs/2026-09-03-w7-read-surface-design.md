@@ -68,12 +68,13 @@ retires the split along with IndexedDB and the dataset guards. The constraint di
 created it, so `dataset` is an ordinary preference, and with the demo a public route a signed-out
 visitor reaches there is nothing left for it to select.
 
-**This is about SETTINGS.** The three durable `meta` keys — `inzhur:lastFetch`, `inzhur:lastParse`,
-`nbu:lastRate` — stay per-device exactly as #48 §2 pins them; they are caches of provider payloads,
-not preferences. Everything else durable in the settings object moves to the server and becomes
+**This is about SETTINGS.** The two durable `meta` keys `inzhur:lastFetch` and `inzhur:lastParse`
+stay per-device exactly as #48 §2 pins them; they are caches of provider payloads, not preferences.
+`nbu:lastRate` was a third: once `/view` serves the rate the server stores, it caches nothing the
+client needs, and #191 retires it. Everything else durable in the settings object moves to the server and becomes
 cross-browser, which is *Cloud target*'s stated priority rather than a bonus. `currency` moves nowhere
 — flipping to `$` to read one KPI is not a preference and must not outlive the tab. And **`usdRate` is
-stored NOWHERE**, on the owner's ruling: *"він потрібний лише в момент показу і може тягнутись (і
+stored NOWHERE as a setting**, on the owner's ruling: *"він потрібний лише в момент показу і може тягнутись (і
 тягнеться) з API НБУ"*. Two things that collides with, neither a reason to refuse it — they are its
 cost:
 
@@ -82,10 +83,12 @@ cost:
 recoverable from `payload_gzip` by dividing `buyUAH / buyUSD` is **Inzhur's dealer conversion**, not
 the NBU official rate this field displays — it is not even one rate, funds and bonds disagreeing in
 the second decimal and jittering in the fourth. Substituting it would merge two bases, which the
-archive's own rule forbids outright. So the rate is a live NBU fetch, and the owner ruled which side
-fetches: the **server**. `/view` carries `fx`, the backend fetches bank.gov.ua and caches it for the
-day, so one request serves every viewer and no browser depends on NBU's CORS policy. The cost, named
-rather than hidden: a new outbound call in the backend, on a path that had none.
+archive's own rule forbids outright. So the rate is NBU's, and the owner ruled which side fetches:
+the **server**. `/view` carries `fx` from one row per day in the user cluster, stored ahead by a
+schedule once NBU has set tomorrow's rate, and by the request that finds today's missing. A day NBU does not answer is served the latest earlier rate under its own date
+(`infra/src/official-rate.ts`). One stored row serves every viewer, and no browser depends on NBU's
+CORS policy. The cost, named rather than hidden: a new outbound call in the backend, on a path that
+had none.
 
 **2. It retires the propose-only rate contract, and the owner ruled to retire it.** Fetching from NBU
 is manual-only and propose-only today — `useNbuRate.ts` produces a value in memory and only a press in

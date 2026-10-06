@@ -461,28 +461,43 @@ redirect hop included, is first checked against its host's `robots.txt` — a fi
 allows, read per that RFC under the product token `quirenote-price-capture`. A disallowed hop fails
 the fetch without being requested and is not retried: the refusal settles its day, as a day NBU
 publishes no file does, so no later firing asks again. The capture refuses the asset feed on that
-rule: it redirects into `/dashboard/`, which the provider's crawl rules disallow.
+rule: it redirects into `/dashboard/`, which the provider's crawl rules disallow. The official rate
+is the user stack's fetch, not the capture's: each user cluster keeps one row per Kyiv day, stored
+ahead by a schedule once NBU has set tomorrow's rate, in a transaction holding that insert alone.
+`infra/src/official-rate.ts` also holds the read `/view` is to make, which no route calls yet:
+today's row, else a fetch stored the same way, else the latest earlier rate under its own date. A
+failed fetch is stored nowhere, and the same reader does not ask again inside RFC 2308's ceiling
+on caching a failure. The fetch is no crawl and checks no
+`robots.txt`.
 **Why.** A blanket `Disallow` is final even where a statute licenses the use: any exception is a
 rule every future source inherits with no bright line. And a false "this source is dead" does not
 fail loudly, it stops anyone looking again. RFC 9309 binds the URI requested and exempts none
 reached by a redirect; Scrapy, Nutch and Heritrix each check the target before requesting it. The
 offer page serves every price, rate and schedule the feed served for the instruments it listed,
 and reshaped into the feed's entries it is read by the feed's own parser, so the archive keeps one
-basis across the switch.
+basis across the switch. NBU Board Resolution 148 sets a date's official rate on the working day
+before it takes effect, and weekends and holidays keep the last one, so every date answers and a
+stored row is final. A Lambda's module scope cannot hold the day's rate, each concurrent request
+running in an environment of its own, so it is a row. Serving the last good rate on a failure is
+RFC 5861's stale-if-error, labelled with its date as the client's fallback labels it. RFC 9309
+scopes robots rules to crawlers, and bank.gov.ua's robots file disallows nothing.
 **Rejected.** Crawling a disallowed path while claiming to respect the site's rules: self-refuting.
 · Checking the first URL only: a redirect would then carry a fetch past the rules unseen. · Any
 other path on the provider's API host: it publishes no robots.txt, but none of the conventional
 OpenAPI or versioned paths answers, and guessing at an undocumented API is not a source anyone
 published — the document list is read because the provider's own page sends that request. · A
-hand-written decoder for the page's state: the site's serializer reads it exactly.
+hand-written decoder for the page's state: the site's serializer reads it exactly. · The rate in
+the archive: a user stack cannot write it, and the archive keeps the provider's conversion out on
+purpose. · A rate fetched live per request and cached in memory: the next concurrent request runs
+where that memory is not.
 
 ## Alerting
 **Decision.** No SNS topic, and the alarms carry no `AlarmActions` at all: CloudWatch publishes
 every state change to EventBridge regardless of actions, so delivery is EventBridge → AWS User
 Notifications → the Console Mobile App, and an alarm with no action still alerts. The channel
 measures itself: the capture emits its channel count on every run, healthy or not, readable with no
-delivery at all. Backup freshness and the free tier on monthly actives take the same shape, each
-watched by the stack that owns it. A count that could not be read THROWS rather than publishing
+delivery at all. Backup freshness, the free tier on monthly actives and the age of the official
+rate served take the same shape, each watched by the stack that owns it. A count that could not be read THROWS rather than publishing
 zero, which on a `GreaterThan` alarm is the healthy side. The set overshoots the always-free tier
 knowingly; THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE PER WATCHED VALUE — a check's silence and
 its errors, then one alarm for each published number a threshold can be right for — and `DlqAlarm`

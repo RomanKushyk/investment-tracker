@@ -995,6 +995,158 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
+  # NBU'S OFFICIAL RATE, STORED AHEAD so a request's path is a read: once NBU has set tomorrow's
+  # rate (Resolution 148), each firing stores it, and today's when missing
+  # (`src/rate-ahead.ts`). IN BOTH ENVIRONMENTS, unlike the two watches above: this does work, and
+  # dev's cluster holds the rate the way prod's does. Its watch is prod's alone.
+  RateAheadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: rate-ahead.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      # Two NBU fetches of up to ten seconds each, today's and tomorrow's, then the age read.
+      Timeout: 30
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            # The only database role this cluster has is `admin`; the handler bounds the reach.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+
+  RateAheadLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${RateAheadFunction}
+      RetentionInDays: 30
+
+  # THE FIRST WHOLE HOUR AFTER `NBU_RATE_SET_BY` (`src/dates.ts`), then every two hours, the
+  # capture's own way of asking again: each firing fetches only a day still missing. Kyiv's clock,
+  # because the deadline is Kyiv's, and no firing falls in the 03:00 transition hour. No DLQ: the
+  # next firing replaces a lost one.
+  RateAheadSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Description: Store NBU's official rate for tomorrow once NBU has set it, and for today when missing.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      ScheduleExpression: cron(0 16,18,20,22 * * ? *)
+      ScheduleExpressionTimezone: Europe/Kyiv
+      Target:
+        Arn: !GetAtt RateAheadFunction.Arn
+        RoleArn: !GetAtt RateAheadSchedulerRole.Arn
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+          MaximumEventAgeInSeconds: 3600
+
+  RateAheadSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokeRateAhead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt RateAheadFunction.Arn
+
+  # UNDIMENSIONED, prod's alone publishing under the name. NO `DefaultValue`: it would publish 0,
+  # the healthy side of the `GreaterThan` below, for every period with no firing.
+  RateAgeMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref RateAheadLogGroup
+      FilterPattern: '{ $.metric = "rateAgeDays" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: RateAgeDays
+          MetricValue: $.value
+
+  # EVERY DATE ANSWERS, weekends and holidays carrying the last working day's rate forward, so a
+  # day whose firings all still serve an earlier rate is the anomaly, and 0 is the threshold.
+  # `Minimum` over CloudWatch's default sliding window, the day ending at each evaluation: above 0
+  # only once every firing in it served an earlier rate, so a failed firing and a later one that
+  # stored the rate read as the recovery they are.
+  RateAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        Every firing in the last 24 hours served an earlier day's NBU rate, so the newest
+        rate prod's cluster holds for today is an earlier day's. Read RateAheadFunction's log
+        for its unfetched lines and their reason, then ask bank.gov.ua's exchange endpoint
+        for today's date by hand.
+      Namespace: Quirenote
+      MetricName: RateAgeDays
+      Statistic: Minimum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  RateAheadSilenceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The official-rate job has stopped running, so prod's rate is no longer stored ahead
+        and its age is no longer measured. Check the schedule and its role. Expect it on a
+        first deploy too, until the first scheduled run clears it: the function has no
+        invocations yet, and missing data here is treated as breaching.
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Dimensions: [{ Name: FunctionName, Value: !Ref RateAheadFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  RateAheadErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The official-rate job threw or timed out. A failed NBU fetch does not throw, so
+        this is the cluster (its connection, its admin grant, or official_rate missing
+        until the migrate job has run), no rate stored on or before today at all, or the
+        cluster answering slowly enough to outlast the function's timeout: each NBU fetch is
+        cut short well inside it.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref RateAheadFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
   ClusterIdentifier:
     Value: !GetAtt UserCluster.Identifier
