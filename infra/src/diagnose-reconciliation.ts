@@ -1,6 +1,5 @@
 // `diagnose`'s gap reconciliation: each observation group's distinct days against the capture
-// days of its source, and imported history against the calendar. Its own module so PGlite can run
-// it; `capture.ts` cannot load in a test.
+// days of its source, and imported history against the calendar.
 import { FUND_HISTORY_PARSER_VERSION } from './fund-history';
 import type { SqlClient } from './migrate';
 

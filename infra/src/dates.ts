@@ -1,5 +1,4 @@
-// The dating rule, kept out of `capture.ts` so a test for it does not drag in the handler's
-// `@aws-sdk/*` imports, which the frontend CI job cannot resolve.
+// The dating rule: for each source, the Kyiv day a run takes as current.
 import { addDays, kyivDateIso } from '@quirenote/core/dates';
 
 /**

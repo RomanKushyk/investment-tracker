@@ -1,5 +1,4 @@
-// The completeness rule for an observe run, kept out of `capture.ts` for the reason `dates.ts`
-// gives: a test for it must not drag in the handler's `@aws-sdk/*` imports.
+// The days one archive read may span, and the completeness rule for an observe run.
 import { addDays } from '@quirenote/core/dates';
 
 /** Days one invocation may ask for. Every statement over the archive is bounded by a SQL date

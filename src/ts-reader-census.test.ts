@@ -632,6 +632,11 @@ const EXEMPT: [file: string, site: string, reason: string][] = [
     'a prose-claim sweep: a retired claim written in a comment is what it catches',
   ],
   [
+    'infra/src/capture-split.test.ts',
+    'sources',
+    'a retired-prose sweep over infra/src: the header comments are its subject',
+  ],
+  [
     'infra/src/transaction-scope.test.ts',
     'sources',
     'a prose-claim sweep over every authored file, comments first among them',
