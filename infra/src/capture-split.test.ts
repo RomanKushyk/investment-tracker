@@ -44,12 +44,15 @@ describe('no header explains a module by a test that cannot load capture.ts', ()
       'infra/src/observe-window.ts',
       'a test for it must not ' + "drag in the handler's `@aws-sdk/*` imports.",
     ],
+    [
+      'infra/src/quotes.ts',
+      'so a test for it does not ' + "drag in the handler's `@aws-sdk/*` imports.",
+    ],
   ];
-  // `quotes.ts` says a test for it "does not drag in" those imports, which its test bears out by
-  // loading none of them; that sentence is outside every needle.
   const NEEDLES = [
     'cannot load ' + 'in a test',
     'must not ' + 'drag in',
+    'does not ' + 'drag in the handler',
     'frontend ci job ' + 'cannot resolve',
   ];
   // Literal, word-bounded by lookaround since a needle can end at punctuation.

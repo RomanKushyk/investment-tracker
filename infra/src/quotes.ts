@@ -1,4 +1,4 @@
-// Kept out of `capture.ts` so a test for it does not drag in the handler's `@aws-sdk/*` imports.
+// The DCF verdict tally over the bonds of a parsed Inzhur assets feed.
 import { checkQuote } from '@quirenote/core/inzhur/dcf';
 import type { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
 
