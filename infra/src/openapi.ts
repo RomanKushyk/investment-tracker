@@ -17,7 +17,7 @@ import { RESPONSES as ADMIN_RESPONSES } from './approve';
 import {
   GOOGLE_COMPLETE_BODY,
   GOOGLE_COMPLETE_ROUTE,
-  PARAMETERS,
+  PARAMETERS as RELAY_PARAMETERS,
   PASSKEY_BODY,
   PASSKEY_COMPLETE_BODY,
   PASSKEY_COMPLETE_ROUTE,
@@ -30,6 +30,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { type ApiResult, type Declared, made } from './http';
+import { PARAMETERS as VIEW_PARAMETERS, RESPONSES as VIEW_RESPONSES } from './view';
 
 /** The one security scheme, named as the template names it. */
 const SCHEME = 'CognitoJwt';
@@ -57,6 +58,7 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'applications.handler': APPLICATION_RESPONSES,
   'approve.handler': ADMIN_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
+  'view.handler': VIEW_RESPONSES,
 };
 
 /** Keyed by route, not by handler: a second event on one function would otherwise attach a
@@ -91,6 +93,12 @@ type Operation = {
       content?: { 'application/json': { examples: Record<string, { value: unknown }> } };
     }
   >;
+};
+
+/** A route's own request headers, keyed like the bodies. */
+const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
+  ...RELAY_PARAMETERS,
+  ...VIEW_PARAMETERS,
 };
 
 export type OpenApiDocument = {

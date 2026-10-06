@@ -21,6 +21,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
+import { EXPOSED, ROUTE as VIEW_ROUTE } from './view';
 
 type Resource = {
   Type: string;
@@ -173,6 +174,16 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     }
     expect(props('ApproveFunction').Handler).toBe('approve.handler');
   });
+
+  it('puts the derived read on this API, a GET naming the authorizer', () => {
+    const read = declaredRoutes().filter((r) => r.fn === 'ViewFunction');
+    expect(read.map((r) => [r.key, r.api, r.authorizer])).toEqual([
+      [VIEW_ROUTE, 'PublicApi', AUTHORIZER],
+    ]);
+    expect(props('ViewFunction').Handler).toBe('view.handler');
+    expect(user.Resources.ViewLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('ViewLogGroup').RetentionInDays).toBe(30);
+  });
 });
 
 describe('the route is throttled below the stage it sits in', () => {
@@ -295,6 +306,7 @@ describe('the browser origins are named per environment', () => {
     AllowOrigins: string[];
     AllowMethods: string[];
     AllowHeaders: string[];
+    ExposeHeaders?: string[];
     AllowCredentials?: boolean;
   };
   const [condition, prod, dev] = props('PublicApi').CorsConfiguration as [string, Cors, Cors];
@@ -319,14 +331,18 @@ describe('the browser origins are named per environment', () => {
       ['prod', prod],
       ['dev', dev],
     ] as const) {
-      expect([name, arm.AllowMethods?.slice().sort()]).toEqual([name, ['OPTIONS', 'POST']]);
+      expect([name, arm.AllowMethods?.slice().sort()]).toEqual([name, ['GET', 'OPTIONS', 'POST']]);
       // `authorization` is what lets a browser send the token at all: every admin call is
       // cross-origin, and the preflight refuses a header the list does not name — a failure that
-      // appears only in a browser, never in `curl`.
+      // appears only in a browser, never in `curl`. `if-none-match` is not safelisted either, and
+      // it is how the read revalidates.
       expect([name, arm.AllowHeaders?.slice().sort()]).toEqual([
         name,
-        ['authorization', 'content-type', CSRF_HEADER].sort(),
+        ['authorization', 'content-type', 'if-none-match', CSRF_HEADER].sort(),
       ]);
+      // A script reads no response header CORS does not expose, and with credentials a `*` is a
+      // header literally named `*`: the read's validator and identifier are named.
+      expect([name, arm.ExposeHeaders?.slice().sort()]).toEqual([name, [...EXPOSED].sort()]);
       // THE COOKIE CROSSES ORIGINS: `api.quirenote.com` is same-site with `quirenote.com` but not
       // same-origin, so the app sends `credentials: 'include'` and the preflight must allow it.
       expect([name, arm.AllowCredentials]).toEqual([name, true]);

@@ -1,7 +1,7 @@
 // NBU's official USD rate as `/view` serves it: one stored row per Kyiv day in this environment's
 // user cluster, read first, fetched and stored on a miss, and otherwise the latest earlier day's
-// rate under its own date. `rate-ahead.ts` calls `ensure` and `latestRate`; `served`, the
-// request's read, is called by nothing until `GET /view`.
+// rate under its own date. `rate-ahead.ts` calls `ensure` and `latestRate`; `view.ts` calls
+// `served`, the request's read.
 //
 // A Lambda's module scope cannot hold the day's rate: each concurrent request runs in an execution
 // environment of its own. A reader keeps one thing between its calls, the failed-fetch spacing, so
@@ -9,7 +9,6 @@
 //
 // `fetch` IS THE RAW ONE, not `robotsFetch`: the robots rule is the capture's, for crawling, and
 // RFC 9309 scopes robots rules to crawlers (*External sources*).
-import { kyivDateIso } from '@quirenote/core/dates';
 import { nbuRateUrl, parseNbuRate } from '@quirenote/core/nbu/rate';
 import { codeOf } from './dsql';
 import type { SqlClient } from './migrate';
@@ -103,10 +102,9 @@ export function createOfficialRate(fetchFn: typeof fetch = fetch, now: () => num
     await store(client, date, rate);
   }
 
-  /** Today's rate, stored or fetched; else the latest earlier one under its own date (RFC 5861's
+  /** `today`'s rate, stored or fetched; else the latest earlier one under its own date (RFC 5861's
    *  stale-if-error); else nothing. Call it outside any open transaction: a miss writes. */
-  async function served(client: SqlClient): Promise<StoredRate | undefined> {
-    const today = kyivDateIso(new Date(now()));
+  async function served(client: SqlClient, today: string): Promise<StoredRate | undefined> {
     const latest = await latestRate(client, today);
     if (latest?.date === today) return latest;
     await ensure(client, today);

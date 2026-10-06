@@ -118,7 +118,7 @@ date is `units(a, D) × price(a, D)`, the price being the latest observation at 
 either source, the user's or the archive's, the newer winning and the user's on a same-day tie, so
 nothing is prefilled because nothing is written. The app still stores and reads ₴ snapshots
 (*Persistence today*). Core can rebuild that series from the ledger and both sources' per-unit
-prices instead, and nothing reads the rebuild yet: one snapshot per grid day from the first that values anything —
+prices instead, and `GET /view` serves the rebuild, which the app does not call yet: one snapshot per grid day from the first that values anything —
 every day a held asset is observed on, every transaction day, and the day before each period opens,
 resolved by the window composer — each asset at that day's units × price, rounded once to the
 kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
@@ -464,7 +464,7 @@ publishes no file does, so no later firing asks again. The capture refuses the a
 rule: it redirects into `/dashboard/`, which the provider's crawl rules disallow. The official rate
 is the user stack's fetch, not the capture's: each user cluster keeps one row per Kyiv day, stored
 ahead by a schedule once NBU has set tomorrow's rate, in a transaction holding that insert alone.
-`infra/src/official-rate.ts` also holds the read `/view` is to make, which no route calls yet:
+`infra/src/official-rate.ts` also holds the read `GET /view` makes:
 today's row, else a fetch stored the same way, else the latest earlier rate under its own date. A
 failed fetch is stored nowhere, and the same reader does not ask again inside RFC 2308's ceiling
 on caching a failure. The fetch is no crawl and checks no
@@ -501,7 +501,10 @@ rate served take the same shape, each watched by the stack that owns it. A count
 zero, which on a `GreaterThan` alarm is the healthy side. The set overshoots the always-free tier
 knowingly; THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE PER WATCHED VALUE — a check's silence and
 its errors, then one alarm for each published number a threshold can be right for — and `DlqAlarm`
-sits outside that rule, its depth published by SQS rather than by any check here.
+sits outside that rule, its depth published by SQS rather than by any check here. A REQUEST PATH IS
+NO CHECK: no traffic is its normal state and a failure it catches is answered as a 500, so it adds
+the watched value alone — the view function's archive refusals, alarmed on a second in an hour, since
+the grant's revoke and re-grant refuses a connection landing between the two.
 `infra/src/stack-split.test.ts` holds the names and the overshoot as a subtraction, after a
 thirteenth alarm passed every gate.
 **Why.** An alarm that cannot deliver is worse than none: it turns an unmonitored system into one
@@ -532,12 +535,27 @@ its own or PUBLIC's, a write, a CREATE or a grant option. It repairs nothing it 
 fails closed: the reader is left with no mapping until an admin removes the privilege.
 The role is mapped to `quirenote-backend-archive-reader`, a fixed-name role the ARCHIVE stack owns
 with `dsql:DbConnect` on that cluster and nothing else, whose trust admits a user stack's view
-function by a pattern on `aws:PrincipalArn`; nothing assumes it until that function exists. The
+function by a pattern on `aws:PrincipalArn`, the one role that assumes it. The
 archive's identifier reaches a user stack as a deploy parameter the workflow reads off the archive's
 outputs. The mapping is granted by a custom resource in the archive stack, admin's second holder
 there beside the capture, which revokes every mapping and grants the current one on its creation and
 whenever one of its properties changes: the role's ARN, the cluster, the hash of its own code or
 its timeout.
+THE DERIVED READ IS `GET /view`: `buildView` for all six periods over the series rebuilt from the
+caller's prices and the archive's, the official rate and its day beside it. The rules from core's
+types to the body live in core (`view/serve.ts`), so the derivation identifier covers them; the
+mapping of rows into those types stays in `infra/`, outside it: `infra/src/ledger.ts` reads the
+caller's rows and `app_user.data_version` in one read-only transaction, and
+`infra/src/sell-observations.ts` reads the archive's sell rows and digests them. The
+archive is read for the linked refs from a week before the first transaction on or before the
+caller's day, so the first held day finds the observation before it. TWO VALIDATORS, NEVER ONE:
+the read's tag is WEAK and composed from six inputs — the caller, `data_version`, a digest of the
+archive rows read, the rate served with its day, the Kyiv day and the derivation identifier — while a
+write's precondition is `data_version` alone. `If-None-Match` compares weakly and `*` matches;
+`If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
+`private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
+HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
+ships uncompressed until a first-paint measurement says otherwise.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -552,7 +570,19 @@ at run time, so the reader's tables come from default privileges, which DSQL app
 the reader should not see, and a test lists the tables and views the infra modules create so that
 a new one is reviewed before the reader can read it. A privilege can come from a name, a column,
 `PUBLIC`, a membership or a default set for one schema or for all of them, so the check reads what
-the reader can do rather than where a grant came from.
+the reader can do rather than where a grant came from. RFC 9110 §8.8.3 marks a tag weak when it
+cannot meet the strong validator's characteristics, which a wall-clock day defeats, and §13.1.1
+requires strong comparison for `If-Match`, so one tag serving both would fail every precondition.
+Composing beats hashing the body: §8.8.1 blesses a digest only where it need not be recalculated
+for each validation request, and under `no-cache` each request is one. The caller is an input
+because every `data_version` starts at 0 and RFC 9111 §4.3.1 lets a cache validate a response it
+cannot choose. `must-revalidate` binds only a stale response and lets a shared cache reuse one sent
+with `Authorization` (RFC 9111 §5.2.2.2). None of AIP-185, Azure's, Zalando's or GitHub's API
+guidelines puts a version in a response body, which can neither route nor cheaply reject; Next.js
+sends its deployment id as a header. A header takes no `X-` (RFC 6648). The lookback only bounds
+the SQL window, wider than any gap between two of the archive's observations of one ref, since a
+cutoff on carrying a price is rejected (*Derived figures and the seed*). API Gateway's HTTP APIs do
+not compress.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -560,7 +590,10 @@ roles by ARN: it goes stale when SAM replaces one. · `Fn::ImportValue` for the 
 imported output pins the stack exporting it, and the user stack deploys first. · A grant by a
 fixed list of table names: it ran before the capture had created a fresh archive's tables, or a
 newly added one, and failed the deploy. · Revoking each extra privilege by its source: a source the
-sweep does not name survives it, and there is always another to name.
+sweep does not name survives it, and there is always another to name. · One validator for the read
+and the write: a weak tag never satisfies `If-Match`. · A hash of the body as the read's tag: it
+rebuilds the body to answer a 304. · `must-revalidate`. · A version field in the body. · Copying the
+model route's exact `If-None-Match` comparison: a tag sent without its `W/` must still match.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
@@ -922,7 +955,11 @@ ONE DERIVATION IDENTIFIER FOR BOTH BUILDS: the git tree hash of `HEAD:packages/c
 `scripts/derivation-id.ts` computes and the SPA build, the Lambda bundle step and the test config
 each define as `__DERIVATION_ID__`. A change to the derivation code moves it with no change to
 data. A commit touching only a test or a fixture there moves it too; a dependency bump does not,
-the lockfile lying outside the tree.
+the lockfile lying outside the tree. `GET /view` composes it into its tag and sends it as
+`derivation-id`. The SQL that reads the rows, and its mapping into core's types, stay in `infra/`,
+outside the tree, so a change there moves no identifier, and a revalidating client keeps the body it
+holds until another of the tag's inputs moves, the Kyiv day at the latest; `infra/src/ledger.test.ts`
+and `infra/src/sell-observations.test.ts` pin the mappings.
 NO STEP GATES THE BACKEND DEPLOY ON WHAT THE PUSH CHANGED: every run the path filter admits
 deploys, once its checks pass, the stacks its branch owns.
 Cloudflare sits in front: the apex, `www` and `dev` are proxied; the

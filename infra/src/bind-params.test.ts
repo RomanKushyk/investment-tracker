@@ -52,7 +52,7 @@ function stripTs(source: string, file: string): string {
   return out + source.slice(at);
 }
 
-/** The capture's statements, and the archive read `/view` will make. */
+/** The capture's statements, and the archive read `GET /view` makes. */
 const TEXTS = new Map(
   ['capture.ts', 'sell-observations.ts'].map((file) => [
     file,

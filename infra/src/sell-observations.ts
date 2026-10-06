@@ -1,4 +1,4 @@
-// The archive read `/view` will make, apart from `capture.ts` so the view function imports the
+// The archive read `GET /view` makes, apart from `capture.ts` so the view function imports the
 // read and not the capture handler, its AWS clients and its provider parsers.
 import { createHash } from 'node:crypto';
 

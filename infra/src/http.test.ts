@@ -13,6 +13,8 @@ import {
   json,
   notModified,
   respond,
+  strongMatch,
+  weakMatch,
 } from './http';
 
 const sent = (value: string): ApiEvent => ({ headers: { 'if-none-match': value } });
@@ -53,6 +55,42 @@ describe('a request header, in either shape API Gateway delivers it', () => {
   it('is asked for by the lower-cased name, which the type holds', () => {
     // @ts-expect-error a capitalised name matches no header API Gateway delivers
     expect(headerValues(sent('"a"'), 'If-None-Match')).toEqual([]);
+  });
+});
+
+// RFC 9110 §8.8.3.2: weak comparison matches the opaque tags whether or not either is weak;
+// strong comparison also needs both to be strong. `*` stands for any current representation.
+describe('an entity tag compared', () => {
+  it('matches weakly with or without either W/', () => {
+    expect(weakMatch(['W/"a"'], 'W/"a"')).toBe(true);
+    expect(weakMatch(['"a"'], 'W/"a"')).toBe(true);
+    expect(weakMatch(['W/"a"'], '"a"')).toBe(true);
+    expect(weakMatch(['"b"', 'W/"a"'], '"a"')).toBe(true);
+  });
+
+  it('matches strongly only two strong tags', () => {
+    expect(strongMatch(['"a"'], '"a"')).toBe(true);
+    expect(strongMatch(['W/"a"'], 'W/"a"')).toBe(false);
+    expect(strongMatch(['"a"'], 'W/"a"')).toBe(false);
+    expect(strongMatch(['W/"a"'], '"a"')).toBe(false);
+  });
+
+  it('matches anything to *, either way', () => {
+    expect(weakMatch(['*'], 'W/"a"')).toBe(true);
+    expect(strongMatch(['*'], 'W/"a"')).toBe(true);
+  });
+
+  it('matches nothing to another opaque tag, or to no tag at all', () => {
+    expect(weakMatch(['"b"'], '"a"')).toBe(false);
+    expect(strongMatch(['"b"'], '"a"')).toBe(false);
+    expect(weakMatch([], '"a"')).toBe(false);
+    expect(strongMatch([], '"a"')).toBe(false);
+  });
+
+  // The opaque tag is compared with its quotes, character for character.
+  it('compares the quoted text, not a quote-stripped one', () => {
+    expect(weakMatch(['a'], '"a"')).toBe(false);
+    expect(weakMatch(['W/a'], 'W/"a"')).toBe(false);
   });
 });
 

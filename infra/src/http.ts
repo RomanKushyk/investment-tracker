@@ -217,3 +217,17 @@ export const headerValues = (event: ApiEvent, name: Lowercase<string>): string[]
   (event.headers?.[name]?.match(/(?:"[^"]*"|[^,])+/g) ?? [])
     .map((element) => element.trim())
     .filter((element) => element !== '');
+
+const WEAK = 'W/';
+const opaque = (tag: string) => (tag.startsWith(WEAK) ? tag.slice(WEAK.length) : tag);
+
+/** RFC 9110 §8.8.3.2's weak comparison, `If-None-Match`'s: the opaque tags alike, either weak.
+ *  `*` stands for any current representation. */
+export const weakMatch = (tags: readonly string[], current: string): boolean =>
+  tags.some((tag) => tag === '*' || opaque(tag) === opaque(current));
+
+/** Its strong comparison, `If-Match`'s: alike and neither weak, so a weak tag never matches. */
+export const strongMatch = (tags: readonly string[], current: string): boolean =>
+  tags.some(
+    (tag) => tag === '*' || (!tag.startsWith(WEAK) && !current.startsWith(WEAK) && tag === current),
+  );

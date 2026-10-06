@@ -579,9 +579,9 @@ describe('the user stacks reach the archive through a read-only role the archive
     );
   });
 
-  // Read as grants, not text: until the view function adds the one `sts:AssumeRole`, no user-stack
-  // grant assumes a role, and every `dsql:DbConnectAdmin` there is on the user cluster.
-  it('reaches the archive as admin from no user-stack function, and lets no function assume a role', () => {
+  // Read as grants, not text: the view function's `sts:AssumeRole` is the one user-stack grant that
+  // assumes a role, and every `dsql:DbConnectAdmin` there is on the user cluster.
+  it('reaches the archive as admin from no user-stack function, and lets the view function alone assume a role', () => {
     const admin: string[] = [];
     const assumes: string[] = [];
     for (const [id, r] of resources(user)) {
@@ -636,8 +636,9 @@ describe('the user stacks reach the archive through a read-only role the archive
       'ApproveFunction',
       'MigrateFunction',
       'RateAheadFunction',
+      'ViewFunction',
     ]);
-    expect(assumes).toEqual([]);
+    expect(assumes).toEqual(['ViewFunction']);
     expect(JSON.stringify(user.Resources)).not.toContain('PriceCluster');
   });
 
@@ -699,7 +700,7 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the relay, two watches and the rate job', () => {
+  it('holds the runner, the trigger, the application, the approval, the relay, the view, two watches and the rate job', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
@@ -709,6 +710,7 @@ describe('the user stack holds user data and nothing else', () => {
       'pool-usage.handler',
       'pre-signup.handler',
       'rate-ahead.handler',
+      'view.handler',
     ]);
   });
 
@@ -1216,6 +1218,105 @@ describe('the user stack stores the official rate ahead, in both environments', 
   });
 });
 
+// `GET /view`: the caller's rows from this stack's cluster, the archive's through the reader role
+// the archive owns, and the day's rate. [*Cloud target*]
+describe('the user stack serves the derived read', () => {
+  const READER_ARN =
+    'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/quirenote-backend-archive-reader';
+  const grants = ['Resources', 'ViewFunction', 'Properties', 'Policies', 0, 'Statement'];
+
+  it('connects to this stack’s cluster and assumes the archive reader, and holds no other grant', () => {
+    expect(inlineStatements(user, 'ViewFunction')).toHaveLength(2);
+    expect(grantAt(userDoc, grants, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+    expect(grantAt(userDoc, grants, 'sts:AssumeRole')).toEqual({ tag: '!Sub', value: READER_ARN });
+    // The name the archive gives the role it owns.
+    expect(
+      intrinsicAt(archiveDoc, 'Resources', 'ArchiveReaderRole', 'Properties', 'RoleName').value,
+    ).toBe(READER_ARN.split('/').at(-1));
+  });
+
+  // `connectAsArchiveReader()` reads the two archive names; the gate reads the switch, and without
+  // it reads closed, so a first visit under open registration would be refused for good.
+  it('is told both clusters, the reader role and the registration switch, and nothing else', () => {
+    const vars = user.Resources.ViewFunction.Properties?.Environment?.Variables ?? {};
+    expect(Object.keys(vars).sort()).toEqual([
+      'ARCHIVE_ENDPOINT',
+      'ARCHIVE_READER_ROLE_ARN',
+      'AWS_REGION_NAME',
+      'DSQL_ENDPOINT',
+      'NODE_OPTIONS',
+      'OPEN_REGISTRATION',
+    ]);
+    expect(intrinsicAt(userDoc, ...envVars('ViewFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+    expect(intrinsicAt(userDoc, ...envVars('ViewFunction'), 'ARCHIVE_ENDPOINT')).toEqual({
+      tag: '!Sub',
+      value: '${ArchiveClusterId}.dsql.${AWS::Region}.on.aws',
+    });
+    expect(intrinsicAt(userDoc, ...envVars('ViewFunction'), 'ARCHIVE_READER_ROLE_ARN')).toEqual({
+      tag: '!Sub',
+      value: READER_ARN,
+    });
+    expect(vars.OPEN_REGISTRATION).toEqual(['IsRegistrationOpen', 'true', 'false']);
+  });
+
+  // A miss fetches NBU's rate on the request path, up to its own timeout.
+  it('gives the rate fetch room inside its timeout', () => {
+    const timeout = user.Resources.ViewFunction.Properties?.Timeout ?? 0;
+    expect(timeout).toBe(15);
+    expect(timeout * 1000).toBeGreaterThan(RATE_FETCH_TIMEOUT_MS);
+  });
+
+  it('serves in dev and prod, and watches the reader in prod alone', () => {
+    for (const id of ['ViewFunction', 'ViewLogGroup'])
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, undefined]);
+    for (const id of ['ArchiveReaderRefusedMetricFilter', 'ArchiveReaderRefusedAlarm'])
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+  });
+
+  it('counts the refusals off the line the reader connection emits, with no default', () => {
+    expect(
+      intrinsicAt(
+        userDoc,
+        'Resources',
+        'ArchiveReaderRefusedMetricFilter',
+        'Properties',
+        'LogGroupName',
+      ),
+    ).toEqual({ tag: '!Ref', value: 'ViewLogGroup' });
+    const filter = user.Resources.ArchiveReaderRefusedMetricFilter.Properties;
+    expect(filter?.FilterPattern).toBe('{ $.metric = "archiveReaderRefused" }');
+    const [transformation] = filter?.MetricTransformations ?? [];
+    expect(transformation?.MetricNamespace).toBe('Quirenote');
+    expect(transformation?.MetricName).toBe('ArchiveReaderRefusals');
+    expect(transformation?.MetricValue).toBe('$.value');
+    expect(transformation?.Dimensions).toBeUndefined();
+    expect(transformation && 'DefaultValue' in transformation).toBe(false);
+  });
+
+  // A re-grant revokes before it grants, so one connection in that instant is refused once; a
+  // mapping that stays broken refuses every load.
+  it('alarms on a second refusal within the hour, never on the first', () => {
+    const alarm = user.Resources.ArchiveReaderRefusedAlarm.Properties;
+    expect(alarm?.Namespace).toBe('Quirenote');
+    expect(alarm?.MetricName).toBe('ArchiveReaderRefusals');
+    expect(alarm?.Dimensions).toBeUndefined();
+    expect(alarm?.Statistic).toBe('Sum');
+    expect(alarm?.Period).toBe(3600);
+    expect(alarm?.EvaluationPeriods).toBe(1);
+    expect(alarm?.Threshold).toBe(1);
+    expect(alarm?.ComparisonOperator).toBe('GreaterThanThreshold');
+    expect(alarm?.TreatMissingData).toBe('notBreaching');
+    // NO `AlarmActions` AND NO TOPIC, here as everywhere. [*Alerting*]
+    expect(alarm?.AlarmActions).toBeUndefined();
+  });
+});
+
 describe('the capture pipeline exists exactly once across both templates', () => {
   const both = [archive, user];
 
@@ -1350,6 +1451,7 @@ describe('what reaches a role besides its own policies', () => {
       'ApplicationsFunction',
       'ApproveFunction',
       'AuthRelayFunction',
+      'ViewFunction',
       'BackupFreshnessFunction',
       'PoolUsageFunction',
       'RateAheadFunction',
@@ -1642,8 +1744,9 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
     ]);
   });
 
-  it('deploys nine more from the user stack', () => {
+  it('deploys ten more from the user stack', () => {
     expect(idsOfType(user, ALARM).sort()).toEqual([
+      'ArchiveReaderRefusedAlarm',
       'BackupFreshnessErrorAlarm',
       'BackupFreshnessSilenceAlarm',
       'PoolUsageErrorAlarm',
@@ -1664,9 +1767,9 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
       }
   });
 
-  it('is five past the ten, which the Alerting decision takes knowingly', () => {
+  it('is six past the ten, which the Alerting decision takes knowingly', () => {
     const deployed = [archive, user].flatMap((t) => idsOfType(t, ALARM));
-    expect(deployed.length - FREE_TIER_ALARMS).toBe(5);
+    expect(deployed.length - FREE_TIER_ALARMS).toBe(6);
   });
 });
 
@@ -1904,6 +2007,54 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(read?.run).toContain('>> "$GITHUB_OUTPUT"');
     expect(userStack.env?.ARCHIVE_CLUSTER_ID).toBe(`\${{ steps.${read?.id}.outputs.cluster-id }}`);
     expect(userStack.run).toContain('"ArchiveClusterId=${ARCHIVE_CLUSTER_ID}"');
+  });
+
+  // THE USER STACK WAS GIVEN THE IDENTIFIER READ BEFORE THE ARCHIVE DEPLOYED, so a run whose archive
+  // deploy replaced the cluster fails rather than leave the view function reading a retained one.
+  // Run, not read: the step under `bash -e`, with `aws` answering an identifier.
+  describe('reads the archive cluster identifier again once the archive has deployed', () => {
+    const reads = steps.filter((s) => s.run?.includes("OutputKey=='ClusterIdentifier'"));
+    const [first, again] = reads;
+    const [, archiveStack] = deploys;
+
+    it('follows the archive deploy, on that deploy’s own outcome, against the first read', () => {
+      expect(reads).toHaveLength(2);
+      expect(steps.indexOf(again)).toBe(steps.indexOf(archiveStack) + 1);
+      expect(again.if).toBe(`steps.${archiveStack.id}.outcome == 'success'`);
+      expect(again.env?.GIVEN).toBe(`\${{ steps.${first.id}.outputs.cluster-id }}`);
+      expect(again['continue-on-error']).toBeUndefined();
+    });
+
+    // The exit status, and nothing else: a missing step or a bash that never ran throws.
+    const run = (answered: string) => {
+      const script = again?.run;
+      if (script === undefined) throw new Error('no step reads the identifier a second time');
+      const stub = `aws() { printf '%s\\n' "${answered}"; }\n`;
+      try {
+        execFileSync(BASH, ['--noprofile', '--norc', '-e', '-c', stub + script], {
+          env: { ...process.env, GIVEN: 'abc123' },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+        return 0;
+      } catch (err) {
+        const status = (err as { status?: unknown }).status;
+        if (typeof status !== 'number') throw err;
+        return status;
+      }
+    };
+
+    it('passes when the archive still answers the identifier the user stack was given', () => {
+      expect(run('abc123')).toBe(0);
+    });
+
+    it('fails when the archive answers another', () => {
+      expect(run('def456')).not.toBe(0);
+    });
+
+    it('fails when the archive answers none', () => {
+      expect(run('None')).not.toBe(0);
+    });
   });
 
   // A `RoleName` needs `CAPABILITY_NAMED_IAM`; the user stack keeps the narrower flag, so a

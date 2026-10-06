@@ -92,9 +92,24 @@ describe('a rate stored for today', () => {
   it('is served with no call to NBU', async () => {
     await seed(TODAY, 44.8153);
     const { fetchFn, asked } = nbu(answering(44.9999, TODAY));
-    expect(await createOfficialRate(fetchFn, () => NOON).served(db)).toEqual({
+    expect(await createOfficialRate(fetchFn, () => NOON).served(db, TODAY)).toEqual({
       rate: 44.8153,
       date: TODAY,
+    });
+    expect(asked).toEqual([]);
+  });
+});
+
+// The caller names the day its answer is built for, so a read straddling Kyiv midnight cannot pair
+// one day's body with the next day's rate.
+describe('a rate asked for by day', () => {
+  it('serves the day it is asked for, whatever its own clock reads', async () => {
+    await seed(YESTERDAY, 44.7626);
+    await seed(TODAY, 44.8153);
+    const { fetchFn, asked } = nbu(answering(44.9999, TODAY));
+    expect(await createOfficialRate(fetchFn, () => NOON).served(db, YESTERDAY)).toEqual({
+      rate: 44.7626,
+      date: YESTERDAY,
     });
     expect(asked).toEqual([]);
   });
@@ -105,21 +120,21 @@ describe('a request that finds no row for today', () => {
     await seed(YESTERDAY, 44.7626);
     const { fetchFn, asked } = nbu(answering(44.8153, TODAY));
     const rates = createOfficialRate(fetchFn, () => NOON);
-    expect(await rates.served(db)).toEqual({ rate: 44.8153, date: TODAY });
+    expect(await rates.served(db, TODAY)).toEqual({ rate: 44.8153, date: TODAY });
     expect(asked).toEqual([nbuRateUrl(TODAY)]);
     expect(await stored()).toEqual([
       { day: YESTERDAY, rate: '44.7626' },
       { day: TODAY, rate: '44.8153' },
     ]);
     // Stored is final: the next request reads it and asks nothing.
-    expect(await rates.served(db)).toEqual({ rate: 44.8153, date: TODAY });
+    expect(await rates.served(db, TODAY)).toEqual({ rate: 44.8153, date: TODAY });
     expect(asked).toHaveLength(1);
   });
 
   it('writes in a transaction holding that one insert and nothing else', async () => {
     const { client, sent } = recording();
     const { fetchFn } = nbu(answering(44.8153, TODAY));
-    await createOfficialRate(fetchFn, () => NOON).served(client);
+    await createOfficialRate(fetchFn, () => NOON).served(client, TODAY);
     const begin = sent.indexOf('BEGIN');
     expect(sent.filter((t) => t === 'BEGIN')).toHaveLength(1);
     expect(sent.slice(begin, begin + 3).map(verb)).toEqual(['BEGIN', 'INSERT', 'COMMIT']);
@@ -138,8 +153,8 @@ describe('a request that finds no row for today', () => {
     const loser = refusingFirstCommit(db, '40001');
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const won = createOfficialRate(first.fetchFn, () => NOON).served(db);
-    const lost = createOfficialRate(second.fetchFn, () => NOON).served(loser.client);
+    const won = createOfficialRate(first.fetchFn, () => NOON).served(db, TODAY);
+    const lost = createOfficialRate(second.fetchFn, () => NOON).served(loser.client, TODAY);
     // Both have read "no row for today" before either fetch answers.
     await until(() => first.asked.length === 1 && second.asked.length === 1);
     release[0]();
@@ -166,9 +181,9 @@ describe('a request that finds no row for today', () => {
   it('reports a write that failed for any reason but contention', async () => {
     const refusing = refusingFirstCommit(db, '42501');
     const { fetchFn } = nbu(answering(44.8153, TODAY));
-    await expect(createOfficialRate(fetchFn, () => NOON).served(refusing.client)).rejects.toThrow(
-      /OC000/,
-    );
+    await expect(
+      createOfficialRate(fetchFn, () => NOON).served(refusing.client, TODAY),
+    ).rejects.toThrow(/OC000/);
     expect(await stored()).toEqual([]);
   });
 });
@@ -192,7 +207,7 @@ describe('a failed or empty NBU answer', () => {
       await seed('2026-09-27', 44.7);
       await seed(YESTERDAY, 44.7626);
       const { fetchFn, asked } = nbu(reply);
-      expect(await createOfficialRate(fetchFn, () => NOON).served(db)).toEqual({
+      expect(await createOfficialRate(fetchFn, () => NOON).served(db, TODAY)).toEqual({
         rate: 44.7626,
         date: YESTERDAY,
       });
@@ -210,7 +225,7 @@ describe('a failed or empty NBU answer', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     let settled = false;
     const served = createOfficialRate(fetchFn, () => NOON)
-      .served(db)
+      .served(db, TODAY)
       .finally(() => (settled = true));
     await until(() => asked.length === 1);
     await vi.advanceTimersByTimeAsync(RATE_FETCH_TIMEOUT_MS - 1);
@@ -227,9 +242,12 @@ describe('a failed or empty NBU answer', () => {
     const refused = Object.assign(new TypeError('fetch failed'), {
       cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }),
     });
-    await createOfficialRate(nbu(() => Promise.reject(refused)).fetchFn, () => NOON).served(db);
+    await createOfficialRate(nbu(() => Promise.reject(refused)).fetchFn, () => NOON).served(
+      db,
+      TODAY,
+    );
     const status = nbu(() => Promise.resolve(new Response('', { status: 503 })));
-    await createOfficialRate(status.fetchFn, () => NOON).served(db);
+    await createOfficialRate(status.fetchFn, () => NOON).served(db, TODAY);
     expect(log.mock.calls.map(([line]) => line)).toEqual([
       JSON.stringify({ officialRate: 'unfetched', date: TODAY, reason: 'ECONNREFUSED' }),
       JSON.stringify({ officialRate: 'unfetched', date: TODAY, reason: 'status 503' }),
@@ -240,13 +258,13 @@ describe('a failed or empty NBU answer', () => {
     let cancelled = false;
     const body = new ReadableStream({ cancel: () => void (cancelled = true) });
     const { fetchFn } = nbu(() => Promise.resolve(new Response(body, { status: 502 })));
-    await createOfficialRate(fetchFn, () => NOON).served(db);
+    await createOfficialRate(fetchFn, () => NOON).served(db, TODAY);
     expect(cancelled).toBe(true);
   });
 
   it('serves nothing when nothing earlier is stored either', async () => {
     const { fetchFn } = nbu(() => Promise.resolve(new Response('[]')));
-    expect(await createOfficialRate(fetchFn, () => NOON).served(db)).toBeUndefined();
+    expect(await createOfficialRate(fetchFn, () => NOON).served(db, TODAY)).toBeUndefined();
   });
 });
 
@@ -257,21 +275,21 @@ describe('a failed fetch', () => {
     const { fetchFn, asked } = nbu(() => Promise.resolve(new Response('', { status: 503 })));
     const rates = createOfficialRate(fetchFn, () => clock);
 
-    await rates.served(db);
+    await rates.served(db, TODAY);
     expect(asked).toHaveLength(1);
     clock += RATE_SPACING_MS - 1;
-    expect(await rates.served(db)).toEqual({ rate: 44.7626, date: YESTERDAY });
+    expect(await rates.served(db, TODAY)).toEqual({ rate: 44.7626, date: YESTERDAY });
     expect(asked).toHaveLength(1);
     clock += 1;
-    await rates.served(db);
+    await rates.served(db, TODAY);
     expect(asked).toHaveLength(2);
   });
 
   it('holds back only the reader that saw it fail', async () => {
     await seed(YESTERDAY, 44.7626);
     const { fetchFn, asked } = nbu(() => Promise.resolve(new Response('', { status: 503 })));
-    await createOfficialRate(fetchFn, () => NOON).served(db);
-    await createOfficialRate(fetchFn, () => NOON).served(db);
+    await createOfficialRate(fetchFn, () => NOON).served(db, TODAY);
+    await createOfficialRate(fetchFn, () => NOON).served(db, TODAY);
     expect(asked).toHaveLength(2);
   });
 

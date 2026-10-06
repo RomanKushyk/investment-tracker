@@ -39,6 +39,11 @@ import {
 } from './auth-relay';
 import { INVALID, bodiless, derived } from './http';
 import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
+import {
+  PARAMETERS as VIEW_PARAMETERS,
+  RESPONSES as VIEW_RESPONSES,
+  ROUTE as VIEW_ROUTE,
+} from './view';
 
 const COMMITTED = new URL('../../docs/reference/openapi.json', import.meta.url);
 
@@ -134,6 +139,50 @@ const answersInSource = () =>
     }));
   });
 
+/** Every `derived({…})` and `bodiless({…})` call written in those modules, read off the syntax
+ *  tree: `http.ts` names both in a string, and a regex would count that text as a call. */
+const declarationsInSource = () =>
+  SOURCES.flatMap((file) => {
+    const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+    const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+    const found: { file: string; status: number; name: string }[] = [];
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        (node.expression.text === 'derived' || node.expression.text === 'bodiless')
+      ) {
+        const [arg] = node.arguments;
+        const field = (key: string) =>
+          arg && ts.isObjectLiteralExpression(arg)
+            ? arg.properties.find(
+                (p): p is ts.PropertyAssignment =>
+                  ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === key,
+              )?.initializer
+            : undefined;
+        const name = field('name');
+        const status = node.expression.text === 'bodiless' ? undefined : field('statusCode');
+        // A call this cannot read is refused rather than stepped over.
+        if (
+          name === undefined ||
+          !ts.isStringLiteral(name) ||
+          (status !== undefined && !ts.isNumericLiteral(status)) ||
+          (status === undefined && node.expression.text === 'derived')
+        ) {
+          throw new Error(`${file}: a ${node.expression.text}() call this scan cannot read`);
+        }
+        found.push({
+          file,
+          status: status === undefined ? 304 : Number(status.text),
+          name: name.text,
+        });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    return found;
+  });
+
 /** `<METHOD> <path>` for every operation the document declares. */
 const specRoutes = (spec: ReturnType<typeof buildSpec>) =>
   Object.entries(spec.paths).flatMap(([path, ops]) =>
@@ -162,6 +211,7 @@ describe('the document is regenerated, never typed', () => {
       './approve',
       './auth-relay',
       './http',
+      './view',
       'node:fs',
       'yaml',
     ]);
@@ -205,10 +255,38 @@ describe('every answer a handler can give is in the document', () => {
       '409 {"error":"unclaimed_identity"}',
     );
   });
+
+  // AN ANSWER BUILT PER REQUEST HAS NO LITERAL TO SCAN, so its declaration is: one left out of
+  // every `RESPONSES`, on a branch no test drives, would otherwise go unpublished with nothing red.
+  it('describes every derived() and bodiless() declaration the handlers make', () => {
+    const declared = new Set(
+      Object.values(ANSWERS)
+        .flatMap((byRoute) => Object.values(byRoute).flat())
+        .flatMap((a) => ('name' in a ? [`${a.statusCode} ${a.name}`] : [])),
+    );
+    for (const d of declarationsInSource()) {
+      expect([d.file, `${d.status} ${d.name}`, declared.has(`${d.status} ${d.name}`)]).toEqual([
+        d.file,
+        `${d.status} ${d.name}`,
+        true,
+      ]);
+    }
+  });
+
+  it('finds the declarations at all, a 304 among them', () => {
+    const found = declarationsInSource().map((d) => `${d.file} ${d.status} ${d.name}`);
+    expect(found).toContain('auth-relay.ts 200 tokens');
+    expect(found).toContain('view.ts 304 not_modified');
+  });
 });
 
 /** Every route's declared answers, from the handlers that declare them. */
-const DECLARED = { ...APPLICATION_RESPONSES, ...ADMIN_RESPONSES, ...RELAY_RESPONSES };
+const DECLARED = {
+  ...APPLICATION_RESPONSES,
+  ...ADMIN_RESPONSES,
+  ...RELAY_RESPONSES,
+  ...VIEW_RESPONSES,
+};
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
 const ASKING_FOR_THE_HEADER = [
@@ -225,21 +303,28 @@ describe('each operation publishes its own route’s answers', () => {
     for (const [route, answers] of Object.entries(DECLARED)) {
       const [method, path] = route.split(' ');
       const op = spec.paths[path][method.toLowerCase()];
+      // EVERY HEADER AND EVERY BODILESS STATUS ON BOTH SIDES: read by its examples alone, a 304 or
+      // an `etag` could leave this operation, or turn up on another, with every gate green.
       const published = new Set(
-        Object.entries(op.responses).flatMap(([status, r]) =>
-          Object.values(r.content?.['application/json'].examples ?? {}).map(
+        Object.entries(op.responses).flatMap(([status, r]) => [
+          ...Object.values(r.content?.['application/json'].examples ?? {}).map(
             (e) => `${status} ${JSON.stringify(e.value)}`,
           ),
-        ),
+          ...(r.content === undefined ? [`${status} <no body>`] : []),
+          ...Object.keys(r.headers ?? {}).map((h) => `${status} header ${h}`),
+        ]),
       );
-      // A BUILT ANSWER IS PUBLISHED BY ITS EXAMPLE, having no one body to parse.
+      // A BUILT ANSWER IS PUBLISHED BY ITS EXAMPLE, having no one body to parse, and by its headers.
       const declared = new Set(
         answers.flatMap((a) =>
           'body' in a
             ? [`${a.statusCode} ${JSON.stringify(JSON.parse(a.body))}`]
-            : 'example' in a
-              ? [`${a.statusCode} ${JSON.stringify(a.example)}`]
-              : [],
+            : [
+                'example' in a
+                  ? `${a.statusCode} ${JSON.stringify(a.example)}`
+                  : `${a.statusCode} <no body>`,
+                ...a.headers.map((h) => `${a.statusCode} header ${h}`),
+              ],
         ),
       );
       expect([route, [...published].filter((x) => !declared.has(x))]).toEqual([route, []]);
@@ -331,9 +416,9 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twelve routes and no others', () => {
+  it('declares the thirteen routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
-      [APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, ...RELAY].sort(),
+      [APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, ...RELAY, VIEW_ROUTE].sort(),
     );
   });
 
@@ -346,7 +431,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
   // relay is how a token is obtained, so they need nothing — and say so with an EMPTY ARRAY, which
   // the specification defines as removing the document's default. Omitting the field would
   // INHERIT that default and publish them as needing the token they exist to hand out.
-  it('opts the application and relay routes out explicitly, and names the scheme on the admin routes', () => {
+  it('opts the application and relay routes out explicitly, and names the scheme on the admin routes and the read', () => {
     const op = (key: string) => {
       const [method, path] = key.split(' ');
       return spec.paths[path][method.toLowerCase()];
@@ -354,7 +439,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     for (const key of [APPLY_ROUTE, ...RELAY]) {
       expect([key, op(key).security]).toEqual([key, []]);
     }
-    for (const key of [APPROVE_ROUTE, REJECT_ROUTE]) {
+    for (const key of [APPROVE_ROUTE, REJECT_ROUTE, VIEW_ROUTE]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
   });
@@ -399,6 +484,18 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ]);
     }
     expect(spec.paths['/v1/applications'].post.parameters).toBeUndefined();
+  });
+
+  // THE READ'S CONDITIONAL HEADERS, ordinary header parameters: neither is required, and neither
+  // is the relay's custom header.
+  it('publishes the read’s two preconditions as optional headers', () => {
+    const [method, path] = VIEW_ROUTE.split(' ');
+    const params = spec.paths[path][method.toLowerCase()].parameters;
+    expect(params).toEqual(VIEW_PARAMETERS[VIEW_ROUTE]);
+    expect(params?.map((p) => [p.name, p.in, p.required])).toEqual([
+      ['If-None-Match', 'header', false],
+      ['If-Match', 'header', false],
+    ]);
   });
 
   it('gives the admin routes their path parameter', () => {

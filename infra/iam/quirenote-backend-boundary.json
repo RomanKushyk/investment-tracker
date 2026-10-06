@@ -29,6 +29,12 @@
       "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*"
     },
     {
+      "Sid": "AssumeTheArchiveReader",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::*:role/quirenote-backend-archive-reader"
+    },
+    {
       "Sid": "ReadBackupFreshness",
       "Effect": "Allow",
       "Action": "backup:ListRecoveryPointsByBackupVault",

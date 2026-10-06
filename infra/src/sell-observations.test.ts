@@ -1,4 +1,4 @@
-// The archive read `/view` will make, on PGlite with `ensureSchema`'s own DDL; the capture and
+// The archive read `GET /view` makes, on PGlite with `ensureSchema`'s own DDL; the capture and
 // replay cases add their rows through `handler`, the real writers.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';

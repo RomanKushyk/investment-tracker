@@ -54,6 +54,7 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   [['Resources', 'PublicApi', 'Properties', 'CorsConfiguration'], '!If'],
   [['Resources', 'PublicApi', 'Properties', 'Domain', 'DomainName'], '!If'],
   [[...envVars('ApproveFunction'), 'OPEN_REGISTRATION'], '!If'],
+  [[...envVars('ViewFunction'), 'OPEN_REGISTRATION'], '!If'],
   [['Outputs', 'AuthDomain', 'Value'], '!If'],
   [['Outputs', 'ApiDomain', 'Value'], '!If'],
 ];
@@ -87,7 +88,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the twenty-two written here', () => {
+  it('carries exactly the twenty-three written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 

@@ -101,7 +101,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant; do
+          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant view; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -120,7 +120,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -364,6 +364,55 @@ jobs:
               console.log('archive-reader-grant bundle loads, sends the mapping, the default and the table grant, and checks the reader');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
+          # Six periods under a weak tag, a 304 to it stripped of its W/, a pending caller refused, no
+          # archive opened for a ledger linking nothing, and the identifier the bundle step defined.
+          node -e "
+            const v = require('./view.js');
+            if (typeof v.handler !== 'function') throw new Error('handler missing from view bundle');
+            const id = v.derivationId();
+            if (!/^[0-9a-f]{40}$/.test(id)) throw new Error('no derivation identifier in the view bundle: ' + id);
+            const SUB = '9f1e2d3c-0000-4000-8000-0000000000d4';
+            const EMAIL = 'owner@quirenote.com';
+            let opened = 0;
+            const deps = (status) => ({
+              user: {
+                query: async (text) => ({
+                  rows: text.includes('data_version')
+                    ? [{ data_version: '0' }]
+                    : text.includes('FROM app_user')
+                      ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user' }]
+                      : [],
+                }),
+              },
+              archive: async () => { opened += 1; throw new Error('archive opened'); },
+              rate: { served: async () => ({ rate: 41.4983, date: '2026-10-06' }) },
+              now: () => Date.parse('2026-10-06T09:00:00Z'),
+              derivationId: id,
+            });
+            const event = (headers) => ({
+              routeKey: 'GET /view',
+              headers: headers,
+              requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: SUB, email: EMAIL } } } },
+            });
+            (async () => {
+              const ok = await v.view(deps('active'), event({}));
+              const tag = ok.headers.etag;
+              if (ok.statusCode !== 200) throw new Error('an active caller was not served: ' + ok.statusCode);
+              if (!tag || !tag.startsWith('W/')) throw new Error('the tag is not weak: ' + tag);
+              if (ok.headers['cache-control'] !== 'private, no-cache') throw new Error('cache policy: ' + ok.headers['cache-control']);
+              if (ok.headers['derivation-id'] !== id) throw new Error('no identifier header');
+              const periods = Object.keys(JSON.parse(ok.body).view.periods).sort().join();
+              if (periods !== '12m,1m,3m,6m,all,ytd') throw new Error('periods: ' + periods);
+              const again = await v.view(deps('active'), event({ 'if-none-match': tag.slice(2) }));
+              if (again.statusCode !== 304 || 'body' in again || 'content-type' in again.headers || again.headers.etag !== tag) {
+                throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
+              }
+              const pending = await v.view(deps('pending'), event({}));
+              if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
+              if (opened !== 0) throw new Error('the archive was opened for a ledger that links nothing');
+              console.log('view bundle loads, serves six periods under a weak tag, answers it 304 compared weakly, refuses a pending caller and opens no archive');
+            })().catch((e) => { console.error(e); process.exit(1); });
+          "
 
       # NO STEP HERE GATES THE DEPLOY ON WHAT THE PUSH CHANGED: a `changed` step is a rejected
       # design [*Deployment*].
@@ -466,6 +515,20 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
           # The job's own rule rather than a literal `dev`, so the prefix follows the credentials.
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+
+      # This run gave its user stack the identifier read before the archive deployed, prod's holds
+      # what `main` last read: a replaced cluster fails the run, repaired here and on `main`.
+      - name: Check the archive kept the cluster the user stack was given
+        if: steps.archive.outcome == 'success'
+        run: |
+          id=$(aws cloudformation describe-stacks --stack-name quirenote-backend \
+            --query "Stacks[0].Outputs[?OutputKey=='ClusterIdentifier'].OutputValue" --output text)
+          if [ "$id" != "$GIVEN" ]; then
+            echo "::error::the archive now answers ClusterIdentifier $id; this run gave the dev user stack $GIVEN, and prod's keeps what main last read. Re-run this workflow on dev, then dispatch it on main."
+            exit 1
+          fi
+        env:
+          GIVEN: ${{ steps.archive-id.outputs.cluster-id }}
 
       # A CHANGE SET DOES NOT COUNT THE STACK `Description` AS A CHANGE, AND `sam deploy` HAS NO
       # OTHER ROUTE. A commit that changes only that text gets back "No updates are to be

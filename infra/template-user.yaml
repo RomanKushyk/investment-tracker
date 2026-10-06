@@ -34,7 +34,7 @@ Parameters:
     # parameter has a default, because no value would be right and both carry the account id.
 
   # The archive, read off its stack by the workflow: an import would pin its output, and this stack
-  # deploys first. Read by no resource until the view function. [*Cloud target*]
+  # deploys first. The view function reaches it. [*Cloud target*]
   ArchiveClusterId:
     Type: String
     MinLength: 1
@@ -79,9 +79,9 @@ Rules:
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
 
-  # ONE CONDITION READ IN THREE PLACES — the pool's `AllowAdminCreateUserOnly`, the trigger's
-  # `OPEN_REGISTRATION` and the approve handler's. The pool's arms point the OPPOSITE way to
-  # both handlers', so a copied `!If` reads plausibly and inverts one of them.
+  # ONE CONDITION READ IN FOUR PLACES — the pool's `AllowAdminCreateUserOnly`, the trigger's
+  # `OPEN_REGISTRATION`, and the approve and view handlers'. The pool's arms point the OPPOSITE way
+  # to the handlers', so a copied `!If` reads plausibly and inverts one of them.
   IsRegistrationOpen: !Equals [!Ref OpenRegistration, open]
 
   HasGoogle: !Equals [!Ref GoogleSignIn, enabled]
@@ -435,11 +435,14 @@ Resources:
         'POST /auth/passkey/complete':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'GET /view':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
       # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
       # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
       # emitting a bare list where an object belongs. One level up it renames the keys inside both
-      # arms instead. The cost is four shared lines twice; `public-api.test.ts` holds both.
+      # arms instead. The cost is five shared lines twice; `public-api.test.ts` holds both.
       # CREDENTIALS FOR THE RELAY'S COOKIE, which crosses origins but not sites. An Amplify host is
       # another site, so the relay refuses it by `Sec-Fetch-Site` and the cookie never reaches it.
       CorsConfiguration: !If
@@ -450,13 +453,15 @@ Resources:
               https://www.quirenote.com,
               https://main.d17m4jf400my6.amplifyapp.com,
             ]
-          AllowMethods: [POST, OPTIONS]
-          AllowHeaders: [authorization, content-type, x-csrf]
+          AllowMethods: [GET, POST, OPTIONS]
+          AllowHeaders: [authorization, content-type, if-none-match, x-csrf]
+          ExposeHeaders: [derivation-id, etag]
           AllowCredentials: true
           MaxAge: 600
         - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
-          AllowMethods: [POST, OPTIONS]
-          AllowHeaders: [authorization, content-type, x-csrf]
+          AllowMethods: [GET, POST, OPTIONS]
+          AllowHeaders: [authorization, content-type, if-none-match, x-csrf]
+          ExposeHeaders: [derivation-id, etag]
           AllowCredentials: true
           MaxAge: 600
       Domain:
@@ -667,6 +672,93 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${AuthRelayFunction}
       RetentionInDays: 30
+
+  # `GET /view`, the derived read (`src/view.ts`, *Cloud target*). THE LOGICAL ID IS THE ARCHIVE'S
+  # CONTRACT: the reader role's trust admits `…-ViewFunctionRole-*` by pattern.
+  ViewFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: view.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      # Lambda gives CPU in proportion to memory, and this one rebuilds the series and runs every
+      # composer six times over.
+      MemorySize: 512
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      # A missing rate is fetched from NBU on this path, cut short at ten seconds.
+      Timeout: 15
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          ARCHIVE_ENDPOINT: !Sub '${ArchiveClusterId}.dsql.${AWS::Region}.on.aws'
+          ARCHIVE_READER_ROLE_ARN: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/quirenote-backend-archive-reader'
+          # THE FOURTH CONSUMER OF THE ONE SWITCH, for the approve handler's reason: the gate writes
+          # the row of somebody who got in while the door was open.
+          OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+      Policies:
+        - Statement:
+            # The only database role this cluster has is `admin`; the handler bounds the reach.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+            # The archive's one way in: the role signs a `DbConnect` token for `archive_reader`.
+            - Sid: AssumeTheArchiveReader
+              Effect: Allow
+              Action: sts:AssumeRole
+              Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/quirenote-backend-archive-reader'
+      Events:
+        View:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /view
+            Auth:
+              Authorizer: CognitoJwt
+
+  ViewLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ViewFunction}
+      RetentionInDays: 30
+
+  # `connectAsArchiveReader()` logs one line per `28000`: the reader role unmapped on the cluster,
+  # or no database role for it. UNDIMENSIONED and with no `DefaultValue`, prod's alone.
+  ArchiveReaderRefusedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref ViewLogGroup
+      FilterPattern: '{ $.metric = "archiveReaderRefused" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: ArchiveReaderRefusals
+          MetricValue: $.value
+
+  # A SECOND REFUSAL IN THE HOUR, NEVER THE FIRST: the grant's revoke and re-grant refuses a
+  # connection landing between the two, while a broken mapping refuses every load.
+  ArchiveReaderRefusedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The archive refused prod's view function more than once in an hour, so /view answers 500
+        to every load that reads the archive. The archive cluster no longer maps
+        quirenote-backend-archive-reader to archive_reader, or no longer has that database role:
+        both are ArchiveReaderGrant's, in the archive stack. Read ViewFunction's log first.
+      Namespace: Quirenote
+      MetricName: ArchiveReaderRefusals
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   # THE OTHER HALF OF THE TAG DECISION ON `UserCluster`. Both existing checks read the ARCHIVE
   # alone, deliberately, so neither cluster can make the other look fresh — the cost of that is
