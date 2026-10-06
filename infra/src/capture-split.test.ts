@@ -50,10 +50,18 @@ describe('no header explains a module by a test that cannot load capture.ts', ()
     ],
   ];
   const NEEDLES = [
-    'cannot load ' + 'in a test',
-    'must not ' + 'drag in',
+    '`capture.ts` cannot load ' + 'in a test',
+    'must not ' + 'drag in the handler',
     'does not ' + 'drag in the handler',
     'frontend ci job ' + 'cannot resolve',
+  ];
+  // The drag-in and cannot-load verbs said of something other than the handler or `capture.ts`,
+  // which those needles name: one that drops its name fails here, and the split keeps it from
+  // also failing as this file in the sweep.
+  const UNRELATED = [
+    'the parser does not ' + 'drag in zod.',
+    'a lambda must not ' + 'drag in pg.',
+    "pglite's wasm build cannot load " + 'in a test without its loader.',
   ];
   // Literal, word-bounded by lookaround since a needle can end at punctuation.
   const FINDERS = NEEDLES.map((n) => {
@@ -62,11 +70,14 @@ describe('no header explains a module by a test that cannot load capture.ts', ()
   });
   const files = sources();
 
-  it('cuts every needle from a retired sentence, and has one for every place', () => {
+  it('cuts every needle from a retired sentence, has one for every place, and none matches unrelated prose', () => {
     const matches = (r: RegExp) => RETIRED.filter(([, extract]) => r.test(extract));
     expect(FINDERS.filter(([, r]) => matches(r).length === 0).map(([n]) => n)).toEqual([]);
     const caught = new Set(FINDERS.flatMap(([, r]) => matches(r).map(([file]) => file)));
     expect(RETIRED.map(([file]) => file).filter((f) => !caught.has(f))).toEqual([]);
+    expect(
+      FINDERS.filter(([, r]) => UNRELATED.some((s) => r.test(prose(s)))).map(([n]) => n),
+    ).toEqual([]);
     // A walk that stopped reaching a place would leave the test below passing blind.
     expect(files.map(({ file }) => file)).toEqual(
       expect.arrayContaining(RETIRED.map(([file]) => file)),
