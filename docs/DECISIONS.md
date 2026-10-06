@@ -918,6 +918,11 @@ permissions boundary, which allows exactly the actions the stack roles are grant
 environments share that execution role, so a template deployed to `dev` can reach production
 through the role's own grants and through the roles it creates; only an execution role, or an
 account, per environment would close that.
+ONE DERIVATION IDENTIFIER FOR BOTH BUILDS: the git tree hash of `HEAD:packages/core/src`, which
+`scripts/derivation-id.ts` computes and the SPA build, the Lambda bundle step and the test config
+each define as `__DERIVATION_ID__`. A change to the derivation code moves it with no change to
+data. A commit touching only a test or a fixture there moves it too; a dependency bump does not,
+the lockfile lying outside the tree.
 Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
 certificate-validation CNAME and the mail records never are. A PUBLIC RUN CARRIES NO EMAIL ADDRESS:
 the repository is public, so a run's log and artifacts are readable by anyone while they are kept.
@@ -943,13 +948,22 @@ environment a workflow names but nobody made, with no protection rules. IAM read
 controls, such as separate permissions for development, staging, and production environments". AWS's
 least-privilege guidance for CloudFormation: "An IAM principal with permissions to create a role and
 attach any policy can escalate their own permissions". CDK's bootstrap example boundary likewise
-refuses a role created without it.
+refuses a role created without it. The identifier is that tree because every change under it,
+or to the script that hashes it, runs both deploy workflows, which a test holds against both
+path filters. The two sides still disagree while either deploys, and for as long as one fails
+or is cancelled, so a reader of the identifier takes a mismatch as normal. And it is read from
+the commit, never the working tree, so the Windows checkout's CRLF and the runner's LF name one
+object. Rails includes the current action's template digest in its ETag by default for
+the same need: "When our views change, they should … bust browser caches."
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
 certificate stops renewing. · An environment secret for the bootstrap's address: masked from the
 job's start, but an operator's input would become standing configuration in each environment. ·
 One deploy role trusting `environment:*`: it trusts any environment a workflow names. · One role
 for both environments with the workflow choosing the target: a `dev` job holds production's stack and
-its runner, whose `bootstrap` mode mints a super-admin.
+its runner, whose `bootstrap` mode mints a super-admin. · A deploy id as the derivation
+identifier: the two builds' always differ. · A commit SHA: the two builds' differ whenever one
+side last deployed without the other. · A hash of each bundle: a Vite output and an esbuild
+output never agree.
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the

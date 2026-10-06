@@ -1,6 +1,8 @@
 import { availableParallelism } from 'node:os';
 import { configDefaults, defineConfig } from 'vitest/config';
 
+import { derivationId } from './scripts/derivation-id.ts';
+
 // `vitest run`'s default, one worker fewer than the cores, capped at four, in watch mode too:
 // a worker's memory does not shrink with more cores, and one main-thread Vite server serves all.
 export function maxWorkersFor(cores: number): number {
@@ -8,6 +10,8 @@ export function maxWorkersFor(cores: number): number {
 }
 
 export default defineConfig({
+  // Vitest reads this file in place of vite.config.ts, so the app's define never reaches a test.
+  define: { __DERIVATION_ID__: JSON.stringify(derivationId()) },
   test: {
     environment: 'node',
     maxWorkers: maxWorkersFor(availableParallelism()),

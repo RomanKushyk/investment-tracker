@@ -9,10 +9,13 @@ on:
       - 'infra/**'
       # NO EXCLUSION FOR THE DRAFT DDL: `deploy-frontend.yml` already ignores `infra/**`, so a
       # drafts-only push excluded here would match NO workflow and run no gates at all.
-      # THE WHOLE PACKAGE, NOT THE MODULES THE HANDLERS IMPORT: the handlers bundle it, and the
-      # four-file list this replaced could only ever fail one way — an import added to a handler
-      # and no deploy triggered, in silence. A superset costs a no-op run; a subset ships nothing.
+      # THE WHOLE PACKAGE, NOT THE MODULES THE HANDLERS IMPORT: the handlers bundle it, and a
+      # list of modules fails one way only — an import added to a handler and no deploy
+      # triggered, in silence. A superset costs a no-op run; a subset ships nothing.
       - 'packages/core/**'
+      # The derivation identifier's own formula: changed alone, the SPA would deploy a new value
+      # and the Lambdas keep the old one. `scripts/derivation-id.test.ts` holds both filters.
+      - 'scripts/derivation-id.ts'
       # The bundle INLINES root dependencies, so a `zod` bump changes the deployed Lambda's
       # code — without these two a security bump would ship the frontend and leave it behind.
       - 'package.json'
@@ -72,8 +75,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # THE WHOLE SUITE, not a path-filtered selection: two hand-kept lists both leaked, and
-      # deploy-frontend skips an infra-only push, leaving these tests green but never run.
+      # THE WHOLE SUITE, not a path-filtered selection: a hand-kept list of tests drifts from the
+      # tree, and deploy-frontend skips an infra-only push, leaving these tests green but never run.
       - run: pnpm test
 
       # Same asymmetry: prettier covers infra/, but only deploy-frontend ran it.
@@ -92,10 +95,14 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
+          # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
+          # SPA built from one commit read one value; printed quoted, as `--define` takes it.
+          id=$(node ../scripts/derivation-id.ts)
           for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
+              --define:__DERIVATION_ID__="$id" \
               --external:pg-native
           done
           # The SQL is DATA read at runtime, not code esbuild can inline, so it rides along.
