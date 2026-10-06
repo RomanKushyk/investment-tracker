@@ -4,12 +4,12 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// Nothing else catches a placeholder/argument mismatch: TypeScript does not
-// count `$n` inside a template literal, `pnpm test` has no cluster, and
-// `diagnose` is reached only by an explicit event.
+// Nothing else catches a placeholder/argument mismatch in `capture.ts`: TypeScript does not
+// count `$n` inside a template literal, `pnpm test` has no cluster, and `diagnose` is reached
+// only by an explicit event. The archive's sell read is held here too, though PGlite runs it.
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** `capture.ts` is read through this, once, so a commented-out call is no call.
+/** Each checked file is read through this, once, so a commented-out call is no call.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
  *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
@@ -52,7 +52,14 @@ function stripTs(source: string, file: string): string {
   return out + source.slice(at);
 }
 
-const source = stripTs(readFileSync(join(here, 'capture.ts'), 'utf8'), 'capture.ts');
+/** The capture's statements, and the archive read `/view` will make. */
+const TEXTS = new Map(
+  ['capture.ts', 'sell-observations.ts'].map((file) => [
+    file,
+    stripTs(readFileSync(join(here, file), 'utf8'), file),
+  ]),
+);
+const source = TEXTS.get('capture.ts')!;
 
 /** Highest `$n` in a SQL string. `$1` alone means one parameter is expected. */
 function placeholders(sql: string): number {
@@ -112,9 +119,9 @@ function argCount(inner: string): number {
  * the first `]` that an optional comma and `)` follow, so a string argument
  * holding `])` would cut it short.
  */
-function literalCalls(): { sql: string; args: number; at: number }[] {
+function literalCalls(text: string): { sql: string; args: number; at: number }[] {
   const out: { sql: string; args: number; at: number }[] = [];
-  for (const m of source.matchAll(
+  for (const m of text.matchAll(
     /client\.query(?:<[^>]*>)?\(\s*`([^`]*)`\s*,\s*\[([\s\S]*?)\]\s*,?\s*\)/g,
   )) {
     const sql = m[1];
@@ -123,7 +130,7 @@ function literalCalls(): { sql: string; args: number; at: number }[] {
     if (sql.includes('${')) continue;
     const args = argCount(m[2]);
     if (args === 0) continue;
-    out.push({ sql, args, at: source.slice(0, m.index).split('\n').length });
+    out.push({ sql, args, at: text.slice(0, m.index).split('\n').length });
   }
   return out;
 }
@@ -143,12 +150,19 @@ describe('argCount reads an argument list, strings and all', () => {
 });
 
 describe('every literal client.query binds what its SQL asks for', () => {
-  const calls = literalCalls();
+  const calls = [...TEXTS].flatMap(([file, text]) =>
+    literalCalls(text).map((c) => ({ ...c, file })),
+  );
 
   it('finds the calls at all, so an empty pass cannot look green', () => {
     // A FLOOR here, where `order-by-alias.test.ts`'s is exact: what it catches
     // is the call SHAPE changing, which leaves every assertion below green.
-    expect(calls.length).toBeGreaterThanOrEqual(11);
+    expect(calls.filter((c) => c.file === 'capture.ts').length).toBeGreaterThanOrEqual(11);
+    for (const file of TEXTS.keys())
+      expect(
+        calls.some((c) => c.file === file),
+        file,
+      ).toBe(true);
   });
 
   it('matches placeholder count to argument count', () => {
@@ -156,7 +170,7 @@ describe('every literal client.query binds what its SQL asks for', () => {
       .filter((c) => placeholders(c.sql) !== c.args)
       .map(
         (c) =>
-          `capture.ts:${c.at}: SQL wants ${placeholders(c.sql)}, ${c.args} bound — ${c.sql
+          `${c.file}:${c.at}: SQL wants ${placeholders(c.sql)}, ${c.args} bound — ${c.sql
             .replace(/\s+/g, ' ')
             .trim()
             .slice(0, 70)}`,
