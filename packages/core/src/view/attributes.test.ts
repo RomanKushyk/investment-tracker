@@ -10,7 +10,7 @@ import {
   dividendDayOfMonth,
   payoutScheduleFact,
 } from './attributes';
-import { PUBLISHED_INPUT, TEST_LEDGERS } from './test-ledgers';
+import { OFF_LIST_INPUT, PUBLISHED_INPUT, TEST_LEDGERS } from './test-ledgers';
 import { yieldView } from './yield';
 
 describe('dividendDayOfMonth', () => {
@@ -192,6 +192,15 @@ describe('attributesView — the Next coupon fact', () => {
     };
     expect(nextCoupon(PUBLISHED_INPUT)).toBe('2026-09-30');
     expect(nextCoupon({ ...PUBLISHED_INPUT, paymentDates: undefined })).toBe('2026-10-01');
+  });
+
+  it('starts on the published date a stored date a day past it stands for', () => {
+    const nextCoupon = (input: typeof OFF_LIST_INPUT) => {
+      const [card] = attributesView(input).cards;
+      return card?.kind === 'bond' ? card.nextCoupon : 'not a bond';
+    };
+    expect(nextCoupon(OFF_LIST_INPUT)).toBe('2027-12-01');
+    expect(nextCoupon({ ...OFF_LIST_INPUT, paymentDates: undefined })).toBe('2027-12-02');
   });
 });
 

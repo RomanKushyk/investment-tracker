@@ -270,7 +270,8 @@ export interface CouponWalkOptions {
   /** Ids the user settled by hand; a skipped occurrence must not block the ones
    *  behind it. */
   dismissed?: readonly string[];
-  /** A linked bond's published payment dates, stepped through as the confirm's roll steps. */
+  /** A linked bond's published payment dates, which the walk steps through, starting on the one the
+   *  stored coupon date stands for where the asset's schedule has a period and one is within half. */
   schedule?: readonly string[];
 }
 
@@ -297,19 +298,35 @@ export function owedCouponDate(
 
 function walkFrom(
   asset: Asset,
-  start: string | undefined,
+  stored: string | undefined,
   transactions: Transaction[],
   opts: CouponWalkOptions,
   onOrAfter: string | undefined,
 ): string | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
-  let date = start;
-  if (!date) return undefined;
+  if (!stored) return undefined;
+  // Only a stored coupon date estimates a payment: the maturity a walk falls back to is the redemption.
+  let date = stored === asset.nextCoupon ? publishedStart(asset, stored, opts.schedule) : stored;
 
   const windowDays = opts.windowDays ?? COUPON_MATCH_WINDOW_DAYS;
   const dismissed = opts.dismissed ?? [];
   // One pass over the ledger: each occurrence then reads only the asset’s own rows.
   const own = transactions.filter((t) => t.assetId === asset.id);
+  // A payout beside the stored date pays the start unless a published date it is beside claims it,
+  // owed and paid by no other; the start claiming it is harmless, as the walk then settles the start.
+  const claimed = (t: Transaction) =>
+    (opts.schedule ?? []).some((published) => {
+      const d = notPastMaturity(asset, published);
+      return (
+        couponRecorded([t], asset.id, d, windowDays) &&
+        !holdsNone(unitsOnRecordDate(own, asset.id, d)) &&
+        !own.some((u) => u !== t && couponRecorded([u], asset.id, d, windowDays))
+      );
+    });
+  const storedSettled =
+    date !== stored &&
+    (own.some((t) => couponRecorded([t], asset.id, stored, windowDays) && !claimed(t)) ||
+      dismissed.includes(couponReminderId(asset.id, stored)));
   // Past the last row that moves the asset’s units, a holding of none stays none.
   const lastRow = own.reduce(
     (last, t) => (movesPosition(t.type) && t.date > last ? t.date : last),
@@ -322,7 +339,8 @@ function walkFrom(
     const passed =
       (onOrAfter !== undefined && date < onOrAfter) ||
       couponRecorded(own, asset.id, date, windowDays) ||
-      dismissed.includes(couponReminderId(asset.id, date));
+      dismissed.includes(couponReminderId(asset.id, date)) ||
+      (i === 0 && storedSettled);
     if (!passed) {
       if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) return date;
       if (lastRow < date) return undefined;
@@ -398,15 +416,9 @@ export function rollNextCoupon(
   const maturity = asset.maturity;
   if (maturity !== undefined && current >= maturity) return { kind: 'matured' };
 
-  let step: string | undefined;
-  if (asset.payoutSchedule === 'semiannual') {
-    // `addDays` throws on a date no calendar has, where there is nothing to step from.
-    if (noCalendarDate(current)) return undefined;
-    step = addDays(current, OVDP_COUPON_PERIOD_DAYS);
-  } else {
-    const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
-    step = months === undefined ? undefined : addMonths(current, months);
-  }
+  // `addDays` throws on a date no calendar has, where there is nothing to step from.
+  if (asset.payoutSchedule === 'semiannual' && noCalendarDate(current)) return undefined;
+  const step = periodStep(asset, current);
   let next = publishedNext(current, step, schedule);
   if (next === undefined) {
     // A step past the maturity folds too; the clamp below reaches a maturity no calendar has.
@@ -421,6 +433,42 @@ export function rollNextCoupon(
   if (next === undefined) return { kind: 'matured' }; // no period and no maturity date
   if (maturity !== undefined && next > maturity) return { kind: 'rolled', nextCoupon: maturity };
   return { kind: 'rolled', nextCoupon: next };
+}
+
+/** One period on from `current`: a semiannual coupon by days, the others by months, a schedule with
+ *  no period not at all. The one stepper, so the walk's start and its bridge share a half period. */
+function periodStep(asset: Asset, current: string): string | undefined {
+  if (asset.payoutSchedule === 'semiannual') return addDays(current, OVDP_COUPON_PERIOD_DAYS);
+  const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
+  return months === undefined ? undefined : addMonths(current, months);
+}
+
+/** The published date a stored coupon date stands for: the nearest within half a period, the earlier
+ *  at a tie, never past the maturity as the roll never is. With none that near, the stored date. */
+function publishedStart(
+  asset: Asset,
+  stored: string,
+  schedule: readonly string[] | undefined,
+): string {
+  if (schedule === undefined || noCalendarDate(stored)) return stored;
+  const step = periodStep(asset, stored);
+  if (step === undefined) return stored;
+  const half = Math.floor(daysBetween(stored, step) / 2);
+  let nearest: string | undefined;
+  let distance = half + 1;
+  for (const d of schedule) {
+    const gap = Math.abs(daysBetween(stored, d));
+    if (gap < distance || (gap === distance && nearest !== undefined && d < nearest)) {
+      nearest = d;
+      distance = gap;
+    }
+  }
+  return nearest === undefined ? stored : notPastMaturity(asset, nearest);
+}
+
+/** A published date past the maturity is read as the maturity, as the roll clamps onto it. */
+function notPastMaturity(asset: Asset, iso: string): string {
+  return asset.maturity !== undefined && iso > asset.maturity ? asset.maturity : iso;
 }
 
 /** The first published date past the dedupe window of the date stepped off, as `couponRecorded`

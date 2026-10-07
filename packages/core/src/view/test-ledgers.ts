@@ -155,6 +155,29 @@ export const PUBLISHED_INPUT: ViewInput = {
   paymentDates: new Map([['pub', PUBLISHED_DATES]]),
 };
 
+// The coupon date a confirm made without the feed stores on UA4000235782's 181-day period, a day
+// past the published one. Still held: every composer gates the projection on today's units.
+export const OFF_LIST_DATES = [
+  '2025-12-03',
+  '2026-06-03',
+  '2026-12-02',
+  '2027-06-03',
+  '2027-12-01',
+  '2028-05-31',
+  '2028-11-29',
+];
+export const OFF_LIST_INPUT: ViewInput = {
+  assets: [{ ...PUBLISHED_BOND, maturity: '2028-11-29', nextCoupon: '2027-12-02' }],
+  snapshots: [],
+  transactions: [
+    { id: 'd1', date: '2027-01-10', type: 'deposit', assetId: '', amount: 15_000 },
+    { id: 'b1', date: '2027-01-10', type: 'buy', assetId: 'pub', amount: 15_000, quantity: 15 },
+    { id: 'p1', date: '2027-06-03', type: 'interest_payout', assetId: 'pub', amount: 750 },
+  ],
+  today: '2027-11-30',
+  paymentDates: new Map([['pub', OFF_LIST_DATES]]),
+};
+
 // Each stored quote is a ₴ position value; divided by the units held that day it is the per-unit
 // price the server would store for it. Any quote of a position held none of has no such price, and
 // the ledger is then not expressible: undefined.

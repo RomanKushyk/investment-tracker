@@ -273,7 +273,17 @@ sold-out holding would value a different one bought back after a day that held n
 **Decision.** Where a linked bond's published payment dates are passed, a roll lands on the first of
 them past the payout dedupe window of the date it steps off. When the date stepped off is not within
 the window of a published one, the first stands only up to half a period past the period's step, or
-the roll steps instead; a schedule with no period has no step to bound it. `/view`'s build passes
+the roll steps instead; a schedule with no period has no step to bound it. Where the dates are
+passed, the walk starts on the published date the stored coupon date stands for: the nearest within
+half a period, the earlier at an equal distance, and the maturity in place of one past it. With none
+that near, or a schedule with no period, the stored date stands and the roll bridges from it. The
+maturity a walk falls back to with no coupon date stored is not mapped. A payout recorded within the
+dedupe window of the stored date settles the occurrence the stored date stands for, unless another
+published date within the window of the payout, owed and with no other payout beside it, claims the
+payout. A Skip recorded against the stored date settles that occurrence too, where the walk is
+handed both the dismissals and the dates, which no reader is yet: the reminders and `/`'s coupon
+card pass the dismissals and no dates.
+Nothing writes the start back: it is derived at every read. `/view`'s build passes
 the archive's dates to the walk behind the next payouts on Overview and Payouts, `/attributes`' next
 coupon, and Seasonality's expected coupons and coupon-season card; the confirm's roll on `/` and the
 gap a suggested quote subtracts pass the feed's. The reminders, the occurrence `/`'s coupon card
@@ -318,6 +328,32 @@ occurrence. From a date still listed none between can have been dropped, so noth
 QuantLib's `Schedule` takes any list of dates beside its rule-based form, as the roll takes the
 published dates beside its step
 ([schedule.hpp](https://github.com/lballabio/QuantLib/blob/master/ql/time/schedule.hpp)).
+The stored date is an estimate of a payment, not a reference instant: the form fills it from the
+feed, a confirm made without the feed steps the period and lands beside a published date where the
+issue's period departs from the step, and a hand edit can land further. A changed date is the same
+payment — every message about one interest event carries the same event reference (SMPG Corporate
+Actions Global Market Practice Part 1, §3.6.2,
+[docx](https://www.smpg.info/sites/smpg/files/files/2026-03/1_SMPG_CA_GMP_Part_1_SR2026_ISO20022_v1.0_0.docx))
+— and the information the issuer CSD provides is the golden source, which investor CSDs and
+custodians must not change (ECB AMI-SeCo SCoRE Corporate Actions rulebook, Standard 3,
+[pdf](https://www.ecb.europa.eu/press/intro/publications/pdf/ecb.amiseco202512_scorecarulebook.en.pdf)).
+The stored date's period overlaps most the published period ending nearest it, and by at least half
+only within half a period, so that is the date it names. Half a period is measured as the bridge
+measures it, on the step from the stored date, which a month-end clamp shortens. A tie has to be
+named — pandas' `merge_asof` breaks one to the earlier key and polars' `join_asof` to the later
+([join.pyx](https://github.com/pandas-dev/pandas/blob/v3.0.6/pandas/_libs/join.pyx),
+[asof/mod.rs](https://github.com/pola-rs/polars/blob/py-2.0.0/crates/polars-ops/src/frame/join/asof/mod.rs))
+— and the earlier date shows a payment rather than hiding one, as an unpaid income event stays
+pending. The stored date's alias gives a payout to one payment, as Actual Budget's import matcher
+claims each candidate once
+([sync.ts](https://unpkg.com/@actual-app/core@26.10.0/src/server/accounts/sync.ts)): a payout
+beside the stored date goes to the start unless another owed and unpaid published date beside it
+claims it. The walk's own match of a payout to an occurrence is still the dedupe window alone, so a
+payout beside the start and another published date settles both. The
+cost is accepted: a hand edit up to half a period past an unrecorded published date reopens that
+date in the walk, and a payout recorded beside it, or beside the stored date and claimed by no other
+date, settles it. A published date past the maturity yields the maturity, as the roll's own clamp
+does.
 **Rejected.** Storing a linked bond's dates on the asset: a copy that would not follow the archive's
 later terms. · Counting the units within a tolerance window around a stepped date instead of taking
 the published one: the record date would still be a guess. · The stored date as a fixed anchor for
@@ -327,7 +363,16 @@ month-based schedules now: it reaches the asset row, the backup format, the CSV 
 schema, so it waits for the cutover. · A schedule's months bounded to its first year: a month the
 position pays in again after a sale and a buy-back drops out. · Reading every coupon behind the
 stored date off the ledger: a payout entered days late moves the coupon onto its own date, and an
-earlier stray entry stands in for it.
+earlier stray entry stands in for it. · Starting on the first published date on or after the stored
+one: that is how a schedule finds the next coupon after a settlement date, a reference instant
+(QuantLib's `Schedule::nextDate` is a lower bound), and it skips the date a confirm's step landed a
+day past. · The payout dedupe window alone as the start's reach: a posting-lag tolerance for matching
+cash to an event, and outside it a changed date becomes a second payment. · A stored identity, the
+published date the pointer stands for, kept through hand edits (RFC 5545's `RECURRENCE-ID`, MT564's
+`CORP`): a field on the asset row, the backup format, the CSV and the cluster's schema, which waits
+for the cutover, and a confirm made without the feed would still need the nearest date as its
+fallback. · Giving a payout beside the stored date to the published date nearest the payout, or to
+none when another is beside it: a late payout for the start goes to a date already paid or not owed.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

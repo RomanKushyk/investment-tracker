@@ -21,7 +21,7 @@ import { resolveWindow } from '../period';
 import type { PeriodOption } from '../period';
 import { portfolioStart, transactionsFrom } from '../derive';
 import { latestSnapshotDate } from '../dates';
-import { PUBLISHED_INPUT } from './test-ledgers';
+import { OFF_LIST_DATES, OFF_LIST_INPUT, PUBLISHED_INPUT } from './test-ledgers';
 
 describe('seasonalityDays', () => {
   const days = seasonalityDays(SEED_TRANSACTIONS, SEED_ASSETS);
@@ -312,6 +312,23 @@ describe('the expected coupons step through the published dates the build carrie
     const v = view(input);
     expect(expectedDays(v)).toEqual([[15, 'pub']]);
     expect(expectedMonths(v)).toEqual([3, 9]);
+  });
+
+  describe('start on the published date a stored date a day past it stands for', () => {
+    const withDates = view(OFF_LIST_INPUT);
+    const without = view({ ...OFF_LIST_INPUT, paymentDates: undefined });
+
+    it("puts the expected bar on the published date's day", () => {
+      expect(expectedDays(withDates)).toEqual([[1, 'pub']]);
+      expect(expectedDays(without)).toEqual([[2, 'pub']]);
+    });
+
+    it('dates the coupon-season card on it when no payout is in the window', () => {
+      const [asset] = OFF_LIST_INPUT.assets;
+      const info = bondCouponInfo(asset, [], OFF_LIST_INPUT.transactions, OFF_LIST_DATES);
+      expect(info).toEqual({ day: 1, months: [12], historicalMonths: [] });
+      expect(bondCouponInfo(asset, [], OFF_LIST_INPUT.transactions)?.day).toBe(2);
+    });
   });
 });
 

@@ -13,7 +13,7 @@ import {
   portfolioXirrIn,
   netResultIn,
 } from './overview';
-import { PUBLISHED_INPUT, TEST_LEDGERS } from './test-ledgers';
+import { OFF_LIST_INPUT, PUBLISHED_INPUT, TEST_LEDGERS } from './test-ledgers';
 import { yieldView } from './yield';
 
 const TOTAL = 149016.36;
@@ -334,6 +334,11 @@ describe('next payouts step through the published dates the build carries', () =
   it('dates the coupon on the published date, not the 182-day step', () => {
     expect(dates(PUBLISHED_INPUT)).toEqual(['2026-09-30']);
     expect(dates({ ...PUBLISHED_INPUT, paymentDates: undefined })).toEqual(['2026-10-01']);
+  });
+
+  it('start on the published date a stored date a day past it stands for', () => {
+    expect(dates(OFF_LIST_INPUT)).toEqual(['2027-12-01']);
+    expect(dates({ ...OFF_LIST_INPUT, paymentDates: undefined })).toEqual(['2027-12-02']);
   });
 });
 

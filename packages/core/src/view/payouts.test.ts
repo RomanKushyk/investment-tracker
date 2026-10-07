@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SEED_TRANSACTIONS } from '../seed';
 import { monthlyPayouts, payoutLogRows, payoutsView } from './payouts';
-import { PUBLISHED_INPUT } from './test-ledgers';
+import { OFF_LIST_INPUT, PUBLISHED_INPUT } from './test-ledgers';
 
 describe('monthlyPayouts', () => {
   const months = monthlyPayouts(SEED_TRANSACTIONS);
@@ -95,5 +95,12 @@ describe('payoutsView — the next payouts', () => {
       payoutsView(input).nextPayouts.map((r) => r.date);
     expect(dates(PUBLISHED_INPUT)).toEqual(['2026-09-30']);
     expect(dates({ ...PUBLISHED_INPUT, paymentDates: undefined })).toEqual(['2026-10-01']);
+  });
+
+  it('start on the published date a stored date a day past it stands for', () => {
+    const dates = (input: typeof OFF_LIST_INPUT) =>
+      payoutsView(input).nextPayouts.map((r) => r.date);
+    expect(dates(OFF_LIST_INPUT)).toEqual(['2027-12-01']);
+    expect(dates({ ...OFF_LIST_INPUT, paymentDates: undefined })).toEqual(['2027-12-02']);
   });
 });

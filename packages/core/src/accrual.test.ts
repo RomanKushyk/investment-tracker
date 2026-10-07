@@ -1200,6 +1200,221 @@ describe('the walk steps through the published dates it is given', () => {
   });
 });
 
+// The stored date estimates a payment: an offline confirm's step lands beside a published date, a
+// hand edit further. Where the dates are passed, it stands for the nearest within half a period.
+describe('the walk starts on the published date the stored one stands for', () => {
+  const buy = (id: string, date: string) =>
+    tx({ id, date, type: 'buy', amount: 15000, quantity: 15 });
+  const sell = (id: string, date: string) =>
+    tx({ id, date, type: 'sell', amount: 15000, quantity: 15 });
+  // UA4000235782's published dates (`assets-2026-09-24.json`).
+  const DATES_5782 = [
+    '2025-12-03',
+    '2026-06-03',
+    '2026-12-02',
+    '2027-06-03',
+    '2027-12-01',
+    '2028-05-31',
+    '2028-11-29',
+  ];
+
+  // A confirm of 03.06.2027 made without the feed steps 182 days and stores 02.12.2027.
+  describe('a day past a published date, after an offline confirm', () => {
+    const a = bond({ nextCoupon: '2027-12-02', maturity: '2028-11-29' });
+    const ledger = [
+      buy('b0', '2027-01-10'),
+      tx({ id: 'p0', date: '2027-06-03' }),
+      sell('s0', '2027-12-01'),
+    ];
+
+    it('offers the published date to the units held at the end of the day before it', () => {
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES_5782 })).toBe('2027-12-01');
+      // Without the dates the stored date stands, and its record date is after the sale.
+      expect(nextUnsettledCouponDate(a, ledger)).toBeUndefined();
+    });
+  });
+
+  describe('a hand edit 9 days before a published date', () => {
+    const DATES = ['2026-03-10', '2026-09-08', '2027-03-09'];
+    const a = bond({ nextCoupon: '2026-03-01', maturity: '2027-03-09' });
+    const ledger = [buy('b0', '2026-01-10'), tx({ id: 'p0', date: '2026-03-10' })];
+
+    it('passes the payout recorded on the published date and offers the next one', () => {
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES })).toBe('2026-09-08');
+    });
+
+    it("names the published dates' months", () => {
+      expect(scheduledCouponMonths(a, ledger, DATES)).toEqual([3, 9]);
+    });
+  });
+
+  it('names one month for a stored date 4 days before the final published date', () => {
+    const DATES = ['2025-06-04', '2025-12-03', '2026-06-03'];
+    const a = bond({ nextCoupon: '2026-05-30', maturity: '2026-06-03' });
+    expect(scheduledCouponMonths(a, [buy('b0', '2025-01-10')], DATES)).toEqual([6]);
+  });
+
+  it('stands more than half a period from the first date served, so the step bridges from it', () => {
+    const a = bond({ nextCoupon: '2025-10-15', maturity: '2027-04-14' });
+    const ledger = [buy('b0', '2025-09-01'), tx({ id: 'p0', date: '2025-10-15' })];
+    const DATES = ['2026-10-14', '2027-04-14'];
+    expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES })).toBe('2026-04-15');
+  });
+
+  it('offers the published date a hand edit 10 days past it stands for, with nothing recorded', () => {
+    const a = bond({ nextCoupon: '2027-12-11', maturity: '2028-11-29' });
+    const ledger = [buy('b0', '2027-01-10')];
+    expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES_5782 })).toBe('2027-12-01');
+  });
+
+  describe('30 days before the first date served', () => {
+    const DATES = ['2026-10-14', '2027-04-14'];
+    const a = bond({ nextCoupon: '2026-09-14', maturity: '2027-04-14' });
+
+    it('offers the first date served to the units held at the end of the day before it', () => {
+      const ledger = [buy('b0', '2026-01-10'), sell('s0', '2026-11-01')];
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES })).toBe('2026-10-14');
+      expect(scheduledCouponMonths(a, ledger, DATES)).toEqual([10]);
+    });
+
+    it('passes the occurrence a Skip recorded against the stored date', () => {
+      const dismissed = [couponReminderId(a.id, '2026-09-14')];
+      const ledger = [buy('b0', '2026-01-10')];
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES, dismissed })).toBe('2027-04-14');
+    });
+  });
+
+  it('takes the earlier published date at an equal distance, whatever their order', () => {
+    // 91 days to each, the half of a 182-day period, so both are within reach.
+    const DATES = ['2026-07-02', '2026-01-01', '2026-12-31'];
+    const a = bond({ nextCoupon: '2026-04-02', maturity: '2026-12-31' });
+    const ledger = [buy('b0', '2025-06-01')];
+    expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES })).toBe('2026-01-01');
+  });
+
+  it('stands a day past half a period from every published date', () => {
+    const DATES = ['2025-12-31', '2026-07-03'];
+    const a = bond({ nextCoupon: '2026-04-02', maturity: '2027-01-01' });
+    expect(nextUnsettledCouponDate(a, [buy('b0', '2025-06-01')], { schedule: DATES })).toBe(
+      '2026-04-02',
+    );
+  });
+
+  it('owes nothing off a stored date no calendar has', () => {
+    const a = bond({ nextCoupon: '2026-13-01', maturity: '2027-03-09' });
+    const DATES = ['2026-09-08', '2027-03-09'];
+    expect(nextUnsettledCouponDate(a, [buy('b0', '2026-01-10')], { schedule: DATES })).toBe(
+      undefined,
+    );
+  });
+
+  it('keeps the stored date of a schedule with no period', () => {
+    const a = bond({
+      payoutSchedule: 'maturity',
+      nextCoupon: '2026-03-01',
+      maturity: '2026-09-08',
+    });
+    const DATES = ['2026-03-10', '2026-09-08'];
+    expect(nextUnsettledCouponDate(a, [buy('b0', '2026-01-10')], { schedule: DATES })).toBe(
+      '2026-03-01',
+    );
+  });
+
+  // A payout entered against the stored date records the same payment as one on the published date.
+  describe('a payout recorded beside the stored date', () => {
+    const ledger = (payout: string) => [buy('b0', '2027-01-10'), tx({ id: 'p1', date: payout })];
+
+    it('settles the published date a hand edit 10 days past it stands for', () => {
+      const a = bond({ nextCoupon: '2027-12-11', maturity: '2028-11-29' });
+      const walk = nextUnsettledCouponDate(a, ledger('2027-12-11'), { schedule: DATES_5782 });
+      expect(walk).toBe('2028-05-31');
+    });
+
+    it('settles the published date an offline confirm stored a day past', () => {
+      const a = bond({ nextCoupon: '2027-12-02', maturity: '2028-11-29' });
+      const walk = nextUnsettledCouponDate(a, ledger('2027-12-09'), { schedule: DATES_5782 });
+      expect(walk).toBe('2028-05-31');
+    });
+
+    it('leaves the start owed for a payout beside neither date', () => {
+      const a = bond({ nextCoupon: '2027-12-11', maturity: '2028-11-29' });
+      const walk = nextUnsettledCouponDate(a, ledger('2027-09-01'), { schedule: DATES_5782 });
+      expect(walk).toBe('2027-12-01');
+    });
+
+    it('leaves the start owed when the payout sits beside another published date', () => {
+      // A short final stub: the 22.05 coupon entered three days late is not the maturity's.
+      const DATES = ['2025-11-21', '2026-05-22', '2026-06-06'];
+      const a = bond({ nextCoupon: '2026-06-01', maturity: '2026-06-06' });
+      const paid = [buy('b0', '2025-01-10'), tx({ id: 'p1', date: '2026-05-25' })];
+      expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe('2026-06-06');
+      expect(scheduledCouponMonths(a, paid, DATES)).toEqual([6]);
+    });
+
+    // The alias gives the payout to one payment: another date claims it while owed and unpaid.
+    describe('a late payout for the start beside another published date', () => {
+      const DATES = ['2025-11-21', '2026-05-22', '2026-06-06'];
+      const a = bond({ nextCoupon: '2026-05-27', maturity: '2026-06-06' });
+
+      it('settles the start when the other date has a payout of its own', () => {
+        const paid = [
+          buy('b0', '2025-01-10'),
+          tx({ id: 'p1', date: '2026-05-31' }),
+          tx({ id: 'p2', date: '2026-06-06' }),
+        ];
+        expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe(undefined);
+        expect(scheduledCouponMonths(a, paid, DATES)).toEqual([]);
+      });
+
+      it('settles the start when the other date is not owed', () => {
+        const paid = [
+          buy('b0', '2025-01-10'),
+          tx({ id: 'p1', date: '2026-05-31' }),
+          sell('s0', '2026-06-01'),
+        ];
+        expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe(undefined);
+      });
+    });
+
+    // The published date past the maturity is the start, read as the maturity, not another claimant.
+    describe('a stored date past the maturity', () => {
+      it('is settled by a payout on it', () => {
+        const a = bond({ nextCoupon: '2028-11-29', maturity: '2028-11-20' });
+        const paid = [buy('b0', '2027-01-10'), tx({ id: 'p1', date: '2028-11-29' })];
+        expect(nextUnsettledCouponDate(a, paid, { schedule: DATES_5782 })).toBe(undefined);
+      });
+
+      it('is settled by a payout beside it', () => {
+        const a = bond({ nextCoupon: '2028-11-29', maturity: '2028-11-27' });
+        const paid = [buy('b0', '2027-01-10'), tx({ id: 'p1', date: '2028-12-05' })];
+        expect(nextUnsettledCouponDate(a, paid, { schedule: DATES_5782 })).toBe(undefined);
+      });
+    });
+  });
+
+  // The roll never moves past the maturity, and the start is held to the same bound.
+  describe('a published date past the maturity', () => {
+    const ledger = [buy('b0', '2027-01-10')];
+
+    it('starts no later than a maturity stored two days before it', () => {
+      const a = bond({ nextCoupon: '2028-11-27', maturity: '2028-11-27' });
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES_5782 })).toBe('2028-11-27');
+    });
+
+    it('starts on the maturity when the date stood for lies past it', () => {
+      const a = bond({ nextCoupon: '2028-11-20', maturity: '2028-11-27' });
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES_5782 })).toBe('2028-11-27');
+    });
+  });
+
+  it('keeps the maturity as the one occurrence when no coupon date is stored', () => {
+    const a = bond({ nextCoupon: undefined, maturity: '2026-12-31' });
+    const ledger = [buy('b0', '2026-01-10')];
+    expect(owedCouponDate(a, ledger, undefined, ['2026-10-01'])).toBe('2026-12-31');
+    expect(scheduledCouponMonths(a, ledger, ['2026-10-01'])).toEqual([12]);
+  });
+});
+
 describe('scheduledCouponMonths — D-5, answered forward', () => {
   const bond = (over: Partial<Asset> = {}): Asset =>
     ({
