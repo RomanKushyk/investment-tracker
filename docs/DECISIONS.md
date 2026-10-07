@@ -297,7 +297,8 @@ coupon, and Seasonality's expected coupons and coupon-season card; the confirm's
 gap a suggested quote subtracts pass the feed's. The reminders, the occurrence `/`'s coupon card
 asks about and the composers as the screens call them pass none until the app reads `/view`. Where
 no published date is taken, a semiannual fixed coupon steps `OVDP_COUPON_PERIOD_DAYS` from the
-stored date: in the walk, the gap a suggested quote subtracts and the confirm's roll on `/`. For a
+stored date: in the walk, the gap a suggested quote subtracts, save the fold onto the maturity
+below, and the confirm's roll on `/`. For a
 semiannual coupon with the dates passed, the gap counts forward from the start through the same roll,
 the step that bridges to the first date served included, and a date inside the dedupe window of the
 last date it took is that payment. Behind the start it steps back as the roll steps forward: onto the
@@ -308,10 +309,15 @@ period departs from the step, or one a roll bridged to, is placed off its day; t
 for a start on the maturity is the one exception. From a stored date no calendar has, a start
 clamped onto a maturity no calendar has, or a schedule other than semiannual, the gap counts the
 published dates as given. A step past the maturity, or one falling short of it by no more than twice
-the payout dedupe window, lands on the maturity, so the final period absorbs a short stub.
+the payout dedupe window, lands on the maturity, so the final period absorbs a short stub. Without
+the dates, a semiannual stored date inside the dedupe window before the maturity and the maturity are one
+coupon: the gap starts on the maturity, as once the confirm rolls onto it, so it counts the coupon
+there, sized on its record date, and the coupon before as for a start on the maturity. The walk, the
+reminders and `/`'s coupon card still offer the stored date, and the confirm records it and rolls
+from it onto the maturity.
 The schedule's months name each occurrence by the month of its place in the first year's cycle,
 and the final coupon, paid with the principal, by its own. Without the dates the gap counts back
-from the stored date in the same steps. Where the start is the maturity, folded or clamped onto, and
+from its start in the same steps. Where the start is the maturity, folded or clamped onto, and
 no published date answers the first step back, the coupon before it is the latest one recorded in the
 ledger, where one is, dated by its first entry. A monthly or
 quarterly coupon keeps the month grid, whose roll clamps to a shorter month's last day and onto the
@@ -328,7 +334,13 @@ of less than 7 days with the period before it and keeps one of 7 days or more
 ([StubConvention.java](https://github.com/OpenGamma/Strata/blob/main/modules/basics/src/main/java/com/opengamma/strata/basics/schedule/StubConvention.java)).
 The fold here is wider because a recorded payout settles every occurrence within the dedupe window
 of it: a final period up to twice that could be settled at both ends by one payout, and its coupon
-and principal never offered. Seasonality adds a whole coupon for each month the schedule names, and
+and principal never offered. Without the dates, no semiannual step lands inside the window before
+the maturity, so only a stored date can sit there, and the walk takes a payout on it for the
+maturity's too and names one payment. Starting the gap on the maturity counts it before the confirm
+as after it. An OVDP pays its final coupon with the principal on the maturity date: every bond in
+the feed captures makes its last payment on its maturity, which the feed-fixture test in
+`accrual.test.ts` measures. The price drops on the day the coupon is paid, so the gap places the one
+coupon there. Seasonality adds a whole coupon for each month the schedule names, and
 fixed-day steps cross month ends over the years, so naming each occurrence's own month would count
 a semiannual coupon three or four times a year. Behind a stored date on the grid, the grid's date is
 the coupon's, whatever day a payout was entered on. A fold or a clamp leaves no step back from the
@@ -400,7 +412,10 @@ none when another is beside it: a late payout for the start goes to a date alrea
 a start past the last date served loses the steps the roll took to reach it. · The confirm recording
 the payout on the published date instead of the offered one: the card shows the offered date and says
 history is never rewritten, so the row would carry a date the user did not confirm. · `/` offering
-the published date: its walk passing the dates waits for the app reading `/view`, as above.
+the published date: its walk passing the dates waits for the app reading `/view`, as above. · Without
+the dates, counting the one coupon on the stored date inside the window before the maturity: it is
+the date the walk offers and the confirm records, and the merge with the dates keeps its first date,
+but it sits up to the window before the day the price drops.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

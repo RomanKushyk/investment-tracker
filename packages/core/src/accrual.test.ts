@@ -20,7 +20,9 @@ import {
 } from './accrual';
 import { addDays, dayBefore, daysBetween } from './dates';
 import { unitsByAsset } from './derive';
+import fixture0923 from './inzhur/__fixtures__/assets-2026-09-23.json';
 import fixture0924 from './inzhur/__fixtures__/assets-2026-09-24.json';
+import fixtureSample from './inzhur/__fixtures__/assets-sample.json';
 import { parseAssetsFeed } from './inzhur/parse';
 import { OVDP_COUPON_PERIOD_DAYS } from './ovdp';
 import type { Asset, Transaction } from './types';
@@ -1040,6 +1042,80 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
     expect(couponsInGap(bond(), () => 1240, '2027-02-23', '2027-02-25', [])).toBe(1240);
   });
 
+  describe('a stored date inside the dedupe window before the maturity is the final coupon', () => {
+    // Sized by date, so a coupon counted on any other day shows in the sum.
+    const on = (date: string) => (d: string) => (d === date ? 1240 : 99999);
+
+    it('counts one coupon over a gap spanning both dates, up to the window’s edge', () => {
+      expect(
+        couponsInGap(
+          bond({ nextCoupon: '2027-02-20' }),
+          () => 1240,
+          '2027-02-10',
+          '2027-03-10',
+          [],
+        ),
+      ).toBe(1240);
+      expect(
+        couponsInGap(
+          bond({ nextCoupon: '2027-02-18' }),
+          () => 1240,
+          '2027-02-10',
+          '2027-03-10',
+          [],
+        ),
+      ).toBe(1240);
+    });
+
+    it('places it on the maturity, sized on the maturity’s record date', () => {
+      const a = bond({ nextCoupon: '2027-02-20' });
+      expect(couponsInGap(a, on('2027-02-25'), '2027-02-10', '2027-02-22', [])).toBe(0);
+      expect(couponsInGap(a, on('2027-02-25'), '2027-02-22', '2027-02-25', [])).toBe(1240);
+    });
+
+    it('counts the coupon before as it is counted once the confirm rolls onto the maturity', () => {
+      const before = bond({ nextCoupon: '2027-02-20' });
+      // The confirm records the payout on the stored date, then rolls onto the maturity.
+      const after = bond({ nextCoupon: '2027-02-25' });
+      const confirm = tx({ id: 'c4', date: '2027-02-20' });
+      const recorded = [tx({ id: 'p3', date: '2026-08-25' })];
+      expect(couponsInGap(before, on('2026-08-25'), '2026-08-24', '2026-08-26', recorded)).toBe(
+        1240,
+      );
+      expect(
+        couponsInGap(after, on('2026-08-25'), '2026-08-24', '2026-08-26', [...recorded, confirm]),
+      ).toBe(1240);
+      // With none recorded, both step a period back from the maturity.
+      expect(couponsInGap(before, on('2026-08-27'), '2026-08-26', '2026-08-27', [])).toBe(1240);
+      expect(couponsInGap(after, on('2026-08-27'), '2026-08-26', '2026-08-27', [confirm])).toBe(
+        1240,
+      );
+    });
+
+    it('still counts two a day past the window, as the walk offers two', () => {
+      const a = bond({ nextCoupon: '2027-02-17' });
+      expect(couponsInGap(a, () => 1240, '2027-02-10', '2027-03-10', [])).toBe(2 * 1240);
+      expect(walk(a, [buy('2026-02-05')])).toEqual(['2027-02-17', '2027-02-25']);
+    });
+
+    it('with the dates, keeps the merged coupon on the published date', () => {
+      const a = bond({ nextCoupon: '2027-02-20' });
+      const dates = ['2026-08-25', '2027-02-23'];
+      expect(couponsInGap(a, on('2027-02-23'), '2027-02-22', '2027-02-23', [], dates)).toBe(1240);
+      expect(couponsInGap(a, on('2027-02-23'), '2027-02-23', '2027-02-25', [], dates)).toBe(0);
+      // With no published date that near, the stored date stands and the merge keeps it.
+      const far = ['2026-08-25'];
+      expect(couponsInGap(a, on('2027-02-20'), '2027-02-19', '2027-02-20', [], far)).toBe(1240);
+      expect(couponsInGap(a, on('2027-02-20'), '2027-02-20', '2027-02-25', [], far)).toBe(0);
+    });
+
+    it('leaves a stored date past the maturity where it stands', () => {
+      const a = bond({ nextCoupon: '2027-02-27' });
+      expect(couponsInGap(a, on('2027-02-27'), '2027-02-26', '2027-02-27', [])).toBe(1240);
+      expect(couponsInGap(a, on('2027-02-27'), '2027-02-24', '2027-02-26', [])).toBe(0);
+    });
+  });
+
   it('leaves a monthly and a quarterly schedule on the month grid', () => {
     const eom = bond({ nextCoupon: '2027-01-31', maturity: '2028-01-31' });
     expect(rollNextCoupon({ ...eom, payoutSchedule: 'monthly' })).toEqual({
@@ -1176,6 +1252,24 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
     }
     expect(gaps).toBe(98);
     expect(misses).toEqual(['UA4000235782 2027-06-03 stepped 2027-06-02']);
+  });
+
+  it('makes every bond the feed captures serve its last payment on its maturity', () => {
+    let bonds = 0;
+    const off: string[] = [];
+    for (const capture of [fixtureSample, fixture0923, fixture0924]) {
+      for (const b of parseAssetsFeed(capture).entries) {
+        if (b.kind !== 'bond') continue;
+        bonds += 1;
+        const last = b.paymentSchedule
+          .map((p) => p.date)
+          .sort()
+          .at(-1);
+        if (last !== b.maturity) off.push(`${b.ref} ${last} ${b.maturity}`);
+      }
+    }
+    expect(bonds).toBe(61);
+    expect(off).toEqual([]);
   });
 });
 

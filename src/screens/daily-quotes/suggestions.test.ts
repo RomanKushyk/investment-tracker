@@ -97,6 +97,24 @@ describe('accrualSuggestion', () => {
     ).toBe(14823.72);
   });
 
+  it('subtracts one coupon for a stored date inside the dedupe window before the maturity', () => {
+    // A hand edit five days short of 25.02.2027, no feed: the stored date and the maturity are one
+    // payment, so the carry to the maturity drops 1 240,00 once, not twice.
+    const quoted: Snapshot[] = [{ date: '2027-02-10', quotes: { ovdp8976: 15000 } }];
+    expect(
+      accrualSuggestion(
+        { ...seedAsset('ovdp8976'), nextCoupon: '2027-02-20' },
+        quoted,
+        invested.ovdp8976,
+        '2027-03-01',
+        undefined,
+        15,
+        () => 15,
+        SEED_TRANSACTIONS,
+      ),
+    ).toBe(13861.92);
+  });
+
   it('subtracts the coupon the walk bridges to before the first date served', () => {
     // The provider drops a bond's older payments: UA4000238976 served without its 25.03.2026 row,
     // the stored date a period before it, and a gap spanning the coupon owed between.

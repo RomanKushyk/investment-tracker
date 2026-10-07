@@ -125,10 +125,15 @@ export function couponsInGap(
   // The provider’s own dates (OVDP-COUPON-STRUCTURE.md), deduped because the final coupon and the
   // principal share the maturity date and only one is a coupon.
   const dates = schedule !== undefined && schedule.length > 0 ? [...new Set(schedule)] : undefined;
+  // Without the dates, a stored date inside the dedupe window before the maturity is the final coupon,
+  // paid with the principal: the gap starts on the maturity, as once the confirm rolls onto it.
+  const { maturity } = asset;
+  const toMaturity = maturity === undefined ? NaN : daysBetween(anchor, maturity);
+  const final = dates === undefined && toMaturity > 0 && toMaturity <= COUPON_MATCH_WINDOW_DAYS;
   // `addDays` throws on a date no calendar has, and the walk owes nothing off one or off a clamp onto one.
   const start =
     asset.payoutSchedule === 'semiannual' && !noCalendarDate(anchor)
-      ? publishedStart(asset, anchor, dates)
+      ? publishedStart(asset, final && maturity !== undefined ? maturity : anchor, dates)
       : undefined;
 
   if (start !== undefined && !noCalendarDate(start)) {
