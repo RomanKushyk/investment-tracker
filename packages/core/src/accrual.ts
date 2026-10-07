@@ -111,7 +111,8 @@ export function couponsInGap(
   perCouponAt: (couponDate: string) => number | undefined,
   fromExclusive: string,
   toInclusive: string,
-  /** REQUIRED: a semiannual coupon behind the stored date is the payout recorded for it. */
+  /** REQUIRED: behind a semiannual start on the maturity that no published date answers, the coupon
+   *  before is the payout recorded for it, where one is. */
   transactions: readonly Transaction[],
   schedule?: readonly string[],
 ): number {
@@ -121,37 +122,49 @@ export function couponsInGap(
   // built from the drafted date’s holding, which the caller holds and this does
   // not. It lives in `accrualSuggestion`.
 
-  // The provider’s own dates beat any grid derived from them (OVDP-COUPON-STRUCTURE.md), deduped
-  // because the final coupon and the principal share the maturity date and only one is a coupon.
-  if (schedule !== undefined && schedule.length > 0) {
-    const dates = [...new Set(schedule)];
-    return dates
-      .filter((d) => d > fromExclusive && d <= toInclusive)
-      .reduce((sum, d) => sum + (perCouponAt(d) ?? 0), 0);
-  }
+  // The provider’s own dates (OVDP-COUPON-STRUCTURE.md), deduped because the final coupon and the
+  // principal share the maturity date and only one is a coupon.
+  const dates = schedule !== undefined && schedule.length > 0 ? [...new Set(schedule)] : undefined;
+  // `addDays` throws on a date no calendar has, and the walk owes nothing off one or off a clamp onto one.
+  const start =
+    asset.payoutSchedule === 'semiannual' && !noCalendarDate(anchor)
+      ? publishedStart(asset, anchor, dates)
+      : undefined;
 
-  if (asset.payoutSchedule === 'semiannual') {
-    // `addDays` throws on a date no calendar has, and the walk owes nothing off one.
-    if (noCalendarDate(anchor)) return 0;
+  if (start !== undefined && !noCalendarDate(start)) {
     let total = 0;
-    // Forward through the roll itself, so the gap counts the dates the walk and the confirm reach.
-    let date: string | undefined = anchor;
+    // Forward through the roll, so the gap counts what the walk offers, the bridge to the first date
+    // served included; with the dates, a date inside the dedupe window of the last is that payment.
+    let named: string | undefined;
+    let date: string | undefined = start;
     for (let i = 0; date !== undefined && date <= toInclusive && i < MAX_GRID_STEPS; i++) {
       if (noCalendarDate(date)) break; // a maturity no calendar has, which the walk owes nothing on
-      if (date > fromExclusive) total += perCouponAt(date) ?? 0;
-      const roll = rollNextCoupon(asset, date);
+      if (
+        dates === undefined ||
+        named === undefined ||
+        daysBetween(named, date) > COUPON_MATCH_WINDOW_DAYS
+      ) {
+        if (date > fromExclusive) total += perCouponAt(date) ?? 0;
+        named = date;
+      }
+      const roll = rollNextCoupon(asset, date, dates);
       date = roll?.kind === 'rolled' ? roll.nextCoupon : undefined;
     }
-    // Back from the anchor, the coupons the confirm rolled past, on the 182-day grid. Only a pointer
-    // folded or clamped onto the maturity is off it, so the coupon before is the payout recorded for it.
-    let after = anchor;
-    if (fromExclusive < anchor && anchor === asset.maturity) {
+    // Back from the start, the coupons the confirm rolled past, stepped as the roll steps forward.
+    let after = start;
+    // A fold or a clamp leaves no step back from the maturity, so where no published date answers it,
+    // the coupon before is the payout recorded for it, where one is.
+    if (
+      fromExclusive < start &&
+      start === asset.maturity &&
+      publishedPrev(start, dates) === undefined
+    ) {
       // Outside the window that settles the maturity itself, within a folded period and a window of it.
       const lo = addDays(
-        anchor,
+        start,
         -(OVDP_COUPON_PERIOD_DAYS + FINAL_FOLD_DAYS + COUPON_MATCH_WINDOW_DAYS),
       );
-      const hi = addDays(anchor, -COUPON_MATCH_WINDOW_DAYS);
+      const hi = addDays(start, -COUPON_MATCH_WINDOW_DAYS);
       const near = transactions
         .filter((t) => t.type === 'interest_payout' && t.assetId === asset.id)
         .map((t) => t.date)
@@ -166,13 +179,22 @@ export function couponsInGap(
         after = recorded;
       }
     }
-    for (let k = 1; k < MAX_GRID_STEPS; k++) {
-      const before = addDays(after, -k * OVDP_COUPON_PERIOD_DAYS);
+    for (let k = 0; k < MAX_GRID_STEPS; k++) {
+      const before = publishedPrev(after, dates) ?? addDays(after, -OVDP_COUPON_PERIOD_DAYS);
       if (before <= fromExclusive) break;
       if (before <= toInclusive) total += perCouponAt(before) ?? 0;
+      after = before;
     }
     return total;
   }
+
+  // Where no walk is counted, the published dates stand as given.
+  if (dates !== undefined) {
+    return dates
+      .filter((d) => d > fromExclusive && d <= toInclusive)
+      .reduce((sum, d) => sum + (perCouponAt(d) ?? 0), 0);
+  }
+  if (asset.payoutSchedule === 'semiannual') return 0;
 
   const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
   if (months === undefined) {
@@ -490,6 +512,26 @@ function publishedNext(
   }
   if (next === undefined || step === undefined || published) return next;
   return next <= addDays(step, Math.floor(daysBetween(current, step) / 2)) ? next : undefined;
+}
+
+/** `publishedNext` in reverse, for the gap behind the start of a semiannual walk: the latest published
+ *  date before the dedupe window of `current`, off the dates none more than half a period before the step. */
+function publishedPrev(
+  current: string,
+  schedule: readonly string[] | undefined,
+): string | undefined {
+  if (schedule === undefined) return undefined;
+  const step = addDays(current, -OVDP_COUPON_PERIOD_DAYS);
+  const before = addDays(current, -COUPON_MATCH_WINDOW_DAYS);
+  const after = addDays(current, COUPON_MATCH_WINDOW_DAYS);
+  let prev: string | undefined;
+  let published = false;
+  for (const d of schedule) {
+    if (d < before) prev = prev === undefined || d > prev ? d : prev;
+    else if (d <= after) published = true;
+  }
+  if (prev === undefined || published) return prev;
+  return prev >= addDays(step, -Math.floor(OVDP_COUPON_PERIOD_DAYS / 2)) ? prev : undefined;
 }
 
 export interface CouponProjection {

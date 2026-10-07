@@ -18,10 +18,11 @@ import {
   suggestedQuote,
   scheduledCouponMonths,
 } from './accrual';
-import { addDays, daysBetween } from './dates';
+import { addDays, dayBefore, daysBetween } from './dates';
 import { unitsByAsset } from './derive';
 import fixture0924 from './inzhur/__fixtures__/assets-2026-09-24.json';
 import { parseAssetsFeed } from './inzhur/parse';
+import { OVDP_COUPON_PERIOD_DAYS } from './ovdp';
 import type { Asset, Transaction } from './types';
 
 // The demo seed's two bonds (seed.ts) are the fixture basis: …8976 pays
@@ -775,6 +776,146 @@ describe('the published schedule beats the grid', () => {
       kind: 'rolled',
       nextCoupon: '2026-09-23',
     });
+  });
+});
+
+describe('the gap counts the occurrences the walk steps through', () => {
+  const buy = (date: string) => tx({ id: 'b0', date, type: 'buy', amount: 15000, quantity: 15 });
+  // The provider drops a bond's older payments: the dates served start a period after the coupon owed.
+  const DATES = ['2026-10-14', '2027-04-14'];
+
+  it('bridges to the first date served, so the coupon before it counts', () => {
+    const a = bond({ nextCoupon: '2025-10-15', maturity: '2027-04-14' });
+    expect(couponsInGap(a, () => 1240, '2026-04-01', '2026-04-30', [], DATES)).toBe(1240);
+    expect(couponsInGap(a, () => 1240, '2026-04-01', '2026-04-30', [])).toBe(1240);
+  });
+
+  it('steps the period back before the first date served, from a stored date on it', () => {
+    const a = bond({ nextCoupon: '2026-10-14', maturity: '2027-04-14' });
+    expect(couponsInGap(a, () => 1240, '2026-03-01', '2026-05-31', [], DATES)).toBe(1240);
+  });
+
+  // UA4000235782's published dates (`assets-2026-09-24.json`): a 181-day period reaches 01.12.2027,
+  // which a confirm without the feed stores as 02.12.
+  const DATES_5782 = [
+    '2025-12-03',
+    '2026-06-03',
+    '2026-12-02',
+    '2027-06-03',
+    '2027-12-01',
+    '2028-05-31',
+    '2028-11-29',
+  ];
+
+  it('counts a published date the step misses once, on its published day', () => {
+    for (const nextCoupon of ['2027-12-01', '2027-12-02']) {
+      const a = bond({ nextCoupon, maturity: '2028-11-29' });
+      expect(couponsInGap(a, () => 1240, '2027-11-01', '2027-12-31', [], DATES_5782)).toBe(1240);
+    }
+  });
+
+  it('counts a published date behind the start on its published day', () => {
+    // 182 days back from 01.12.2027 is 02.06, a day short of the published 03.06.
+    const a = bond({ nextCoupon: '2027-12-01', maturity: '2028-11-29' });
+    expect(couponsInGap(a, () => 1240, '2027-06-02', '2027-06-03', [], DATES_5782)).toBe(1240);
+    expect(couponsInGap(a, () => 1240, '2027-06-01', '2027-06-02', [], DATES_5782)).toBe(0);
+  });
+
+  it('counts one final coupon where the maturity is a day past the last published date', () => {
+    // The roll lands on the maturity off 29.11.2028, inside the window of the payout that settles both.
+    for (const nextCoupon of ['2028-11-29', '2028-11-30']) {
+      const a = bond({ nextCoupon, maturity: '2028-11-30' });
+      expect(couponsInGap(a, () => 1240, '2028-11-20', '2028-12-10', [], DATES_5782)).toBe(1240);
+    }
+  });
+
+  it('steps back from a start more than half a period past the last published date', () => {
+    // The roll went 14.04.2027, 13.10.2027, 12.04.2028; the 13.10 step is behind the start.
+    const a = bond({ nextCoupon: '2028-04-12', maturity: undefined });
+    const dates = ['2026-04-14', '2026-10-14', '2027-04-14'];
+    expect(couponsInGap(a, () => 1240, '2027-05-01', '2028-04-30', [], dates)).toBe(2 * 1240);
+    expect(couponsInGap(a, () => 1240, '2027-05-01', '2028-04-30', [])).toBe(2 * 1240);
+  });
+
+  describe('where no walk starts, the published dates stand', () => {
+    const dates = ['2026-08-25', '2027-02-25'];
+
+    it('off a stored date no calendar has', () => {
+      const a = bond({ nextCoupon: '2026-13-01', maturity: '2027-02-25' });
+      expect(couponsInGap(a, () => 1240, '2026-08-01', '2027-03-01', [], dates)).toBe(2 * 1240);
+    });
+
+    it('off a start clamped onto a maturity no calendar has, without throwing', () => {
+      const a = bond({ nextCoupon: '2026-12-20', maturity: '2026-13-01' });
+      const served = ['2027-01-10', '2027-07-10'];
+      expect(couponsInGap(a, () => 1240, '2026-12-01', '2027-01-05', [], served)).toBe(0);
+      expect(couponsInGap(a, () => 1240, '2027-01-01', '2027-01-15', [], served)).toBe(1240);
+      expect(couponsInGap(a, () => 1240, '2025-01-01', '2025-02-01', [], served)).toBe(0);
+    });
+
+    it('for a schedule other than semiannual', () => {
+      const a = bond({ payoutSchedule: 'monthly', nextCoupon: '2026-01-31', maturity: undefined });
+      const served = ['2026-01-31', '2026-02-28'];
+      expect(couponsInGap(a, () => 1240, '2026-01-30', '2026-05-31', [], served)).toBe(2 * 1240);
+    });
+  });
+
+  it('counts every date the walk offers inside the gap once, and no other after the start', () => {
+    const bonds = parseAssetsFeed(fixture0924).entries.filter((e) => e.kind === 'bond');
+    // Records each occurrence the walk offers, as the confirm would, until it offers none.
+    const offered = (a: Asset, dates: string[]): string[] => {
+      const rows = [{ ...buy('2020-01-01'), assetId: a.id }];
+      const owed: string[] = [];
+      for (let i = 0; i < 60; i++) {
+        const date = nextUnsettledCouponDate(a, rows, { schedule: dates });
+        if (date === undefined) break;
+        owed.push(date);
+        rows.push(tx({ id: `c${i}`, date, assetId: a.id }));
+      }
+      return owed;
+    };
+    let checks = 0;
+    let covered = 0;
+    const misses: string[] = [];
+    for (const b of bonds) {
+      const dates = [...new Set(b.paymentSchedule.map((p) => p.date))].sort();
+      if (dates.length < 2) continue;
+      // On the first date served, a period and a period plus three days behind it, a day past the second.
+      const stored = [
+        dates[0]!,
+        addDays(dates[0]!, -OVDP_COUPON_PERIOD_DAYS),
+        addDays(dates[0]!, -OVDP_COUPON_PERIOD_DAYS - 3),
+        addDays(dates[1]!, 1),
+      ];
+      // The feed's maturity, and one inside the dedupe window past the last date served.
+      for (const maturity of [b.maturity!, addDays(b.maturity!, 3)]) {
+        for (const nextCoupon of stored) {
+          const a = bond({ id: b.ref, nextCoupon, maturity });
+          const owed = offered(a, dates);
+          const start = owed[0];
+          if (start === undefined) {
+            misses.push(`${b.ref} ${nextCoupon}: no start`);
+            continue;
+          }
+          for (const to of [maturity, owed[1] ?? start]) {
+            checks += 1;
+            const want = owed.filter((d) => d <= to).length;
+            const got = couponsInGap(a, () => 1, dayBefore(start), to, [], dates);
+            if (got !== want) misses.push(`${b.ref} ${nextCoupon} to ${to}: ${got}, walk ${want}`);
+          }
+          // Where the published dates cover the gap, the count is theirs.
+          if (nextCoupon === dates[0]) {
+            covered += 1;
+            const got = couponsInGap(a, () => 1, dates[0]!, maturity, [], dates);
+            const want = dates.filter((d) => d > dates[0]! && d <= maturity).length;
+            if (got !== want) misses.push(`${b.ref} covered: ${got}, published ${want}`);
+          }
+        }
+      }
+    }
+    expect(checks).toBe(496);
+    expect(covered).toBe(62);
+    expect(misses).toEqual([]);
   });
 });
 

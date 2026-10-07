@@ -80,8 +80,9 @@ export function accrualSuggestion(
    *  date, while the gap drops coupons already paid, each sized BACKWARD on its own.
    *  Required for the same reason. */
   unitsAt: (couponDate: string) => number | undefined,
-  /** The ledger, REQUIRED for the same reason: the gap reads a coupon behind the stored date off the
-   *  payout recorded for it. */
+  /** The ledger, REQUIRED for the same reason: behind a semiannual start on the maturity that no
+   *  published date answers, the gap reads the coupon before off the payout recorded for it, where
+   *  one is. */
   transactions: readonly Transaction[],
 ): number | null {
   if (asset.yieldType !== 'fixed_coupon') return null;

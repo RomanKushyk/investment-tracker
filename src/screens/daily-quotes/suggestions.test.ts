@@ -2,9 +2,9 @@
 // first case asserts is the design reference's own row.
 import { describe, expect, it } from 'vitest';
 
-import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
+import { parseAssetsFeed, type ParsedFeed } from '@quirenote/core/inzhur/parse';
 import { investedByAsset } from '@quirenote/core/derive';
-import type { Asset, Transaction } from '@quirenote/core/types';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { accrualSuggestion, couponPrefill } from './suggestions';
@@ -95,6 +95,29 @@ describe('accrualSuggestion', () => {
         [...SEED_TRANSACTIONS, paid],
       ),
     ).toBe(14823.72);
+  });
+
+  it('subtracts the coupon the walk bridges to before the first date served', () => {
+    // The provider drops a bond's older payments: UA4000238976 served without its 25.03.2026 row,
+    // the stored date a period before it, and a gap spanning the coupon owed between.
+    const trimmed = structuredClone(fixture);
+    const entry = trimmed.find((e) => e.assetDetails?.isin === 'UA4000238976')!;
+    entry.assetDetails!.paymentSchedule = entry.assetDetails!.paymentSchedule!.filter(
+      (p) => p.id !== 113,
+    );
+    const linked: Asset = {
+      ...seedAsset('ovdp8976'),
+      inzhur: { kind: 'bond', ref: 'UA4000238976', units: 15 },
+      nextCoupon: '2025-09-24',
+    };
+    const quoted: Snapshot[] = [{ date: '2026-03-20', quotes: { ovdp8976: 15000 } }];
+    const suggest = (feed: ParsedFeed | undefined) =>
+      accrualSuggestion(linked, quoted, invested.ovdp8976, '2026-03-30', feed, 15, () => 15, [
+        ...SEED_TRANSACTIONS,
+      ]);
+    // Neither feed brackets the gap, so the daily rate is the same; the gap owes 25.03 both ways.
+    expect(suggest(parseAssetsFeed(trimmed))).toBe(suggest(undefined));
+    expect(suggest(undefined)).toBeLessThan(15000);
   });
 
   it('suggests nothing for a non-bond, an unquoted asset or an already-quoted date', () => {
