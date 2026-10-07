@@ -8,7 +8,7 @@ import {
 import { investedByAsset, transactionsFromWindow, unitsByAsset } from '../derive';
 import type { PeriodWindow } from '../period';
 import type { Asset, Transaction } from '../types';
-import type { LedgerInput, PeriodInput } from './input';
+import type { LedgerInput, PaymentDatesInput, PeriodInput } from './input';
 import { windowView } from './window';
 
 export interface SeasonalityDay {
@@ -36,12 +36,20 @@ export function incomeByDayOfMonth(transactions: Transaction[]): Record<number, 
 function expectedByDayOfMonth(
   assets: Asset[],
   transactions: Transaction[],
+  paymentDates?: PaymentDatesInput['paymentDates'],
 ): Record<number, number> {
   const out: Record<number, number> = {};
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id], transactions);
+    const coupon = couponProjection(
+      a,
+      invested[a.id] ?? 0,
+      units[a.id],
+      transactions,
+      undefined,
+      paymentDates?.get(a.id),
+    );
     if (coupon === undefined) continue;
     const day = dayOfMonth(coupon.date);
     out[day] = (out[day] ?? 0) + coupon.amount;
@@ -67,10 +75,11 @@ export function seasonalityDaysIn(
   transactions: Transaction[],
   assets: Asset[],
   w: PeriodWindow | undefined,
+  paymentDates?: PaymentDatesInput['paymentDates'],
 ): SeasonalityDay[] {
   const inside = transactionsFromWindow(transactions, w);
   const actual = incomeByDayOfMonth(inside);
-  const expected = expectedByDayOfMonth(assets, transactions);
+  const expected = expectedByDayOfMonth(assets, transactions, paymentDates);
   const days: SeasonalityDay[] = [];
   for (let day = 1; day <= 31; day++) {
     days.push({ day, actual: actual[day] ?? 0, expected: expected[day] });
@@ -89,14 +98,28 @@ export function incomeByMonth(transactions: Transaction[]): Record<number, numbe
   return out;
 }
 
-function expectedByMonth(assets: Asset[], transactions: Transaction[]): Record<number, number> {
+function expectedByMonth(
+  assets: Asset[],
+  transactions: Transaction[],
+  paymentDates?: PaymentDatesInput['paymentDates'],
+): Record<number, number> {
   const out: Record<number, number> = {};
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id], transactions);
+    // One walk decides the bar and fills it: the projection walked off another calendar can owe
+    // nothing where the schedule's months owe a coupon.
+    const schedule = paymentDates?.get(a.id);
+    const coupon = couponProjection(
+      a,
+      invested[a.id] ?? 0,
+      units[a.id],
+      transactions,
+      undefined,
+      schedule,
+    );
     if (coupon === undefined) continue;
-    for (const month of scheduledCouponMonths(a, transactions)) {
+    for (const month of scheduledCouponMonths(a, transactions, schedule)) {
       out[month] = (out[month] ?? 0) + coupon.amount;
     }
   }
@@ -133,10 +156,11 @@ export function seasonalityMonthsIn(
   transactions: Transaction[],
   assets: Asset[],
   w: PeriodWindow | undefined,
+  paymentDates?: PaymentDatesInput['paymentDates'],
 ): SeasonalityMonth[] {
   const inside = transactionsFromWindow(transactions, w);
   const actual = incomeByMonth(inside);
-  const expected = expectedByMonth(assets, transactions);
+  const expected = expectedByMonth(assets, transactions, paymentDates);
   const months: SeasonalityMonth[] = [];
   for (let month = 1; month <= 12; month++) {
     months.push({ month, actual: actual[month] ?? 0, expected: expected[month] });
@@ -175,13 +199,21 @@ export function dominantExpectedAssetOnDay(
   assets: Asset[],
   transactions: Transaction[],
   day: number,
+  paymentDates?: PaymentDatesInput['paymentDates'],
 ): string | undefined {
   let bestId: string | undefined;
   let bestAmount = -Infinity;
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id], transactions);
+    const coupon = couponProjection(
+      a,
+      invested[a.id] ?? 0,
+      units[a.id],
+      transactions,
+      undefined,
+      paymentDates?.get(a.id),
+    );
     if (coupon === undefined || dayOfMonth(coupon.date) !== day) continue;
     if (coupon.amount > bestAmount) {
       bestAmount = coupon.amount;
@@ -234,6 +266,8 @@ export function bondCouponInfo(
   paid: Transaction[],
   /** The whole ledger: the payment still owed depends on every unit ever bought. */
   transactions: Transaction[],
+  /** A linked bond's published payment dates, which the walk steps through. */
+  schedule?: readonly string[],
 ): BondCouponInfo | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
   const historical = paid
@@ -242,7 +276,7 @@ export function bondCouponInfo(
   // In date order: the card names the first month it paid in, beside that payout's day.
   const historicalMonths = historical.map((t) => Number(t.date.slice(5, 7)));
   const months = new Set(historicalMonths);
-  const owed = owedCouponDate(asset, transactions);
+  const owed = owedCouponDate(asset, transactions, undefined, schedule);
   if (owed) months.add(Number(owed.slice(5, 7)));
   // A paid day first: the payment still owed can be a short final coupon on the maturity.
   const day = historical.length ? dayOfMonth(historical[0].date) : owed ? dayOfMonth(owed) : 0;
@@ -279,13 +313,15 @@ export interface SeasonalityView {
 }
 
 /** The Seasonality screen's figures: the bars, and the three cards that summarise them. */
-export function seasonalityView(input: LedgerInput & PeriodInput): SeasonalityView {
-  const { assets, transactions } = input;
+export function seasonalityView(
+  input: LedgerInput & PeriodInput & PaymentDatesInput,
+): SeasonalityView {
+  const { assets, transactions, paymentDates } = input;
   const w = windowView(input);
   // Every FLOW reads this windowed ledger, or a windowed bar wears an unwindowed colour and a
   // card names an asset that paid nothing inside the window.
   const windowed = transactionsFromWindow(transactions, w);
-  const days = seasonalityDaysIn(transactions, assets, w);
+  const days = seasonalityDaysIn(transactions, assets, w, paymentDates);
   const anchor = incomeAnchorDay(days);
   const anchorAssetId =
     anchor && anchor.actual > 0 ? dominantAssetOnDay(windowed, anchor.day) : undefined;
@@ -301,7 +337,10 @@ export function seasonalityView(input: LedgerInput & PeriodInput): SeasonalityVi
     .sort((x, y) => y.coupon - x.coupon)
     // The months a bond HAS PAID are read in window, or the card names a month the chart drew
     // no bar for; the schedule half is a forecast. A bond with neither has no season to name.
-    .map((b) => ({ asset: b.asset, info: bondCouponInfo(b.asset, windowed, transactions) }))
+    .map((b) => ({
+      asset: b.asset,
+      info: bondCouponInfo(b.asset, windowed, transactions, paymentDates?.get(b.asset.id)),
+    }))
     .filter((b): b is { asset: Asset; info: BondCouponInfo } => !!b.info?.months.length);
   const bigBond = bonds[0];
   return {
@@ -312,10 +351,10 @@ export function seasonalityView(input: LedgerInput & PeriodInput): SeasonalityVi
       dominantAssetId: d.actual > 0 ? dominantAssetOnDay(windowed, d.day) : undefined,
       expectedAssetId:
         d.expected !== undefined
-          ? dominantExpectedAssetOnDay(assets, transactions, d.day)
+          ? dominantExpectedAssetOnDay(assets, transactions, d.day, paymentDates)
           : undefined,
     })),
-    months: seasonalityMonthsIn(transactions, assets, w),
+    months: seasonalityMonthsIn(transactions, assets, w, paymentDates),
     anchor,
     anchorAsset,
     // WINDOWED, because the DAY this sentence names already is.

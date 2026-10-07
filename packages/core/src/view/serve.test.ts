@@ -6,9 +6,9 @@ import type { Asset, Transaction } from '../types';
 import { rebuildSnapshots, type PriceRow } from '../valuation';
 import { buildView } from './build';
 import { ARCHIVE_LOOKBACK_DAYS, archiveSpan, viewBody, type ArchiveRow } from './serve';
-import { asPriceRows } from './test-ledgers';
+import { asPriceRows, PUBLISHED_DATES, PUBLISHED_INPUT } from './test-ledgers';
 
-// Watched, not replaced: no composer reads a bond's payment dates yet, so only the input shows them.
+// Watched, not replaced: one test reads the input the build was handed, the rest its real output.
 vi.mock('./build', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./build')>();
   return { ...actual, buildView: vi.fn(actual.buildView) };
@@ -340,5 +340,18 @@ describe('viewBody — what GET /view answers, from rows', () => {
         ['b', dates],
       ]),
     );
+  });
+
+  it('dates the next payout of a linked bond on the date its terms publish', () => {
+    const { view } = viewBody({
+      assets: PUBLISHED_INPUT.assets,
+      transactions: PUBLISHED_INPUT.transactions,
+      userPrices: [],
+      paymentDates: [{ ref: 'ua0000000340', dates: PUBLISHED_DATES }],
+      archiveRows: [],
+      today: TODAY,
+      fx: FX,
+    });
+    expect(view.payouts.nextPayouts.map((r) => r.date)).toEqual(['2026-09-30']);
   });
 });

@@ -270,6 +270,8 @@ export interface CouponWalkOptions {
   /** Ids the user settled by hand; a skipped occurrence must not block the ones
    *  behind it. */
   dismissed?: readonly string[];
+  /** A linked bond's published payment dates, stepped through as the confirm's roll steps. */
+  schedule?: readonly string[];
 }
 
 /** A WALK AND NOT `asset.nextCoupon`, which only the confirm moves. It passes an occurrence
@@ -288,8 +290,9 @@ export function owedCouponDate(
   asset: Asset,
   transactions: Transaction[],
   onOrAfter?: string,
+  schedule?: readonly string[],
 ): string | undefined {
-  return walkFrom(asset, asset.nextCoupon || asset.maturity, transactions, {}, onOrAfter);
+  return walkFrom(asset, asset.nextCoupon || asset.maturity, transactions, { schedule }, onOrAfter);
 }
 
 function walkFrom(
@@ -326,7 +329,7 @@ function walkFrom(
     }
     // The same stepper the confirm writes with, so the walk cannot land on a date
     // the roll would not produce.
-    const roll = rollNextCoupon(asset, date);
+    const roll = rollNextCoupon(asset, date, opts.schedule);
     if (roll === undefined || roll.kind === 'matured') return undefined;
     date = roll.nextCoupon;
   }
@@ -395,24 +398,50 @@ export function rollNextCoupon(
   const maturity = asset.maturity;
   if (maturity !== undefined && current >= maturity) return { kind: 'matured' };
 
-  let next =
-    schedule === undefined ? undefined : [...new Set(schedule)].sort().find((d) => d > current);
+  let step: string | undefined;
+  if (asset.payoutSchedule === 'semiannual') {
+    // `addDays` throws on a date no calendar has, where there is nothing to step from.
+    if (noCalendarDate(current)) return undefined;
+    step = addDays(current, OVDP_COUPON_PERIOD_DAYS);
+  } else {
+    const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
+    step = months === undefined ? undefined : addMonths(current, months);
+  }
+  let next = publishedNext(current, step, schedule);
   if (next === undefined) {
-    if (asset.payoutSchedule === 'semiannual') {
-      // `addDays` throws on a date no calendar has, where there is nothing to step from.
-      if (noCalendarDate(current)) return undefined;
-      const step = addDays(current, OVDP_COUPON_PERIOD_DAYS);
-      // A step past the maturity folds too; the clamp below reaches a maturity no calendar has.
-      next =
-        maturity !== undefined && daysBetween(step, maturity) <= FINAL_FOLD_DAYS ? maturity : step;
-    } else {
-      const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
-      next = months === undefined ? maturity : addMonths(current, months);
-    }
+    // A step past the maturity folds too; the clamp below reaches a maturity no calendar has.
+    next =
+      asset.payoutSchedule === 'semiannual' &&
+      step !== undefined &&
+      maturity !== undefined &&
+      daysBetween(step, maturity) <= FINAL_FOLD_DAYS
+        ? maturity
+        : (step ?? maturity);
   }
   if (next === undefined) return { kind: 'matured' }; // no period and no maturity date
   if (maturity !== undefined && next > maturity) return { kind: 'rolled', nextCoupon: maturity };
   return { kind: 'rolled', nextCoupon: next };
+}
+
+/** The first published date past the dedupe window of the date stepped off, as `couponRecorded`
+ *  takes a date inside it for the same occurrence. Off the published dates, none more than half a
+ *  period past the step: the provider drops a bond's older payments, and a jump would pass one. */
+function publishedNext(
+  current: string,
+  step: string | undefined,
+  schedule: readonly string[] | undefined,
+): string | undefined {
+  if (schedule === undefined || noCalendarDate(current)) return undefined;
+  const before = addDays(current, -COUPON_MATCH_WINDOW_DAYS);
+  const after = addDays(current, COUPON_MATCH_WINDOW_DAYS);
+  let next: string | undefined;
+  let published = false;
+  for (const d of schedule) {
+    if (d > after) next = next === undefined || d < next ? d : next;
+    else if (d >= before) published = true;
+  }
+  if (next === undefined || step === undefined || published) return next;
+  return next <= addDays(step, Math.floor(daysBetween(current, step) / 2)) ? next : undefined;
 }
 
 export interface CouponProjection {
@@ -437,12 +466,13 @@ export function couponProjection(
   /** Walked for the date: the stored pointer may be settled, or not owed. */
   transactions: Transaction[],
   onOrAfter?: string,
+  schedule?: readonly string[],
 ): CouponProjection | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
   // A CLOSED POSITION PROJECTS NOTHING, asked BEFORE the estimate and the walk: `investedByAsset`
   // ignores a `sell`, so a sold-out bond would keep projecting, relabelled `estimated: true`.
   if (units !== undefined && units <= 0) return undefined;
-  const date = owedCouponDate(asset, transactions, onOrAfter);
+  const date = owedCouponDate(asset, transactions, onOrAfter, schedule);
   if (!date) return undefined;
 
   const stated = couponPerPayment(asset, units);
@@ -458,12 +488,16 @@ const MONTHS_IN_YEAR = 12;
 
 /** `rollNextCoupon` steps the occurrences, CLAMPING to `maturity` as the roll does, from THE OCCURRENCE
  *  THE APP STILL OWES; a month counts only on units held on its payment’s record date. */
-export function scheduledCouponMonths(asset: Asset, transactions: Transaction[]): number[] {
+export function scheduledCouponMonths(
+  asset: Asset,
+  transactions: Transaction[],
+  schedule?: readonly string[],
+): number[] {
   if (asset.yieldType !== 'fixed_coupon') return [];
   const own = transactions.filter((t) => t.assetId === asset.id);
   // The DATE-ONLY walk: the amount would cost a full ledger traversal per asset
   // per render, and this never reads it.
-  const anchor = owedCouponDate(asset, own);
+  const anchor = owedCouponDate(asset, own, undefined, schedule);
   if (anchor === undefined) return [];
 
   let date = anchor;
@@ -480,7 +514,7 @@ export function scheduledCouponMonths(asset: Asset, transactions: Transaction[])
     const named = perYear > 1 && date !== asset.maturity ? (cycle[i % perYear] ?? month) : month;
     if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) months.add(named);
     if (months.size === MONTHS_IN_YEAR) break;
-    const roll = rollNextCoupon(asset, date);
+    const roll = rollNextCoupon(asset, date, schedule);
     if (roll === undefined || roll.kind === 'matured') break;
     date = roll.nextCoupon;
   }

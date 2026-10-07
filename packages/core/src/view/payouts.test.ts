@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEED_TRANSACTIONS } from '../seed';
-import { monthlyPayouts, payoutLogRows } from './payouts';
+import { monthlyPayouts, payoutLogRows, payoutsView } from './payouts';
+import { PUBLISHED_INPUT } from './test-ledgers';
 
 describe('monthlyPayouts', () => {
   const months = monthlyPayouts(SEED_TRANSACTIONS);
@@ -85,5 +86,14 @@ describe('payoutLogRows', () => {
   // arithmetic and the figure is pinned by a test.
   it('nets every row from its own two columns', () => {
     for (const r of rows) expect(r.net).toBeCloseTo(r.amount - (r.taxWithheld ?? 0), 2);
+  });
+});
+
+describe('payoutsView — the next payouts', () => {
+  it('step through the published dates the build carries', () => {
+    const dates = (input: typeof PUBLISHED_INPUT) =>
+      payoutsView(input).nextPayouts.map((r) => r.date);
+    expect(dates(PUBLISHED_INPUT)).toEqual(['2026-09-30']);
+    expect(dates({ ...PUBLISHED_INPUT, paymentDates: undefined })).toEqual(['2026-10-01']);
   });
 });

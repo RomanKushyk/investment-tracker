@@ -270,10 +270,19 @@ units. · Testing the last quote's own day in place of the last valuation day: t
 sold-out holding would value a different one bought back after a day that held none.
 
 ## Coupon cadence
-**Decision.** Where no published dates are passed, a semiannual fixed coupon steps
-`OVDP_COUPON_PERIOD_DAYS` from the stored date: in the walk, the gap a suggested quote subtracts
-and the confirm's roll on `/`. A step past the maturity, or one falling short of it by no more than
-twice the payout dedupe window, lands on the maturity, so the final period absorbs a short stub.
+**Decision.** Where a linked bond's published payment dates are passed, a roll lands on the first of
+them past the payout dedupe window of the date it steps off. When the date stepped off is not within
+the window of a published one, the first stands only up to half a period past the period's step, or
+the roll steps instead; a schedule with no period has no step to bound it. `/view`'s build passes
+the archive's dates to the walk behind the next payouts on Overview and Payouts, `/attributes`' next
+coupon, and Seasonality's expected coupons and coupon-season card; the confirm's roll on `/` and the
+gap a suggested quote subtracts pass the feed's. The reminders, the occurrence `/`'s coupon card
+asks about and the composers as the screens call them pass none until the app reads `/view`. Where
+no published date is taken, a semiannual fixed coupon steps `OVDP_COUPON_PERIOD_DAYS` from the
+stored date: in the walk, the gap a suggested quote subtracts and the confirm's roll on `/`. Where
+dates are passed, the gap counts only them. A step past the maturity, or one falling short of it by
+no more than twice the payout dedupe window, lands on the maturity, so the final period absorbs a
+short stub.
 The schedule's months name each occurrence by the month of its place in the first year's cycle,
 and the final coupon, paid with the principal, by its own. Behind the stored date the gap counts
 back in the same steps; only when the stored date is the maturity, folded or clamped onto, is the
@@ -296,14 +305,29 @@ and principal never offered. Seasonality adds a whole coupon for each month the 
 fixed-day steps cross month ends over the years, so naming each occurrence's own month would count
 a semiannual coupon three or four times a year. Behind a stored date on the grid, the grid's date is
 the coupon's, whatever day a payout was entered on. A fold or a clamp leaves no step back from the
-maturity, and the confirm records each payout on its occurrence's date before it rolls.
-**Rejected.** The stored date as a fixed anchor for the grid: it overloads the "Next coupon" field,
-and an edit silently rewrites the rule. · A month grid keeping the first date's day: it changes
-none of the misses. · A stored roll convention for the month-based schedules now: it reaches the
-asset row, the backup format, the CSV and the cluster's schema, so it waits for the cutover. · A
-schedule's months bounded to its first year: a month the position pays in again after a sale and
-a buy-back drops out. · Reading every coupon behind the stored date off the ledger: a payout
-entered days late moves the coupon onto its own date, and an earlier stray entry stands in for it.
+maturity, and the confirm records each payout on its occurrence's date before it rolls. The fixed
+step still misses where an issue's period departs from it, as one listed bond's does
+(`reference/OVDP-COUPON-STRUCTURE.md`), and the record date moves with it, so a trade dated between
+the two record dates is judged on the wrong one. A published date inside the dedupe window of the
+date stepped off is that same occurrence, as `couponRecorded` takes a payout inside it for it, so a
+roll off a date beside a published one, short of the last, passes that occurrence. The provider
+drops a bond's older payments, so the dates served can start a period or more after the stored date,
+or after the paid date a confirm on `/` rolls off. A next date more than half a period past the step
+leaves at least one payment out between, so the step bridges to it; a nearer one is the step's own
+occurrence. From a date still listed none between can have been dropped, so nothing bounds the roll.
+QuantLib's `Schedule` takes any list of dates beside its rule-based form, as the roll takes the
+published dates beside its step
+([schedule.hpp](https://github.com/lballabio/QuantLib/blob/master/ql/time/schedule.hpp)).
+**Rejected.** Storing a linked bond's dates on the asset: a copy that would not follow the archive's
+later terms. · Counting the units within a tolerance window around a stepped date instead of taking
+the published one: the record date would still be a guess. · The stored date as a fixed anchor for
+the grid: it overloads the "Next coupon" field, and an edit silently rewrites the rule. · A month
+grid keeping the first date's day: it changes none of the misses. · A stored roll convention for the
+month-based schedules now: it reaches the asset row, the backup format, the CSV and the cluster's
+schema, so it waits for the cutover. · A schedule's months bounded to its first year: a month the
+position pays in again after a sale and a buy-back drops out. · Reading every coupon behind the
+stored date off the ledger: a payout entered days late moves the coupon onto its own date, and an
+earlier stray entry stands in for it.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

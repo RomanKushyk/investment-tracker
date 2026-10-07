@@ -6,7 +6,7 @@ import { purchaseUnitPrice, unitsByAsset } from '../derive';
 import { impliedYield } from '../inzhur/dcf';
 import { matchAssets, NO_UNITS, type ParsedFeed } from '../inzhur/parse';
 import type { Asset, PayoutSchedule, Transaction } from '../types';
-import type { FeedInput, LedgerInput } from './input';
+import type { FeedInput, LedgerInput, PaymentDatesInput } from './input';
 import { yieldView } from './yield';
 
 export function dividendDayOfMonth(
@@ -101,8 +101,10 @@ export type AttributeCard = BondCard | MarketCard;
 
 /** The Attributes screen's facts, one card per asset. A market asset's return is `/yield`'s
  *  row at `all`, the full history. */
-export function attributesView(input: LedgerInput & FeedInput): { cards: AttributeCard[] } {
-  const { transactions, feed } = input;
+export function attributesView(input: LedgerInput & FeedInput & PaymentDatesInput): {
+  cards: AttributeCard[];
+} {
+  const { transactions, feed, paymentDates } = input;
   const units = unitsByAsset(transactions);
   return {
     cards: yieldView({ ...input, period: 'all' }).rows.map((row): AttributeCard => {
@@ -113,7 +115,9 @@ export function attributesView(input: LedgerInput & FeedInput): { cards: Attribu
           asset,
           ytm: derivedYtmPct(asset, transactions, feed),
           coupon: couponPerPayment(asset, units[asset.id]),
-          nextCoupon: nextUnsettledCouponDate(asset, transactions),
+          nextCoupon: nextUnsettledCouponDate(asset, transactions, {
+            schedule: paymentDates?.get(asset.id),
+          }),
         };
       }
       return {

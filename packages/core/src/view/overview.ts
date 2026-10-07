@@ -28,7 +28,7 @@ import {
   usableTotal,
 } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
-import type { ClockInput, LedgerInput, PeriodInput } from './input';
+import type { ClockInput, LedgerInput, PaymentDatesInput, PeriodInput } from './input';
 import { windowView } from './window';
 import { xirrIsExtrapolatedIn, yieldTableRowsIn } from './yield';
 
@@ -205,6 +205,7 @@ export function nextPayoutRows(
   assets: Asset[],
   transactions: Transaction[],
   onIso: string,
+  paymentDates?: PaymentDatesInput['paymentDates'],
 ): PayoutRow[] {
   const rows: PayoutRow[] = [];
   const invested = investedByAsset(transactions);
@@ -218,6 +219,7 @@ export function nextPayoutRows(
         units[asset.id],
         transactions,
         onIso,
+        paymentDates?.get(asset.id),
       );
       if (coupon === undefined) continue;
       rows.push({
@@ -290,8 +292,10 @@ export interface OverviewView {
 
 /** The Overview screen's figures: stock figures stand still across the period and returns
  *  window; the next payouts count from `today`, as "what comes next" asks the calendar. */
-export function overviewView(input: LedgerInput & PeriodInput & ClockInput): OverviewView {
-  const { assets, snapshots, transactions, today } = input;
+export function overviewView(
+  input: LedgerInput & PeriodInput & ClockInput & PaymentDatesInput,
+): OverviewView {
+  const { assets, snapshots, transactions, today, paymentDates } = input;
   const values = heldValues(assets, snapshots, transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
@@ -319,6 +323,6 @@ export function overviewView(input: LedgerInput & PeriodInput & ClockInput): Ove
       return { asset, value, share, yield: deltaTotal };
     }),
     underweight: mostUnderweightAsset(assets, values, base),
-    nextPayouts: nextPayoutRows(assets, transactions, today),
+    nextPayouts: nextPayoutRows(assets, transactions, today, paymentDates),
   };
 }

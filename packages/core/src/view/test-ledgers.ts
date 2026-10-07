@@ -117,6 +117,44 @@ export const TEST_LEDGERS: TestLedger[] = [
   },
 ];
 
+// Beside the golden master's ledgers, not among them: a linked bond whose published dates the build
+// carries. Its first period is 181 days and ends on the 30th, where a 182-day step reads the 1st.
+export const PUBLISHED_DATES = [
+  '2026-04-02',
+  '2026-09-30',
+  '2027-03-31',
+  '2027-09-29',
+  '2028-03-29',
+  '2028-09-27',
+];
+export const PUBLISHED_BOND: Asset = {
+  id: 'pub',
+  name: 'OVDP UA0000000340',
+  code: 'GB',
+  colorKey: 'ovdp8976',
+  yieldType: 'fixed_coupon',
+  expectedPct: 16,
+  targetPct: 10,
+  payoutSchedule: 'semiannual',
+  firstPurchase: '2026-03-01',
+  createdAt: '2026-03-01T10:00:00',
+  maturity: '2028-09-27',
+  couponAmount: 500,
+  nextCoupon: '2026-04-02',
+  inzhur: { kind: 'bond', ref: 'UA0000000340' },
+};
+export const PUBLISHED_INPUT: ViewInput = {
+  assets: [PUBLISHED_BOND],
+  snapshots: [],
+  transactions: [
+    { id: 'd1', date: '2026-03-01', type: 'deposit', assetId: '', amount: 10_000 },
+    { id: 'b1', date: '2026-03-01', type: 'buy', assetId: 'pub', amount: 10_000, quantity: 10 },
+    { id: 'p1', date: '2026-04-02', type: 'interest_payout', assetId: 'pub', amount: 500 },
+  ],
+  today: TODAY,
+  paymentDates: new Map([['pub', PUBLISHED_DATES]]),
+};
+
 // Each stored quote is a ₴ position value; divided by the units held that day it is the per-unit
 // price the server would store for it. Any quote of a position held none of has no such price, and
 // the ledger is then not expressible: undefined.

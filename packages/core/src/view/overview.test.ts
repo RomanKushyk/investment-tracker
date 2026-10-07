@@ -13,7 +13,7 @@ import {
   portfolioXirrIn,
   netResultIn,
 } from './overview';
-import { TEST_LEDGERS } from './test-ledgers';
+import { PUBLISHED_INPUT, TEST_LEDGERS } from './test-ledgers';
 import { yieldView } from './yield';
 
 const TOTAL = 149016.36;
@@ -324,6 +324,16 @@ describe('nextPayoutRows — a coupon the walk passes is not next', () => {
       { id: 'p9', date: '2027-02-26', type: 'interest_payout', assetId: 'bond2', amount: 500 },
     ];
     expect(nextPayoutRows([maturityOnly], rows, '2027-02-26')).toEqual([]);
+  });
+});
+
+describe('next payouts step through the published dates the build carries', () => {
+  const dates = (input: typeof PUBLISHED_INPUT) =>
+    overviewView({ ...input, period: 'all' }).nextPayouts.map((r) => r.date);
+
+  it('dates the coupon on the published date, not the 182-day step', () => {
+    expect(dates(PUBLISHED_INPUT)).toEqual(['2026-09-30']);
+    expect(dates({ ...PUBLISHED_INPUT, paymentDates: undefined })).toEqual(['2026-10-01']);
   });
 });
 

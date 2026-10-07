@@ -1,7 +1,7 @@
 // Pure data-shaping for the Payouts screen: imports core/ only. Covered by payouts.test.ts.
 import { incomeReceived, reinvestedTotal } from '../derive';
 import type { Transaction, TxType } from '../types';
-import type { ClockInput, LedgerInput } from './input';
+import type { ClockInput, LedgerInput, PaymentDatesInput } from './input';
 import { nextPayoutRows, type PayoutRow } from './overview';
 
 export interface MonthlyPayout {
@@ -91,14 +91,15 @@ export function payoutsView({
   assets,
   transactions,
   today,
-}: Pick<LedgerInput, 'assets' | 'transactions'> & ClockInput): PayoutsView {
+  paymentDates,
+}: Pick<LedgerInput, 'assets' | 'transactions'> & ClockInput & PaymentDatesInput): PayoutsView {
   const income = incomeReceived(transactions);
   const reinvested = reinvestedTotal(transactions);
   return {
     income,
     reinvested,
     reinvestedPct: income.total === 0 ? 0 : (reinvested / income.total) * 100,
-    nextPayouts: nextPayoutRows(assets, transactions, today),
+    nextPayouts: nextPayoutRows(assets, transactions, today, paymentDates),
     months: monthlyPayouts(transactions),
     log: payoutLogRows(transactions),
   };

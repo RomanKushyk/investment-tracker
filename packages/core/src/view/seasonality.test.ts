@@ -21,6 +21,7 @@ import { resolveWindow } from '../period';
 import type { PeriodOption } from '../period';
 import { portfolioStart, transactionsFrom } from '../derive';
 import { latestSnapshotDate } from '../dates';
+import { PUBLISHED_INPUT } from './test-ledgers';
 
 describe('seasonalityDays', () => {
   const days = seasonalityDays(SEED_TRANSACTIONS, SEED_ASSETS);
@@ -268,6 +269,49 @@ describe('bondCouponInfo — the forecast is the occurrence the ledger is owed',
     const b6475 = view.otherBonds.find((o) => o.asset.id === 'ovdp6475');
     expect(b6475?.month).toBe(8);
     expect(b6475?.info?.day).toBe(26);
+  });
+});
+
+describe('the expected coupons step through the published dates the build carries', () => {
+  const view = (input: typeof PUBLISHED_INPUT) => seasonalityView({ ...input, period: 'all' });
+  const expectedMonths = (v: ReturnType<typeof view>) =>
+    v.months.filter((m) => m.expected !== undefined).map((m) => m.month);
+  const expectedDays = (v: ReturnType<typeof view>) =>
+    v.days.filter((d) => d.expected !== undefined).map((d) => [d.day, d.expectedAssetId]);
+  const withDates = view(PUBLISHED_INPUT);
+  const without = view({ ...PUBLISHED_INPUT, paymentDates: undefined });
+
+  it("names the published dates' months", () => {
+    expect(expectedMonths(withDates)).toEqual([3, 9]);
+    expect(expectedMonths(without)).toEqual([4, 9, 10]);
+  });
+
+  it("puts the expected bar on the published date's day", () => {
+    expect(expectedDays(withDates)).toEqual([[30, 'pub']]);
+    expect(expectedDays(without)).toEqual([[1, 'pub']]);
+  });
+
+  it('forecasts the coupon-season card in the published month', () => {
+    expect(withDates.bigBondInfo?.months).toEqual([4, 9]);
+    expect(without.bigBondInfo?.months).toEqual([4, 10]);
+  });
+
+  it('draws the month bars wherever the day bar is, when only the published dates owe a coupon', () => {
+    // Payouts entered on the steps, more than the dedupe window after the published date: the
+    // step settles every occurrence, the published dates still owe 15.09.
+    const input: typeof PUBLISHED_INPUT = {
+      ...PUBLISHED_INPUT,
+      assets: [{ ...PUBLISHED_INPUT.assets[0], maturity: '2027-03-31' }],
+      transactions: [
+        ...PUBLISHED_INPUT.transactions,
+        { id: 'p2', date: '2026-10-01', type: 'interest_payout', assetId: 'pub', amount: 500 },
+        { id: 'p3', date: '2027-03-31', type: 'interest_payout', assetId: 'pub', amount: 500 },
+      ],
+      paymentDates: new Map([['pub', ['2026-04-02', '2026-09-15', '2027-03-31']]]),
+    };
+    const v = view(input);
+    expect(expectedDays(v)).toEqual([[15, 'pub']]);
+    expect(expectedMonths(v)).toEqual([3, 9]);
   });
 });
 
