@@ -216,12 +216,21 @@ export function couponsInGap(
   // One whole period of margin behind the gap start: a day-of-month difference can
   // never span a full period, so no counted date sits before this index.
   const startIndex = Math.floor(monthsToGap / months) - 1;
+  // A stored date past the maturity is not folded onto it.
+  const clamp = maturity !== undefined && anchor <= maturity;
 
   let total = 0;
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
-    const date = addMonths(anchor, (startIndex + i) * months);
+    let date = addMonths(anchor, (startIndex + i) * months);
+    // The roll clamps onto a maturity no calendar has, which the walk owes nothing on.
+    if (clamp && date > maturity && noCalendarDate(maturity)) break;
+    // Nothing past the maturity: the final coupon lands on it, and a grid date inside the dedupe
+    // window before it is that payment, as a payout on either settles both.
+    const last = clamp && daysBetween(date, maturity) <= COUPON_MATCH_WINDOW_DAYS;
+    if (last) date = maturity;
     if (date > toInclusive) break;
     if (date > fromExclusive) total += perCouponAt(date) ?? 0;
+    if (last) break;
   }
   return total;
 }

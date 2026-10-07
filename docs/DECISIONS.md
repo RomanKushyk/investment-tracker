@@ -321,7 +321,16 @@ from its start in the same steps. Where the start is the maturity, folded or cla
 no published date answers the first step back, the coupon before it is the latest one recorded in the
 ledger, where one is, dated by its first entry. A monthly or
 quarterly coupon keeps the month grid, whose roll clamps to a shorter month's last day and onto the
-maturity.
+maturity. Without the dates, from a stored date not past the maturity, the grid's gap stops at the
+maturity. On a maturity the calendar has, it counts the final coupon there, and takes a grid date
+inside the dedupe window before the maturity and the maturity as one coupon, counted on the maturity
+and sized on its record date. On and past a maturity no calendar has it counts nothing, as the walk
+owes nothing there. The gap's grid keeps the stored date's day of the month, clamped only in a
+shorter month, while the roll steps on from the day it clamped to. After such a clamp the walk can
+offer an earlier day outside the window where the grid date is inside it, and name two payments
+where the gap counts one. Otherwise the walk, the reminders and `/`'s coupon card offer that grid
+date, and the confirm records it and rolls from it onto the maturity. A stored date past the
+maturity is not folded onto it, and the grid counts on from it.
 **Why.** Resolution No. 80 sets an OVDP coupon as a fixed amount per period, the number of periods a
 year being the issuer's ([80-2001-п](https://zakon.rada.gov.ua/laws/show/80-2001-%D0%BF)), and an
 issue's published dates are spaced by one fixed period, which the feed-fixture test in
@@ -337,8 +346,10 @@ of it: a final period up to twice that could be settled at both ends by one payo
 and principal never offered. Without the dates, no semiannual step lands inside the window before
 the maturity, so only a stored date can sit there, and the walk takes a payout on it for the
 maturity's too and names one payment. Starting the gap on the maturity counts it before the confirm
-as after it. An OVDP pays its final coupon with the principal on the maturity date: every bond in
-the feed captures makes its last payment on its maturity, which the feed-fixture test in
+as after it. A grid date can land inside that window, and a payout on it settles the maturity too,
+so the grid's gap counts the two as one payment, as the walk does where it offers the same date. An
+OVDP pays its final coupon with the principal on the maturity date: every bond in the feed captures
+makes its last payment on its maturity, which the feed-fixture test in
 `accrual.test.ts` measures. The price drops on the day the coupon is paid, so the gap places the one
 coupon there. Seasonality adds a whole coupon for each month the schedule names, and
 fixed-day steps cross month ends over the years, so naming each occurrence's own month would count
