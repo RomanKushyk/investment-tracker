@@ -1554,6 +1554,81 @@ describe('the walk starts on the published date the stored one stands for', () =
     expect(owedCouponDate(a, ledger, undefined, ['2026-10-01'])).toBe('2026-12-31');
     expect(scheduledCouponMonths(a, ledger, ['2026-10-01'])).toEqual([12]);
   });
+
+  // The confirm on `/` rolls off the date its card offered, dated by a walk without the dates, so
+  // the roll reads it as the walk's start does: one occurrence named by one date.
+  describe('the roll steps off the published date the date it steps off stands for', () => {
+    it('leaves a confirm of a hand-edited date past the published date it recorded', () => {
+      const a = bond({ nextCoupon: '2027-05-14', maturity: '2028-11-29' });
+      const roll = rollNextCoupon(a, '2027-05-14', DATES_5782);
+      expect(roll).toEqual({ kind: 'rolled', nextCoupon: '2027-12-01' });
+      // Without the dates the roll steps the period.
+      expect(rollNextCoupon(a, '2027-05-14')).toEqual({ kind: 'rolled', nextCoupon: '2027-11-12' });
+      // The payout keeps the offered date, and the walk offers the next payment either way.
+      const rolled = bond({
+        nextCoupon: roll?.kind === 'rolled' ? roll.nextCoupon : undefined,
+        maturity: '2028-11-29',
+      });
+      const ledger = [buy('b0', '2027-01-10'), tx({ id: 'p0', date: '2027-05-14' })];
+      expect(nextUnsettledCouponDate(rolled, ledger, { schedule: DATES_5782 })).toBe('2027-12-01');
+      expect(nextUnsettledCouponDate(rolled, ledger)).toBe('2027-12-01');
+    });
+
+    it('matures a confirm of a hand-edited date that stands for the maturity', () => {
+      const a = bond({ nextCoupon: '2028-11-09', maturity: '2028-11-29' });
+      expect(rollNextCoupon(a, '2028-11-09', DATES_5782)).toEqual({ kind: 'matured' });
+      // The pointer stays, and the walk given the dates takes the payout for the final coupon.
+      const ledger = [buy('b0', '2027-01-10'), tx({ id: 'p0', date: '2028-11-09' })];
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES_5782 })).toBe(undefined);
+    });
+
+    it('matures, without throwing, onto a maturity no calendar has', () => {
+      const a = bond({ nextCoupon: '2026-12-20', maturity: '2026-13-01' });
+      expect(rollNextCoupon(a, '2026-12-20', ['2026-06-20', '2027-01-05'])).toEqual({
+        kind: 'matured',
+      });
+    });
+
+    it('steps a quarterly roll off the date as handed, so the walk keeps a date it bridged short of', () => {
+      // 28.05 is the step the walk bridged to, 07.12 more than half a period past the 28.02 step.
+      const DATES = ['2027-07-12', '2027-10-12', '2028-01-12'];
+      const a = bond({
+        payoutSchedule: 'quarterly',
+        nextCoupon: '2027-02-28',
+        maturity: '2028-01-12',
+      });
+      expect(rollNextCoupon(a, '2027-05-28', DATES)).toEqual({
+        kind: 'rolled',
+        nextCoupon: '2027-07-12',
+      });
+      const paid = [
+        buy('b0', '2027-01-10'),
+        tx({ id: 'p0', date: '2027-02-28' }),
+        tx({ id: 'p1', date: '2027-05-28' }),
+      ];
+      expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe('2027-07-12');
+    });
+
+    it('rolls a confirm a day either side of a published date past it', () => {
+      const a = bond({ nextCoupon: '2027-12-02', maturity: '2028-11-29' });
+      expect(rollNextCoupon(a, '2027-12-02', DATES_5782)).toEqual({
+        kind: 'rolled',
+        nextCoupon: '2028-05-31',
+      });
+      expect(rollNextCoupon(a, '2027-11-30', DATES_5782)).toEqual({
+        kind: 'rolled',
+        nextCoupon: '2028-05-31',
+      });
+    });
+
+    it('bridges with the step from a confirm with no published date within half a period', () => {
+      const a = bond({ nextCoupon: '2025-10-15', maturity: '2027-04-14' });
+      expect(rollNextCoupon(a, '2025-10-15', ['2026-10-14', '2027-04-14'])).toEqual({
+        kind: 'rolled',
+        nextCoupon: '2026-04-15',
+      });
+    });
+  });
 });
 
 describe('scheduledCouponMonths — D-5, answered forward', () => {

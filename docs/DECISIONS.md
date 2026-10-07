@@ -276,8 +276,16 @@ the window of a published one, the first stands only up to half a period past th
 the roll steps instead; a schedule with no period has no step to bound it. Where the dates are
 passed, the walk starts on the published date the stored coupon date stands for: the nearest within
 half a period, the earlier at an equal distance, and the maturity in place of one past it. With none
-that near, or a schedule with no period, the stored date stands and the roll bridges from it. The
-maturity a walk falls back to with no coupon date stored is not mapped. A payout recorded within the
+that near, or a schedule with no period, the stored date stands and the roll bridges from it. A
+semiannual roll handed the dates steps off the published date the date it is handed stands for, by
+the same rule, and reports the bond matured where that is the maturity. So for a semiannual bond the
+confirm on `/`, which rolls off the date its card offered, does not move `nextCoupon` onto the
+published date a hand edit's payout records, and the payout keeps the offered date. A monthly or
+quarterly roll steps off the date as handed, so a hand edit more than the dedupe window off a
+published date still rolls onto it: the bridge measures half a period off the date before, and month
+lengths differ, so that half can be shorter than the half the start reaches from the date after, and
+a mapped step could pass a date the walk bridged short of. The maturity a walk falls back to with no
+coupon date stored is not mapped. A payout recorded within the
 dedupe window of the stored date settles the occurrence the stored date stands for, unless another
 published date within the window of the payout, owed and with no other payout beside it, claims the
 payout. A Skip recorded against the stored date settles that occurrence too, where the walk is
@@ -389,7 +397,10 @@ for the cutover, and a confirm made without the feed would still need the neares
 fallback. · Giving a payout beside the stored date to the published date nearest the payout, or to
 none when another is beside it: a late payout for the start goes to a date already paid or not owed.
 · Counting behind the start the published dates, then stepping back only from the earliest of them:
-a start past the last date served loses the steps the roll took to reach it.
+a start past the last date served loses the steps the roll took to reach it. · The confirm recording
+the payout on the published date instead of the offered one: the card shows the offered date and says
+history is never rewritten, so the row would carry a date the user did not confirm. · `/` offering
+the published date: its walk passing the dates waits for the app reading `/view`, as above.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

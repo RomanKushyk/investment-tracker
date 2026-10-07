@@ -426,6 +426,8 @@ export type CouponRoll = { kind: 'rolled'; nextCoupon: string } | { kind: 'matur
  * The date NEVER moves past `maturity`: the final coupon lands on it, with the
  * principal. `from` overrides the start for callers that know the occurrence
  * they stepped off — the asset’s pointer may lag onto a date already settled.
+ * With the dates, a semiannual roll steps off the published date the occurrence stands for, as the
+ * walk starts: the confirm on `/` rolls off the offered date, which a hand edit can leave off them.
  */
 export function rollNextCoupon(
   asset: Asset,
@@ -440,8 +442,13 @@ export function rollNextCoupon(
 
   // `addDays` throws on a date no calendar has, where there is nothing to step from.
   if (asset.payoutSchedule === 'semiannual' && noCalendarDate(current)) return undefined;
-  const step = periodStep(asset, current);
-  let next = publishedNext(current, step, schedule);
+  // A month grid's bridge measures half a period off the date before, and month lengths differ, so
+  // mapping its steps would pass a date the walk bridged short of.
+  const start =
+    asset.payoutSchedule === 'semiannual' ? publishedStart(asset, current, schedule) : current;
+  if (maturity !== undefined && start >= maturity) return { kind: 'matured' };
+  const step = periodStep(asset, start);
+  let next = publishedNext(start, step, schedule);
   if (next === undefined) {
     // A step past the maturity folds too; the clamp below reaches a maturity no calendar has.
     next =
@@ -465,8 +472,8 @@ function periodStep(asset: Asset, current: string): string | undefined {
   return months === undefined ? undefined : addMonths(current, months);
 }
 
-/** The published date a stored coupon date stands for: the nearest within half a period, the earlier
- *  at a tie, never past the maturity as the roll never is. With none that near, the stored date. */
+/** The published date a coupon date stands for: the nearest within half a period, the earlier at a
+ *  tie, never past the maturity as the roll never is. With none that near, the date itself. */
 function publishedStart(
   asset: Asset,
   stored: string,

@@ -34,7 +34,7 @@ export function CouponDueCard({
   /** Amount to prefill (feed forecast or the stated coupon); undefined = empty. */
   prefill: number | undefined;
   /** The provider's published payment dates, when the asset is linked: the roll prefers them to its
-   *  own step, which reaches the real dates only from a stored date on them. */
+   *  own step, and a semiannual one reads the offered date as the published date it stands for. */
   schedule: readonly string[] | undefined;
   onSkip: () => void;
 }) {
