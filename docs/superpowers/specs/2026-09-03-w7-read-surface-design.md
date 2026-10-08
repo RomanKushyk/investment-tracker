@@ -49,7 +49,8 @@ ETag, keeping #48's own asymmetry.
 
 `PERIOD_OPTIONS` is six values (`@quirenote/core/period`) and currency is one multiplication, so `/view`
 ships all six period blocks in ₴ with the rate beside them: a period change and a currency flip both
-cost **zero requests**, and language and theme are presentation only. That is what keeps the
+cost **zero `/view` reads** — a period change writes the account's settings (*Persistence today*) —
+and language and theme are presentation only. That is what keeps the
 fluid-motion requirement intact, and it removes the cache-key combinatorics — an endpoint with no
 parameters has one cache entry per user per `data_version`. The two parameterized endpoints pay a
 request on period change and page change, which read as a chart or a table loading rather than the
@@ -57,22 +58,31 @@ whole app stalling.
 
 ## §3 — What the client stores, and why it is not zero
 
-«Мінімум даних, а краще нічого» — the minimum is **one field**, and it is pre-network rather than a
-preference: `theme`, because `index.html` reads it in a `<script>` that runs **before the module
-bundle**, so a server round trip would paint the wrong theme first.
+«Мінімум даних, а краще нічого» — the minimum is **one field**, and it is the device's own rather
+than a copy: `theme`, which can defer to or override the device's own colour scheme, and which
+`index.html` reads in a `<script>` that runs **before the module bundle**. *Persistence today* binds
+the rule (a stored value is scoped by what it names); this section is the working. Every other
+durable setting that outlives the migration is the account's, and the device keeps its store as a
+COPY of them, a cache and
+never a second source, overwritten by the account's answer on every load, because a paint comes
+before that answer: the shell's first render reads the rail, and a signed-out page, whose bar sets
+the language, has no account to ask.
 
-**`dataset` is not a second one, because the thing that pinned it locally is being retired.**
+**`dataset` keeps no copy, because the thing that pinned it locally is being retired.**
 `src/lib/db.ts` resolves it synchronously at module init, before React exists, because it binds a
 Dexie database — a constraint that holds only while there are two local databases to bind, and W7
 retires the split along with IndexedDB and the dataset guards. The constraint dies with the thing that
-created it, so `dataset` is an ordinary preference, and with the demo a public route a signed-out
-visitor reaches there is nothing left for it to select.
+created it, and with the demo a public route a signed-out visitor reaches there is nothing left for
+it to select, so it retires rather than moving.
 
 **This is about SETTINGS.** The two durable `meta` keys `inzhur:lastFetch` and `inzhur:lastParse`
 stay per-device exactly as #48 §2 pins them; they are caches of provider payloads, not preferences.
 `nbu:lastRate` was a third: once `/view` serves the rate the server stores, it caches nothing the
-client needs, and #191 retires it. Everything else durable in the settings object moves to the server and becomes
-cross-browser, which is *Cloud target*'s stated priority rather than a bonus. `currency` moves nowhere
+client needs, and #191 retires it. Everything else durable in the settings object but `theme`,
+`dataset` and `usdRate` moves to the server and becomes cross-browser, which is *Cloud target*'s
+stated priority rather than a bonus — into ONE NULLABLE TEXT COLUMN ON `app_user`, the account's
+fields as JSON, text as `bond_terms.payment_schedule` is, a write merging the fields it names and
+`migrateSettings`' rule for each moving into core. `currency` moves nowhere
 — flipping to `$` to read one KPI is not a preference and must not outlive the tab. And **`usdRate` is
 stored NOWHERE as a setting**, on the owner's ruling: *"він потрібний лише в момент показу і може тягнутись (і
 тягнеться) з API НБУ"*. Two things that collides with, neither a reason to refuse it — they are its
@@ -151,6 +161,10 @@ the same store as `live` or beside it.
 
 - **Deletion.** `asset.delete` cascade semantics are *User schema and deletes*'; nothing here picks or
   depends on them.
+- **The settings route.** Which endpoint reads and writes the `app_user` settings column, and whether
+  a settings write moves `data_version` — and with it `/view`'s tag and every other device's
+  `If-Match` — belong to W7's implementation task; *Persistence today* fixes the column, the merge
+  and which settings follow the account.
 - **The `/view` payload's field-by-field schema.** §1 pins that it is the union of the existing
   view-model interfaces; the exact JSON, its versioning and its migration story belong to W7's
   implementation task.

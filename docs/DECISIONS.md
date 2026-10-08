@@ -45,7 +45,30 @@ projects is how the backend's tests get lost.
 ## Persistence today
 **Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; two databases — demo,
 seeded, and live, never auto-seeded — bound once at boot. Every persisted setting joins `partialize`
-in the commit that adds it. The JSON backup envelope refuses a newer, an older and an unreadable
+in the commit that adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
+One the platform answers each time it is asked — reduced motion, the colour the OS resolves, the
+viewport's side of the breakpoint — is DERIVED and stored nowhere. One naming a thing only this
+device holds, or offering to defer to what this device's platform answers, is PER-DEVICE and stays
+with that device: a provider payload's cache under a `meta` key; the store's `dataset`, which binds
+a database until it retires; and THE THEME, whose `system` defers to the OS's colour scheme. The
+rest but `usdRate` are a person's choices, and AT THE MIGRATION THEY FOLLOW THE ACCOUNT: the default
+currency, the language, the period, both suggestion switches, the reminder switch and its lead, the
+dismissed reminders with the skipped coupons among them, the collapsed nav groups and the rail. At
+the migration two fields retire: `dataset`, with nothing left to select once the demo is an identity
+of its own (*User schema and deletes*), and `usdRate`, the rate being the server's row (*External
+sources*). `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
+`system | light | dark`, `system` by default, and the resolved colour is never stored. From the
+migration THE DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which the
+account's answer overwrites on every load, because a paint comes before that answer: the shell's
+first render reads the rail, and a signed-out page has no account at all, so there the copy is what
+applies and the signed-out bar's language control writes it. AT THE MIGRATION THE ACCOUNT'S SETTINGS
+BECOME ONE NULLABLE TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their
+defaults; A WRITE MERGES THE FIELDS IT NAMES onto those stored and leaves the rest as they are; and
+the sanitiser of those fields, `migrateSettings`' rule for each, moves into core so both sides run
+it. The backup's `settings` member carries no per-device field: today a restore the person opts into
+sets the device's default currency and rate, and from the migration it sets the account's default
+currency.
+The JSON backup envelope refuses a newer, an older and an unreadable
 version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
 `inzhur`, a snapshot's quotes — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
 (`__proto__`, `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest), both by place
@@ -87,7 +110,28 @@ attacks; a note and an asset's name are free text. The guard goes by the value's
 every other value is text, a column added later included. Every other reader pays for it: a
 program reading the file gets the apostrophe as part of the cell, and the JSON backup stays the
 lossless copy. It holds while the file is as exported — OWASP warns Excel may drop it on a save
-and re-open.
+and re-open. A setting that names a local database is wrong on the next device however it feels, and
+feeling UI-ish is no rule: VS Code's sync takes every user setting except those of `machine` or
+`machine-overridable` scope and those a user excludes, and syncs the display language, view layout
+and visibility and the "do not show again" choices. The theme stays with the device because the
+colour scheme it can defer to or override is the device's own, and a phone and a desk can want
+different ones: Slack keeps its dark mode per device, and Discourse's selector writes a cookie that
+overrides the account's preference. Under `prefers-color-scheme`, `light` also means no preference
+expressed, so a stored resolved colour cannot say "follow the system", and an OS that switches by
+the hour would stay at whichever colour was resolved last. The language offers no `system`, an OS
+guess rewriting every figure's grammar (*Language, numbers, fonts*), so the app never defers it to
+the device and by the rule it is the person's; W3C's i18n guidance is not to decide a locale from
+`Accept-Language` alone and to store the choice for later visits. A Skip passes a coupon occurrence
+in the walk (*Coupon cadence*), so a browser cannot own it. The copy covers every account setting,
+not only what a signed-out page shows, because the first render reads the store synchronously, and a
+rail read from the network would open as the panel and then close. A write of the whole object, from
+a device that loaded before another's change or from an older build that does not know a newer
+field, would put back what it holds; a JSON merge patch (RFC 7396) changes the members it names and
+leaves the rest untouched. The gate reads `app_user` on every authorized request, so the settings
+are one more column on a row already read. A column added later on DSQL arrives plain and nullable,
+and a default or a `NOT VALID` CHECK follows as a statement of its own, never a NOT NULL
+(`infra/docs/dsql-constraints.md`), so a typed column per setting makes every new setting a
+migration where a text column makes it none — persist doctrine's third rule, kept on the server.
 **Rejected.** A library's own dump format: the envelope has to be app-owned, human-readable and
 domain-validated. · Preserving unknown keys through the round trip, as a relay does: it becomes
 right the day the backup carries data between two builds as a sync or merge channel, where a
@@ -110,7 +154,21 @@ converting at both ends of the JSON backup, which cannot hold one; a null-protot
 survive the store or the backup, since `structuredClone` and a JSON round trip both return an
 ordinary object, so that route is an `Object.hasOwn` read at every site that reads a map by an asset id, plus a guard
 to keep them that way. One refusal at the only door for such an id covers every file imported from
-now on.
+now on. · Storing the resolved colour: it cannot represent "follow the system". · A `system`
+language: an OS guess would rewrite every figure on screen (*Language, numbers, fonts*). · The theme
+on the account, as Mastodon and Grafana keep the colour scheme, GitLab its colour mode on the user's
+row and VS Code its colour theme among the user settings it syncs: it can defer to an answer each
+device's platform gives for itself, the owner ruled it the device's, and with `system` the default a
+person who never picks one sees each device's own. · A copy of the language alone: the rail and the
+nav groups also paint before the account answers. · Filling an empty account from the device's copy:
+the copy outlives a sign-out, so a new account on that device would inherit the last one's choices
+and, in its skipped coupons, that account's asset ids. · A settings table of typed columns, GitLab's
+and Discourse's shape: each new setting becomes a migration, its default and its CHECK each a
+further statement and the CHECK only `NOT VALID`, to hold what the sanitiser already holds on every
+read. · `jsonb` for the column: supported with no index, nothing queries inside the settings, and a
+column's type is an alteration DSQL cannot make later — the reason `bond_terms` holds its schedule
+as text. · A stored reduced-motion switch, as Mastodon keeps one: the OS already holds the answer,
+and this app obeys it everywhere (*Interaction rules*).
 
 ## Derived figures and the seed
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a
