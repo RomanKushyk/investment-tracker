@@ -5,7 +5,7 @@ import { allocationView, type AllocationView } from './allocation';
 import { attributesView, type AttributeCard } from './attributes';
 import { balancesView, type BalancesView } from './balances';
 import { capitalView, type CapitalView } from './capital';
-import type { ViewInput } from './input';
+import type { ClockInput, LedgerInput, ViewInput } from './input';
 import { overviewView, type OverviewView } from './overview';
 import { payoutsView, type PayoutsView } from './payouts';
 import { portfolioView, type PortfolioView } from './portfolio';
@@ -30,9 +30,21 @@ export interface View {
   capital: CapitalView;
 }
 
+/** The ledger a composed figure reads, nothing dated after the caller's day (*Derived figures and
+ *  the seed*). Generic, so a `ViewInput` keeps its feed and payment dates. */
+export function ledgerAsOf<T extends LedgerInput & ClockInput>(input: T): T {
+  const { today } = input;
+  return {
+    ...input,
+    transactions: input.transactions.filter((t) => t.date <= today),
+    snapshots: input.snapshots.filter((s) => s.date <= today),
+  };
+}
+
 /** All six periods in ₴, so a period change or a currency flip costs no request; a screen
  *  that takes no period appears once, as the Balances chart is one point per snapshot. */
-export function buildView(input: ViewInput): View {
+export function buildView(raw: ViewInput): View {
+  const input = ledgerAsOf(raw);
   const at = (period: PeriodOption): PeriodView => {
     const withPeriod = { ...input, period };
     return {

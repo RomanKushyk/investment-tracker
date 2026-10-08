@@ -181,7 +181,12 @@ every day a held asset is observed on, every transaction day, and the day before
 resolved by the window composer — each asset at that day's units × price, rounded once to the
 kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
 transaction dated after the last observation closes them at carried prices, a full exit at none;
-no grid day falls after the caller's day, so a transaction or a price dated later adds none. A
+no grid day falls after the caller's day, so a transaction or a price dated later adds none, and
+`buildView` reads the ledger to that day (`ledgerAsOf`), so a transaction or a quote snapshot dated
+after it counts in no composed figure until its day, the next payouts' projection included, so a
+sale entered ahead of a coupon's date leaves that coupon projected until the sale's day; an asset
+whose only buy is dated ahead composes as one with no transaction yet; what `buildView` does not
+compose, the reminders and the coupon due cards among it, reads every row. A
 position the ledger holds none of that day has no quote, as the quotes form asks for none, and every figure that
 values it reads 0 from the ledger; one the ledger cannot count, or a held one no source has observed at or
 before the day, is absent, never 0. Each quote names the
@@ -221,7 +226,12 @@ observed ahead of the day. Ghostfolio ends every range but a calendar year at `e
 when no end is given, and Portfolio Performance's last-X, since-X, month-to-date and year-to-date periods
 end on the day they are relative to; unlike both, the caller's day is a grid day only when
 something is observed or transacted on it, so a window closes on the latest grid day at or before
-it. A ₴ figure is kopeck-grained, as Portfolio Performance rounds a position's value
+it. The ledger is cut once, at `buildView`'s entry, so every composer keeps its signature and the
+golden master, which runs the composers directly, pins what each did; a row ahead is absent rather
+than counted as of its date because it is entered ahead on purpose — a coupon known to be coming, a
+planned deposit — and Ghostfolio tags such an activity a draft and leaves drafts out of every
+portfolio read, hledger-ui hides future-dated transactions by default, and Portfolio Performance counts
+only the transactions inside the reporting period. A ₴ figure is kopeck-grained, as Portfolio Performance rounds a position's value
 to the currency's minor unit once, at valuation; unrounded, a value divided into a price and
 multiplied back carries float noise into every figure built on it. A non-zero quote of a position
 the ledger holds none of has no per-unit price that reproduces it, so a ledger carrying one is not
@@ -238,7 +248,9 @@ reader's to act on · Valuing a position before its first price at that first pr
 Performance does: a price from after the day is no observation of it · A 0 quote for a position held
 none of, before its first unit or after its last: Balances would show it on every such day as a
 saved quote of a position not held, marked, and Portfolio Performance's snapshot holds no position
-of 0 shares.
+of 0 shares · Refusing a date ahead at entry, or a hint in the forms: rows are entered ahead on
+purpose · A cut inside each composer: every composer would make it, and one that did not would be
+#358's disagreement again, where a cut made before the composers run is one no composer can miss.
 
 ## Metric families and windows
 **Decision.** Two metric families, both permanent and never conflated: capital gain and total
@@ -266,7 +278,8 @@ position held, or uncounted, that no snapshot values, never quoted, or bought af
 last quote's day or the last valuation day held none of it, has its own value, share and capital gain
 ABSENT and the rebalance plan proposes nothing for it, while one the ledger holds none of, or that
 no row moves and no snapshot quotes, is worth 0; the close of Overview's capital gain and of
-`/yield`'s table counts units to the ledger's last row, where their flows end too, though its
+`/yield`'s table counts units to the ledger's last row, where their flows end too, and the ledger
+`buildView` hands them ends on the caller's day (*Derived figures and the seed*), though its
 quotes stop at the window's end; free
 cash AT A DATE is the ledger's signed sum up to it, a payout contributing
 `amount − coalesce(tax_withheld, 0)`; a coupon derives from its RATE. A withholding is a FIELD on
