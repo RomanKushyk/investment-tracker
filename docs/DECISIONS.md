@@ -1113,16 +1113,21 @@ open issue, once triaged, sits in the version milestone it is planned for, none 
 release; work is picked from the lowest open one, so milestone order is work order, except that an
 `observation` is picked once the date in its title has come, whatever its milestone, and never
 before. Inside that milestone the order of its cards on the Project board is the pick order when
-the owner names no issue, a `bug` first; the `order-milestone` skill rewrites it after a triage, a
-planned epic and a version cut. Delete, never archive; a figure lives in a test or not at all;
-`CLAUDE.md` is rules.
+the owner names no issue, its topmost `Ready` card with no open blocker the pick; the
+`order-milestone` skill rewrites it, putting every `bug` with no open blocker on top, after a
+triage, a planned epic and a version cut, and before every pick the owner does not name. Delete,
+never archive; a figure lives in a test or not at all; `CLAUDE.md` is rules.
 **Why.** A task list in two places disagrees with itself. An issue with no milestone has no place in
 that order, and the sort decays one triage at a time; an observation waits for its day, not its
-turn. A figure written into prose goes stale in silence and passes every gate; a test fails.
+turn. Bug-first is a rule of the order alone, so once the order is rewritten the pick is the
+board's topmost `Ready` card with no open blocker, where a pass by label could take one from below
+it; the rewrite comes before an unnamed pick because anything since the last one, a close, an
+edited relation, a relabel or a drag, can leave an unblocked bug below the top. A figure written
+into prose goes stale in silence and passes every gate; a test fails.
 **Rejected.** Jira or ticket keys: one person, no board. · A `Backlog` milestone: it holds exactly
 the issues nobody has ordered. · A pick-order file in the repository: a closed issue stays in it
-until the next triage, where a closed card leaves its column by itself. · Documentation ratchets: a
-guard bumped on every routine edit is a rehearsal for bumping it unread.
+until the next rewrite, where a closed card leaves its column by itself. · Documentation ratchets:
+a guard bumped on every routine edit is a rehearsal for bumping it unread.
 
 ## Review, gates, tests
 **Decision.** `/code-review` runs on the whole branch diff before every squash-merge, documentation
