@@ -1,6 +1,6 @@
 ---
 name: order-milestone
-description: 'Use at the end of triage-issue, after plan-epic creates sub-issues, after a version is cut, before work-issue picks an issue the owner did not name, or when asked to refresh, rebuild or re-sort the pick order or the order of cards on the project board. Not for picking or working an issue (that is work-issue).'
+description: 'Use at the end of triage-issue, after plan-epic creates sub-issues, after a version is cut, or when asked to refresh, rebuild or re-sort the pick order or the order of cards on the project board. Not for picking or working an issue (that is work-issue).'
 model: opus
 ---
 
