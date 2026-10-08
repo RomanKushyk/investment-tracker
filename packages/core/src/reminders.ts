@@ -23,10 +23,11 @@ export type ReminderSeverity = 'info' | 'warn' | 'overdue';
 
 export interface Reminder {
   /**
-   * Derived id: `quote-missing:<date>` · `coupon:<assetId>:<date>` ·
+   * Derived id: `quote-missing:<date>` · `coupon-upcoming:<assetId>:<date>` ·
    * `coupon-overdue:<assetId>:<date>` · `maturity:<assetId>:<date>`. A CROSS-MODULE
    * CONTRACT — stable across days for the SAME occurrence so a dismissal holds, and
-   * different for the next one so a dismissal never leaks forward.
+   * different for the next one so a dismissal never leaks forward. None is the id a Skip
+   * on the coupon card writes, so closing a banner settles nothing.
    */
   id: string;
   kind: ReminderKind;
@@ -65,6 +66,10 @@ export interface ReminderOptions {
 
 export function quoteMissingReminderId(date: string): string {
   return `quote-missing:${date}`;
+}
+
+export function couponUpcomingReminderId(assetId: string, date: string): string {
+  return `coupon-upcoming:${assetId}:${date}`;
 }
 
 export function couponOverdueReminderId(assetId: string, date: string): string {
@@ -162,7 +167,7 @@ export function computeReminders(
                 assetId: asset.id,
               }
             : {
-                id: couponReminderId(asset.id, coupon),
+                id: couponUpcomingReminderId(asset.id, coupon),
                 kind: 'coupon',
                 severity: 'info',
                 date: coupon,

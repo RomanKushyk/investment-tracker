@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { couponReminderId } from './accrual';
+import { couponReminderId, dueCoupons } from './accrual';
 import {
   computeReminders,
   couponOverdueReminderId,
+  couponUpcomingReminderId,
   DEFAULT_LEAD_DAYS,
   MATURITY_LEAD_DAYS,
   maturityReminderId,
@@ -111,7 +112,7 @@ describe('coupon lead-day boundaries', () => {
     });
     expect(atBoundary).toEqual([
       {
-        id: 'coupon:ovdp8976:2026-08-11',
+        id: couponUpcomingReminderId('ovdp8976', '2026-08-11'),
         kind: 'coupon',
         severity: 'info',
         date: '2026-08-11',
@@ -150,7 +151,7 @@ describe('upcoming → overdue transition', () => {
     const [upcoming] = computeReminders([asset], quoted('2026-08-04'), [], '2026-08-04');
     expect(upcoming.kind).toBe('coupon');
     expect(upcoming.severity).toBe('info');
-    expect(upcoming.id).toBe('coupon:ovdp8976:2026-08-05');
+    expect(upcoming.id).toBe(couponUpcomingReminderId('ovdp8976', '2026-08-05'));
     expect(upcoming.days).toBe(1);
 
     const [dueToday] = computeReminders([asset], quoted('2026-08-05'), [], '2026-08-05');
@@ -216,7 +217,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
       recorded,
       '2027-01-20',
     );
-    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-23']);
+    expect(later.map((r) => r.id)).toEqual([couponUpcomingReminderId('ovdp8976', '2027-01-23')]);
   });
 
   it('announces the next occurrence after a skip (S5 → S6 hand-over)', () => {
@@ -230,7 +231,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
       '2027-01-20',
       skipped,
     );
-    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-23']);
+    expect(later.map((r) => r.id)).toEqual([couponUpcomingReminderId('ovdp8976', '2027-01-23')]);
   });
 
   it('announces no coupon at the maturity after a skip of the stored date beside it', () => {
@@ -307,7 +308,7 @@ describe('dismissal filtering', () => {
 
   it('hides a reminder whose derived id is dismissed', () => {
     const assets = [bond({ nextCoupon: '2026-08-06' })];
-    const id = couponReminderId('ovdp8976', '2026-08-06');
+    const [{ id }] = computeReminders(assets, quoted, [], TODAY);
     expect(computeReminders(assets, quoted, [], TODAY, { dismissed: [id] })).toEqual([]);
     // …and leaves every other reminder alone.
     expect(computeReminders(assets, [], [], TODAY, { dismissed: [id] }).map((r) => r.kind)).toEqual(
@@ -323,7 +324,7 @@ describe('dismissal filtering', () => {
     expect(computeReminders(assets, [], [], '2026-08-05', { dismissed })).toHaveLength(1);
   });
 
-  it('lets an S5 card skip silence its own overdue banner (shared id)', () => {
+  it('lets an S5 card skip silence its own overdue banner', () => {
     const assets = [bond({ nextCoupon: '2026-07-25' })];
     const skipped = [couponReminderId('ovdp8976', '2026-07-25')];
     expect(computeReminders(assets, quoted, [], TODAY, { dismissed: skipped })).toEqual([]);
@@ -346,6 +347,38 @@ describe('dismissal filtering', () => {
   });
 });
 
+// The banner is the nudge and the card the tool: closing the banner hides the banner, and only a
+// Skip on the card or a recorded payout settles the coupon.
+describe('closing the upcoming-coupon banner', () => {
+  const seedSnaps = buildSeedSnapshots();
+  const of8976 = (today: string, dismissed: string[]) =>
+    computeReminders(SEED_ASSETS, seedSnaps, SEED_TRANSACTIONS, today, { dismissed }).filter(
+      (r) => r.assetId === 'ovdp8976',
+    );
+  // The seed's …8976 pays on 25.08.2026: five days ahead on 20.08, inside the default lead.
+  const upcoming = of8976('2026-08-20', []).find((r) => r.kind === 'coupon');
+  if (upcoming === undefined || upcoming.date !== '2026-08-25') {
+    throw new Error('the seed announces no upcoming coupon for 25.08.2026 on 20.08.2026');
+  }
+  const closed = [upcoming.id];
+
+  it('leaves the coupon card due on its date', () => {
+    expect(dueCoupons(SEED_ASSETS, SEED_TRANSACTIONS, '2026-08-26', { dismissed: closed })).toEqual(
+      [expect.objectContaining({ assetId: 'ovdp8976', date: '2026-08-25' })],
+    );
+  });
+
+  it('leaves the overdue banner once the date has passed', () => {
+    expect(of8976('2026-08-26', closed).map((r) => r.id)).toEqual([
+      couponOverdueReminderId('ovdp8976', '2026-08-25'),
+    ]);
+  });
+
+  it('keeps the closed banner hidden until its date', () => {
+    expect(of8976('2026-08-20', closed).filter((r) => r.kind === 'coupon')).toEqual([]);
+  });
+});
+
 describe('derived-id stability', () => {
   // The dismissal contract: the SAME occurrence keeps its id on every later day, so
   // a dismissal holds and only the day count moves.
@@ -356,7 +389,7 @@ describe('derived-id stability', () => {
       (d) => computeReminders([asset], quotedOn(d), [], d, { leadDays: 30 })[0].id,
     );
     expect(new Set(ids).size).toBe(1);
-    expect(ids[0]).toBe('coupon:ovdp8976:2026-08-06');
+    expect(ids[0]).toBe(couponUpcomingReminderId('ovdp8976', '2026-08-06'));
   });
 
   it('keeps a maturity id stable across days', () => {
@@ -370,8 +403,8 @@ describe('derived-id stability', () => {
   });
 
   it('gives the next occurrence a different id (a dismissal never leaks forward)', () => {
-    const first = couponReminderId('ovdp8976', '2026-08-25');
-    const next = couponReminderId('ovdp8976', '2027-02-25');
+    const first = couponUpcomingReminderId('ovdp8976', '2026-08-25');
+    const next = couponUpcomingReminderId('ovdp8976', '2027-02-25');
     expect(first).not.toBe(next);
   });
 });
@@ -571,7 +604,7 @@ describe('coupon and maturity reminders ask only for what the record date owes',
     expect(of8976(rows, '2026-10-02')).toEqual([]);
     expect(of8976(rows, '2027-02-01')).toEqual([maturityReminderId('ovdp8976', '2027-02-25')]);
     expect(of8976(rows, '2027-02-20')).toEqual([
-      couponReminderId('ovdp8976', '2027-02-25'),
+      couponUpcomingReminderId('ovdp8976', '2027-02-25'),
       maturityReminderId('ovdp8976', '2027-02-25'),
     ]);
   });
@@ -609,7 +642,7 @@ describe('coupon and maturity reminders ask only for what the record date owes',
     expect(ids()).toEqual([quoteMissingReminderId(TODAY)]);
     expect(ids(21)).toEqual([
       quoteMissingReminderId(TODAY),
-      couponReminderId('ovdp8976', '2026-08-25'),
+      couponUpcomingReminderId('ovdp8976', '2026-08-25'),
     ]);
   });
 });

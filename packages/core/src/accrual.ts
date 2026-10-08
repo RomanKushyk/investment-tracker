@@ -674,8 +674,8 @@ export function scheduledCouponMonths(
   return [...months].sort((a, b) => a - b);
 }
 
-/** Shared by the skip and the reminders so skipping the card silences the banner
- *  for the SAME occurrence — and both expire once the date passes out of scope. */
+/** The id a Skip on the coupon card writes and the walk reads back, so the occurrence and its
+ *  banners pass together — and it goes inert once a confirm rolls the coupon date past it. */
 export function couponReminderId(assetId: string, date: string): string {
   return `coupon:${assetId}:${date}`;
 }

@@ -30,7 +30,7 @@ const quoteMissing: Reminder = {
 };
 
 const upcoming: Reminder = {
-  id: 'coupon:ovdp8976:2026-08-25',
+  id: 'coupon-upcoming:ovdp8976:2026-08-25',
   kind: 'coupon',
   severity: 'info',
   date: '2026-08-25',

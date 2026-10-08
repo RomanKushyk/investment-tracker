@@ -1233,7 +1233,10 @@ the sample lands.
 **Decision.** Every interaction animates, soft and fluid; every pressable takes a small active
 scale, and `prefers-reduced-motion: reduce` is a global kill-switch. A click target never moves
 under a hovering pointer. Reminders derive their ids and write nothing, so a dismissal expires when
-its occurrence stops being produced. The theme is ONE list of values redefined per theme, and BOTH
+its occurrence stops being produced. A banner's close hides that banner; a coupon is settled by a
+Skip on its card or a recorded payout, and with coupon suggestions on, a closed banner's card still
+arrives on its date. The
+theme is ONE list of values redefined per theme, and BOTH
 controls that write it write that one field, so neither has a value of its own to fall out of step.
 The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, never a fill, so a state is
 never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces are the sixty, text
