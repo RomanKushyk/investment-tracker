@@ -1,6 +1,10 @@
 # Dependabot — security only, and how an advisory reaches `dev`
 
-Alerts and automated security fixes are on as a repository setting; there is no `.github/dependabot.yml` (nor `.yaml`) — the ruling is under "Dependabot" in [`../DECISIONS.md`](../DECISIONS.md). Dependabot cannot always raise a PR for an advisory, so **the alert is the unit, not the PR**: closing the PR list is not closing the advisories, and the alert query has to be re-run after any fix.
+Alerts and automated security fixes are on as a repository setting; there is no `.github/dependabot.yml` (nor `.yaml`) — the ruling is under "Dependabot" in [`../DECISIONS.md`](../DECISIONS.md). **The advisory in the lockfile is the unit, not the PR and not the alert**, and `pnpm audit` is what counts them: re-run it after any fix.
+
+- **A transitive advisory whose fix its parent's range admits gets no PR.** Dependabot's security job asks pnpm for `<pkg>@<version>`, which pnpm leaves undone where the locked version already satisfies the parent's range, so the job ends `security_update_not_possible` ([dependabot-core#15766](https://github.com/dependabot/dependabot-core/issues/15766)). Do not wait for one.
+- **The alert list understates the lockfile.** GitHub's preset auto-triage rule dismisses development-only npm alerts, and a dismissed alert leaves its version where it was.
+- **`.github/workflows/advisories.yml` files them.** It runs `pnpm audit` on `dev` daily, and when advisories remain opens one issue, labelled `bug`, `area:infra` and `dependencies`, naming each advisory, whether the in-range update clears it, and the command. While that issue is open it opens no other, since its fix audits afresh. Dispatch it with `dry_run` to print the issue instead of opening it. What to do with an advisory its update leaves is below, under "Without a PR".
 
 ## Which manifest
 
@@ -51,4 +55,4 @@ On a `chore/<kebab-title>` branch. `pnpm why <pkg>` first, because a flagged ver
 npm view '<parent>@<version>' dependencies peerDependencies optionalDependencies
 ```
 
-If the range admits it, `pnpm update <pkg>`; if not, add a bounded override in `pnpm-workspace.yaml`, then `pnpm install`. Finish with the same gates and the same merge sequence as above, rebase included.
+If the range admits it, `pnpm update <pkg> -r` — the bare name: with `@<version>` pnpm changes nothing for a transitive entry and still exits 0, the same refusal that stops Dependabot. If not, and the package is transitive, add a bounded override in `pnpm-workspace.yaml`, or move to a parent whose range admits the fix, then `pnpm install`; a direct dependency raises its own specifier instead. An advisory with no fix, or one accepted as it stands, goes in `auditConfig.ignoreGhsas` there, with the reason beside it: pnpm drops that GHSA on every version line it sits on, so it is accepted wherever it appears. Closing the advisories issue alone files it again the next day. Never `pnpm audit --fix`: its default writes overrides, and `--fix update` rewrites direct specifiers across the manifests and adds `minimumReleaseAgeExclude` entries. Finish with the same gates and the same merge sequence as above, rebase included.

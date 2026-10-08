@@ -1,0 +1,46 @@
+name: Advisories
+
+# Dependabot opens no pull request for a transitive pnpm advisory, and GitHub auto-dismisses the
+# development-only ones, so `pnpm audit` files what it finds into the task list (*Dependabot*).
+on:
+  schedule:
+    # Off the hour: GitHub documents its start as a high-load time that can delay or drop a run.
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print the issue instead of opening it
+        type: boolean
+        default: false
+
+# One run at a time, so a dispatch beside the schedule cannot open the issue twice.
+concurrency:
+  group: advisories
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26 # must match local Node
+
+      - name: Enable pnpm via corepack
+        run: corepack enable # honors packageManager
+
+      - name: Audit the lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: node scripts/advisories.ts

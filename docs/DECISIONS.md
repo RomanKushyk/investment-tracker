@@ -1068,13 +1068,38 @@ gate, would move with the machine's load. · `vmMemoryLimit`: it recycles only t
 
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the
-dependency tree into routine version PRs. The ALERT is the unit, not the PR: draining the PR list is
-not draining the advisories. `reference/DEPENDABOT.md` carries the two ecosystems, their fixes and
-where overrides live.
+dependency tree into routine version PRs. The ADVISORY in the lockfile is the unit, not the PR and
+not the alert: draining either list is not draining the advisories. A transitive advisory whose fix
+its parent's range admits is fixed by the unpinned in-range update, `pnpm update <pkg> -r`, never by
+an override and never by `pnpm audit --fix`. `.github/workflows/advisories.yml` runs `pnpm audit` on
+`dev` daily and opens one issue for what it finds, naming each advisory, whether that update clears
+it, and the command; while that issue is open it opens no other. An advisory accepted as it stands
+goes in `auditConfig.ignoreGhsas`, with its reason; pnpm drops that GHSA on every version line it
+sits on. `reference/DEPENDABOT.md` carries the two ecosystems, their fixes and where overrides live.
 **Why.** Every merge here costs a review, so version churn taxes the gate that protects the app and
 buys no security. GitHub's squash preserves the PR author, so the button would land a bot-authored
-commit on a branch that forbids the force-push it would take to undo.
-**Rejected.** Routine version-update PRs: one person, one review per merge, no advisory closed.
+commit on a branch that forbids the force-push it would take to undo. Dependabot opens no pull request
+for a transitive pnpm advisory: its security job asks pnpm for `<pkg>@<version>`, which pnpm leaves
+undone where the locked version already satisfies the parent's range, and the job ends
+`security_update_not_possible`
+([dependabot-core#15766](https://github.com/dependabot/dependabot-core/issues/15766),
+[pnpm#12744](https://github.com/pnpm/pnpm/issues/12744)). GitHub's preset auto-triage rule, "enabled
+by default for public repositories", dismisses development-only npm alerts
+([auto-triage rules](https://docs.github.com/en/code-security/dependabot/dependabot-auto-triage-rules/about-dependabot-auto-triage-rules)),
+and a dismissed alert leaves its version in the lockfile. So the alert list understates the lockfile
+and nothing reaches the task list on its own; `pnpm audit` reads the lockfile itself, and an issue
+lands in `Triage`, which every session reads first. By default pnpm takes no
+version younger than a day while an older one fits the range
+([supply-chain security](https://pnpm.io/supply-chain-security)), and the locked version always
+does, so the in-range update takes no release that new.
+**Rejected.** Routine version-update PRs: one person, one review per merge, no advisory closed. ·
+`pnpm audit --fix update`: it rewrites direct specifiers across the manifests and adds
+`minimumReleaseAgeExclude` entries, version churn and a weaker release-age guard. · An override where
+the range admits the fix: it outlives the advisory and pins the tree. · `open-pull-requests-limit: 0`
+with grouped security updates: it shapes Dependabot's PRs and leaves the pnpm refusal that stops
+them. · Renovate's `lockFileMaintenance`: it re-resolves every dependency to the latest
+([options](https://docs.renovatebot.com/configuration-options/)). · A pull request from the
+workflow: it needs Actions allowed to create pull requests, for a fix that is one local command.
 
 ## Deployment
 **Decision.** Amplify Hosting as a manual-deploy app, fed by a GitHub Actions workflow that builds,
