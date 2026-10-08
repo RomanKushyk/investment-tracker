@@ -161,6 +161,34 @@ describe('accrualSuggestion', () => {
     ).toBe(14126.9);
   });
 
+  it('subtracts the same coupons before and after the confirm rolls a monthly bond onto its maturity', () => {
+    // No feed, payouts recorded on 25.01 and 25.02.2027, maturity 02.03.2027. Before, nextCoupon sits
+    // on the grid date; after, the confirm rolled it onto the maturity. Drafted on 27.02 off the 28.01
+    // quote, the 25.02 payment is the final coupon, counted on the maturity, so the carry drops nothing.
+    const quoted: Snapshot[] = [{ date: '2027-01-28', quotes: { ovdp8976: 15000 } }];
+    const paid = (id: string, date: string): Transaction => ({
+      id,
+      date,
+      type: 'interest_payout',
+      assetId: 'ovdp8976',
+      amount: 1240,
+    });
+    const ledger = [...SEED_TRANSACTIONS, paid('p1', '2027-01-25'), paid('p2', '2027-02-25')];
+    const suggest = (nextCoupon: string) =>
+      accrualSuggestion(
+        { ...seedAsset('ovdp8976'), payoutSchedule: 'monthly', nextCoupon, maturity: '2027-03-02' },
+        quoted,
+        invested.ovdp8976,
+        '2027-02-27',
+        undefined,
+        15,
+        () => 15,
+        ledger,
+      );
+    expect(suggest('2027-02-25')).toBe(16223.01);
+    expect(suggest('2027-03-02')).toBe(16223.01);
+  });
+
   it('subtracts the coupon the walk bridges to before the first date served', () => {
     // The provider drops a bond's older payments: UA4000238976 served without its 25.03.2026 row,
     // the stored date a period before it, and a gap spanning the coupon owed between.

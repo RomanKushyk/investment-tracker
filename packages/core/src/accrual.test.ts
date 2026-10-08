@@ -17,9 +17,10 @@ import {
   rollbackNextCoupon,
   suggestedQuote,
   scheduledCouponMonths,
+  unitsOnRecordDate,
 } from './accrual';
-import { addDays, dayBefore, daysBetween } from './dates';
-import { unitsByAsset } from './derive';
+import { addDays, addMonths, dayBefore, daysBetween } from './dates';
+import { holdsNone, unitsByAsset } from './derive';
 import fixture0923 from './inzhur/__fixtures__/assets-2026-09-23.json';
 import fixture0924 from './inzhur/__fixtures__/assets-2026-09-24.json';
 import fixtureSample from './inzhur/__fixtures__/assets-sample.json';
@@ -1253,6 +1254,12 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
         expect(couponsInGap(a, () => 1240, '2027-02-01', '2027-03-31', [])).toBe(2 * 1240);
         expect(couponsInGap(a, on('2027-02-15'), '2027-02-01', '2027-03-14', [])).toBe(1240);
       });
+
+      it('keeps its own day, whatever the ledger records in the period before the maturity', () => {
+        const ledger = [tx({ id: 'p1', date: '2027-01-25' }), tx({ id: 'p2', date: '2027-02-25' })];
+        const by = (d: string) => ({ '2027-02-15': 1, '2027-03-15': 10 })[d] ?? 1000;
+        expect(couponsInGap(a, by, '2027-02-01', '2027-12-31', ledger)).toBe(11);
+      });
     });
 
     it('counts nothing past a maturity no calendar has, as the walk owes nothing on one', () => {
@@ -1272,6 +1279,301 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
         '2027-12-25',
       ]);
       expect(couponsInGap(a, () => 1240, '2027-06-20', '2028-03-31', [])).toBe(7 * 1240);
+    });
+  });
+
+  describe('after the confirm rolls onto the maturity, the month grid behind it is dated by the payouts recorded before it', () => {
+    const paid = (id: string, date: string) => tx({ id, date });
+    // Sized by date, so a coupon counted or sized on any other day shows in the sum.
+    const sized = (by: Record<string, number>) => (d: string) => by[d] ?? 99999;
+    const grid = (
+      payoutSchedule: 'monthly' | 'quarterly',
+      maturity: string,
+      nextCoupon: string = maturity,
+    ) => bond({ payoutSchedule, nextCoupon, maturity });
+
+    it('counts nothing between the paid day and the maturity, and the final coupon there, as before', () => {
+      const ledger = [paid('p1', '2027-01-25'), paid('p2', '2027-02-25')];
+      const before = grid('monthly', '2027-03-02', '2027-02-25');
+      // The confirm records the 25.02 payout on its date and rolls onto the maturity.
+      expect(rollNextCoupon(before, '2027-02-25')).toEqual({
+        kind: 'rolled',
+        nextCoupon: '2027-03-02',
+      });
+      for (const a of [before, grid('monthly', '2027-03-02')]) {
+        expect(couponsInGap(a, () => 1240, '2027-01-28', '2027-02-27', ledger)).toBe(0);
+        expect(
+          couponsInGap(a, sized({ '2027-03-02': 1240 }), '2027-01-26', '2027-03-31', ledger),
+        ).toBe(1240);
+      }
+    });
+
+    it('counts each grid date and the clamped maturity, each sized on its own record date', () => {
+      const ledger = [paid('p1', '2027-01-25'), paid('p2', '2027-02-25')];
+      expect(walk(grid('monthly', '2027-03-10', '2027-01-25'), [buy('2026-02-05')])).toEqual([
+        '2027-01-25',
+        '2027-02-25',
+        '2027-03-10',
+      ]);
+      const a = grid('monthly', '2027-03-10');
+      const by = sized({ '2027-01-25': 1, '2027-02-25': 10, '2027-03-10': 100 });
+      // A payout on the maturity settles the maturity, not the grid date before it.
+      for (const rows of [ledger, [...ledger, paid('p3', '2027-03-10')]]) {
+        expect(couponsInGap(a, by, '2027-01-20', '2027-03-31', rows)).toBe(111);
+        expect(
+          couponsInGap(
+            grid('monthly', '2027-03-10', '2027-02-25'),
+            by,
+            '2027-01-20',
+            '2027-03-31',
+            rows,
+          ),
+        ).toBe(111);
+      }
+    });
+
+    it('takes a final coupon entered inside the maturity’s window for the maturity’s, not the grid’s day', () => {
+      const ledger = [paid('p1', '2027-01-25'), paid('p2', '2027-02-25')];
+      const by = sized({ '2027-01-25': 1, '2027-02-25': 10, '2027-03-10': 100 });
+      // Entered by hand five days early, and at the window's edge: the walk takes either for the maturity's.
+      for (const early of ['2027-03-05', '2027-03-03']) {
+        const rows = [buy('2026-02-05'), ...ledger, paid('p3', early)];
+        expect(nextUnsettledCouponDate(grid('monthly', '2027-03-10'), rows)).toBeUndefined();
+        for (const a of [
+          grid('monthly', '2027-03-10', '2027-02-25'),
+          grid('monthly', '2027-03-10'),
+        ]) {
+          expect(couponsInGap(a, by, '2027-01-20', '2027-03-31', rows)).toBe(111);
+          expect(couponsInGap(a, by, '2027-02-20', '2027-02-28', rows)).toBe(10);
+        }
+      }
+      // On a quarterly grid, a period being three months.
+      const quarterly = [paid('q1', '2026-10-25'), paid('q2', '2027-01-25')];
+      const byQuarter = sized({ '2026-10-25': 1, '2027-01-25': 10, '2027-04-10': 100 });
+      for (const early of ['2027-04-05', '2027-04-03']) {
+        const rows = [buy('2026-02-05'), ...quarterly, paid('q3', early)];
+        expect(nextUnsettledCouponDate(grid('quarterly', '2027-04-10'), rows)).toBeUndefined();
+        for (const a of [
+          grid('quarterly', '2027-04-10', '2027-01-25'),
+          grid('quarterly', '2027-04-10'),
+        ]) {
+          expect(couponsInGap(a, byQuarter, '2026-10-20', '2027-04-30', rows)).toBe(111);
+          expect(couponsInGap(a, byQuarter, '2027-01-20', '2027-01-28', rows)).toBe(10);
+        }
+      }
+    });
+
+    it('takes the period’s bounds and the window’s edge as they are, with the payout before the window more than the window after a period before the one inside it', () => {
+      // A maturity on the grid's day, a period after the last grid date, which sits on the read's lower
+      // bound; and a final period of 15 days. Each final coupon is entered by hand on the window's edge.
+      const cases = [
+        { maturity: '2027-03-01', early: '2027-02-22' },
+        { maturity: '2027-02-16', early: '2027-02-09' },
+      ];
+      for (const { maturity, early } of cases) {
+        const rows = [buy('2026-02-05'), paid('p1', '2027-01-01'), paid('p2', '2027-02-01')];
+        rows.push(paid('p3', early));
+        const sizedBy = sized({ '2027-01-01': 1, '2027-02-01': 10, [maturity]: 100 });
+        const before = grid('monthly', maturity, '2027-02-01');
+        expect(rollNextCoupon(before, '2027-02-01')).toEqual({
+          kind: 'rolled',
+          nextCoupon: maturity,
+        });
+        expect(nextUnsettledCouponDate(grid('monthly', maturity), rows)).toBeUndefined();
+        for (const a of [before, grid('monthly', maturity)]) {
+          expect(couponsInGap(a, sizedBy, '2026-12-20', '2027-03-31', rows)).toBe(111);
+        }
+      }
+    });
+
+    it('takes the coupon before the last grid date, entered late, for that coupon, not the grid’s day', () => {
+      // The 01.02 coupon entered by hand a day late, and at the window's edge, which the walk takes for it;
+      // the confirm then records 01.03 and rolls onto the 02.03 maturity.
+      for (const late of ['2027-02-02', '2027-02-08']) {
+        const rows = [buy('2026-02-05'), paid('p1', '2027-01-01'), paid('p2', late)];
+        const before = grid('monthly', '2027-03-02', '2027-03-01');
+        expect(nextUnsettledCouponDate(grid('monthly', '2027-03-02', '2027-02-01'), rows)).toBe(
+          '2027-03-01',
+        );
+        rows.push(paid('p3', '2027-03-01'));
+        expect(rollNextCoupon(before, '2027-03-01')).toEqual({
+          kind: 'rolled',
+          nextCoupon: '2027-03-02',
+        });
+        const by = sized({ '2027-01-01': 1, '2027-02-01': 10, '2027-03-02': 100 });
+        for (const a of [before, grid('monthly', '2027-03-02')]) {
+          expect(couponsInGap(a, by, '2027-01-28', '2027-02-01', rows)).toBe(10);
+          expect(couponsInGap(a, by, '2027-02-01', '2027-02-27', rows)).toBe(0);
+          expect(couponsInGap(a, by, '2026-12-20', '2027-03-31', rows)).toBe(111);
+        }
+      }
+    });
+
+    it('reads payouts it cannot tell apart as a late entry of the coupon before, not an early final coupon', () => {
+      // The same two payouts in the read's range come from a grid on the 7th whose 07.02 coupon was
+      // entered on 12.02, and from a grid on the 12th whose final coupon was entered on 07.03.
+      const rows = [paid('p2', '2027-02-12'), paid('p3', '2027-03-07')];
+      const by = sized({ '2027-02-07': 1, '2027-03-10': 100 });
+      expect(
+        couponsInGap(grid('monthly', '2027-03-10'), by, '2027-02-01', '2027-03-31', rows),
+      ).toBe(101);
+      // Eight days after a period before the one inside, past the window the walk takes a late entry
+      // within, the payout before the window keeps its own day.
+      const past = [paid('p2', '2027-02-13'), paid('p3', '2027-03-05')];
+      const byPast = sized({ '2027-02-13': 1, '2027-03-10': 100 });
+      expect(
+        couponsInGap(grid('monthly', '2027-03-10'), byPast, '2027-02-01', '2027-03-31', past),
+      ).toBe(101);
+    });
+
+    it('on a quarterly grid too', () => {
+      const ledger = [paid('p1', '2027-01-25'), paid('p2', '2027-04-25')];
+      const a = grid('quarterly', '2027-05-02');
+      expect(couponsInGap(a, () => 1240, '2027-01-28', '2027-04-27', ledger)).toBe(0);
+      expect(
+        couponsInGap(
+          a,
+          sized({ '2027-01-25': 1, '2027-05-02': 10 }),
+          '2026-12-01',
+          '2027-06-30',
+          ledger,
+        ),
+      ).toBe(11);
+    });
+
+    it('from the folded payout alone, where the coupon a period before it was not owed', () => {
+      const ledger = [buy('2027-01-30'), paid('p2', '2027-02-25')];
+      const a = grid('monthly', '2027-03-02');
+      const owed = (d: string) =>
+        holdsNone(unitsOnRecordDate(ledger, a.id, d)) ? undefined : 1240;
+      expect(couponsInGap(a, owed, '2027-01-28', '2027-02-27', ledger)).toBe(0);
+      expect(couponsInGap(a, owed, '2027-01-20', '2027-02-27', ledger)).toBe(0);
+      expect(couponsInGap(a, owed, '2027-01-20', '2027-03-02', ledger)).toBe(1240);
+    });
+
+    it('with no payout recorded, steps back from the maturity, as before', () => {
+      const a = grid('monthly', '2027-03-02');
+      expect(
+        couponsInGap(
+          a,
+          sized({ '2027-02-02': 1, '2027-03-02': 10 }),
+          '2027-01-26',
+          '2027-03-31',
+          [],
+        ),
+      ).toBe(11);
+    });
+
+    it('dates the grid behind a maturity no calendar has by the payout before it, without throwing', () => {
+      const ledger = [paid('p1', '2027-10-05'), paid('p2', '2027-11-05'), paid('p3', '2027-12-05')];
+      const before = grid('monthly', '2027-13-01', '2027-12-05');
+      expect(rollNextCoupon(before, '2027-12-05')).toEqual({
+        kind: 'rolled',
+        nextCoupon: '2027-13-01',
+      });
+      const fifth = (d: string) => (d.endsWith('-05') ? 1 : 1000);
+      expect(couponsInGap(before, fifth, '2027-01-01', '2028-03-31', ledger)).toBe(12);
+      expect(
+        couponsInGap(grid('monthly', '2027-13-01'), fifth, '2027-01-01', '2028-03-31', ledger),
+      ).toBe(12);
+      expect(() =>
+        couponsInGap(grid('monthly', '2027-13-01'), fifth, '2027-01-01', '2028-03-31', []),
+      ).not.toThrow();
+    });
+
+    it('takes no payout from before a period ahead of the maturity, the earliest the confirm rolls onto it from', () => {
+      // A maturity on the 25th grid, and the 25.02 coupon entered by hand three days early.
+      const ledger = [paid('p1', '2027-01-25'), paid('p2', '2027-02-22')];
+      const by = sized({ '2027-02-25': 1 });
+      for (const a of [
+        grid('monthly', '2027-03-25', '2027-02-25'),
+        grid('monthly', '2027-03-25'),
+      ]) {
+        expect(couponsInGap(a, by, '2027-02-23', '2027-02-26', ledger)).toBe(1);
+      }
+    });
+
+    it('counts the same coupons for the same ledger before and after the confirm, over every gap', () => {
+      // Sized by a distinct figure per date, so a coupon moved to another day changes the sum.
+      const figure = (d: string) => daysBetween('2027-01-01', d) + 1;
+      let cases = 0;
+      let counting = 0;
+      for (const schedule of ['monthly', 'quarterly'] as const) {
+        const months = schedule === 'monthly' ? 1 : 3;
+        for (let day = 1; day <= 28; day++) {
+          const first = `2027-01-${String(day).padStart(2, '0')}`;
+          const second = addMonths(first, months);
+          // The maturity inside the dedupe window of the last grid date, at its edge, outside it, and three
+          // days short of the next grid date.
+          const next = daysBetween(second, addMonths(second, months));
+          for (const offset of [1, 7, 8, 13, next - 3]) {
+            const maturity = addDays(second, offset);
+            // Bought before the first record date, and between the two record dates.
+            for (const [bought, final] of [
+              [addDays(first, -10), false],
+              [addDays(first, 1), false],
+              [addDays(first, -10), true],
+              [addDays(first, 1), true],
+            ] as const) {
+              const ledger: Transaction[] = [buy(bought)];
+              const stored = bond({ payoutSchedule: schedule, nextCoupon: first, maturity });
+              // The payouts the confirm records: each grid date the walk offers before the maturity, and
+              // in half the cases the final coupon it offers after the roll, on the maturity.
+              for (const date of final ? [first, second, maturity] : [first, second]) {
+                if (!holdsNone(unitsOnRecordDate(ledger, stored.id, date))) {
+                  ledger.push(paid(`c${date}`, date));
+                }
+              }
+              expect(rollNextCoupon(stored, second)).toEqual({
+                kind: 'rolled',
+                nextCoupon: maturity,
+              });
+              const sizedOnRecord = (d: string) =>
+                holdsNone(unitsOnRecordDate(ledger, stored.id, d)) ? undefined : figure(d);
+              const bounds = [
+                ...new Set([
+                  addDays(first, -1),
+                  first,
+                  addDays(first, 1),
+                  addDays(second, -1),
+                  second,
+                  addDays(second, 1),
+                  addDays(maturity, -1),
+                  maturity,
+                  addDays(maturity, 1),
+                  addDays(maturity, 40),
+                  bought,
+                ]),
+              ].sort();
+              for (let i = 0; i < bounds.length; i++) {
+                for (let j = i + 1; j < bounds.length; j++) {
+                  const gap = (nextCoupon: string) =>
+                    couponsInGap(
+                      { ...stored, nextCoupon },
+                      sizedOnRecord,
+                      bounds[i]!,
+                      bounds[j]!,
+                      ledger,
+                    );
+                  const before = gap(first);
+                  cases += 1;
+                  if (before > 0) counting += 1;
+                  expect(
+                    gap(second),
+                    `${schedule} ${first} ${maturity} ${bought} (${bounds[i]}, ${bounds[j]}]`,
+                  ).toBe(before);
+                  expect(
+                    gap(maturity),
+                    `${schedule} ${first} ${maturity} ${bought} (${bounds[i]}, ${bounds[j]}]`,
+                  ).toBe(before);
+                }
+              }
+            }
+          }
+        }
+      }
+      expect(cases).toBe(51968);
+      expect(counting).toBe(37184);
     });
   });
 

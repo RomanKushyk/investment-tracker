@@ -334,7 +334,13 @@ owes nothing there. The gap's grid keeps the stored date's day of the month, cla
 shorter month, while the roll steps on from the day it clamped to. After such a clamp the walk can
 offer an earlier day outside the window where the grid date is inside it, and name two payments
 where the gap counts one. Otherwise the walk, the reminders and `/`'s coupon card offer that grid
-date, and the confirm records it and rolls from it onto the maturity. A stored date past the
+date, and the confirm records it and rolls from it onto the maturity. From a stored date on the
+maturity, the grid behind it is dated by a payout the ledger records within a period before the
+maturity, each payout dated by its first entry. That is the latest before the maturity's dedupe
+window. Where none is there, or it lies no more than the window after a period before the latest
+inside the window, it is the latest inside the window. The grid steps back whole periods from it, and
+where it sits inside the window it is the final coupon, counted on the maturity. With none recorded,
+the grid steps back from the maturity. A stored date past the
 maturity is not folded onto it: the grid counts it once and nothing after it, as the semiannual gap
 does, while the grid behind it counts as before, a grid date between the maturity and it included.
 **Why.** Resolution No. 80 sets an OVDP coupon as a fixed amount per period, the number of periods a
@@ -367,7 +373,25 @@ coupon there. Seasonality adds a whole coupon for each month the schedule names,
 fixed-day steps cross month ends over the years, so naming each occurrence's own month would count
 a semiannual coupon three or four times a year. Behind a stored date on the grid, the grid's date is
 the coupon's, whatever day a payout was entered on. A fold or a clamp leaves no step back from the
-maturity, and the confirm records each payout on its occurrence's date before it rolls. The fixed
+maturity, and the confirm records each payout on its occurrence's date before it rolls. On a month
+grid the roll onto the maturity also loses the day the grid pays on, and the schedule standards keep
+the date a final stub starts from as a datum of its own: QuantLib's
+backward schedule steps whole tenors back from a given next-to-last date, and from the termination
+date without one
+([schedule.cpp](https://github.com/lballabio/QuantLib/blob/966a4cc101049ca36a888b2ce223aa96d3f3b22d/ql/time/schedule.cpp#L195-L205));
+Strata's `lastRegularEndDate` is the start of the final stub, the end date in its absence
+([PeriodicSchedule.java](https://github.com/OpenGamma/Strata/blob/main/modules/basics/src/main/java/com/opengamma/strata/basics/schedule/PeriodicSchedule.java));
+FpML's `lastRegularPeriodEndDate` is given only where a final stub exists
+([CalculationPeriodDates](https://www.fpml.org/spec/fpml-5-6-1-wd-1/html/confirmation/schemaDocumentation/schemas/fpml-ird-5-6_xsd/complexTypes/CalculationPeriodDates/lastRegularPeriodEndDate.html)).
+The app stores none, and the ledger holds it: the payout the confirm recorded on the grid date. The
+confirm rolls onto the maturity from a grid date a period or less before it, so the read reaches no
+further back. A payout inside the maturity's window settles the maturity itself, so the semiannual
+read leaves it out. A month grid's last date can sit inside that window, and then the payouts within
+the period cannot always tell its payout from a final coupon entered early: a late hand entry of the
+coupon before it, which the walk takes for that coupon within the dedupe window, can write the same
+dates. Read that way, the payout inside the window is the last grid date's, the owner's choice over
+the early final coupon. A later entry, which the walk does not take for its coupon, can write the
+same dates too, and is read as the early final coupon. The fixed
 step still misses where an issue's period departs from it, as one listed bond's does
 (`reference/OVDP-COUPON-STRUCTURE.md`), and the record date moves with it, so a trade dated between
 the two record dates is judged on the wrong one. With the dates, a semiannual gap counts forward of

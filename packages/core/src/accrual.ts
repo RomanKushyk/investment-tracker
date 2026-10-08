@@ -112,7 +112,8 @@ export function couponsInGap(
   fromExclusive: string,
   toInclusive: string,
   /** REQUIRED: behind a semiannual start on the maturity that no published date answers, the coupon
-   *  before is the payout recorded for it, where one is. */
+   *  before is the payout recorded for it, where one is, and without the dates, behind a monthly or
+   *  quarterly stored date on the maturity, the grid's day comes from the payouts within a period before it. */
   transactions: readonly Transaction[],
   schedule?: readonly string[],
 ): number {
@@ -170,14 +171,7 @@ export function couponsInGap(
         -(OVDP_COUPON_PERIOD_DAYS + FINAL_FOLD_DAYS + COUPON_MATCH_WINDOW_DAYS),
       );
       const hi = addDays(start, -COUPON_MATCH_WINDOW_DAYS);
-      const near = transactions
-        .filter((t) => t.type === 'interest_payout' && t.assetId === asset.id)
-        .map((t) => t.date)
-        .filter((d) => !noCalendarDate(d) && d >= lo && d < hi)
-        .sort();
-      // The latest coupon recorded, dated by its first entry: another inside the window is the same one.
-      const last = near.at(-1);
-      const recorded = last && near.find((d) => d >= addDays(last, -COUPON_MATCH_WINDOW_DAYS));
+      const recorded = recordedCouponIn(transactions, asset.id, lo, hi);
       if (recorded) {
         if (recorded <= fromExclusive) return total;
         if (recorded <= toInclusive) total += perCouponAt(recorded) ?? 0;
@@ -206,13 +200,29 @@ export function couponsInGap(
     return anchor > fromExclusive && anchor <= toInclusive ? (perCouponAt(anchor) ?? 0) : 0;
   }
 
-  // EVERY grid date is computed FROM THE ANCHOR, never by stepping a running date:
+  // EVERY grid date is computed FROM ONE DATE, never by stepping a running date:
   // `addMonths` CLAMPS to month-end, so back-stepping then forward-stepping is NOT
   // an inverse — an anchor past the 28th drifts onto a grid the asset never pays
   // on and over-counts a coupon the ghost then subtracts.
-  const [anchorYear, anchorMonth] = anchor.split('-').map(Number);
+  // A stored date on the maturity is where the roll stops: the payout the confirm recorded for the last grid
+  // date, which it rolled from no earlier than a period before, keeps the bond's day. With none, the maturity.
+  let recorded: string | undefined;
+  if (maturity !== undefined && anchor === maturity) {
+    // Inside the maturity's window a payout settles the maturity; it is read as the last grid date's only where
+    // none is before the window, or the one there is the coupon before, entered as late as the walk takes it.
+    const edge = noCalendarDate(maturity) ? maturity : addDays(maturity, -COUPON_MATCH_WINDOW_DAYS);
+    const outside = recordedCouponIn(transactions, asset.id, addMonths(maturity, -months), edge);
+    const inside = recordedCouponIn(transactions, asset.id, edge, maturity);
+    const late =
+      outside !== undefined &&
+      inside !== undefined &&
+      daysBetween(addMonths(inside, -months), outside) <= COUPON_MATCH_WINDOW_DAYS;
+    recorded = outside !== undefined && !late ? outside : inside;
+  }
+  const grid = recorded ?? anchor;
+  const [gridYear, gridMonth] = grid.split('-').map(Number);
   const [fromYear, fromMonth] = fromExclusive.split('-').map(Number);
-  const monthsToGap = (fromYear - anchorYear) * 12 + (fromMonth - anchorMonth);
+  const monthsToGap = (fromYear - gridYear) * 12 + (fromMonth - gridMonth);
   // One whole period of margin behind the gap start: a day-of-month difference can
   // never span a full period, so no counted date sits before this index.
   const startIndex = Math.floor(monthsToGap / months) - 1;
@@ -223,7 +233,7 @@ export function couponsInGap(
 
   let total = 0;
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
-    let date = addMonths(anchor, (startIndex + i) * months);
+    let date = addMonths(grid, (startIndex + i) * months);
     if (past && date > anchor) break;
     // The roll clamps onto a maturity no calendar has, which the walk owes nothing on.
     if (clamp && date > maturity && noCalendarDate(maturity)) break;
@@ -270,6 +280,23 @@ const FINAL_FOLD_DAYS = 2 * COUPON_MATCH_WINDOW_DAYS;
 // The one window a payout and a Skip both match by.
 function withinWindow(a: string, b: string, windowDays: number): boolean {
   return Math.abs(daysBetween(a, b)) <= windowDays;
+}
+
+/** The latest coupon recorded in `[lo, hi)`, dated by its first entry: another inside the window is the
+ *  same one. The gap reads it behind a start on the maturity, which no step back from reaches. */
+function recordedCouponIn(
+  transactions: readonly Transaction[],
+  assetId: string,
+  lo: string,
+  hi: string,
+): string | undefined {
+  const near = transactions
+    .filter((t) => t.type === 'interest_payout' && t.assetId === assetId)
+    .map((t) => t.date)
+    .filter((d) => !noCalendarDate(d) && d >= lo && d < hi)
+    .sort();
+  const last = near.at(-1);
+  return last && near.find((d) => d >= addDays(last, -COUPON_MATCH_WINDOW_DAYS));
 }
 
 /** The ONE dedupe predicate, shared with `core/reminders` so a manually entered

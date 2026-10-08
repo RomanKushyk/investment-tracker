@@ -82,7 +82,8 @@ export function accrualSuggestion(
   unitsAt: (couponDate: string) => number | undefined,
   /** The ledger, REQUIRED for the same reason: behind a semiannual start on the maturity that no
    *  published date answers, the gap reads the coupon before off the payout recorded for it, where
-   *  one is. */
+   *  one is, and without the dates, behind a monthly or quarterly stored date on the maturity, the
+   *  grid's day from the payouts within a period before it. */
   transactions: readonly Transaction[],
 ): number | null {
   if (asset.yieldType !== 'fixed_coupon') return null;
