@@ -138,6 +138,29 @@ describe('accrualSuggestion', () => {
     ).toBe(13685.26);
   });
 
+  it('subtracts the one coupon on a stored date past the maturity, however far past it is drafted', () => {
+    // No feed: the walk offers 15.03.2027 alone, so the gap drops one 1 240,00, not one for every
+    // grid month from it to the drafted date; the accrual stops on the maturity, 10.03.
+    const quoted: Snapshot[] = [{ date: '2027-03-01', quotes: { ovdp8976: 15000 } }];
+    expect(
+      accrualSuggestion(
+        {
+          ...seedAsset('ovdp8976'),
+          payoutSchedule: 'monthly',
+          nextCoupon: '2027-03-15',
+          maturity: '2027-03-10',
+        },
+        quoted,
+        invested.ovdp8976,
+        '2027-06-30',
+        undefined,
+        15,
+        () => 15,
+        SEED_TRANSACTIONS,
+      ),
+    ).toBe(14126.9);
+  });
+
   it('subtracts the coupon the walk bridges to before the first date served', () => {
     // The provider drops a bond's older payments: UA4000238976 served without its 25.03.2026 row,
     // the stored date a period before it, and a gap spanning the coupon owed between.

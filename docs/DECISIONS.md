@@ -335,7 +335,8 @@ shorter month, while the roll steps on from the day it clamped to. After such a 
 offer an earlier day outside the window where the grid date is inside it, and name two payments
 where the gap counts one. Otherwise the walk, the reminders and `/`'s coupon card offer that grid
 date, and the confirm records it and rolls from it onto the maturity. A stored date past the
-maturity is not folded onto it, and the grid counts on from it.
+maturity is not folded onto it: the grid counts it once and nothing after it, as the semiannual gap
+does, while the grid behind it counts as before, a grid date between the maturity and it included.
 **Why.** Resolution No. 80 sets an OVDP coupon as a fixed amount per period, the number of periods a
 year being the issuer's ([80-2001-п](https://zakon.rada.gov.ua/laws/show/80-2001-%D0%BF)), and an
 issue's published dates are spaced by one fixed period, which the feed-fixture test in
@@ -352,7 +353,13 @@ and principal never offered. Without the dates, no semiannual step lands inside 
 the maturity, so only a stored date can sit there, and the walk takes a payout on it for the
 maturity's too and names one payment. Starting the gap on the maturity counts it before the confirm
 as after it. A grid date can land inside that window, and a payout on it settles the maturity too,
-so the grid's gap counts the two as one payment, as the walk does where it offers the same date. An
+so the grid's gap counts the two as one payment, as the walk does where it offers the same date. From
+a date on or past the maturity the roll reports the bond matured, so the walk offers a stored date
+past it alone and nothing after it, as nothing steps on from a date past a schedule's end: QuantLib's
+`Schedule` refuses a first date past the termination date
+([schedule.cpp](https://github.com/lballabio/QuantLib/blob/966a4cc101049ca36a888b2ce223aa96d3f3b22d/ql/time/schedule.cpp#L124-L130)).
+Behind such a date the gap still counts the grid, a date past the maturity included, as the
+semiannual step back does. An
 OVDP pays its final coupon with the principal on the maturity date: every bond in the feed captures
 makes its last payment on its maturity, which the feed-fixture test in
 `accrual.test.ts` measures. The price drops on the day the coupon is paid, so the gap places the one

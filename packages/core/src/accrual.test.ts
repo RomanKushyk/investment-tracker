@@ -1229,13 +1229,30 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
       expect(couponsInGap(a, () => 1240, '2027-03-01', '2027-06-30', [])).toBe(1240);
     });
 
-    it('does not fold a stored date past the maturity onto it', () => {
+    describe('a stored date past the maturity, which the walk offers alone', () => {
       const a = bond({
         payoutSchedule: 'monthly',
         nextCoupon: '2027-03-15',
         maturity: '2027-03-10',
       });
-      expect(couponsInGap(a, on('2027-03-15'), '2027-03-01', '2027-03-31', [])).toBe(1240);
+
+      it('is not folded onto the maturity, and is counted once with nothing after it', () => {
+        expect(walk(a, [buy('2026-02-05')])).toEqual(['2027-03-15']);
+        expect(couponsInGap(a, on('2027-03-15'), '2027-03-01', '2027-03-31', [])).toBe(1240);
+        expect(couponsInGap(a, on('2027-03-15'), '2027-03-01', '2027-12-31', [])).toBe(1240);
+        expect(couponsInGap(a, () => 1240, '2027-03-15', '2027-12-31', [])).toBe(0);
+      });
+
+      it('on a quarterly grid too', () => {
+        const q = { ...a, payoutSchedule: 'quarterly' as const };
+        expect(walk(q, [buy('2026-02-05')])).toEqual(['2027-03-15']);
+        expect(couponsInGap(q, on('2027-03-15'), '2027-03-01', '2027-12-31', [])).toBe(1240);
+      });
+
+      it('leaves the grid behind it as it is', () => {
+        expect(couponsInGap(a, () => 1240, '2027-02-01', '2027-03-31', [])).toBe(2 * 1240);
+        expect(couponsInGap(a, on('2027-02-15'), '2027-02-01', '2027-03-14', [])).toBe(1240);
+      });
     });
 
     it('counts nothing past a maturity no calendar has, as the walk owes nothing on one', () => {
