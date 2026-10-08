@@ -25,6 +25,7 @@ import fixture0924 from './inzhur/__fixtures__/assets-2026-09-24.json';
 import fixtureSample from './inzhur/__fixtures__/assets-sample.json';
 import { parseAssetsFeed } from './inzhur/parse';
 import { OVDP_COUPON_PERIOD_DAYS } from './ovdp';
+import { couponOverdueReminderId, maturityReminderId } from './reminders';
 import type { Asset, Transaction } from './types';
 
 // The demo seed's two bonds (seed.ts) are the fixture basis: …8976 pays
@@ -441,6 +442,38 @@ describe('nextUnsettledCoupon', () => {
   it('passes an occurrence dated before the day it is asked from, and keeps one on it', () => {
     expect(owedCouponDate(bond(), [], '2026-08-26')).toBe('2027-02-25');
     expect(owedCouponDate(bond(), [], '2026-08-25')).toBe('2026-08-25');
+  });
+});
+
+// A Skip settles what a payout on its date settles: every occurrence within the dedupe window.
+describe('a Skip of a stored date inside the window before the maturity settles the maturity', () => {
+  const buy = tx({ id: 'b0', date: '2027-01-10', type: 'buy', amount: 15000, quantity: 15 });
+  const skip = (date: string) => ({ dismissed: [couponReminderId('ovdp8976', date)] });
+
+  it('offers nothing after the Skip, as after a payout on the same date', () => {
+    const a = bond({ nextCoupon: '2027-02-25', maturity: '2027-03-02' });
+    expect(nextUnsettledCouponDate(a, [buy, tx({ date: '2027-02-25' })])).toBeUndefined();
+    expect(nextUnsettledCouponDate(a, [buy], skip('2027-02-25'))).toBeUndefined();
+    const b = bond({ nextCoupon: '2027-02-20', maturity: '2027-02-25' });
+    expect(nextUnsettledCouponDate(b, [buy, tx({ date: '2027-02-20' })])).toBeUndefined();
+    expect(nextUnsettledCouponDate(b, [buy], skip('2027-02-20'))).toBeUndefined();
+  });
+
+  it('leaves the maturity owed a day past the window, as a payout does', () => {
+    const a = bond({ nextCoupon: '2027-02-17', maturity: '2027-02-25' });
+    expect(nextUnsettledCouponDate(a, [buy, tx({ date: '2027-02-17' })])).toBe('2027-02-25');
+    expect(nextUnsettledCouponDate(a, [buy], skip('2027-02-17'))).toBe('2027-02-25');
+  });
+
+  it('settles by a coupon id of the same asset only', () => {
+    const a = bond({ nextCoupon: '2027-02-25', maturity: '2027-03-02' });
+    const dismissed = [
+      couponReminderId('ovdp6475', '2027-02-25'),
+      couponReminderId('ovdp8976x', '2027-02-25'),
+      couponOverdueReminderId('ovdp8976', '2027-02-25'),
+      maturityReminderId('ovdp8976', '2027-03-02'),
+    ];
+    expect(nextUnsettledCouponDate(a, [buy], { dismissed })).toBe('2027-02-25');
   });
 });
 
@@ -1625,6 +1658,43 @@ describe('the walk starts on the published date the stored one stands for', () =
       const dismissed = [couponReminderId(a.id, '2026-09-14')];
       const ledger = [buy('b0', '2026-01-10')];
       expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES, dismissed })).toBe('2027-04-14');
+    });
+
+    it('passes it for a Skip within the window of the stored date, as for a payout there', () => {
+      const ledger = [buy('b0', '2026-01-10')];
+      const paid = [...ledger, tx({ id: 'p0', date: '2026-09-17' })];
+      const dismissed = [couponReminderId(a.id, '2026-09-17')];
+      expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe('2027-04-14');
+      expect(nextUnsettledCouponDate(a, ledger, { schedule: DATES, dismissed })).toBe('2027-04-14');
+    });
+  });
+
+  // A Skip settles the start only where a payout on its date would: not where a published date
+  // beside it, owed and paid by no other payout, claims it.
+  describe('a published date beside a Skip claims it, as it claims a payout', () => {
+    const DATES = ['2027-02-10', '2027-02-27', '2027-08-27'];
+    const a = bond({ nextCoupon: '2027-02-18', maturity: '2027-08-27' });
+    const ledger = [buy('b0', '2026-01-10')];
+    const skip = { schedule: DATES, dismissed: [couponReminderId(a.id, '2027-02-22')] };
+
+    it('leaves the start owed while the published date beside the Skip is owed', () => {
+      const paid = [...ledger, tx({ id: 'p0', date: '2027-02-22' })];
+      expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe('2027-02-10');
+      expect(nextUnsettledCouponDate(a, ledger, skip)).toBe('2027-02-10');
+    });
+
+    it('settles the start once another payout pays the published date beside it', () => {
+      const other = [...ledger, tx({ id: 'q0', date: '2027-02-27' })];
+      const paid = [...other, tx({ id: 'p0', date: '2027-02-22' })];
+      expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe('2027-08-27');
+      expect(nextUnsettledCouponDate(a, other, skip)).toBe('2027-08-27');
+    });
+
+    it('passes the published date within the window of the Skip, as a payout there', () => {
+      const start = [...ledger, tx({ id: 's0', date: '2027-02-10' })];
+      const paid = [...start, tx({ id: 'p0', date: '2027-02-22' })];
+      expect(nextUnsettledCouponDate(a, paid, { schedule: DATES })).toBe('2027-08-27');
+      expect(nextUnsettledCouponDate(a, start, skip)).toBe('2027-08-27');
     });
   });
 

@@ -264,6 +264,11 @@ export const COUPON_MATCH_WINDOW_DAYS = 7;
  *  one payout settles every occurrence within the window, so it could settle both ends of it. */
 const FINAL_FOLD_DAYS = 2 * COUPON_MATCH_WINDOW_DAYS;
 
+// The one window a payout and a Skip both match by.
+function withinWindow(a: string, b: string, windowDays: number): boolean {
+  return Math.abs(daysBetween(a, b)) <= windowDays;
+}
+
 /** The ONE dedupe predicate, shared with `core/reminders` so a manually entered
  *  coupon silences both surfaces by the same rule. */
 export function couponRecorded(
@@ -276,8 +281,14 @@ export function couponRecorded(
     (t) =>
       t.type === 'interest_payout' &&
       t.assetId === assetId &&
-      Math.abs(daysBetween(date, t.date)) <= windowDays,
+      withinWindow(date, t.date, windowDays),
   );
+}
+
+/** The dates of the asset's dismissed `couponReminderId` ids, read back. */
+function skippedDates(dismissed: readonly string[], assetId: string): string[] {
+  const prefix = couponReminderId(assetId, '');
+  return dismissed.filter((id) => id.startsWith(prefix)).map((id) => id.slice(prefix.length));
 }
 
 // A date no calendar has, which a backup can carry (`2026-13-01`), has no day before it.
@@ -345,24 +356,25 @@ function walkFrom(
   let date = stored === asset.nextCoupon ? publishedStart(asset, stored, opts.schedule) : stored;
 
   const windowDays = opts.windowDays ?? COUPON_MATCH_WINDOW_DAYS;
-  const dismissed = opts.dismissed ?? [];
+  // A skipped date matches as a payout's date does, by the same window.
+  const skipped = skippedDates(opts.dismissed ?? [], asset.id);
   // One pass over the ledger: each occurrence then reads only the asset’s own rows.
   const own = transactions.filter((t) => t.assetId === asset.id);
-  // A payout beside the stored date pays the start unless a published date it is beside claims it,
-  // owed and paid by no other; the start claiming it is harmless, as the walk then settles the start.
-  const claimed = (t: Transaction) =>
+  // A payout or a Skip beside the stored date settles the start unless a published date beside it,
+  // owed and paid by no other payout, claims it; one the start claims, the walk settles anyway.
+  const claimed = (at: string, by?: Transaction) =>
     (opts.schedule ?? []).some((published) => {
       const d = notPastMaturity(asset, published);
       return (
-        couponRecorded([t], asset.id, d, windowDays) &&
+        withinWindow(d, at, windowDays) &&
         !holdsNone(unitsOnRecordDate(own, asset.id, d)) &&
-        !own.some((u) => u !== t && couponRecorded([u], asset.id, d, windowDays))
+        !own.some((u) => u !== by && couponRecorded([u], asset.id, d, windowDays))
       );
     });
   const storedSettled =
     date !== stored &&
-    (own.some((t) => couponRecorded([t], asset.id, stored, windowDays) && !claimed(t)) ||
-      dismissed.includes(couponReminderId(asset.id, stored)));
+    (own.some((t) => couponRecorded([t], asset.id, stored, windowDays) && !claimed(t.date, t)) ||
+      skipped.some((s) => withinWindow(stored, s, windowDays) && !claimed(s)));
   // Past the last row that moves the asset’s units, a holding of none stays none.
   const lastRow = own.reduce(
     (last, t) => (movesPosition(t.type) && t.date > last ? t.date : last),
@@ -375,7 +387,7 @@ function walkFrom(
     const passed =
       (onOrAfter !== undefined && date < onOrAfter) ||
       couponRecorded(own, asset.id, date, windowDays) ||
-      dismissed.includes(couponReminderId(asset.id, date)) ||
+      skipped.some((s) => withinWindow(date, s, windowDays)) ||
       (i === 0 && storedSettled);
     if (!passed) {
       if (!holdsNone(unitsOnRecordDate(own, asset.id, date))) return date;

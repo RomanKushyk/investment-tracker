@@ -288,9 +288,13 @@ a mapped step could pass a date the walk bridged short of. The maturity a walk f
 coupon date stored is not mapped. A payout recorded within the
 dedupe window of the stored date settles the occurrence the stored date stands for, unless another
 published date within the window of the payout, owed and with no other payout beside it, claims the
-payout. A Skip recorded against the stored date settles that occurrence too, where the walk is
-handed both the dismissals and the dates, which no reader is yet: the reminders and `/`'s coupon
-card pass the dismissals and no dates.
+payout. The walk matches a skipped date as it matches a payout's, by the same dedupe window, until a
+payout names its coupon; a Skip never counts as the other payout that pays a claimant. A Skip passes
+every occurrence within the window of the skipped date; the reminders and `/`'s coupon card read the
+walk that way, with the dismissals and no dates. Where the walk is handed both the dismissals and
+the dates, which no reader is yet, a Skip within the window of the stored date settles the
+occurrence the stored date stands for, unless another published date would claim a payout on the
+skipped date.
 Nothing writes the start back: it is derived at every read. `/view`'s build passes
 the archive's dates to the walk behind the next payouts on Overview and Payouts, `/attributes`' next
 coupon, and Seasonality's expected coupons and coupon-season card; the confirm's roll on `/` and the
@@ -314,7 +318,8 @@ the dates, a semiannual stored date inside the dedupe window before the maturity
 coupon: the gap starts on the maturity, as once the confirm rolls onto it, so it counts the coupon
 there, sized on its record date, and the coupon before as for a start on the maturity. The walk, the
 reminders and `/`'s coupon card still offer the stored date, and the confirm records it and rolls
-from it onto the maturity.
+from it onto the maturity. A Skip of it, as a payout on it, settles the maturity's coupon too, so the
+reminders and `/`'s coupon card then offer no coupon.
 The schedule's months name each occurrence by the month of its place in the first year's cycle,
 and the final coupon, paid with the principal, by its own. Without the dates the gap counts back
 from its start in the same steps. Where the start is the maturity, folded or clamped onto, and

@@ -232,6 +232,16 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
     );
     expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-23']);
   });
+
+  it('announces no coupon at the maturity after a skip of the stored date beside it', () => {
+    const asset = bond({ nextCoupon: '2027-02-25', maturity: '2027-03-02' });
+    const later = [snapshot('2027-03-03', { ovdp8976: 15846.3 })];
+    const skipped = { dismissed: [couponReminderId('ovdp8976', '2027-02-25')] };
+    expect(computeReminders([asset], later, [], '2027-03-03', skipped)).toEqual([]);
+    expect(
+      computeReminders([asset], later, [payout({ date: '2027-02-25' })], '2027-03-03'),
+    ).toEqual([]);
+  });
 });
 
 describe('maturity window', () => {
