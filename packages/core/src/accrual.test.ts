@@ -1574,7 +1574,9 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
       }
       expect(cases).toBe(51968);
       expect(counting).toBe(37184);
-    });
+      // Every gap of every case is the criterion, and on the CI runner's parallel run that passes
+      // vitest's 5 s default, as `domain-purity.test.ts` explains for its own cost.
+    }, 20_000);
   });
 
   it('leaves a monthly and a quarterly schedule on the month grid', () => {
