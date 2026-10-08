@@ -2555,19 +2555,35 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
       });
     });
 
-    // THE LOOKUP MUST NOT BE THE THING THAT LOSES THE SIGNAL. Search is an index minutes behind a
-    // just-created issue, and the step runs under `bash -e`, where one failed lookup aborts before
-    // either branch and the run leaves nothing at all.
-    it('dedupes against the list API, and survives the lookup failing', () => {
-      // COMMENT LINES DROPPED FIRST, or the sentence explaining why `--search` is wrong reads as
-      // a use of it — which is what this assertion caught on its first run.
-      const commands = (step?.run ?? '')
-        .split('\n')
-        .filter((line) => !/^\s*#/.test(line))
-        .join('\n');
-      expect(commands).toContain('gh issue list');
-      expect(commands).not.toContain('--search');
-      expect(commands).toMatch(/\|\| true/);
+    // THE LOOKUP MUST NOT LOSE THE SIGNAL, NOR DOUBLE IT. Any flag gh answers from search
+    // (`--label`, `--search`, `--milestone`, `--type`, and their short forms) puts the lookup on an
+    // index minutes behind a just-created issue; `--author` alone stays on the list API, which
+    // takes the bot as `github-actions[bot]` (`--app` matches nothing there), measured with
+    // `GH_DEBUG=api`. Under `bash -e` one failed lookup aborts before either branch.
+    it('dedupes through the list API, by author and marker, and survives the lookup failing', () => {
+      const lines = (step?.run ?? '').split(/\r?\n/);
+      // COMMENT LINES DROPPED, or the sentence naming the flags it must not carry reads as a use.
+      const commands = lines.filter((line) => !/^\s*#/.test(line)).join('\n');
+      expect(commands.match(/gh issue list/g)).toHaveLength(1);
+      expect(commands).not.toMatch(/--search|gh search/);
+
+      // The lookup is the lines from `existing=$(` through the first one that does not continue,
+      // so a later line cannot stand in for what the lookup itself lacks.
+      const first = lines.findIndex((line) => line.includes('existing=$('));
+      expect(first).toBeGreaterThanOrEqual(0);
+      let last = first;
+      while (last < lines.length - 1 && lines[last]!.trimEnd().endsWith('\\')) last += 1;
+      const lookup = lines
+        .slice(first, last + 1)
+        .map((line) => line.trim().replace(/\\$/, ''))
+        .join(' ');
+
+      const listApi = ['--repo', '--state', '--author', '--limit', '--json', '--jq'];
+      const flags = [...lookup.matchAll(/(?<=\s)-{1,2}[A-Za-z][\w-]*/g)].map((m) => m[0]);
+      for (const flag of flags) expect([flag, listApi.includes(flag)]).toEqual([flag, true]);
+      expect(lookup).toContain("--author 'github-actions[bot]'");
+      expect(lookup).toContain('select(.body | contains(\\"$marker\\"))');
+      expect(lookup).toMatch(/\|\| true\)$/);
     });
   });
 
