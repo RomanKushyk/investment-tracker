@@ -14,7 +14,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
-import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import type { Asset } from '@quirenote/core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
 import { portfolioView } from '@quirenote/core/view/portfolio';
@@ -40,9 +40,7 @@ export function Portfolio() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const assets = useAssets().data ?? [];
-  const snapshots = useSnapshots().data ?? [];
-  const transactions = useTransactions().data ?? [];
+  const { assets, snapshots, transactions } = useLedgerAsOfToday();
 
   // One shape for both forms, so the table and the cards read the same numbers
   // from the same place rather than each doing the arithmetic again.
@@ -201,8 +199,8 @@ export function Portfolio() {
               avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
               title={r.asset.name}
               tag={<Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>}
-              // A FOOTER BAND, not the header row, where a 360 overflow was closed and two
-              // buttons would re-open it. The band is ALREADY `flex flex-wrap`, so the actions
+              // A FOOTER BAND, not the header row, which two buttons would overflow at 360.
+              // The band is ALREADY `flex flex-wrap`, so the actions
               // go in bare — a nested flex box makes the pair one unwrappable item and
               // cancels the wrap the band exists to provide.
               footer={editing ? rowActions(r.asset) : undefined}

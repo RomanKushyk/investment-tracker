@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
 // THE SEASONALITY TOOLTIP NAMES ITS ROWS FROM THE DICTIONARY. recharts prints a series'
 // `dataKey` wherever the `<Bar>` carries no `name`, so the wiring is the fix, not the words.
 //
-// A source test: the suite is `environment: 'node'` with no jsdom, so there is no way to
-// mount the chart here.
+// A source test: it reads the chart's source rather than mounting it, in the suite's `node`
+// environment.
 const here = dirname(fileURLToPath(import.meta.url));
 /** COMMENTS STRIPPED BEFORE MATCHING: prose must not be able to pass or fail a test.
  *

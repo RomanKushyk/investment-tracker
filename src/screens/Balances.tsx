@@ -6,7 +6,7 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import {
   balancesView,
   buildBalanceRow,
@@ -25,9 +25,7 @@ export function Balances() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const assets = useAssets().data ?? [];
-  const snapshots = useSnapshots().data ?? [];
-  const transactions = useTransactions().data ?? [];
+  const { assets, snapshots, transactions } = useLedgerAsOfToday();
   const [page, setPage] = useState(0);
 
   const { chart: chartData, earliest } = balancesView({ assets, snapshots, transactions });

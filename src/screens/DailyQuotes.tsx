@@ -7,8 +7,9 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { couponReminderId, dueCoupons } from '@quirenote/core/accrual';
-import { dayBefore, kyivDateIso, todayIso } from '@quirenote/core/dates';
+import { dayBefore, kyivDateIso } from '@quirenote/core/dates';
 import { investedByAsset, ledgerUnits, unitsByAsset } from '@quirenote/core/derive';
 import type { QuoteVerdict } from '@quirenote/core/inzhur/dcf';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
@@ -81,13 +82,13 @@ export function DailyQuotes() {
   const assets = useAssets().data ?? NO_ASSETS;
   const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
   const transactions = useTransactions().data ?? NO_TRANSACTIONS;
+  // The yield card is a figure, so it reads the ledger to today; the form and the cards read every row.
+  const figures = useLedgerAsOfToday();
   const { date, quotes, setDate, setQuote, fillQuote } = useDraft();
   const saveSnapshot = useSaveSnapshot();
-  // ONE READING OF THE CLOCK PER RENDER, PASSED AS A DEPENDENCY. A clock read
-  // inside a memo is a value its deps cannot see, so a session left open across
-  // midnight keeps the previous day's answer — which here means withholding a
-  // coupon that has since come due. A date string compares by value.
-  const today = todayIso();
+  // The hook's clock, so the due cards change day in the render the yield card does; a clock
+  // read inside a memo below would be a value its deps cannot see.
+  const today = figures.today;
   const selectedDate = date || today;
   // The units the ledger says are held ON THE DRAFTED DATE, not today's: a quote
   // drafted for a past day must value the position that existed then, or a
@@ -112,8 +113,8 @@ export function DailyQuotes() {
   });
 
   useEffect(() => {
-    if (!date) setDate(todayIso());
-  }, [date, setDate]);
+    if (!date) setDate(today);
+  }, [date, setDate, today]);
 
   const dismissedSuggestions = dismissed.date === selectedDate ? dismissed.ids : [];
   const todaySnapshot = snapshots.find((s) => s.date === selectedDate);
@@ -180,8 +181,8 @@ export function DailyQuotes() {
   // `/yield`'s own row at «Від початку», the figure the yield card shows. Memoized as `/yield`
   // memoizes it: each row solves an XIRR, and this screen re-renders per keystroke.
   const yields = useMemo(
-    () => yieldTableRows(assets, snapshots, transactions),
-    [assets, snapshots, transactions],
+    () => yieldTableRows(figures.assets, figures.snapshots, figures.transactions),
+    [figures],
   );
   const invested = investedByAsset(transactions);
 
@@ -361,14 +362,8 @@ export function DailyQuotes() {
             </div>
           </div>
 
-          {/* WHAT THE DAY AMOUNTS TO — outcome, then analytics, then the last write.
-              Nothing here is a control, which is why the date and the fetch left: this
-              column answers "so what", and it stays BELOW the rows when the grid
-              collapses, because an outcome read before the work is noise. The coupon card
-              is INSERTED above the rest, never swapped in, so the order never changes.
-              These blocks are also what deleted the width cap: the aside used to be
-              conditional, so the rows needed one to stop them reflowing on a coupon
-              day. */}
+          {/* WHAT THE DAY AMOUNTS TO stays below the rows when the grid collapses: an outcome
+              read before the work is noise. The coupon card goes above the rest, so order holds. */}
           <aside className="flex min-w-0 flex-col gap-3.5">
             {due.map((d) => {
               const asset = assets.find((a) => a.id === d.assetId)!;
@@ -426,10 +421,10 @@ export function DailyQuotes() {
               // buttons underneath it. `bottom` rather than a transform, because a transform
               // would make its own children's `position: fixed` resolve against it.
               //
-              // Read from the root's `--keyboard-inset` rather than subscribed to here: this
-              // bar owning the subscription re-rendered the whole route on every
-              // visual-viewport event to move one fixed box. Three surfaces need the number
-              // now, and CSS moves all of them without React hearing about it.
+              // Read from the root's `--keyboard-inset` rather than subscribed to here: a
+              // subscription in this bar would re-render the whole route on every
+              // visual-viewport event to move one fixed box, and CSS moves every surface that
+              // needs the number without React hearing about it.
               className="fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-30 flex animate-in gap-2 border-t border-hairline bg-page px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220 slide-in-from-bottom-2"
             >
               {/* SQUARE CORNERS, hairline top edge: a full-bleed bar has no designed short

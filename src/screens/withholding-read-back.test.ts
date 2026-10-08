@@ -11,8 +11,8 @@ import { describe, expect, it } from 'vitest';
 // overstates the net and lifts that asset's XIRR with nothing on screen to check against a
 // statement.
 //
-// A source test: the suite is `environment: 'node'` with no jsdom, so there is no way to
-// mount either screen here.
+// A source test: it reads both screens' source rather than mounting them, in the suite's `node`
+// environment.
 const here = dirname(fileURLToPath(import.meta.url));
 /** COMMENTS STRIPPED BEFORE MATCHING: rationale prose naming a class must not be able to
  *  pass or fail a test.

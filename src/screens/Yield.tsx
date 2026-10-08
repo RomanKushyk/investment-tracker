@@ -7,8 +7,7 @@ import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { cumulativeYieldSeriesIn, yieldView } from '@quirenote/core/view/yield';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
@@ -23,18 +22,11 @@ function signClass(v: number | null | undefined): string {
   return v == null ? 'text-muted' : v < 0 ? 'text-neg' : 'text-pos';
 }
 
-// Stable empties, so `?? []` does not hand `useMemo` a new array every render.
-const NO_ASSETS: Asset[] = [];
-const NO_SNAPSHOTS: Snapshot[] = [];
-const NO_TRANSACTIONS: Transaction[] = [];
-
 export function Yield() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const assets = useAssets().data ?? NO_ASSETS;
-  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
-  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
+  const { assets, snapshots, transactions } = useLedgerAsOfToday();
 
   const { period, control } = usePeriodWindow(assets, snapshots, transactions);
   // MEMOIZED: every row solves an XIRR, and only the ledger or the period changes them.

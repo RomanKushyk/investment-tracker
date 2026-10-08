@@ -18,8 +18,7 @@ import { describe, expect, it } from 'vitest';
 // as apparently-unused markup would leave the whole suite green and put every one of these
 // controls back to ink on ink.
 //
-// SOURCE TEXT, not a render: this repo runs vitest with `environment: 'node'` and carries no
-// render-testing library.
+// SOURCE TEXT, not a render: this file runs in the suite's `node` environment.
 const here = dirname(fileURLToPath(import.meta.url));
 
 function sourceFiles(dir: string): string[] {

@@ -237,7 +237,7 @@ describe('the theme survives the persist contract', () => {
 // control that resolved `system` at write time, or stamped `data-theme` itself, or walked
 // its own order, would look right in a screenshot and be a second source of truth.
 //
-// SOURCE TEXT, because the suite runs `environment: 'node'` with no jsdom. What it pins is
+// SOURCE TEXT, in the suite's `node` environment. What it pins is
 // the wiring; that the store holds the value is `state/settings.test.ts`'s arm.
 describe('the sidebar and the Appearance card write the one stored preference', () => {
   const read = (...rel: string[]) =>

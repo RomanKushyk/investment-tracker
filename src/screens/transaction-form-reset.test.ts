@@ -14,9 +14,8 @@ import { describe, expect, it } from 'vitest';
 // is re-attached. A fix that depends on the compiler being favourable is not a fix. A
 // controlled field renders its value from state every render and cannot desync.
 //
-// A SOURCE TEST because the suite runs `environment: 'node'` with no jsdom and no
-// testing-library: there is no way to mount the panel here, and adding a DOM environment is
-// not this fix's to smuggle in.
+// A SOURCE TEST: it reads the panel's source rather than mounting it, in the suite's `node`
+// environment.
 //
 // TWO RULES THIS FILE LEARNED FROM ITS OWN REVIEW, both about how a source test lies:
 //   1. ANCHOR THE MATCH: every read below starts at `name="amount"`. A window opened at

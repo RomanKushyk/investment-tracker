@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 // across five guards, and every assertion below is about which token a file NAMES rather
 // than what the value reads — so this one carries no reader and adds no sixth copy.
 //
-// SOURCE TEXT, the house idiom: vitest runs `environment: 'node'` with no render library.
+// SOURCE TEXT, the house idiom: this file runs in the suite's `node` environment.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 

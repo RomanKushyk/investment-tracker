@@ -5,9 +5,8 @@ import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
-import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import { seasonalityView } from '@quirenote/core/view/seasonality';
 import { useFormat } from '../hooks/useFormat';
@@ -21,16 +20,10 @@ function dayPart(day: number): 'early' | 'mid' | 'late' {
   return 'late';
 }
 
-const NO_ASSETS: Asset[] = [];
-const NO_TRANSACTIONS: Transaction[] = [];
-const NO_SNAPSHOTS: Snapshot[] = [];
-
 export function Seasonality() {
   const f = useFormat();
   const t = useT();
-  const assets = useAssets().data ?? NO_ASSETS;
-  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
-  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
+  const { assets, snapshots, transactions } = useLedgerAsOfToday();
 
   const { period, control } = usePeriodWindow(assets, snapshots, transactions);
   // Every FLOW figure here reads the windowed ledger, so a bar and the card beneath it

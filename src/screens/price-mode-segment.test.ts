@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// A SOURCE PIN, because this repo runs vitest with `environment: 'node'` and carries no
-// render-testing library: a control's event wiring cannot be exercised, only its shape.
+// A SOURCE PIN, in the suite's `node` environment: it holds a control's shape, not its event
+// wiring.
 //
 // THE DEFECT: `PriceModeSegment` reports which of two meanings the amount field carries and
 // `TransactionPanel` CONVERTS the typed number on that event, so with

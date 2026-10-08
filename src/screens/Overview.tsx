@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { Link } from 'react-router';
 
 import { buttonVariants } from '../components/ui/button-variants';
@@ -13,8 +12,7 @@ import { usePeriodWindow } from '../hooks/usePeriodWindow';
 import { ShareBar } from '../components/ui/ShareBar';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
-import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { useToday } from '../hooks/useToday';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import { toUsd } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
@@ -26,17 +24,10 @@ import { Scroller } from '../components/ui/Scroller';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
-// Stable empties, so `?? []` does not hand `useMemo` a new array every render.
-const NO_ASSETS: Asset[] = [];
-const NO_SNAPSHOTS: Snapshot[] = [];
-const NO_TRANSACTIONS: Transaction[] = [];
-
 export function Overview() {
   const f = useFormat();
   const t = useT();
-  const assets = useAssets().data ?? NO_ASSETS;
-  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
-  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
+  const { assets, snapshots, transactions, today } = useLedgerAsOfToday();
   // NARROWED: `useSettings()` with no selector re-renders this screen on ANY store
   // change — the currency toggle and every unrelated field.
   const currency = useSettings((s) => s.currency);
@@ -46,7 +37,6 @@ export function Overview() {
   const { period, control } = usePeriodWindow(assets, snapshots, transactions);
   // Memoized: five tweens re-render this every frame. `today` is state, so the next payouts and
   // the subtitle move on at midnight: a payout dated before today is not next.
-  const today = useToday();
   const view = useMemo(
     () => overviewView({ assets, snapshots, transactions, period, today }),
     [assets, snapshots, transactions, period, today],

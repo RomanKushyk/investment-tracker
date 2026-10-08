@@ -182,11 +182,12 @@ resolved by the window composer — each asset at that day's units × price, rou
 kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
 transaction dated after the last observation closes them at carried prices, a full exit at none;
 no grid day falls after the caller's day, so a transaction or a price dated later adds none, and
-`buildView` reads the ledger to that day (`ledgerAsOf`), so a transaction or a quote snapshot dated
-after it counts in no composed figure until its day, the next payouts' projection included, so a
-sale entered ahead of a coupon's date leaves that coupon projected until the sale's day; an asset
-whose only buy is dated ahead composes as one with no transaction yet; what `buildView` does not
-compose, the reminders and the coupon due cards among it, reads every row. A
+`buildView` reads the ledger to that day (`ledgerAsOf`), and the app's screens that call a
+composer, the capital card and `/`'s yield card read it to theirs through `useLedgerAsOfToday` (*Metric families and windows*), so a
+transaction or a quote snapshot dated after it counts in none of their figures until its day, the
+next payouts' projection included, so a sale entered ahead of a coupon's date leaves that coupon
+projected until the sale's day; an asset whose only buy is dated ahead composes as one with no
+transaction yet; the readers that keep every row are named under *Metric families and windows*. A
 position the ledger holds none of that day has no quote, as the quotes form asks for none, and every figure that
 values it reads 0 from the ledger; one the ledger cannot count, or a held one no source has observed at or
 before the day, is absent, never 0. Each quote names the
@@ -226,7 +227,8 @@ observed ahead of the day. Ghostfolio ends every range but a calendar year at `e
 when no end is given, and Portfolio Performance's last-X, since-X, month-to-date and year-to-date periods
 end on the day they are relative to; unlike both, the caller's day is a grid day only when
 something is observed or transacted on it, so a window closes on the latest grid day at or before
-it. The ledger is cut once, at `buildView`'s entry, so every composer keeps its signature and the
+it. The ledger is cut before the composers run, at `buildView`'s entry and in the app's
+`useLedgerAsOfToday`, so every composer keeps its signature and the
 golden master, which runs the composers directly, pins what each did; a row ahead is absent rather
 than counted as of its date because it is entered ahead on purpose — a coupon known to be coming, a
 planned deposit — and Ghostfolio tags such an activity a draft and leaves drafts out of every
@@ -291,12 +293,19 @@ that shows a share. Every display formatter renders a non-finite figure as «—
 it; a field's own value stays the field boundary's. A bond's price ON the payment date of a coupon
 before maturity is EX that coupon: the DCF re-derivation (`futureFlows`) discounts only flows
 strictly after the pricing date, and a quote suggested for that date already deducts the coupon.
+The app's screens that call a composer, the capital card and `/`'s yield card take the ledger from
+one hook, `useLedgerAsOfToday`,
+which cuts it at `useToday()`, one clock every reader shares, as `buildView` cuts it at the caller's
+day, so Balances lists the
+snapshots and the Payouts log the payouts dated on or before today; the reminders, the coupon due
+cards, both forms, the ledger on `/transactions`, the delete counts, the export and the import
+preview read every row.
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. Capital gain is realized plus unrealized,
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
 last quote outlives its sale and would count it twice. A snapshot dated after the sale can still
-quote the position, the same double count one day at a time; the cell shows it because nothing
-stored is hidden, and the mark says the total left it out. A snapshot stores a value, not a price
+quote the position, the same double count one day at a time; the cell shows it because a listed
+day's cells hide nothing stored, and the mark says the total left it out. A snapshot stores a value, not a price
 per unit: a quote taken on a day the ledger held none values none of the units bought later,
 wherever the latest snapshot falls, and a last valuation day that held none values the position at
 nothing, so units bought after it wait for their own quote; the rebuilt series carries prices, not
@@ -338,7 +347,9 @@ rewrites the documented seam, where a buy lowers it until its day is quoted. · 
 for units: a runtime dependency in the pure package the app and the server both bundle. · A
 tolerance in each closed-position test: the residue would still reach every figure that multiplies
 units. · Testing the last quote's own day in place of the last valuation day: the quote of a
-sold-out holding would value a different one bought back after a day that held none.
+sold-out holding would value a different one bought back after a day that held none. · A cut in
+each screen: every screen would make it, and one that did not would disagree with the rest about
+the same figure; `src/one-composer.test.ts` holds each of those readers to the hook.
 
 ## Coupon cadence
 **Decision.** Where a linked bond's published payment dates are passed, a roll lands on the first of
@@ -1145,7 +1156,9 @@ Postgres takes the worker's one PGlite from `freshDb`, emptied for each test, an
 may build one — a lint zone, not a test reading source. Isolation is per schema: a test that adds,
 grants or sets anything outside one fails the next call, and a built-in edited in place is shared.
 The suite runs `vitest run`'s default worker count, one fewer than the cores, capped at four, and
-watch mode takes the same.
+watch mode takes the same. A hook whose answer moves with state it subscribes to is tested mounted, with
+Testing Library's `renderHook`, in a file that opts into jsdom by its `@vitest-environment` comment;
+the suite stays `node`, and such a test advances a fake clock inside `act`.
 **Why.** These documents carry figures, contracts and instructions no type checker reads, and a gate
 whose verdict moves with whether an agent happens to be running is not a gate. `toJS()` discards an
 unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are one value to a
@@ -1155,7 +1168,11 @@ booted with after `close()`, so a cluster per test grew every worker until a ful
 machine none to spare; per-test isolation stops at the database or schema in the tools this follows,
 and cluster-level state is shared there too. A worker's memory does not shrink as the cores grow,
 so a count that scales with them spends memory a loaded machine may not have; the one fewer is kept
-for the main thread, whose single Vite server serves every worker.
+for the main thread, whose single Vite server serves every worker. React deprecated
+`react-test-renderer` and points to `@testing-library/react`; TanStack Query's testing guide mounts
+a hook with `renderHook` inside a `QueryClientProvider`, and its suite, like usehooks-ts', runs
+Vitest on jsdom. Testing Library's `waitFor` recognises fake timers only through a `jest` global, so
+under Vitest's it polls on a clock nothing advances.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · Asking the planner (`EXPLAIN` in PGlite) which sort keys are expressions:
 `SELECT DISTINCT` and `count(DISTINCT …)` sort on expressions by design, so every query would need
@@ -1165,6 +1182,9 @@ PostgreSQL rewrites on its own, to guard against what no suite does. · `'50%'` 
 against every core, so a four-core runner would drop to two. · A budget over total memory: it cannot
 see what the machine's other apps hold. · Sizing from free memory: the worker count, and so the
 gate, would move with the machine's load. · `vmMemoryLimit`: it recycles only the vm pools' workers.
+· jsdom for the whole suite, or a project of its own: every other test passes without a DOM, and
+`src/vitest-scope.test.ts` keeps one project. · Vitest Browser Mode: a
+Playwright provider and a browser project for a hook that needs no layout.
 
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the

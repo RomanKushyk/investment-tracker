@@ -11,8 +11,8 @@ import type { Asset, Transaction } from '@quirenote/core/types';
 // never moves `asset.nextCoupon`, so a payout recorded there leaves the pointer on a settled
 // date while the coupon card offers the next one.
 //
-// A source test: the suite is `environment: 'node'` with no jsdom, so there is no way to
-// mount the screen here.
+// A source test: it reads the screen's source rather than mounting it, in the suite's `node`
+// environment.
 const here = dirname(fileURLToPath(import.meta.url));
 /** COMMENTS STRIPPED BEFORE MATCHING: the rationale in the screen names `a.nextCoupon`, and
  *  prose must not be able to pass or fail a test.

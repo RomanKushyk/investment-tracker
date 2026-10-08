@@ -13,8 +13,8 @@ import { describe, expect, it } from 'vitest';
 // button alone, and this file fails if a later refactor wires the glyph straight to
 // `mutate` — the shape a "simplification" would take.
 //
-// A source test: the suite is `environment: 'node'`, so there is no way to mount the panel
-// and press anything.
+// A source test: it reads the panel's source rather than mounting it and pressing anything, in
+// the suite's `node` environment.
 const here = dirname(fileURLToPath(import.meta.url));
 const RAW = readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8');
 

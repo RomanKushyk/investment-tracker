@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
@@ -28,7 +28,6 @@ const RULES: Record<string, Rule> = {
     composer: 'view/overview#overviewView',
     memo: true,
     allow: {
-      ...EMPTIES,
       'money#toUsd': 'currency conversion stays in the component',
     },
   },
@@ -36,20 +35,18 @@ const RULES: Record<string, Rule> = {
     composer: 'view/yield#yieldView',
     memo: true,
     allow: {
-      ...EMPTIES,
       'view/yield#cumulativeYieldSeriesIn': 'the curve is one value per asset per date: #189',
     },
   },
   'src/screens/Seasonality.tsx': {
     composer: 'view/seasonality#seasonalityView',
     memo: true,
-    allow: { ...EMPTIES },
+    allow: {},
   },
   'src/screens/Attributes.tsx': {
     composer: 'view/attributes#attributesView',
     memo: true,
     allow: {
-      ...EMPTIES,
       'view/attributes#PayoutScheduleFact': 'the type the schedule label is worded from',
     },
   },
@@ -91,14 +88,22 @@ const RULES: Record<string, Rule> = {
 
 const CORE = '@quirenote/core/';
 
-const parse = (rel: string) =>
-  ts.createSourceFile(
-    rel,
-    readFileSync(join(REPO, rel), 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-    rel.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
+// One parse per file: the whole-tree tests below read every file of `src/` several times.
+const parsed = new Map<string, ts.SourceFile>();
+const parse = (rel: string): ts.SourceFile => {
+  let sf = parsed.get(rel);
+  if (!sf) {
+    sf = ts.createSourceFile(
+      rel,
+      readFileSync(join(REPO, rel), 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+      rel.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    );
+    parsed.set(rel, sf);
+  }
+  return sf;
+};
 
 interface Imported {
   key: string;
@@ -107,18 +112,19 @@ interface Imported {
   typeOnly: boolean;
 }
 
-/** Every name a file takes from the package by `module#export`, type-only included; a namespace,
- *  default, re-export or dynamic import gets a key of its own, so none passes unlisted. */
-function coreImports(sf: ts.SourceFile): Imported[] {
+/** One key per way a file can take a module, so an allow-list over the keys has no unlisted route
+ *  in; an import by a computed name keys as `?#import()`, a Vite glob as `?#import.meta.glob`. */
+function importsOf(sf: ts.SourceFile, matches: (spec: string) => boolean): Imported[] {
+  const local = (spec: string) => (spec.startsWith(CORE) ? spec.slice(CORE.length) : spec);
   const out: Imported[] = [];
   const visit = (n: ts.Node) => {
     if (
       (ts.isImportDeclaration(n) || ts.isExportDeclaration(n)) &&
       n.moduleSpecifier &&
-      ts.isStringLiteral(n.moduleSpecifier) &&
-      n.moduleSpecifier.text.startsWith(CORE)
+      ts.isStringLiteralLike(n.moduleSpecifier) &&
+      matches(n.moduleSpecifier.text)
     ) {
-      const mod = n.moduleSpecifier.text.slice(CORE.length);
+      const mod = local(n.moduleSpecifier.text);
       if (ts.isExportDeclaration(n)) {
         out.push({ key: `${mod}#export`, local: '', aliased: false, typeOnly: n.isTypeOnly });
       } else {
@@ -142,21 +148,34 @@ function coreImports(sf: ts.SourceFile): Imported[] {
         }
       }
     }
+    if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const arg = n.arguments[0];
+      if (!arg || !ts.isStringLiteralLike(arg)) {
+        out.push({ key: '?#import()', local: '', aliased: false, typeOnly: false });
+      } else if (matches(arg.text)) {
+        out.push({
+          key: `${local(arg.text)}#import()`,
+          local: '',
+          aliased: false,
+          typeOnly: false,
+        });
+      }
+    }
     if (
       ts.isCallExpression(n) &&
-      n.expression.kind === ts.SyntaxKind.ImportKeyword &&
-      n.arguments[0] &&
-      ts.isStringLiteral(n.arguments[0]) &&
-      n.arguments[0].text.startsWith(CORE)
+      ts.isPropertyAccessExpression(n.expression) &&
+      n.expression.name.text === 'glob' &&
+      ts.isMetaProperty(n.expression.expression)
     ) {
-      const mod = n.arguments[0].text.slice(CORE.length);
-      out.push({ key: `${mod}#import()`, local: '', aliased: false, typeOnly: false });
+      out.push({ key: '?#import.meta.glob', local: '', aliased: false, typeOnly: false });
     }
     ts.forEachChild(n, visit);
   };
   visit(sf);
   return out;
 }
+
+const coreImports = (sf: ts.SourceFile) => importsOf(sf, (spec) => spec.startsWith(CORE));
 
 const identifiers = (sf: ts.SourceFile, name: string): ts.Identifier[] => {
   const out: ts.Identifier[] = [];
@@ -284,16 +303,19 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
   'src/screens/portfolio/AssetDialogs.tsx': {
     'view/portfolio#cascadeCounts': 'the delete dialog counts the rows a deletion takes',
   },
+  'src/hooks/useLedgerAsOfToday.ts': {
+    'view/build#ledgerAsOf': "cuts the ledger every screen's composer reads, as buildView cuts it",
+  },
 };
 
-describe('the rules cover every composer and every caller', () => {
-  const walk = (dir: string): string[] =>
-    readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
-      const rel = `${dir}/${e.name}`;
-      if (e.isDirectory()) return skipped(e.name) ? [] : walk(rel);
-      return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [rel] : [];
-    });
+const walk = (dir: string): string[] =>
+  readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) return skipped(e.name) ? [] : walk(rel);
+    return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [rel] : [];
+  });
 
+describe('the rules cover every composer and every caller', () => {
   it('every file in src/ that calls a composer has a rule', () => {
     const callers = walk('src').filter((rel) =>
       coreImports(parse(rel)).some(
@@ -340,5 +362,199 @@ describe('the rules cover every composer and every caller', () => {
         .map((r) => r.composer)
         .sort(),
     );
+  });
+});
+
+// A figure reads the ledger to today (*Metric families and windows*), so every figure reader takes
+// it from one hook, and only the hook and the readers that keep every row read a ledger query.
+// Modules by where TypeScript resolves them, a file by its path and a package by its name, so no
+// spelling of a specifier (an extension, an alias) leads around them.
+const LEDGER_HOOK = ['src/hooks/useLedgerAsOfToday.ts'];
+const QUERIES = ['src/hooks/queries.ts'];
+// The imports that reach the stored ledger: the repository, the database, Dexie and the query cache.
+const STORE = [
+  'src/lib/repository.ts',
+  'src/lib/db.ts',
+  'dexie',
+  'dexie-react-hooks',
+  '@tanstack/react-query',
+];
+// The query module's names that read no ledger row; any other, a new export included, reads it.
+const NON_LEDGER_NAMES = [
+  'useAssets',
+  'useSaveSnapshot',
+  'useRecordTransaction',
+  'useAddAsset',
+  'useUpdateAsset',
+  'useDeleteAsset',
+  'useUpdateTransaction',
+  'useDeleteTransaction',
+  'useDeleteSnapshot',
+  'useReplaceAll',
+  'useClearAll',
+];
+const readsLedger = (name: string) => !NON_LEDGER_NAMES.includes(name);
+const LEDGER_READERS: Record<string, string> = {
+  'src/hooks/useLedgerAsOfToday.ts': 'the hook that cuts it',
+  'src/hooks/useReminders.ts': 'the reminders',
+  'src/screens/DailyQuotes.tsx':
+    "the quotes form, the coupon due cards and a picked day's snapshot",
+  'src/screens/TransactionPanel.tsx': 'the transaction form and the ledger list',
+  'src/screens/portfolio/AssetDialogs.tsx': 'the delete counts',
+  'src/hooks/useBackupDownload.ts': 'the backup file',
+  'src/screens/settings/CsvExportRow.tsx': 'the CSV export',
+  'src/screens/settings/ImportRow.tsx': "the import preview's diff against what is stored",
+};
+// Takes the lists its screen hands it.
+const HANDED = ['src/hooks/usePeriodWindow.tsx'];
+// Every file that reaches the repository, the database or the query cache, and what for.
+const STORE_READERS: Record<string, string> = {
+  'src/hooks/queries.ts': 'the ledger queries and every write',
+  'src/lib/repository.ts': 'the repository over the database',
+  'src/lib/db.ts': 'the Dexie databases themselves',
+  'src/main.tsx': 'the query client and the demo seed at boot',
+  'src/hooks/useDbSync.ts': "invalidates the cache on another tab's replace or clear",
+  'src/hooks/useInzhurAssets.ts': 'the Inzhur feed and its last-good copy in meta',
+  'src/hooks/useNbuRate.ts': 'the NBU rate and its last-good copy in meta',
+  'src/hooks/useBackupDownload.ts': 'the schema version a backup is stamped with',
+  'src/screens/settings/ImportRow.tsx': "the schema version an import's preview compares against",
+};
+
+const { options: OPTIONS } = ts.convertCompilerOptionsFromJson(
+  ts.readConfigFile(join(REPO, 'tsconfig.json'), ts.sys.readFile).config.compilerOptions,
+  REPO,
+);
+// Paths compare in one case where the file system ignores it, so `../lib/DB` is `src/lib/db.ts`.
+const canon = (path: string) => (ts.sys.useCaseSensitiveFileNames ? path : path.toLowerCase());
+const RESOLUTIONS = ts.createModuleResolutionCache(REPO, (f) => f, OPTIONS);
+/** Where TypeScript resolves a specifier from a file: a repo file by its path, a package by name. */
+const target = (spec: string, rel: string): string => {
+  const r = ts.resolveModuleName(
+    spec,
+    join(REPO, rel),
+    OPTIONS,
+    ts.sys,
+    RESOLUTIONS,
+  ).resolvedModule;
+  if (!r) {
+    // A stylesheet or an image leads to no module; code TypeScript cannot follow is refused.
+    if (/^[./]/.test(spec) && /(?:^|\/)[^/.]+$|\.[cm]?[jt]sx?$/.test(spec)) {
+      throw new Error(`${rel} imports ${spec}, which TypeScript cannot resolve`);
+    }
+    return spec;
+  }
+  if (r.isExternalLibraryImport) return r.packageId?.name ?? spec;
+  return canon(relative(REPO, r.resolvedFileName).split(sep).join('/'));
+};
+
+/** The names a file takes from the modules listed, type-only imports aside: a namespace import is
+ *  `*`, a default `default`, a re-export `export`, a dynamic import `import()`. */
+const importsFrom = (sf: ts.SourceFile, from: readonly string[]): string[] =>
+  importsOf(sf, (spec) => from.map(canon).includes(target(spec, sf.fileName)))
+    .filter((i) => !i.typeOnly)
+    .map((i) => i.key.slice(i.key.lastIndexOf('#') + 1));
+
+describe('every figure reader takes the ledger as of today', () => {
+  const files = walk('src');
+
+  it('only the hook and the readers that keep every row read a ledger query', () => {
+    const readers = files.filter((rel) => importsFrom(parse(rel), QUERIES).some(readsLedger));
+    expect(readers.sort()).toEqual(Object.keys(LEDGER_READERS).sort());
+  });
+
+  it('every composer caller, and the yield card on `/`, takes it from useLedgerAsOfToday', () => {
+    const takers = files.filter((rel) =>
+      importsFrom(parse(rel), LEDGER_HOOK).includes('useLedgerAsOfToday'),
+    );
+    expect(takers.sort()).toEqual(
+      [
+        ...Object.keys(RULES).filter((rel) => !HANDED.includes(rel)),
+        'src/screens/DailyQuotes.tsx',
+      ].sort(),
+    );
+  });
+
+  it('only the files with a reason reach the repository, the database or the query cache', () => {
+    const reach = files.filter((rel) => importsFrom(parse(rel), STORE).length > 0);
+    expect(reach.sort()).toEqual(Object.keys(STORE_READERS).sort());
+  });
+
+  it('no file re-exports the ledger queries or the store, which would hand them on unlisted', () => {
+    const relays = files.filter((rel) =>
+      importsFrom(parse(rel), [...QUERIES, ...STORE]).includes('export'),
+    );
+    expect(relays).toEqual([]);
+  });
+
+  it('no file imports a module by a computed name or a glob, which no allow-list could read', () => {
+    const computed = files.filter((rel) =>
+      importsOf(parse(rel), () => false).some((i) => i.key.startsWith('?#')),
+    );
+    expect(computed).toEqual([]);
+  });
+
+  it.each(Object.keys(RULES))('%s reads no ledger query of its own', (rel) => {
+    const queries = importsFrom(parse(rel), QUERIES);
+    expect(queries.filter((n) => readsLedger(n) || n === 'useAssets')).toEqual([]);
+  });
+
+  it("the coupon due cards on `/` read the hook's clock", () => {
+    const sf = parse('src/screens/DailyQuotes.tsx');
+    const todays: string[] = [];
+    const dueArgs: string[] = [];
+    const visit = (n: ts.Node) => {
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'today') {
+        todays.push(n.initializer?.getText(sf) ?? '');
+      }
+      if (
+        ts.isCallExpression(n) &&
+        ts.isIdentifier(n.expression) &&
+        n.expression.text === 'dueCoupons'
+      ) {
+        dueArgs.push(n.arguments[2]?.getText(sf) ?? '');
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    expect(todays).toEqual(['figures.today']);
+    expect(dueArgs).toEqual(['today']);
+  });
+
+  it("the yield card on `/` reads every argument off the hook's ledger", () => {
+    const sf = parse('src/screens/DailyQuotes.tsx');
+    const holders: string[] = [];
+    const calls: ts.CallExpression[] = [];
+    const visit = (n: ts.Node) => {
+      if (
+        ts.isVariableDeclaration(n) &&
+        ts.isIdentifier(n.name) &&
+        n.initializer &&
+        ts.isCallExpression(n.initializer) &&
+        ts.isIdentifier(n.initializer.expression) &&
+        n.initializer.expression.text === 'useLedgerAsOfToday'
+      ) {
+        holders.push(n.name.text);
+      }
+      if (
+        ts.isCallExpression(n) &&
+        ts.isIdentifier(n.expression) &&
+        n.expression.text === 'yieldTableRows'
+      ) {
+        calls.push(n);
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    expect(holders).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+    expect(
+      calls[0].arguments.map((a) =>
+        ts.isPropertyAccessExpression(a) &&
+        ts.isIdentifier(a.expression) &&
+        a.expression.text === holders[0]
+          ? `${holders[0]}.${a.name.text}`
+          : a.getText(sf),
+      ),
+    ).toEqual(['assets', 'snapshots', 'transactions'].map((k) => `${holders[0]}.${k}`));
   });
 });

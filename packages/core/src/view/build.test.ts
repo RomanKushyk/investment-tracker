@@ -129,6 +129,27 @@ describe('a transaction or a quote snapshot dated after today counts in no figur
     expect(view.balances.chart.at(-1)?.date).toBe(seed.today);
   });
 
+  it('projects a coupon payout recorded ahead once, on its date, and counts it as received nowhere', () => {
+    const seed = ledger('seed');
+    const payout: Transaction = {
+      id: 'p-ahead',
+      date: '2026-08-25',
+      type: 'interest_payout',
+      assetId: 'ovdp8976',
+      amount: 1240,
+    };
+    expect(payout.date > seed.today).toBe(true);
+    const view = buildView({ ...seed, transactions: [...seed.transactions, payout] });
+    expect(view).toStrictEqual(buildView(seed));
+    const coupons = view.payouts.nextPayouts.filter((r) => r.assetId === 'ovdp8976');
+    expect(coupons.map((r) => [r.date, r.amount])).toEqual([['2026-08-25', 1240]]);
+    expect(view.payouts.log.map((r) => r.date)).not.toContain(payout.date);
+    for (const period of PERIOD_OPTIONS) {
+      const august = view.periods[period].seasonality.months.find((m) => m.month === 8);
+      expect(august, period).toEqual({ month: 8, actual: 0, expected: 1240 });
+    }
+  });
+
   it('linked, whose rows all fall after its today, composes as the same ledger without them', () => {
     const linked = ledger('linked');
     expect(linked.transactions.every((t) => t.date > linked.today)).toBe(true);

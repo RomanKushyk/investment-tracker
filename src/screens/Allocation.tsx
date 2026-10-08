@@ -8,7 +8,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EditActions } from '../components/ui/EditActions';
 import { useEditMode } from '../hooks/useEditMode';
-import { useAssets, useSnapshots, useTransactions, useUpdateAsset } from '../hooks/queries';
+import { useUpdateAsset } from '../hooks/queries';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
 import { useSettings } from '../state/settings';
 import { Share } from '../components/ui/Share';
@@ -33,9 +34,7 @@ function planLabel(asset: Asset): string {
 export function Allocation() {
   const f = useFormat();
   const t = useT();
-  const assets = useAssets().data ?? [];
-  const snapshots = useSnapshots().data ?? [];
-  const transactions = useTransactions().data ?? [];
+  const { assets, snapshots, transactions } = useLedgerAsOfToday();
 
   const updateAsset = useUpdateAsset();
   // Keyed by asset id and raw: `targetRowStates` owns the parsing.
@@ -50,8 +49,7 @@ export function Allocation() {
   const { actions, withinRange } = plan;
 
   // THE LANGUAGE, because the grammar is a language rule: under Ukrainian `17,500`
-  // is 17.5, and this editor used to read it as 17500 while the asset form beside
-  // it read 17.5 — one field, two doors, two answers.
+  // is 17.5, here and in the asset form beside it — one field, two doors, one answer.
   const targetLang = useSettings((state) => state.language);
   const targetRows = targetRowStates(assets, drafts, targetLang);
   const sum = targetsSum(targetRows);

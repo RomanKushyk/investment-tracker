@@ -194,6 +194,22 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
     expect(computeReminders([asset], quoted, [payout({ date: '2026-08-03' })], TODAY)).toEqual([]);
   });
 
+  // Reminders and the due cards read every row, so a payout entered ahead still settles its coupon.
+  it('drops an upcoming coupon whose payout is dated after today', () => {
+    const asset = bond({ nextCoupon: '2026-08-08' });
+    expect(computeReminders([asset], quoted, [], TODAY)).toHaveLength(1);
+    expect(computeReminders([asset], quoted, [payout({ date: '2026-08-08' })], TODAY)).toEqual([]);
+  });
+
+  it('drops an overdue coupon and its due card whose payout is dated after today', () => {
+    const asset = bond({ nextCoupon: '2026-08-01' });
+    const ahead = [payout({ date: '2026-08-06' })];
+    expect(computeReminders([asset], quoted, [], TODAY)).toHaveLength(1);
+    expect(dueCoupons([asset], [], TODAY)).toHaveLength(1);
+    expect(computeReminders([asset], quoted, ahead, TODAY)).toEqual([]);
+    expect(dueCoupons([asset], ahead, TODAY)).toEqual([]);
+  });
+
   it('ignores payouts of other assets and other transaction types', () => {
     const asset = bond({ nextCoupon: '2026-07-25' });
     const other = [

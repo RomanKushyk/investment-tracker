@@ -4,23 +4,19 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
-import { useAssets, useTransactions } from '../hooks/queries';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { payoutsView } from '@quirenote/core/view/payouts';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
-import { useToday } from '../hooks/useToday';
 
 export function Payouts() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const assets = useAssets().data ?? [];
-  const transactions = useTransactions().data ?? [];
-
   // Today, not the last snapshot — see the note in Overview.tsx.
-  const today = useToday();
+  const { assets, transactions, today } = useLedgerAsOfToday();
   const view = payoutsView({ assets, transactions, today });
   const { income, reinvested, reinvestedPct, nextPayouts: payoutRows } = view;
 
@@ -107,18 +103,15 @@ export function Payouts() {
         </div>
       </div>
 
-      {/* ONE MECHANISM FOR ONE DECISION: `max-md:hidden` + `md:hidden` still built the
-          min-width table on a phone, mounted a `ScrollArea` for it and ran the row
-          derivation twice. `useIsDesktop` mounts one branch and only one. */}
+      {/* ONE MECHANISM FOR ONE DECISION: `useIsDesktop` mounts one branch and only one, so a
+          phone never builds the min-width table or derives the rows twice. */}
       {desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
           {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
-              sets no overflow: a rounded card clipping its own content is where the square
-              platform track came from. */}
+              sets no overflow, so the Scroller, not the card, clips (*Scrolling*). */}
           <Scroller orientation="horizontal">
-            {/* 720, NOT the 560 that was written for five columns: there are seven, and the
-                smaller bound would cramp the two newest instead of letting the Scroller do its
-                job. */}
+            {/* 720 for the seven columns: a smaller bound would cramp the two tax columns
+                instead of letting the Scroller do its job. */}
             <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="text-left text-muted">

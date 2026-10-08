@@ -2,11 +2,11 @@ import { toUsd } from '@quirenote/core/money';
 import { capitalView } from '@quirenote/core/view/capital';
 import { useSettings } from '../state/settings';
 import { useFormat } from './useFormat';
-import { useSnapshots, useTransactions } from './queries';
+import { useLedgerAsOfToday } from './useLedgerAsOfToday';
 import { useTweenedNumber } from './useTweenedNumber';
 
 /**
- * The one capital figure, and it has TWO renderers now — the sidebar's Total
+ * The one capital figure, with TWO renderers — the sidebar's Total
  * capital card and the mobile header bar. It lives here rather
  * than in either of them precisely so there is never a second derivation: both
  * read `capitalView`, through this, and a change to the number is a change to one
@@ -17,8 +17,8 @@ import { useTweenedNumber } from './useTweenedNumber';
  * by sign on a light surface, and drops the counter-currency to `muted`. A
  * pre-joined string would have forced one of the two to take the other's layout.
  *
- * Total capital card values per design renderVals (~line 586): UAH mode shows
- * whole ₴ + "+3.08% · $3,324.03"; USD mode flips value and counter-currency.
+ * UAH mode shows whole ₴ with the net percentage and the dollar total as the
+ * counter-currency; USD mode flips value and counter-currency.
  * The headline number tweens whenever it changes — on the currency toggle above
  * all, but also as new data comes in. *Interaction rules*
  */
@@ -36,9 +36,8 @@ export interface CapitalCard {
 export function useCapitalCard(): CapitalCard {
   const f = useFormat();
   const { currency, usdRate } = useSettings();
-  const snapshots = useSnapshots().data;
-  const transactions = useTransactions().data;
-  const kpis = snapshots && transactions ? capitalView({ snapshots, transactions }) : undefined;
+  const { snapshots, transactions, ready } = useLedgerAsOfToday();
+  const kpis = ready ? capitalView({ snapshots, transactions }) : undefined;
   const total = kpis?.total ?? 0;
   const usdTotal = toUsd(total, usdRate);
   const tweened = useTweenedNumber(currency === 'UAH' ? total : usdTotal);

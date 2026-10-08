@@ -113,6 +113,7 @@ On seed:
 - Snapshot table, newest first: 27.07 row shows `68 702,10` then "pending" ×3, cash `7,75`, total "—"; 25.07 row total `148 943,62`; rows continue 24.07 → 21.07 (no 26.07 row). Footer: "Showing last 6 snapshots · 174 total since 03.02.2026" + Prev/Next pagination over the full history. After saving all 4 quotes on `/` for today: the pending cells fill and the row total computes.
 - A quote saved on `/` for a day on which the transactions hold no units of that asset is shown, marked, and not counted: save `15 390,00` for …8976 on 04.02, a day before its first buy, and the last page's 04.02 row reads `64 648,47 · 59 214,04 · 15 390,00* · — · 7,75 · 123 870,26`. One footnote under the table says such a value is shown and not counted in the row total; it is absent on a page with no such cell.
 - Sell …8976's 15 units for `15 800` on 01.07 and every row from 01.07 that quotes it marks the quote and leaves it out: the 25.07 row reads `68 629,36 · 60 086,09 · 15 846,30* · 4 374,12 · 15 807,75 · 148 897,32`, and so does the chart's 25.07 point. …8976 then needs no quote: the 27.07 row reads «—» for it between its two pending cells, and a later snapshot that quotes every other held asset is complete and has a total.
+- Rows ahead: sell Energy's 6 000 units and save a quote snapshot, both dated tomorrow. The table lists no row for tomorrow, the footer counts the same snapshots, and the chart ends where it did; both count once their day comes, without a reload. `/transactions` lists the sale.
 
 ## `/payouts`
 
@@ -121,6 +122,7 @@ On seed:
 - Payout log table, **7 columns**: Date | Asset | Type tag | Amount | **Withheld** | **Net of tax** | Destination — destinations show "reinvested (687,02 ₴)"-style when a same-date reinvest exists, else "account". The seed's three reinvest amounts are 687,02 · 484,36 · 216,00. One row is seeded as 472,13 on 10.05 (see deviations section).
 - **The two tax columns are EMPTY on a row that carries no withholding** — not a dash and not a zero, the rule the ledger row's note already follows. Seven of the eight seeded rows are in that state; the exception is 10.06 REIT, which reads 680,55 | **95,28** | **585,27** | reinvested (484,36 ₴). The net cell is empty too where there is none, because such a row's net IS the Amount column. Table `min-width` **720**, with no horizontal scroll at 1280 and no page overflow.
 - At **360** each payout is a RecordCard and the two columns become a second row of its two-column `<dl>`, labelled with the table's headers verbatim. On an untaxed card the pair is ABSENT rather than empty, and both labels hold one line — "Після податку, ₴" does not wrap. Recording a new dividend/interest transaction on `/` updates bars + log.
+- Rows ahead: record a dividend dated tomorrow. The log lists no row for it, and the bars, Received and Reinvested read as before; it counts once its day comes, without a reload. `/transactions` lists it.
 
 ## `/yield`
 

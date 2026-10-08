@@ -4,8 +4,7 @@ import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
-import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
 import { attributesView, type PayoutScheduleFact } from '@quirenote/core/view/attributes';
 import { useInzhurAssets } from '../hooks/useInzhurAssets';
 import { useFormat } from '../hooks/useFormat';
@@ -17,17 +16,10 @@ function payoutScheduleLabel(fact: PayoutScheduleFact, t: Dict): string {
   return fact.day ? `${base} · ~${t.dates.dayOfMonth(fact.day)}` : base;
 }
 
-// One frozen instance, so a fresh `[]` per render does not defeat the memo.
-const NO_TRANSACTIONS: Transaction[] = [];
-const NO_ASSETS: Asset[] = [];
-const NO_SNAPSHOTS: Snapshot[] = [];
-
 export function Attributes() {
   const f = useFormat();
   const t = useT();
-  const assets = useAssets().data ?? NO_ASSETS;
-  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
-  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
+  const { assets, snapshots, transactions } = useLedgerAsOfToday();
   // WHATEVER THE APP ALREADY HAS — `data` when a fetch has run this session,
   // otherwise the last-good cache. This screen deliberately does NOT trigger a
   // fetch: a reference table that quietly hits the provider on open is what the
