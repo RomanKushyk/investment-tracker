@@ -47,8 +47,10 @@ type TransactionRow = {
 
 type PriceRowText = { asset_id: string; as_of: string; price: string };
 
-// Dates and numbers as text: `pg` turns a bare `date` into a local midnight and a `numeric` into a
-// string, PGlite a `numeric` into a number. `created_at` in the backup's form, UTC with no zone.
+// Each data query joins the caller's LIVE pointer itself, so a staged or dead generation is never
+// read (*User schema and deletes*). Dates and numbers as text: `pg` turns a bare `date` into a
+// local midnight and a `numeric` into a string, PGlite a `numeric` into a number. `created_at` in
+// the backup's form, UTC with no zone.
 const VERSION = `SELECT u.data_version::text AS data_version FROM app_user u WHERE u.user_id = $1`;
 const ASSETS = `SELECT a.id, a.name, a.code, a.color_slot, a.yield_type,
                        a.expected_pct::text AS expected_pct, a.target_pct::text AS target_pct,
@@ -60,14 +62,17 @@ const ASSETS = `SELECT a.id, a.name, a.code, a.color_slot, a.yield_type,
                        a.provider_kind, a.provider_ref,
                        to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
                          AS created_at
-                  FROM asset a WHERE a.user_id = $1`;
+                  FROM asset a JOIN app_user u ON u.dataset_id = a.dataset_id
+                 WHERE u.user_id = $1`;
 const TRANSACTIONS = `SELECT t.id, to_char(t.date, 'YYYY-MM-DD') AS date, t.type,
                              t.amount::text AS amount, t.asset_id,
                              t.quantity::text AS quantity, t.unit_price::text AS unit_price,
                              t.tax_withheld::text AS tax_withheld, t.note
-                        FROM "transaction" t WHERE t.user_id = $1`;
+                        FROM "transaction" t JOIN app_user u ON u.dataset_id = t.dataset_id
+                       WHERE u.user_id = $1`;
 const PRICES = `SELECT p.asset_id, to_char(p.as_of, 'YYYY-MM-DD') AS as_of, p.price::text AS price
-                  FROM user_price p WHERE p.user_id = $1`;
+                  FROM user_price p JOIN app_user u ON u.dataset_id = p.dataset_id
+                 WHERE u.user_id = $1`;
 
 /** The schema keeps the spec's name for the one type core renamed. */
 const CORE_TYPE: Record<string, TxType> = {

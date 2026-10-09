@@ -385,7 +385,7 @@ describe('every golden ledger a per-unit price can express rebuilds to its own f
 
   it('read in the store’s order, asset then date, the seed differs by float noise at most', () => {
     const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
-    // `user_price`'s primary key is (user_id, asset_id, as_of).
+    // `user_price`'s primary key is (dataset_id, asset_id, as_of).
     const user = asPriceRows(seed.snapshots, seed.transactions)!.sort(
       (x, y) => x.assetId.localeCompare(y.assetId) || x.asOf.localeCompare(y.asOf),
     );

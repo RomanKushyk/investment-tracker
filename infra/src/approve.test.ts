@@ -39,7 +39,12 @@ const approve = async (...args: Parameters<typeof approveRoute>): ReturnType<typ
 const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeof rawHandler> =>
   record(args[0], await rawHandler(...args));
 
-const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
+const DML = [
+  '005_demo_user.sql',
+  '008_demo_account.sql',
+  '011_dataset_backfill.sql',
+  '013_dataset_catch_up.sql',
+];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
@@ -282,6 +287,28 @@ describe('approving replaces the placeholder with the sub the create call return
     expect(await accounts()).toEqual([{ user_id: SUB, provider: 'inzhur', name: 'Inzhur' }]);
   });
 
+  // The dataset its rows will live in goes with the account, keyed by the minted sub too (#390).
+  it('gives the rekeyed row one live dataset beside its account', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await approve(db, spy().idp, call(APPROVE_ROUTE));
+    const { rows: sets } = await db.query<{ user_id: string; id: string; live: string }>(
+      `SELECT d.user_id, d.id, u.dataset_id AS live
+         FROM dataset d JOIN app_user u ON u.user_id = d.user_id`,
+    );
+    expect(sets).toHaveLength(1);
+    expect(sets[0]).toMatchObject({ user_id: SUB, live: sets[0].id });
+  });
+
+  it('leaves the pending row whole, owning no dataset, when the dataset insert fails', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const res = await approve(failingOn('INSERT INTO dataset'), spy().idp, call(APPROVE_ROUTE));
+    expect(res.statusCode).toBe(500);
+    expect(await rows()).toEqual([
+      expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending' }),
+    ]);
+    expect((await db.query('SELECT 1 FROM dataset')).rows).toEqual([]);
+  });
+
   // The replay answer for THIS path is a refusal, not a second idempotent write: approve turns away
   // every non-pending row before it reaches the account insert at all. One account either way.
   it('refuses a second approval of the same row, and adds no account', async () => {
@@ -312,6 +339,18 @@ describe('approving replaces the placeholder with the sub the create call return
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     await db.exec(`INSERT INTO account (user_id, id, provider, name, created_at)
                      VALUES ('${PLACEHOLDER}', '${SUB}', 'inzhur', 'Inzhur', now());`);
+    const res = await approve(db, spy().idp, call(APPROVE_ROUTE));
+    expect(res.statusCode).toBe(500);
+    expect(await rows()).toEqual([
+      expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending' }),
+    ]);
+  });
+
+  // The same rule for the dataset: `dataset_user_fk` restricts the delete the rekey makes.
+  it('could not approve at all if the pending row had been given a dataset', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await db.exec(`INSERT INTO dataset (user_id, id, created_at)
+                     VALUES ('${PLACEHOLDER}', '${SUB}', now());`);
     const res = await approve(db, spy().idp, call(APPROVE_ROUTE));
     expect(res.statusCode).toBe(500);
     expect(await rows()).toEqual([

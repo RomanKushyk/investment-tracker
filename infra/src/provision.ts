@@ -14,6 +14,8 @@
 // `sub`, and `account_user_fk` is `ON DELETE restrict` — so an account hung off the placeholder
 // makes every approval fail on the key. A pending row owns nothing, and `approve.test.ts` holds
 // anyone to it.
+import { randomUUID } from 'node:crypto';
+
 import type { SqlClient } from './migrate';
 
 /** Whether the user already holds their account, asked INSIDE the transaction that is about to
@@ -48,6 +50,26 @@ export const ACCOUNT = `INSERT INTO account (user_id, id, provider, name, create
                         VALUES ($1, gen_random_uuid(), 'inzhur', 'Inzhur', now())
                         ON CONFLICT (user_id, provider) DO NOTHING`;
 
+/**
+ * The dataset the user's rows will live in, written beside the account for the same reason: a user
+ * with no live dataset has nowhere for a write to land (*User schema and deletes*). Made only while
+ * the user points at none, so a re-run makes no second one. `$2` is minted per attempt.
+ */
+const DATASET = `INSERT INTO dataset (user_id, id, created_at)
+                        SELECT $1::uuid, $2::uuid, now()
+                         WHERE NOT EXISTS (SELECT 1 FROM app_user
+                                            WHERE user_id = $1 AND dataset_id IS NOT NULL)`;
+
+/** Points the user at the dataset `DATASET` made, and at nothing a re-run made. */
+const POINT = `UPDATE app_user SET dataset_id = $2 WHERE user_id = $1 AND dataset_id IS NULL`;
+
+/** Gives the user a live dataset inside the caller's transaction, unless they point at one. */
+export async function giveDataset(client: SqlClient, userId: string): Promise<void> {
+  const dataset = randomUUID();
+  await client.query(DATASET, [userId, dataset]);
+  await client.query(POINT, [userId, dataset]);
+}
+
 /** A SQLSTATE, or nothing — the shape `migrate.ts` reads one in, and for its reasons. */
 const codeOf = (err: unknown): string | undefined => {
   if (typeof err !== 'object' || err === null || !('code' in err)) return undefined;
@@ -76,7 +98,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export type Provisioned = 'created' | 'existing';
 
 /**
- * Writes the user row and its account together, retried on contention.
+ * Writes the user row, its account and its live dataset together, retried on contention.
  *
  * `writeUser` MUST BE A NO-OP THE SECOND TIME — every caller's statement carries `ON CONFLICT
  * (user_id) DO NOTHING` — because both ways out of a failed attempt either run it again or abandon
@@ -99,12 +121,16 @@ export async function provision(
       await writeUser();
       const { rows } = await client.query(HELD, [userId]);
       await client.query(ACCOUNT, [userId]);
+      await giveDataset(client, userId);
       await client.query('COMMIT');
       return rows.length > 0 ? 'existing' : 'created';
     } catch (err) {
       // A conflicting transaction is left OPEN rather than closed, so this is what ends it. Its own
       // failure is nothing: the transaction is already lost either way.
       await client.query('ROLLBACK').catch(() => undefined);
+      // NO DATASET IS WRITTEN ON THIS WAY OUT, and none is owed: the account that raised was
+      // written with its dataset by the provisioning that won, or before the switch, which `011`
+      // and `013` gave one.
       if (isTheAccountAlready(err)) return 'existing';
       // COUNTED, NOT INFERRED FROM THE LOOKUP, as the runner's teardown counts: with
       // `noUncheckedIndexedAccess` off an out-of-range read types as `number`, so a guard on

@@ -6,25 +6,46 @@ import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { freshDb } from './__fixtures__/pglite';
+import { applyUserSchema } from './__fixtures__/user-ledger';
 import { deleteAsset } from './asset-delete';
 import type { SqlClient } from './migrate';
-import { applyFile, ensureLedger, statementsOf } from './migrate';
-import { readFileSync } from 'node:fs';
 
 import { addDays } from '@quirenote/core/dates';
-
-const SCHEMA = new URL('../migrations/003_user_schema.sql', import.meta.url);
 
 const U = '11111111-1111-4111-8111-111111111111';
 const OTHER = '99999999-9999-4999-8999-999999999999';
 const ACCOUNT = '22222222-2222-4222-8222-222222222222';
 const ASSET = '33333333-3333-4333-8333-333333333333';
 const KEEP = '44444444-4444-4444-8444-444444444444';
+const LIVE: Record<string, string> = {
+  [U]: '55555555-5555-4555-8555-555555555555',
+  [OTHER]: '66666666-6666-4666-8666-666666666666',
+};
+// U's import, staged beside the live dataset and holding the same asset id.
+const STAGED = '77777777-7777-4777-8777-777777777777';
 
 const id = (n: number) => `${String(n).padStart(8, '0')}-0000-4000-8000-000000000000`;
 
 describe('deleteAsset', () => {
   let db: PGlite;
+
+  const asset = (dataset: string, assetId: string) =>
+    db.query(
+      `INSERT INTO asset (dataset_id, id, name, code, color_slot, yield_type,
+                          expected_pct, target_pct, payout_schedule,
+                          first_purchase, created_at)
+            VALUES ($1, $2, 'REIT', 'RE', 0, 'dividends', 10, 25, 'monthly',
+                    '2026-02-03', now())`,
+      [dataset, assetId],
+    );
+
+  const buy = (dataset: string, user: string, txId: string) =>
+    db.query(
+      `INSERT INTO transaction (dataset_id, id, user_id, account_id, date, type, amount,
+                                asset_id, quantity, created_at)
+            VALUES ($1, $2, $3, $4, '2026-08-26', 'buy', 100, $5, 1, now())`,
+      [dataset, txId, user, ACCOUNT, ASSET],
+    );
 
   async function seed(rows: number): Promise<void> {
     for (const user of [U, OTHER]) {
@@ -38,47 +59,38 @@ describe('deleteAsset', () => {
               VALUES ($1, $2, 'inzhur', 'Inzhur', now())`,
         [user, ACCOUNT],
       );
+      await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
+        user,
+        LIVE[user],
+      ]);
+      await db.query('UPDATE app_user SET dataset_id = $2 WHERE user_id = $1', [user, LIVE[user]]);
       // The SAME asset id under both users, which is what the scoping below is about.
-      for (const asset of [ASSET, KEEP]) {
-        await db.query(
-          `INSERT INTO asset (user_id, id, name, code, color_slot, yield_type,
-                              expected_pct, target_pct, payout_schedule,
-                              first_purchase, created_at)
-                VALUES ($1, $2, 'REIT', 'RE', 0, 'dividends', 10, 25, 'monthly',
-                        '2026-02-03', now())`,
-          [user, asset],
-        );
-      }
+      for (const assetId of [ASSET, KEEP]) await asset(LIVE[user], assetId);
     }
     for (let n = 1; n <= rows; n += 1) {
+      await buy(LIVE[U], U, id(n));
       await db.query(
-        `INSERT INTO transaction (user_id, id, account_id, date, type, amount,
-                                  asset_id, quantity, created_at)
-              VALUES ($1, $2, $3, '2026-08-26', 'buy', 100, $4, 1, now())`,
-        [U, id(n), ACCOUNT, ASSET],
-      );
-      await db.query(
-        `INSERT INTO user_price (user_id, asset_id, as_of, price)
+        `INSERT INTO user_price (dataset_id, asset_id, as_of, price)
               VALUES ($1, $2, $3, 10)`,
         // A DISTINCT day per row: `as_of` is in `user_price`'s primary key, so a
         // modulus would collide in the fixture rather than in the code under test.
-        [U, ASSET, addDays('2026-01-01', n)],
+        [LIVE[U], ASSET, addDays('2026-01-01', n)],
       );
     }
   }
 
-  const count = async (table: string, user = U) => {
+  /** Rows of `table` in the dataset given, the live one of `U` unless another is named. */
+  const count = async (table: string, dataset = LIVE[U]) => {
     const { rows } = await db.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM ${table} WHERE user_id = $1`,
-      [user],
+      `SELECT count(*)::int AS n FROM ${table} WHERE dataset_id = $1`,
+      [dataset],
     );
     return rows[0].n;
   };
 
   beforeEach(async () => {
     db = await freshDb();
-    await ensureLedger(db);
-    await applyFile(db, 'schema', statementsOf(readFileSync(SCHEMA, 'utf8')));
+    await applyUserSchema(db);
   });
 
   it('removes the asset and both kinds of child', async () => {
@@ -87,25 +99,42 @@ describe('deleteAsset', () => {
     expect(await count('transaction')).toBe(0);
     expect(await count('user_price')).toBe(0);
     const { rows } = await db.query<{ id: string }>(
-      `SELECT id FROM asset WHERE user_id = $1 ORDER BY id`,
-      [U],
+      `SELECT id FROM asset WHERE dataset_id = $1 ORDER BY id`,
+      [LIVE[U]],
     );
     expect(rows.map((r) => r.id)).toEqual([KEEP]);
   });
 
-  // `id` IS UNIQUE ONLY WITHIN A USER, so an unscoped predicate would delete another
+  // `id` IS UNIQUE ONLY WITHIN A DATASET, so an unscoped predicate would delete another
   // user's identically-keyed rows.
   it('touches no other user, even for the same asset id', async () => {
     await seed(2);
+    await buy(LIVE[OTHER], OTHER, id(500));
+    await deleteAsset(db, U, ASSET);
+    expect(await count('transaction', LIVE[OTHER])).toBe(1);
+    expect(await count('asset', LIVE[OTHER])).toBe(2);
+  });
+
+  // An import restores the same ids into a generation of its own, and only the live one is the
+  // user's data until the pointer moves (#390).
+  it('touches no other generation of the same user, even for the same asset id', async () => {
+    await seed(2);
+    await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
+      U,
+      STAGED,
+    ]);
+    await db.query('UPDATE app_user SET import_dataset_id = $2 WHERE user_id = $1', [U, STAGED]);
+    await asset(STAGED, ASSET);
+    await buy(STAGED, U, id(600));
     await db.query(
-      `INSERT INTO transaction (user_id, id, account_id, date, type, amount,
-                                asset_id, quantity, created_at)
-            VALUES ($1, $2, $3, '2026-08-26', 'buy', 100, $4, 1, now())`,
-      [OTHER, id(500), ACCOUNT, ASSET],
+      `INSERT INTO user_price (dataset_id, asset_id, as_of, price) VALUES ($1, $2, '2026-01-01', 10)`,
+      [STAGED, ASSET],
     );
     await deleteAsset(db, U, ASSET);
-    expect(await count('transaction', OTHER)).toBe(1);
-    expect(await count('asset', OTHER)).toBe(2);
+    expect(await count('asset', STAGED)).toBe(1);
+    expect(await count('transaction', STAGED)).toBe(1);
+    expect(await count('user_price', STAGED)).toBe(1);
+    expect(await count('asset')).toBe(1);
   });
 
   // The ceiling is per TRANSACTION, so the point is not that a batch is small but

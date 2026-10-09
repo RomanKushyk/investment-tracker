@@ -15,7 +15,12 @@ import { freshDb, refusingFirstCommit } from './__fixtures__/pglite';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 import { provision } from './provision';
 
-const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
+const DML = [
+  '005_demo_user.sql',
+  '008_demo_account.sql',
+  '011_dataset_backfill.sql',
+  '013_dataset_catch_up.sql',
+];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
@@ -92,6 +97,52 @@ describe('a user and their account are one write', () => {
   });
 });
 
+// The account and the dataset its rows will live in are written together, so a provisioned user
+// is never one whose every write has nowhere to land (#390).
+describe('a provisioned user owns one live dataset', () => {
+  const datasets = async () =>
+    (
+      await db.query<{ id: string; live: string | null }>(
+        `SELECT d.id, u.dataset_id AS live
+           FROM dataset d JOIN app_user u ON u.user_id = d.user_id
+          WHERE d.user_id = $1`,
+        [USER],
+      )
+    ).rows;
+
+  it('makes the dataset and points at it', async () => {
+    await provision(db, USER, writeUser(db));
+    const rows = await datasets();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].live).toBe(rows[0].id);
+  });
+
+  it('makes none the second time', async () => {
+    await provision(db, USER, writeUser(db));
+    await provision(db, USER, writeUser(db));
+    expect(await datasets()).toHaveLength(1);
+  });
+
+  it('settles with one dataset when the first attempt meets contention', async () => {
+    const { client } = refusingFirstCommit(db, '40001');
+    await provision(client, USER, writeUser(client));
+    expect(await datasets()).toHaveLength(1);
+  });
+
+  it.each(['INSERT INTO dataset', 'UPDATE app_user SET dataset_id'])(
+    'leaves no user, account or dataset behind when `%s` fails',
+    async (needle) => {
+      const client = failingOn(needle);
+      await expect(provision(client, USER, writeUser(client))).rejects.toThrow(
+        /the cluster said no/,
+      );
+      expect(await users()).toEqual([]);
+      expect(await accounts()).toEqual([]);
+      expect((await db.query('SELECT 1 FROM dataset')).rows).toEqual([]);
+    },
+  );
+});
+
 describe('contention is retried, and nothing else is', () => {
   it('starts the transaction again on 40001 and settles with one account', async () => {
     const { client, sent } = refusingFirstCommit(db, '40001');
@@ -151,14 +202,16 @@ describe('contention is retried, and nothing else is', () => {
 // THE WHOLE REASON THE ROW EXISTS. `transaction_account_fk` is composite and `account_id` is NOT
 // NULL with exactly one value to hold, so this insert is what every mutation will do first.
 describe('a freshly provisioned user can be written against', () => {
-  it('takes a transaction naming the account provisioning just made', async () => {
+  it('takes a transaction naming the account and the dataset provisioning just made', async () => {
     await provision(db, USER, writeUser(db));
     const [account] = await accounts();
     await expect(
       db.query(
-        `INSERT INTO transaction (user_id, id, account_id, date, type, amount, created_at)
-           VALUES ($1, '9f1e2d3c-0000-4000-8000-0000000000f6', $2, '2026-08-26', 'deposit',
-                   1000, now())`,
+        `INSERT INTO transaction (dataset_id, id, user_id, account_id, date, type, amount,
+                                  created_at)
+           SELECT u.dataset_id, '9f1e2d3c-0000-4000-8000-0000000000f6', u.user_id, $2,
+                  '2026-08-26', 'deposit', 1000, now()
+             FROM app_user u WHERE u.user_id = $1`,
         [USER, account.id],
       ),
     ).resolves.toBeDefined();

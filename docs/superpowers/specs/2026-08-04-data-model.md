@@ -32,7 +32,8 @@ heuristic and no computed tax.
 
 ### `transaction`
 
-`user_id` is the scope and there is no `portfolio` table; `amount` is always positive and `date` is a
+Its scope is a dataset, one generation of a user's data that `app_user.dataset_id` points at (*User
+schema and deletes*), and there is no `portfolio` table; `amount` is always positive and `date` is a
 Kyiv calendar date. Four columns carry a constraint the type cannot:
 
 | Column | Why |
@@ -48,13 +49,13 @@ construction — there is no second row to join — and carries the asset and th
 is what ruling 6 of `FORMULA-AUDIT.md` left open
 ([`2026-09-12-tax-on-the-payout-design.md`](2026-09-12-tax-on-the-payout-design.md)).
 
-Aurora DSQL has foreign keys, composite and enforced, and the user schema declares five, all `ON
-DELETE RESTRICT` — the self-referential sixth went with the settlement key. Rows ARE deleted, an
+Aurora DSQL has foreign keys, composite and enforced, and the user schema's are all `ON DELETE
+RESTRICT` — the self-referential one went with the settlement key. Rows ARE deleted, an
 asset going by an application cascade, children before the parent, in batches (*User schema and
 deletes*). `account` is one row per provider per user, modelled from day one though Inzhur is the
 only provider — cheap now, expensive to retrofit. Withdrawals to a bank card leave the perimeter,
 **excluded from free cash** but kept in the ledger so "how much have I withdrawn" stays answerable.
-`asset` is per-user, joining the global price archive by provider ref (fund slug or bond ISIN).
+`asset` is per-dataset, joining the global price archive by provider ref (fund slug or bond ISIN).
 
 **No CHECK constraint may enumerate a value naming a specific holding.** A reinvest target is
 user-selectable per payout, so it is an asset reference and never an enum member, and `colorKey` is a

@@ -103,8 +103,13 @@ go until the referencing table has. Dropping the user schema by hand therefore r
 other, `app_user`'s two pointer constraints, then `dataset`, then `app_user`. `src/asset-delete.ts` walks
 children before their parent for the same reason.
 
-DSQL has foreign keys. A composite key — the shape this schema needs, since every table here is
-keyed `(user_id, id)` — is written:
+The cycle `010_dataset.sql` makes between `dataset` and `app_user` does not stop a rehearsal's `DROP
+SCHEMA … CASCADE`, and the cluster accepts `ADD COLUMN IF NOT EXISTS` and an `UPDATE` that sets a
+foreign-key column from a correlated subquery: `010` and `011` ran through the runner, rehearsed and
+applied.
+
+DSQL has foreign keys. A composite key — the shape this schema needs, since every per-user table
+here leads its key with its owner, `user_id` or `dataset_id` — is written:
 
 ```sql
 CONSTRAINT "child_parent_fk" FOREIGN KEY ("user_id","parent_id")

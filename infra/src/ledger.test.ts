@@ -137,6 +137,53 @@ describe('readLedger', () => {
     expect((await readLedger(client(), OWNER)).dataVersion).toBe('9007199254740993');
   });
 
+  // An import stages a whole dataset beside the live one, the same ids included; the pointer is
+  // what decides which one is read (#390).
+  it('reads the live generation alone, a staged one beside it', async () => {
+    const staged = '9f1e2d3c-0000-4000-8000-0000000000c3';
+    await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
+      OWNER,
+      staged,
+    ]);
+    await db.query('UPDATE app_user SET import_dataset_id = $2 WHERE user_id = $1', [
+      OWNER,
+      staged,
+    ]);
+    // The same ids, other content: a read of the wrong generation shows in every field.
+    await writeLedger(
+      db,
+      OWNER,
+      {
+        assets: LEDGER.assets.map((a) => ({ ...a, name: `staged ${a.name}` })),
+        transactions: LEDGER.transactions.slice(0, 1),
+        userPrices: LEDGER.userPrices.map((p) => ({ ...p, price: p.price + 1 })),
+      },
+      staged,
+    );
+    const read = await readLedger(client(), OWNER);
+    expect(byId(read.assets)).toEqual(byId(LEDGER.assets));
+    expect(byId(read.transactions)).toEqual(byId(LEDGER.transactions));
+    expect(byKey(read.userPrices)).toEqual(byKey(LEDGER.userPrices));
+  });
+
+  it('reads the generation the pointer names once it moves', async () => {
+    const next = '9f1e2d3c-0000-4000-8000-0000000000c4';
+    await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
+      OWNER,
+      next,
+    ]);
+    await writeLedger(
+      db,
+      OWNER,
+      { assets: [LEDGER.assets[0]], transactions: [], userPrices: [] },
+      next,
+    );
+    await db.query('UPDATE app_user SET dataset_id = $2 WHERE user_id = $1', [OWNER, next]);
+    const read = await readLedger(client(), OWNER);
+    expect(read.assets).toEqual([LEDGER.assets[0]]);
+    expect(read.transactions).toEqual([]);
+  });
+
   it('reads the caller’s rows and nobody else’s', async () => {
     const other = await readLedger(client(), OTHER);
     expect(other).toEqual({ dataVersion: '0', assets: [], transactions: [], userPrices: [] });

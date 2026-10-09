@@ -1,5 +1,8 @@
 // The Drizzle source for `infra/migrations/003_user_schema.sql`.
 //
+// `asset`, `transaction` and `user_price` BELOW ARE `003`'S, NOT THE CLUSTER'S: `012` dropped
+// them and created them again, keyed by `dataset_id`, by hand. Read that file for their keys.
+//
 // This file is the schema; the SQL is generated from it and must never be
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
 // Keep this file's constraint names identical to the generated SQL's so the
@@ -12,16 +15,16 @@
 // so the migration ledger recognised the applied seven and ran only the keys.
 //
 // **`ON DELETE RESTRICT`, never `CASCADE`** (D137 for the shape, **D138 for the
-// action** — D137 said `NO ACTION` and was superseded). **`CASCADE` is out**
+// action**). **`CASCADE` is out**
 // because AWS's `CREATE TABLE` guidance says cascading actions count towards the
 // transaction modification limit, and DSQL's is 3 000 mutated rows against a
 // `user_price` grain of one row per asset per date — so it would not have
 // removed the batching it appears to replace.
 //
 // **USE `foreignKey({ name, columns, foreignColumns }).onDelete('restrict')`
-// FOR ALL FIVE — including the two single-column ones.** A draft of this comment
-// prescribed the column-level `references(ref, { onDelete: 'restrict' })` for
-// those two; it works, but it **cannot carry a NAME** (only `foreignKey()`'s
+// FOR ALL FIVE — including the two single-column ones.** The column-level
+// `references(ref, { onDelete: 'restrict' })` would work for those two, but it
+// **cannot carry a NAME** (only `foreignKey()`'s
 // config has a `name` slot), so drizzle derives one —
 // `account_user_id_app_user_user_id_fk`. This file's own header requires
 // constraint names identical to the generated SQL's, and
@@ -42,10 +45,9 @@
 //      naming reason above:
 //        - `account.user_id -> app_user.user_id`
 //        - `asset.user_id   -> app_user.user_id`
-//      The second was missing from a first draft of this list. `transaction`
-//      reaches `app_user` through `account` and `user_price` through `asset`,
-//      but **`asset`'s own `user_id` anchors to nothing**, so without it an
-//      asset row for a nonexistent user stays possible after W7 ships.
+//      `transaction` reaches `app_user` through `account` and `user_price`
+//      through `asset`, but **`asset`'s own `user_id` anchors to nothing**, so
+//      without it an asset row for a nonexistent user would be possible.
 //   2. `foreignKey()`'s config takes `name`/`columns`/`foreignColumns` —
 //      **the action is a chained method, not a config field.**
 //   3. A column-level `references()` has no `name` slot at all, which is what
@@ -64,11 +66,10 @@
 // five keys carries `ON DELETE restrict`. Cheap, deterministic, and it catches
 // exactly the omission above.
 //
-// **DO NOT REACH FOR A BEHAVIOURAL TEST ON THE ASSET/TRANSACTION PAIR.** Three drafts
-// of this comment went wrong here in three directions — the last claimed
-// `RESTRICT` and `no action` are distinguishable by one
-// `DELETE FROM transaction WHERE asset_id = $1`. **Measured in PGlite: that
-// statement SUCCEEDS under both.** Postgres fires `RESTRICT` as a
+// **DO NOT REACH FOR A BEHAVIOURAL TEST ON THE ASSET/TRANSACTION PAIR.**
+// `RESTRICT` and `no action` are NOT distinguishable by one
+// `DELETE FROM transaction WHERE asset_id = $1`: that statement SUCCEEDS
+// under both. Postgres fires `RESTRICT` as a
 // non-deferrable AFTER-ROW trigger at end of STATEMENT, exactly like
 // `NO ACTION`; what separates them is deferrability ACROSS statements. A test
 // asserting a difference there fails, and the natural fix is to weaken it into
@@ -94,8 +95,8 @@
 // its `user_price` rows, in either order since neither references the other,
 // and the asset LAST so a failure midway is resumable. It is implemented in
 // `infra/src/asset-delete.ts`; three properties travel with it and a paraphrase
-// loses all three: every predicate is USER-SCOPED (`id` is unique only within a
-// user, which is what the composite primary key below says), each step batches
+// loses all three: every statement resolves the caller's LIVE dataset (`id` is
+// unique only within a dataset, which is what `012`'s keys say), each step batches
 // through a key-set sub-select because Postgres accepts no `LIMIT` on a
 // `DELETE`, and **each batch is its own TRANSACTION**, since DSQL's 3 000-row
 // ceiling is per transaction and a loop inside one would not clear it.
@@ -116,16 +117,13 @@
 // constraints run against (`infra/src/user-schema.test.ts`) proves nothing
 // about those translations — they are data problems, not schema ones.
 //
-// EVERY PER-USER TABLE LEADS ITS PRIMARY KEY WITH `user_id` (contract 3).
+// EVERY PER-USER TABLE LEADS ITS PRIMARY KEY WITH ITS OWNER (contract 3): `user_id`, or
+// `dataset_id` for the three data tables `012` recreated, a dataset being one user's.
 // DSQL's primary key is index-organized, so key order IS the access path,
-// and it is immutable once applied (D30). Partly observed rather than only
-// documented: the cluster read `account`'s key back as `USING
-// btree_index (user_id, id) INCLUDE (provider, name, created_at)` — its three
-// non-key columns — and a 3-column probe table the same way. TWO tables, so
-// "every table carries every non-key column" stays documentation (D99);
-// `asset`, at 17 columns, was not read back.
+// and it is immutable once applied (D30).
 // The dominant read is `GET /state`
-// — one user's whole dataset — so `(user_id, id)` makes that a contiguous
+// — one user's whole dataset — so `(user_id, id)`, `(dataset_id, id)` for the data
+// tables, makes that a contiguous
 // range scan, while a bare surrogate `(id)` would be a secondary-index scan
 // with a row fetch per row. This resolves the tension the two applied
 // migrations sit on either side of: `001_price_capture.sql` keys on a random

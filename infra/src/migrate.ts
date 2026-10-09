@@ -29,7 +29,7 @@ import { type Provisioned, provision } from './provision';
  *  in `capture.ts`: the archive is provider data shared by every environment, while these are USER
  *  data, which splits dev from prod (*Cloud target*). `005` is DML and depends on `003`; `008` is
  *  DML and depends on `005`, the account it writes pointing at that row; `011` is DML and depends
- *  on `010` and on every account before it. */
+ *  on `010` and on every account before it; `013` repeats `011` after `012`. */
 export const MIGRATIONS = [
   '003_user_schema.sql',
   '005_demo_user.sql',
@@ -39,6 +39,8 @@ export const MIGRATIONS = [
   '009_official_rate.sql',
   '010_dataset.sql',
   '011_dataset_backfill.sql',
+  '012_dataset_keys.sql',
+  '013_dataset_catch_up.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */

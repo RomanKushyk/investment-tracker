@@ -16,7 +16,12 @@ export interface LedgerRows {
   userPrices: PriceRow[];
 }
 
-const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
+const DML = [
+  '005_demo_user.sql',
+  '008_demo_account.sql',
+  '011_dataset_backfill.sql',
+  '013_dataset_catch_up.sql',
+];
 
 /** The user cluster's DDL, every schema file in `MIGRATIONS`. */
 export async function applyUserSchema(db: PGlite): Promise<void> {
@@ -56,22 +61,51 @@ const SCHEMA_TYPE = {
 
 const text = (n: number | undefined) => (n === undefined ? null : String(n));
 
-/** Every row of `ledger` under `userId`, with the account a transaction needs. */
-export async function writeLedger(db: PGlite, userId: string, ledger: LedgerRows): Promise<void> {
-  const account = randomUUID();
+/** The user's live dataset, made and pointed at when they have none, as provisioning does. */
+export async function liveDataset(db: PGlite, userId: string): Promise<string> {
+  const { rows } = await db.query<{ dataset_id: string | null }>(
+    'SELECT dataset_id FROM app_user WHERE user_id = $1',
+    [userId],
+  );
+  if (rows[0]?.dataset_id) return rows[0].dataset_id;
+  const id = randomUUID();
+  await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
+    userId,
+    id,
+  ]);
+  await db.query('UPDATE app_user SET dataset_id = $2 WHERE user_id = $1', [userId, id]);
+  return id;
+}
+
+/** Every row of `ledger` under `userId`, in their live dataset unless `dataset` names another,
+ *  with the one account a transaction needs. */
+export async function writeLedger(
+  db: PGlite,
+  userId: string,
+  ledger: LedgerRows,
+  dataset?: string,
+): Promise<void> {
+  const into = dataset ?? (await liveDataset(db, userId));
   await db.query(
     `INSERT INTO account (user_id, id, provider, name, created_at)
-     VALUES ($1, $2, 'inzhur', 'Inzhur', now())`,
-    [userId, account],
+     VALUES ($1, gen_random_uuid(), 'inzhur', 'Inzhur', now())
+     ON CONFLICT (user_id, provider) DO NOTHING`,
+    [userId],
   );
+  const account = (
+    await db.query<{ id: string }>(
+      `SELECT id FROM account WHERE user_id = $1 AND provider = 'inzhur'`,
+      [userId],
+    )
+  ).rows[0].id;
   for (const a of ledger.assets) {
     await db.query(
-      `INSERT INTO asset (user_id, id, name, code, color_slot, yield_type, expected_pct, target_pct,
+      `INSERT INTO asset (dataset_id, id, name, code, color_slot, yield_type, expected_pct, target_pct,
                           payout_schedule, first_purchase, maturity, coupon_amount,
                           coupon_rate_pct, next_coupon, provider_kind, provider_ref, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
       [
-        userId,
+        into,
         a.id,
         a.name,
         a.code,
@@ -94,12 +128,13 @@ export async function writeLedger(db: PGlite, userId: string, ledger: LedgerRows
   }
   for (const t of ledger.transactions) {
     await db.query(
-      `INSERT INTO transaction (user_id, id, account_id, date, type, amount, asset_id, quantity,
-                                unit_price, tax_withheld, note, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())`,
+      `INSERT INTO transaction (dataset_id, id, user_id, account_id, date, type, amount, asset_id,
+                                quantity, unit_price, tax_withheld, note, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())`,
       [
-        userId,
+        into,
         t.id,
+        userId,
         account,
         t.date,
         SCHEMA_TYPE[t.type],
@@ -114,9 +149,9 @@ export async function writeLedger(db: PGlite, userId: string, ledger: LedgerRows
   }
   for (const p of ledger.userPrices) {
     await db.query(
-      `INSERT INTO user_price (user_id, asset_id, as_of, price, observed_at)
+      `INSERT INTO user_price (dataset_id, asset_id, as_of, price, observed_at)
        VALUES ($1, $2, $3, $4, now())`,
-      [userId, p.assetId, p.asOf, String(p.price)],
+      [into, p.assetId, p.asOf, String(p.price)],
     );
   }
 }

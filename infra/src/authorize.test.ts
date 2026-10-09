@@ -18,7 +18,12 @@ import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrat
 // The DML files are excluded: the demo row and its account would sit under every count below, and
 // the backfill is DML too. Named, with `DDL` derived from `MIGRATIONS` so a new schema file cannot be forgotten here,
 // exactly as its neighbours derive it.
-const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
+const DML = [
+  '005_demo_user.sql',
+  '008_demo_account.sql',
+  '011_dataset_backfill.sql',
+  '013_dataset_catch_up.sql',
+];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
@@ -269,6 +274,19 @@ describe('open registration is the only thing that writes a row here', () => {
     vi.stubEnv('OPEN_REGISTRATION', 'true');
     await authorize(db, token());
     expect(await accounts()).toEqual([{ user_id: SUB, provider: 'inzhur', name: 'Inzhur' }]);
+  });
+
+  // The dataset the caller's rows will live in, written with the account (#390).
+  it('gives the row it writes one live dataset', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    await authorize(db, token());
+    const { rows: sets } = await db.query<{ id: string; live: string }>(
+      `SELECT d.id, u.dataset_id AS live
+         FROM dataset d JOIN app_user u ON u.user_id = d.user_id WHERE d.user_id = $1`,
+      [SUB],
+    );
+    expect(sets).toHaveLength(1);
+    expect(sets[0].live).toBe(sets[0].id);
   });
 
   it('writes one account however many times that caller returns', async () => {

@@ -25,7 +25,12 @@ import { MIGRATIONS, statementsOf as statements } from './migrate';
 // is applied on both clusters and the ledger keys by content hash — editing it would re-send a
 // statement the cluster already has. The DML files are excluded; `DDL` is derived from
 // `MIGRATIONS`, so a new schema file cannot be forgotten here.
-const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
+const DML = [
+  '005_demo_user.sql',
+  '008_demo_account.sql',
+  '011_dataset_backfill.sql',
+  '013_dataset_catch_up.sql',
+];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
@@ -47,6 +52,7 @@ const USER = uuid('1');
 const ACCOUNT = uuid('2');
 const ASSET = uuid('3');
 const PAYOUT = uuid('4');
+const DATASET = uuid('8');
 
 let db: PGlite;
 let applied = 0;
@@ -61,9 +67,9 @@ async function accepts(stmt: string): Promise<void> {
 
 /** An `asset` insert with every NOT NULL column the app declares required. */
 const insertAsset = (id: string, cols = '', vals = '') =>
-  `INSERT INTO asset (user_id, id, name, code, color_slot, yield_type, expected_pct,
+  `INSERT INTO asset (dataset_id, id, name, code, color_slot, yield_type, expected_pct,
                       target_pct, payout_schedule, first_purchase, created_at${cols})
-   VALUES (${USER}, ${id}, 'REIT', 'RE', 0, 'dividends', 10, 25, 'monthly',
+   VALUES (${DATASET}, ${id}, 'REIT', 'RE', 0, 'dividends', 10, 25, 'monthly',
            '2026-02-03', now()${vals});`;
 
 /** Trailing four: asset_id, quantity, unit_price, tax_withheld. `note` is its
@@ -75,10 +81,10 @@ const insertTx = (
   amount = '100',
   note = 'NULL',
 ) =>
-  `INSERT INTO transaction (user_id, id, account_id, date, type, amount,
+  `INSERT INTO transaction (dataset_id, id, user_id, account_id, date, type, amount,
                             asset_id, quantity, unit_price, tax_withheld, note,
                             created_at)
-   VALUES (${USER}, ${id}, ${ACCOUNT}, '2026-08-26', '${type}', ${amount}, ${tail},
+   VALUES (${DATASET}, ${id}, ${USER}, ${ACCOUNT}, '2026-08-26', '${type}', ${amount}, ${tail},
            ${note}, now());`;
 
 beforeAll(async () => {
@@ -100,6 +106,9 @@ beforeAll(async () => {
                            now(), now(), ${USER});`);
   await db.exec(`INSERT INTO account (user_id, id, provider, name, created_at)
                    VALUES (${USER}, ${ACCOUNT}, 'inzhur', 'Inzhur', now());`);
+  await db.exec(
+    `INSERT INTO dataset (user_id, id, created_at) VALUES (${USER}, ${DATASET}, now());`,
+  );
   await db.exec(insertAsset(ASSET));
   await db.exec(insertTx(PAYOUT, 'dividend_payout', `${ASSET}, NULL, NULL, NULL`));
 });
@@ -135,7 +144,7 @@ describe('the draft applies as Postgres', () => {
     expect(rows.map((r) => r.column_name)).not.toContain('reinvest_policy');
   });
 
-  it('leads every per-user key with `user_id` (contract 3)', async () => {
+  it('leads a user’s keys with `user_id` and a dataset’s rows with `dataset_id` (contract 3)', async () => {
     // DSQL's index-organized key is the reason and this engine cannot show it; what IS checkable
     // is that the declared key order says what the contract says.
     const { rows } = await db.query<{ table_name: string; column_name: string }>(
@@ -153,11 +162,11 @@ describe('the draft applies as Postgres', () => {
     expect(leading).toEqual({
       account: 'user_id',
       app_user: 'user_id',
-      asset: 'user_id',
+      asset: 'dataset_id',
       dataset: 'user_id',
       official_rate: 'rate_date',
-      transaction: 'user_id',
-      user_price: 'user_id',
+      transaction: 'dataset_id',
+      user_price: 'dataset_id',
     });
   });
 });
@@ -377,9 +386,9 @@ describe('asset', () => {
   });
 
   it('refuses an omitted expected_pct, which the app declares required', async () => {
-    await refuses(`INSERT INTO asset (user_id, id, name, code, color_slot, yield_type,
+    await refuses(`INSERT INTO asset (dataset_id, id, name, code, color_slot, yield_type,
                                       target_pct, payout_schedule, first_purchase, created_at)
-                     VALUES (${USER}, ${nextId()}, 'x', 'XX', 1, 'dividends', 25,
+                     VALUES (${DATASET}, ${nextId()}, 'x', 'XX', 1, 'dividends', 25,
                              'monthly', '2026-02-03', now());`);
   });
   it('refuses a coupon rate outside the range the form allows', async () => {
@@ -539,10 +548,10 @@ describe('transaction', () => {
 
 describe('user_price', () => {
   const price = (asOf: string, value: string) =>
-    `INSERT INTO user_price (user_id, asset_id, as_of, price, observed_at)
-       VALUES (${USER}, ${ASSET}, '${asOf}', ${value}, now());`;
+    `INSERT INTO user_price (dataset_id, asset_id, as_of, price, observed_at)
+       VALUES (${DATASET}, ${ASSET}, '${asOf}', ${value}, now());`;
 
-  it('accepts one price per user, asset and date', async () => {
+  it('accepts one price per dataset, asset and date', async () => {
     await accepts(price('2026-07-25', '10.5'));
   });
 
@@ -555,8 +564,96 @@ describe('user_price', () => {
   });
 
   it('accepts a NULL observed_at — 173 of the 174 snapshots have no save time', async () => {
-    await accepts(`INSERT INTO user_price (user_id, asset_id, as_of, price, observed_at)
-                     VALUES (${USER}, ${ASSET}, '2026-07-27', 9.9, NULL);`);
+    await accepts(`INSERT INTO user_price (dataset_id, asset_id, as_of, price, observed_at)
+                     VALUES (${DATASET}, ${ASSET}, '2026-07-27', 9.9, NULL);`);
+  });
+});
+
+// `012` is hand-written, so nothing regenerates it the way `003` is checked: the text itself is
+// held to `003`'s rules. A cascading key would hide the batching a delete owes the row ceiling.
+describe('`012` keeps `003`’s rules', () => {
+  const text = (f: string) => readFileSync(fileUrl(f), 'utf8');
+  const checks = (sql: string) =>
+    [
+      ...sql.matchAll(
+        /CONSTRAINT "((?:asset|transaction|user_price)_\w+_ck)" CHECK ([\s\S]*?)(?=,\n\t|\n\))/g,
+      ),
+    ]
+      .map((m) => `${m[1]} ${m[2]}`)
+      .sort();
+
+  it('declares every foreign key ON DELETE restrict', () => {
+    const keys = text('012_dataset_keys.sql')
+      .split('\n')
+      .filter((l) => l.includes('FOREIGN KEY'));
+    expect(keys).toHaveLength(5);
+    for (const key of keys) expect(key).toContain('ON DELETE restrict');
+  });
+
+  it('carries over every CHECK of the three tables, unchanged', () => {
+    // 9 on asset, 13 on transaction, 1 on user_price: an empty match on both sides is no proof.
+    expect(checks(text('003_user_schema.sql'))).toHaveLength(23);
+    expect(checks(text('012_dataset_keys.sql'))).toEqual(checks(text('003_user_schema.sql')));
+  });
+});
+
+// A generation's rows reach no other generation, while an import restores the same ids into a
+// generation of its own: the composite keys carry the dataset (#390).
+describe('generations', () => {
+  const STAGED = uuid('9');
+  const SAME_ID_ASSET = (dataset: string) =>
+    insertAsset(ASSET).replace(`VALUES (${DATASET},`, `VALUES (${dataset},`);
+
+  beforeAll(async () => {
+    await db.exec(
+      `INSERT INTO dataset (user_id, id, created_at) VALUES (${USER}, ${STAGED}, now());`,
+    );
+  });
+
+  it('accepts the same asset id in a second generation', async () => {
+    await accepts(SAME_ID_ASSET(STAGED));
+  });
+
+  it('refuses an asset in a dataset that does not exist', async () => {
+    await refuses(SAME_ID_ASSET(nextId()));
+  });
+
+  it('refuses a transaction naming an asset of another generation', async () => {
+    const other = nextId();
+    await accepts(insertAsset(other).replace(`VALUES (${DATASET},`, `VALUES (${STAGED},`));
+    await refuses(insertTx(nextId(), 'dividend_payout', `${other}, NULL, NULL, NULL`));
+  });
+
+  it('refuses a price naming an asset of another generation', async () => {
+    const other = nextId();
+    await accepts(insertAsset(other).replace(`VALUES (${DATASET},`, `VALUES (${STAGED},`));
+    await refuses(`INSERT INTO user_price (dataset_id, asset_id, as_of, price)
+                     VALUES (${DATASET}, ${other}, '2026-07-28', 9.9);`);
+  });
+
+  it('refuses a transaction whose user does not own its dataset', async () => {
+    // Their own account, so the dataset's owner is the one key left to refuse it.
+    const stranger = nextId();
+    const theirAccount = nextId();
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                         decided_at, decided_by)
+                     VALUES (${stranger}, 'stranger@quirenote.com', 'active', 'user',
+                             now(), now(), ${USER});`);
+    await accepts(`INSERT INTO account (user_id, id, provider, name, created_at)
+                     VALUES (${stranger}, ${theirAccount}, 'inzhur', 'Inzhur', now());`);
+    await refuses(
+      insertTx(nextId(), 'deposit').replace(`${USER}, ${ACCOUNT}`, `${stranger}, ${theirAccount}`),
+    );
+  });
+
+  // A dataset holding an asset and nothing else, so `asset_dataset_fk` is the one key to refuse.
+  it('refuses deleting a dataset that still holds an asset', async () => {
+    const only = nextId();
+    await accepts(
+      `INSERT INTO dataset (user_id, id, created_at) VALUES (${USER}, ${only}, now());`,
+    );
+    await accepts(insertAsset(nextId()).replace(`VALUES (${DATASET},`, `VALUES (${only},`));
+    await refuses(`DELETE FROM dataset WHERE id = ${only};`);
   });
 });
 

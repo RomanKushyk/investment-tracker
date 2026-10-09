@@ -43,6 +43,8 @@ const DEMO_ACCOUNT = '008_demo_account.sql';
 const OFFICIAL_RATE = '009_official_rate.sql';
 const DATASET = '010_dataset.sql';
 const DATASET_BACKFILL = '011_dataset_backfill.sql';
+const DATASET_KEYS = '012_dataset_keys.sql';
+const DATASET_CATCH_UP = '013_dataset_catch_up.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
@@ -58,6 +60,8 @@ describe('the file list', () => {
       OFFICIAL_RATE,
       DATASET,
       DATASET_BACKFILL,
+      DATASET_KEYS,
+      DATASET_CATCH_UP,
     ]);
   });
 });
@@ -91,6 +95,14 @@ describe('statementsOf', () => {
 
   it('splits the dataset backfill into its insert and its update', () => {
     expect(statementsOf(read(DATASET_BACKFILL))).toHaveLength(2);
+  });
+
+  it('splits the dataset keys into a guard, three drops, three tables and two indexes', () => {
+    expect(statementsOf(read(DATASET_KEYS))).toHaveLength(9);
+  });
+
+  it('splits the catch-up into the backfill’s two statements, byte for byte', () => {
+    expect(statementsOf(read(DATASET_CATCH_UP))).toEqual(statementsOf(read(DATASET_BACKFILL)));
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -613,6 +625,8 @@ describe('migrate', () => {
         { file: OFFICIAL_RATE, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: DATASET, applied: 0, skipped: 0, pending: 5, ms: expect.any(Number) },
         { file: DATASET_BACKFILL, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
+        { file: DATASET_KEYS, applied: 0, skipped: 0, pending: 9, ms: expect.any(Number) },
+        { file: DATASET_CATCH_UP, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
       ],
     });
   });
@@ -628,6 +642,8 @@ describe('migrate', () => {
     await applyFile(db, OFFICIAL_RATE, statementsOf(read(OFFICIAL_RATE)));
     await applyFile(db, DATASET, statementsOf(read(DATASET)));
     await applyFile(db, DATASET_BACKFILL, statementsOf(read(DATASET_BACKFILL)));
+    await applyFile(db, DATASET_KEYS, statementsOf(read(DATASET_KEYS)));
+    await applyFile(db, DATASET_CATCH_UP, statementsOf(read(DATASET_CATCH_UP)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -641,6 +657,8 @@ describe('migrate', () => {
         { file: OFFICIAL_RATE, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: DATASET, applied: 0, skipped: 5, pending: 0, ms: expect.any(Number) },
         { file: DATASET_BACKFILL, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
+        { file: DATASET_KEYS, applied: 0, skipped: 9, pending: 0, ms: expect.any(Number) },
+        { file: DATASET_CATCH_UP, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -722,6 +740,8 @@ describe('migrate', () => {
         { file: OFFICIAL_RATE, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DATASET, applied: 5, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DATASET_BACKFILL, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DATASET_KEYS, applied: 9, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DATASET_CATCH_UP, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -817,7 +837,7 @@ describe('the invocation budget', () => {
       undefined,
       left(TEARDOWN_RESERVE_MS + 1),
     );
-    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2]);
+    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2]);
 
     // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
     const below = await freshDb();
@@ -833,8 +853,8 @@ describe('the invocation budget', () => {
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
-    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2]);
-    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2]);
+    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.
@@ -1010,6 +1030,100 @@ describe('the demo user', () => {
     expect(rows).toHaveLength(1);
   });
 
+  // `012` drops three tables, so it refuses before any drop while one of them holds a row. Each
+  // case fills one table alone, the price's key lifted so a price can stand without its asset.
+  const OLD_ROW: Record<string, string> = {
+    asset: `INSERT INTO asset (user_id, id, name, code, color_slot, yield_type, expected_pct,
+                               target_pct, payout_schedule, first_purchase, created_at)
+            VALUES ('${DEMO_USER_ID}', gen_random_uuid(), 'REIT', 'RE', 0, 'dividends', 10, 25,
+                    'monthly', '2026-02-03', now())`,
+    transaction: `INSERT INTO "transaction" (user_id, id, account_id, date, type, amount, created_at)
+                  VALUES ('${DEMO_USER_ID}', gen_random_uuid(), '${DEMO_ACCOUNT_ID}', '2026-08-26',
+                          'deposit', 100, now())`,
+    user_price: `INSERT INTO user_price (user_id, asset_id, as_of, price)
+                 VALUES ('${DEMO_USER_ID}', gen_random_uuid(), '2026-08-26', 10)`,
+  };
+
+  it.each(Object.keys(OLD_ROW))(
+    'refuses `012` while `%s` holds a row, and drops nothing',
+    async (table) => {
+      const db = await freshDb();
+      await ensureLedger(db);
+      for (const file of MIGRATIONS.slice(0, MIGRATIONS.indexOf(DATASET_KEYS))) {
+        await applyFile(db, file, statementsOf(read(file)));
+      }
+      await db.query('ALTER TABLE user_price DROP CONSTRAINT user_price_asset_fk');
+      await db.query(OLD_ROW[table]);
+
+      await expect(applyFile(db, DATASET_KEYS, statementsOf(read(DATASET_KEYS)))).rejects.toThrow(
+        /a table 012 drops holds rows/,
+      );
+      // All three still there, in their old shape, and the row with them: no drop ran.
+      const { rows: tables } = await db.query<{ name: string }>(
+        `SELECT table_name AS name FROM information_schema.columns
+          WHERE table_name IN ('asset', 'transaction', 'user_price') AND column_name = 'user_id'
+          ORDER BY table_name`,
+      );
+      expect(tables.map((t) => t.name)).toEqual(['asset', 'transaction', 'user_price']);
+      const { rows } = await db.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM information_schema.columns
+          WHERE table_name IN ('asset', 'transaction', 'user_price') AND column_name = 'dataset_id'`,
+      );
+      expect(rows[0].n).toBe(0);
+      const kept = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM "${table}"`);
+      expect(kept.rows[0].n).toBe(1);
+    },
+  );
+
+  // `013` is for whoever was provisioned after `011` by code that wrote no dataset; whoever the
+  // switch's code already served keeps the one they have.
+  it('gives a user provisioned before the switch one dataset, and a served one no second', async () => {
+    const db = await freshDb();
+    await ensureLedger(db);
+    const upTo = (file: (typeof MIGRATIONS)[number]) =>
+      MIGRATIONS.slice(0, MIGRATIONS.indexOf(file) + 1);
+    for (const file of upTo(DATASET_BACKFILL)) await applyFile(db, file, statementsOf(read(file)));
+    const LATE = '9f1e2d3c-0000-4000-8000-0000000000e1';
+    const SERVED = '9f1e2d3c-0000-4000-8000-0000000000e2';
+    const OWN = '9f1e2d3c-0000-4000-8000-0000000000e3';
+    for (const [user, email] of [
+      [LATE, 'late@quirenote.com'],
+      [SERVED, 'served@quirenote.com'],
+    ]) {
+      await db.query(
+        `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
+         VALUES ($1, $2, 'active', 'user', now(), now(), $1)`,
+        [user, email],
+      );
+      await db.query(
+        `INSERT INTO account (user_id, id, provider, name, created_at)
+         VALUES ($1, gen_random_uuid(), 'inzhur', 'Inzhur', now())`,
+        [user],
+      );
+    }
+    await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
+      SERVED,
+      OWN,
+    ]);
+    await db.query('UPDATE app_user SET dataset_id = $2 WHERE user_id = $1', [SERVED, OWN]);
+    for (const file of [DATASET_KEYS, DATASET_CATCH_UP]) {
+      await applyFile(db, file, statementsOf(read(file)));
+    }
+
+    const of = async (user: string) =>
+      (
+        await db.query<{ id: string; live: string }>(
+          `SELECT d.id, u.dataset_id AS live
+             FROM dataset d JOIN app_user u ON u.user_id = d.user_id WHERE d.user_id = $1`,
+          [user],
+        )
+      ).rows;
+    const late = await of(LATE);
+    expect(late).toHaveLength(1);
+    expect(late[0].live).toBe(late[0].id);
+    expect(await of(SERVED)).toEqual([{ id: OWN, live: OWN }]);
+  });
+
   it('gives the demo one dataset and points at it once every file has run', async () => {
     const db = await freshDb();
     await ensureLedger(db);
@@ -1114,6 +1228,19 @@ describe('the bootstrap mode makes the one account that can approve the others',
         decided: true,
       },
     ]);
+  });
+
+  it('gives the bootstrapped user one live dataset, and no second on a re-run', async () => {
+    const db = await applied();
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy(SUB).idp);
+    const { rows: sets } = await db.query<{ id: string; live: string }>(
+      `SELECT d.id, u.dataset_id AS live
+         FROM dataset d JOIN app_user u ON u.user_id = d.user_id WHERE d.user_id = $1`,
+      [SUB],
+    );
+    expect(sets).toHaveLength(1);
+    expect(sets[0].live).toBe(sets[0].id);
   });
 
   it('creates no second identity and no second row, and says so', async () => {

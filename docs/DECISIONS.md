@@ -786,7 +786,7 @@ THE DERIVED READ IS `GET /view`: `buildView` for all six periods over the series
 caller's prices and the archive's, the official rate and its day beside it. The rules from core's
 types to the body live in core (`view/serve.ts`), so the derivation identifier covers them; the
 mapping of rows into those types stays in `infra/`, outside it: `infra/src/ledger.ts` reads the
-caller's rows and `app_user.data_version` in one read-only transaction, and
+rows of the caller's live dataset and `app_user.data_version` in one read-only transaction, and
 `infra/src/sell-observations.ts` reads the archive's sell rows and, for each linked ref, the
 payment dates of its latest `bond_terms` row, each date once, and digests each. Core hands the
 dates to the build under the assets linked to that ref as a bond. The
@@ -1069,9 +1069,9 @@ in the deployed bundle, so every migration MUST BE WRITTEN expand/contract-compa
 already running — the ordering imposes that on each migration's author, and nothing in the pipeline
 can check it.
 Foreign keys are `ON DELETE RESTRICT`, never cascading, and deleting an asset is an APPLICATION
-cascade, children before the parent, in batches, every predicate scoped by `user_id`. A user and
-their one account are written in the SAME transaction by the gate's open-registration insert, by
-approval's rekey and by the bootstrap mode — each idempotent, so a re-run leaves one account. The
+cascade, children before the parent, in batches. A user, their one account and their live dataset
+are written in the SAME transaction by the gate's open-registration insert, by approval's rekey and
+by the bootstrap mode — each idempotent, so a re-run leaves one account and one dataset. The
 gate's and the bootstrap's retry on a serialization failure; approval's does not, a retry there
 re-running an insert whichever concurrent approval won has already made. A PENDING application is
 written by neither and provisions nothing: approval DELETES that row to rekey it onto the minted
@@ -1079,11 +1079,23 @@ written by neither and provisions nothing: approval DELETES that row to rekey it
 migration, so its account is too, in a file of its own.
 A USER'S DATA IS A DATASET: a `dataset` row keyed `(user_id, id)`, its id unique on its own, and
 `app_user` names two of them — the live one and the one an import is staging. Each pointer's key
-ends at the user's own dataset, and a dataset a pointer names is refused deletion. A backfill
-gives every user holding an account when it runs a dataset and points at it, and each of its
-statements leaves alone what it already did; provisioning writes no dataset, so a user provisioned
-after the backfill has none. Nothing reads either pointer yet: A SCHEMA THE CODE WILL NEED SHIPS A
-MERGE BEFORE THAT CODE, the code being live before the schema.
+ends at the user's own dataset, and a dataset a pointer names is refused deletion. `asset`,
+`transaction` and `user_price` lead every primary key with `dataset_id`, and every key between them
+carries it, so no row reaches another generation; the account stays the user's, so `transaction`
+also carries `user_id`, held to the dataset's owner by a key of its own. EVERY STATEMENT OVER THOSE
+THREE JOINS THE CALLER'S LIVE POINTER ITSELF — `JOIN app_user u ON u.dataset_id = … WHERE u.user_id
+= $1` — and a guard over `infra/src`'s modules, reading PostgreSQL's parse tree, refuses one whose
+own conditions — `WHERE` and inner-join conjuncts and `=` key-sets — do not tie each data table to
+that pointer, or that reads a data table's own `user_id`; each such statement also has a test
+against a second generation. Moving the live pointer off a dataset bumps `data_version` in the same
+row update, `/view`'s tag being composed from the version and not the pointer. Every account holder
+has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
+writes one with the account. A SCHEMA THE CODE WILL NEED SHIPS A MERGE BEFORE THAT CODE, the code
+being live before the schema — except a table no deployed code writes, which may be recreated in the
+merge that switches its reader, the reader failing until the migration applies. A migration that
+drops a table refuses first while it holds a row. A version cut carries every merge since the last
+one, so production meets each window at once: approval, the bootstrap and an open gate there wait
+for the cut's migrations.
 **Why.** Generated DDL carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
 file that fails partway cannot be retried — the retry dies on the first statement, which already
 exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
@@ -1096,7 +1108,12 @@ concurrency reports, which is why the retry is not that clause's job. An import 
 dataset larger than one transaction and leave readers the old one or the new, so it stages the new
 one beside the live one and moves one pointer — the shape index aliases, Iceberg and Git refs take
 — and DSQL refuses a changed primary key, so a generation needs keys of its own. The account
-decides who gets one because it is what provisioning writes, and a pending row owns nothing.
+decides who gets one because it is what provisioning writes, and a pending row owns nothing. The
+account is the user's rather than the generation's: one row per provider per user stays a
+constraint, clearing a dataset moves only a pointer, and Ghostfolio keys its activities to an
+account the same way. A generation is the LEADING KEY, not a filter beside `user_id`, which is why
+the tombstone's objection is answered by that guard and those tests rather than by care: a
+statement that skips the pointer reads every generation.
 GitLab creates a table its code needs BEFORE that code deploys; this pipeline has only the
 after-code slot, so the expand takes a deploy of its own.
 **Rejected.** Replacing a dataset in place behind a lock: a failed import leaves the data locked

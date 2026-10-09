@@ -26,7 +26,7 @@ import {
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, canonicalUuid, json } from './http';
 import type { SqlClient } from './migrate';
-import { ACCOUNT } from './provision';
+import { ACCOUNT, giveDataset } from './provision';
 
 export const APPROVE_ROUTE = 'POST /admin/users/{id}/approve';
 export const REJECT_ROUTE = 'POST /admin/users/{id}/reject';
@@ -236,10 +236,10 @@ async function approveRow(
 
   // `BEGIN` IS INSIDE THE TRY: past the mint, EVERY way out has to pass the cleanup.
   //
-  // THE ACCOUNT IS KEYED BY THE MINTED SUB, which is why it is written here and not when the
-  // application was taken: the row is deleted and re-inserted, so an account written earlier would
-  // belong to an id that no longer exists — and `account_user_fk` being `ON DELETE restrict` would
-  // refuse the delete outright.
+  // THE ACCOUNT AND THE DATASET ARE KEYED BY THE MINTED SUB, which is why they are written here and
+  // not when the application was taken: the row is deleted and re-inserted, so either written
+  // earlier would belong to an id that no longer exists — and its key to `app_user` being
+  // `ON DELETE restrict` would refuse the delete outright.
   //
   // AND THIS TRANSACTION IS NOT `provision`'s, deliberately: a retry on `40001` would re-run
   // `REPLACE` against the row the winning approval just wrote, turning a loser that rolls back
@@ -253,6 +253,7 @@ async function approveRow(
     await client.query(REMOVE, [row.user_id]);
     await client.query(REPLACE, [sub, row.email, row.role, row.applied_at, decidedBy]);
     await client.query(ACCOUNT, [sub]);
+    await giveDataset(client, sub);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK').catch(() => undefined);
