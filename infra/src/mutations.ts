@@ -22,7 +22,7 @@ import { targetsAsset, type Asset, type Transaction } from '@quirenote/core/type
 import {
   movedPrices,
   pricesOfQuotes,
-  snapshotsOfPrices,
+  type PriceRow,
   type UnitPrice,
 } from '@quirenote/core/valuation';
 
@@ -106,7 +106,7 @@ const STATE = derived({
   statusCode: 200,
   name: 'state',
   headers: ['etag', 'cache-control'],
-  example: { assets: ['<Asset>'], transactions: ['<Transaction>'], snapshots: ['<Snapshot>'] },
+  example: { assets: ['<Asset>'], transactions: ['<Transaction>'], prices: ['<Price>'] },
 });
 const STATE_UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
 
@@ -610,7 +610,7 @@ class Run {
         return {};
       }
       case 'snapshot.move': {
-        // Any stored day refuses, one valuing nothing included: the export shows it.
+        // Any stored day refuses, one valuing nothing included: the export carries its prices.
         if ((await this.query(PRICES_AT, [op.to])).rows.length > 0) {
           throw invalidOp(index, [{ field: 'to', code: 'duplicate-key', value: op.to }]);
         }
@@ -804,8 +804,10 @@ const byCreated = (a: Asset, b: Asset) =>
   a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
 const byDate = (a: Transaction, b: Transaction) =>
   a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+const byDay = (a: PriceRow, b: PriceRow) =>
+  a.asOf.localeCompare(b.asOf) || a.assetId.localeCompare(b.assetId);
 
-/** The live dataset in the model's shape, for export: the snapshots rebuilt from stored prices. */
+/** The live dataset in the model's shape, for export: each stored price as it is, no ₴ quote. */
 export async function state(
   deps: Pick<MutationDeps, 'user'>,
   event: ApiEvent,
@@ -823,7 +825,7 @@ export async function state(
     const body = {
       assets: [...ledger.assets].sort(byCreated),
       transactions: [...ledger.transactions].sort(byDate),
-      snapshots: snapshotsOfPrices(ledger.transactions, ledger.userPrices, ledger.savedAt),
+      prices: [...ledger.userPrices].sort(byDay),
     };
     return respond(STATE, { etag, 'cache-control': NO_STORE }, JSON.stringify(body));
   } catch (err) {

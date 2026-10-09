@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { todayIso } from '@quirenote/core/dates';
+import { pricesOfSnapshots } from '@quirenote/core/valuation';
 import { useExportAll } from './queries';
 import { saveTextFile } from '../lib/download';
 import { dbVersion } from '../lib/repository';
@@ -42,7 +43,8 @@ export function useBackupDownload() {
       const tables = await exportAll.mutateAsync();
       const envelope = buildBackup(
         tables.assets,
-        tables.snapshots,
+        // The file carries per-unit prices; this store keeps ₴ snapshots (*Persistence today*).
+        pricesOfSnapshots(tables.transactions, tables.snapshots),
         tables.transactions,
         { currency, usdRate },
         dataset, // the ACTIVE dataset — exportAll reads the DB bound to it

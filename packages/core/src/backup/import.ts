@@ -6,11 +6,12 @@
 // transaction. NOTHING here writes, and nothing downstream may write from a parse
 // or a preview.
 //
-// ROW ADDRESSING: snapshots by `date`, transactions by `id`, assets by ARRAY
-// INDEX. An asset id is the referential anchor every other table’s error quotes,
-// so addressing a malformed asset ROW by index keeps "this row is broken" apart
-// from "something points at this id" — and the index is the only address a file
-// with a broken id still has.
+// ROW ADDRESSING: transactions by `id`, assets and prices by ARRAY INDEX. An asset
+// id is the referential anchor every other table’s error quotes, so addressing a
+// malformed asset ROW by index keeps "this row is broken" apart from "something
+// points at this id" — and the index is the only address a file with a broken id
+// still has. A price's key is two fields, so a schema fault names its index, and the
+// integrity pass names both: the day as the address, the asset as the value.
 import { daysBetween } from '../dates';
 import type { Asset, Snapshot, Transaction } from '../types';
 import {
@@ -155,7 +156,7 @@ function rowsRejection(issues: RowIssue[]): RowsRejection {
   return { kind: 'rows', issues: issues.slice(0, ISSUE_LIST_CAP), total: issues.length };
 }
 
-const ROW_TABLES = new Set<IssueTable>(['assets', 'snapshots', 'transactions']);
+const ROW_TABLES = new Set<IssueTable>(['assets', 'prices', 'transactions']);
 
 export interface ZodIssueLike {
   code: string;
@@ -234,7 +235,7 @@ function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
   const temporal = temporalKindAt(issue.path);
   if (temporal === 'datetime') return 'expected-datetime';
   if (temporal === 'date') return 'expected-date';
-  if (field === 'amount') return 'expected-positive-amount';
+  if (field === 'amount' || field === 'price') return 'expected-positive-amount';
   // The one-way units rule. `custom` with no message is the shape
   // `transactionRowsSchema` emits for it — this is where it gets its words.
   if (issue.code === 'custom' && (field === 'quantity' || field === 'unitPrice')) {
@@ -265,8 +266,8 @@ function valueOf(issue: ZodIssueLike): { value?: string } {
     : {};
 }
 
-// A row is addressed by its own primary key when the file supplies a usable one
-// AND that key is not itself the invalid field; assets always fall back to their
+// A transaction is addressed by its own id when the file supplies a usable one
+// AND the id is not itself the invalid field; assets and prices always by their
 // index (see the header rule).
 function rowAddress(
   table: IssueTable,
@@ -275,13 +276,12 @@ function rowAddress(
   field: string | undefined,
 ): string | undefined {
   if (index === undefined) return undefined;
-  const keyField = table === 'snapshots' ? 'date' : 'id';
-  if (table === 'assets' || field === keyField || field === undefined) return index;
+  if (table !== 'transactions' || field === 'id' || field === undefined) return index;
   const rows = raw[table];
   const row = Array.isArray(rows)
     ? (rows[Number(index)] as Record<string, unknown> | undefined)
     : undefined;
-  const key = row?.[keyField];
+  const key = row?.id;
   return typeof key === 'string' && key !== '' ? key : index;
 }
 
@@ -324,9 +324,11 @@ export function diffBackup(
     current.assets.map((a) => a.id),
     incoming.assets.map((a) => a.id),
   );
+  // The store keeps one snapshot per day the file prices.
+  const days = [...new Set(incoming.prices.map((p) => p.asOf))];
   const snapshots = countDiff(
     current.snapshots.map((s) => s.date),
-    incoming.snapshots.map((s) => s.date),
+    days,
   );
   const transactions = countDiff(
     current.transactions.map((t) => t.id),
@@ -337,12 +339,12 @@ export function diffBackup(
   // Wholesale loss first — each of these supersedes the partial-removal line for its
   // own table, so a table the file empties is stated once, not twice.
   if (incoming.assets.length === 0) warnings.push({ code: 'no-assets' });
-  if (incoming.snapshots.length === 0 && current.snapshots.length > 0) {
+  if (days.length === 0 && current.snapshots.length > 0) {
     warnings.push({ code: 'no-snapshots', current: current.snapshots.length });
   }
   const removed = {
     assets: incoming.assets.length === 0 ? 0 : assets.removed,
-    snapshots: incoming.snapshots.length === 0 ? 0 : snapshots.removed,
+    snapshots: days.length === 0 ? 0 : snapshots.removed,
     transactions: transactions.removed,
   };
   if (removed.assets + removed.snapshots + removed.transactions > 0) {
@@ -366,7 +368,7 @@ export function diffBackup(
     transactions,
     after: {
       assets: incoming.assets.length,
-      snapshots: incoming.snapshots.length,
+      snapshots: days.length,
       transactions: incoming.transactions.length,
     },
     hasSettings: incoming.settings !== undefined,

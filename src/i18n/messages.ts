@@ -107,8 +107,9 @@ export const en = {
     issue: {
       unknownAssetId: (value: string) => `unknown asset id "${value}"`,
       unknownQuoteAsset: (value: string) => `quote for an unknown asset "${value}"`,
-      duplicateDate: (value: string) => `duplicate date ${value} (date is the primary key)`,
       duplicateId: (value: string) => `duplicate id "${value}" (id is the primary key)`,
+      duplicatePrice: (value: string) =>
+        `a second price for asset "${value}" on this day (one per asset and day)`,
       unknownKey: (value: string) => `unexpected field "${value}"`,
       forbiddenKey: (value: string) => `forbidden key "${value}"`,
       expectedDatetime: 'expected a real timestamp (yyyy-MM-ddTHH:mm:ss, no time zone)',
@@ -1248,9 +1249,10 @@ export const uk: Dict = {
     issue: {
       unknownAssetId: (value: string) => `невідомий ідентифікатор активу «${value}»`,
       unknownQuoteAsset: (value: string) => `котирування невідомого активу «${value}»`,
-      duplicateDate: (value: string) => `дубльована дата ${value} (дата — первинний ключ)`,
       duplicateId: (value: string) =>
         `дубльований ідентифікатор «${value}» (ідентифікатор — первинний ключ)`,
+      duplicatePrice: (value: string) =>
+        `друга ціна активу «${value}» за цей день (одна на актив і день)`,
       unknownKey: (value: string) => `неочікуване поле «${value}»`,
       forbiddenKey: (value: string) => `заборонений ключ «${value}»`,
       expectedDatetime: 'очікується справжня мітка часу yyyy-MM-ddTHH:mm:ss без часового поясу',

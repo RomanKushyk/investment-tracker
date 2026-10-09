@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { Asset, Settings, Snapshot, Transaction, TxType } from '../types';
+import type { Asset, Settings, Transaction, TxType } from '../types';
+import type { PriceRow } from '../valuation';
 import { backupEnvelopeSchema, buildBackup, parseBackup, type BackupEnvelope } from './json';
 
 // Minimal hand-built portfolio; the full seed round-trip lives in `seed.test.ts`, because
@@ -32,16 +33,12 @@ const ASSETS: Asset[] = [
   },
 ];
 
-const SNAPSHOTS: Snapshot[] = [
-  {
-    date: '2026-07-24',
-    quotes: { reit: 68560.9, energy: 60050.87 },
-  },
-  {
-    date: '2026-07-25',
-    quotes: { reit: 68629.36, energy: 60086.09 },
-    savedAt: '2026-07-25T21:14:00',
-  },
+// The file carries prices whatever is held: `energy` is bought by no row here.
+const PRICES: PriceRow[] = [
+  { assetId: 'energy', asOf: '2026-07-24', price: 10.2004 },
+  { assetId: 'reit', asOf: '2026-07-24', price: 11.1228 },
+  { assetId: 'energy', asOf: '2026-07-25', price: 10.2064, observedAt: '2026-07-25T21:14:00' },
+  { assetId: 'reit', asOf: '2026-07-25', price: 11.1339, observedAt: '2026-07-25T21:14:00' },
 ];
 
 const TRANSACTIONS: Transaction[] = [
@@ -74,7 +71,7 @@ const TRANSACTIONS: Transaction[] = [
 const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
 
 function envelope(): BackupEnvelope {
-  return buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, SETTINGS, 'demo', '2026-07-28T12:00:00', 2);
+  return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, 'demo', '2026-07-28T12:00:00', 2);
 }
 
 // Serialize a hand-mutated envelope for the rejection fixtures.
@@ -99,7 +96,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(12);
+    expect(env.formatVersion).toBe(13);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -114,9 +111,11 @@ describe('buildBackup', () => {
       id: 'x',
       createdAt: '2026-07-28T09:30:15.123Z',
     };
+    // A price's witness time comes from the store's `savedAt`, cut to the same form.
+    const witnessed: PriceRow = { ...PRICES[0], observedAt: '2026-07-24T21:14:05.250Z' };
     const env = buildBackup(
       [...ASSETS, created],
-      SNAPSHOTS,
+      [witnessed, ...PRICES.slice(1)],
       TRANSACTIONS,
       SETTINGS,
       'demo',
@@ -124,6 +123,7 @@ describe('buildBackup', () => {
       2,
     );
     expect(env.assets[2].createdAt).toBe('2026-07-28T09:30:15');
+    expect(env.prices[0].observedAt).toBe('2026-07-24T21:14:05');
     const parsed = parseBackup(JSON.stringify(env));
     expect(parsed.ok).toBe(true);
   });
@@ -131,7 +131,7 @@ describe('buildBackup', () => {
   it('omits the settings key entirely when none are passed', () => {
     const env = buildBackup(
       ASSETS,
-      SNAPSHOTS,
+      PRICES,
       TRANSACTIONS,
       undefined,
       'live',
@@ -154,7 +154,7 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
   it('drops a retired key on every table, and the file it writes parses', () => {
     const clean = buildBackup(
       [{ ...ASSETS[0], inzhur: INZHUR }, ASSETS[1]],
-      SNAPSHOTS,
+      PRICES,
       TRANSACTIONS,
       SETTINGS,
       'live',
@@ -166,7 +166,7 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
         withRetired({ ...ASSETS[0], inzhur: withRetired(INZHUR, { price: 10.5 }) }, { legacy: 1 }),
         ASSETS[1],
       ],
-      [withRetired(SNAPSHOTS[0], { cash: 7.75 }), SNAPSHOTS[1]],
+      [withRetired(PRICES[0], { cash: 7.75 }), ...PRICES.slice(1)],
       [withRetired(TRANSACTIONS[0], { source: 'savings' }), ...TRANSACTIONS.slice(1)],
       withRetired(SETTINGS, { theme: 'dark' }),
       'live',
@@ -180,12 +180,12 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
   it('names the same keys as the model, so the projection cannot drop a field (typecheck)', () => {
     // The projection reads the row schemas; a field added to the model alone would be
     // dropped from every file in silence, and one added to a schema alone is never read.
-    type Row<K extends 'assets' | 'snapshots' | 'transactions'> = BackupEnvelope[K][number];
+    type Row<K extends 'assets' | 'prices' | 'transactions'> = BackupEnvelope[K][number];
     expectTypeOf<keyof Row<'assets'>>().toEqualTypeOf<keyof Asset>();
     expectTypeOf<keyof NonNullable<Row<'assets'>['inzhur']>>().toEqualTypeOf<
       keyof NonNullable<Asset['inzhur']>
     >();
-    expectTypeOf<keyof Row<'snapshots'>>().toEqualTypeOf<keyof Snapshot>();
+    expectTypeOf<keyof Row<'prices'>>().toEqualTypeOf<keyof PriceRow>();
     expectTypeOf<keyof Row<'transactions'>>().toEqualTypeOf<keyof Transaction>();
     expectTypeOf<keyof NonNullable<BackupEnvelope['settings']>>().toEqualTypeOf<keyof Settings>();
   });
@@ -200,7 +200,7 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
       nextCoupon: '2026-08-03',
       inzhur: INZHUR,
     };
-    const snapshot: Snapshot = SNAPSHOTS[1];
+    const price: PriceRow = PRICES[3];
     const transaction: Transaction = {
       id: 'p9',
       date: '2026-03-10',
@@ -213,7 +213,7 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
     const buy: Transaction = { ...TRANSACTIONS[1], unitPrice: 10.4852 };
     const env = buildBackup(
       [asset],
-      [snapshot],
+      [price],
       [buy, transaction],
       SETTINGS,
       'live',
@@ -221,7 +221,7 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
       2,
     );
     expect(env.assets).toStrictEqual([asset]);
-    expect(env.snapshots).toStrictEqual([snapshot]);
+    expect(env.prices).toStrictEqual([price]);
     expect(env.transactions).toStrictEqual([buy, transaction]);
     expect(env.settings).toStrictEqual(SETTINGS);
   });
@@ -233,7 +233,7 @@ describe('parseBackup round-trip', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data.assets).toEqual(ASSETS);
-    expect(result.data.snapshots).toEqual(SNAPSHOTS);
+    expect(result.data.prices).toEqual(PRICES);
     expect(result.data.transactions).toEqual(TRANSACTIONS);
     expect(result.data.settings).toEqual(SETTINGS);
   });
@@ -252,7 +252,7 @@ describe('parseBackup round-trip', () => {
     };
     const env = buildBackup(
       ASSETS,
-      SNAPSHOTS,
+      PRICES,
       // Mixed on purpose: the deposit carries neither field and must stay valid — a row
       // that moves no position never had units to state. The MOVING rows must carry a count.
       [...TRANSACTIONS, withUnits],
@@ -330,13 +330,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 13 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 13)));
+  it('rejects formatVersion 14 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 14)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 13/);
-    expect(result.issues[0]).toMatch(/formatVersion 12/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 14/);
+    expect(result.issues[0]).toMatch(/formatVersion 13/);
   });
 
   // `String` of a parsed value can throw: an array joins itself once per level of nesting, and
@@ -370,19 +370,19 @@ describe('parseBackup rejections', () => {
 
     it('a formatVersion that is an array nested 20,000 deep', () => {
       expect(oneIssue(deepArrayAt('formatVersion'))).toMatch(
-        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 12 only\./,
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 13 only\./,
       );
     });
 
     it('a formatVersion whose toString is not callable', () => {
       expect(oneIssue(mutated((env) => void (env.formatVersion = { toString: 1 })))).toMatch(
-        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 12 only\./,
+        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 13 only\./,
       );
     });
 
     it('a formatVersion that is an array holding such an object', () => {
       expect(oneIssue(mutated((env) => void (env.formatVersion = [{ toString: 1 }])))).toMatch(
-        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 12 only\./,
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 13 only\./,
       );
     });
   });
@@ -451,6 +451,20 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Unsupported formatVersion 11/);
   });
 
+  it('refuses a formatVersion 12 file, whose snapshots carry ₴ quotes, on the VERSION (#396)', () => {
+    const result = parseBackup(
+      mutated((env) => {
+        env.formatVersion = 12;
+        env.snapshots = [{ date: '2026-07-24', quotes: { reit: 68560.9 } }];
+        delete env.prices;
+      }),
+    );
+    expect(result).toMatchObject({ ok: false });
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 12/);
+  });
+
   it('refuses an unknown key by CODE and key list, never by the message', () => {
     // The message is locale-dependent and zod may reword it; `code` and `keys` are the
     // contract. The issue hangs on the object that carries the key, so the path names the
@@ -503,16 +517,8 @@ describe('parseBackup rejections', () => {
       assetId: 'reit',
       amount: 1000,
     };
-    const env = buildBackup(
-      ASSETS,
-      SNAPSHOTS,
-      [legacy],
-      SETTINGS,
-      'live',
-      '2026-09-01T12:00:00',
-      2,
-    );
-    expect(env.formatVersion).toBe(12);
+    const env = buildBackup(ASSETS, PRICES, [legacy], SETTINGS, 'live', '2026-09-01T12:00:00', 2);
+    expect(env.formatVersion).toBe(13);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -637,32 +643,34 @@ describe('parseBackup rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects a snapshot quote key that is not an asset id', () => {
+  it('rejects a price naming no asset', () => {
     const result = parseBackup(
-      mutated(
-        (env) =>
-          void ((
-            (env.snapshots as Record<string, unknown>[])[0].quotes as Record<string, number>
-          ).ghost = 1),
-      ),
+      mutated((env) => void ((env.prices as Record<string, unknown>[])[1].assetId = 'ghost')),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(result.issues).toEqual([`snapshots.2026-07-24: quote for unknown asset 'ghost'`]);
+    expect(result.issues).toEqual([`prices.2026-07-24: unknown assetId 'ghost'`]);
   });
 
-  it('rejects duplicate snapshot dates', () => {
+  it('rejects two prices for one asset and day, even at one price', () => {
     const result = parseBackup(
       mutated((env) => {
-        const snaps = env.snapshots as Record<string, unknown>[];
-        snaps.push({ ...snaps[0] });
+        const prices = env.prices as Record<string, unknown>[];
+        prices.push({ ...prices[1] });
       }),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(result.issues).toEqual([
-      `snapshots: duplicate date '2026-07-24' (date is the primary key)`,
-    ]);
+    expect(result.issues).toEqual([`prices.2026-07-24: a second price for asset 'reit'`]);
+  });
+
+  it('rejects a price that is not above zero, as the store does', () => {
+    for (const price of [0, -1]) {
+      const result = parseBackup(
+        mutated((env) => void ((env.prices as Record<string, unknown>[])[0].price = price)),
+      );
+      expect(result.ok, String(price)).toBe(false);
+    }
   });
 
   it('rejects a non-positive transaction amount (sign lives in the TxType)', () => {
@@ -944,7 +952,7 @@ describe('the backup carries a formula note as typed', () => {
     const text = JSON.stringify(
       buildBackup(
         ASSETS,
-        SNAPSHOTS,
+        PRICES,
         [...TRANSACTIONS, ...noted],
         SETTINGS,
         'live',
@@ -956,10 +964,10 @@ describe('the backup carries a formula note as typed', () => {
     const back = parseBackup(text);
     expect(back.ok).toBe(true);
     if (!back.ok) return;
-    const { assets, snapshots, transactions, settings, dataset, exportedAt, dbVersion } = back.data;
+    const { assets, prices, transactions, settings, dataset, exportedAt, dbVersion } = back.data;
     expect(
       JSON.stringify(
-        buildBackup(assets, snapshots, transactions, settings, dataset, exportedAt, dbVersion),
+        buildBackup(assets, prices, transactions, settings, dataset, exportedAt, dbVersion),
       ),
     ).toBe(text);
   });
@@ -997,7 +1005,7 @@ describe('a backup’s dates are calendar dates (#341)', () => {
     'assets.0.firstPurchase': (env, v) => void ((env.assets as Row[])[0].firstPurchase = v),
     'assets.0.maturity': (env, v) => void ((env.assets as Row[])[0].maturity = v),
     'assets.0.nextCoupon': (env, v) => void ((env.assets as Row[])[0].nextCoupon = v),
-    'snapshots.0.date': (env, v) => void ((env.snapshots as Row[])[0].date = v),
+    'prices.0.asOf': (env, v) => void ((env.prices as Row[])[0].asOf = v),
     'transactions.0.date': (env, v) => void ((env.transactions as Row[])[0].date = v),
   };
   const dated = (path: string, value: string) =>
@@ -1013,9 +1021,9 @@ describe('a backup’s dates are calendar dates (#341)', () => {
 
   it('refuses a day its month does not have', () => {
     expect(dated('transactions.0.date', '2026-02-30')).toEqual(refused('transactions.0.date'));
-    expect(dated('snapshots.0.date', '2026-04-31')).toEqual(refused('snapshots.0.date'));
+    expect(dated('prices.0.asOf', '2026-04-31')).toEqual(refused('prices.0.asOf'));
     // The 31st itself is fine in a month that has one.
-    expect(dated('snapshots.0.date', '2026-03-31').ok).toBe(true);
+    expect(dated('prices.0.asOf', '2026-03-31').ok).toBe(true);
   });
 
   it('reads February 29 by the year, centuries included', () => {
@@ -1052,7 +1060,7 @@ describe('a backup’s timestamps are real date-times (#346)', () => {
   const FIELDS: Record<string, (env: Row, v: string) => void> = {
     exportedAt: (env, v) => void (env.exportedAt = v),
     'assets.0.createdAt': (env, v) => void ((env.assets as Row[])[0].createdAt = v),
-    'snapshots.0.savedAt': (env, v) => void ((env.snapshots as Row[])[0].savedAt = v),
+    'prices.0.observedAt': (env, v) => void ((env.prices as Row[])[0].observedAt = v),
   };
   const stamped = (path: string, value: string) =>
     parseBackup(mutated((env) => FIELDS[path](env, value)));
@@ -1127,8 +1135,7 @@ describe('a __proto__ key is refused wherever it sits (#353)', () => {
       asset.inzhur = { kind: 'fund', ref: 'x' };
       define(asset.inzhur, 1);
     },
-    'snapshots.0': (env) => define(rows(env, 'snapshots')[0], 1),
-    'snapshots.0.quotes': (env) => define(rows(env, 'snapshots')[0].quotes, 1),
+    'prices.0': (env) => define(rows(env, 'prices')[0], 1),
     'transactions.0': (env) => define(rows(env, 'transactions')[0], 1),
     // An id is a quote key, and a plain-object quote map cannot hold this one.
     'assets.0.id': (env) => void (rows(env, 'assets')[0].id = '__proto__'),
@@ -1142,10 +1149,10 @@ describe('a __proto__ key is refused wherever it sits (#353)', () => {
 
   it('reports the key alone when a row schema would fail too: the key is read first', () => {
     const text = mutated((env) => {
-      define(rows(env, 'snapshots')[0].quotes, 1);
+      define(rows(env, 'prices')[0], 1);
       rows(env, 'assets')[0].createdAt = 'nonsense';
     });
-    expect(refusedWith(text)).toEqual([`snapshots.0.quotes: ${LINE}`]);
+    expect(refusedWith(text)).toEqual([`prices.0: ${LINE}`]);
   });
 
   it('leaves a table of the wrong shape to the schema, an id of __proto__ in it included', () => {
@@ -1199,19 +1206,18 @@ describe('an asset id named for a member every object inherits is refused (#354)
 
   // Ids that only look inherited, or that another prototype owns, are ordinary ids.
   for (const id of ['prototype', 'Constructor', 'toJSON', 'name', 'length', 'call']) {
-    it(`reads back an asset whose id is ${id}, with its quotes`, () => {
+    it(`reads back an asset whose id is ${id}, with its prices`, () => {
       const result = parseBackup(
         mutated((env) => {
           (env.assets as Record<string, unknown>[])[1].id = id;
-          for (const s of env.snapshots as { quotes: Record<string, unknown> }[]) {
-            s.quotes = { reit: s.quotes.reit, [id]: s.quotes.energy };
+          for (const p of env.prices as { assetId: string }[]) {
+            if (p.assetId === 'energy') p.assetId = id;
           }
         }),
       );
       if (!result.ok) throw new Error(`expected the file to pass: ${result.issues.join('; ')}`);
       expect(result.data.assets[1].id).toBe(id);
-      expect(Object.hasOwn(result.data.snapshots[0].quotes, id)).toBe(true);
-      expect(result.data.snapshots[0].quotes[id]).toBe(60050.87);
+      expect(result.data.prices[0]).toEqual({ ...PRICES[0], assetId: id });
     });
   }
 });

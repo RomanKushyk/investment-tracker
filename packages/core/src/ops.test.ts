@@ -83,10 +83,26 @@ describe('the op vocabulary', () => {
       { field: 'date', code: 'expected-date' },
     ]);
     expect(
+      issuesOf({
+        op: 'snapshot.put',
+        snapshot: { date: '2026-07-24', quotes: {}, savedAt: '2026-13-01T00:00:00' },
+      }),
+    ).toEqual([{ field: 'savedAt', code: 'expected-datetime' }]);
+    expect(
       issuesOf({ op: 'asset.add', asset: { id: 'a', name: 'x', surplus: 1 } }).find(
         (i) => i.code === 'unknown-key',
       ),
     ).toEqual({ code: 'unknown-key', value: 'surplus' });
+  });
+
+  // A quote's key is an asset id, not a field name: `quotes.date` is a quote, not a date (#352).
+  it('codes a quote by its place, whatever asset id keys it', () => {
+    for (const key of ['reit', 'date', 'savedAt', 'amount']) {
+      const snapshot = { date: '2026-07-24', quotes: { [key]: 'abc' } };
+      expect(issuesOf({ op: 'snapshot.put', snapshot }), key).toEqual([
+        { field: `quotes.${key}`, code: 'invalid' },
+      ]);
+    }
   });
 
   it('accepts every op in its own shape', () => {

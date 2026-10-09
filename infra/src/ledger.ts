@@ -12,8 +12,6 @@ export interface Ledger {
   assets: Asset[];
   transactions: Transaction[];
   userPrices: PriceRow[];
-  /** Per stored day, the latest witness time of its prices in the backup's form, where one is. */
-  savedAt: Record<string, string>;
 }
 
 type AssetRow = {
@@ -155,12 +153,6 @@ export async function readLedger(client: SqlClient, userId: string): Promise<Led
     const rows = await readRows(client, userId);
     const prices = await client.query<PriceRowText>(PRICES, [userId]);
     await client.query('COMMIT');
-    // The same form on every row, so the latest compares as text.
-    const savedAt: Record<string, string> = {};
-    for (const { as_of: day, observed_at: at } of prices.rows) {
-      const seen = Object.hasOwn(savedAt, day) ? savedAt[day] : undefined;
-      if (at !== null && (seen === undefined || at > seen)) savedAt[day] = at;
-    }
     return {
       dataVersion: version.rows[0].data_version,
       ...rows,
@@ -168,8 +160,8 @@ export async function readLedger(client: SqlClient, userId: string): Promise<Led
         assetId: p.asset_id,
         asOf: p.as_of,
         price: Number(p.price),
+        ...present('observedAt', p.observed_at),
       })),
-      savedAt,
     };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => undefined);

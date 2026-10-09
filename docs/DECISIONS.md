@@ -70,9 +70,14 @@ sets the device's default currency and rate, and from the migration it sets the 
 currency.
 The JSON backup envelope refuses a newer, an older and an unreadable
 version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
-`inzhur`, a snapshot's quotes — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
+`inzhur` — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
 (`__proto__`, `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest), both by place
-and before the row schemas;
+and before the row schemas. THE FILE CARRIES PER-UNIT PRICES, NOT THE STORE'S ₴ SNAPSHOTS, as the
+rows `GET /state` answers (*Cloud target*): the export divides each quote by the units held that
+day, dropping one no price reproduces — of a position held none of, of an asset no row has moved,
+or valued at nothing — and a day left with none, and the import rebuilds each day's snapshot from
+the prices, each quote in kopecks as `/view` rounds it and `savedAt` the day's latest witness time. It refuses a price naming no asset, a second price for one asset and day, and one not above
+zero;
 import validates fully, shows a diff, then replaces in one transaction — a key the file omits is
 REMOVED — after a safety backup that cannot be cancelled. CSV is export-only, and A TEXT CELL NEVER
 STARTS A FORMULA: one beginning with a character OWASP's CSV Injection page lists — `=`,
@@ -92,10 +97,11 @@ fields — which is why a projecting writer bumps nothing. A strict reader needs
 spread, the store's leftovers rode into the file and the file's own parser refused it, shutting
 the download, both destructive dialogs' backup and the import's safety backup at once. The export
 is terminal, the store the only truth and the file there to be restored into it, so nothing
-downstream waits for a field this build has never heard of. zod drops a `__proto__` key before any
-schema sees it, in the record and the strict object alike, and an assignment to that key on a plain
-quote map stores nothing, so a file carrying it would lose a quote, a key or an asset's prices in
-silence — against the rule that nothing partial passes; `secure-json-parse` and `bourne` refuse the
+downstream waits for a field this build has never heard of. One file for both stores lets a backup
+taken here restore into the server, and the quote the conversion drops is one the server cannot
+store either. zod drops a `__proto__` key before any
+schema sees it, and an assignment to that key on a plain quote map stores nothing, so a file
+carrying it would lose a key or an asset's prices in silence — against the rule that nothing partial passes; `secure-json-parse` and `bourne` refuse the
 key by default too. A plain quote map with no own key for an asset id such as `constructor` answers
 `quotes[id]` with the inherited member, so a quote the file never carried reads as present and the
 day as complete; `qs` drops any key `Object.prototype` owns by default, and the import refuses the
@@ -831,10 +837,8 @@ by the units held that day and dropping, naming it, one whose units or value is 
 `snapshot.move` revalues each price at the old day's units and divides it by the new day's, onto a day
 with nothing stored. THE EXPORT AND THE IMPORT CARRY THOSE PRICES, NOT ₴ QUOTES: one row per stored
 price, with its asset, day and witness time, a price on a day its position holds none included. The
-server stores no ₴ quote, and `/view` derives one on read. That shape is #396's and the import
-#391's; until #396 lands, the export rebuilds one snapshot per stored day from the prices, a day a
-later edit left valuing nothing quoting nothing and a held value below a kopeck quoting 0, `savedAt`
-the day's latest witness time.
+server stores no ₴ quote, and `/view` derives one on read. `GET /state` answers them by day, then
+asset, a witness time absent where the store recorded none; the import is #391's.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -906,9 +910,9 @@ tag sent without its `W/` must still match. · Clamping a page past the last to 
 would answer another page as the rows grow, and a client's miscounted page would read as data. · A
 default period: a stale tab's retired one would be answered as another. · Refusing two ops on one entity, as DynamoDB and Azure
 do: neither gives a reason, and in-order application already defines the result. · Retrying a 412:
-it is the precondition doing its work. · Keeping the export #396 replaces, whose day a later edit
-left valuing nothing quotes nothing: the file holds no price for that day, so no restore can write it
-back. · Hiding such a day from the export: its rows still refuse a move onto a day the client cannot
+it is the precondition doing its work. · Exporting snapshots rebuilt from the prices, a day a later
+edit left valuing nothing quoting nothing: the file holds no price for that day, so no restore can
+write it back. · Hiding such a day from the export: its rows still refuse a move onto a day the client cannot
 see. · Deleting such a price at the ledger edit: deleting a buy and adding it back wipes the prices
 the user entered. · Quotes plus a per-unit price only where no quote can carry one: two encodings in
 one row, and its quotes, rounded at each day's present units, still shift a price whose day's units

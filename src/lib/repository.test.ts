@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { diffBackup, validateImport } from '@quirenote/core/backup/import';
 import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { headlineKpis, headlineTotal } from '@quirenote/core/derive';
+import { pricesOfSnapshots, snapshotsOfPrices } from '@quirenote/core/valuation';
 import { activeDataset, db, makeDb } from './db';
 import { dbVersion, ensureSeeded, repo } from './repository';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
@@ -110,15 +111,15 @@ describe('replaceAll', () => {
   });
 });
 
-// The headline invariant: export → erase → import returns the dataset
-// byte-identical. Here rather than beside core/backup because it needs the real
-// database and the seed, which core tests may not import.
+// The headline invariant: export → erase → import returns every row equal, its
+// quotes keyed in asset order. Here rather than beside core/backup because it needs
+// the real database and the seed, which core tests may not import.
 
 async function exportSeedEnvelope() {
   const tables = await repo.exportAll();
   return buildBackup(
     tables.assets,
-    tables.snapshots,
+    pricesOfSnapshots(tables.transactions, tables.snapshots),
     tables.transactions,
     { currency: 'UAH', usdRate: 44.83 },
     'demo',
@@ -156,7 +157,7 @@ describe('a store holding a retired row shape', () => {
     if (!validation.ok) return;
     await repo.replaceAll({
       assets: validation.envelope.assets,
-      snapshots: validation.envelope.snapshots,
+      snapshots: snapshotsOfPrices(validation.envelope.transactions, validation.envelope.prices),
       transactions: validation.envelope.transactions,
     });
     const after = JSON.stringify(await repo.exportAll());
@@ -166,7 +167,7 @@ describe('a store holding a retired row shape', () => {
 });
 
 describe('export → erase → import round-trip', () => {
-  it('restores the seed byte-identically, with every D5-pinned figure intact', async () => {
+  it('restores every row of the seed, with every D5-pinned figure intact', async () => {
     await ensureSeeded();
     const before = await repo.exportAll();
     const text = JSON.stringify(await exportSeedEnvelope());
@@ -179,7 +180,7 @@ describe('export → erase → import round-trip', () => {
     if (!validation.ok) return;
     await repo.replaceAll({
       assets: validation.envelope.assets,
-      snapshots: validation.envelope.snapshots,
+      snapshots: snapshotsOfPrices(validation.envelope.transactions, validation.envelope.prices),
       transactions: validation.envelope.transactions,
     });
 

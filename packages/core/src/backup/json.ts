@@ -8,9 +8,9 @@ import {
   targetsAsset,
   type Asset,
   type Settings,
-  type Snapshot,
   type Transaction,
 } from '../types';
+import type { PriceRow } from '../valuation';
 
 export const BACKUP_FORMAT = 'quirenote-backup';
 /**
@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 12;
+export const BACKUP_FORMAT_VERSION = 13;
 
 export type Dataset = 'demo' | 'live';
 
@@ -77,10 +77,20 @@ export const assetRowSchema = z.strictObject({
   inzhur: inzhurSchema.optional(),
 });
 
+// A day's ₴ quotes, the row `snapshot.put` takes; the file carries the prices the store keeps.
 export const snapshotRowSchema = z.strictObject({
   date: isoDate,
   quotes: z.record(z.string(), z.number()),
   savedAt: isoDateTime.optional(),
+});
+
+// One stored per-unit price of an asset on a day, whatever the ledger holds that day
+// (*Cloud target*). Above zero, as `user_price_price_ck` holds it.
+export const priceRowSchema = z.strictObject({
+  assetId: z.string(),
+  asOf: isoDate,
+  price: z.number().positive(),
+  observedAt: isoDateTime.optional(),
 });
 
 export const transactionRowSchema = z.strictObject({
@@ -214,7 +224,7 @@ export const backupEnvelopeSchema = z.strictObject({
   dbVersion: z.number().int().positive(),
   dataset: z.enum(['demo', 'live']),
   assets: z.array(assetRowSchema),
-  snapshots: z.array(snapshotRowSchema),
+  prices: z.array(priceRowSchema),
   transactions: transactionRowsSchema,
   settings: settingsSchema.optional(),
 });
@@ -223,11 +233,15 @@ export type BackupEnvelope = z.infer<typeof backupEnvelopeSchema>;
 
 export type TemporalKind = 'date' | 'datetime';
 
-// The schema an issue's path lands on, found by walking the envelope. Identity, not a list
+// The envelope's rows, and the one only an op carries: `snapshot.put`'s, where `rowIssueCodes`
+// roots it.
+const rowsSchema = backupEnvelopeSchema.extend({ snapshots: z.array(snapshotRowSchema) });
+
+// The schema an issue's path lands on, found by walking the rows. Identity, not a list
 // of field names: a field is a date because it uses the date schema, and a quote keyed
 // `date` walks into the record's number and is nothing of the kind.
 export function temporalKindAt(path: PropertyKey[]): TemporalKind | undefined {
-  let schema: z.ZodType | undefined = backupEnvelopeSchema;
+  let schema: z.ZodType | undefined = rowsSchema;
   for (const key of path) {
     schema = stepInto(schema, key);
     if (schema === undefined) return undefined;
@@ -261,7 +275,7 @@ function project<T extends object>(row: T, shape: object): T {
 // deterministic and pure.
 export function buildBackup(
   assets: Asset[],
-  snapshots: Snapshot[],
+  prices: PriceRow[],
   transactions: Transaction[],
   settings: Settings | undefined,
   dataset: Dataset,
@@ -281,8 +295,11 @@ export function buildBackup(
       const row = project({ ...a, createdAt: a.createdAt.slice(0, 19) }, assetRowSchema.shape);
       return a.inzhur ? { ...row, inzhur: project(a.inzhur, inzhurSchema.shape) } : row;
     }),
-    snapshots: snapshots.map((s) =>
-      project(s.savedAt ? { ...s, savedAt: s.savedAt.slice(0, 19) } : s, snapshotRowSchema.shape),
+    prices: prices.map((p) =>
+      project(
+        p.observedAt ? { ...p, observedAt: p.observedAt.slice(0, 19) } : p,
+        priceRowSchema.shape,
+      ),
     ),
     transactions: transactions.map((t) => project(t, transactionRowSchema.shape)),
     ...(settings ? { settings: project(settings, settingsSchema.shape) } : {}),
@@ -432,12 +449,14 @@ export function blankPortfolioAssetIds(env: BackupEnvelope): BackupEnvelope {
 // The envelope’s issue vocabulary: a location plus a CODE, never an English
 // sentence — the report renders the words. `parseBackup` keeps its string contract
 // by rendering these through `renderIssue` below.
-export type IssueTable = 'assets' | 'snapshots' | 'transactions' | 'settings' | 'envelope';
+export type IssueTable = 'assets' | 'prices' | 'transactions' | 'settings' | 'envelope';
 
 export type IssueCode =
   | 'unknown-asset-id'
   | 'unknown-quote-asset'
   | 'duplicate-key'
+  /** A second price for one asset and day, the store's key. */
+  | 'duplicate-price'
   | 'unknown-key'
   | 'forbidden-key'
   | 'expected-datetime'
@@ -499,22 +518,17 @@ export function integrityIssues(env: BackupEnvelope): RowIssue[] {
     }
   }
 
-  const seenDates = new Set<string>();
-  for (const s of env.snapshots) {
-    for (const key of Object.keys(s.quotes)) {
-      if (!assetIds.has(key)) {
-        issues.push({
-          table: 'snapshots',
-          at: s.date,
-          code: 'unknown-quote-asset',
-          value: key,
-        });
-      }
+  // `asOf` is a fixed-width date, so the pair reads back from its key alone.
+  const priced = new Set<string>();
+  for (const p of env.prices) {
+    if (!assetIds.has(p.assetId)) {
+      issues.push({ table: 'prices', at: p.asOf, code: 'unknown-asset-id', value: p.assetId });
     }
-    if (seenDates.has(s.date)) {
-      issues.push({ table: 'snapshots', field: 'date', code: 'duplicate-key', value: s.date });
+    const key = `${p.asOf} ${p.assetId}`;
+    if (priced.has(key)) {
+      issues.push({ table: 'prices', at: p.asOf, code: 'duplicate-price', value: p.assetId });
     }
-    seenDates.add(s.date);
+    priced.add(key);
   }
   return issues;
 }
@@ -526,14 +540,14 @@ function renderIssue(i: RowIssue): string {
   switch (i.code) {
     case 'unknown-asset-id':
       return `${at}: unknown assetId '${i.value ?? ''}'`;
-    case 'unknown-quote-asset':
-      return `${at}: quote for unknown asset '${i.value ?? ''}'`;
     case 'asset-missing-on-asset-row':
       // The honest inversion: naming the six types that must carry one reads worse
       // than naming the two that must not.
       return `${at}: only a deposit or a withdrawal may omit an asset`;
     case 'duplicate-key':
       return `${at}: duplicate ${i.field ?? 'key'} '${i.value ?? ''}' (${i.field ?? 'key'} is the primary key)`;
+    case 'duplicate-price':
+      return `${at}: a second price for asset '${i.value ?? ''}'`;
     default:
       return `${[at, i.field].filter(Boolean).join('.')}: ${i.detail ?? i.code}`;
   }

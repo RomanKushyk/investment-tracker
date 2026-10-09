@@ -306,6 +306,14 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
   'src/hooks/useLedgerAsOfToday.ts': {
     'view/build#ledgerAsOf': "cuts the ledger every screen's composer reads, as buildView cuts it",
   },
+  'src/hooks/useBackupDownload.ts': {
+    'valuation#pricesOfSnapshots':
+      'the backup carries per-unit prices; this store keeps ₴ snapshots',
+  },
+  'src/screens/settings/ImportDialog.tsx': {
+    'valuation#snapshotsOfPrices':
+      'the backup carries per-unit prices; this store keeps ₴ snapshots',
+  },
 };
 
 const walk = (dir: string): string[] =>

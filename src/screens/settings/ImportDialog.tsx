@@ -21,6 +21,7 @@ import {
 } from '../../components/ui/Dialog';
 import { todayIso } from '@quirenote/core/dates';
 import { signed } from '@quirenote/core/money';
+import { snapshotsOfPrices } from '@quirenote/core/valuation';
 import { useReplaceAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
 import { migrateSettings, useDataset, useSettings } from '../../state/settings';
@@ -102,7 +103,8 @@ export function ImportDialog({
       await replaceAll.mutateAsync({
         data: {
           assets: envelope.assets,
-          snapshots: envelope.snapshots,
+          // The file carries per-unit prices; this store keeps ₴ snapshots (*Persistence today*).
+          snapshots: snapshotsOfPrices(envelope.transactions, envelope.prices),
           transactions: envelope.transactions,
         },
         onBlocked: () => setWaiting(true),

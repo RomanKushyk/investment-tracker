@@ -7,6 +7,7 @@ import { validateImport } from '@quirenote/core/backup/import';
 import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { MAX_BODY_BYTES, MAX_OPS } from '@quirenote/core/ops';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import { snapshotsOfPrices, type PriceRow } from '@quirenote/core/valuation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { freshDb, refusingCommit } from './__fixtures__/pglite';
@@ -167,12 +168,15 @@ const answer = (res: ApiResult | EmptyResult) => [
   'body' in res ? (JSON.parse(res.body) as unknown) : undefined,
 ];
 
-type State = { assets: Asset[]; transactions: Transaction[]; snapshots: Snapshot[] };
+type State = { assets: Asset[]; transactions: Transaction[]; prices: PriceRow[] };
 const state = async (): Promise<State> => {
   const res = (await get()) as ApiResult;
   expect(res.statusCode).toBe(200);
   return JSON.parse(res.body) as State;
 };
+/** The ₴ quotes the exported prices make, as `/view` rounds them. */
+const quotesOf = (s: Pick<State, 'transactions' | 'prices'>) =>
+  snapshotsOfPrices(s.transactions, s.prices);
 
 /** Rows of `table` in the caller's live dataset. */
 const live = async (table: 'asset' | 'transaction' | 'user_price') =>
@@ -294,8 +298,7 @@ describe('a batch of ops', () => {
       { op: 'snapshot.move', from: '2026-03-05', to: '2026-03-10' },
     ]);
     expect(res.results).toEqual([{ dropped: [] }, { dropped: [] }]);
-    const { snapshots } = await state();
-    expect(snapshots.map(({ date, quotes }) => ({ date, quotes }))).toEqual([
+    expect(quotesOf(await state()).map(({ date, quotes }) => ({ date, quotes }))).toEqual([
       { date: '2026-03-10', quotes: { [u(1)]: 1234.5 } },
     ]);
   });
@@ -465,14 +468,14 @@ describe('snapshots stored as prices', () => {
     expect(res.results).toEqual([{ dropped: [u(1)] }]);
     const { rows } = await db.query<{ id: string }>('SELECT asset_id::text AS id FROM user_price');
     expect(rows.map((r) => r.id)).toEqual([u(2)]);
-    expect((await state()).snapshots).toEqual([
+    expect(quotesOf(await state())).toEqual([
       { date: '2026-03-10', quotes: { [u(2)]: 2017.33 }, savedAt: expect.any(String) },
     ]);
   });
 
   it('gives back the quotes it was given, and the witness time it was told', async () => {
     await OK([put('2026-03-05', { [u(1)]: 100.01, [u(2)]: 2017.33 }, '2026-03-05T18:00:00')]);
-    expect((await state()).snapshots).toEqual([
+    expect(quotesOf(await state())).toEqual([
       {
         date: '2026-03-05',
         quotes: { [u(1)]: 100.01, [u(2)]: 2017.33 },
@@ -484,7 +487,7 @@ describe('snapshots stored as prices', () => {
   it('replaces the day it puts', async () => {
     await OK([put('2026-03-05', { [u(1)]: 100, [u(2)]: 2000 })]);
     await OK([put('2026-03-05', { [u(2)]: 2100 })]);
-    expect((await state()).snapshots.map((s) => s.quotes)).toEqual([{ [u(2)]: 2100 }]);
+    expect(quotesOf(await state()).map((s) => s.quotes)).toEqual([{ [u(2)]: 2100 }]);
   });
 
   it('refuses a quote of an asset the dataset does not hold', async () => {
@@ -519,14 +522,14 @@ describe('snapshots stored as prices', () => {
     ]);
   });
 
-  // A stored day that values nothing is still exported, so the client sees what refuses the move.
+  // A price on a day that values nothing is exported as stored, so the client sees what refuses the move.
   it('refuses moving onto a stored day that values nothing, which the export shows', async () => {
     await OK([put('2026-03-07', { [u(1)]: 1100 }), put('2026-03-05', { [u(2)]: 2100 })]);
     // The sale moves before the 7th, so that day values nothing.
     await OK([{ op: 'transaction.patch', id: u(13), patch: { date: '2026-03-06' } }]);
-    expect((await state()).snapshots.map((s) => [s.date, s.quotes])).toEqual([
-      ['2026-03-05', { [u(2)]: 2100 }],
-      ['2026-03-07', {}],
+    expect((await state()).prices.map((p) => [p.asOf, p.assetId])).toEqual([
+      ['2026-03-05', u(2)],
+      ['2026-03-07', u(1)],
     ]);
     expect(
       answer(await post([{ op: 'snapshot.move', from: '2026-03-05', to: '2026-03-07' }])),
@@ -546,7 +549,7 @@ describe('snapshots stored as prices', () => {
 
   it('deletes a stored day', async () => {
     await OK([put('2026-03-05', { [u(2)]: 2000 }), { op: 'snapshot.delete', date: '2026-03-05' }]);
-    expect((await state()).snapshots).toEqual([]);
+    expect((await state()).prices).toEqual([]);
   });
 });
 
@@ -654,15 +657,7 @@ describe('deleting an asset larger than one request', () => {
   const valid = async () => {
     const s = await state();
     const text = JSON.stringify(
-      buildBackup(
-        s.assets,
-        s.snapshots,
-        s.transactions,
-        undefined,
-        'live',
-        '2026-10-09T10:00:00',
-        2,
-      ),
+      buildBackup(s.assets, s.prices, s.transactions, undefined, 'live', '2026-10-09T10:00:00', 2),
     );
     expect(parseBackup(text).ok).toBe(true);
   };
@@ -682,12 +677,12 @@ describe('deleting an asset larger than one request', () => {
     await OK([{ op: 'asset.delete', id: u(1) }], { d });
     await valid();
     const s = await state();
-    expect([s.assets, s.transactions, s.snapshots]).toEqual([[], [deposit(10)], []]);
+    expect([s.assets, s.transactions, s.prices]).toEqual([[], [deposit(10)], []]);
   });
 
   it('clears a dataset larger than the bound in one request', async () => {
     await OK([{ op: 'dataset.clear' }], { d: deps({ maxRows: 5 }) });
-    expect(await state()).toEqual({ assets: [], transactions: [], snapshots: [] });
+    expect(await state()).toEqual({ assets: [], transactions: [], prices: [] });
   });
 });
 
@@ -1135,15 +1130,32 @@ describe('GET /state', () => {
     await OK(SNAPSHOTS.map((s) => put(s.date, s.quotes, s.savedAt)));
   };
 
-  it('answers the live dataset in the model’s shape', async () => {
+  it('answers the live dataset in the model’s shape, each stored price a row', async () => {
     await write();
     const s = await state();
+    expect(Object.keys(s)).toEqual(['assets', 'transactions', 'prices']);
     expect(s.assets).toEqual([asset(1), BOND]);
     expect(s.transactions).toEqual(LEDGER);
-    expect(s.snapshots.map(({ date, quotes }) => ({ date, quotes }))).toEqual(
-      SNAPSHOTS.map(({ date, quotes }) => ({ date, quotes })),
-    );
-    expect(s.snapshots[0].savedAt).toBe('2026-03-05T18:00:00');
+    // By day, then asset; each over the units held that day: 10 and 10, then 9.4 and 9.
+    expect(s.prices).toEqual([
+      { assetId: u(1), asOf: '2026-03-05', price: 1020.5 / 10, observedAt: '2026-03-05T18:00:00' },
+      {
+        assetId: u(2),
+        asOf: '2026-03-05',
+        price: 10_600.11 / 10,
+        observedAt: '2026-03-05T18:00:00',
+      },
+      { assetId: u(1), asOf: '2026-03-25', price: 950.37 / 9.4, observedAt: expect.any(String) },
+      { assetId: u(2), asOf: '2026-03-25', price: 9_600 / 9, observedAt: expect.any(String) },
+    ]);
+  });
+
+  // Absent is core's only spelling of none.
+  it('leaves out a witness time the store never recorded', async () => {
+    await write();
+    await db.query(`UPDATE user_price SET observed_at = NULL WHERE as_of = '2026-03-25'`);
+    const { prices } = await state();
+    expect(prices.map((p) => Object.hasOwn(p, 'observedAt'))).toEqual([true, true, false, false]);
   });
 
   it('exports what the backup importer takes, and what the ops write back as the same dataset', async () => {
@@ -1152,7 +1164,7 @@ describe('GET /state', () => {
     const text = JSON.stringify(
       buildBackup(
         first.assets,
-        first.snapshots,
+        first.prices,
         first.transactions,
         undefined,
         'live',
@@ -1161,21 +1173,21 @@ describe('GET /state', () => {
       ),
     );
     const imported = validateImport(text);
-    expect(imported.ok).toBe(true);
-    if (!imported.ok) return;
-    const { assets, transactions, snapshots } = imported.envelope;
-    expect({ assets, transactions, snapshots }).toEqual(first);
+    if (!imported.ok) throw new Error('expected the export to import');
+    const { assets, transactions, prices } = imported.envelope;
+    expect({ assets, transactions, prices }).toEqual(first);
     await OK([
       { op: 'dataset.clear' },
       ...assets.map(addAsset),
       ...transactions.map(addTx),
-      ...snapshots.map((s) => put(s.date, s.quotes, s.savedAt)),
+      ...quotesOf({ transactions, prices }).map((s) => put(s.date, s.quotes, s.savedAt)),
     ]);
     expect(await state()).toEqual(first);
   });
 
-  // The stored price stays, as `/view` reads it, and the day it is on is in sight, to delete or keep.
-  it('exports a day a later edit left valuing nothing, with nothing quoted', async () => {
+  // Three prices no ₴ quote carries, each exported as stored: `/view` carries each on to later held
+  // days, so a restore must keep it (*Cloud target*).
+  it('exports a price on a day a later edit left its position holding none of', async () => {
     await OK([
       addAsset(asset(1)),
       addTx(deposit(10)),
@@ -1183,11 +1195,38 @@ describe('GET /state', () => {
       put('2026-03-05', { [u(1)]: 1100 }),
     ]);
     await OK([{ op: 'transaction.delete', id: u(11) }]);
-    expect((await state()).snapshots).toEqual([
-      { date: '2026-03-05', quotes: {}, savedAt: expect.any(String) },
+    expect((await state()).prices).toEqual([
+      { assetId: u(1), asOf: '2026-03-05', price: 110, observedAt: expect.any(String) },
     ]);
     await OK([{ op: 'snapshot.delete', date: '2026-03-05' }]);
-    expect((await state()).snapshots).toEqual([]);
+    expect((await state()).prices).toEqual([]);
+  });
+
+  it('exports a price whose held value rounds below a kopeck', async () => {
+    await OK([
+      addAsset(asset(1)),
+      addTx(deposit(10)),
+      addTx(buy(11, 1, '2026-03-02', 1000, 10)),
+      put('2026-03-05', { [u(1)]: 0.004 }),
+    ]);
+    const { prices } = await state();
+    expect(prices.map((p) => p.price)).toEqual([0.004 / 10]);
+    // The case is real: at the day's 10 units it quotes no kopeck.
+    expect(Math.round(10 * prices[0].price * 100) / 100).toBe(0);
+  });
+
+  it('exports a price whose day a backdated buy gave other units than it was stored at', async () => {
+    await OK([
+      addAsset(asset(1)),
+      addTx(deposit(10)),
+      addTx(buy(11, 1, '2026-03-02', 1000, 10)),
+      put('2026-03-05', { [u(1)]: 1000.01 }),
+    ]);
+    await OK([addTx(buy(12, 1, '2026-03-03', 300, 3))]);
+    const { prices } = await state();
+    expect(prices.map((p) => p.price)).toEqual([1000.01 / 10]);
+    // The case is real: a quote rounded to kopecks at the day's 13 units divides back to another price.
+    expect(Math.round(13 * prices[0].price * 100) / 100 / 13).not.toBe(prices[0].price);
   });
 
   it('answers under the strong tag, kept by no cache', async () => {

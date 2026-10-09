@@ -81,6 +81,9 @@ const byId = <T extends { id: string }>(rows: T[]) =>
   [...rows].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 const byKey = (rows: LedgerRows['userPrices']) =>
   [...rows].sort((a, b) => `${a.assetId} ${a.asOf}`.localeCompare(`${b.assetId} ${b.asOf}`));
+/** A price without its witness time, which the fixture stamps at write. */
+const bare = (rows: LedgerRows['userPrices']) =>
+  byKey(rows).map(({ assetId, asOf, price }) => ({ assetId, asOf, price }));
 
 let db: PGlite;
 const client = () => db as unknown as SqlClient;
@@ -125,26 +128,27 @@ describe('readLedger', () => {
   });
 
   it('reads back every stored price, per unit, exactly', async () => {
-    expect(byKey((await readLedger(client(), OWNER)).userPrices)).toEqual(byKey(LEDGER.userPrices));
+    expect(bare((await readLedger(client(), OWNER)).userPrices)).toEqual(bare(LEDGER.userPrices));
   });
 
-  // A snapshot's `savedAt`: the latest witness time of the day's prices, in the backup's form.
-  it('reads each stored day’s latest witness time, to the second, and none for a day with none', async () => {
+  // Each price's own witness time, in the backup's form; absent is the only spelling of none.
+  it('reads each price’s witness time, to the second, and none for a price with none', async () => {
     const [first] = LEDGER.userPrices;
-    const witnessed = (p: { assetId: string; asOf: string }, at: string) =>
-      db.query(
-        `UPDATE user_price SET observed_at = $3::timestamptz
-          WHERE asset_id = $1 AND as_of = $2::date`,
-        [p.assetId, p.asOf, at],
-      );
     const sameDay = LEDGER.userPrices.find((p) => p.asOf === first.asOf && p !== first)!;
-    // The fixture witnesses every price; a day with none is what is checked.
+    // The fixture witnesses every price; one with none is what is checked.
     await db.query('UPDATE user_price SET observed_at = NULL');
-    await witnessed(first, '2026-06-01T10:00:00.250Z');
-    await witnessed(sameDay, '2026-06-01T18:30:05.900Z');
-    expect((await readLedger(client(), OWNER)).savedAt).toEqual({
-      [first.asOf]: '2026-06-01T18:30:05',
-    });
+    await db.query(
+      `UPDATE user_price SET observed_at = '2026-06-01T18:30:05.900Z'
+        WHERE asset_id = $1 AND as_of = $2::date`,
+      [first.assetId, first.asOf],
+    );
+    const read = (await readLedger(client(), OWNER)).userPrices;
+    expect(read.filter((p) => Object.hasOwn(p, 'observedAt'))).toEqual([
+      { ...first, observedAt: '2026-06-01T18:30:05' },
+    ]);
+    expect(read.find((p) => p.assetId === sameDay.assetId && p.asOf === sameDay.asOf)).toEqual(
+      sameDay,
+    );
   });
 
   it('reads the version the rows were read at, as text', async () => {
@@ -182,7 +186,7 @@ describe('readLedger', () => {
     const read = await readLedger(client(), OWNER);
     expect(byId(read.assets)).toEqual(byId(LEDGER.assets));
     expect(byId(read.transactions)).toEqual(byId(LEDGER.transactions));
-    expect(byKey(read.userPrices)).toEqual(byKey(LEDGER.userPrices));
+    expect(bare(read.userPrices)).toEqual(bare(LEDGER.userPrices));
   });
 
   it('reads the generation the pointer names once it moves', async () => {
@@ -210,7 +214,6 @@ describe('readLedger', () => {
       assets: [],
       transactions: [],
       userPrices: [],
-      savedAt: {},
     });
   });
 

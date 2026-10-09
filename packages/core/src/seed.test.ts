@@ -20,6 +20,7 @@ import {
 } from './derive';
 import { daysBetween } from './dates';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
+import { pricesOfSnapshots, snapshotsOfPrices } from './valuation';
 
 const snaps = buildSeedSnapshots();
 
@@ -193,10 +194,10 @@ describe('ledger reconciliation on the seed (formula audit §1/§5)', () => {
 
 // Here rather than beside core/backup/json.ts because core tests may not import src/lib.
 describe('backup envelope round-trip on the seed (D12)', () => {
-  it('buildBackup(seed) → stringify → parseBackup returns deep-equal tables (4/174/25)', () => {
+  it('buildBackup(seed) → stringify → parseBackup gives back the same tables (4/572/25)', () => {
     const env = buildBackup(
       SEED_ASSETS,
-      snaps,
+      pricesOfSnapshots(SEED_TRANSACTIONS, snaps),
       SEED_TRANSACTIONS,
       { currency: 'UAH', usdRate: 44.83 },
       'demo',
@@ -206,12 +207,13 @@ describe('backup envelope round-trip on the seed (D12)', () => {
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.formatVersion).toBe(12);
+    expect(result.data.formatVersion).toBe(13);
     expect(result.data.assets).toHaveLength(4);
-    expect(result.data.snapshots).toHaveLength(174);
+    // One price per quote: the seed quotes a position only while the ledger holds it.
+    expect(result.data.prices).toHaveLength(572);
     expect(result.data.transactions).toHaveLength(25);
     expect(result.data.assets).toEqual(SEED_ASSETS);
-    expect(result.data.snapshots).toEqual(snaps);
+    expect(snapshotsOfPrices(result.data.transactions, result.data.prices)).toEqual(snaps);
     expect(result.data.transactions).toEqual(SEED_TRANSACTIONS);
   });
 });

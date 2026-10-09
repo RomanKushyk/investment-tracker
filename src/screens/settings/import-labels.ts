@@ -54,7 +54,9 @@ function issueReason(issue: RowIssue, t: Dict): string {
     case 'unknown-quote-asset':
       return m.unknownQuoteAsset(String(value));
     case 'duplicate-key':
-      return issue.field === 'date' ? m.duplicateDate(String(value)) : m.duplicateId(String(value));
+      return m.duplicateId(String(value));
+    case 'duplicate-price':
+      return m.duplicatePrice(String(value));
     case 'unknown-key':
       return m.unknownKey(String(value));
     case 'forbidden-key':

@@ -8,6 +8,7 @@ import {
   type Transaction,
   type TxType,
 } from '../types';
+import type { PriceRow } from '../valuation';
 import {
   backupEnvelopeSchema,
   buildBackup,
@@ -62,6 +63,14 @@ const SNAPSHOTS: Snapshot[] = [
   },
 ];
 
+// The file's prices, on the two days the store's snapshots above quote.
+const PRICES: PriceRow[] = [
+  { assetId: 'energy', asOf: '2026-07-24', price: 10.2004 },
+  { assetId: 'reit', asOf: '2026-07-24', price: 11.1228 },
+  { assetId: 'energy', asOf: '2026-07-25', price: 10.2064, observedAt: '2026-07-25T21:14:00' },
+  { assetId: 'reit', asOf: '2026-07-25', price: 11.1339, observedAt: '2026-07-25T21:14:00' },
+];
+
 const TRANSACTIONS: Transaction[] = [
   { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37 },
   // A COUNT, because a position-moving row requires one at this door too.
@@ -88,7 +97,7 @@ function envelope(
   dataset: 'demo' | 'live' = 'demo',
   exportedAt = '2026-08-04T12:00:00',
 ): BackupEnvelope {
-  return buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, SETTINGS, dataset, exportedAt, 2);
+  return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, dataset, exportedAt, 2);
 }
 
 function mutated(mutate: (env: Record<string, unknown>) => void): string {
@@ -178,7 +187,7 @@ describe('validateImport — accepted', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.envelope.assets).toEqual(ASSETS);
-    expect(result.envelope.snapshots).toEqual(SNAPSHOTS);
+    expect(result.envelope.prices).toEqual(PRICES);
     expect(result.envelope.transactions).toEqual(TRANSACTIONS);
     expect(result.envelope.settings).toEqual(SETTINGS);
   });
@@ -216,14 +225,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 13 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 13)));
+  it('rejects formatVersion 14 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 14)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(13);
+    expect(result.rejection.version).toBe(14);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 13 — this app reads formatVersion 12 only.',
+      'Unsupported formatVersion 14 — this app reads formatVersion 13 only.',
     );
   });
 
@@ -242,7 +251,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 13;
+        env.formatVersion = 14;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -286,7 +295,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an array) — this app reads formatVersion 12 only.',
+        'Unsupported formatVersion (an array) — this app reads formatVersion 13 only.',
       );
     });
 
@@ -295,7 +304,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an object) — this app reads formatVersion 12 only.',
+        'Unsupported formatVersion (an object) — this app reads formatVersion 13 only.',
       );
     });
 
@@ -306,7 +315,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an array) — this app reads formatVersion 12 only.',
+        'Unsupported formatVersion (an array) — this app reads formatVersion 13 only.',
       );
     });
   });
@@ -355,21 +364,22 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     ]);
   });
 
-  it('rejects a Z-suffixed snapshot savedAt too, addressed by the snapshot date', () => {
+  it('rejects a Z-suffixed price observedAt too, addressing the price by its index', () => {
     const result = validateImport(
       mutated(
         (env) =>
-          void ((env.snapshots as Record<string, unknown>[])[1].savedAt = '2026-07-25T21:14:00Z'),
+          void ((env.prices as Record<string, unknown>[])[3].observedAt = '2026-07-25T21:14:00Z'),
       ),
     );
-    expect(result.ok).toBe(false);
-    if (result.ok || result.rejection.kind !== 'rows') return;
-    expect(result.rejection.issues[0]).toMatchObject({
-      table: 'snapshots',
-      at: '2026-07-25',
-      field: 'savedAt',
-      code: 'expected-datetime',
-    });
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({
+        table: 'prices',
+        at: '3',
+        field: 'observedAt',
+        code: 'expected-datetime',
+      }),
+    ]);
   });
 
   it('codes a refused exportedAt as a timestamp, like createdAt and savedAt (#346)', () => {
@@ -539,34 +549,44 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     ]);
   });
 
-  it('rejects a quote for an asset the file does not carry', () => {
+  it('rejects a price for an asset the file does not carry', () => {
     const result = validateImport(
-      mutated(
-        (env) =>
-          void (((env.snapshots as Record<string, unknown>[])[0].quotes as Record<string, number>)[
-            'a-9'
-          ] = 1),
-      ),
+      mutated((env) => void ((env.prices as Record<string, unknown>[])[1].assetId = 'a-9')),
     );
-    expect(result.ok).toBe(false);
-    if (result.ok || result.rejection.kind !== 'rows') return;
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
     expect(result.rejection.issues).toEqual([
-      { table: 'snapshots', at: '2026-07-24', code: 'unknown-quote-asset', value: 'a-9' },
+      { table: 'prices', at: '2026-07-24', code: 'unknown-asset-id', value: 'a-9' },
     ]);
   });
 
-  it('rejects a duplicate snapshot date (the primary key)', () => {
+  it('rejects a second price for one asset and day, the store’s key', () => {
     const result = validateImport(
       mutated((env) => {
-        const snaps = env.snapshots as Record<string, unknown>[];
-        snaps.push({ ...snaps[0] });
+        const prices = env.prices as Record<string, unknown>[];
+        prices.push({ ...prices[1], price: 12 });
       }),
     );
-    expect(result.ok).toBe(false);
-    if (result.ok || result.rejection.kind !== 'rows') return;
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
     expect(result.rejection.issues).toEqual([
-      { table: 'snapshots', field: 'date', code: 'duplicate-key', value: '2026-07-24' },
+      { table: 'prices', at: '2026-07-24', code: 'duplicate-price', value: 'reit' },
     ]);
+  });
+
+  it('codes a price that is not above zero as a positive amount, as the store refuses it', () => {
+    for (const price of [0, -10.2]) {
+      const result = validateImport(
+        mutated((env) => void ((env.prices as Record<string, unknown>[])[0].price = price)),
+      );
+      if (result.ok || result.rejection.kind !== 'rows') throw new Error(`${price}: expected rows`);
+      expect(result.rejection.issues, String(price)).toEqual([
+        expect.objectContaining({
+          table: 'prices',
+          at: '0',
+          field: 'price',
+          code: 'expected-positive-amount',
+        }),
+      ]);
+    }
   });
 
   it('rejects duplicate asset and transaction ids (bulkAdd would abort blindly)', () => {
@@ -615,16 +635,24 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
 
   it('addresses a row by index when the key itself is the invalid field', () => {
     const result = validateImport(
-      mutated((env) => void ((env.snapshots as Record<string, unknown>[])[0].date = '24.07.2026')),
+      mutated((env) => void ((env.transactions as Record<string, unknown>[])[0].id = 7)),
     );
-    expect(result.ok).toBe(false);
-    if (result.ok || result.rejection.kind !== 'rows') return;
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
     expect(result.rejection.issues[0]).toMatchObject({
-      table: 'snapshots',
+      table: 'transactions',
       at: '0',
-      field: 'date',
-      code: 'expected-date',
+      field: 'id',
     });
+  });
+
+  it('addresses a price by its index, its key being two fields', () => {
+    const result = validateImport(
+      mutated((env) => void ((env.prices as Record<string, unknown>[])[1].asOf = '24.07.2026')),
+    );
+    if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
+    expect(result.rejection.issues).toEqual([
+      expect.objectContaining({ table: 'prices', at: '1', field: 'asOf', code: 'expected-date' }),
+    ]);
   });
 
   it('names a date no calendar has with the date code (#341)', () => {
@@ -769,7 +797,7 @@ describe('diffBackup', () => {
   it('warns about a file from a newer database version, never an older one', () => {
     const newer = buildBackup(
       ASSETS,
-      SNAPSHOTS,
+      PRICES,
       TRANSACTIONS,
       SETTINGS,
       'demo',
@@ -783,7 +811,7 @@ describe('diffBackup', () => {
     });
     const older = buildBackup(
       ASSETS,
-      SNAPSHOTS,
+      PRICES,
       TRANSACTIONS,
       SETTINGS,
       'demo',
@@ -796,7 +824,7 @@ describe('diffBackup', () => {
   it('reports a missing settings block so the opt-in can step aside', () => {
     const env = buildBackup(
       ASSETS,
-      SNAPSHOTS,
+      PRICES,
       TRANSACTIONS,
       undefined,
       'demo',
@@ -901,6 +929,21 @@ describe('an OLDER backup is named as older, not as broken', () => {
     expect(result.rejection.version).toBe(11);
   });
 
+  it('maps formatVersion 12, whose snapshots carried ₴ quotes, to `older-format` (#396)', () => {
+    const result = validateImport(
+      mutated((env) => {
+        env.formatVersion = 12;
+        env.snapshots = [{ date: '2026-07-24', quotes: { reit: 68560.9 } }];
+        delete env.prices;
+      }),
+    );
+    if (result.ok || result.rejection.kind !== 'format') {
+      throw new Error('expected a format reject');
+    }
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(12);
+  });
+
   it('does not call a fractional version an older backup', () => {
     // `1.5` is below the current version and at least 1, so the bare `>= 1` read it as a
     // real backup from an older app and reported "version 1.5". A version counts format
@@ -927,7 +970,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 12');
+    expect(result.rejection.detail).toContain('formatVersion 13');
   });
 });
 
@@ -984,38 +1027,6 @@ describe('every way a note can be wrong reports ONE localised code', () => {
   });
 });
 
-describe('a quote is coded by its place, whatever asset id keys it (#352)', () => {
-  // A quote's key is an asset id, not a field name: `quotes.date` is a quote, not a date.
-  const codeOf = (key: string) => {
-    const result = validateImport(
-      mutated(
-        (env) =>
-          void (((env.snapshots as Record<string, unknown>[])[0].quotes as Record<string, unknown>)[
-            key
-          ] = 'abc'),
-      ),
-    );
-    if (result.ok || result.rejection.kind !== 'rows') throw new Error(`${key}: expected rows`);
-    expect(result.rejection.issues, key).toHaveLength(1);
-    expect(result.rejection.issues[0], key).toMatchObject({
-      table: 'snapshots',
-      at: '2026-07-24',
-      field: `quotes.${key}`,
-    });
-    return result.rejection.issues[0].code;
-  };
-
-  it('gives a string under `reit` the invalid fallback', () => {
-    expect(codeOf('reit')).toBe('invalid');
-  });
-
-  for (const key of ['date', 'createdAt', 'exportedAt', 'amount']) {
-    it(`gives a string under \`${key}\` the code a string under \`reit\` gets`, () => {
-      expect(codeOf(key)).toBe(codeOf('reit'));
-    });
-  }
-});
-
 describe('a field is a date because of its schema, not its name (#352)', () => {
   // THE ALLOW-LIST: every field the backup carries with the date or timestamp schema, as a
   // path with arrays entered at 0. A ninth one is added here, not to a list beside the schemas.
@@ -1024,8 +1035,8 @@ describe('a field is a date because of its schema, not its name (#352)', () => {
     'assets.0.maturity': 'date',
     'assets.0.nextCoupon': 'date',
     'assets.0.createdAt': 'datetime',
-    'snapshots.0.date': 'date',
-    'snapshots.0.savedAt': 'datetime',
+    'prices.0.asOf': 'date',
+    'prices.0.observedAt': 'datetime',
     'transactions.0.date': 'date',
     exportedAt: 'datetime',
   };
@@ -1156,18 +1167,11 @@ describe('a __proto__ key is refused wherever it sits (#353)', () => {
       at: '0',
       field: 'inzhur',
     },
-    // A key on the row itself is addressed by index, as `unknown-key` is there; a fault below a
-    // named field takes the row's date or id.
-    'a snapshot row': {
-      set: (env, d) => d(rows(env, 'snapshots')[0], 1),
-      table: 'snapshots',
+    // A key on the row itself is addressed by index, as `unknown-key` is there.
+    'a price row': {
+      set: (env, d) => d(rows(env, 'prices')[0], 1),
+      table: 'prices',
       at: '0',
-    },
-    "a snapshot's quotes": {
-      set: (env, d) => d(rows(env, 'snapshots')[0].quotes, 1),
-      table: 'snapshots',
-      at: '2026-07-24',
-      field: 'quotes',
     },
     'a transaction row': {
       set: (env, d) => d(rows(env, 'transactions')[0], 1),
@@ -1184,11 +1188,6 @@ describe('a __proto__ key is refused wherever it sits (#353)', () => {
       expect(issue.field).toBe(field);
     });
   }
-
-  it('refuses a quote keyed __proto__ whatever its value, which no schema ever reached', () => {
-    const issue = theOneIssue(withProtoKey((env, d) => d(rows(env, 'snapshots')[0].quotes, 'abc')));
-    expect(issue).toMatchObject({ table: 'snapshots', at: '2026-07-24', field: 'quotes' });
-  });
 
   it('refuses an asset whose id is __proto__: a plain-object quote map cannot hold that key', () => {
     const issue = theOneIssue(
@@ -1302,34 +1301,28 @@ describe('an asset id named for a member every object inherits is refused (#354)
       const result = validateImport(
         mutated((env) => {
           (env.assets as Record<string, unknown>[])[1].id = id;
-          for (const s of env.snapshots as { quotes: Record<string, unknown> }[]) {
-            s.quotes = { reit: s.quotes.reit, [id]: s.quotes.energy };
+          for (const p of env.prices as { assetId: string }[]) {
+            if (p.assetId === 'energy') p.assetId = id;
           }
         }),
       );
       if (!result.ok) throw new Error('expected the file to pass');
       expect(result.envelope.assets[1].id).toBe(id);
-      expect(Object.hasOwn(result.envelope.snapshots[0].quotes, id)).toBe(true);
-      expect(result.envelope.snapshots[0].quotes[id]).toBe(60050.87);
+      expect(result.envelope.prices[0]).toEqual({ ...PRICES[0], assetId: id });
     });
   }
 
-  it('leaves these names as quote KEYS to the integrity pass, which knows no such asset', () => {
-    // The names are refused as an asset ID; a quote keyed by one is still a quote for an
-    // asset the file does not carry, as #353 measured.
+  it('leaves these names on a PRICE to the integrity pass, which knows no such asset', () => {
+    // The names are refused as an asset ID; a price naming one is still a price for an
+    // asset the file does not carry.
     const result = validateImport(
-      mutated(
-        (env) =>
-          void Object.assign((env.snapshots as Record<string, unknown>[])[0].quotes as object, {
-            constructor: 1,
-          }),
-      ),
+      mutated((env) => void ((env.prices as Record<string, unknown>[])[0].assetId = 'constructor')),
     );
     if (result.ok || result.rejection.kind !== 'rows') throw new Error('expected a rows reject');
     expect(result.rejection.issues).toEqual([
       expect.objectContaining({
-        table: 'snapshots',
-        code: 'unknown-quote-asset',
+        table: 'prices',
+        code: 'unknown-asset-id',
         value: 'constructor',
       }),
     ]);

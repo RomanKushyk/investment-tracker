@@ -2453,8 +2453,8 @@
                       "transactions": [
                         "<Transaction>"
                       ],
-                      "snapshots": [
-                        "<Snapshot>"
+                      "prices": [
+                        "<Price>"
                       ]
                     }
                   }

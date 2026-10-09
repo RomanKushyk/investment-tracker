@@ -8,6 +8,7 @@ import type { Asset, Snapshot, Transaction } from './types';
 import {
   movedPrices,
   pricesOfQuotes,
+  pricesOfSnapshots,
   rebuildSnapshots,
   snapshotsOfPrices,
   type PriceRow,
@@ -510,7 +511,8 @@ describe('every figure that moves against the stored series on a ledger with arc
   });
 });
 
-// The mutation surface stores a snapshot as per-unit prices and gives it back as quotes.
+// The mutation surface stores a snapshot as per-unit prices; the app's store turns its snapshots into
+// them for the backup, and the backup's prices back.
 describe('a snapshot as prices, and back', () => {
   const TXS: Transaction[] = [
     deposit('d', '2026-03-01', 10_000),
@@ -529,7 +531,7 @@ describe('a snapshot as prices, and back', () => {
       { assetId: 'b', price: 2017.33 / 16.1486 },
     ]);
     const rows = prices.map((p) => row(p.assetId, '2026-03-05', p.price));
-    expect(snapshotsOfPrices(TXS, rows, {})).toEqual([{ date: '2026-03-05', quotes }]);
+    expect(snapshotsOfPrices(TXS, rows)).toEqual([{ date: '2026-03-05', quotes }]);
   });
 
   it('drops, by name, a quote of a position held none of, never held, or valued at nothing', () => {
@@ -564,10 +566,10 @@ describe('a snapshot as prices, and back', () => {
   it('gives one snapshot per stored day in date order, each with its latest witness time', () => {
     const rows = [
       row('b', '2026-03-12', 130),
-      row('a', '2026-03-05', 40),
-      row('b', '2026-03-05', 120),
+      { ...row('a', '2026-03-05', 40), observedAt: '2026-03-05T18:00:00' },
+      { ...row('b', '2026-03-05', 120), observedAt: '2026-03-05T09:30:00' },
     ];
-    expect(snapshotsOfPrices(TXS, rows, { '2026-03-05': '2026-03-05T18:00:00' })).toEqual([
+    expect(snapshotsOfPrices(TXS, rows)).toEqual([
       {
         date: '2026-03-05',
         quotes: { a: 120, b: Math.round(16.1486 * 120 * 100) / 100 },
@@ -577,25 +579,46 @@ describe('a snapshot as prices, and back', () => {
     ]);
   });
 
-  // Every stored day is exported, so nothing stored is out of the client's sight.
   it('keeps a stored day whose positions a row emptied, with nothing quoted', () => {
     const rows = [row('a', '2026-03-10', 40), row('b', '2026-03-12', 130)];
-    expect(snapshotsOfPrices(TXS, rows, {})).toEqual([
+    expect(snapshotsOfPrices(TXS, rows)).toEqual([
       { date: '2026-03-10', quotes: {} },
       { date: '2026-03-12', quotes: { b: Math.round(16.1486 * 130 * 100) / 100 } },
     ]);
   });
 
-  // A quote is kopecks, as `rebuildSnapshots` rounds it, so the export and /view agree.
+  // A quote is kopecks, as `rebuildSnapshots` rounds it.
   it('quotes a held position whose value rounds to no kopeck as 0, as /view does', () => {
     const rows = [
       row('b', '2026-03-05', 0.0001),
       row('a', '2026-03-06', 40),
       row('b', '2026-03-06', 0.0001),
     ];
-    expect(snapshotsOfPrices(TXS, rows, {})).toEqual([
+    expect(snapshotsOfPrices(TXS, rows)).toEqual([
       { date: '2026-03-05', quotes: { b: 0 } },
       { date: '2026-03-06', quotes: { a: 120, b: 0 } },
     ]);
+  });
+
+  it('turns snapshots into their prices by date and asset, each carrying its day’s witness time', () => {
+    const snapshots: Snapshot[] = [
+      { date: '2026-03-12', quotes: { b: 2100 } },
+      { date: '2026-03-05', quotes: { b: 2017.33, a: 100.01 }, savedAt: '2026-03-05T18:00:00' },
+    ];
+    const prices = pricesOfSnapshots(TXS, snapshots);
+    expect(prices).toEqual([
+      { ...row('a', '2026-03-05', 100.01 / 3), observedAt: '2026-03-05T18:00:00' },
+      { ...row('b', '2026-03-05', 2017.33 / 16.1486), observedAt: '2026-03-05T18:00:00' },
+      row('b', '2026-03-12', 2100 / 16.1486),
+    ]);
+    expect(snapshotsOfPrices(TXS, prices)).toEqual([snapshots[1], snapshots[0]]);
+  });
+
+  it('drops a quote of a position held none of that day, and a day left with none', () => {
+    const snapshots: Snapshot[] = [
+      { date: '2026-03-10', quotes: { a: 50, b: 2000 } },
+      { date: '2026-03-11', quotes: { a: 50 } },
+    ];
+    expect(pricesOfSnapshots(TXS, snapshots)).toEqual([row('b', '2026-03-10', 2000 / 16.1486)]);
   });
 });

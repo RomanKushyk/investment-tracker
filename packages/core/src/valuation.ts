@@ -19,6 +19,8 @@ export interface PriceRow {
   assetId: string;
   asOf: string;
   price: number;
+  /** A `user_price` row's witness time, in the backup's form, where the store recorded one. */
+  observedAt?: string;
 }
 
 /** The two sources, at most one row per source, asset and date. */
@@ -181,14 +183,9 @@ export function movedPrices(
   return pricesOfQuotes(quotes, unitsTo);
 }
 
-/** The snapshots stored prices describe, one per day in date order: each position held that day at
- *  `units × price` in kopecks, as `rebuildSnapshots` rounds it, and the day's witness time where
- *  `savedAt` has one. Every stored day is one, a day a later row left valuing nothing quoting nothing. */
-export function snapshotsOfPrices(
-  txs: Transaction[],
-  rows: readonly PriceRow[],
-  savedAt: Readonly<Record<string, string>>,
-): Snapshot[] {
+/** One snapshot per priced day: each held position at `units × price` in kopecks, as `/view` rounds
+ *  it, `savedAt` the latest witness time. A day holding none of its prices quotes nothing. */
+export function snapshotsOfPrices(txs: Transaction[], rows: readonly PriceRow[]): Snapshot[] {
   const byDay = new Map<string, PriceRow[]>();
   for (const row of rows) {
     let day = byDay.get(row.asOf);
@@ -198,11 +195,30 @@ export function snapshotsOfPrices(
   return [...byDay.keys()].sort().map((date) => {
     const units = ledgerUnits(txs, date).units;
     const quotes: Record<string, number> = {};
-    for (const { assetId, price } of byDay.get(date) ?? []) {
+    let savedAt: string | undefined;
+    for (const { assetId, price, observedAt } of byDay.get(date) ?? []) {
       const held = heldValueOf(units, assetId);
       if (held !== undefined && held > 0) quotes[assetId] = round2(held * price);
+      // One form on every row, so the latest compares as text.
+      if (observedAt !== undefined && (savedAt === undefined || observedAt > savedAt)) {
+        savedAt = observedAt;
+      }
     }
-    const saved = Object.hasOwn(savedAt, date) ? { savedAt: savedAt[date] } : {};
-    return { date, quotes, ...saved };
+    return { date, quotes, ...(savedAt === undefined ? {} : { savedAt }) };
   });
+}
+
+/** Each quote over its day's units, as `pricesOfQuotes` divides it, witnessed at the day's `savedAt`;
+ *  a quote no price reproduces is dropped, and with it a day left with none. */
+export function pricesOfSnapshots(txs: Transaction[], snapshots: readonly Snapshot[]): PriceRow[] {
+  return [...snapshots]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .flatMap(({ date, quotes, savedAt }) =>
+      pricesOfQuotes(quotes, ledgerUnits(txs, date).units).prices.map(({ assetId, price }) => ({
+        assetId,
+        asOf: date,
+        price,
+        ...(savedAt === undefined ? {} : { observedAt: savedAt }),
+      })),
+    );
 }
