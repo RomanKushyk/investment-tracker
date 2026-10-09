@@ -449,7 +449,7 @@ jobs:
               const ok = await m.state(deps('active'), read({}));
               if (ok.statusCode !== 200 || ok.headers.etag !== '\"0\"') throw new Error('the export was not served under its tag: ' + JSON.stringify(ok));
               if (ok.headers['cache-control'] !== 'private, no-store') throw new Error('cache policy: ' + ok.headers['cache-control']);
-              if (Object.keys(JSON.parse(ok.body)).join() !== 'assets,transactions,snapshots') throw new Error('export shape: ' + ok.body);
+              if (Object.keys(JSON.parse(ok.body)).join() !== 'assets,transactions,prices') throw new Error('export shape: ' + ok.body);
               const again = await m.state(deps('active'), read({ 'if-none-match': ok.headers.etag }));
               if (again.statusCode !== 304 || 'body' in again) throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
               const key = '00000000-0000-4000-8000-0000000000aa';

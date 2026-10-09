@@ -1,6 +1,7 @@
 // `POST /mutations` and `GET /state` over PGlite: the caller's dataset, the key table and the gate
 // in one database, each reached through the module the routes use (*User schema and deletes*).
 import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import type { PGlite } from '@electric-sql/pglite';
 import { validateImport } from '@quirenote/core/backup/import';
@@ -1227,6 +1228,20 @@ describe('GET /state', () => {
     expect(prices.map((p) => p.price)).toEqual([1000.01 / 10]);
     // The case is real: a quote rounded to kopecks at the day's 13 units divides back to another price.
     expect(Math.round(13 * prices[0].price * 100) / 100 / 13).not.toBe(prices[0].price);
+  });
+
+  // The deploy smoke-tests the bundle's export against keys it keeps by hand, in a step only the
+  // post-merge deploy runs.
+  it('answers the keys the deploy smoke test expects', async () => {
+    const workflow = readFileSync(
+      new URL('../../.github/workflows/deploy-backend.yml', import.meta.url),
+      'utf8',
+    );
+    const pinned = [
+      ...workflow.matchAll(/Object\.keys\(JSON\.parse\(ok\.body\)\)\.join\(\) !== '([^']*)'/g),
+    ];
+    expect(pinned).toHaveLength(1);
+    expect(pinned[0][1]).toBe(Object.keys(await state()).join());
   });
 
   it('answers under the strong tag, kept by no cache', async () => {
