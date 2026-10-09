@@ -1090,7 +1090,9 @@ that pointer, or that reads a data table's own `user_id`; each such statement al
 against a second generation. Moving the live pointer off a dataset bumps `data_version` in the same
 row update, `/view`'s tag being composed from the version and not the pointer. Every account holder
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
-writes one with the account. A SCHEMA THE CODE WILL NEED SHIPS A MERGE BEFORE THAT CODE, the code
+writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
+and key, restricted on the user's delete; a row holds a claim's token and window, and its stored
+response whole or not at all. A SCHEMA THE CODE WILL NEED SHIPS A MERGE BEFORE THAT CODE, the code
 being live before the schema — except a table no deployed code writes, which may be recreated in the
 merge that switches its reader, the reader failing until the migration applies. A migration that
 drops a table refuses first while it holds a row. A version cut carries every merge since the last

@@ -99,7 +99,7 @@ needing the clause: it applies to rows inserted after it and leaves existing row
 **A `NOT VALID` foreign key still blocks a `DROP TABLE` on its target.** Not being validated buys
 nothing here: the dependency is what the drop refuses on, so a table another table references cannot
 go until the referencing table has. Dropping the user schema by hand therefore runs child-first —
-`user_price`, `transaction`, `asset`, `account`; then, since `dataset` and `app_user` reference each
+`user_price`, `transaction`, `asset`, `account`, `mutation_key`; then, since `dataset` and `app_user` reference each
 other, `app_user`'s two pointer constraints, then `dataset`, then `app_user`. `src/asset-delete.ts` walks
 children before their parent for the same reason.
 

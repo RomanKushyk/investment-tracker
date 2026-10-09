@@ -45,12 +45,13 @@ const DATASET = '010_dataset.sql';
 const DATASET_BACKFILL = '011_dataset_backfill.sql';
 const DATASET_KEYS = '012_dataset_keys.sql';
 const DATASET_CATCH_UP = '013_dataset_catch_up.sql';
+const MUTATION_KEY = '014_mutation_key.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset and its backfill, in that order, and nothing else', () => {
+  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset, its backfill, its keys, its catch-up and the mutation keys, in that order, and nothing else', () => {
     expect(MIGRATIONS).toEqual([
       USER_SCHEMA,
       DEMO_ROW,
@@ -62,6 +63,7 @@ describe('the file list', () => {
       DATASET_BACKFILL,
       DATASET_KEYS,
       DATASET_CATCH_UP,
+      MUTATION_KEY,
     ]);
   });
 });
@@ -103,6 +105,10 @@ describe('statementsOf', () => {
 
   it('splits the catch-up into the backfill’s two statements, byte for byte', () => {
     expect(statementsOf(read(DATASET_CATCH_UP))).toEqual(statementsOf(read(DATASET_BACKFILL)));
+  });
+
+  it('splits the mutation keys into their one table', () => {
+    expect(statementsOf(read(MUTATION_KEY))).toHaveLength(1);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -627,6 +633,7 @@ describe('migrate', () => {
         { file: DATASET_BACKFILL, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
         { file: DATASET_KEYS, applied: 0, skipped: 0, pending: 9, ms: expect.any(Number) },
         { file: DATASET_CATCH_UP, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
+        { file: MUTATION_KEY, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
       ],
     });
   });
@@ -644,6 +651,7 @@ describe('migrate', () => {
     await applyFile(db, DATASET_BACKFILL, statementsOf(read(DATASET_BACKFILL)));
     await applyFile(db, DATASET_KEYS, statementsOf(read(DATASET_KEYS)));
     await applyFile(db, DATASET_CATCH_UP, statementsOf(read(DATASET_CATCH_UP)));
+    await applyFile(db, MUTATION_KEY, statementsOf(read(MUTATION_KEY)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -659,6 +667,7 @@ describe('migrate', () => {
         { file: DATASET_BACKFILL, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
         { file: DATASET_KEYS, applied: 0, skipped: 9, pending: 0, ms: expect.any(Number) },
         { file: DATASET_CATCH_UP, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
+        { file: MUTATION_KEY, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -742,6 +751,7 @@ describe('migrate', () => {
         { file: DATASET_BACKFILL, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DATASET_KEYS, applied: 9, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DATASET_CATCH_UP, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: MUTATION_KEY, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -837,7 +847,7 @@ describe('the invocation budget', () => {
       undefined,
       left(TEARDOWN_RESERVE_MS + 1),
     );
-    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2]);
+    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1]);
 
     // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
     const below = await freshDb();
@@ -853,8 +863,8 @@ describe('the invocation budget', () => {
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
-    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2]);
-    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.

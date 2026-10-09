@@ -118,7 +118,7 @@ describe('the draft applies as Postgres', () => {
     expect(applied).toBeGreaterThan(0);
   });
 
-  it('creates exactly the seven tables the spec, the official rate and the dataset name', async () => {
+  it('creates exactly the eight tables the spec, the official rate, the dataset and the mutation keys name', async () => {
     const { rows } = await db.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' ORDER BY table_name`,
@@ -128,6 +128,7 @@ describe('the draft applies as Postgres', () => {
       'app_user',
       'asset',
       'dataset',
+      'mutation_key',
       'official_rate',
       'transaction',
       'user_price',
@@ -164,6 +165,7 @@ describe('the draft applies as Postgres', () => {
       app_user: 'user_id',
       asset: 'dataset_id',
       dataset: 'user_id',
+      mutation_key: 'user_id',
       official_rate: 'rate_date',
       transaction: 'dataset_id',
       user_price: 'dataset_id',
@@ -654,6 +656,101 @@ describe('generations', () => {
     );
     await accepts(insertAsset(nextId()).replace(`VALUES (${DATASET},`, `VALUES (${only},`));
     await refuses(`DELETE FROM dataset WHERE id = ${only};`);
+  });
+});
+
+describe('mutation_key', () => {
+  const FINGERPRINT = `'${'a'.repeat(64)}'`;
+  /** A live claim with no response; `over` replaces a column's SQL value. */
+  const claim = (over: Record<string, string> = {}) => {
+    const row: Record<string, string> = {
+      user_id: USER,
+      key: nextId(),
+      fingerprint: FINGERPRINT,
+      token: nextId(),
+      claimed_at: 'now()',
+      in_progress_until: `now() + interval '20 seconds'`,
+      expires_at: `now() + interval '24 hours'`,
+      response_status: 'NULL',
+      response_body: 'NULL',
+      ...over,
+    };
+    return `INSERT INTO mutation_key (${Object.keys(row).join(', ')})
+            VALUES (${Object.values(row).join(', ')});`;
+  };
+  const holder = (status: string) =>
+    `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
+     VALUES (${nextId()}, '${status}-${seq}@quirenote.com', '${status}', 'user', now(), now(), ${USER})
+     RETURNING user_id;`;
+
+  it('accepts a claim with no response yet, and one with its stored response', async () => {
+    await accepts(claim());
+    await accepts(claim({ response_status: '200', response_body: `'{"etag":"\\"1\\""}'` }));
+  });
+
+  it.each([
+    'user_id',
+    'key',
+    'fingerprint',
+    'token',
+    'claimed_at',
+    'in_progress_until',
+    'expires_at',
+  ])('refuses a NULL %s, which DSQL could never require later', async (column) => {
+    await refuses(claim({ [column]: 'NULL' }));
+  });
+
+  it.each([
+    ['63 characters', `'${'a'.repeat(63)}'`],
+    ['65 characters', `'${'a'.repeat(65)}'`],
+    ['upper-case hex', `'${'A'.repeat(64)}'`],
+    ['64 characters that are not hex', `'${'z'.repeat(64)}'`],
+  ])('refuses a fingerprint of %s, never a sha256 in lower-case hex', async (_, fingerprint) => {
+    await refuses(claim({ fingerprint }));
+  });
+
+  it.each([
+    ['a status without a body', { response_status: '200' }],
+    ['a body without a status', { response_body: `'{}'` }],
+    ['a stored refusal', { response_status: '409', response_body: `'{}'` }],
+    ['a stored failure', { response_status: '500', response_body: `'{}'` }],
+  ])('refuses %s', async (_, over) => {
+    await refuses(claim(over));
+  });
+
+  it.each([
+    ['a claim that is live for no time at all', { in_progress_until: 'now()' }],
+    ['a key that expires while its claim is live', { expires_at: `now() + interval '10 seconds'` }],
+  ])('refuses %s', async (_, over) => {
+    await refuses(claim(over));
+  });
+
+  it('refuses a key for a user that does not exist', async () => {
+    await refuses(claim({ user_id: nextId() }));
+  });
+
+  it('refuses one key twice for one user, and takes it for another', async () => {
+    const key = nextId();
+    const { rows } = await db.query<{ user_id: string }>(holder('active'));
+    await accepts(claim({ key }));
+    await refuses(claim({ key }));
+    await accepts(claim({ key, user_id: `'${rows[0].user_id}'` }));
+  });
+
+  // On a user who owns nothing else, so `mutation_key_user_fk` is the one key to refuse.
+  it('refuses deleting a user who holds a key', async () => {
+    const { rows } = await db.query<{ user_id: string }>(holder('active'));
+    const id = `'${rows[0].user_id}'`;
+    await accepts(claim({ user_id: id }));
+    await refuses(`DELETE FROM app_user WHERE user_id = ${id};`);
+  });
+
+  // The sweep reads one user's keys, a range of the primary key, so no index is written per claim.
+  it('carries no index but its primary key', async () => {
+    const { rows } = await db.query<{ indexname: string }>(
+      `SELECT indexname FROM pg_indexes WHERE tablename = 'mutation_key' ORDER BY indexname`,
+    );
+    expect(rows.map((r) => r.indexname)).toEqual(['mutation_key_user_id_key_pk']);
   });
 });
 
