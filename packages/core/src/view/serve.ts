@@ -1,10 +1,15 @@
-// What `GET /view` answers, from the rows the server reads: here rather than in the handler, so the
-// derivation identifier, a hash of this package, moves with every rule that shapes the body.
+// What the three reads answer, from the rows the server reads: here rather than in the handler, so
+// the derivation identifier, a hash of this package, moves with every rule that shapes a body.
 import { addDays } from '../dates';
 import { normalizeRef } from '../inzhur/ref';
+import type { PeriodOption } from '../period';
 import type { Asset, Transaction } from '../types';
 import { rebuildSnapshots, type PriceRow } from '../valuation';
-import { buildView, type View } from './build';
+import { buildBalanceRow, paginateSnapshots, type BalanceRow } from './balances';
+import { buildView, ledgerAsOf, type View } from './build';
+import type { ViewInput } from './input';
+import { windowView } from './window';
+import { cumulativeYieldSeriesIn, type YieldSeriesPoint } from './yield';
 
 /** Wider than any gap between two of the archive's sell observations of one ref: a held day reads
  *  the latest observation at or before it, so the first one needs the row before it. */
@@ -41,6 +46,31 @@ export interface ViewBody {
   fx: Fx | null;
 }
 
+/** `GET /view/series`: the yield curve for one period, the one figure too wide to send for six. */
+export interface SeriesBody {
+  period: PeriodOption;
+  series: YieldSeriesPoint[];
+}
+
+/** `GET /view/balances`: one page of the table. `cells` line up with `assets`, which names them. */
+export interface BalancesBody {
+  assets: string[];
+  rows: BalanceRow[];
+  page: number;
+  total: number;
+  next: number | null;
+}
+
+/** The rows the server reads, as each body takes them. */
+export interface ServedRows {
+  assets: Asset[];
+  transactions: Transaction[];
+  userPrices: PriceRow[];
+  archiveRows: readonly ArchiveRow[];
+  paymentDates: readonly PaymentDatesRow[];
+  today: string;
+}
+
 /** Nothing when no asset is linked or no row is dated on or before today: a span then reads
  *  nothing, and the archive's read refuses one that ends before it starts. */
 export function archiveSpan(
@@ -58,17 +88,9 @@ export function archiveSpan(
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** `buildView` over the rebuilt series, the rate beside it. SORTED FIRST, as the SPA's repository
- *  reads: rows arrive in no order, and the composers break ties and sum floats in input order. */
-export function viewBody(input: {
-  assets: Asset[];
-  transactions: Transaction[];
-  userPrices: PriceRow[];
-  archiveRows: readonly ArchiveRow[];
-  paymentDates: readonly PaymentDatesRow[];
-  today: string;
-  fx: Fx | undefined;
-}): ViewBody {
+/** The composers' input over the rebuilt series. SORTED FIRST, as the SPA's repository reads: rows
+ *  arrive in no order, and the composers break ties and sum floats in input order. */
+export function servedInput(input: ServedRows): ViewInput {
   const assets = [...input.assets].sort(
     (a, b) => compare(a.createdAt, b.createdAt) || compare(a.id, b.id),
   );
@@ -108,8 +130,30 @@ export function viewBody(input: {
     const dates = a.inzhur?.kind === 'bond' ? served.get(normalizeRef(a.inzhur.ref)) : undefined;
     if (dates !== undefined) paymentDates.set(a.id, dates);
   }
+  return { assets, transactions, snapshots, today: input.today, paymentDates };
+}
+
+/** `buildView` over the rebuilt series, the rate beside it. */
+export function viewBody(input: ServedRows & { fx: Fx | undefined }): ViewBody {
+  return { view: buildView(servedInput(input)), fx: input.fx ?? null };
+}
+
+/** The curve the Yield screen draws for `period`, cut at the caller's day as `buildView` cuts. */
+export function seriesBody(rows: ServedRows, period: PeriodOption): SeriesBody {
+  const { assets, snapshots, transactions } = ledgerAsOf(servedInput(rows));
+  const w = windowView({ assets, snapshots, transactions, period });
+  return { period, series: cumulativeYieldSeriesIn(snapshots, transactions, assets, w) };
+}
+
+/** One page of the Balances table, cut at the caller's day as `buildView` cuts. */
+export function balancesBody(rows: ServedRows, page: number): BalancesBody {
+  const { assets, snapshots, transactions } = ledgerAsOf(servedInput(rows));
+  const cut = paginateSnapshots(snapshots, page);
   return {
-    view: buildView({ assets, transactions, snapshots, today: input.today, paymentDates }),
-    fx: input.fx ?? null,
+    assets: assets.map((a) => a.id),
+    rows: cut.rows.map((s) => buildBalanceRow(s, assets, transactions)),
+    page: cut.page,
+    total: cut.total,
+    next: cut.next,
   };
 }

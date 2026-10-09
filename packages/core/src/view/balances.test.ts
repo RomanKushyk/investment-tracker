@@ -72,7 +72,7 @@ describe('buildBalanceRow', () => {
 
 describe('paginateSnapshots', () => {
   it('page 0 = newest 6 rows: 27.07 down to 21.07, newest first', () => {
-    const { rows, total, totalPages } = paginateSnapshots(snaps, 0);
+    const { rows, total, next } = paginateSnapshots(snaps, 0);
     expect(rows.map((s) => s.date)).toEqual([
       '2026-07-27',
       '2026-07-25',
@@ -82,17 +82,50 @@ describe('paginateSnapshots', () => {
       '2026-07-21',
     ]);
     expect(total).toBe(174);
-    expect(totalPages).toBe(29); // ceil(174/6)
+    expect(next).toBe(1);
   });
 
-  it('clamps page to valid range', () => {
-    expect(paginateSnapshots(snaps, -5).page).toBe(0);
-    expect(paginateSnapshots(snaps, 999).page).toBe(28);
-  });
-
-  it('last page has the remaining rows ending at the oldest = 03.02', () => {
-    const { rows } = paginateSnapshots(snaps, 28);
+  it('last page has the remaining rows ending at the oldest = 03.02, and names no next', () => {
+    const { rows, next } = paginateSnapshots(snaps, 28); // ceil(174/6) pages, 0-based
     expect(rows[rows.length - 1].date).toBe('2026-02-03');
+    expect(next).toBeNull();
+  });
+
+  // AIP-158: an offset past the end is an empty page, never the last one under another number.
+  it('answers a page past the last with no rows and no next', () => {
+    for (const page of [29, 999]) {
+      expect(paginateSnapshots(snaps, page)).toEqual({ rows: [], page, total: 174, next: null });
+    }
+  });
+
+  // A negative offset slices from the end: -2 would be the sixth to twelfth oldest.
+  it('answers a negative page with no rows', () => {
+    for (const page of [-1, -2]) expect(paginateSnapshots(snaps, page).rows).toEqual([]);
+  });
+
+  // A full last page is where inferring the end from a short page fails.
+  it('names no next on a full last page, so the end is never inferred from a short one', () => {
+    const twelve = snaps.slice(0, 12);
+    expect(paginateSnapshots(twelve, 0).next).toBe(1);
+    const last = paginateSnapshots(twelve, 1);
+    expect([last.rows.length, last.next]).toEqual([6, null]);
+  });
+
+  // No producer stores two snapshots on one date, but a page must not depend on arrival order
+  // whatever it holds: equal dates fall back to what the row shows, the quotes.
+  it('keeps two rows of one date on the same pages whatever order they arrive in', () => {
+    const dated = snaps.slice(0, 7);
+    // The sixth and seventh newest share a date, so they straddle the page boundary.
+    const twin: Snapshot = { ...dated[1], quotes: { ...dated[1].quotes, reit: 1 } };
+    const all = [...dated, twin];
+    const pages = (input: Snapshot[]) =>
+      JSON.stringify([paginateSnapshots(input, 0).rows, paginateSnapshots(input, 1).rows]);
+    const expected = pages(all);
+    expect(pages([...all].reverse())).toBe(expected);
+    expect(pages([twin, ...dated])).toBe(expected);
+    expect(
+      pages([...all.filter((_, i) => i % 2 === 1), ...all.filter((_, i) => i % 2 === 0)]),
+    ).toBe(expected);
   });
 });
 

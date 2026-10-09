@@ -1,17 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { addDays } from '../dates';
+import { PERIOD_OPTIONS } from '../period';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
 import type { Asset, Transaction } from '../types';
 import { rebuildSnapshots, type PriceRow } from '../valuation';
-import { buildView } from './build';
-import { ARCHIVE_LOOKBACK_DAYS, archiveSpan, viewBody, type ArchiveRow } from './serve';
-import { asPriceRows, PUBLISHED_DATES, PUBLISHED_INPUT } from './test-ledgers';
+import { buildBalanceRow, paginateSnapshots } from './balances';
+import { buildView, ledgerAsOf } from './build';
+import {
+  ARCHIVE_LOOKBACK_DAYS,
+  archiveSpan,
+  balancesBody,
+  seriesBody,
+  servedInput,
+  viewBody,
+  type ArchiveRow,
+} from './serve';
+import { asPriceRows, LONG_ROWS, PUBLISHED_DATES, PUBLISHED_INPUT } from './test-ledgers';
+import { windowView } from './window';
+import { cumulativeYieldSeriesIn } from './yield';
 
-// Watched, not replaced: one test reads the input the build was handed, the rest its real output.
+// Watched, not replaced: some tests read the input a composer was handed, the rest its real output.
 vi.mock('./build', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./build')>();
   return { ...actual, buildView: vi.fn(actual.buildView) };
+});
+vi.mock('./yield', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./yield')>();
+  return { ...actual, cumulativeYieldSeriesIn: vi.fn(actual.cumulativeYieldSeriesIn) };
+});
+vi.mock('./balances', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./balances')>();
+  return { ...actual, buildBalanceRow: vi.fn(actual.buildBalanceRow) };
 });
 
 const TODAY = '2026-07-28';
@@ -353,5 +373,139 @@ describe('viewBody — what GET /view answers, from rows', () => {
       fx: FX,
     });
     expect(view.payouts.nextPayouts.map((r) => r.date)).toEqual(['2026-09-30']);
+  });
+});
+
+const sell = (id: string, assetId: string, date: string, amount: number, quantity: number) =>
+  ({ id, date, type: 'sell', assetId, amount, quantity }) as const satisfies Transaction;
+
+describe('seriesBody — what GET /view/series answers', () => {
+  const rows = { ...LONG_ROWS, archiveRows: [], paymentDates: [], today: TODAY };
+
+  it.each(PERIOD_OPTIONS)('%s: the curve over that period’s own window', (period) => {
+    const input = ledgerAsOf(servedInput(rows));
+    const w = windowView({ ...input, period });
+    expect(w).toBeDefined();
+    expect(seriesBody(rows, period)).toEqual({
+      period,
+      series: cumulativeYieldSeriesIn(input.snapshots, input.transactions, input.assets, w),
+    });
+  });
+
+  // With each period's curve its own, a body served under another's name cannot pass the test above.
+  it('draws six different curves for the six periods', () => {
+    const curves = PERIOD_OPTIONS.map((p) => JSON.stringify(seriesBody(rows, p).series));
+    expect(new Set(curves).size).toBe(PERIOD_OPTIONS.length);
+  });
+
+  // *Derived figures and the seed*: the ledger is cut before the composers run, as `buildView`
+  // and the Yield screen's hook cut it, so no composer can miss the cut.
+  it('hands the curve no row dated after the caller’s day', () => {
+    const ahead = {
+      ...rows,
+      transactions: [...rows.transactions, sell('s1', 'long', '2026-07-29', 1, 1)],
+    };
+    vi.mocked(cumulativeYieldSeriesIn).mockClear();
+    seriesBody(ahead, '1m');
+    const [, transactions] = vi.mocked(cumulativeYieldSeriesIn).mock.calls[0];
+    expect(transactions.map((t) => t.id).sort()).toEqual(['b1', 'd1']);
+  });
+});
+
+describe('balancesBody — what GET /view/balances answers', () => {
+  // Stored order, id order and creation order all differ, so cells read in any other order than
+  // the one the body names land on the wrong asset.
+  const zeta = fund('zeta', 'ref-z', '2026-09-01T10:00:00');
+  const alpha = fund('alpha', 'ref-a', '2026-09-02T10:00:00');
+  const PRICES: Record<string, [string, number][]> = {
+    zeta: [
+      ['2026-09-10', 10],
+      ['2026-09-20', 11],
+    ],
+    alpha: [
+      ['2026-09-10', 20],
+      ['2026-09-20', 23],
+    ],
+  };
+  const rows = {
+    assets: [alpha, zeta],
+    transactions: [
+      deposit('d1', '2026-09-10', 3000),
+      buy('b1', 'zeta', '2026-09-10', 1000, 100),
+      buy('b2', 'alpha', '2026-09-10', 2000, 100),
+    ],
+    userPrices: Object.entries(PRICES).flatMap(([assetId, list]) =>
+      list.map(([asOf, price]) => ({ assetId, asOf, price })),
+    ),
+    archiveRows: [],
+    paymentDates: [],
+    today: '2026-09-30',
+  };
+  const priceOn = (assetId: string, date: string) =>
+    PRICES[assetId].filter(([asOf]) => asOf <= date).at(-1)![1];
+
+  it('is the page of rebuilt rows, each built as the Balances screen builds one', () => {
+    const { assets, transactions, snapshots } = ledgerAsOf(servedInput(rows));
+    const page = paginateSnapshots(snapshots, 0);
+    expect(balancesBody(rows, 0)).toEqual({
+      assets: assets.map((a) => a.id),
+      rows: page.rows.map((s) => buildBalanceRow(s, assets, transactions)),
+      page: 0,
+      total: page.total,
+      next: page.next,
+    });
+  });
+
+  it('pairs every cell with the asset the body names at its place', () => {
+    const body = balancesBody(rows, 0);
+    expect([...body.assets].sort()).toEqual(['alpha', 'zeta']);
+    expect(body.rows.length).toBeGreaterThan(1);
+    for (const row of body.rows) {
+      row.cells.forEach((cell, i) => {
+        const id = body.assets[i];
+        expect([row.date, id, cell]).toEqual([
+          row.date,
+          id,
+          { status: 'value', amount: 100 * priceOn(id, row.date) },
+        ]);
+      });
+    }
+  });
+
+  it('answers a page past the last with no rows and no next', () => {
+    const { total } = balancesBody(rows, 0);
+    expect(balancesBody(rows, 999)).toEqual({
+      assets: ['zeta', 'alpha'],
+      rows: [],
+      page: 999,
+      total,
+      next: null,
+    });
+  });
+
+  // The owner's ruling on #189: on the rebuilt series a position held none of has no quote, so a
+  // price stored on a day a later-entered sale emptied it reads «—», unmarked.
+  it('shows a position the ledger holds none of as none, though a price is stored that day', () => {
+    const sold = {
+      ...rows,
+      transactions: [...rows.transactions, sell('s1', 'zeta', '2026-09-15', 1050, 100)],
+    };
+    const body = balancesBody(sold, 0);
+    const day = body.rows.find((r) => r.date === '2026-09-20')!;
+    expect(day.cells[body.assets.indexOf('zeta')]).toEqual({ status: 'none' });
+    expect(day.cells[body.assets.indexOf('alpha')]).toEqual({ status: 'value', amount: 2300 });
+  });
+
+  it('hands each row no row dated after the caller’s day', () => {
+    const ahead = {
+      ...rows,
+      transactions: [...rows.transactions, deposit('d9', '2026-10-01', 500)],
+    };
+    vi.mocked(buildBalanceRow).mockClear();
+    balancesBody(ahead, 0);
+    expect(vi.mocked(buildBalanceRow).mock.calls.length).toBeGreaterThan(0);
+    for (const [, , transactions] of vi.mocked(buildBalanceRow).mock.calls) {
+      expect(transactions.map((t) => t.id).sort()).toEqual(['b1', 'b2', 'd1']);
+    }
   });
 });

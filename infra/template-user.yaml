@@ -438,6 +438,12 @@ Resources:
         'GET /view':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'GET /view/series':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'GET /view/balances':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         'POST /mutations':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -681,8 +687,8 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${AuthRelayFunction}
       RetentionInDays: 30
 
-  # `GET /view`, the derived read (`src/view.ts`, *Cloud target*). THE LOGICAL ID IS THE ARCHIVE'S
-  # CONTRACT: the reader role's trust admits `…-ViewFunctionRole-*` by pattern.
+  # The derived reads, `GET /view` and its siblings (`src/view.ts`, *Cloud target*). THE LOGICAL
+  # ID IS THE ARCHIVE'S CONTRACT: the reader role's trust admits `…-ViewFunctionRole-*` by pattern.
   ViewFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -726,6 +732,22 @@ Resources:
             ApiId: !Ref PublicApi
             Method: GET
             Path: /view
+            Auth:
+              Authorizer: CognitoJwt
+        Series:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /view/series
+            Auth:
+              Authorizer: CognitoJwt
+        Balances:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /view/balances
             Auth:
               Authorizer: CognitoJwt
 

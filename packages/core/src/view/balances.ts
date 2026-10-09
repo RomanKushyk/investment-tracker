@@ -1,6 +1,7 @@
 // Pure data-shaping for the Balances screen. Covered by balances.test.ts.
 import { freeCashFromLedger, holdsNone, ledgerUnits, needsQuote, totalCapital } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
+import { BALANCES_PAGE_SIZE } from './balances-page';
 import type { LedgerInput } from './input';
 
 // A snapshot is "complete" if every asset that needs a quote that day has one.
@@ -93,16 +94,33 @@ export function pageHasNotHeldQuote(rows: BalanceRow[]): boolean {
 export interface SnapshotPage {
   rows: Snapshot[];
   page: number;
-  totalPages: number;
   total: number;
+  /** The page after this one; null on the last page and past it, so the end is never inferred
+   *  from a short page (AIP-158). */
+  next: number | null;
 }
 
-export function paginateSnapshots(snapshots: Snapshot[], page: number, pageSize = 6): SnapshotPage {
-  const sorted = [...snapshots].sort((a, b) => b.date.localeCompare(a.date));
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const clamped = Math.min(Math.max(page, 0), totalPages - 1);
-  const rows = sorted.slice(clamped * pageSize, clamped * pageSize + pageSize);
-  return { rows, page: clamped, totalPages, total: sorted.length };
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+/** What a row shows besides its date, in key order: rows alike in it are alike on the page. */
+const shown = (s: Snapshot) =>
+  JSON.stringify(Object.entries(s.quotes).sort(([a], [b]) => compare(a, b)));
+
+/** Newest first in a TOTAL order, the date then the quotes, so a page never depends on arrival
+ *  order; a page past the last is empty, never the last under another number (AIP-158). */
+export function paginateSnapshots(snapshots: Snapshot[], page: number): SnapshotPage {
+  const sorted = [...snapshots].sort(
+    (a, b) => compare(b.date, a.date) || compare(shown(a), shown(b)),
+  );
+  const start = page * BALANCES_PAGE_SIZE;
+  const end = start + BALANCES_PAGE_SIZE;
+  // A negative offset would slice from the end.
+  const valid = Number.isSafeInteger(page) && page >= 0;
+  return {
+    rows: valid ? sorted.slice(start, end) : [],
+    page,
+    total: sorted.length,
+    next: valid && end < sorted.length ? page + 1 : null,
+  };
 }
 
 export interface BalancesView {

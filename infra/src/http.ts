@@ -10,6 +10,8 @@ export type ApiEvent = {
   /** `<METHOD> <path>`, exactly as the template spells the route. */
   routeKey?: string;
   pathParameters?: Record<string, string | undefined>;
+  /** ABSENT with no query string; a parameter sent twice arrives once, its values comma-joined. */
+  queryStringParameters?: Record<string, string | undefined>;
   /** LOWER-CASED BY API GATEWAY, and a header sent twice arrives once, its values comma-joined. A
    *  list header is read through `headerValues`; one whose value holds a comma, a date, is not. */
   headers?: Record<string, string | undefined>;

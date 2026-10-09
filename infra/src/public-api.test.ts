@@ -22,7 +22,7 @@ import {
 } from './auth-relay';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
-import { EXPOSED, ROUTE as VIEW_ROUTE } from './view';
+import { BALANCES_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
 
 type Resource = {
   Type: string;
@@ -176,10 +176,12 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('ApproveFunction').Handler).toBe('approve.handler');
   });
 
-  it('puts the derived read on this API, a GET naming the authorizer', () => {
+  it('puts the derived reads on this API, each a GET naming the authorizer', () => {
     const read = declaredRoutes().filter((r) => r.fn === 'ViewFunction');
     expect(read.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [VIEW_ROUTE, 'PublicApi', AUTHORIZER],
+      [SERIES_ROUTE, 'PublicApi', AUTHORIZER],
+      [BALANCES_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('ViewFunction').Handler).toBe('view.handler');
     expect(user.Resources.ViewLogGroup?.Type).toBe('AWS::Logs::LogGroup');

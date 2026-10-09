@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
 import { ADDRESS, MAX_ADDRESS } from '@quirenote/core/address';
+import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
@@ -47,9 +48,11 @@ import {
 } from './mutations';
 import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
 import {
+  BALANCES_ROUTE,
   PARAMETERS as VIEW_PARAMETERS,
   RESPONSES as VIEW_RESPONSES,
   ROUTE as VIEW_ROUTE,
+  SERIES_ROUTE,
 } from './view';
 
 const COMMITTED = new URL('../../docs/reference/openapi.json', import.meta.url);
@@ -426,7 +429,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the fifteen routes and no others', () => {
+  it('declares the seventeen routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -434,6 +437,8 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         REJECT_ROUTE,
         ...RELAY,
         VIEW_ROUTE,
+        SERIES_ROUTE,
+        BALANCES_ROUTE,
         MUTATIONS_ROUTE,
         STATE_ROUTE,
       ].sort(),
@@ -457,7 +462,15 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     for (const key of [APPLY_ROUTE, ...RELAY]) {
       expect([key, op(key).security]).toEqual([key, []]);
     }
-    for (const key of [APPROVE_ROUTE, REJECT_ROUTE, VIEW_ROUTE, MUTATIONS_ROUTE, STATE_ROUTE]) {
+    for (const key of [
+      APPROVE_ROUTE,
+      REJECT_ROUTE,
+      VIEW_ROUTE,
+      SERIES_ROUTE,
+      BALANCES_ROUTE,
+      MUTATIONS_ROUTE,
+      STATE_ROUTE,
+    ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
   });
@@ -530,6 +543,40 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     expect(paramsOf(STATE_ROUTE)?.map((p) => [p.name, p.required])).toEqual([
       ['If-None-Match', false],
       ['If-Match', false],
+    ]);
+  });
+
+  // THE TWO PARAMETERIZED READS: the period from core's closed list and required, since a stale
+  // one is refused rather than defaulted; the page optional, a missing one being the first.
+  it('publishes the series’ period and the table’s page as query parameters', () => {
+    const paramsOf = (route: string) => {
+      const [method, path] = route.split(' ');
+      return spec.paths[path][method.toLowerCase()].parameters;
+    };
+    const preconditions = [
+      { name: 'If-None-Match', in: 'header', required: false, schema: { type: 'string' } },
+      { name: 'If-Match', in: 'header', required: false, schema: { type: 'string' } },
+    ];
+    expect(paramsOf(SERIES_ROUTE)).toEqual(VIEW_PARAMETERS[SERIES_ROUTE]);
+    expect(paramsOf(SERIES_ROUTE)).toEqual([
+      {
+        name: 'period',
+        in: 'query',
+        required: true,
+        schema: { type: 'string', enum: [...PERIOD_OPTIONS] },
+      },
+      ...preconditions,
+    ]);
+    expect(paramsOf(BALANCES_ROUTE)).toEqual(VIEW_PARAMETERS[BALANCES_ROUTE]);
+    expect(paramsOf(BALANCES_ROUTE)).toEqual([
+      {
+        name: 'page',
+        in: 'query',
+        required: false,
+        description: 'Digits with no sign or leading zero; none is the first page.',
+        schema: { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER },
+      },
+      ...preconditions,
     ]);
   });
 

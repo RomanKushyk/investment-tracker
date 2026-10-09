@@ -30,7 +30,10 @@ export function Balances() {
 
   const { chart: chartData, earliest } = balancesView({ assets, snapshots, transactions });
   // The table is one row per snapshot, read a page at a time (#189).
-  const { rows, page: currentPage, totalPages, total } = paginateSnapshots(snapshots, page);
+  const { rows, total, next } = paginateSnapshots(snapshots, page);
+  // A replace in another tab re-renders this screen in place (`useDbSync`): a page the new rows do
+  // not reach starts over, set while rendering as React allows for state of this component.
+  if (rows.length === 0 && page > 0) setPage(0);
   // Derived once for both forms: the footnote has to know whether this page holds
   // a marked cell before either form has drawn one.
   const built = rows.map((s) => buildBalanceRow(s, assets, transactions));
@@ -46,7 +49,7 @@ export function Balances() {
           variant="outline"
           className="px-3.5 py-1.5 text-xs"
           onClick={() => setPage((p) => Math.max(0, p - 1))}
-          disabled={currentPage === 0}
+          disabled={page === 0}
         >
           {t.analytics.prev}
         </Button>
@@ -54,7 +57,7 @@ export function Balances() {
           variant="outline"
           className="px-3.5 py-1.5 text-xs"
           onClick={() => setPage((p) => p + 1)}
-          disabled={currentPage >= totalPages - 1}
+          disabled={next === null}
         >
           {t.analytics.next}
         </Button>

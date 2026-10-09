@@ -88,7 +88,8 @@ type Operation = {
     name: string;
     in: string;
     required: boolean;
-    schema: { type: string; enum?: readonly string[] };
+    description?: string;
+    schema: { type: string; enum?: readonly string[]; minimum?: number; maximum?: number };
   }[];
   requestBody?: unknown;
   security: { [scheme: string]: string[] }[];
@@ -103,7 +104,7 @@ type Operation = {
   >;
 };
 
-/** A route's own request headers, keyed like the bodies. */
+/** A route's own request headers and query parameters, keyed like the bodies. */
 const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
   ...RELAY_PARAMETERS,
   ...VIEW_PARAMETERS,
@@ -297,7 +298,7 @@ export function buildSpec(): OpenApiDocument {
           `(${route.handler}) — export them from the handler and add it to ANSWERS`,
       );
     }
-    // A route's own request headers follow its path parameters, keyed like the bodies.
+    // A route's own headers and query parameters follow its path parameters, keyed like the bodies.
     const params = [...parameters(route.path), ...(PARAMETERS[key] ?? [])];
     paths[route.path] ??= {};
     paths[route.path][route.method] = {

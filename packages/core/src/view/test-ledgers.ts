@@ -178,6 +178,42 @@ export const OFF_LIST_INPUT: ViewInput = {
   paymentDates: new Map([['pub', OFF_LIST_DATES]]),
 };
 
+// Rows as the server stores them, beside the ledgers: one fund held since the January before, so each
+// of the six periods opens on its own day and no period's curve is another's.
+export const LONG_ROWS: { assets: Asset[]; transactions: Transaction[]; userPrices: PriceRow[] } = {
+  assets: [
+    {
+      id: 'long',
+      name: 'Long fund',
+      code: 'LF',
+      colorKey: 'reit',
+      yieldType: 'capitalization',
+      expectedPct: 12,
+      targetPct: 100,
+      payoutSchedule: 'none',
+      firstPurchase: '2025-01-10',
+      createdAt: '2025-01-10T10:00:00',
+    },
+  ],
+  transactions: [
+    { id: 'd1', date: '2025-01-10', type: 'deposit', assetId: '', amount: 10_000 },
+    { id: 'b1', date: '2025-01-10', type: 'buy', assetId: 'long', amount: 10_000, quantity: 1000 },
+  ],
+  userPrices: (
+    [
+      ['2025-01-10', 10],
+      ['2025-04-10', 10.4],
+      ['2025-07-25', 10.9],
+      ['2025-10-10', 11.3],
+      ['2026-01-15', 11.8],
+      ['2026-03-20', 12.1],
+      ['2026-05-25', 12.6],
+      ['2026-06-30', 12.9],
+      ['2026-07-27', 13.3],
+    ] as const
+  ).map(([asOf, price]) => ({ assetId: 'long', asOf, price })),
+};
+
 // Each stored quote is a ₴ position value; divided by the units held that day it is the per-unit
 // price the server would store for it. Any quote of a position held none of has no such price, and
 // the ledger is then not expressible: undefined.

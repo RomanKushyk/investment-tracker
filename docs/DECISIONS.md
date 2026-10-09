@@ -268,8 +268,9 @@ quantity counted as a whole number of 1e-8 units; a position's value counts at a
 the ledger holds units of it then, on its last quote's own day, and on the
 last valuation day, so a sold-out one counts its proceeds alone and one whose units the ledger
 cannot count on those days keeps its last quote; Balances and `/yield`'s curve read each snapshot by that rule on
-its own day, and a Balances cell shows a quote the rule leaves out, marked, the mark meaning only
-that; a day asks for an asset's quote only while the ledger holds units of it, or, where it cannot
+its own day, and a Balances cell shows a stored quote the rule leaves out, marked, the mark meaning only
+that, while on the series rebuilt from per-unit prices a position held none of has no quote and its
+cell reads «—», unmarked; a day asks for an asset's quote only while the ledger holds units of it, or, where it cannot
 count them, from its first purchase on, and Balances' complete row, the quote-missing reminder and
 `/`'s progress pill ask by that one rule, which `/`'s pending-change block counts by too; a coupon
 or a redemption is owed only while the ledger
@@ -305,7 +306,9 @@ makes the full history collapse onto its unwindowed twin. Capital gain is realiz
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
 last quote outlives its sale and would count it twice. A snapshot dated after the sale can still
 quote the position, the same double count one day at a time; the cell shows it because a listed
-day's cells hide nothing stored, and the mark says the total left it out. A snapshot stores a value, not a price
+day's cells hide nothing stored, and the mark says the total left it out. A per-unit price stored on
+a day a later sale emptied values the units held, none, so the rebuilt series has no quote there to
+show; its day stays in the export, quoting nothing (*Cloud target*). A snapshot stores a value, not a price
 per unit: a quote taken on a day the ledger held none values none of the units bought later,
 wherever the latest snapshot falls, and a last valuation day that held none values the position at
 nothing, so units bought after it wait for their own quote; the rebuilt series carries prices, not
@@ -799,6 +802,17 @@ the derivation identifier — while a write's precondition is `data_version` alo
 `private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
 HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
 ships uncompressed until a first-paint measurement says otherwise.
+THE TWO WIDE FIGURES ARE READS OF THEIR OWN: one value per asset per date is too wide to send for six
+periods or for every row, so `GET /view/series?period` answers the yield curve of one period and
+`GET /view/balances?page` one page of the Balances table, each through `/view`'s gate and read, its
+tag `/view`'s seven inputs and its route and parameter, and each cut at the caller's day as
+`buildView` cuts. Once the gate admits the caller and before the ledger is read, a `period` off
+core's list, or none, is refused by name with a 400 `invalid_query`, never read as another; no
+`page` is the first, and a
+page is digits with no sign or leading zero. Pages count from 0, newest first in a TOTAL order — the
+date, then the quotes the row shows — by one size core names for the server and the screen alike. A
+page past the last is empty, every page names the `next` one or null, and the page names its assets
+in the order of its cells.
 THE WRITE IS `POST /mutations` AND THE EXPORT `GET /state`, one function behind the same gate. A
 write is a list of ops — `asset.add`, `.patch`, `.delete`, `.prune`, `transaction.add`, `.patch`,
 `.delete`, `snapshot.put`, `.delete`, `.move` and `dataset.clear`, and no `account.*` — applied in
@@ -843,7 +857,17 @@ sends its deployment id as a header. A header takes no `X-` (RFC 6648). The date
 every nightly capture moves without changing the dates. The lookback only bounds
 the SQL window, wider than any gap between two of the archive's observations of one ref, since a
 cutoff on carrying a price is rejected (*Derived figures and the seed*). API Gateway's HTTP APIs do
-not compress. RFC 9110 §8.8 has a successful state-changing request's validator describe the new
+not compress. A cache keys a stored response by at least its method and target URI (RFC 9111 §2),
+but a client keeping one tag per route would be answered 304 for a period or a page it never
+stored, so the route and its parameter join the tag.
+AIP-158 answers an offset it cannot fulfil "200 OK with an empty result set" and no next token, an
+empty token being "the only way to communicate 'end-of-collection'", and Azure's guidelines omit
+`nextLink` on the last page: an end read off a short page is wrong whenever the last page is full.
+PostgreSQL warns that different LIMIT/OFFSET values "will give inconsistent results unless you
+enforce a predictable result ordering", and a snapshot has no key but its date, so rows of one date
+fall back to what they show. Payload 2.0 joins a query parameter sent twice with commas, so a
+repeated one fails the list rather than picking a value. AIP-211 has a service "check authorization
+before validating any request", so a caller the gate refuses hears that whatever the query says. RFC 9110 §8.8 has a successful state-changing request's validator describe the new
 state, so writes chain without a read between them; `If-Match` compares strongly, and `*` is refused
 before that comparison, which counts it a match, because RFC 6585 §3's 428 is for a request that
 names no state. A request is one transaction because its effect and its stored response must commit
@@ -866,7 +890,9 @@ and the write: a weak tag never satisfies `If-Match`. · A hash of the body as t
 rebuilds the body to answer a 304. · `must-revalidate`. · A deployment version in the body: AIP-185
 versions an API, and the data tag `/view`'s body carries is a precondition a client sends back, not
 the version of anything deployed. · Copying the model route's exact `If-None-Match` comparison: a
-tag sent without its `W/` must still match. · Refusing two ops on one entity, as DynamoDB and Azure
+tag sent without its `W/` must still match. · Clamping a page past the last to the last: one URL
+would answer another page as the rows grow, and a client's miscounted page would read as data. · A
+default period: a stale tab's retired one would be answered as another. · Refusing two ops on one entity, as DynamoDB and Azure
 do: neither gives a reason, and in-order application already defines the result. · Retrying a 412:
 it is the precondition doing its work.
 
