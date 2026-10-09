@@ -308,7 +308,8 @@ last quote outlives its sale and would count it twice. A snapshot dated after th
 quote the position, the same double count one day at a time; the cell shows it because a listed
 day's cells hide nothing stored, and the mark says the total left it out. A per-unit price stored on
 a day a later sale emptied values the units held, none, so the rebuilt series has no quote there to
-show; its day stays in the export, quoting nothing (*Cloud target*). A snapshot stores a value, not a price
+show; its price stays in the store until a `snapshot.put` or `.move` on that day replaces the day's
+prices, and *Cloud target* says how `GET /state` carries it. A snapshot stores a value, not a price
 per unit: a quote taken on a day the ledger held none values none of the units bought later,
 wherever the latest snapshot falls, and a last valuation day that held none values the position at
 nothing, so units bought after it wait for their own quote; the rebuilt series carries prices, not
@@ -824,14 +825,18 @@ which sits under DSQL's per-transaction ceiling, is 409 `too_many_rows` with the
 cluster's own `54000`; each refusal names its bound. The write's precondition is the STRONG tag
 `"<data_version>"`: no `If-Match`, or `*`, is 428, a stale one 412, and the 200 carries the new tag in
 its `etag` header and in its body. `/view`'s body carries the current one as `etag`, beside its own
-weak validator. `GET /state` answers the live dataset in the model's shape under that tag,
-`private, no-store`. A SNAPSHOT IS STORED AS PER-UNIT PRICES: `snapshot.put` divides each quote by
-the units held that day and drops, naming it, one whose units or value is not above zero;
+weak validator. `GET /state` answers the live dataset under that tag, `private, no-store`. A
+SNAPSHOT IS STORED AS PER-UNIT PRICES: `snapshot.put` replaces the day's prices, dividing each quote
+by the units held that day and dropping, naming it, one whose units or value is not above zero; and
 `snapshot.move` revalues each price at the old day's units and divides it by the new day's, onto a day
-with nothing stored; and the export rebuilds one snapshot per stored day from those prices alone, a
-day a later edit left valuing nothing quoting nothing, `savedAt` the day's latest witness time.
+with nothing stored. THE EXPORT AND THE IMPORT CARRY THOSE PRICES, NOT ₴ QUOTES: one row per stored
+price, with its asset, day and witness time, a price on a day its position holds none included. The
+server stores no ₴ quote, and `/view` derives one on read. That shape is #396's and the import
+#391's; until #396 lands, the export rebuilds one snapshot per stored day from the prices, a day a
+later edit left valuing nothing quoting nothing and a held value below a kopeck quoting 0, `savedAt`
+the day's latest witness time.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
-derivation and the reason importing answers it. The archive is public reference data, so a second
+derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
 accumulation; user data is the opposite on both counts. AWS's guidance for DSQL keeps the admin role
 out of everyday connections. A DSQL mapping binds the role behind an ARN, not the ARN: a role
@@ -875,9 +880,16 @@ together (*User schema and deletes*), and applying ops in order defines what two
 as JSON:API's atomic extension, Spanner and Datastore do. The tag names no caller and every user's
 first is `"0"`, so a browser that kept one user's export could revalidate it for the next: no cache
 keeps it. The quotes screen saves a quote for a position held none of on purpose, and no per-unit
-price reproduces one, so it is dropped rather than refused. A day a later edit left valuing nothing is
-exported with nothing quoted, so nothing stored is out of the client's sight; its price stays, as
-`/view` reads it, and no op writes such a day back, a gap an import inherits.
+price reproduces one, so it is dropped rather than refused. A price is a fact about an asset on a
+day, not about a position, and every tracker read for the ruling keeps it so: Portfolio Performance
+holds `prices` on the `Security` and its CSV export walks that list; Ghostfolio keys `MarketData` by
+data source, symbol and date with no relation to a user, and exports every stored price of the
+user's own custom asset profiles that its activities name, with no filter on holdings; and in
+Beancount, Ledger, GnuCash and Wealthfolio a price names a commodity and a date, and no holding. A ₴
+quote cannot carry three such prices: one on a day its position holds none, one whose held value
+rounds below a kopeck, and one whose day now holds other units than it was stored at, which a quote
+rounded to kopecks at those units can give back as a different price. `/view` carries each on to
+later held days, so a file of quotes loses or shifts a price a restore must keep.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -894,7 +906,13 @@ tag sent without its `W/` must still match. · Clamping a page past the last to 
 would answer another page as the rows grow, and a client's miscounted page would read as data. · A
 default period: a stale tab's retired one would be answered as another. · Refusing two ops on one entity, as DynamoDB and Azure
 do: neither gives a reason, and in-order application already defines the result. · Retrying a 412:
-it is the precondition doing its work.
+it is the precondition doing its work. · Keeping the export #396 replaces, whose day a later edit
+left valuing nothing quotes nothing: the file holds no price for that day, so no restore can write it
+back. · Hiding such a day from the export: its rows still refuse a move onto a day the client cannot
+see. · Deleting such a price at the ledger edit: deleting a buy and adding it back wipes the prices
+the user entered. · Quotes plus a per-unit price only where no quote can carry one: two encodings in
+one row, and its quotes, rounded at each day's present units, still shift a price whose day's units
+a later edit changed.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
