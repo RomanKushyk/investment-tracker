@@ -33,7 +33,7 @@ vi.mock('./dsql', async (actual) => ({
   connect: vi.fn(),
 }));
 
-const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 

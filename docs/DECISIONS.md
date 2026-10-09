@@ -1077,6 +1077,13 @@ re-running an insert whichever concurrent approval won has already made. A PENDI
 written by neither and provisions nothing: approval DELETES that row to rekey it onto the minted
 `sub`, and a key restricted on delete would refuse that. The demo identity is written by a
 migration, so its account is too, in a file of its own.
+A USER'S DATA IS A DATASET: a `dataset` row keyed `(user_id, id)`, its id unique on its own, and
+`app_user` names two of them — the live one and the one an import is staging. Each pointer's key
+ends at the user's own dataset, and a dataset a pointer names is refused deletion. A backfill
+gives every user holding an account when it runs a dataset and points at it, and each of its
+statements leaves alone what it already did; provisioning writes no dataset, so a user provisioned
+after the backfill has none. Nothing reads either pointer yet: A SCHEMA THE CODE WILL NEED SHIPS A
+MERGE BEFORE THAT CODE, the code being live before the schema.
 **Why.** Generated DDL carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
 file that fails partway cannot be retried — the retry dies on the first statement, which already
 exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
@@ -1085,8 +1092,15 @@ against the same ceiling. `transaction.account_id` is NOT NULL against a composi
 without an account is not an empty state any screen can render — every write is refused — and both
 rows living in one database makes one transaction the whole answer to a partial failure. `ON
 CONFLICT DO NOTHING` prevents a duplicate row and not the commit-time conflict optimistic
-concurrency reports, which is why the retry is not that clause's job.
-**Rejected.** Tombstones: a `deleted_at` puts a filter in every read that the first forgotten one
+concurrency reports, which is why the retry is not that clause's job. An import must replace a
+dataset larger than one transaction and leave readers the old one or the new, so it stages the new
+one beside the live one and moves one pointer — the shape index aliases, Iceberg and Git refs take
+— and DSQL refuses a changed primary key, so a generation needs keys of its own. The account
+decides who gets one because it is what provisioning writes, and a pending row owns nothing.
+GitLab creates a table its code needs BEFORE that code deploys; this pipeline has only the
+after-code slot, so the expand takes a deploy of its own.
+**Rejected.** Replacing a dataset in place behind a lock: a failed import leaves the data locked
+and half-replaced. · Tombstones: a `deleted_at` puts a filter in every read that the first forgotten one
 turns into deleted data rendered as live. · A migration started by the capture function: the
 schedule and the DLQ behind it would each become a starter, and what may start one is the deploy
 that ships it, plus an operator watching. · A required reviewer in front of the apply, built and

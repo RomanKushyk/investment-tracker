@@ -16,7 +16,7 @@ export interface LedgerRows {
   userPrices: PriceRow[];
 }
 
-const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
 
 /** The user cluster's DDL, every schema file in `MIGRATIONS`. */
 export async function applyUserSchema(db: PGlite): Promise<void> {

@@ -41,12 +41,14 @@ const CASE_RULE = '006_email_lower.sql';
 const DROP_POLICY = '007_drop_reinvest_policy.sql';
 const DEMO_ACCOUNT = '008_demo_account.sql';
 const OFFICIAL_RATE = '009_official_rate.sql';
+const DATASET = '010_dataset.sql';
+const DATASET_BACKFILL = '011_dataset_backfill.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row, the case rule, the dropped column, the demo account and the official rate, in that order, and nothing else', () => {
+  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset and its backfill, in that order, and nothing else', () => {
     expect(MIGRATIONS).toEqual([
       USER_SCHEMA,
       DEMO_ROW,
@@ -54,6 +56,8 @@ describe('the file list', () => {
       DROP_POLICY,
       DEMO_ACCOUNT,
       OFFICIAL_RATE,
+      DATASET,
+      DATASET_BACKFILL,
     ]);
   });
 });
@@ -79,6 +83,14 @@ describe('statementsOf', () => {
 
   it('splits the official rate into its one statement', () => {
     expect(statementsOf(read(OFFICIAL_RATE))).toHaveLength(1);
+  });
+
+  it('splits the dataset into its table, two pointer columns and two pointer keys', () => {
+    expect(statementsOf(read(DATASET))).toHaveLength(5);
+  });
+
+  it('splits the dataset backfill into its insert and its update', () => {
+    expect(statementsOf(read(DATASET_BACKFILL))).toHaveLength(2);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -409,6 +421,24 @@ describe('applyFile', () => {
     expect(rows[0].count).toBe(0);
   });
 
+  // The same window over every statement of `010`: the table and the two keys answer codes
+  // `ALREADY_THERE` absorbs, and the two ADD COLUMNs carry `IF NOT EXISTS`, `42701` not being one.
+  it.each([0, 1, 2, 3, 4])('re-runs open statement %i of `010` without raising', async (i) => {
+    await applyFile(db, USER_SCHEMA, stmts);
+    const dataset = statementsOf(read(DATASET));
+    await applyFile(db, DATASET, dataset);
+    await db.query(
+      `UPDATE schema_migration SET applied_at = NULL WHERE file = $1 AND stmt_index = $2`,
+      [DATASET, i],
+    );
+    expect(await applyFile(db, DATASET, dataset)).toEqual({
+      file: DATASET,
+      applied: 1,
+      skipped: 4,
+      pending: 0,
+    });
+  });
+
   it('applies the demo row against the schema it depends on', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
@@ -581,6 +611,8 @@ describe('migrate', () => {
         { file: DROP_POLICY, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: DEMO_ACCOUNT, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: OFFICIAL_RATE, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: DATASET, applied: 0, skipped: 0, pending: 5, ms: expect.any(Number) },
+        { file: DATASET_BACKFILL, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
       ],
     });
   });
@@ -594,6 +626,8 @@ describe('migrate', () => {
     await applyFile(db, DROP_POLICY, statementsOf(read(DROP_POLICY)));
     await applyFile(db, DEMO_ACCOUNT, statementsOf(read(DEMO_ACCOUNT)));
     await applyFile(db, OFFICIAL_RATE, statementsOf(read(OFFICIAL_RATE)));
+    await applyFile(db, DATASET, statementsOf(read(DATASET)));
+    await applyFile(db, DATASET_BACKFILL, statementsOf(read(DATASET_BACKFILL)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -605,6 +639,8 @@ describe('migrate', () => {
         { file: DROP_POLICY, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: DEMO_ACCOUNT, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: OFFICIAL_RATE, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: DATASET, applied: 0, skipped: 5, pending: 0, ms: expect.any(Number) },
+        { file: DATASET_BACKFILL, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -684,6 +720,8 @@ describe('migrate', () => {
         { file: DROP_POLICY, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: DEMO_ACCOUNT, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: OFFICIAL_RATE, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DATASET, applied: 5, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DATASET_BACKFILL, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -779,7 +817,7 @@ describe('the invocation budget', () => {
       undefined,
       left(TEARDOWN_RESERVE_MS + 1),
     );
-    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2]);
 
     // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
     const below = await freshDb();
@@ -795,8 +833,8 @@ describe('the invocation budget', () => {
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
-    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1]);
-    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2]);
+    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.
@@ -970,6 +1008,22 @@ describe('the demo user', () => {
 
     const { rows } = await db.query('SELECT id FROM account WHERE user_id = $1', [DEMO_USER_ID]);
     expect(rows).toHaveLength(1);
+  });
+
+  it('gives the demo one dataset and points at it once every file has run', async () => {
+    const db = await freshDb();
+    await ensureLedger(db);
+    for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
+
+    const datasets = await db.query<{ id: string }>('SELECT id FROM dataset WHERE user_id = $1', [
+      DEMO_USER_ID,
+    ]);
+    const pointer = await db.query<{ dataset_id: string }>(
+      'SELECT dataset_id FROM app_user WHERE user_id = $1',
+      [DEMO_USER_ID],
+    );
+    expect(datasets.rows).toHaveLength(1);
+    expect(pointer.rows[0].dataset_id).toBe(datasets.rows[0].id);
   });
 });
 

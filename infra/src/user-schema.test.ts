@@ -23,9 +23,9 @@ import { MIGRATIONS, statementsOf as statements } from './migrate';
 
 // The case rule is a LATER file rather than a column of `003`, because `CREATE TABLE "app_user"`
 // is applied on both clusters and the ledger keys by content hash — editing it would re-send a
-// statement the cluster already has. The two DML files are excluded; `DDL` is derived from
+// statement the cluster already has. The DML files are excluded; `DDL` is derived from
 // `MIGRATIONS`, so a new schema file cannot be forgotten here.
-const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
@@ -109,7 +109,7 @@ describe('the draft applies as Postgres', () => {
     expect(applied).toBeGreaterThan(0);
   });
 
-  it('creates exactly the six tables the spec and the official rate name', async () => {
+  it('creates exactly the seven tables the spec, the official rate and the dataset name', async () => {
     const { rows } = await db.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' ORDER BY table_name`,
@@ -118,6 +118,7 @@ describe('the draft applies as Postgres', () => {
       'account',
       'app_user',
       'asset',
+      'dataset',
       'official_rate',
       'transaction',
       'user_price',
@@ -153,6 +154,7 @@ describe('the draft applies as Postgres', () => {
       account: 'user_id',
       app_user: 'user_id',
       asset: 'user_id',
+      dataset: 'user_id',
       official_rate: 'rate_date',
       transaction: 'user_id',
       user_price: 'user_id',
@@ -264,6 +266,73 @@ describe('account', () => {
     expect(table).toBeDefined();
     expect(table).toContain('"provider" text NOT NULL');
     expect(table).not.toContain('CHECK');
+  });
+});
+
+// A generation of one user's data (#390): `app_user.dataset_id` names the live one and
+// `import_dataset_id` the one an import is staging, so an import replaces the data by moving one
+// pointer (*User schema and deletes*).
+describe('dataset', () => {
+  const OTHER = uuid('6');
+  const MINE = uuid('5');
+  const THEIRS = uuid('7');
+  const dataset = (user: string, id: string) =>
+    `INSERT INTO dataset (user_id, id, created_at) VALUES (${user}, ${id}, now());`;
+  const point = (column: string, id: string, user = USER) =>
+    `UPDATE app_user SET ${column} = ${id} WHERE user_id = ${user};`;
+
+  beforeAll(async () => {
+    await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                         decided_at, decided_by)
+                     VALUES (${OTHER}, 'other@quirenote.com', 'active', 'user',
+                             now(), now(), ${USER});`);
+    await db.exec(dataset(USER, MINE));
+    await db.exec(dataset(OTHER, THEIRS));
+  });
+
+  it('refuses a dataset for a user that does not exist', async () => {
+    await refuses(dataset(nextId(), nextId()));
+  });
+
+  it('refuses one id for two datasets, since a data table names its dataset by the id alone', async () => {
+    await refuses(dataset(OTHER, MINE));
+  });
+
+  it.each(['dataset_id', 'import_dataset_id'])(
+    'lets `%s` name its own user’s dataset',
+    async (c) => {
+      await accepts(point(c, MINE));
+      await accepts(point(c, 'NULL'));
+    },
+  );
+
+  it.each(['dataset_id', 'import_dataset_id'])(
+    'refuses `%s` naming another user’s dataset',
+    async (c) => {
+      await refuses(point(c, THEIRS));
+    },
+  );
+
+  it.each(['dataset_id', 'import_dataset_id'])(
+    'refuses `%s` naming no dataset at all',
+    async (c) => {
+      await refuses(point(c, nextId()));
+    },
+  );
+
+  // On `OTHER`, who owns nothing else: a cascading key would delete the user rather than refuse,
+  // and the baseline user's own account and asset would refuse that cascade for it.
+  it.each(['dataset_id', 'import_dataset_id'])(
+    'refuses deleting the dataset `%s` names',
+    async (c) => {
+      await accepts(point(c, THEIRS, OTHER));
+      await refuses(`DELETE FROM dataset WHERE id = ${THEIRS};`);
+      await accepts(point(c, 'NULL', OTHER));
+    },
+  );
+
+  it('refuses deleting a user who owns a dataset', async () => {
+    await refuses(`DELETE FROM app_user WHERE user_id = ${OTHER};`);
   });
 });
 

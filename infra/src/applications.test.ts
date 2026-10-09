@@ -20,9 +20,9 @@ import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
 
-// The two DML files — the demo row and the account it owns — would sit underneath every count
-// below. `DDL` is derived from `MIGRATIONS` so a new schema file cannot be forgotten here.
-const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+// The DML files are excluded: the demo row and its account would sit under every count below, and
+// the backfill is DML too. `DDL` is derived from `MIGRATIONS` so a new schema file cannot be forgotten here.
+const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 

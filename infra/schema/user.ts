@@ -118,8 +118,8 @@
 //
 // EVERY PER-USER TABLE LEADS ITS PRIMARY KEY WITH `user_id` (contract 3).
 // DSQL's primary key is index-organized, so key order IS the access path,
-// and it is immutable once applied (D30). Partly observed 2026-08-27 rather
-// than only documented: the cluster read `account`'s key back as `USING
+// and it is immutable once applied (D30). Partly observed rather than only
+// documented: the cluster read `account`'s key back as `USING
 // btree_index (user_id, id) INCLUDE (provider, name, created_at)` — its three
 // non-key columns — and a 3-column probe table the same way. TWO tables, so
 // "every table carries every non-key column" stays documentation (D99);
@@ -222,10 +222,11 @@ export const appUser = pgTable(
     // emits `check()` INLINE, so declaring it here would widen a `CREATE TABLE`
     // already applied on both clusters, where the ledger keys by content hash.
     //
-    // The cost is a drift nothing detects: `app_user` declares three CHECKs
-    // here and has four on the cluster, and `schema-generated.test.ts` only
+    // The cost is a drift nothing detects: `app_user` declares fewer constraints
+    // here than the cluster holds, and `schema-generated.test.ts` only
     // diffs this file against `003`. Every later constraint on an applied table
-    // lands the same way, so read the migrations, not only this file.
+    // lands the same way, so read the migrations, not only this file: `010` adds
+    // the two dataset pointers and their keys, and the `dataset` table itself.
     //
     // THE DEMO ROW INVERTS THAT, and it is the reason its address is chosen
     // rather than invented: the database now holds an address Cognito has never
@@ -415,11 +416,10 @@ export const transaction = pgTable(
     ),
     // THE CONVERSE (D125). A row that moves a position must state its count.
     //
-    // NO BACKFILL STEP IS OWED, and an earlier version of this comment said one
-    // was. D112 declined this CHECK because pre-#31 rows have none and their
-    // counts are unrecoverable — true, and irrelevant here: **W7 seeds fresh
-    // demo data rather than carrying the local store across** (owner,
-    // 2026-09-01, `docs/plans/phase-w-i-ii-iii.md`). There is no live user and
+    // NO BACKFILL STEP IS OWED. D112 declined this CHECK because pre-#31 rows
+    // have none and their counts are unrecoverable — true, and irrelevant here:
+    // **W7 seeds fresh demo data rather than carrying the local store across**
+    // (the owner's ruling). There is no live user and
     // so no history to migrate, which is the same premise D128 rests on. The
     // constraint is simply true of everything that will ever be written.
     //

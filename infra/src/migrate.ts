@@ -28,7 +28,8 @@ import { type Provisioned, provision } from './provision';
 /** IN ORDER, AND NOT A GLOB. `001`, `002` and `004` are the ARCHIVE's and stay with `ensureSchema`
  *  in `capture.ts`: the archive is provider data shared by every environment, while these are USER
  *  data, which splits dev from prod (*Cloud target*). `005` is DML and depends on `003`; `008` is
- *  DML and depends on `005`, the account it writes pointing at that row. */
+ *  DML and depends on `005`, the account it writes pointing at that row; `011` is DML and depends
+ *  on `010` and on every account before it. */
 export const MIGRATIONS = [
   '003_user_schema.sql',
   '005_demo_user.sql',
@@ -36,6 +37,8 @@ export const MIGRATIONS = [
   '007_drop_reinvest_policy.sql',
   '008_demo_account.sql',
   '009_official_rate.sql',
+  '010_dataset.sql',
+  '011_dataset_backfill.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */
@@ -53,7 +56,7 @@ const BREAKPOINT = '--> statement-breakpoint';
  *
  * COMMENT LINES ARE DROPPED BEFORE THE SPLIT, AND THE MARKER IS THE ONE `--` LINE KEPT: a
  * hand-written header must not enter the hash the ledger is keyed by, and a comment that MENTIONS
- * the marker must not split the file — this very header once did.
+ * the marker must not split the file.
  */
 export function statementsOf(sql: string): string[] {
   return sql
@@ -140,7 +143,7 @@ const codeOf = (err: unknown): string | undefined => {
 };
 
 /** The name EXACTLY as written, quotes and all, because `::regclass` case-folds an unquoted
- *  identifier and not a quoted one — stripping the quotes made a camelCase index raise `42P01`.
+ *  identifier and not a quoted one, so a camelCase index stripped of its quotes raises `42P01`.
  *  `IF NOT EXISTS` is matched although nothing here emits it: the archive's hand-written DDL does,
  *  and without the clause such a line reports its index as being named `IF`. */
 const INDEX_NAME =

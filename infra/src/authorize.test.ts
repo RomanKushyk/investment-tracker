@@ -15,10 +15,10 @@ import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 
-// The two DML files — the demo row and the account it owns — would sit underneath every count
-// below. Named, with `DDL` derived from `MIGRATIONS` so a new schema file cannot be forgotten here,
+// The DML files are excluded: the demo row and its account would sit under every count below, and
+// the backfill is DML too. Named, with `DDL` derived from `MIGRATIONS` so a new schema file cannot be forgotten here,
 // exactly as its neighbours derive it.
-const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DML = ['005_demo_user.sql', '008_demo_account.sql', '011_dataset_backfill.sql'];
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
