@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import { dayBefore } from './dates';
-import { heldQuotesAsOf } from './derive';
+import { heldQuotesAsOf, ledgerUnits } from './derive';
 import { PERIOD_OPTIONS } from './period';
 import { buildSeedSnapshots, SEED_TRANSACTIONS } from './seed';
 import type { Asset, Snapshot, Transaction } from './types';
-import { rebuildSnapshots, type PriceRow, type ValuedSnapshot } from './valuation';
+import {
+  movedPrices,
+  pricesOfQuotes,
+  rebuildSnapshots,
+  snapshotsOfPrices,
+  type PriceRow,
+  type ValuedSnapshot,
+} from './valuation';
 import { buildView } from './view/build';
 import { asPriceRows, TEST_LEDGERS } from './view/test-ledgers';
 import { windowView } from './view/window';
@@ -500,5 +507,95 @@ describe('every figure that moves against the stored series on a ledger with arc
   it('moves no window: the fixture’s last observation, after its last transaction, still closes it', () => {
     expect(moves.filter((p) => p.includes('.window.'))).toEqual([]);
     expect(dates(rebuilt).at(-1)).toBe('2026-07-27');
+  });
+});
+
+// The mutation surface stores a snapshot as per-unit prices and gives it back as quotes.
+describe('a snapshot as prices, and back', () => {
+  const TXS: Transaction[] = [
+    deposit('d', '2026-03-01', 10_000),
+    buy('b1', 'a', '2026-03-02', 1000, 3),
+    buy('b2', 'b', '2026-03-02', 2000, 16.1486),
+    { id: 's1', date: '2026-03-10', type: 'sell', assetId: 'a', amount: 1100, quantity: 3 },
+  ];
+  const unitsOn = (date: string) => ledgerUnits(TXS, date).units;
+
+  it('divides each quote by the units held that day, and gives the quote back exactly', () => {
+    const quotes = { a: 100.01, b: 2017.33 };
+    const { prices, dropped } = pricesOfQuotes(quotes, unitsOn('2026-03-05'));
+    expect(dropped).toEqual([]);
+    expect(prices).toEqual([
+      { assetId: 'a', price: 100.01 / 3 },
+      { assetId: 'b', price: 2017.33 / 16.1486 },
+    ]);
+    const rows = prices.map((p) => row(p.assetId, '2026-03-05', p.price));
+    expect(snapshotsOfPrices(TXS, rows, {})).toEqual([{ date: '2026-03-05', quotes }]);
+  });
+
+  it('drops, by name, a quote of a position held none of, never held, or valued at nothing', () => {
+    const { prices, dropped } = pricesOfQuotes(
+      { a: 50, b: 0, c: 10, d: -1 },
+      { ...unitsOn('2026-03-10'), d: 5 },
+    );
+    expect(prices).toEqual([]);
+    expect(dropped).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('reads the units as own members, so an id named for an inherited one finds none', () => {
+    expect(pricesOfQuotes({ toString: 10 }, {}).dropped).toEqual(['toString']);
+  });
+
+  it('moves a day’s prices by revaluing at the first day’s units and dividing by the second’s', () => {
+    const { prices, dropped } = movedPrices(
+      [
+        { assetId: 'a', price: 40 },
+        { assetId: 'b', price: 125 },
+      ],
+      unitsOn('2026-03-05'),
+      unitsOn('2026-03-10'),
+    );
+    // `a` was sold out by the 10th; `b` holds the same units, so its price stands.
+    expect(dropped).toEqual(['a']);
+    expect(prices).toEqual([
+      { assetId: 'b', price: Math.round(16.1486 * 125 * 100) / 100 / 16.1486 },
+    ]);
+  });
+
+  it('gives one snapshot per stored day in date order, each with its latest witness time', () => {
+    const rows = [
+      row('b', '2026-03-12', 130),
+      row('a', '2026-03-05', 40),
+      row('b', '2026-03-05', 120),
+    ];
+    expect(snapshotsOfPrices(TXS, rows, { '2026-03-05': '2026-03-05T18:00:00' })).toEqual([
+      {
+        date: '2026-03-05',
+        quotes: { a: 120, b: Math.round(16.1486 * 120 * 100) / 100 },
+        savedAt: '2026-03-05T18:00:00',
+      },
+      { date: '2026-03-12', quotes: { b: Math.round(16.1486 * 130 * 100) / 100 } },
+    ]);
+  });
+
+  // Every stored day is exported, so nothing stored is out of the client's sight.
+  it('keeps a stored day whose positions a row emptied, with nothing quoted', () => {
+    const rows = [row('a', '2026-03-10', 40), row('b', '2026-03-12', 130)];
+    expect(snapshotsOfPrices(TXS, rows, {})).toEqual([
+      { date: '2026-03-10', quotes: {} },
+      { date: '2026-03-12', quotes: { b: Math.round(16.1486 * 130 * 100) / 100 } },
+    ]);
+  });
+
+  // A quote is kopecks, as `rebuildSnapshots` rounds it, so the export and /view agree.
+  it('quotes a held position whose value rounds to no kopeck as 0, as /view does', () => {
+    const rows = [
+      row('b', '2026-03-05', 0.0001),
+      row('a', '2026-03-06', 40),
+      row('b', '2026-03-06', 0.0001),
+    ];
+    expect(snapshotsOfPrices(TXS, rows, {})).toEqual([
+      { date: '2026-03-05', quotes: { b: 0 } },
+      { date: '2026-03-06', quotes: { a: 120, b: 0 } },
+    ]);
   });
 });

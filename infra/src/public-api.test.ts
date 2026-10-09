@@ -21,6 +21,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
+import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
 import { EXPOSED, ROUTE as VIEW_ROUTE } from './view';
 
 type Resource = {
@@ -184,6 +185,17 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(user.Resources.ViewLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('ViewLogGroup').RetentionInDays).toBe(30);
   });
+
+  it('puts the write and the export on this API, each naming the authorizer', () => {
+    const routes = declaredRoutes().filter((r) => r.fn === 'MutationsFunction');
+    expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
+      [MUTATIONS_ROUTE, 'PublicApi', AUTHORIZER],
+      [STATE_ROUTE, 'PublicApi', AUTHORIZER],
+    ]);
+    expect(props('MutationsFunction').Handler).toBe('mutations.handler');
+    expect(user.Resources.MutationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('MutationsLogGroup').RetentionInDays).toBe(30);
+  });
 });
 
 describe('the route is throttled below the stage it sits in', () => {
@@ -335,10 +347,17 @@ describe('the browser origins are named per environment', () => {
       // `authorization` is what lets a browser send the token at all: every admin call is
       // cross-origin, and the preflight refuses a header the list does not name — a failure that
       // appears only in a browser, never in `curl`. `if-none-match` is not safelisted either, and
-      // it is how the read revalidates.
+      // it is how the read revalidates; a write sends `if-match` and its `idempotency-key`.
       expect([name, arm.AllowHeaders?.slice().sort()]).toEqual([
         name,
-        ['authorization', 'content-type', 'if-none-match', CSRF_HEADER].sort(),
+        [
+          'authorization',
+          'content-type',
+          'idempotency-key',
+          'if-match',
+          'if-none-match',
+          CSRF_HEADER,
+        ].sort(),
       ]);
       // A script reads no response header CORS does not expose, and with credentials a `*` is a
       // header literally named `*`: the read's validator and identifier are named.

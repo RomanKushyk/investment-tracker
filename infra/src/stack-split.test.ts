@@ -9,6 +9,7 @@ import { isScalar, parseDocument, visit, type Document, type Node } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { NBU_RATE_SET_BY } from './dates';
+import { CLAIM_WINDOW_SECONDS } from './mutations';
 import { RATE_FETCH_TIMEOUT_MS } from './official-rate';
 import { FREE_TIER_USERS } from './pool-usage';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
@@ -635,6 +636,7 @@ describe('the user stacks reach the archive through a read-only role the archive
       'ApplicationsFunction',
       'ApproveFunction',
       'MigrateFunction',
+      'MutationsFunction',
       'RateAheadFunction',
       'ViewFunction',
     ]);
@@ -700,13 +702,14 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the relay, the view, two watches and the rate job', () => {
+  it('holds the runner, the trigger, the application, the approval, the relay, the view, the write, two watches and the rate job', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
       'auth-relay.handler',
       'backup-freshness.handler',
       'migrate.handler',
+      'mutations.handler',
       'pool-usage.handler',
       'pre-signup.handler',
       'rate-ahead.handler',
@@ -1218,6 +1221,47 @@ describe('the user stack stores the official rate ahead, in both environments', 
   });
 });
 
+// `POST /mutations` and `GET /state`: the caller's rows in this stack's cluster, and nothing of the
+// archive. [*Cloud target*]
+describe('the user stack serves the write and the export', () => {
+  const grants = ['Resources', 'MutationsFunction', 'Properties', 'Policies', 0, 'Statement'];
+
+  it('connects to this stack’s cluster, and holds no other grant', () => {
+    expect(inlineStatements(user, 'MutationsFunction')).toHaveLength(1);
+    expect(grantAt(userDoc, grants, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+  });
+
+  // The gate reads the switch, and without it reads closed.
+  it('is told its cluster and the registration switch, and nothing else', () => {
+    const vars = user.Resources.MutationsFunction.Properties?.Environment?.Variables ?? {};
+    expect(Object.keys(vars).sort()).toEqual([
+      'AWS_REGION_NAME',
+      'DSQL_ENDPOINT',
+      'NODE_OPTIONS',
+      'OPEN_REGISTRATION',
+    ]);
+    expect(intrinsicAt(userDoc, ...envVars('MutationsFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+    expect(vars.OPEN_REGISTRATION).toEqual(['IsRegistrationOpen', 'true', 'false']);
+  });
+
+  // A claim older than the function can run belongs to an invocation that was killed.
+  it('takes a claim over five seconds after the function’s own timeout', () => {
+    const timeout = user.Resources.MutationsFunction.Properties?.Timeout ?? 0;
+    expect([timeout, timeout + 5]).toEqual([15, CLAIM_WINDOW_SECONDS]);
+  });
+
+  it('serves in dev and prod alike', () => {
+    for (const id of ['MutationsFunction', 'MutationsLogGroup'])
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, undefined]);
+  });
+});
+
 // `GET /view`: the caller's rows from this stack's cluster, the archive's through the reader role
 // the archive owns, and the day's rate. [*Cloud target*]
 describe('the user stack serves the derived read', () => {
@@ -1452,6 +1496,7 @@ describe('what reaches a role besides its own policies', () => {
       'ApproveFunction',
       'AuthRelayFunction',
       'ViewFunction',
+      'MutationsFunction',
       'BackupFreshnessFunction',
       'PoolUsageFunction',
       'RateAheadFunction',

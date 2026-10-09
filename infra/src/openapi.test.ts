@@ -38,6 +38,13 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { INVALID, bodiless, derived } from './http';
+import {
+  BODY as MUTATIONS_BODY,
+  MUTATIONS_ROUTE,
+  PARAMETERS as MUTATIONS_PARAMETERS,
+  RESPONSES as MUTATIONS_RESPONSES,
+  STATE_ROUTE,
+} from './mutations';
 import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
 import {
   PARAMETERS as VIEW_PARAMETERS,
@@ -211,6 +218,7 @@ describe('the document is regenerated, never typed', () => {
       './approve',
       './auth-relay',
       './http',
+      './mutations',
       './view',
       'node:fs',
       'yaml',
@@ -286,6 +294,7 @@ const DECLARED = {
   ...ADMIN_RESPONSES,
   ...RELAY_RESPONSES,
   ...VIEW_RESPONSES,
+  ...MUTATIONS_RESPONSES,
 };
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
@@ -357,6 +366,7 @@ describe('each operation publishes its own route’s answers', () => {
       [PASSKEY_LIST_ROUTE, PASSKEY_BODY],
       [PASSKEY_START_ROUTE, PASSKEY_BODY],
       [PASSKEY_COMPLETE_ROUTE, PASSKEY_COMPLETE_BODY],
+      [MUTATIONS_ROUTE, MUTATIONS_BODY],
     ]);
   });
 
@@ -416,9 +426,17 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the thirteen routes and no others', () => {
+  it('declares the fifteen routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
-      [APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, ...RELAY, VIEW_ROUTE].sort(),
+      [
+        APPLY_ROUTE,
+        APPROVE_ROUTE,
+        REJECT_ROUTE,
+        ...RELAY,
+        VIEW_ROUTE,
+        MUTATIONS_ROUTE,
+        STATE_ROUTE,
+      ].sort(),
     );
   });
 
@@ -439,7 +457,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     for (const key of [APPLY_ROUTE, ...RELAY]) {
       expect([key, op(key).security]).toEqual([key, []]);
     }
-    for (const key of [APPROVE_ROUTE, REJECT_ROUTE, VIEW_ROUTE]) {
+    for (const key of [APPROVE_ROUTE, REJECT_ROUTE, VIEW_ROUTE, MUTATIONS_ROUTE, STATE_ROUTE]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
   });
@@ -495,6 +513,23 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     expect(params?.map((p) => [p.name, p.in, p.required])).toEqual([
       ['If-None-Match', 'header', false],
       ['If-Match', 'header', false],
+    ]);
+  });
+
+  // THE WRITE NEEDS BOTH: a request without either is refused before anything is claimed.
+  it('publishes the write’s key and precondition as required, and the export’s as optional', () => {
+    const paramsOf = (route: string) => {
+      const [method, path] = route.split(' ');
+      return spec.paths[path][method.toLowerCase()].parameters;
+    };
+    expect(paramsOf(MUTATIONS_ROUTE)).toEqual(MUTATIONS_PARAMETERS[MUTATIONS_ROUTE]);
+    expect(paramsOf(MUTATIONS_ROUTE)?.map((p) => [p.name, p.required])).toEqual([
+      ['Idempotency-Key', true],
+      ['If-Match', true],
+    ]);
+    expect(paramsOf(STATE_ROUTE)?.map((p) => [p.name, p.required])).toEqual([
+      ['If-None-Match', false],
+      ['If-Match', false],
     ]);
   });
 

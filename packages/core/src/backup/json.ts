@@ -56,7 +56,7 @@ const inzhurSchema = z.strictObject({
   units: z.number().positive().optional(),
 });
 
-const assetRowSchema = z.strictObject({
+export const assetRowSchema = z.strictObject({
   id: z.string().min(1),
   name: z.string(),
   code: z.string(),
@@ -77,13 +77,13 @@ const assetRowSchema = z.strictObject({
   inzhur: inzhurSchema.optional(),
 });
 
-const snapshotRowSchema = z.strictObject({
+export const snapshotRowSchema = z.strictObject({
   date: isoDate,
   quotes: z.record(z.string(), z.number()),
   savedAt: isoDateTime.optional(),
 });
 
-const transactionRowSchema = z.strictObject({
+export const transactionRowSchema = z.strictObject({
   id: z.string().min(1),
   date: isoDate,
   type: z.enum([
@@ -123,65 +123,84 @@ const transactionRowSchema = z.strictObject({
     .optional(),
 });
 
-/**
- * ONE PREDICATE, APPLIED AT EVERY DOOR. Two different ones decided whether a row
- * HAS a unit count and what that count IS, and a hand-edited backup with
- * `quantity` on a payout row created the key and then contributed 0 to it,
- * valuing the whole position at nothing.
- */
-const transactionRowsSchema = z.array(transactionRowSchema).superRefine((rows, ctx) => {
-  checkWithholding(rows, ctx);
-  rows.forEach((row, i) => {
-    if (movesPosition(row.type)) {
-      // BOTH WAYS: a moving row must carry its count at THIS door too, because the
-      // form is not the app’s only writer. `unitPrice` keeps only the one-way rule —
-      // it is derivable from `amount / quantity`, while a row without the COUNT
-      // cannot be valued at all.
-      if (row.quantity === undefined) {
-        ctx.addIssue({ code: 'custom', path: [i, 'quantity'], params: { rule: 'missing' } });
-      }
-      return;
+export type TransactionRow = z.infer<typeof transactionRowSchema>;
+
+/** ONE PREDICATE, APPLIED AT EVERY DOOR: whether a row has a unit count, and must. `at` is the
+ *  row's path in its container. */
+export function checkRowCount(row: TransactionRow, ctx: z.RefinementCtx, at: PropertyKey[] = []) {
+  if (movesPosition(row.type)) {
+    // BOTH WAYS: a moving row must carry its count at THIS door too, because the
+    // form is not the app’s only writer. `unitPrice` keeps only the one-way rule —
+    // it is derivable from `amount / quantity`, while a row without the COUNT
+    // cannot be valued at all.
+    if (row.quantity === undefined) {
+      ctx.addIssue({ code: 'custom', path: [...at, 'quantity'], params: { rule: 'missing' } });
     }
-    // BOTH fields, not just the count — the pair is what the two CHECKs govern
-    // together.
-    for (const field of ['quantity', 'unitPrice'] as const) {
-      if (row[field] === undefined) continue;
-      // NO MESSAGE. This layer emits PATHS, never English — a message here is
-      // printed verbatim into a report otherwise in the reader’s language.
-      ctx.addIssue({ code: 'custom', path: [i, field] });
-    }
-  });
-});
+    return;
+  }
+  // BOTH fields, not just the count — the pair is what the two CHECKs govern
+  // together.
+  for (const field of ['quantity', 'unitPrice'] as const) {
+    if (row[field] === undefined) continue;
+    // NO MESSAGE. This layer emits PATHS, never English — a message here is
+    // printed verbatim into a report otherwise in the reader’s language.
+    ctx.addIssue({ code: 'custom', path: [...at, field] });
+  }
+}
 
 /**
- * A SEPARATE REFINEMENT rather than more arms above, which is `return`-shaped
+ * A SEPARATE RULE rather than more arms above, which is `return`-shaped
  * around the quantity rule: a position-moving row leaves it early, and a
  * withholding is only ever legal on the rows that rule returns past. A MESSAGE IS
  * ALLOWED — the no-English rule is about `detail` reaching a LOCALISED report.
  */
-function checkWithholding(rows: z.infer<typeof transactionRowSchema>[], ctx: z.RefinementCtx) {
-  rows.forEach((row, i) => {
-    if (row.taxWithheld === undefined) return;
-    if (!isPayout(row.type)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [i, 'taxWithheld'],
-        params: { rule: 'type' },
-        message: 'only a dividend accrual or an interest payout carries a withholding',
-      });
-      return;
-    }
-    // STRICTLY below: a withholding that is the whole payout leaves nothing received.
-    if (row.taxWithheld >= row.amount) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [i, 'taxWithheld'],
-        params: { rule: 'bound' },
-        message: 'a withholding must be smaller than the payout it was taken from',
-      });
-    }
-  });
+export function checkRowWithholding(
+  row: TransactionRow,
+  ctx: z.RefinementCtx,
+  at: PropertyKey[] = [],
+) {
+  if (row.taxWithheld === undefined) return;
+  if (!isPayout(row.type)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [...at, 'taxWithheld'],
+      params: { rule: 'type' },
+      message: 'only a dividend accrual or an interest payout carries a withholding',
+    });
+    return;
+  }
+  // STRICTLY below: a withholding that is the whole payout leaves nothing received.
+  if (row.taxWithheld >= row.amount) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [...at, 'taxWithheld'],
+      params: { rule: 'bound' },
+      message: 'a withholding must be smaller than the payout it was taken from',
+    });
+  }
 }
+
+// Every withholding before every count, the order a file's report has always listed them in.
+const transactionRowsSchema = z.array(transactionRowSchema).superRefine((rows, ctx) => {
+  rows.forEach((row, i) => checkRowWithholding(row, ctx, [i]));
+  rows.forEach((row, i) => checkRowCount(row, ctx, [i]));
+});
+
+/** One transaction with every rule a row owes on its own: the mutation surface's door. */
+export const transactionRecordSchema = transactionRowSchema.superRefine((row, ctx) => {
+  checkRowWithholding(row, ctx);
+  checkRowCount(row, ctx);
+});
+
+/** One asset as the mutation surface stores it: the provider link without the legacy unit count,
+ *  which no column holds. */
+export const assetRecordSchema = assetRowSchema.extend({
+  inzhur: inzhurSchema.omit({ units: true }).optional(),
+  // The store's CHECKs, refused at their fields; a code counted in characters, as `length()` counts.
+  code: z.string().refine((v) => [...v].length === 2),
+  expectedPct: z.number().min(0),
+  targetPct: z.number().min(0).max(100),
+});
 
 const settingsSchema = z.strictObject({
   currency: z.enum(['UAH', 'USD']),

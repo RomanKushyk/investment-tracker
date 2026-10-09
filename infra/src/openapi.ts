@@ -30,6 +30,12 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { type ApiResult, type Declared, made } from './http';
+import {
+  BODY as MUTATIONS_BODY,
+  MUTATIONS_ROUTE,
+  PARAMETERS as MUTATIONS_PARAMETERS,
+  RESPONSES as MUTATIONS_RESPONSES,
+} from './mutations';
 import { PARAMETERS as VIEW_PARAMETERS, RESPONSES as VIEW_RESPONSES } from './view';
 
 /** The one security scheme, named as the template names it. */
@@ -59,6 +65,7 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'approve.handler': ADMIN_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
+  'mutations.handler': MUTATIONS_RESPONSES,
 };
 
 /** Keyed by route, not by handler: a second event on one function would otherwise attach a
@@ -71,6 +78,7 @@ const BODIES: Record<string, unknown> = {
   [PASSKEY_LIST_ROUTE]: PASSKEY_BODY,
   [PASSKEY_START_ROUTE]: PASSKEY_BODY,
   [PASSKEY_COMPLETE_ROUTE]: PASSKEY_COMPLETE_BODY,
+  [MUTATIONS_ROUTE]: MUTATIONS_BODY,
 };
 
 type Operation = {
@@ -99,6 +107,7 @@ type Operation = {
 const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
   ...RELAY_PARAMETERS,
   ...VIEW_PARAMETERS,
+  ...MUTATIONS_PARAMETERS,
 };
 
 export type OpenApiDocument = {

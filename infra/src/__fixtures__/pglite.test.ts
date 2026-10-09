@@ -6,7 +6,7 @@ import { ESLint } from 'eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { REPO } from '../../../src/repo-root';
-import { bootCount, freshDb } from './pglite';
+import { bootCount, freshDb, refusingCommit } from './pglite';
 
 const HELPER = 'infra/src/__fixtures__/pglite.ts';
 
@@ -245,5 +245,55 @@ describe('freshDb', () => {
   it('runs a second call after the first rather than racing it', async () => {
     const [first, second] = await Promise.all([freshDb(), freshDb()]);
     expect(second).toBe(first);
+  });
+});
+
+// A COMMIT that answers a code, in the two states DSQL can leave one: refused before it reached the
+// cluster, and landed with the client told otherwise.
+describe('refusingCommit', () => {
+  const count = async (db: Awaited<ReturnType<typeof freshDb>>) =>
+    (await db.query<{ n: number }>('SELECT count(*)::int AS n FROM fixture_row')).rows[0].n;
+
+  it('refuses the first COMMIT without reaching the cluster, leaving the transaction open', async () => {
+    const db = await freshDb();
+    await db.exec('CREATE TABLE fixture_row (n int)');
+    const { client, sent } = refusingCommit(db, '40001');
+    await client.query('BEGIN');
+    await client.query('INSERT INTO fixture_row VALUES (1)');
+    await expect(client.query('COMMIT')).rejects.toMatchObject({ code: '40001' });
+    await client.query('ROLLBACK');
+    expect(await count(db)).toBe(0);
+    expect(sent).toEqual(['BEGIN', 'INSERT INTO fixture_row VALUES (1)', 'COMMIT', 'ROLLBACK']);
+  });
+
+  it('lands the COMMIT and still answers the code when told it lands', async () => {
+    const db = await freshDb();
+    await db.exec('CREATE TABLE fixture_row (n int)');
+    const { client } = refusingCommit(db, '40001', { lands: true });
+    await client.query('BEGIN');
+    await client.query('INSERT INTO fixture_row VALUES (1)');
+    await expect(client.query('COMMIT')).rejects.toMatchObject({ code: '40001' });
+    // Nothing is open to roll back: the transaction is over, its row written.
+    await client.query('ROLLBACK').catch(() => undefined);
+    expect(await count(db)).toBe(1);
+  });
+
+  it('lets every COMMIT before a matching statement through, and answers the first after it', async () => {
+    const db = await freshDb();
+    await db.exec('CREATE TABLE fixture_row (n int)');
+    const { client } = refusingCommit(db, '40001', { after: /VALUES \(2\)/ });
+    for (const n of [1, 2]) {
+      await client.query('BEGIN');
+      await client.query(`INSERT INTO fixture_row VALUES (${n})`);
+      if (n === 1) await client.query('COMMIT');
+      else await expect(client.query('COMMIT')).rejects.toMatchObject({ code: '40001' });
+    }
+    await client.query('ROLLBACK');
+    expect(await count(db)).toBe(1);
+    // Once: the next COMMIT goes through.
+    await client.query('BEGIN');
+    await client.query('INSERT INTO fixture_row VALUES (3)');
+    await client.query('COMMIT');
+    expect(await count(db)).toBe(2);
   });
 });

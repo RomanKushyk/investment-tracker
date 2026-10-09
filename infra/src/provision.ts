@@ -91,9 +91,9 @@ const isTheAccountAlready = (err: unknown): boolean =>
 
 /** SHORT, because this sits in a request path: the runner's teardown can wait seconds for a
  *  catalogue to settle, and somebody's first authenticated request cannot. */
-const RETRY_DELAYS_MS = [20, 80, 200];
+export const RETRY_DELAYS_MS = [20, 80, 200];
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export type Provisioned = 'created' | 'existing';
 

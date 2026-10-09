@@ -91,15 +91,13 @@
 // `REFERENCES "public"."…"`, a qualified name ignores `search_path`, and
 // promotion strips it so the file can be applied into any schema.
 //
-// **Deletion is a BATCHED application cascade** — the asset's transactions and
-// its `user_price` rows, in either order since neither references the other,
-// and the asset LAST so a failure midway is resumable. It is implemented in
-// `infra/src/asset-delete.ts`; three properties travel with it and a paraphrase
-// loses all three: every statement resolves the caller's LIVE dataset (`id` is
-// unique only within a dataset, which is what `012`'s keys say), each step batches
-// through a key-set sub-select because Postgres accepts no `LIMIT` on a
-// `DELETE`, and **each batch is its own TRANSACTION**, since DSQL's 3 000-row
-// ceiling is per transaction and a loop inside one would not clear it.
+// **Deletion is an application cascade** — the asset's `user_price` rows and its
+// transactions, then the asset LAST. It is implemented in `infra/src/asset-delete.ts`
+// and runs inside the request's one transaction: every statement resolves the
+// caller's LIVE dataset (`id` is unique only within a dataset, which is what `012`'s
+// keys say), and since DSQL's ceiling is per transaction, an asset with more rows
+// than the request may mutate is refused and emptied first by prune steps, each a
+// key-set sub-select because Postgres accepts no `LIMIT` on a `DELETE`.
 //
 // **Adding one is not free.** Drizzle emits a foreign key — the column-level
 // `references()` and the table-level `foreignKey()` builder alike — as a bare

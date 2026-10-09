@@ -11,6 +11,7 @@ import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, authorize } from './autho
 import { connect, connectAsArchiveReader } from './dsql';
 import {
   INTERNAL,
+  PRECONDITION_FAILED,
   type ApiEvent,
   type ApiResult,
   type Declared,
@@ -18,13 +19,12 @@ import {
   bodiless,
   derived,
   headerValues,
-  json,
   notModified,
   respond,
   strongMatch,
   weakMatch,
 } from './http';
-import { readLedger } from './ledger';
+import { dataTag, readLedger } from './ledger';
 import type { SqlClient } from './migrate';
 import { createOfficialRate, type StoredRate } from './official-rate';
 import { readPaymentDates, readSellObservations } from './sell-observations';
@@ -47,11 +47,11 @@ const VIEWED = derived({
   example: {
     view: '<buildView: every screen, the windowed ones for each of the six periods>',
     fx: { rate: 41.4983, date: '2026-10-06' },
+    etag: '"<data_version>"',
   },
 });
 /** RFC 9110 §15.4.5: the validator and the cache policy a 200 would carry, and no body. */
 const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
-const PRECONDITION_FAILED = json(412, '{"error":"precondition_failed"}');
 
 /** What the route can answer, and the only list of it — `openapi.ts` builds the document from here,
  *  and `view.test.ts` proves it against what the route really answers. */
@@ -164,7 +164,8 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
     return respond(
       VIEWED,
       { etag, 'cache-control': CACHE_POLICY, 'derivation-id': deps.derivationId },
-      JSON.stringify(body),
+      // The strong tag a write sends back, beside this read's weak one (*Cloud target*).
+      JSON.stringify({ ...body, etag: dataTag(ledger.dataVersion) }),
     );
   } catch (err) {
     // LOGGED, NOT RETURNED. An archive refusal has logged its own metric line already.

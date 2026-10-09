@@ -14,7 +14,7 @@ import {
   writeLedger,
   type LedgerRows,
 } from './__fixtures__/user-ledger';
-import { readLedger } from './ledger';
+import { SCHEMA_TYPE, dataTag, readLedger, readRows } from './ledger';
 import type { SqlClient } from './migrate';
 
 const OWNER = '9f1e2d3c-0000-4000-8000-0000000000a1';
@@ -128,6 +128,25 @@ describe('readLedger', () => {
     expect(byKey((await readLedger(client(), OWNER)).userPrices)).toEqual(byKey(LEDGER.userPrices));
   });
 
+  // A snapshot's `savedAt`: the latest witness time of the day's prices, in the backup's form.
+  it('reads each stored day’s latest witness time, to the second, and none for a day with none', async () => {
+    const [first] = LEDGER.userPrices;
+    const witnessed = (p: { assetId: string; asOf: string }, at: string) =>
+      db.query(
+        `UPDATE user_price SET observed_at = $3::timestamptz
+          WHERE asset_id = $1 AND as_of = $2::date`,
+        [p.assetId, p.asOf, at],
+      );
+    const sameDay = LEDGER.userPrices.find((p) => p.asOf === first.asOf && p !== first)!;
+    // The fixture witnesses every price; a day with none is what is checked.
+    await db.query('UPDATE user_price SET observed_at = NULL');
+    await witnessed(first, '2026-06-01T10:00:00.250Z');
+    await witnessed(sameDay, '2026-06-01T18:30:05.900Z');
+    expect((await readLedger(client(), OWNER)).savedAt).toEqual({
+      [first.asOf]: '2026-06-01T18:30:05',
+    });
+  });
+
   it('reads the version the rows were read at, as text', async () => {
     expect((await readLedger(client(), OWNER)).dataVersion).toBe('0');
     await db.query('UPDATE app_user SET data_version = 9007199254740993 WHERE user_id = $1', [
@@ -186,7 +205,13 @@ describe('readLedger', () => {
 
   it('reads the caller’s rows and nobody else’s', async () => {
     const other = await readLedger(client(), OTHER);
-    expect(other).toEqual({ dataVersion: '0', assets: [], transactions: [], userPrices: [] });
+    expect(other).toEqual({
+      dataVersion: '0',
+      assets: [],
+      transactions: [],
+      userPrices: [],
+      savedAt: {},
+    });
   });
 
   // ONE SNAPSHOT: the tag's version and the body come from one read, so a write between the
@@ -205,6 +230,20 @@ describe('readLedger', () => {
     expect(sent.filter((s) => s.startsWith('SELECT'))).toHaveLength(4);
   });
 
+  it('reads the rows a write needs inside the caller’s own transaction, opening none', async () => {
+    const sent: string[] = [];
+    const watched: SqlClient = {
+      query: (text, values) => {
+        sent.push(text.trim().split(/\s+/)[0]);
+        return client().query(text, values);
+      },
+    };
+    const rows = await readRows(watched, OWNER);
+    const read = await readLedger(client(), OWNER);
+    expect(rows).toEqual({ assets: read.assets, transactions: read.transactions });
+    expect(sent).toEqual(['SELECT', 'SELECT']);
+  });
+
   it('rolls back and rethrows when a read fails, leaving no transaction open', async () => {
     const failing: SqlClient = {
       query: (text, values) =>
@@ -218,5 +257,26 @@ describe('readLedger', () => {
       'SHOW transaction_read_only',
     );
     expect(rows[0].transaction_read_only).toBe('off');
+  });
+});
+
+describe('the write half of the vocabulary', () => {
+  // The schema keeps the spec's name for the one type core renamed.
+  it('names each of core’s eight types as the schema spells it', () => {
+    expect(SCHEMA_TYPE).toEqual({
+      buy: 'buy',
+      sell: 'sell',
+      deposit: 'deposit',
+      withdrawal: 'withdrawal',
+      dividend_accrual: 'dividend_payout',
+      interest_payout: 'interest_payout',
+      reinvest: 'reinvest',
+      redemption: 'redemption',
+    });
+  });
+
+  // RFC 9110 §8.8.3: a strong tag is a quoted opaque string.
+  it('tags a version as the strong tag a write sends back', () => {
+    expect([dataTag('0'), dataTag('9007199254740993')]).toEqual(['"0"', '"9007199254740993"']);
   });
 });

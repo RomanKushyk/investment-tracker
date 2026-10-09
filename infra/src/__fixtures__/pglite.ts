@@ -171,19 +171,27 @@ async function measures(db: PGlite): Promise<string> {
 }
 
 /**
- * The cluster, except that the first `COMMIT` answers a code WITHOUT reaching it — which is the
- * state a conflicting transaction is really in: still open, waiting to be rolled back. PGlite is
- * pessimistic and never answers `40001` itself. Every statement is recorded, so "it started again"
- * is assertable rather than inferred from the rows.
+ * The cluster, except that one `COMMIT` answers a code: by default WITHOUT reaching it — the state
+ * a conflicting transaction is really in, still open and waiting to be rolled back — or, `lands`,
+ * after it committed, which DSQL warns a client can be told. PGlite is pessimistic and never
+ * answers `40001` itself. The refused one is the first after a statement matching `after`, or the
+ * first of all. Every statement is recorded, so "it started again" is assertable.
  */
-export const refusingFirstCommit = (db: PGlite, code: string) => {
+export const refusingCommit = (
+  db: PGlite,
+  code: string,
+  { after, lands = false }: { after?: RegExp; lands?: boolean } = {},
+) => {
   const sent: string[] = [];
+  let armed = after === undefined;
   let refused = false;
   const client: SqlClient = {
     query: async <R>(text: string, values?: unknown[]) => {
       sent.push(text);
-      if (text === 'COMMIT' && !refused) {
+      if (!armed && after?.test(text)) armed = true;
+      if (text === 'COMMIT' && armed && !refused) {
         refused = true;
+        if (lands) await db.query(text);
         throw Object.assign(new Error('change conflicts with another transaction (OC000)'), {
           code,
         });
@@ -193,3 +201,5 @@ export const refusingFirstCommit = (db: PGlite, code: string) => {
   };
   return { client, sent };
 };
+
+export const refusingFirstCommit = (db: PGlite, code: string) => refusingCommit(db, code);

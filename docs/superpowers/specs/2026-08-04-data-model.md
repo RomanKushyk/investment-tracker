@@ -51,8 +51,8 @@ is what ruling 6 of `FORMULA-AUDIT.md` left open
 
 Aurora DSQL has foreign keys, composite and enforced, and the user schema's are all `ON DELETE
 RESTRICT` — the self-referential one went with the settlement key. Rows ARE deleted, an
-asset going by an application cascade, children before the parent, in batches (*User schema and
-deletes*). `account` is one row per provider per user, modelled from day one though Inzhur is the
+asset going by an application cascade, children before the parent, one that does not fit a request
+emptied first in steps (*User schema and deletes*). `account` is one row per provider per user, modelled from day one though Inzhur is the
 only provider — cheap now, expensive to retrofit. Withdrawals to a bank card leave the perimeter,
 **excluded from free cash** but kept in the ledger so "how much have I withdrawn" stays answerable.
 `asset` is per-dataset, joining the global price archive by provider ref (fund slug or bond ISIN).

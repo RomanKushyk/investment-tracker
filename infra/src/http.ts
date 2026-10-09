@@ -43,6 +43,8 @@ export const json = (statusCode: number, body: string): ApiResult =>
 // The point of a fixed answer is that it is the same everywhere, never one naming a constraint.
 export const INVALID = json(400, '{"error":"invalid_request"}');
 export const INTERNAL = json(500, '{"error":"internal"}');
+/** RFC 9110 §15.5.13, a precondition the request carried that the current state fails. */
+export const PRECONDITION_FAILED = json(412, '{"error":"precondition_failed"}');
 
 /** A 304: headers and NO BODY KEY. It is a null-body status, and `body: ''` is still a body, which
  *  an adapter answers with a 500. */

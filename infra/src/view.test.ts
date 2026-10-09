@@ -202,6 +202,7 @@ describe('a signed-in caller gets every figure in one answer', () => {
         today: TODAY,
       }),
       fx: RATE,
+      etag: '"0"',
     };
     expect(numbers(expected).every(Number.isFinite)).toBe(true);
     const res = (await view(deps(), event())) as ApiResult;
@@ -287,6 +288,15 @@ describe('the read’s validator', () => {
     const before = await tagOf();
     await db.query('UPDATE app_user SET data_version = data_version + 1 WHERE user_id = $1', [SUB]);
     expect(await tagOf()).not.toBe(before);
+  });
+
+  // The owner's ruling on #190: the strong tag a write sends back rides in the body.
+  it('carries the write’s strong tag in its body, apart from its own weak one', async () => {
+    const etagOf = async () =>
+      (JSON.parse(((await view(deps(), event())) as ApiResult).body) as { etag: string }).etag;
+    expect(await etagOf()).toBe('"0"');
+    await db.query('UPDATE app_user SET data_version = data_version + 1 WHERE user_id = $1', [SUB]);
+    expect(await etagOf()).toBe('"1"');
   });
 
   it('moves with the archive rows the ledger reads', async () => {

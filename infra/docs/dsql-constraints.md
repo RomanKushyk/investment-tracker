@@ -293,6 +293,22 @@ the same word, and neither is logged. The secondary-index conflict target above 
 UNMEASURED, as does `RETURNING` on a suppressed insert. Separating them needs a hand-run against a
 cluster, not another dispatch.
 
+**What `POST /mutations` sends that no cluster has answered.** `infra/src/mutations.ts` rests on four
+behaviours read from AWS or shown by PGlite, none of them sent to a cluster:
+
+- **Two requests racing one key.** The claim is `INSERT … ON CONFLICT (user_id, key) DO NOTHING`
+  and a read of the row, in a transaction of its own, and a takeover is an
+  `UPDATE … WHERE token = $old`. AWS documents a write and a write to one row as a `40001` (`OC000`)
+  for the later commit; the claim retries on it, and its next attempt reads the winner's row. READ
+  FROM AWS, UNMEASURED. The conflict target is the primary key, the measured shape.
+- **`unnest` over three array parameters** in an `INSERT … SELECT`, one statement for a day's
+  prices. PGlite accepts it. UNMEASURED.
+- **`ORDER BY … LIMIT` in a key-set sub-select that joins the pointer**, which
+  `src/asset-delete.ts`'s prune sends. The key-set `LIMIT` over one table is measured above; this
+  shape is not.
+- **Where `54000` arrives**: at the statement that crosses the row ceiling, or at `COMMIT`. Either
+  is answered `409 too_many_rows`; only a statement's names the op. UNMEASURED.
+
 [run 35599249065]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599249065
 [run 35599318279]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599318279
 

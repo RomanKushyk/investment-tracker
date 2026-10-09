@@ -438,6 +438,12 @@ Resources:
         'GET /view':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'POST /mutations':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'GET /state':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
       # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
       # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
@@ -454,13 +460,15 @@ Resources:
               https://main.d17m4jf400my6.amplifyapp.com,
             ]
           AllowMethods: [GET, POST, OPTIONS]
-          AllowHeaders: [authorization, content-type, if-none-match, x-csrf]
+          AllowHeaders:
+            [authorization, content-type, idempotency-key, if-match, if-none-match, x-csrf]
           ExposeHeaders: [derivation-id, etag]
           AllowCredentials: true
           MaxAge: 600
         - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
           AllowMethods: [GET, POST, OPTIONS]
-          AllowHeaders: [authorization, content-type, if-none-match, x-csrf]
+          AllowHeaders:
+            [authorization, content-type, idempotency-key, if-match, if-none-match, x-csrf]
           ExposeHeaders: [derivation-id, etag]
           AllowCredentials: true
           MaxAge: 600
@@ -759,6 +767,59 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+
+  # `POST /mutations` and `GET /state`, the write and the export (`src/mutations.ts`, *Cloud target*).
+  # This stack's cluster alone: nothing here reads the archive.
+  MutationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: mutations.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      # A snapshot op reads the whole ledger to count the units it divides by.
+      MemorySize: 512
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      # A claim older than this and five seconds is taken over (`CLAIM_WINDOW_SECONDS`).
+      Timeout: 15
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          # The gate writes the row of somebody who got in while the door was open.
+          OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+      Policies:
+        - Statement:
+            # The only database role this cluster has is `admin`; the handler bounds the reach.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+      Events:
+        Mutations:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /mutations
+            Auth:
+              Authorizer: CognitoJwt
+        State:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /state
+            Auth:
+              Authorizer: CognitoJwt
+
+  MutationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${MutationsFunction}
+      RetentionInDays: 30
 
   # THE OTHER HALF OF THE TAG DECISION ON `UserCluster`. Both existing checks read the ARCHIVE
   # alone, deliberately, so neither cluster can make the other look fresh — the cost of that is

@@ -1683,7 +1683,418 @@
                       "fx": {
                         "rate": 41.4983,
                         "date": "2026-10-06"
+                      },
+                      "etag": "\"<data_version>\""
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "precondition_failed": {
+                    "value": {
+                      "error": "precondition_failed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mutations": {
+      "post": {
+        "operationId": "postMutations",
+        "summary": "POST /mutations",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ops"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ops": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "op"
+                      ],
+                      "properties": {
+                        "op": {
+                          "type": "string",
+                          "enum": [
+                            "asset.add",
+                            "asset.patch",
+                            "asset.delete",
+                            "asset.prune",
+                            "transaction.add",
+                            "transaction.patch",
+                            "transaction.delete",
+                            "snapshot.put",
+                            "snapshot.delete",
+                            "snapshot.move",
+                            "dataset.clear"
+                          ]
+                        }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "mutated": {
+                    "value": {
+                      "etag": "\"<data_version>\"",
+                      "results": [
+                        {},
+                        {
+                          "dropped": [
+                            "<asset id>"
+                          ]
+                        },
+                        {
+                          "remaining": 0
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  },
+                  "too_many_ops": {
+                    "value": {
+                      "error": "too_many_ops",
+                      "max": 100
+                    }
+                  },
+                  "invalid_idempotency_key": {
+                    "value": {
+                      "error": "invalid_idempotency_key"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "request_in_flight": {
+                    "value": {
+                      "error": "request_in_flight"
+                    }
+                  },
+                  "duplicate_id": {
+                    "value": {
+                      "error": "duplicate_id",
+                      "index": 0
+                    }
+                  },
+                  "too_many_rows": {
+                    "value": {
+                      "error": "too_many_rows",
+                      "index": 0,
+                      "count": 2501,
+                      "max": 2500
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "precondition_failed": {
+                    "value": {
+                      "error": "precondition_failed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "payload_too_large": {
+                    "value": {
+                      "error": "payload_too_large",
+                      "max": 1048576
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "key_reused": {
+                    "value": {
+                      "error": "key_reused"
+                    }
+                  },
+                  "invalid_op": {
+                    "value": {
+                      "error": "invalid_op",
+                      "index": 0,
+                      "issues": [
+                        {
+                          "field": "quantity",
+                          "code": "units-missing-on-position-row"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "precondition_required": {
+                    "value": {
+                      "error": "precondition_required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/state": {
+      "get": {
+        "operationId": "getState",
+        "summary": "GET /state",
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "state": {
+                    "value": {
+                      "assets": [
+                        "<Asset>"
+                      ],
+                      "transactions": [
+                        "<Transaction>"
+                      ],
+                      "snapshots": [
+                        "<Snapshot>"
+                      ]
                     }
                   }
                 }

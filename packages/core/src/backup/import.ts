@@ -157,7 +157,7 @@ function rowsRejection(issues: RowIssue[]): RowsRejection {
 
 const ROW_TABLES = new Set<IssueTable>(['assets', 'snapshots', 'transactions']);
 
-interface ZodIssueLike {
+export interface ZodIssueLike {
   code: string;
   path: PropertyKey[];
   message: string;
@@ -196,6 +196,30 @@ function schemaIssues(issues: ZodIssueLike[], raw: Record<string, unknown>): Row
       code: codeFor(issue, field),
       ...valueOf(issue),
       detail: issue.message,
+    };
+  });
+}
+
+/** One row's fault in the import's codes, the field its path below the row. */
+export interface RowIssueCode {
+  field?: string;
+  code: IssueCode;
+  value?: string;
+}
+
+/** zod issues against ONE row of `table`, paths from the row down: the import's vocabulary for a
+ *  door that validates a row alone. */
+export function rowIssueCodes(
+  table: 'assets' | 'snapshots' | 'transactions',
+  issues: readonly ZodIssueLike[],
+): RowIssueCode[] {
+  return issues.map((issue) => {
+    const field = issue.path.length > 0 ? issue.path.map(String).join('.') : undefined;
+    const rooted = { ...issue, path: [table, 0, ...issue.path] };
+    return {
+      ...(field === undefined ? {} : { field }),
+      code: codeFor(rooted, field),
+      ...valueOf(issue),
     };
   });
 }

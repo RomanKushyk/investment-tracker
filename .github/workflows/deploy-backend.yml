@@ -101,7 +101,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant view; do
+          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant view mutations; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -120,7 +120,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -411,6 +411,56 @@ jobs:
               if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
               if (opened !== 0) throw new Error('the archive was opened for a ledger that links nothing');
               console.log('view bundle loads, serves six periods under a weak tag, answers it 304 compared weakly, refuses a pending caller and opens no archive');
+            })().catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The export under a strong tag no cache keeps, a bare 304 to it, a write with no or a `*`
+          # precondition refused before its key is claimed, and a pending caller refused.
+          node -e "
+            const m = require('./mutations.js');
+            if (typeof m.handler !== 'function') throw new Error('handler missing from mutations bundle');
+            const SUB = '9f1e2d3c-0000-4000-8000-0000000000d4';
+            const EMAIL = 'owner@quirenote.com';
+            const sent = [];
+            const deps = (status) => ({
+              user: {
+                query: async (text) => {
+                  sent.push(text);
+                  return {
+                    rows: text.includes('data_version')
+                      ? [{ data_version: '0' }]
+                      : text.includes('FROM app_user')
+                        ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user' }]
+                        : [],
+                  };
+                },
+              },
+              token: () => '00000000-0000-4000-8000-000000000001',
+              sleep: async () => {},
+            });
+            const claims = { authorizer: { jwt: { claims: { token_use: 'id', sub: SUB, email: EMAIL } } } };
+            const read = (headers) => ({ routeKey: 'GET /state', headers: headers, requestContext: claims });
+            const write = (headers) => ({
+              routeKey: 'POST /mutations',
+              headers: headers,
+              body: JSON.stringify({ ops: [{ op: 'dataset.clear' }] }),
+              requestContext: claims,
+            });
+            (async () => {
+              const ok = await m.state(deps('active'), read({}));
+              if (ok.statusCode !== 200 || ok.headers.etag !== '\"0\"') throw new Error('the export was not served under its tag: ' + JSON.stringify(ok));
+              if (ok.headers['cache-control'] !== 'private, no-store') throw new Error('cache policy: ' + ok.headers['cache-control']);
+              if (Object.keys(JSON.parse(ok.body)).join() !== 'assets,transactions,snapshots') throw new Error('export shape: ' + ok.body);
+              const again = await m.state(deps('active'), read({ 'if-none-match': ok.headers.etag }));
+              if (again.statusCode !== 304 || 'body' in again) throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
+              const key = '00000000-0000-4000-8000-0000000000aa';
+              for (const headers of [{ 'idempotency-key': key }, { 'idempotency-key': key, 'if-match': '*' }]) {
+                const res = await m.mutations(deps('active'), write(headers));
+                if (res.statusCode !== 428) throw new Error('a write without a precondition was not refused 428: ' + JSON.stringify(res));
+              }
+              if (sent.some((s) => s.includes('mutation_key'))) throw new Error('a refused write claimed its key');
+              const pending = await m.mutations(deps('pending'), write({}));
+              if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
+              console.log('mutations bundle loads, exports under a strong tag no cache keeps, answers it 304, refuses a write with no or a * precondition before claiming its key, and refuses a pending caller');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
 

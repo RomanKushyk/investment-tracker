@@ -277,9 +277,9 @@ describe('every statement over a data table reads the live dataset', () => {
   it('finds exactly the statements it guards, in the modules allowed to hold them', () => {
     // EXACT, not a floor: a scanner gone blind makes the count go DOWN. Update it in the commit
     // that adds or removes a statement; a new module joins the set by name.
-    expect(statements).toHaveLength(6);
+    expect(statements).toHaveLength(16);
     expect(new Set(statements.map((s) => s.file))).toEqual(
-      new Set(['asset-delete.ts', 'ledger.ts']),
+      new Set(['asset-delete.ts', 'ledger.ts', 'mutations.ts']),
     );
   });
 
@@ -315,6 +315,12 @@ describe('every statement over a data table reads the live dataset', () => {
       WHERE u.user_id = $1`,
     `INSERT INTO "transaction" (dataset_id, id, user_id, account_id)
      SELECT u.dataset_id, $2, u.user_id, $3 FROM app_user u WHERE u.user_id = $1`,
+    `INSERT INTO "transaction" (dataset_id, id, user_id, account_id)
+     SELECT u.dataset_id, $2, u.user_id, c.id
+       FROM app_user u JOIN account c ON c.user_id = u.user_id WHERE u.user_id = $1`,
+    `INSERT INTO user_price (dataset_id, asset_id, as_of, price)
+     SELECT u.dataset_id, q.asset_id, $2, q.price
+       FROM app_user u, unnest($3::uuid[], $4::numeric[]) AS q(asset_id, price) WHERE u.user_id = $1`,
     `SELECT t.id FROM "transaction" t JOIN app_user u ON u.dataset_id = t.dataset_id
        JOIN account c ON c.user_id = u.user_id AND c.id = t.account_id
       WHERE u.user_id = $1::uuid`,

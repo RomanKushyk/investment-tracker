@@ -12,6 +12,8 @@ export interface Ledger {
   assets: Asset[];
   transactions: Transaction[];
   userPrices: PriceRow[];
+  /** Per stored day, the latest witness time of its prices in the backup's form, where one is. */
+  savedAt: Record<string, string>;
 }
 
 type AssetRow = {
@@ -45,13 +47,13 @@ type TransactionRow = {
   note: string | null;
 };
 
-type PriceRowText = { asset_id: string; as_of: string; price: string };
+type PriceRowText = { asset_id: string; as_of: string; price: string; observed_at: string | null };
 
 // Each data query joins the caller's LIVE pointer itself, so a staged or dead generation is never
 // read (*User schema and deletes*). Dates and numbers as text: `pg` turns a bare `date` into a
 // local midnight and a `numeric` into a string, PGlite a `numeric` into a number. `created_at` in
 // the backup's form, UTC with no zone.
-const VERSION = `SELECT u.data_version::text AS data_version FROM app_user u WHERE u.user_id = $1`;
+export const VERSION = `SELECT u.data_version::text AS data_version FROM app_user u WHERE u.user_id = $1`;
 const ASSETS = `SELECT a.id, a.name, a.code, a.color_slot, a.yield_type,
                        a.expected_pct::text AS expected_pct, a.target_pct::text AS target_pct,
                        a.payout_schedule, to_char(a.first_purchase, 'YYYY-MM-DD') AS first_purchase,
@@ -70,7 +72,9 @@ const TRANSACTIONS = `SELECT t.id, to_char(t.date, 'YYYY-MM-DD') AS date, t.type
                              t.tax_withheld::text AS tax_withheld, t.note
                         FROM "transaction" t JOIN app_user u ON u.dataset_id = t.dataset_id
                        WHERE u.user_id = $1`;
-const PRICES = `SELECT p.asset_id, to_char(p.as_of, 'YYYY-MM-DD') AS as_of, p.price::text AS price
+const PRICES = `SELECT p.asset_id, to_char(p.as_of, 'YYYY-MM-DD') AS as_of, p.price::text AS price,
+                       to_char(p.observed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+                         AS observed_at
                   FROM user_price p JOIN app_user u ON u.dataset_id = p.dataset_id
                  WHERE u.user_id = $1`;
 
@@ -85,6 +89,14 @@ const CORE_TYPE: Record<string, TxType> = {
   reinvest: 'reinvest',
   redemption: 'redemption',
 };
+
+/** The same names the other way, for a write. */
+export const SCHEMA_TYPE = Object.fromEntries(
+  Object.entries(CORE_TYPE).map(([schema, core]) => [core, schema]),
+) as Record<TxType, string>;
+
+/** `data_version` as the strong tag a write sends back in `If-Match` (RFC 9110 §8.8.3). */
+export const dataTag = (version: string): string => `"${version}"`;
 
 /** ABSENT IS THE ONLY SPELLING OF NONE in core, so a NULL column leaves its key out. */
 const present = <K extends string, V>(key: K, value: V | null): { [P in K]?: V } =>
@@ -123,25 +135,41 @@ const transaction = (r: TransactionRow): Transaction => ({
   ...present('note', r.note),
 });
 
+/** The caller's live assets and transactions, read inside whatever transaction the caller holds:
+ *  what a write checks its ops against. */
+export async function readRows(
+  client: SqlClient,
+  userId: string,
+): Promise<{ assets: Asset[]; transactions: Transaction[] }> {
+  const assets = await client.query<AssetRow>(ASSETS, [userId]);
+  const transactions = await client.query<TransactionRow>(TRANSACTIONS, [userId]);
+  return { assets: assets.rows.map(asset), transactions: transactions.rows.map(transaction) };
+}
+
 /** The caller's version and rows from ONE SNAPSHOT, so a write between two statements cannot pair
  *  an old version with new rows. Read-only: nothing here writes. */
 export async function readLedger(client: SqlClient, userId: string): Promise<Ledger> {
   await client.query('START TRANSACTION READ ONLY');
   try {
     const version = await client.query<{ data_version: string }>(VERSION, [userId]);
-    const assets = await client.query<AssetRow>(ASSETS, [userId]);
-    const transactions = await client.query<TransactionRow>(TRANSACTIONS, [userId]);
+    const rows = await readRows(client, userId);
     const prices = await client.query<PriceRowText>(PRICES, [userId]);
     await client.query('COMMIT');
+    // The same form on every row, so the latest compares as text.
+    const savedAt: Record<string, string> = {};
+    for (const { as_of: day, observed_at: at } of prices.rows) {
+      const seen = Object.hasOwn(savedAt, day) ? savedAt[day] : undefined;
+      if (at !== null && (seen === undefined || at > seen)) savedAt[day] = at;
+    }
     return {
       dataVersion: version.rows[0].data_version,
-      assets: assets.rows.map(asset),
-      transactions: transactions.rows.map(transaction),
+      ...rows,
       userPrices: prices.rows.map((p) => ({
         assetId: p.asset_id,
         asOf: p.as_of,
         price: Number(p.price),
       })),
+      savedAt,
     };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => undefined);

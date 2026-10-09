@@ -2,7 +2,13 @@
 // that values anything, each asset at that day's `units × price`, the price the latest observation
 // at or before the day from either source (*Derived figures and the seed*). No I/O.
 import { dayBefore } from './dates';
-import { holdsNone, ledgerUnits, type ObservedPrice, type PriceSource } from './derive';
+import {
+  heldValueOf,
+  holdsNone,
+  ledgerUnits,
+  type ObservedPrice,
+  type PriceSource,
+} from './derive';
 import { PERIOD_OPTIONS } from './period';
 import type { Asset, Snapshot, Transaction } from './types';
 import { windowView } from './view/window';
@@ -137,4 +143,66 @@ export function rebuildSnapshots(
     if (w !== undefined) forced.add(dayBefore(w.from));
   }
   return valueDays(txs, series, { observed, forced });
+}
+
+/** One asset's per-unit price, the shape a stored snapshot takes. */
+export interface UnitPrice {
+  assetId: string;
+  price: number;
+}
+
+/** Each ₴ quote over the units held that day, the inverse of a rebuilt quote. A quote of a position
+ *  held none of, never held, or valued at nothing has no such price: it is dropped by name. */
+export function pricesOfQuotes(
+  quotes: Readonly<Record<string, number>>,
+  units: Readonly<Record<string, number>>,
+): { prices: UnitPrice[]; dropped: string[] } {
+  const prices: UnitPrice[] = [];
+  const dropped: string[] = [];
+  for (const assetId of Object.keys(quotes).sort()) {
+    const held = heldValueOf(units, assetId);
+    const value = quotes[assetId];
+    if (held !== undefined && held > 0 && value > 0) prices.push({ assetId, price: value / held });
+    else dropped.push(assetId);
+  }
+  return { prices, dropped };
+}
+
+/** A day's prices on another day: each the value it had at the first day's units, over the second's. */
+export function movedPrices(
+  prices: readonly UnitPrice[],
+  unitsFrom: Readonly<Record<string, number>>,
+  unitsTo: Readonly<Record<string, number>>,
+): { prices: UnitPrice[]; dropped: string[] } {
+  const quotes: Record<string, number> = {};
+  for (const { assetId, price } of prices) {
+    quotes[assetId] = round2((heldValueOf(unitsFrom, assetId) ?? 0) * price);
+  }
+  return pricesOfQuotes(quotes, unitsTo);
+}
+
+/** The snapshots stored prices describe, one per day in date order: each position held that day at
+ *  `units × price` in kopecks, as `rebuildSnapshots` rounds it, and the day's witness time where
+ *  `savedAt` has one. Every stored day is one, a day a later row left valuing nothing quoting nothing. */
+export function snapshotsOfPrices(
+  txs: Transaction[],
+  rows: readonly PriceRow[],
+  savedAt: Readonly<Record<string, string>>,
+): Snapshot[] {
+  const byDay = new Map<string, PriceRow[]>();
+  for (const row of rows) {
+    let day = byDay.get(row.asOf);
+    if (day === undefined) byDay.set(row.asOf, (day = []));
+    day.push(row);
+  }
+  return [...byDay.keys()].sort().map((date) => {
+    const units = ledgerUnits(txs, date).units;
+    const quotes: Record<string, number> = {};
+    for (const { assetId, price } of byDay.get(date) ?? []) {
+      const held = heldValueOf(units, assetId);
+      if (held !== undefined && held > 0) quotes[assetId] = round2(held * price);
+    }
+    const saved = Object.hasOwn(savedAt, date) ? { savedAt: savedAt[date] } : {};
+    return { date, quotes, ...saved };
+  });
 }

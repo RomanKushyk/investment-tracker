@@ -799,6 +799,23 @@ the derivation identifier — while a write's precondition is `data_version` alo
 `private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
 HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
 ships uncompressed until a first-paint measurement says otherwise.
+THE WRITE IS `POST /mutations` AND THE EXPORT `GET /state`, one function behind the same gate. A
+write is a list of ops — `asset.add`, `.patch`, `.delete`, `.prune`, `transaction.add`, `.patch`,
+`.delete`, `snapshot.put`, `.delete`, `.move` and `dataset.clear`, and no `account.*` — applied in
+order in ONE TRANSACTION, each op seeing those before it and two allowed on one entity; it lands
+whole or not at all, and a refusal names the index of the op that failed. A patch is a JSON merge
+patch, `null` removing a member, and the merged row is validated whole by core's row schemas. A body
+past its byte bound is 413 and more ops than its op bound 400; more mutated rows than its row bound,
+which sits under DSQL's per-transaction ceiling, is 409 `too_many_rows` with the count, as is the
+cluster's own `54000`; each refusal names its bound. The write's precondition is the STRONG tag
+`"<data_version>"`: no `If-Match`, or `*`, is 428, a stale one 412, and the 200 carries the new tag in
+its `etag` header and in its body. `/view`'s body carries the current one as `etag`, beside its own
+weak validator. `GET /state` answers the live dataset in the model's shape under that tag,
+`private, no-store`. A SNAPSHOT IS STORED AS PER-UNIT PRICES: `snapshot.put` divides each quote by
+the units held that day and drops, naming it, one whose units or value is not above zero;
+`snapshot.move` revalues each price at the old day's units and divides it by the new day's, onto a day
+with nothing stored; and the export rebuilds one snapshot per stored day from those prices alone, a
+day a later edit left valuing nothing quoting nothing, `savedAt` the day's latest witness time.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -826,7 +843,17 @@ sends its deployment id as a header. A header takes no `X-` (RFC 6648). The date
 every nightly capture moves without changing the dates. The lookback only bounds
 the SQL window, wider than any gap between two of the archive's observations of one ref, since a
 cutoff on carrying a price is rejected (*Derived figures and the seed*). API Gateway's HTTP APIs do
-not compress.
+not compress. RFC 9110 §8.8 has a successful state-changing request's validator describe the new
+state, so writes chain without a read between them; `If-Match` compares strongly, and `*` is refused
+before that comparison, which counts it a match, because RFC 6585 §3's 428 is for a request that
+names no state. A request is one transaction because its effect and its stored response must commit
+together (*User schema and deletes*), and applying ops in order defines what two on one entity mean,
+as JSON:API's atomic extension, Spanner and Datastore do. The tag names no caller and every user's
+first is `"0"`, so a browser that kept one user's export could revalidate it for the next: no cache
+keeps it. The quotes screen saves a quote for a position held none of on purpose, and no per-unit
+price reproduces one, so it is dropped rather than refused. A day a later edit left valuing nothing is
+exported with nothing quoted, so nothing stored is out of the client's sight; its price stays, as
+`/view` reads it, and no op writes such a day back, a gap an import inherits.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -836,8 +863,12 @@ fixed list of table names: it ran before the capture had created a fresh archive
 newly added one, and failed the deploy. · Revoking each extra privilege by its source: a source the
 sweep does not name survives it, and there is always another to name. · One validator for the read
 and the write: a weak tag never satisfies `If-Match`. · A hash of the body as the read's tag: it
-rebuilds the body to answer a 304. · `must-revalidate`. · A version field in the body. · Copying the
-model route's exact `If-None-Match` comparison: a tag sent without its `W/` must still match.
+rebuilds the body to answer a 304. · `must-revalidate`. · A deployment version in the body: AIP-185
+versions an API, and the data tag `/view`'s body carries is a precondition a client sends back, not
+the version of anything deployed. · Copying the model route's exact `If-None-Match` comparison: a
+tag sent without its `W/` must still match. · Refusing two ops on one entity, as DynamoDB and Azure
+do: neither gives a reason, and in-order application already defines the result. · Retrying a 412:
+it is the precondition doing its work.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
@@ -1069,7 +1100,10 @@ in the deployed bundle, so every migration MUST BE WRITTEN expand/contract-compa
 already running — the ordering imposes that on each migration's author, and nothing in the pipeline
 can check it.
 Foreign keys are `ON DELETE RESTRICT`, never cascading, and deleting an asset is an APPLICATION
-cascade, children before the parent, in batches. A user, their one account and their live dataset
+cascade inside the request's one transaction, children before the parent: `asset.delete` counts the
+asset's rows first and is refused with that count when they would pass the request's row bound, and
+`asset.prune` deletes as many as the bound leaves, prices first and then transactions newest first,
+and answers how many remain, so each step the client drives leaves a valid dataset. A user, their one account and their live dataset
 are written in the SAME transaction by the gate's open-registration insert, by approval's rekey and
 by the bootstrap mode — each idempotent, so a re-run leaves one account and one dataset. The
 gate's and the bootstrap's retry on a serialization failure; approval's does not, a retry there
@@ -1088,11 +1122,23 @@ THREE JOINS THE CALLER'S LIVE POINTER ITSELF — `JOIN app_user u ON u.dataset_i
 own conditions — `WHERE` and inner-join conjuncts and `=` key-sets — do not tie each data table to
 that pointer, or that reads a data table's own `user_id`; each such statement also has a test
 against a second generation. Moving the live pointer off a dataset bumps `data_version` in the same
-row update, `/view`'s tag being composed from the version and not the pointer. Every account holder
+transaction, `/view`'s tag being composed from the version and not the pointer; `dataset.clear`
+moves it to a new, empty dataset in one request, whatever the old one holds. Every account holder
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
 writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
 and key, restricted on the user's delete; a row holds a claim's token and window, and its stored
-response whole or not at all. A SCHEMA THE CODE WILL NEED SHIPS A MERGE BEFORE THAT CODE, the code
+response whole or not at all. EVERY WRITE CARRIES AN `Idempotency-Key`, a UUID unique per user and
+read lowercased; one missing or malformed is 400, and the bounds and its format are checked before
+anything is claimed. A CLAIM COMMITS FIRST, in a transaction of its own, under a token of the
+request's; the effect, the version bump and the stored response then commit together, under that
+token. The same fingerprint — the method, the route and the decoded body canonicalised as RFC 8785
+does, `If-Match` left out — replays the stored response; another body is 422 `key_reused`; a live
+claim is 409 `request_in_flight`; a claim past its window, which outlasts the function's timeout, or
+a key past its lifetime, is taken over by a compare-and-set on its token. ONLY A SUCCESS IS STORED: a
+refusal releases the claim. Each later success deletes a bounded number of the caller's expired keys
+in a statement of its own, its failure logged, and nothing sweeps on a schedule. A serialization
+failure, `40001` or `XX000`, is retried after short delays, the key row read first, which answers a
+commit that landed under the error; a stale `If-Match` is 412, never 409, and never retried. A SCHEMA THE CODE WILL NEED SHIPS A MERGE BEFORE THAT CODE, the code
 being live before the schema — except a table no deployed code writes, which may be recreated in the
 merge that switches its reader, the reader failing until the migration applies. A migration that
 drops a table refuses first while it holds a row. A version cut carries every merge since the last
@@ -1100,9 +1146,15 @@ one, so production meets each window at once: approval, the bootstrap and an ope
 for the cut's migrations.
 **Why.** Generated DDL carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
 file that fails partway cannot be retried — the retry dies on the first statement, which already
-exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
-batching is the only shape that works; a cascading key would not remove it, cascaded rows counting
-against the same ceiling. `transaction.account_id` is NOT NULL against a composite key, so a user
+exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, while
+a request is one transaction so that it lands whole; so an asset that does not fit is refused and
+emptied in steps the client drives, as AIP-135 refuses a delete while children are present and S3
+deletes only an empty bucket. A cascading key would not remove the ceiling, cascaded rows counting
+against it. The key is resolved before the precondition because a retry of a request that landed
+carries a tag gone stale by then; the claim commits apart from the effect so two requests holding
+one key cannot both apply, Brandur's separate phase and Powertools' in-progress record; and the
+stored response commits with the effect because DSQL can answer an error for a transaction that
+committed, the Builders' Library's rule that the token and the mutation are one ACID operation. `transaction.account_id` is NOT NULL against a composite key, so a user
 without an account is not an empty state any screen can render — every write is refused — and both
 rows living in one database makes one transaction the whole answer to a partial failure. `ON
 CONFLICT DO NOTHING` prevents a duplicate row and not the commit-time conflict optimistic
@@ -1135,7 +1187,10 @@ life, so a widened vocabulary would be a rule the rows already there were never 
 bound on the rehearsal, replaying only what the plan reported pending: the ledger a rehearsal reads
 is the empty one inside its own throwaway schema, so the files a bound would skip are the ones the
 rest resolve against. · A raised runner `Timeout`: it already sits at the service maximum, so there
-is no headroom to buy.
+is no headroom to buy. · Steps inside one request that commit on their own: the request would land
+in part, which no stored response describes. · Storing a refusal: a corrected request under the
+same key would replay it. · A scheduled sweep of expired keys: *Alerting* prices a scheduled
+function at two alarms, and a key costs nothing until its owner writes again.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only
