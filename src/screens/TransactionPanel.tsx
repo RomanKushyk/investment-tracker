@@ -47,6 +47,7 @@ import {
 import { shortLabel } from './daily-quotes/quotes';
 import { useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';
+import { rowAhead, useRowsAhead } from '../hooks/useRowsAhead';
 import { useT } from '../i18n/useT';
 
 // ORDER is a design decision and stays here; the LABELS are looked up, because
@@ -259,6 +260,8 @@ export function TransactionPanel() {
   const updateAsset = useUpdateAsset();
   // WHICH ROW IS ASKING — one id, because two rows asking at once is a state the screen has no use for.
   const [confirmingId, setConfirmingId] = useState<string | undefined>(undefined);
+  // A row dated after today counts in no figure, so the ledger marks it until its day.
+  const rows = useRowsAhead();
 
   const form = useForm<TransactionFormInput, unknown, TransactionFormValues>({
     // THE LANGUAGE IS A PARSE RULE HERE, not only a display one: a lone comma is the
@@ -962,11 +965,17 @@ export function TransactionPanel() {
         </form>
       </Card>
 
-      {/* NO WIDTH CAP — THE TRACK IS THE BOUND. The old cap protected nothing and
-          opened a dead strip between the ledger and the form; it had been removed and
-          argued back once before, and `transactions-layout.test.ts` pins the absence
-          on this card's own class string. */}
-      <Card ref={ledgerRef} className="min-w-0 py-4 lg:col-start-1 lg:row-start-1">
+      {/* NO WIDTH CAP — THE TRACK IS THE BOUND: a cap opens a dead strip between the ledger and
+          the form, and `transactions-layout.test.ts` pins its absence on this card's class string. */}
+      {/* The pointer is read on the card, so its scrollbar is not "leaving", and on a move too,
+          since a pointer resting here at mount fires no enter. */}
+      <Card
+        ref={ledgerRef}
+        className="min-w-0 py-4 lg:col-start-1 lg:row-start-1"
+        onPointerEnter={rows.enter}
+        onPointerMove={rows.enter}
+        onPointerLeave={rows.leave}
+      >
         <Scroller
           radius={20}
           className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft lg:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
@@ -995,6 +1004,7 @@ export function TransactionPanel() {
               // refuses anything but an `interest_payout` on its own asset.
               const asset = targetsAsset(tx.type) ? assetById.get(tx.assetId) : undefined;
               const asking = confirmingId === tx.id;
+              const ahead = rowAhead(tx.date, rows.mark, rows.today);
               return (
                 // THE ROW IS TWO LINES NOW, and the boundary moved out with it: the hairline,
                 // the padding and the `first:` exception belong to the WHOLE record, or a noted
@@ -1035,11 +1045,22 @@ export function TransactionPanel() {
                       </>
                     ) : (
                       <>
-                        <span className="min-w-0 flex-1 truncate">
-                          {tx.type === 'interest_payout'
-                            ? t.transaction.recentCoupon
-                            : t.transaction.types[tx.type]}{' '}
-                          · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
+                        {/* From `xl` the chip follows the label's text, which shrinks and keeps its
+                            ellipsis; below, line 1 is too narrow for both (`rows-ahead-mark.dc.html`). */}
+                        <span className="flex min-w-0 flex-1 items-center gap-2.5">
+                          <span className="min-w-0 truncate">
+                            {tx.type === 'interest_payout'
+                              ? t.transaction.recentCoupon
+                              : t.transaction.types[tx.type]}{' '}
+                            · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
+                          </span>
+                          {ahead.wide && (
+                            <AheadChip
+                              state={ahead.wide}
+                              date={tx.date}
+                              className="hidden flex-none xl:block"
+                            />
+                          )}
                         </span>
                         {/* THE COUNT, AND ONLY WHERE ONE IS POSSIBLE. The fetch reports which assets it
                             had to value from a stale stored total, and this is where that report is
@@ -1054,7 +1075,13 @@ export function TransactionPanel() {
                             {tx.quantity === undefined ? '—' : f.units(tx.quantity)}
                           </span>
                         )}
-                        <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
+                        {/* Bold once the row counts, as a scheduled row turns bold on its date in
+                            YNAB's register; the chip is the second cue. */}
+                        <strong
+                          className={`whitespace-nowrap ${ahead.narrow === 'in' ? 'max-xl:font-normal' : ''} ${ahead.wide === 'in' ? 'xl:font-normal' : ''}`}
+                        >
+                          {f.money(tx.amount)}
+                        </strong>
                         <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
                         {/* HOVER REVEALS IT ON A POINTER, because always-on glyphs on every row are
                             noise on a desktop and a hover-only control does not exist on a phone.
@@ -1071,6 +1098,19 @@ export function TransactionPanel() {
                       </>
                     )}
                   </div>
+                  {/* The chip's own line below `xl`, on every row so it folds as the sidebar's
+                      groups do; its innermost box holds the height a held line keeps once empty. */}
+                  {!asking && (
+                    <div
+                      className={`grid transition-[grid-template-rows] ease-soft xl:hidden ${ahead.open ? 'grid-rows-[1fr] duration-300' : 'grid-rows-[0fr] duration-220'}`}
+                    >
+                      <div inert={!ahead.open || undefined} className="min-h-0 overflow-hidden">
+                        <div className="flex min-h-[21px] items-start pt-0.5">
+                          {ahead.narrow && <AheadChip state={ahead.narrow} date={tx.date} />}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* THE WITHHOLDING, READ BACK. It was stored on the row and derived into three
                       totals with no screen showing it as itself, so a figure small enough to pass
                       `tax_withheld < amount` understated the tax and lifted the asset's XIRR with
@@ -1114,5 +1154,28 @@ export function TransactionPanel() {
         </Scroller>
       </Card>
     </>
+  );
+}
+
+/** The quote row's micro-chip in `info`, with no entrance of its own, so «Ні» brings it back as it
+ *  was; fading out, it leaves the accessibility tree with its opacity. */
+function AheadChip({
+  state,
+  date,
+  className = '',
+}: {
+  state: 'in' | 'out';
+  date: string;
+  className?: string;
+}) {
+  const t = useT();
+  const f = useFormat();
+  return (
+    <span
+      title={t.transaction.aheadTitle(f.date(date))}
+      className={`rounded-[5px] bg-info-tint px-2 py-[2px] text-[10px] font-bold tracking-[.08em] whitespace-nowrap text-info-tint-text uppercase transition-[opacity,visibility] duration-220 ease-soft ${state === 'out' ? 'invisible opacity-0' : ''} ${className}`}
+    >
+      {t.transaction.ahead}
+    </span>
   );
 }

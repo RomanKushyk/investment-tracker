@@ -275,3 +275,14 @@ describe('the not-found and failure states', () => {
     }
   });
 });
+
+describe('the rows-ahead chip', () => {
+  // The owner's words on #358 ("listed, marked as not yet counted"); the title names the row's
+  // own date in full (`rows-ahead-mark.dc.html`).
+  it('says not yet counted, and from which day, in both languages', () => {
+    expect(en.transaction.ahead).toBe('Not yet counted');
+    expect(uk.transaction.ahead).toBe('Ще не враховано');
+    expect(en.transaction.aheadTitle('12 Oct 2026')).toBe('Counts from 12 Oct 2026.');
+    expect(uk.transaction.aheadTitle('12.10.2026')).toBe('Враховується з 12.10.2026.');
+  });
+});

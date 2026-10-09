@@ -946,11 +946,15 @@ export const en = {
     withholdingNotPositive: 'The withholding has to be a positive number.',
     withholdingUnreadable: 'Enter a number.',
     withholdingAboveAmount: 'The withholding has to be smaller than the amount.',
-    // THE LEDGER ROW'S OWN LINE (#138). The withheld half arrives already signed,
+    // THE LEDGER ROW'S OWN LINE. The withheld half arrives already signed,
     // through `signedMoney`, so this template carries no glyph of its own; the net
     // half reuses the wording `analytics.prose.netOfTax` settled. «Утримано» is
     // deliberately absent — spelled out, the row overruns on a four-figure payout.
     withheldAndNet: (withheld: string, net: string) => `${withheld} · net of tax ${net}`,
+    // The chip on a row dated after today, which counts in no figure until its day; the title
+    // takes the row's own date in full.
+    ahead: 'Not yet counted',
+    aheadTitle: (date: string) => `Counts from ${date}.`,
     note: 'Note',
     notePlaceholder: 'What this row was',
     noteTooLong: 'A note is at most 100 characters of text.',
@@ -1975,6 +1979,8 @@ export const uk: Dict = {
     withholdingUnreadable: 'Вкажіть число.',
     withholdingAboveAmount: 'Утриманий податок має бути меншим за суму.',
     withheldAndNet: (withheld: string, net: string) => `${withheld} · після податку ${net}`,
+    ahead: 'Ще не враховано',
+    aheadTitle: (date: string) => `Враховується з ${date}.`,
     note: 'Нотатка',
     notePlaceholder: 'Про що цей запис',
     noteTooLong: 'Нотатка — не більше 100 символів тексту.',
