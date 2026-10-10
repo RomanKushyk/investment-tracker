@@ -46,9 +46,9 @@ export const BALANCES_ROUTE = 'GET /view/balances';
  *  §5.2.2.2). */
 const CACHE_POLICY = 'private, no-cache';
 
-/** What a script on another origin may read: neither is CORS-safelisted, and with credentials a
- *  `*` names a header called `*`. The template's `ExposeHeaders` is held to this. */
-export const EXPOSED = ['derivation-id', 'etag'] as const;
+/** What a script on another origin may read, the import's begin naming what it made: none is
+ *  CORS-safelisted, and with credentials `*` names a header `*`. The template is held to this. */
+export const EXPOSED = ['derivation-id', 'etag', 'location'] as const;
 
 const VIEWED = derived({
   statusCode: 200,

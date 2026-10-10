@@ -31,6 +31,14 @@ import {
 } from './auth-relay';
 import { type ApiResult, type Declared, made } from './http';
 import {
+  BEGIN_BODY,
+  BEGIN_ROUTE,
+  PARAMETERS as IMPORT_PARAMETERS,
+  PART_BODY,
+  PART_ROUTE,
+  RESPONSES as IMPORT_RESPONSES,
+} from './imports';
+import {
   BODY as MUTATIONS_BODY,
   MUTATIONS_ROUTE,
   PARAMETERS as MUTATIONS_PARAMETERS,
@@ -65,7 +73,8 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'approve.handler': ADMIN_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
-  'mutations.handler': MUTATIONS_RESPONSES,
+  // The write, the export and the staged import share one function.
+  'mutations.handler': { ...MUTATIONS_RESPONSES, ...IMPORT_RESPONSES },
 };
 
 /** Keyed by route, not by handler: a second event on one function would otherwise attach a
@@ -79,6 +88,8 @@ const BODIES: Record<string, unknown> = {
   [PASSKEY_START_ROUTE]: PASSKEY_BODY,
   [PASSKEY_COMPLETE_ROUTE]: PASSKEY_COMPLETE_BODY,
   [MUTATIONS_ROUTE]: MUTATIONS_BODY,
+  [BEGIN_ROUTE]: BEGIN_BODY,
+  [PART_ROUTE]: PART_BODY,
 };
 
 type Operation = {
@@ -109,6 +120,7 @@ const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
   ...RELAY_PARAMETERS,
   ...VIEW_PARAMETERS,
   ...MUTATIONS_PARAMETERS,
+  ...IMPORT_PARAMETERS,
 };
 
 export type OpenApiDocument = {

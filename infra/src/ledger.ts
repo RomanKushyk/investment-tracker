@@ -93,6 +93,42 @@ export const SCHEMA_TYPE = Object.fromEntries(
   Object.entries(CORE_TYPE).map(([schema, core]) => [core, schema]),
 ) as Record<TxType, string>;
 
+// THE WRITE'S DIRECTION, a row's bind values in the column order every insert and update names,
+// for the two modules that write rows: the mutation ops and the staged import.
+/** The model's timestamps carry no zone; the cluster's clock is UTC. */
+export const utc = (at: string) => `${at}Z`;
+const text = (n: number | undefined) => (n === undefined ? null : String(n));
+
+/** An asset's columns after its id: name through created_at. */
+export const assetColumns = (a: Asset) => [
+  a.name,
+  a.code,
+  COLOR_KEYS.indexOf(a.colorKey),
+  a.yieldType,
+  String(a.expectedPct),
+  String(a.targetPct),
+  a.payoutSchedule,
+  a.firstPurchase,
+  a.maturity ?? null,
+  text(a.couponAmount),
+  text(a.couponRatePct),
+  a.nextCoupon ?? null,
+  a.inzhur?.kind ?? null,
+  a.inzhur?.ref ?? null,
+  utc(a.createdAt),
+];
+/** A transaction's columns after its id: date through note; a portfolio row names no asset. */
+export const transactionColumns = (t: Transaction) => [
+  t.date,
+  SCHEMA_TYPE[t.type],
+  String(t.amount),
+  t.assetId === '' ? null : t.assetId,
+  text(t.quantity),
+  text(t.unitPrice),
+  text(t.taxWithheld),
+  t.note ?? null,
+];
+
 /** `data_version` as the strong tag a write sends back in `If-Match` (RFC 9110 §8.8.3). */
 export const dataTag = (version: string): string => `"${version}"`;
 

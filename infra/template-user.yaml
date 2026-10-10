@@ -450,6 +450,18 @@ Resources:
         'GET /state':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'POST /imports':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'PUT /imports/{id}/parts/{part}':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /imports/{id}/commit':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'DELETE /imports/{id}':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
       # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
       # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
@@ -465,17 +477,33 @@ Resources:
               https://www.quirenote.com,
               https://main.d17m4jf400my6.amplifyapp.com,
             ]
-          AllowMethods: [GET, POST, OPTIONS]
+          AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
           AllowHeaders:
-            [authorization, content-type, idempotency-key, if-match, if-none-match, x-csrf]
-          ExposeHeaders: [derivation-id, etag]
+            [
+              authorization,
+              content-digest,
+              content-type,
+              idempotency-key,
+              if-match,
+              if-none-match,
+              x-csrf,
+            ]
+          ExposeHeaders: [derivation-id, etag, location]
           AllowCredentials: true
           MaxAge: 600
         - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
-          AllowMethods: [GET, POST, OPTIONS]
+          AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
           AllowHeaders:
-            [authorization, content-type, idempotency-key, if-match, if-none-match, x-csrf]
-          ExposeHeaders: [derivation-id, etag]
+            [
+              authorization,
+              content-digest,
+              content-type,
+              idempotency-key,
+              if-match,
+              if-none-match,
+              x-csrf,
+            ]
+          ExposeHeaders: [derivation-id, etag, location]
           AllowCredentials: true
           MaxAge: 600
       Domain:
@@ -834,6 +862,40 @@ Resources:
             ApiId: !Ref PublicApi
             Method: GET
             Path: /state
+            Auth:
+              Authorizer: CognitoJwt
+        # The staged import (`imports.ts`), shaped as S3's multipart upload: begin, a part by
+        # number, commit, abort.
+        ImportBegin:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /imports
+            Auth:
+              Authorizer: CognitoJwt
+        ImportPart:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: PUT
+            Path: /imports/{id}/parts/{part}
+            Auth:
+              Authorizer: CognitoJwt
+        ImportCommit:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /imports/{id}/commit
+            Auth:
+              Authorizer: CognitoJwt
+        ImportAbort:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: DELETE
+            Path: /imports/{id}
             Auth:
               Authorizer: CognitoJwt
 

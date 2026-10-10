@@ -203,3 +203,32 @@ export const refusingCommit = (
 };
 
 export const refusingFirstCommit = (db: PGlite, code: string) => refusingCommit(db, code);
+
+/** DSQL's per-transaction row ceiling, lowered, which PGlite does not have: `peak` is the most
+ *  rows one transaction mutated, past the ceiling `54000`. */
+export const ceilingClient = (db: PGlite, ceiling: number) => {
+  const seen = { peak: 0 };
+  let open = false;
+  let used = 0;
+  const client: SqlClient = {
+    query: async <R>(text: string, values?: unknown[]) => {
+      const verb = text.trimStart().split(/\s/, 1)[0].toUpperCase();
+      if (verb === 'BEGIN' || verb === 'START') {
+        open = true;
+        used = 0;
+      }
+      const result = await db.query<R>(text, values);
+      if (verb === 'COMMIT' || verb === 'ROLLBACK') open = false;
+      if (verb === 'INSERT' || verb === 'UPDATE' || verb === 'DELETE') {
+        if (!open) used = 0;
+        used += result.affectedRows ?? 0;
+        seen.peak = Math.max(seen.peak, used);
+        if (used > ceiling) {
+          throw Object.assign(new Error('transaction row limit exceeded'), { code: '54000' });
+        }
+      }
+      return result as { rows: R[] };
+    },
+  };
+  return { client, seen };
+};

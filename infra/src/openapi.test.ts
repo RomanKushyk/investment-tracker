@@ -40,6 +40,16 @@ import {
 } from './auth-relay';
 import { INVALID, bodiless, derived } from './http';
 import {
+  ABORT_ROUTE,
+  BEGIN_BODY,
+  BEGIN_ROUTE,
+  COMMIT_ROUTE,
+  PARAMETERS as IMPORT_PARAMETERS,
+  PART_BODY,
+  PART_ROUTE,
+  RESPONSES as IMPORT_RESPONSES,
+} from './imports';
+import {
   BODY as MUTATIONS_BODY,
   MUTATIONS_ROUTE,
   PARAMETERS as MUTATIONS_PARAMETERS,
@@ -171,7 +181,8 @@ const declarationsInSource = () =>
               )?.initializer
             : undefined;
         const name = field('name');
-        const status = node.expression.text === 'bodiless' ? undefined : field('statusCode');
+        // A bodiless call names its status only when it is not 304.
+        const status = field('statusCode');
         // A call this cannot read is refused rather than stepped over.
         if (
           name === undefined ||
@@ -221,6 +232,7 @@ describe('the document is regenerated, never typed', () => {
       './approve',
       './auth-relay',
       './http',
+      './imports',
       './mutations',
       './view',
       'node:fs',
@@ -288,6 +300,7 @@ describe('every answer a handler can give is in the document', () => {
     const found = declarationsInSource().map((d) => `${d.file} ${d.status} ${d.name}`);
     expect(found).toContain('auth-relay.ts 200 tokens');
     expect(found).toContain('view.ts 304 not_modified');
+    expect(found).toContain('imports.ts 204 aborted');
   });
 });
 
@@ -298,6 +311,7 @@ const DECLARED = {
   ...RELAY_RESPONSES,
   ...VIEW_RESPONSES,
   ...MUTATIONS_RESPONSES,
+  ...IMPORT_RESPONSES,
 };
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
@@ -370,6 +384,8 @@ describe('each operation publishes its own route’s answers', () => {
       [PASSKEY_START_ROUTE, PASSKEY_BODY],
       [PASSKEY_COMPLETE_ROUTE, PASSKEY_COMPLETE_BODY],
       [MUTATIONS_ROUTE, MUTATIONS_BODY],
+      [BEGIN_ROUTE, BEGIN_BODY],
+      [PART_ROUTE, PART_BODY],
     ]);
   });
 
@@ -395,6 +411,23 @@ describe('every route that is published is proved, by mechanism rather than by h
   // lives in that handler's own test file, where the branches are already driven — but
   // nothing REQUIRED a handler's file to carry one, so a new route could be published proved
   // only "documented somewhere". Derived from the template through `ANSWERS`.
+  // A HANDLER CAN ANSWER FOR A SECOND MODULE: `mutations.handler` serves the import's routes from
+  // `imports.ts`, whose proof the line above cannot see. So every module that declares answers
+  // proves them in its own test file, found by what it exports rather than by a list.
+  it('makes every module that declares a route’s answers prove them', () => {
+    const declaring = SOURCES.filter((file) =>
+      /export const RESPONSES\b/.test(
+        stripTs(readFileSync(new URL(`./${file}`, import.meta.url), 'utf8'), file),
+      ),
+    );
+    expect(declaring).toContain('imports.ts');
+    for (const file of declaring) {
+      const test = file.replace(/\.ts$/, '.test.ts');
+      const text = stripTs(readFileSync(new URL(`./${test}`, import.meta.url), 'utf8'), test);
+      expect([test, text.includes('proveRouteContract(')]).toEqual([test, true]);
+    }
+  });
+
   it('makes every handler that owns a route prove it', () => {
     for (const handler of Object.keys(ANSWERS)) {
       const file = `${handler.replace('.handler', '')}.test.ts`;
@@ -429,7 +462,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the seventeen routes and no others', () => {
+  it('declares the twenty-one routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -441,6 +474,10 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         BALANCES_ROUTE,
         MUTATIONS_ROUTE,
         STATE_ROUTE,
+        BEGIN_ROUTE,
+        PART_ROUTE,
+        COMMIT_ROUTE,
+        ABORT_ROUTE,
       ].sort(),
     );
   });
@@ -470,6 +507,10 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       BALANCES_ROUTE,
       MUTATIONS_ROUTE,
       STATE_ROUTE,
+      BEGIN_ROUTE,
+      PART_ROUTE,
+      COMMIT_ROUTE,
+      ABORT_ROUTE,
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
@@ -544,6 +585,35 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ['If-None-Match', false],
       ['If-Match', false],
     ]);
+  });
+
+  // A PART CARRIES ITS DIGEST AND A COMMIT ITS PRECONDITION, each refused without; the import is
+  // named in the path, and a part by its number.
+  it('publishes the import’s path names, the part’s digest and the commit’s precondition', () => {
+    const paramsOf = (route: string) => {
+      const [method, path] = route.split(' ');
+      return spec.paths[path][method.toLowerCase()].parameters;
+    };
+    const path = (name: string) => ({
+      name,
+      in: 'path',
+      required: true,
+      schema: { type: 'string' },
+    });
+    expect(paramsOf(BEGIN_ROUTE)).toBeUndefined();
+    expect(paramsOf(PART_ROUTE)).toEqual([
+      path('id'),
+      path('part'),
+      ...IMPORT_PARAMETERS[PART_ROUTE],
+    ]);
+    expect(IMPORT_PARAMETERS[PART_ROUTE].map((p) => [p.name, p.required])).toEqual([
+      ['Content-Digest', true],
+    ]);
+    expect(paramsOf(COMMIT_ROUTE)).toEqual([path('id'), ...IMPORT_PARAMETERS[COMMIT_ROUTE]]);
+    expect(IMPORT_PARAMETERS[COMMIT_ROUTE].map((p) => [p.name, p.required])).toEqual([
+      ['If-Match', true],
+    ]);
+    expect(paramsOf(ABORT_ROUTE)).toEqual([path('id')]);
   });
 
   // THE TWO PARAMETERIZED READS: the period from core's closed list and required, since a stale

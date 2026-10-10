@@ -1,5 +1,6 @@
 // The shape every route on this API speaks, in one place, for the reason `address.ts` gives for
 // the address rule: a second `json()` would be a second answer to what this API returns.
+import { MAX_BODY_BYTES } from '@quirenote/core/ops';
 
 /** EVERY FIELD IS OPTIONAL, because they arrive per route rather than per request: the
  *  unauthenticated application has a body and no claims, the admin routes have claims and a path
@@ -47,10 +48,15 @@ export const INVALID = json(400, '{"error":"invalid_request"}');
 export const INTERNAL = json(500, '{"error":"internal"}');
 /** RFC 9110 §15.5.13, a precondition the request carried that the current state fails. */
 export const PRECONDITION_FAILED = json(412, '{"error":"precondition_failed"}');
+/** RFC 6585 §3: a write that names no state it expects; `*` matches whatever exists, so it is
+ *  none. */
+export const PRECONDITION_REQUIRED = json(428, '{"error":"precondition_required"}');
+/** A body past core's `MAX_BODY_BYTES`, which the routes that take one share. */
+export const TOO_LARGE = json(413, '{"error":"payload_too_large","max":1048576}');
 
-/** A 304: headers and NO BODY KEY. It is a null-body status, and `body: ''` is still a body, which
- *  an adapter answers with a 500. */
-export type EmptyResult = { statusCode: 304; headers: Record<string, string> };
+/** A 304 or a 204: headers and NO BODY KEY. Each is a null-body status, and `body: ''` is still a
+ *  body, which an adapter answers with a 500. */
+export type EmptyResult = { statusCode: 204 | 304; headers: Record<string, string> };
 
 /** AN ANSWER BUILT PER REQUEST, declared once beside the fixed ones so the document and the
  *  route's proof can name it with no literal to read. `name` keys its example in the document and
@@ -63,7 +69,7 @@ export type Derived<H extends Lowercase<string> = Lowercase<string>> = Readonly<
   example: unknown;
 }>;
 export type Bodiless<H extends Lowercase<string> = Lowercase<string>> = Readonly<{
-  statusCode: 304;
+  statusCode: 204 | 304;
   name: string;
   headers: readonly H[];
 }>;
@@ -109,13 +115,15 @@ export const derived = <H extends Lowercase<string>>(declared: Derived<H>): Deri
   return declaration;
 };
 
+/** A 304 unless it names 204, the one other null-body answer a route gives. */
 export const bodiless = <H extends Lowercase<string>>(declared: {
+  statusCode?: 204;
   name: string;
   headers: readonly H[];
 }): Bodiless<H> => {
   refuseContentType(declared.name, declared.headers);
   const declaration: Bodiless<H> = Object.freeze({
-    statusCode: 304,
+    statusCode: declared.statusCode ?? 304,
     name: declared.name,
     headers: Object.freeze([...declared.headers]),
   });
@@ -177,11 +185,16 @@ export const respond = <H extends Lowercase<string>>(
   return result;
 };
 
-export const notModified = <H extends Lowercase<string>>(
+/** A bodiless answer of the status its declaration names, held to the one each caller means. */
+const empty = <H extends Lowercase<string>>(
+  status: EmptyResult['statusCode'],
   declared: Bodiless<H>,
   headers: Record<NoInfer<H>, string>,
 ): EmptyResult => {
   made(declared);
+  if (declared.statusCode !== status) {
+    throw new Error(`${declared.name} is a ${declared.statusCode}, not a ${status}`);
+  }
   const result: EmptyResult = Object.freeze({
     statusCode: declared.statusCode,
     headers: Object.freeze(carried(declared.headers, headers)),
@@ -190,9 +203,49 @@ export const notModified = <H extends Lowercase<string>>(
   return result;
 };
 
+export const notModified = <H extends Lowercase<string>>(
+  declared: Bodiless<H>,
+  headers: Record<NoInfer<H>, string>,
+): EmptyResult => empty(304, declared, headers);
+
+export const noContent = <H extends Lowercase<string>>(
+  declared: Bodiless<H>,
+  headers: Record<NoInfer<H>, string>,
+): EmptyResult => empty(204, declared, headers);
+
 /** What a result was built from — nothing for a fixed answer, or for a copy of a built one. */
 export const declarationOf = (result: ApiResult | EmptyResult): Declared | undefined =>
   DECLARATIONS.get(result);
+
+/** The body's bytes, past core's byte bound 413. */
+export const bodyBytes = (event: ApiEvent): Buffer | ApiResult => {
+  const raw = event.body ?? '';
+  const bytes = event.isBase64Encoded ? Buffer.from(raw, 'base64') : Buffer.from(raw, 'utf8');
+  return bytes.length > MAX_BODY_BYTES ? TOO_LARGE : bytes;
+};
+
+/** JSON in UTF-8, as RFC 8259 §8.1 requires: not UTF-8, unparseable or holding a `__proto__` key
+ *  anywhere 400, a key zod drops before any schema sees it. */
+export const parseJson = (bytes: Buffer): { value: unknown } | ApiResult => {
+  let forbidden = false;
+  try {
+    // Fatal, where a Buffer's decoding would put U+FFFD in place of what the client sent.
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    const value: unknown = JSON.parse(text, (key: string, v: unknown) => {
+      if (key === '__proto__') forbidden = true;
+      return v;
+    });
+    return forbidden ? INVALID : { value };
+  } catch {
+    return INVALID;
+  }
+};
+
+/** A JSON body, bounded and parsed: the door every route that takes one shares. */
+export const readJson = (event: ApiEvent): { value: unknown } | ApiResult => {
+  const bytes = bodyBytes(event);
+  return Buffer.isBuffer(bytes) ? parseJson(bytes) : bytes;
+};
 
 /** Hex is hex in either case, which is exactly what makes the fold below necessary. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

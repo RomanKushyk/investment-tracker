@@ -211,7 +211,7 @@ export interface RowIssueCode {
 /** zod issues against ONE row of `table`, paths from the row down: the import's vocabulary for a
  *  door that validates a row alone. */
 export function rowIssueCodes(
-  table: 'assets' | 'snapshots' | 'transactions',
+  table: 'assets' | 'prices' | 'snapshots' | 'transactions',
   issues: readonly ZodIssueLike[],
 ): RowIssueCode[] {
   return issues.map((issue) => {

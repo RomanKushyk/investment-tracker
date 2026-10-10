@@ -78,8 +78,10 @@ day, dropping one no price reproduces — of a position held none of, of an asse
 or valued at nothing — and a day left with none, and the import rebuilds each day's snapshot from
 the prices, each quote in kopecks as `/view` rounds it and `savedAt` the day's latest witness time. It refuses a price naming no asset, a second price for one asset and day, and one not above
 zero;
-import validates fully, shows a diff, then replaces in one transaction — a key the file omits is
-REMOVED — after a safety backup that cannot be cancelled. CSV is export-only, and A TEXT CELL NEVER
+import validates fully, shows a diff, then replaces the dataset — in one transaction on the device,
+and on the server in staged parts one pointer move commits (*Cloud target*) — a key the file omits
+is REMOVED — after a safety backup that cannot be cancelled. CSV is export-only, and A TEXT CELL
+NEVER
 STARTS A FORMULA: one beginning with a character OWASP's CSV Injection page lists — `=`,
 `+`, `-`, `@`, tab, CR, LF, or the full-width `＝＋－＠` — is written after an apostrophe. A number
 is never guarded, so a negative amount stays a number; the JSON backup writes every note as typed,
@@ -844,7 +846,21 @@ and an asset the patch does not name keeps its own; and
 with nothing stored. THE EXPORT AND THE IMPORT CARRY THOSE PRICES, NOT ₴ QUOTES: one row per stored
 price, with its asset, day and witness time, a price on a day its position holds none included. The
 server stores no ₴ quote, and `/view` derives one on read. `GET /state` answers them by day, then
-asset, a witness time absent where the store recorded none; the import is #391's.
+asset, a witness time absent where the store recorded none. THE IMPORT IS STAGED, shaped as S3's
+multipart upload. `POST /imports` opens it with a manifest — each table's row count and the digest
+of its parts — and answers 201 with its id, any staging open before becoming garbage. `PUT
+/imports/{id}/parts/{part}` stages one part, bounded in rows and bytes and numbered as S3 numbers
+parts, under a `Content-Digest` SHA-256 of its body that a mismatch refuses 400; the same body under
+its number again is a no-op and another body 409. Each row passes core's door, and every rule the
+whole dataset owes is a key, so a part carrying a duplicate id, a row naming no asset or a second
+price for one asset and day is refused 422 naming the rule and stages nothing: assets go in before
+the parts that name them. `POST /imports/{id}/commit`, under the strong `If-Match` as a write is,
+checks that the parts run from 1 with no gap, that the SHA-256 of their digests in order is the
+manifest's, and that each table holds the rows promised, refusing 409 with what differs, then moves
+the live pointer, closes the staging and bumps `data_version` in one row update; sent again after it
+landed it answers the current tag. `DELETE /imports/{id}` closes the staging, 204. An import idle
+past its limit is gone. A price row is written as it stands, a witness time the file leaves out left
+out again.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -903,7 +919,18 @@ Beancount, Ledger, GnuCash and Wealthfolio a price names a commodity and a date,
 quote cannot carry three such prices: one on a day its position holds none, one whose held value
 rounds below a kopeck, and one whose day now holds other units than it was stored at, which a quote
 rounded to kopecks at those units can give back as a different price. `/view` carries each on to
-later held days, so a file of quotes loses or shifts a price a restore must keep.
+later held days, so a file of quotes loses or shifts a price a restore must keep. A dataset outgrows
+one transaction's row ceiling, and practice stages parts unseen until a commit: S3 "constructs the
+object from the uploaded parts" on completion, and Azure's block "doesn't become part of a blob
+until it's committed". The commit's checks are S3's composite checksum, whose part numbers "must be
+consecutive and begin with 1", and a digest the client sends and the server verifies, as S3, Azure,
+GCS and tus do and RFC 9530 names. DSQL defers a foreign key only to the end of its own transaction
+— "the DEFERRABLE option applies to foreign key constraints only" — so a rule the keys hold is met
+at the part that breaks it, as Salesforce loads "parent objects before their master-detail children"
+and Spanner "must always load the parent before the children"; the client checks the whole file
+first, as Ghostfolio validates "before any data is persisted". A part is "a few hundred rows rather
+than thousands", AWS's loading guidance. A commit sent again answers 200 as AIP-155 answers a
+duplicate, with the tag the next write needs, and an abort is 204 as S3's and tus's are.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -926,7 +953,13 @@ write it back. · Hiding such a day from the export: its rows still refuse a mov
 see. · Deleting such a price at the ledger edit: deleting a buy and adding it back wipes the prices
 the user entered. · Quotes plus a per-unit price only where no quote can carry one: two encodings in
 one row, and its quotes, rounded at each day's present units, still shift a price whose day's units
-a later edit changed. · `snapshot.put`, replacing the day: a day's quotes as the server gives them
+a later edit changed. · Deferring the import's whole-dataset rules to the commit, as pg_dump and
+Spanner's import load before they key: DSQL defers no primary key and no foreign key past a part's
+own transaction, and data tables without keys would let a row reach another generation. · Recording
+a refused part so the commit can name its rule: none of the multipart protocols weighed remembers a
+failed part, and S3 answers the commit `InvalidPart`. · Letting a second body overwrite a part, as
+S3 and Azure do: a part's number then names whichever body arrived last, and the manifest's digest
+would decide which. · `snapshot.put`, replacing the day: a day's quotes as the server gives them
 back name no asset the day holds none of, and the screen prefills from them, so a day written again
 deleted that asset's price, which no quote can carry, and answered that nothing was dropped. · A
 put replacing only the positions the day holds: still a replacement, so a held position its sender
@@ -1179,13 +1212,21 @@ ends at the user's own dataset, and a dataset a pointer names is refused deletio
 `transaction` and `user_price` lead every primary key with `dataset_id`, and every key between them
 carries it, so no row reaches another generation; the account stays the user's, so `transaction`
 also carries `user_id`, held to the dataset's owner by a key of its own. EVERY STATEMENT OVER THOSE
-THREE JOINS THE CALLER'S LIVE POINTER ITSELF — `JOIN app_user u ON u.dataset_id = … WHERE u.user_id
-= $1` — and a guard over `infra/src`'s modules, reading PostgreSQL's parse tree, refuses one whose
-own conditions — `WHERE` and inner-join conjuncts and `=` key-sets — do not tie each data table to
-that pointer, or that reads a data table's own `user_id`; each such statement also has a test
-against a second generation. Moving the live pointer off a dataset bumps `data_version` in the same
+THREE, OR OVER AN IMPORT'S MANIFEST AND PARTS, JOINS ONE OF THE CALLER'S GENERATIONS ITSELF: the
+live pointer — `JOIN app_user u ON u.dataset_id = … WHERE u.user_id = $1` — or, from the import's
+module and the collector alone, the staging pointer `u.import_dataset_id`, or, from the collector
+alone, a dataset of the caller's that neither names, each stated `IS DISTINCT FROM`. A guard over
+`infra/src`'s modules, reading PostgreSQL's parse tree, refuses one whose own conditions — `WHERE`
+and inner-join conjuncts and `=` key-sets — do not tie each data table to one of those, that reaches
+two, or that reads a data table's own `user_id`; each such statement also has a test against a
+second generation. Moving the live pointer off a dataset bumps `data_version` in the same
 transaction, `/view`'s tag being composed from the version and not the pointer; `dataset.clear`
-moves it to a new, empty dataset in one request, whatever the old one holds. Every account holder
+moves it to a new, empty dataset in one request, whatever the old one holds. GARBAGE IS A DATASET
+NEITHER POINTER NAMES — what a commit, a clear, an abort or a new begin leaves, and an import idle
+past its limit, whose pointer the collector clears — and every later write removes one bounded batch
+of it, children first, in statements of their own after its transaction, their failure logged; a
+commit as many as the function's remaining time allows. Nothing collects on a schedule or on a read.
+Every account holder
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
 writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
 and key, restricted on the user's delete; a row holds a claim's token and window, and its stored
@@ -1231,7 +1272,15 @@ account is the user's rather than the generation's: one row per provider per use
 constraint, clearing a dataset moves only a pointer, and Ghostfolio keys its activities to an
 account the same way. A generation is the LEADING KEY, not a filter beside `user_id`, which is why
 the tombstone's objection is answered by that guard and those tests rather than by care: a
-statement that skips the pointer reads every generation.
+statement that skips the pointer reads every generation. Garbage is found as git finds it, by
+reachability, and git's maintenance runs "after they have written data". A dataset is never
+unreferenced at birth nor referenced again once dropped; a mutation begun before a commit or a clear
+conflicts with it on `app_user`, and a part begun before an abort or a new begin writes the manifest
+row the collector deletes before the dataset, so under DSQL's write-write adjudication the two
+cannot both land and no grace period is owed — git's and Iceberg's guard a writer they cannot see. A
+staging that nothing supersedes expires as Azure's uncommitted blocks and GCS's resumable sessions
+do, a while after the last part. A batch follows AWS's DSQL guidance on batch size, under the row
+ceiling with room for the request's own.
 GitLab creates a table its code needs BEFORE that code deploys; this pipeline has only the
 after-code slot, so the expand takes a deploy of its own.
 **Rejected.** Replacing a dataset in place behind a lock: a failed import leaves the data locked
@@ -1254,7 +1303,10 @@ rest resolve against. · A raised runner `Timeout`: it already sits at the servi
 is no headroom to buy. · Steps inside one request that commit on their own: the request would land
 in part, which no stored response describes. · Storing a refusal: a corrected request under the
 same key would replay it. · A scheduled sweep of expired keys: *Alerting* prices a scheduled
-function at two alarms, and a key costs nothing until its owner writes again.
+function at two alarms, and a key costs nothing until its owner writes again. · Collecting garbage
+on a read: practice collects where data is written — git after a command that writes, SQLite at
+commit — and the reads stay read-only transactions. · A timestamp per part so parts could be staged
+in parallel: the manifest row is what makes a late part conflict with the commit and the collector.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only

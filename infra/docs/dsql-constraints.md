@@ -310,6 +310,20 @@ behaviours read from AWS or shown by PGlite, none of them sent to a cluster:
 - **Where `54000` arrives**: at the statement that crosses the row ceiling, or at `COMMIT`. Either
   is answered `409 too_many_rows`; only a statement's names the op. UNMEASURED.
 
+**What the staged import and the collector send that no cluster has answered.** `infra/src/imports.ts`
+and `infra/src/collect.ts` rest on these, read from AWS or shown by PGlite:
+
+- **`unnest` over sixteen and nine array parameters**, one statement for a part's assets and one
+  for its transactions. PGlite accepts both. UNMEASURED, as the three-array form is.
+- **The manifest row as the conflict point.** A part and a commit each `UPDATE` the import's
+  `import_manifest` row and the collector deletes it, so of two overlapping, the later commit is
+  refused `40001` (`OC000`), AWS's write-write rule. READ FROM AWS, UNMEASURED.
+- **A key-set `LIMIT` over a three-way join holding `IS DISTINCT FROM`**, the collector's batch.
+  The one-table key-set `LIMIT` is measured above; this shape is not.
+- **`ON CONFLICT … DO NOTHING` on `dataset` and `import_manifest`**, which a begin sent again after
+  its commit landed meets. The conflict targets are primary keys, the measured shape; the begin's
+  re-send is UNMEASURED.
+
 [run 35599249065]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599249065
 [run 35599318279]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599318279
 

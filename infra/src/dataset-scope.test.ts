@@ -1,9 +1,11 @@
-// Every statement over a data table reaches it through the user's LIVE pointer: each of
-// `asset`, `transaction` and `user_price` the statement names is bound, by a chain of
-// `dataset_id` equalities, to `app_user.dataset_id`, and the caller is `app_user.user_id = $1`.
-// A generation is the leading key, never a filter beside `user_id`, so a statement that skips
-// the binding reads every generation the user has, staged imports included (#390,
-// *User schema and deletes*). Read off PostgreSQL's own parse tree, so a qualified name, `ONLY` or
+// Every statement over a data table reaches it through one of the caller's generations: each of
+// `asset`, `transaction`, `user_price`, `import_manifest` and `import_part` the statement names is
+// bound, by a chain of `dataset_id` equalities, to the LIVE pointer `app_user.dataset_id`, the
+// STAGED one `app_user.import_dataset_id`, or a DEAD dataset of the caller that neither names, and
+// the caller is `app_user.user_id = $1`. A generation is the leading key, never a filter beside
+// `user_id`, so a statement that skips the binding reads every generation the user has (#390,
+// #391, *User schema and deletes*). Only the import's module and the collector reach a staged
+// generation, and only the collector a dead one. Read off PostgreSQL's own parse tree, so a qualified name, `ONLY` or
 // a comma join is still a relation, and only a chain of equalities among the statement's own
 // conditions binds one — never a condition under an OR, a NOT or an EXISTS. A backstop over
 // `infra/src`'s modules: each statement it finds also has a behavioural test against a second
@@ -75,11 +77,11 @@ function literals(source: string, file: string): string[] {
   return out;
 }
 
-const DATA = new Set(['asset', 'transaction', 'user_price']);
+const DATA = new Set(['asset', 'transaction', 'user_price', 'import_manifest', 'import_part']);
 
 /** A literal naming a data table and OPENING with a statement verb, in any case, is SQL and must
  *  parse; prose that mentions deleting an asset does not open with one. */
-const CANDIDATE = /\b(?:asset|transaction|user_price)\b/i;
+const CANDIDATE = /\b(?:asset|transaction|user_price|import_manifest|import_part)\b/i;
 const VERB = /^\s*(?:WITH|SELECT|INSERT|UPDATE|DELETE|TRUNCATE)\b/i;
 /** A relation named by a substitution, `FROM ${table}`, which no reading of the text can judge. */
 const SUBSTITUTED = /\b(?:FROM|INTO|UPDATE|JOIN)\s+\$(?!\d)/i;
@@ -154,8 +156,12 @@ function scope(stmt: Tree): unknown[] {
   return out;
 }
 
-/** What a statement over a data table owes; empty when it pays all of it. */
-async function owed(sql: string): Promise<string[]> {
+/** The modules allowed to reach a generation no live pointer names. */
+const STAGED_IN = new Set(['imports.ts', 'collect.ts']);
+const DEAD_IN = new Set(['collect.ts']);
+
+/** What a statement over a data table in `file` owes; empty when it pays all of it. */
+async function owed(sql: string, file: string): Promise<string[]> {
   if (SUBSTITUTED.test(sql)) return ['names its table at run time'];
   const tree = await parse(sql).catch(() => undefined);
   if (tree === undefined) return ['does not parse'];
@@ -200,8 +206,10 @@ async function owed(sql: string): Promise<string[]> {
     out.push('names no caller');
   }
 
-  // Which relations are bound to the LIVE pointer: union-find over `dataset_id` equalities.
+  // Which generation each relation is bound to: union-find over `dataset_id` equalities.
   const LIVE = '@live';
+  const STAGED = '@staged';
+  const DEAD = '@dead';
   const parent = new Map<string, string>();
   const find = (x: string): string => {
     const p = parent.get(x) ?? x;
@@ -213,14 +221,41 @@ async function owed(sql: string): Promise<string[]> {
   const link = (a: string | undefined, b: string | undefined) => {
     if (a !== undefined && b !== undefined && a !== b) parent.set(find(a), find(b));
   };
-  /** The relation a `dataset_id` column belongs to. A bare one beside the single `app_user` would
-   *  be ambiguous, so it belongs to nothing — except on the left of a key-set, as the target's. */
+  /** `dataset` relations: `g.id` is a generation's id as `x.dataset_id` is. */
+  const generations = new Set(rels.filter((r) => r.relname === 'dataset').map(nameOf));
+  /** The relation a `dataset_id` column belongs to, or the pointer it is. A bare one beside the
+   *  single `app_user` would be ambiguous, so it belongs to nothing — except on the left of a
+   *  key-set, as the target's. */
   const owner = (f: string[] | undefined): string | undefined => {
-    if (f === undefined || f.at(-1) !== 'dataset_id') return undefined;
-    if (f.length === 1) return undefined;
-    return f[0] === pointer ? LIVE : f[0];
+    if (f === undefined || f.length !== 2) return undefined;
+    if (f[0] === pointer) {
+      return f[1] === 'dataset_id' ? LIVE : f[1] === 'import_dataset_id' ? STAGED : undefined;
+    }
+    if (f[1] === 'dataset_id' || (f[1] === 'id' && generations.has(f[0]))) return f[0];
+    return undefined;
   };
   for (const { l, r } of equalities) link(owner(fieldsOf(l)), owner(fieldsOf(r)));
+  // A DEAD generation is a `dataset` the caller owns that neither pointer names, each stated as an
+  // own conjunct. `IS DISTINCT FROM`, never `<>`, which a NULL pointer turns NULL.
+  const sides = (op: string) =>
+    terms.flatMap((term) =>
+      isTree(term) && isTree(term.A_Expr) && term.A_Expr.kind === op
+        ? [[fieldsOf(term.A_Expr.lexpr)?.join('.'), fieldsOf(term.A_Expr.rexpr)?.join('.')]]
+        : [],
+    );
+  const distinct = sides('AEXPR_DISTINCT');
+  const said = (pairs: (string | undefined)[][], a: string, b: string) =>
+    pairs.some(([l, r]) => (l === a && r === b) || (l === b && r === a));
+  const owned = equalities.map(({ l, r }) => [fieldsOf(l)?.join('.'), fieldsOf(r)?.join('.')]);
+  for (const g of generations) {
+    if (
+      said(distinct, `${g}.id`, `${pointer}.dataset_id`) &&
+      said(distinct, `${g}.id`, `${pointer}.import_dataset_id`) &&
+      said(owned, `${g}.user_id`, `${pointer}.user_id`)
+    ) {
+      link(g, DEAD);
+    }
+  }
   // A key-set `(dataset_id, …) IN (SELECT x.dataset_id, …)` binds the outer relation to `x`.
   for (const term of terms) {
     if (!isKeySet(term)) continue;
@@ -233,18 +268,27 @@ async function owed(sql: string): Promise<string[]> {
       link(bare(node) ? nameOf(target!) : owner(fieldsOf(node)), owner(fieldsOf(right[i]))),
     );
   }
-  // An INSERT is bound when the `dataset_id` it writes is the pointer row's.
+  // An INSERT is bound when the `dataset_id` it writes is a pointer of the row's.
   if (kind === 'InsertStmt' && target) {
     const cols = ((body.cols as Tree[]) ?? []).map((c) => (c.ResTarget as Tree).name);
     const values = ((top.targetList as Tree[] | undefined) ?? []).map(
       (t) => (t.ResTarget as Tree).val,
     );
     const i = cols.indexOf('dataset_id');
-    if (i >= 0 && owner(fieldsOf(values[i])) === LIVE) link(nameOf(target), LIVE);
+    const written = i >= 0 ? owner(fieldsOf(values[i])) : undefined;
+    if (written === LIVE || written === STAGED) link(nameOf(target), written);
   }
+  const reached = new Set<string>();
   for (const rel of data) {
-    if (find(nameOf(rel)) !== find(LIVE)) out.push(`binds ${nameOf(rel)} to no live pointer`);
+    const modes = [LIVE, STAGED, DEAD].filter((m) => find(m) === find(nameOf(rel)));
+    if (modes.length === 0) out.push(`binds ${nameOf(rel)} to no pointer`);
+    for (const m of modes) reached.add(m);
   }
+  if (reached.size > 1) out.push('reaches more than one generation');
+  if (reached.has(STAGED) && !STAGED_IN.has(file)) {
+    out.push(`reaches a staged generation from ${file}`);
+  }
+  if (reached.has(DEAD) && !DEAD_IN.has(file)) out.push(`reaches a dead generation from ${file}`);
 
   // A data table's own `user_id` spans every generation the user has.
   const dataNames = new Set(data.map(nameOf));
@@ -273,13 +317,16 @@ const statementsIn = (dir: string) =>
 
 const statements = statementsIn(here);
 
+/** A module allowed only the live generation, for a rule that does not turn on the module. */
+const ANY = 'mutations.ts';
+
 describe('every statement over a data table reads the live dataset', () => {
   it('finds exactly the statements it guards, in the modules allowed to hold them', () => {
     // EXACT, not a floor: a scanner gone blind makes the count go DOWN. Update it in the commit
     // that adds or removes a statement; a new module joins the set by name.
-    expect(statements).toHaveLength(17);
+    expect(statements).toHaveLength(34);
     expect(new Set(statements.map((s) => s.file))).toEqual(
-      new Set(['asset-delete.ts', 'ledger.ts', 'mutations.ts']),
+      new Set(['asset-delete.ts', 'collect.ts', 'imports.ts', 'ledger.ts', 'mutations.ts']),
     );
   });
 
@@ -304,8 +351,8 @@ describe('every statement over a data table reads the live dataset', () => {
     }
   });
 
-  it.each(statements.map((s) => [s.file, s.sql] as const))('%s: %s', async (_file, sql) => {
-    expect(await owed(sql)).toEqual([]);
+  it.each(statements.map((s) => [s.file, s.sql] as const))('%s: %s', async (file, sql) => {
+    expect(await owed(sql, file)).toEqual([]);
   });
 
   // The rules, held on statements written to pass and to break each one.
@@ -325,23 +372,20 @@ describe('every statement over a data table reads the live dataset', () => {
        JOIN account c ON c.user_id = u.user_id AND c.id = t.account_id
       WHERE u.user_id = $1::uuid`,
   ])('accepts %s', async (sql) => {
-    expect(await owed(sql)).toEqual([]);
+    expect(await owed(sql, ANY)).toEqual([]);
   });
 
   it.each([
-    ['SELECT a.id FROM asset a WHERE a.dataset_id = $1', 'binds a to no live pointer'],
-    [
-      'SELECT x.id FROM public.asset x, app_user u WHERE u.user_id = $1',
-      'binds x to no live pointer',
-    ],
+    ['SELECT a.id FROM asset a WHERE a.dataset_id = $1', 'binds a to no pointer'],
+    ['SELECT x.id FROM public.asset x, app_user u WHERE u.user_id = $1', 'binds x to no pointer'],
     [
       'SELECT a.id FROM ONLY asset a JOIN app_user u ON u.dataset_id = u.dataset_id WHERE u.user_id = $1',
-      'binds a to no live pointer',
+      'binds a to no pointer',
     ],
     [
       `SELECT t.id FROM "transaction" t JOIN app_user u ON u.dataset_id = t.dataset_id
          JOIN asset a ON a.id = t.asset_id WHERE u.user_id = $1`,
-      'binds a to no live pointer',
+      'binds a to no pointer',
     ],
     [
       'SELECT a.id FROM asset a JOIN app_user u ON u.dataset_id = a.dataset_id WHERE u.user_id = $1 OR true',
@@ -355,7 +399,7 @@ describe('every statement over a data table reads the live dataset', () => {
       `DELETE FROM asset WHERE id IN (
          SELECT a.id FROM asset a JOIN app_user u ON u.dataset_id = a.dataset_id
           WHERE u.user_id = $1)`,
-      'binds asset to no live pointer',
+      'binds asset to no pointer',
     ],
     [
       `DELETE FROM asset a WHERE a.id IN (
@@ -383,12 +427,12 @@ describe('every statement over a data table reads the live dataset', () => {
     [
       `SELECT a.id FROM asset a, app_user u
         WHERE u.user_id = $1 AND NOT EXISTS (SELECT 1 WHERE a.dataset_id = u.dataset_id)`,
-      'binds a to no live pointer',
+      'binds a to no pointer',
     ],
     [
       `DELETE FROM asset WHERE EXISTS (
          SELECT 1 FROM app_user u WHERE u.user_id = $1 AND u.dataset_id = dataset_id)`,
-      'binds asset to no live pointer',
+      'binds asset to no pointer',
     ],
     [
       `SELECT t.id FROM "transaction" t JOIN app_user u ON u.dataset_id = t.dataset_id
@@ -397,23 +441,108 @@ describe('every statement over a data table reads the live dataset', () => {
     ],
     [
       'SELECT a.id FROM asset a LEFT JOIN app_user u ON u.dataset_id = a.dataset_id AND u.user_id = $1',
-      'binds a to no live pointer',
+      'binds a to no pointer',
     ],
     [
       'SELECT t.id FROM app_user u RIGHT JOIN "transaction" t ON t.dataset_id = u.dataset_id AND u.user_id = $1',
-      'binds t to no live pointer',
+      'binds t to no pointer',
     ],
     [
       'DELETE FROM asset WHERE dataset_id <> ANY (SELECT u.dataset_id FROM app_user u WHERE u.user_id = $1)',
-      'binds asset to no live pointer',
+      'binds asset to no pointer',
     ],
-    ['select a.id from asset a', 'binds a to no live pointer'],
+    ['select a.id from asset a', 'binds a to no pointer'],
     ['TRUNCATE asset', 'truncates a data table'],
-    ['INSERT INTO asset (dataset_id, id) VALUES ($1, $2)', 'binds asset to no live pointer'],
+    ['INSERT INTO asset (dataset_id, id) VALUES ($1, $2)', 'binds asset to no pointer'],
     ['DELETE FROM $ WHERE dataset_id = $1', 'names its table at run time'],
     ['SELECT * FROM asset WHERE', 'does not parse'],
   ])('refuses %s', async (sql, why) => {
     expect((CANDIDATE.test(sql) || SUBSTITUTED.test(sql)) && VERB.test(sql)).toBe(true);
-    expect(await owed(sql)).toContain(why);
+    expect(await owed(sql, ANY)).toContain(why);
+  });
+});
+
+// A STAGED generation is the one `app_user.import_dataset_id` names, written only by the import's
+// own module and read by the collector's expiry; a DEAD one is a dataset of the caller that NEITHER
+// pointer names, which only the collector reaches. Each is held as the live one is: by the
+// statement's own conjuncts, read off the parse tree.
+describe('a staged or a dead generation is reached only from its own module', () => {
+  const STAGE_PART = `INSERT INTO import_part (dataset_id, part, digest)
+    SELECT u.import_dataset_id, $2, $3 FROM app_user u WHERE u.user_id = $1`;
+  const STAGE_ASSETS = `INSERT INTO asset (dataset_id, id)
+    SELECT u.import_dataset_id, a.id FROM app_user u, unnest($2::uuid[]) AS a(id)
+     WHERE u.user_id = $1`;
+  const TOUCH = `UPDATE import_manifest SET staged_at = now()
+    WHERE dataset_id IN (SELECT u.import_dataset_id FROM app_user u WHERE u.user_id = $1)
+    RETURNING dataset_id`;
+  const COUNT_STAGED = `SELECT count(*) FROM "transaction" t
+    JOIN app_user u ON u.import_dataset_id = t.dataset_id WHERE u.user_id = $1`;
+  const EXPIRE = `UPDATE app_user u SET import_dataset_id = NULL
+    WHERE u.user_id = $1 AND u.import_dataset_id IN (
+      SELECT m.dataset_id FROM import_manifest m WHERE m.staged_at <= now() - $2::interval)`;
+  const DEAD_CONDS =
+    'g.id IS DISTINCT FROM u.dataset_id AND g.id IS DISTINCT FROM u.import_dataset_id';
+  /** The collector's batch over `user_price`, with `cond` as the dead generation's conditions
+   *  and `join` as the pointer row's. */
+  const DEAD = (cond = DEAD_CONDS, join = 'u.user_id = g.user_id') =>
+    `DELETE FROM user_price WHERE (dataset_id, asset_id, as_of) IN (
+       SELECT p.dataset_id, p.asset_id, p.as_of FROM user_price p
+         JOIN dataset g ON g.id = p.dataset_id JOIN app_user u ON ${join}
+        WHERE u.user_id = $1 AND ${cond} LIMIT $2)`;
+
+  it.each([
+    ['imports.ts', STAGE_PART],
+    ['imports.ts', STAGE_ASSETS],
+    ['imports.ts', TOUCH],
+    ['imports.ts', COUNT_STAGED],
+    ['collect.ts', EXPIRE],
+    ['collect.ts', DEAD()],
+  ])('accepts from %s: %s', async (file, sql) => {
+    expect(await owed(sql, file)).toEqual([]);
+  });
+
+  it.each([
+    ['mutations.ts', STAGE_ASSETS, 'reaches a staged generation from mutations.ts'],
+    ['ledger.ts', COUNT_STAGED, 'reaches a staged generation from ledger.ts'],
+    ['imports.ts', DEAD(), 'reaches a dead generation from imports.ts'],
+    ['mutations.ts', DEAD(), 'reaches a dead generation from mutations.ts'],
+  ])('refuses from %s: %s', async (file, sql, why) => {
+    expect(await owed(sql, file)).toContain(why);
+  });
+
+  it.each([
+    [
+      'compares with <>, which a NULL pointer defeats',
+      DEAD('g.id <> u.dataset_id AND g.id <> u.import_dataset_id'),
+    ],
+    ['leaves the staged pointer out', DEAD('g.id IS DISTINCT FROM u.dataset_id')],
+    ['leaves the live pointer out', DEAD('g.id IS DISTINCT FROM u.import_dataset_id')],
+    [
+      'states one under an OR',
+      DEAD(
+        'g.id IS DISTINCT FROM u.dataset_id AND (g.id IS DISTINCT FROM u.import_dataset_id OR true)',
+      ),
+    ],
+    [
+      'reads IS NOT DISTINCT FROM as different',
+      DEAD('g.id IS NOT DISTINCT FROM u.dataset_id AND g.id IS DISTINCT FROM u.import_dataset_id'),
+    ],
+    ['names no owner of the dataset', DEAD(DEAD_CONDS, 'u.user_id = $1')],
+    ['ties the dataset to something other than its owner', DEAD(DEAD_CONDS, 'u.user_id = g.id')],
+  ])('refuses a dead generation that %s', async (_, sql) => {
+    expect(await owed(sql, 'collect.ts')).toContain('binds p to no pointer');
+  });
+
+  it('refuses one statement reaching two generations', async () => {
+    const sql = `SELECT a.id FROM asset a JOIN app_user u ON u.dataset_id = a.dataset_id
+                   JOIN import_part x ON x.dataset_id = u.import_dataset_id
+                  WHERE u.user_id = $1`;
+    expect(await owed(sql, 'imports.ts')).toContain('reaches more than one generation');
+  });
+
+  it('scans a statement naming only the import tables', () => {
+    for (const sql of [STAGE_PART, TOUCH]) {
+      expect((CANDIDATE.test(sql) || SUBSTITUTED.test(sql)) && VERB.test(sql)).toBe(true);
+    }
   });
 });

@@ -21,6 +21,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
+import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
 import { BALANCES_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
 
@@ -188,11 +189,15 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('ViewLogGroup').RetentionInDays).toBe(30);
   });
 
-  it('puts the write and the export on this API, each naming the authorizer', () => {
+  it('puts the write, the export and the import on this API, each naming the authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'MutationsFunction');
     expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [MUTATIONS_ROUTE, 'PublicApi', AUTHORIZER],
       [STATE_ROUTE, 'PublicApi', AUTHORIZER],
+      [BEGIN_ROUTE, 'PublicApi', AUTHORIZER],
+      [PART_ROUTE, 'PublicApi', AUTHORIZER],
+      [COMMIT_ROUTE, 'PublicApi', AUTHORIZER],
+      [ABORT_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');
     expect(user.Resources.MutationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
@@ -345,15 +350,21 @@ describe('the browser origins are named per environment', () => {
       ['prod', prod],
       ['dev', dev],
     ] as const) {
-      expect([name, arm.AllowMethods?.slice().sort()]).toEqual([name, ['GET', 'OPTIONS', 'POST']]);
+      // A part is a PUT and an abort a DELETE, neither of which a preflight allows unless named.
+      expect([name, arm.AllowMethods?.slice().sort()]).toEqual([
+        name,
+        ['DELETE', 'GET', 'OPTIONS', 'POST', 'PUT'],
+      ]);
       // `authorization` is what lets a browser send the token at all: every admin call is
       // cross-origin, and the preflight refuses a header the list does not name — a failure that
       // appears only in a browser, never in `curl`. `if-none-match` is not safelisted either, and
-      // it is how the read revalidates; a write sends `if-match` and its `idempotency-key`.
+      // it is how the read revalidates; a write sends `if-match` and its `idempotency-key`, and
+      // a staged part its `content-digest`.
       expect([name, arm.AllowHeaders?.slice().sort()]).toEqual([
         name,
         [
           'authorization',
+          'content-digest',
           'content-type',
           'idempotency-key',
           'if-match',

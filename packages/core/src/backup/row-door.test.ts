@@ -9,6 +9,7 @@ import {
   assetRecordSchema,
   backupEnvelopeSchema,
   buildBackup,
+  priceRowSchema,
   transactionRecordSchema,
 } from './json';
 
@@ -48,7 +49,7 @@ const DEPOSIT = {
 } as const satisfies Transaction;
 
 const codes = (
-  table: 'assets' | 'transactions',
+  table: 'assets' | 'prices' | 'transactions',
   schema: z.ZodType,
   row: unknown,
 ): ReturnType<typeof rowIssueCodes> => {
@@ -126,6 +127,31 @@ describe('an asset at the row door', () => {
   // Three UTF-16 units, two characters: counted as JavaScript counts a string, it would be refused.
   it('counts a code in characters, as the store does', () => {
     expect(asset({ ...ASSET, code: '😀A' })).toEqual([]);
+  });
+});
+
+// The staged import validates a price row by itself, as the file holds it.
+describe('a price at the row door', () => {
+  const price = (row: unknown) => codes('prices', priceRowSchema, row);
+  const PRICE = { assetId: 'a', asOf: '2026-03-05', price: 11.1339 };
+
+  it('accepts a price with and without its witness time', () => {
+    expect([price(PRICE), price({ ...PRICE, observedAt: '2026-03-05T21:14:00' })]).toEqual([
+      [],
+      [],
+    ]);
+  });
+
+  it('refuses a price not above zero, a day that is none, and a witness time with a zone', () => {
+    expect(price({ ...PRICE, price: 0 })).toEqual([
+      expect.objectContaining({ field: 'price', code: 'expected-positive-amount' }),
+    ]);
+    expect(price({ ...PRICE, asOf: '2026-02-30' })).toEqual([
+      expect.objectContaining({ field: 'asOf', code: 'expected-date' }),
+    ]);
+    expect(price({ ...PRICE, observedAt: '2026-03-05T21:14:00Z' })).toEqual([
+      expect.objectContaining({ field: 'observedAt', code: 'expected-datetime' }),
+    ]);
   });
 });
 

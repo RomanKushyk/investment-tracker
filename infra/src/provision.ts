@@ -93,6 +93,10 @@ const isTheAccountAlready = (err: unknown): boolean =>
  *  catalogue to settle, and somebody's first authenticated request cannot. */
 export const RETRY_DELAYS_MS = [20, 80, 200];
 
+/** A serialization failure, `40001` (DSQL's OC000 and OC001) or `XX000`: the transaction may be
+ *  sent again, and may have committed even so. */
+export const retryable = (err: unknown): boolean => ['40001', 'XX000'].includes(codeOf(err) ?? '');
+
 export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export type Provisioned = 'created' | 'existing';

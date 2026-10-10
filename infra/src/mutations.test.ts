@@ -313,7 +313,11 @@ describe('a batch of ops', () => {
         [SUB],
       )
     ).rows[0].id;
-    await OK([addAsset(asset(2)), { op: 'dataset.clear' }, addAsset(asset(3))]);
+    // The write's own collection held to no rows, so what is read is the clear's effect alone: a
+    // pointer moved, the generation it left whole until a later write collects it (`collect.ts`).
+    await OK([addAsset(asset(2)), { op: 'dataset.clear' }, addAsset(asset(3))], {
+      d: deps({ batchRows: 0 }),
+    });
     expect((await state()).assets.map((a) => a.id)).toEqual([u(3)]);
     const kept = await db.query<{ id: string }>(
       'SELECT id::text FROM asset WHERE dataset_id = $1 ORDER BY id',
@@ -648,6 +652,19 @@ describe('the bounds', () => {
         [400, { error: 'invalid_request' }],
       ]);
     }
+  });
+
+  // RFC 8259 §8.1: JSON between systems is UTF-8, so a byte that is not stays refused, never U+FFFD.
+  it('refuses a body that is not UTF-8', async () => {
+    const latin1 = Buffer.from('{"ops":[{"op":"dataset.clear","x":"ÿ"}]}', 'latin1');
+    const event = await mutationEvent(undefined, { body: '{}' });
+    const res = await mutationsRoute(deps(), {
+      ...event,
+      body: latin1.toString('base64'),
+      isBase64Encoded: true,
+    });
+    expect(answer(record(event, res as ApiResult))).toEqual([400, { error: 'invalid_request' }]);
+    expect(await keyRows()).toBe(0);
   });
 
   it('refuses a missing or malformed key before anything is claimed', async () => {

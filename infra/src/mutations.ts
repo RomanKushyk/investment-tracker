@@ -7,17 +7,8 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { rowIssueCodes, type RowIssueCode } from '@quirenote/core/backup/import';
 import { assetRecordSchema, transactionRecordSchema } from '@quirenote/core/backup/json';
-import { COLOR_KEYS } from '@quirenote/core/colors';
 import { ledgerUnits } from '@quirenote/core/derive';
-import {
-  MAX_BODY_BYTES,
-  MAX_OPS,
-  OP_NAMES,
-  mergePatch,
-  opIssues,
-  opSchema,
-  type Op,
-} from '@quirenote/core/ops';
+import { MAX_OPS, OP_NAMES, mergePatch, opIssues, opSchema, type Op } from '@quirenote/core/ops';
 import { targetsAsset, type Asset, type Transaction } from '@quirenote/core/types';
 import {
   movedPrices,
@@ -28,11 +19,14 @@ import {
 
 import { deleteAsset, pruneAsset } from './asset-delete';
 import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, authorize } from './authorize';
+import { collect, once } from './collect';
 import { codeOf, connect } from './dsql';
 import {
   INTERNAL,
   INVALID,
   PRECONDITION_FAILED,
+  PRECONDITION_REQUIRED,
+  TOO_LARGE,
   type ApiEvent,
   type ApiResult,
   type Declared,
@@ -42,14 +36,24 @@ import {
   derived,
   headerValues,
   json,
+  readJson,
   notModified,
   respond,
   strongMatch,
   weakMatch,
 } from './http';
-import { SCHEMA_TYPE, VERSION, dataTag, readLedger, readRows } from './ledger';
+import {
+  VERSION,
+  assetColumns,
+  dataTag,
+  readLedger,
+  readRows,
+  transactionColumns,
+  utc,
+} from './ledger';
 import type { SqlClient } from './migrate';
-import { RETRY_DELAYS_MS, sleep } from './provision';
+import { IMPORT_ROUTES, imports, type ImportDeps } from './imports';
+import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
 
 export const MUTATIONS_ROUTE = 'POST /mutations';
 export const STATE_ROUTE = 'GET /state';
@@ -64,10 +68,8 @@ const SWEEP_LIMIT = 100;
 /** A tag that names no caller, every user's first being "0": no browser may keep the answer. */
 const NO_STORE = 'private, no-store';
 
-const TOO_LARGE = json(413, '{"error":"payload_too_large","max":1048576}');
 const TOO_MANY_OPS = json(400, '{"error":"too_many_ops","max":100}');
 const BAD_KEY = json(400, '{"error":"invalid_idempotency_key"}');
-const PRECONDITION_REQUIRED = json(428, '{"error":"precondition_required"}');
 const KEY_REUSED = json(422, '{"error":"key_reused"}');
 const IN_FLIGHT = json(409, '{"error":"request_in_flight"}');
 
@@ -182,11 +184,9 @@ export const BODY = {
   },
 } as const;
 
-export interface MutationDeps {
-  user: SqlClient;
-  /** A fresh UUID: a claim's token, and a cleared dataset's id. */
-  token: () => string;
-  sleep: (ms: number) => Promise<void>;
+/** The import's, which this function's handler also serves: `token` is a claim's token and a
+ *  cleared dataset's id as well as a begun import's. */
+export interface MutationDeps extends ImportDeps {
   /** Lowered by a test to reach the bound with a few rows; never by a caller. */
   maxRows?: number;
 }
@@ -246,9 +246,6 @@ type KeyRow = {
   response_status: number | null;
   response_body: string | null;
 };
-
-const RETRYABLE = new Set(['40001', 'XX000']);
-const retryable = (err: unknown) => RETRYABLE.has(codeOf(err) ?? '');
 
 const replay = (body: string) =>
   respond(MUTATED, { etag: (JSON.parse(body) as { etag: string }).etag }, body);
@@ -397,38 +394,6 @@ const PRICES_INSERT = `INSERT INTO user_price (dataset_id, asset_id, as_of, pric
                                 AS q(asset_id, price, observed_at)
                         WHERE u.user_id = $1
                     RETURNING asset_id`;
-
-const text = (n: number | undefined) => (n === undefined ? null : String(n));
-// The model's timestamps carry no zone; the cluster's clock is UTC.
-const utc = (at: string) => `${at}Z`;
-
-const assetColumns = (a: Asset) => [
-  a.name,
-  a.code,
-  COLOR_KEYS.indexOf(a.colorKey),
-  a.yieldType,
-  String(a.expectedPct),
-  String(a.targetPct),
-  a.payoutSchedule,
-  a.firstPurchase,
-  a.maturity ?? null,
-  text(a.couponAmount),
-  text(a.couponRatePct),
-  a.nextCoupon ?? null,
-  a.inzhur?.kind ?? null,
-  a.inzhur?.ref ?? null,
-  utc(a.createdAt),
-];
-const transactionColumns = (t: Transaction) => [
-  t.date,
-  SCHEMA_TYPE[t.type],
-  String(t.amount),
-  t.assetId === '' ? null : t.assetId,
-  text(t.quantity),
-  text(t.unitPrice),
-  text(t.taxWithheld),
-  t.note ?? null,
-];
 
 type PriceAt = { asset_id: string; price: string; observed_at: string | null };
 type Priced = UnitPrice & { observedAt: string | null };
@@ -752,22 +717,10 @@ async function apply(
 
 /** One list of ops, refused whole by the byte and op bounds before anything else reads it. */
 function readBody(event: ApiEvent): ApiResult | { ops: unknown[] } {
-  const raw = event.body ?? '';
-  const decoded = event.isBase64Encoded ? Buffer.from(raw, 'base64').toString('utf8') : raw;
-  if (Buffer.byteLength(decoded, 'utf8') > MAX_BODY_BYTES) return TOO_LARGE;
-  // zod drops a `__proto__` key before any schema sees it, so it is refused here, anywhere.
-  let forbidden = false;
-  let body: unknown;
-  try {
-    body = JSON.parse(decoded, (key: string, value: unknown) => {
-      if (key === '__proto__') forbidden = true;
-      return value;
-    });
-  } catch {
-    return INVALID;
-  }
+  const read = readJson(event);
+  if ('statusCode' in read) return read;
+  const body = read.value;
   if (
-    forbidden ||
     typeof body !== 'object' ||
     body === null ||
     Object.keys(body).join() !== 'ops' ||
@@ -804,7 +757,11 @@ export async function mutations(deps: MutationDeps, event: ApiEvent): Promise<Ap
     const claimed = await claim(deps, userId, key, fingerprintOf(body));
     if ('answer' in claimed) return claimed.answer;
     const answer = await apply(deps, userId, key, claimed.token, ifMatch, body.ops);
-    if (answer.statusCode === 200) await sweep(deps.user, userId);
+    if (answer.statusCode === 200) {
+      await sweep(deps.user, userId);
+      // One bounded batch of the caller's dead generations, after the write's own transaction.
+      await collect(deps.user, userId, once(), deps.batchRows);
+    }
     return answer;
   } catch (err) {
     console.error('mutations failed', err);
@@ -846,7 +803,10 @@ export async function state(
   }
 }
 
-export async function handler(event: ApiEvent): Promise<ApiResult | EmptyResult> {
+export async function handler(
+  event: ApiEvent,
+  context?: { getRemainingTimeInMillis(): number },
+): Promise<ApiResult | EmptyResult> {
   const user = await connect().catch((err: unknown) => {
     console.error('mutations connect failed', err);
     return undefined;
@@ -857,9 +817,11 @@ export async function handler(event: ApiEvent): Promise<ApiResult | EmptyResult>
       user,
       token: randomUUID,
       sleep,
+      ...(context === undefined ? {} : { remainingMs: () => context.getRemainingTimeInMillis() }),
     };
     if (event.routeKey === STATE_ROUTE) return await state(deps, event);
     if (event.routeKey === MUTATIONS_ROUTE) return await mutations(deps, event);
+    if (IMPORT_ROUTES.includes(event.routeKey ?? '')) return await imports(deps, event);
     return INTERNAL;
   } finally {
     await user.end().catch((err: unknown) => console.error('mutations disconnect failed', err));

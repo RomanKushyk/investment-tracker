@@ -450,7 +450,7 @@ describe('what a browser may keep and read', () => {
   });
 
   it('exposes exactly the headers a script reads', () => {
-    expect([...EXPOSED].sort()).toEqual(['derivation-id', 'etag']);
+    expect([...EXPOSED].sort()).toEqual(['derivation-id', 'etag', 'location']);
   });
 
   it('carries the identifier the build defined', () => {
