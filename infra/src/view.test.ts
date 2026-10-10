@@ -1,12 +1,20 @@
 // `GET /view` over PGlite: the caller's rows and the archive's in one database, each read through
 // the module the route uses, so every answer here is one the route really gives.
+import { readFileSync } from 'node:fs';
+
 import type { PGlite } from '@electric-sql/pglite';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import type { Transaction } from '@quirenote/core/types';
 import { rebuildSnapshots, type PriceRow } from '@quirenote/core/valuation';
 import { buildView } from '@quirenote/core/view/build';
-import { balancesBody, seriesBody } from '@quirenote/core/view/serve';
+import {
+  balancesBody,
+  dayQuotes,
+  deleteCounts,
+  seriesBody,
+  type ViewBody,
+} from '@quirenote/core/view/serve';
 import { asPriceRows, LONG_ROWS } from '@quirenote/core/view/test-ledgers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,6 +26,7 @@ import {
   writeLedger,
   type LedgerRows,
 } from './__fixtures__/user-ledger';
+import { deleteAsset } from './asset-delete';
 import { handler as capture } from './capture';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
@@ -233,6 +242,12 @@ describe('a signed-in caller gets every figure in one answer', () => {
       (a, b) => index(a.assetId) - index(b.assetId) || a.asOf.localeCompare(b.asOf),
     );
     const archive: PriceRow[] = ARCHIVE.map(([asOf, price]) => ({ assetId: ENERGY, asOf, price }));
+    const assets = [...LEDGER.assets].sort(
+      (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    );
+    // The fixture stamps every price with the clock; the stamp is a fact of the day, so pin it.
+    await db.query(`UPDATE user_price SET observed_at = '2026-07-20T10:15:30Z'`);
+    const witnessed = user.map((p) => ({ ...p, observedAt: '2026-07-20T10:15:30' }));
     const expected = {
       view: buildView({
         assets: LEDGER.assets,
@@ -241,6 +256,10 @@ describe('a signed-in caller gets every figure in one answer', () => {
         today: TODAY,
       }),
       fx: RATE,
+      assets,
+      transactions,
+      today: dayQuotes(transactions, witnessed, TODAY),
+      deleteCounts: deleteCounts(assets, transactions, user),
       etag: '"0"',
     };
     expect(numbers(expected).every(Number.isFinite)).toBe(true);
@@ -375,6 +394,114 @@ describe('the read’s validator', () => {
 
   it('moves with the derivation identifier', async () => {
     expect(await tagOf(deps({ derivationId: 'derivation-b' }))).not.toBe(await tagOf());
+  });
+});
+
+describe('the rows and facts the editors read', () => {
+  const REIT = LEDGER.assets[SEED_ASSETS.findIndex((a) => a.id === 'reit')].id;
+  const NEW_ID = '00000000-0000-4000-8000-0000000000f1';
+  const deposit = (date: string): Transaction => ({
+    id: NEW_ID,
+    date,
+    type: 'deposit',
+    assetId: '',
+    amount: 100,
+  });
+  const answer = async () =>
+    JSON.parse(((await view(deps(), event())) as ApiResult).body) as ViewBody & { etag: string };
+
+  it('answers every asset and every transaction, rows dated after today included', async () => {
+    await writeLedger(db, SUB, {
+      assets: [],
+      transactions: [deposit('2026-08-15')],
+      userPrices: [],
+    });
+    const body = await answer();
+    expect(body.assets.map((a) => a.id).sort()).toEqual(LEDGER.assets.map((a) => a.id).sort());
+    expect(body.transactions.map((t) => t.id).sort()).toEqual(
+      [...LEDGER.transactions.map((t) => t.id), NEW_ID].sort(),
+    );
+    expect(body.transactions.at(-1)?.id).toBe(NEW_ID);
+  });
+
+  // A deposit today makes today a grid day, and the archive prices the fund today: the rebuilt
+  // series quotes it, and the user recorded nothing.
+  it('reports only the quotes the user recorded, not a carried grid day or an archive price', async () => {
+    await writeLedger(db, SUB, { assets: [], transactions: [deposit(TODAY)], userPrices: [] });
+    await observe(TODAY, ENERGY_REF, 10.4);
+    const { today } = await answer();
+    expect(today.date).toBe(TODAY);
+    expect(today.quotes).toEqual({});
+    expect(today.previous[REIT]).toEqual({ value: 68702.1, date: '2026-07-27' });
+    // Not the archive's 26th and 27th, nor today.
+    expect(today.previous[ENERGY]).toEqual({ value: 60086.09, date: '2026-07-25' });
+  });
+
+  it('reports a quote the user recorded today, and the last before it', async () => {
+    await db.query(
+      `INSERT INTO user_price (dataset_id, asset_id, as_of, price, observed_at)
+       SELECT dataset_id, $1, $2, 11, now() FROM app_user WHERE user_id = $3`,
+      [REIT, TODAY, SUB],
+    );
+    const { today } = await answer();
+    expect(Object.keys(today.quotes)).toEqual([REIT]);
+    expect(today.previous[REIT]).toEqual({ value: 68702.1, date: '2026-07-27' });
+  });
+
+  it('names the latest witness time of the user’s prices, whichever day carries it', async () => {
+    await db.query('UPDATE user_price SET observed_at = NULL');
+    expect((await answer()).today.savedAt).toBeNull();
+    await db.query(`UPDATE user_price SET observed_at = '2026-07-20T10:15:30Z' WHERE as_of = $1`, [
+      '2026-02-03',
+    ]);
+    await db.query(`UPDATE user_price SET observed_at = '2026-07-01T08:00:00Z' WHERE as_of = $1`, [
+      '2026-07-27',
+    ]);
+    expect((await answer()).today.savedAt).toBe('2026-07-20T10:15:30');
+  });
+
+  // The count is what `asset.delete` removes: every price row of the asset, a day its position holds
+  // none included.
+  it('counts the rows deleting each asset removes', async () => {
+    const quoted = LEDGER.assets[SEED_ASSETS.findIndex((a) => a.id === 'ovdp6475')].id;
+    await db.query(
+      `INSERT INTO user_price (dataset_id, asset_id, as_of, price, observed_at)
+       SELECT dataset_id, $1, '2026-01-01', 100, now() FROM app_user WHERE user_id = $2`,
+      [quoted, SUB],
+    );
+    const { deleteCounts: counted } = await answer();
+    const rows = async (table: string, assetId: string) =>
+      (
+        await db.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM ${table} WHERE asset_id = $1`,
+          [assetId],
+        )
+      ).rows[0].n;
+    for (const { id } of LEDGER.assets) {
+      const before = {
+        transactions: await rows('"transaction"', id),
+        quoteDays: await rows('user_price', id),
+      };
+      expect(counted[id]).toEqual(before);
+      expect(await deleteAsset(db as unknown as SqlClient, SUB, id, 10_000)).toEqual({
+        deleted: before.transactions + before.quoteDays + 1,
+      });
+    }
+    expect(counted[quoted].quoteDays).toBeGreaterThan(0);
+  });
+
+  it('lists the body’s keys exactly, as the published example does', async () => {
+    const keys = ['view', 'fx', 'assets', 'transactions', 'today', 'deleteCounts', 'etag'];
+    const body = await answer();
+    expect(Object.keys(body)).toEqual(keys);
+    expect(Object.keys(body.today)).toEqual(['date', 'quotes', 'previous', 'savedAt']);
+    const document = JSON.parse(
+      readFileSync(new URL('../../docs/reference/openapi.json', import.meta.url), 'utf8'),
+    );
+    const example =
+      document.paths['/view'].get.responses['200'].content['application/json'].examples.view.value;
+    expect(Object.keys(example)).toEqual(keys);
+    expect(Object.keys(example.today)).toEqual(Object.keys(body.today));
   });
 });
 

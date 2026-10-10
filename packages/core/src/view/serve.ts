@@ -1,10 +1,10 @@
-// What the three reads answer, from the rows the server reads: here rather than in the handler, so
-// the derivation identifier, a hash of this package, moves with every rule that shapes a body.
+// What the reads answer, from the rows the server reads: here rather than in the handler, so the
+// derivation identifier, a hash of this package, moves with every rule that shapes a body.
 import { addDays } from '../dates';
 import { normalizeRef } from '../inzhur/ref';
 import type { PeriodOption } from '../period';
 import type { Asset, Transaction } from '../types';
-import { rebuildSnapshots, type PriceRow } from '../valuation';
+import { rebuildSnapshots, snapshotsOfPrices, type PriceRow } from '../valuation';
 import { buildBalanceRow, paginateSnapshots, type BalanceRow } from './balances';
 import { buildView, ledgerAsOf, type View } from './build';
 import type { ViewInput } from './input';
@@ -41,9 +41,37 @@ export interface Fx {
   date: string;
 }
 
+/** What the user recorded on one day and before it: the quotes screen's prefill, its subline and
+ *  baseline, and its last-saved stamp. */
+export interface DayQuotes {
+  date: string;
+  /** Each asset's recorded ₴ quote that day. A position held none of that day has none. */
+  quotes: Record<string, number>;
+  /** Each asset's latest recorded quote strictly before the day, and the day it was recorded. */
+  previous: Record<string, { value: number; date: string }>;
+  /** The latest witness time of any price the user recorded, on any day. */
+  savedAt: string | null;
+}
+
+/** What deleting an asset removes besides the asset: its transactions, and every day it has a
+ *  stored price, whatever its position held that day. */
+export interface DeleteCount {
+  transactions: number;
+  quoteDays: number;
+}
+
+/** `GET /view`'s body but for its `etag`: the figures, and the rows, the delete counts and the
+ *  caller's day's facts the editors read. */
 export interface ViewBody {
   view: View;
   fx: Fx | null;
+  /** Every asset and every transaction, uncut: unlike the figures, a form reads the rows dated
+   *  after the caller's day. */
+  assets: Asset[];
+  transactions: Transaction[];
+  /** The caller's day as the quotes screen opens on it. */
+  today: DayQuotes;
+  deleteCounts: Record<string, DeleteCount>;
 }
 
 /** `GET /view/series`: the yield curve for one period, the one figure too wide to send for six. */
@@ -133,9 +161,66 @@ export function servedInput(input: ServedRows): ViewInput {
   return { assets, transactions, snapshots, today: input.today, paymentDates };
 }
 
-/** `buildView` over the rebuilt series, the rate beside it. */
+/** What the user recorded on `date` and before it, read from their own price rows alone: the rebuilt
+ *  series also quotes a carried grid day and an archive price, and neither was recorded. Priced as
+ *  a stored day is (`snapshotsOfPrices`), so a position held none that day has no quote. Rows in
+ *  any order give one answer. */
+export function dayQuotes(
+  transactions: Transaction[],
+  userPrices: readonly PriceRow[],
+  date: string,
+): DayQuotes {
+  // Sorted, so that the key order of what is answered is not the order the rows arrived in.
+  const sorted = [...userPrices].sort(
+    (a, b) => compare(a.asOf, b.asOf) || compare(a.assetId, b.assetId),
+  );
+  const days = snapshotsOfPrices(transactions, sorted);
+  const previous: DayQuotes['previous'] = {};
+  for (const day of days) {
+    if (day.date >= date) break;
+    for (const [assetId, value] of Object.entries(day.quotes)) {
+      previous[assetId] = { value, date: day.date };
+    }
+  }
+  // The stamp is when anything was saved, so it reads rows of every day.
+  let savedAt: string | null = null;
+  for (const { observedAt } of userPrices) {
+    if (observedAt === undefined) continue;
+    if (savedAt === null || observedAt > savedAt) savedAt = observedAt;
+  }
+  return { date, quotes: days.find((d) => d.date === date)?.quotes ?? {}, previous, savedAt };
+}
+
+/** Each asset's counts, as `asset.delete` removes them: every transaction naming it and every price
+ *  row of it, a day its position held none included. */
+export function deleteCounts(
+  assets: readonly Asset[],
+  transactions: readonly Transaction[],
+  userPrices: readonly PriceRow[],
+): Record<string, DeleteCount> {
+  const counts = new Map(assets.map((a) => [a.id, { transactions: 0, quoteDays: 0 }]));
+  for (const t of transactions) {
+    const count = counts.get(t.assetId);
+    if (count !== undefined) count.transactions += 1;
+  }
+  for (const p of userPrices) {
+    const count = counts.get(p.assetId);
+    if (count !== undefined) count.quoteDays += 1;
+  }
+  return Object.fromEntries(counts);
+}
+
+/** `buildView` over the rebuilt series, the rate beside it, and the rows the editors read. */
 export function viewBody(input: ServedRows & { fx: Fx | undefined }): ViewBody {
-  return { view: buildView(servedInput(input)), fx: input.fx ?? null };
+  const served = servedInput(input);
+  return {
+    view: buildView(served),
+    fx: input.fx ?? null,
+    assets: served.assets,
+    transactions: served.transactions,
+    today: dayQuotes(served.transactions, input.userPrices, input.today),
+    deleteCounts: deleteCounts(served.assets, served.transactions, input.userPrices),
+  };
 }
 
 /** The curve the Yield screen draws for `period`, cut at the caller's day as `buildView` cuts. */

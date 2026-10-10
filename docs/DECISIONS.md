@@ -16,8 +16,9 @@ reading the config back. Pure modules return keys and tokens, never assembled pr
 TAKES ITS FIGURES FROM ONE COMPOSER in `view/`, a function of the ledger and of whichever of the
 period option, the caller's `today` and the Inzhur feed that screen reads; the component formats,
 tweens and converts what it returns, and a source test holds each screen to one call. `buildView`
-runs them all, the windowed ones once per period option and the rest once, and its type is
-`/view`'s payload. The clock is an input: nothing in the package reads it for a figure. New code calls
+runs them all, the windowed ones once per period option and the rest once, and its type is the
+`view` member of `/view`'s payload, which `viewBody` completes with the rows the editors read. The
+clock is an input: nothing in the package reads it for a figure. New code calls
 `repository.ts`, never `db.ts`. A dependency is a decision, and it is recorded under the topic it
 serves rather than in a register of its own. The seam test against `infra/schema/user.ts` sits in
 `infra/src/`, so the edge between them runs one way.
@@ -796,8 +797,18 @@ there beside the capture, which revokes every mapping and grants the current one
 whenever one of its properties changes: the role's ARN, the cluster, the hash of its own code or
 its timeout.
 THE DERIVED READ IS `GET /view`: `buildView` for all six periods over the series rebuilt from the
-caller's prices and the archive's, the official rate and its day beside it. The rules from core's
-types to the body live in core (`view/serve.ts`), so the derivation identifier covers them; the
+caller's prices and the archive's, the official rate and its day beside it, and the rows the editors
+read, which a figure is cut from and a form is not: every asset and every transaction, uncut and in
+the order the composers read them, a row dated after the caller's day included; the quotes the user
+RECORDED on the caller's day, each asset's latest recorded one before it with the day it was
+recorded, and the latest witness time of any price the user recorded; and each asset's delete
+counts. A quote is recorded when a `user_price` row of the user gives it, priced as a stored day is,
+so a carried grid day and an archive price are none and a price on a day its position holds none
+gives none. The delete counts are what `asset.delete` removes: the asset's transactions and every
+price row of it, a day its position held none included. One core function composes the quotes for
+any day, and only the caller's day rides `/view`, every recorded day growing with the history. The
+rules from core's types to the body live in core (`view/serve.ts`), so the derivation identifier
+covers them; the
 mapping of rows into those types stays in `infra/`, outside it: `infra/src/ledger.ts` reads the
 rows of the caller's live dataset and `app_user.data_version` in one read-only transaction, and
 `infra/src/sell-observations.ts` reads the archive's sell rows and, for each linked ref, the
@@ -890,7 +901,13 @@ the SQL window, wider than any gap between two of the archive's observations of 
 cutoff on carrying a price is rejected (*Derived figures and the seed*). API Gateway's HTTP APIs do
 not compress. A cache keys a stored response by at least its method and target URI (RFC 9111 §2),
 but a client keeping one tag per route would be answered 304 for a period or a page it never
-stored, so the route and its parameter join the tag.
+stored, so the route and its parameter join the tag. The editors' rows ride the boot read because a
+form waiting for a read of its own would cost a request per screen: Microsoft's Chatty I/O
+antipattern says "Reduce the number of I/O requests by packaging the data into larger, fewer
+requests", and TanStack Query advises restructuring the API "so you can fetch both of these in a
+single query". The quotes come from the user's own rows because the rebuilt series quotes a carried
+grid day and an archive price too, and a screen prefilling from it would save them back as
+observations.
 AIP-158 answers an offset it cannot fulfil "200 OK with an empty result set" and no next token, an
 empty token being "the only way to communicate 'end-of-collection'", and Azure's guidelines omit
 `nextLink` on the last page: an end read off a short page is wrong whenever the last page is full.
@@ -963,7 +980,9 @@ would decide which. · `snapshot.put`, replacing the day: a day's quotes as the 
 back name no asset the day holds none of, and the screen prefills from them, so a day written again
 deleted that asset's price, which no quote can carry, and answered that nothing was dropped. · A
 put replacing only the positions the day holds: still a replacement, so a held position its sender
-left out lost its price, the loss AIP-134 gives.
+left out lost its price, the loss AIP-134 gives. · Every recorded day in `/view`: its size follows
+the history, and the quotes screen reads one day. · The rebuilt series as the source of the recorded
+quotes: it quotes a carried grid day and an archive price as well.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER

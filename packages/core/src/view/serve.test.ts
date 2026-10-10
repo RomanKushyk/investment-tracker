@@ -4,13 +4,15 @@ import { addDays } from '../dates';
 import { PERIOD_OPTIONS } from '../period';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
 import type { Asset, Transaction } from '../types';
-import { rebuildSnapshots, type PriceRow } from '../valuation';
+import { rebuildSnapshots, snapshotsOfPrices, type PriceRow } from '../valuation';
 import { buildBalanceRow, paginateSnapshots } from './balances';
 import { buildView, ledgerAsOf } from './build';
 import {
   ARCHIVE_LOOKBACK_DAYS,
   archiveSpan,
   balancesBody,
+  dayQuotes,
+  deleteCounts,
   seriesBody,
   servedInput,
   viewBody,
@@ -113,17 +115,16 @@ describe('viewBody — what GET /view answers, from rows', () => {
           SEED_ASSETS.findIndex((x) => x.id === b.assetId) || a.asOf.localeCompare(b.asOf),
     );
     const snapshots = rebuildSnapshots(SEED_ASSETS, transactions, { user, archive: [] }, TODAY);
-    expect(
-      viewBody({
-        assets: SEED_ASSETS,
-        transactions,
-        userPrices: user,
-        paymentDates: [],
-        archiveRows: [],
-        today: TODAY,
-        fx: FX,
-      }),
-    ).toEqual({
+    const { view, fx } = viewBody({
+      assets: SEED_ASSETS,
+      transactions,
+      userPrices: user,
+      paymentDates: [],
+      archiveRows: [],
+      today: TODAY,
+      fx: FX,
+    });
+    expect({ view, fx }).toEqual({
       view: buildView({ assets: SEED_ASSETS, transactions, snapshots, today: TODAY }),
       fx: FX,
     });
@@ -139,7 +140,14 @@ describe('viewBody — what GET /view answers, from rows', () => {
       today: TODAY,
       fx: undefined,
     });
-    expect(Object.keys(body)).toEqual(['view', 'fx']);
+    expect(Object.keys(body)).toEqual([
+      'view',
+      'fx',
+      'assets',
+      'transactions',
+      'today',
+      'deleteCounts',
+    ]);
     expect(body.fx).toBeNull();
   });
 
@@ -507,5 +515,183 @@ describe('balancesBody — what GET /view/balances answers', () => {
     for (const [, , transactions] of vi.mocked(buildBalanceRow).mock.calls) {
       expect(transactions.map((t) => t.id).sort()).toEqual(['b1', 'b2', 'd1']);
     }
+  });
+});
+
+// One fund held since 10.09, the user pricing it twice, and a deposit today that makes today a grid
+// day the rebuilt series values by carrying the last price forward.
+const FACT_DAY = '2026-09-30';
+const factAssets = [fund('f', 'inzhur-reit')];
+const factTransactions = [
+  deposit('d1', '2026-09-10', 1000),
+  buy('b1', 'f', '2026-09-10', 1000, 100),
+  deposit('d2', FACT_DAY, 50),
+];
+const factPrices: PriceRow[] = [
+  { assetId: 'f', asOf: '2026-09-10', price: 10, observedAt: '2026-09-10T08:00:00' },
+  { assetId: 'f', asOf: '2026-09-20', price: 11, observedAt: '2026-09-20T09:30:00' },
+];
+const factRows = {
+  assets: factAssets,
+  transactions: factTransactions,
+  userPrices: factPrices,
+  archiveRows: [] as ArchiveRow[],
+  paymentDates: [],
+  today: FACT_DAY,
+};
+
+describe('viewBody — the rows the editors read', () => {
+  const ahead = [
+    ...factTransactions,
+    deposit('d9', '2026-10-05', 500),
+    buy('b9', 'f', '2026-10-06', 500, 40),
+  ];
+
+  it('carries every asset and every transaction, rows dated after the day included', () => {
+    const rows = {
+      ...factRows,
+      assets: [fund('g', 'ref-g', '2026-09-02T10:00:00'), ...factAssets],
+    };
+    const body = viewBody({ ...rows, transactions: [...ahead].reverse(), fx: FX });
+    expect(body.transactions.map((t) => t.id)).toEqual(['b1', 'd1', 'd2', 'd9', 'b9']);
+    expect(body.assets.map((a) => a.id)).toEqual(['f', 'g']);
+    expect(body.transactions).toEqual(servedInput({ ...rows, transactions: ahead }).transactions);
+    expect(body.assets).toEqual(servedInput(rows).assets);
+  });
+
+  it('carries the day’s facts for the caller’s day', () => {
+    const body = viewBody({
+      ...factRows,
+      userPrices: [...factPrices, { assetId: 'f', asOf: FACT_DAY, price: 10.45678 }],
+      fx: FX,
+    });
+    expect(body.today).toEqual({
+      date: FACT_DAY,
+      quotes: { f: 1045.68 },
+      previous: { f: { value: 1100, date: '2026-09-20' } },
+      savedAt: '2026-09-20T09:30:00',
+    });
+  });
+
+  // Today is a grid day, so the rebuild values the fund on it: from the user's last price, carried,
+  // and from the archive's. Neither is a quote the user recorded.
+  it('reports no quote a carried grid day or an archive price gives', () => {
+    const carried = viewBody({ ...factRows, fx: FX });
+    expect(servedInput(factRows).snapshots.find((s) => s.date === FACT_DAY)?.quotes.f).toBe(1100);
+    expect(carried.today.quotes).toEqual({});
+
+    const priced = { ...factRows, archiveRows: [observed('inzhur-reit', FACT_DAY, 12)] };
+    expect(servedInput(priced).snapshots.find((s) => s.date === FACT_DAY)?.quotes.f).toBe(1200);
+    const body = viewBody({ ...priced, fx: FX });
+    expect(body.today.quotes).toEqual({});
+    expect(body.today.previous).toEqual({ f: { value: 1100, date: '2026-09-20' } });
+  });
+
+  it('counts what deleting each asset removes', () => {
+    const body = viewBody({ ...factRows, transactions: ahead, fx: FX });
+    expect(body.deleteCounts).toEqual({ f: { transactions: 2, quoteDays: 2 } });
+  });
+});
+
+describe('dayQuotes — what the user recorded on a day and before it', () => {
+  const txs = [
+    deposit('d1', '2026-09-10', 3000),
+    buy('b1', 'f', '2026-09-10', 1000, 100),
+    buy('b2', 'g', '2026-09-10', 2000, 50),
+    sell('s1', 'f', '2026-09-25', 1100, 100),
+  ];
+  const prices: PriceRow[] = [
+    { assetId: 'g', asOf: '2026-09-10', price: 40 },
+    { assetId: 'f', asOf: '2026-09-10', price: 10 },
+    { assetId: 'f', asOf: '2026-09-20', price: 11 },
+    { assetId: 'g', asOf: '2026-09-20', price: 41 },
+    // Held none of f since the 25th: a price for a position that is gone is no quote.
+    { assetId: 'f', asOf: '2026-09-27', price: 12, observedAt: '2026-09-27T11:00:00' },
+  ];
+
+  it('prices a recorded day as the stored snapshot is, in kopecks', () => {
+    const held = [txs[0], txs[1]];
+    const rows: PriceRow[] = [{ assetId: 'f', asOf: '2026-09-10', price: 10.45678 }];
+    const day = dayQuotes(held, rows, '2026-09-10');
+    expect(day.quotes).toEqual({ f: 1045.68 });
+    expect(day.quotes).toEqual(snapshotsOfPrices(held, rows)[0].quotes);
+  });
+
+  it('names each asset’s latest recorded quote strictly before the day, with its date', () => {
+    expect(dayQuotes(txs, prices, '2026-09-20').previous).toEqual({
+      f: { value: 1000, date: '2026-09-10' },
+      g: { value: 2000, date: '2026-09-10' },
+    });
+    expect(dayQuotes(txs, prices, '2026-09-21').previous).toEqual({
+      f: { value: 1100, date: '2026-09-20' },
+      g: { value: 2050, date: '2026-09-20' },
+    });
+    // Nothing is stored on the 21st, and the 20th's quotes are not carried onto it.
+    expect(dayQuotes(txs, prices, '2026-09-21').quotes).toEqual({});
+  });
+
+  it('skips a day the position held none, though a price is stored that day', () => {
+    const day = dayQuotes(txs, prices, '2026-09-30');
+    expect(day.quotes).toEqual({});
+    expect(day.previous.f).toEqual({ value: 1100, date: '2026-09-20' });
+    expect(dayQuotes(txs, prices, '2026-09-27').quotes).toEqual({});
+  });
+
+  it('names the latest witness time of any price, whatever the day asked for', () => {
+    expect(dayQuotes(txs, prices, '2026-09-10').savedAt).toBe('2026-09-27T11:00:00');
+    expect(dayQuotes(txs, prices, '2026-09-30').savedAt).toBe('2026-09-27T11:00:00');
+  });
+
+  it('names none where no price has a witness time', () => {
+    const bare = prices.map(({ assetId, asOf, price }) => ({ assetId, asOf, price }));
+    expect(dayQuotes(txs, bare, '2026-09-30').savedAt).toBeNull();
+  });
+
+  it('answers a day before the first row, and a ledger with no row, without a quote', () => {
+    expect(dayQuotes(txs, prices, '2026-01-01')).toEqual({
+      date: '2026-01-01',
+      quotes: {},
+      previous: {},
+      savedAt: '2026-09-27T11:00:00',
+    });
+    expect(dayQuotes([], [], '2026-09-30')).toEqual({
+      date: '2026-09-30',
+      quotes: {},
+      previous: {},
+      savedAt: null,
+    });
+  });
+
+  it('answers one body whatever order the rows arrive in', () => {
+    const answer = (t: Transaction[], p: PriceRow[]) =>
+      JSON.stringify(dayQuotes(t, p, '2026-09-21'));
+    expect(answer([...txs].reverse(), [...prices].reverse())).toBe(answer(txs, prices));
+  });
+});
+
+describe('deleteCounts — what deleting each asset removes', () => {
+  const assets = [fund('f', 'inzhur-reit'), fund('g', 'ref-g'), fund('h', 'ref-h')];
+  const txs = [
+    deposit('d1', '2026-09-10', 3000),
+    buy('b1', 'f', '2026-09-10', 1000, 100),
+    buy('b2', 'f', '2026-09-12', 500, 50),
+    buy('b3', 'g', '2026-09-10', 2000, 50),
+  ];
+
+  it('counts an asset’s transactions and every day it has a stored price', () => {
+    const prices: PriceRow[] = [
+      // Before f is held: a day the position holds none is a stored price all the same.
+      { assetId: 'f', asOf: '2026-09-01', price: 9 },
+      { assetId: 'f', asOf: '2026-09-10', price: 10 },
+      { assetId: 'f', asOf: '2026-09-20', price: 11 },
+      { assetId: 'g', asOf: '2026-09-20', price: 41 },
+      // Naming no asset, it is counted under none.
+      { assetId: 'gone', asOf: '2026-09-20', price: 1 },
+    ];
+    expect(deleteCounts(assets, txs, prices)).toEqual({
+      f: { transactions: 2, quoteDays: 3 },
+      g: { transactions: 1, quoteDays: 1 },
+      h: { transactions: 0, quoteDays: 0 },
+    });
   });
 });

@@ -1,4 +1,4 @@
-// What `GET /view` serves: every screen's composer, the windowed ones once per period
+// The figures `GET /view` serves: every screen's composer, the windowed ones once per period
 // option. The union of the composers' own types, not a new vocabulary.
 import type { PeriodOption, PeriodWindow } from '../period';
 import { allocationView, type AllocationView } from './allocation';

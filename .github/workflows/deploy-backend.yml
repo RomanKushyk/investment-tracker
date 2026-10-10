@@ -364,8 +364,9 @@ jobs:
               console.log('archive-reader-grant bundle loads, sends the mapping, the default and the table grant, and checks the reader');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # Six periods under a weak tag, a 304 to it stripped of its W/, a pending caller refused, no
-          # archive opened for a ledger linking nothing, and the identifier the bundle step defined.
+          # Six periods and the editors' rows under a weak tag, a 304 to it stripped of its W/, a pending
+          # caller refused, no archive opened for a ledger linking nothing, and the identifier the bundle
+          # step defined.
           node -e "
             const v = require('./view.js');
             if (typeof v.handler !== 'function') throw new Error('handler missing from view bundle');
@@ -403,6 +404,8 @@ jobs:
               if (ok.headers['derivation-id'] !== id) throw new Error('no identifier header');
               const periods = Object.keys(JSON.parse(ok.body).view.periods).sort().join();
               if (periods !== '12m,1m,3m,6m,all,ytd') throw new Error('periods: ' + periods);
+              const keys = Object.keys(JSON.parse(ok.body)).join();
+              if (keys !== 'view,fx,assets,transactions,today,deleteCounts,etag') throw new Error('body keys: ' + keys);
               const again = await v.view(deps('active'), event({ 'if-none-match': tag.slice(2) }));
               if (again.statusCode !== 304 || 'body' in again || 'content-type' in again.headers || again.headers.etag !== tag) {
                 throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
@@ -410,7 +413,7 @@ jobs:
               const pending = await v.view(deps('pending'), event({}));
               if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
               if (opened !== 0) throw new Error('the archive was opened for a ledger that links nothing');
-              console.log('view bundle loads, serves six periods under a weak tag, answers it 304 compared weakly, refuses a pending caller and opens no archive');
+              console.log('view bundle loads, serves six periods and the editors rows under a weak tag, answers it 304 compared weakly, refuses a pending caller and opens no archive');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
           # The export under a strong tag no cache keeps, a bare 304 to it, a write with no or a `*`

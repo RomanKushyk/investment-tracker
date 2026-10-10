@@ -3,9 +3,10 @@
 The working behind the ruling in `docs/DECISIONS.md`, *Cloud target*, which is what binds; the pinned
 row `Derivation | 100% client-side` in [`2026-08-04-cloud-stack-and-cost.md`](2026-08-04-cloud-stack-and-cost.md)
 is **superseded**. [#48](https://github.com/RomanKushyk/investment-tracker/issues/48)'s API contract
-changes in one direction only: its `listAssets` / `listSnapshots` / `listTransactions` rows move from
-`GET /state` to `/view` while `/state` narrows to export and import, and **the `POST /mutations` op
-vocabulary does not move at all.** The owner's direction was three notes: per-screen endpoints but
+changes in one direction only: its `listAssets` and `listTransactions` rows move from `GET /state` to
+`/view`, and of `listSnapshots` only the quotes the user recorded on the caller's day (*Cloud target*
+keeps every other recorded day off it), while `/state` narrows to export and import, and **the
+`POST /mutations` op vocabulary does not move at all.** The owner's direction was three notes: per-screen endpoints but
 `/dashboard`, `/allocation` and `/payouts` combined; minimum data on the client, ideally none; and
 porting the derivation to the server makes sense.
 

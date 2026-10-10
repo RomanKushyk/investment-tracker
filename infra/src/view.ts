@@ -1,5 +1,6 @@
-// `GET /view`, `buildView` for six periods and the day's rate, and its two siblings, the yield curve
-// and the Balances table, too wide to send whole: one gate and one read (*Cloud target*).
+// `GET /view`, `buildView` for six periods, the day's rate and the rows the editors read, and its two
+// siblings, the yield curve and the Balances table, too wide to send whole: one gate and one read
+// (*Cloud target*).
 //
 // The tag is WEAK, a wall-clock day being an input (RFC 9110 §8.8.3), so no `If-Match` accepts it;
 // COMPOSED, since under `no-cache` a body hash would rebuild the body to answer a 304.
@@ -57,6 +58,15 @@ const VIEWED = derived({
   example: {
     view: '<buildView: every screen, the windowed ones for each of the six periods>',
     fx: { rate: 41.4983, date: '2026-10-06' },
+    assets: ['<every asset>'],
+    transactions: ['<every transaction, rows dated after today included>'],
+    today: {
+      date: '2026-10-06',
+      quotes: { '<asset id>': 1245.8 },
+      previous: { '<asset id>': { value: 1241.3, date: '2026-10-05' } },
+      savedAt: '2026-10-06T08:15:00',
+    },
+    deleteCounts: { '<asset id>': { transactions: 3, quoteDays: 174 } },
     etag: '"<data_version>"',
   },
 });
