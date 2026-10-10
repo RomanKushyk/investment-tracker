@@ -398,6 +398,68 @@ describe('one tab', () => {
     expect(await Promise.all([session.signOut(), session.signOut()])).toEqual([{}, {}]);
     expect(relay.mock.calls.map(([route]) => route)).toEqual(['refresh', 'sign-out']);
   });
+
+  it('counts a sign-out from the moment it begins, not from the relay answering', async () => {
+    let answer: (answered: RelayAnswer) => void = () => undefined;
+    const relay = vi.fn<RelayCall>((route) =>
+      route === 'sign-out'
+        ? new Promise<RelayAnswer>((resolve) => (answer = resolve))
+        : Promise.resolve(TOKENS('1')),
+    );
+    const session = createSession({ relay, locks: noLocks });
+    await session.restore();
+    expect(session.signOuts()).toBe(0);
+
+    const leaving = session.signOut();
+    expect(session.signOuts()).toBe(1);
+    expect(session.status()).toBe('signedIn');
+
+    answer({ kind: 'signedOut' });
+    await leaving;
+    expect(session.signOuts()).toBe(1);
+  });
+
+  it('says a sign-out is running from the moment it begins until the relay answers', async () => {
+    let answer: (answered: RelayAnswer) => void = () => undefined;
+    const relay = vi.fn<RelayCall>((route) =>
+      route === 'sign-out'
+        ? new Promise<RelayAnswer>((resolve) => (answer = resolve))
+        : Promise.resolve(TOKENS('1')),
+    );
+    const session = createSession({ relay, locks: noLocks });
+    await session.restore();
+    expect(session.signingOut()).toBe(false);
+
+    const leaving = session.signOut();
+    expect(session.signingOut()).toBe(true);
+    expect(session.status()).toBe('signedIn');
+
+    answer({ kind: 'signedOut' });
+    await leaving;
+    expect(session.signingOut()).toBe(false);
+  });
+
+  it('is signing out no longer once a sign-out the relay could not complete has answered', async () => {
+    const session = createSession({
+      relay: scripted(TOKENS('1'), REFUSED('failed')),
+      locks: webLocks(),
+    });
+    await session.restore();
+    expect(await session.signOut()).toBe(false);
+    expect(session.signingOut()).toBe(false);
+  });
+
+  it('counts one sign-out however often it is asked while one runs, and a failed one too', async () => {
+    const session = createSession({
+      relay: scripted(TOKENS('1'), REFUSED('failed'), { kind: 'signedOut' }),
+      locks: webLocks(),
+    });
+    await session.restore();
+    await Promise.all([session.signOut(), session.signOut()]);
+    expect(session.signOuts()).toBe(1);
+    await session.signOut();
+    expect(session.signOuts()).toBe(2);
+  });
 });
 
 describe('Google', () => {

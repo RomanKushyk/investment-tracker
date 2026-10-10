@@ -10,6 +10,9 @@ allowBuilds:
   # `@scarf/scarf`'s postinstall is install-time analytics. Refused outright rather than left
   # to the ERR_PNPM_IGNORED_BUILDS notice every install prints, which is one nobody reads.
   '@scarf/scarf': false
+  # `msw`'s postinstall only copies the browser worker script into a `msw.workerDirectory` this repo
+  # does not set: the suite runs it in node.
+  msw: false
 
 # pnpm 11 no longer reads package.json's `pnpm` field, so overrides live here. `^0.28.1`
 # dedupes `@esbuild-kit/core-utils` (deprecated, pinned `~0.18.20`) onto the copy vite and tsx

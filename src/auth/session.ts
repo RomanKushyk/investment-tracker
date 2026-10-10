@@ -23,6 +23,12 @@ export interface Session {
   complete(body: unknown): Promise<RelayAnswer>;
   /** `false` when the relay could not revoke, which keeps both cookies for a retry. */
   signOut(): Promise<false | SignedOut>;
+  /** How many sign-outs this page has begun, counted when one begins and not when the relay answers:
+   *  a reader that saw a different count when it asked has an answer from before one. */
+  signOuts(): number;
+  /** True from when a sign-out begins until the relay answers it: the pair held meanwhile is the
+   *  account's that is leaving. */
+  signingOut(): boolean;
   getIdToken(): Promise<string | undefined>;
   /** The `sub` of the same pair: each passkey call names it, so the relay acts only for the account
    *  this tab shows. */
@@ -64,6 +70,7 @@ export function createSession({
   let google: boolean | undefined;
   let refreshing: Promise<void> | undefined;
   let leaving: Promise<false | SignedOut> | undefined;
+  let begun = 0;
   // A signed-out status the relay never gave: the next reader asks again.
   let unanswered = false;
   const listeners = new Set<() => void>();
@@ -125,13 +132,20 @@ export function createSession({
         return answer;
       }),
     // Shared while one runs, as a refresh is: one sign-out, however many controls are pressed.
-    signOut: () =>
-      (leaving ??= locked(async () => {
-        const answer = await relay('sign-out');
-        if (answer.kind !== 'signedOut') return false;
-        set('signedOut');
-        return answer.logout === undefined ? {} : { logout: answer.logout };
-      }).finally(() => (leaving = undefined))),
+    signOut() {
+      if (leaving === undefined) {
+        begun += 1;
+        leaving = locked(async () => {
+          const answer = await relay('sign-out');
+          if (answer.kind !== 'signedOut') return false;
+          set('signedOut');
+          return answer.logout === undefined ? {} : { logout: answer.logout };
+        }).finally(() => (leaving = undefined));
+      }
+      return leaving;
+    },
+    signOuts: () => begun,
+    signingOut: () => leaving !== undefined,
     getIdToken: async () => (await fresh())?.idToken,
     getAccount: async () => {
       const pair = await fresh();

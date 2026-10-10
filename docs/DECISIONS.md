@@ -1180,7 +1180,28 @@ answers every address with one constant, so the form can say only that it was re
 API REFUSES on a route every user may call — pending, rejected, no application, forbidden — sees that
 answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out; an
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
-not read that way. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE, ONCE: the fact rides the navigation
+not read that way. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which no screen calls
+yet. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
+each answer back as a typed reply: the four refusals apart; a 412, a 409 for a write still running,
+a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
+own; any other answer by its status and body. A body goes as the text it was given, under
+`application/json` unless its caller names a type, as `PATCH /settings` must. Nothing is sent where
+the host names no API, nor where the account is signed out or a sign-out is running, the pair held
+meanwhile being the account's that is leaving; the reply to the latter two is a 401's kind. It shows
+a refusal only for a route every user may call, which the first segment of its path names, and only
+when no sign-out has begun since the request did: the session counts a sign-out when it begins,
+because its status changes only once the relay answers. A sign-out that begins during a call ends
+it before its next send, since the next token may be another account's. A 412 is never sent again.
+A 429, a lost connection and a 409 for a write still running are sent again after a Full Jitter wait
+drawn from up to half a second and doubled at each retry, at most four times, and are then returned
+as they stand. A token the relay could not be reached for, a refresh the network lost or a load it
+never answered, is asked for again on the same schedule and then returned as a lost connection. An
+attempt waits only as long as API Gateway can take to answer, `ANSWER_MS` as the relay's calls do,
+and one it does not answer is a lost connection. A keyed write goes under one `Idempotency-Key` for
+all its attempts, so an answer lost in transit finds the 200 the server stored. A `derivation-id` that differs from the build's is
+returned with the answer and acted on by nothing: `pnpm dev` defines the build's from the local
+checkout and proxies to the deployed API, so on a branch the deploy lacks a reload on a difference
+would not end. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE, ONCE: the fact rides the navigation
 as router state, and the page replaces its own history entry the moment it arrives, a status line
 above the title that submit empties and holds. Through Cognito's logout the page arrives by a load
 from another origin, which router state cannot cross, so this tab's session storage carries the fact
@@ -1202,6 +1223,12 @@ passkey was successfully created" — and Amplify UI's Authenticator, which list
 after a sign-in and prompts only on an empty list. It prompts when the list errors too; here that
 would invite the `InvalidStateError` of a passkey that already exists, of which web.dev says "The
 site shouldn't treat this as an error."
+The IETF's `Idempotency-Key` draft is what lets a client send a POST again, and it names 409 as the
+one refusal a client sends again with no correction; a 412 is the precondition doing its work, which
+sending it again unchanged cannot change. AWS's backoff study shows exponential backoff alone still
+leaves clusters of calls and jitter spreads them, and says most AWS SDKs support both in their
+standard retry mode; its Builders' Library calls a retry "selfish", hence a bound. The window starts at
+the half second in which the API's two requests per second refill one token.
 **Rejected.** As the relying party, a Cognito prefix domain — a later move to the custom one strips
 the passkeys registered against it — or the auth host, which would scope every credential to managed
 login alone. · A post-confirmation trigger creating the row: AWS does not invoke it for an
@@ -1253,7 +1280,11 @@ back in; `login` asks for Google's password every time. · The flow's pair encry
 keeps its own: HttpOnly and `__Host-` already keep it from script and other hosts, and neither half
 is a token — the verifier redeems nothing without the code Cognito sends to this browser, which
 lives five minutes. · A reset-required account answered apart, as Amplify JS makes it a
-`RESET_PASSWORD` step: the app has no reset to lead it to.
+`RESET_PASSWORD` step: the app has no reset to lead it to. · Retries left to TanStack Query: its
+default is none for a mutation, and three for a query after a wait that doubles from a second with no
+jitter, so a write would not be sent again on a lost answer unless each caller said so. · A reload
+when the `derivation-id` differs: a checkout with a commit under `packages/core/src` the deployed API
+lacks differs from it for as long as it stands.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;
@@ -1446,7 +1477,10 @@ grants or sets anything outside one fails the next call, and a built-in edited i
 The suite runs `vitest run`'s default worker count, one fewer than the cores, capped at four, and
 watch mode takes the same. A hook whose answer moves with state it subscribes to is tested mounted, with
 Testing Library's `renderHook`, in a file that opts into jsdom by its `@vitest-environment` comment;
-the suite stays `node`, and such a test advances a fake clock inside `act`.
+the suite stays `node`, and such a test advances a fake clock inside `act`. THE USER-API TRANSPORT IS
+TESTED AGAINST MOCK SERVICE WORKER 2, in node: `src/lib/transport.test.ts` serves the routes with
+handlers and listens with `onUnhandledRequest: 'error'`, so a request no handler names is halted, and
+one test sends such a request to keep the option live.
 **Why.** These documents carry figures, contracts and instructions no type checker reads, and a gate
 whose verdict moves with whether an agent happens to be running is not a gate. `toJS()` discards an
 unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are one value to a
@@ -1460,7 +1494,9 @@ for the main thread, whose single Vite server serves every worker. React depreca
 `react-test-renderer` and points to `@testing-library/react`; TanStack Query's testing guide mounts
 a hook with `renderHook` inside a `QueryClientProvider`, and its suite, like usehooks-ts', runs
 Vitest on jsdom. Testing Library's `waitFor` recognises fake timers only through a `jest` global, so
-under Vitest's it polls on a clock nothing advances.
+under Vitest's it polls on a clock nothing advances. Vitest's guide recommends Mock Service Worker and
+shows `onUnhandledRequest: 'error'`, which halts a request no handler names; the test that sends one
+fails under a version that renames the option, where the request would otherwise go through.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · Asking the planner (`EXPLAIN` in PGlite) which sort keys are expressions:
 `SELECT DISTINCT` and `count(DISTINCT …)` sort on expressions by design, so every query would need
@@ -1472,7 +1508,9 @@ see what the machine's other apps hold. · Sizing from free memory: the worker c
 gate, would move with the machine's load. · `vmMemoryLimit`: it recycles only the vm pools' workers.
 · jsdom for the whole suite, or a project of its own: every other test passes without a DOM, and
 `src/vitest-scope.test.ts` keeps one project. · Vitest Browser Mode: a
-Playwright provider and a browser project for a hook that needs no layout.
+Playwright provider and a browser project for a hook that needs no layout. · MSW 3: `@vitest/mocker`
+declares `msw ^2.4.9`, and 3.0.2 renamed that option `onUnhandledFrame` and let a request through
+under the old name.
 
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the
