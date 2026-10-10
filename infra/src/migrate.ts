@@ -42,6 +42,7 @@ export const MIGRATIONS = [
   '012_dataset_keys.sql',
   '013_dataset_catch_up.sql',
   '014_mutation_key.sql',
+  '015_import_staging.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */

@@ -99,9 +99,10 @@ needing the clause: it applies to rows inserted after it and leaves existing row
 **A `NOT VALID` foreign key still blocks a `DROP TABLE` on its target.** Not being validated buys
 nothing here: the dependency is what the drop refuses on, so a table another table references cannot
 go until the referencing table has. Dropping the user schema by hand therefore runs child-first —
-`user_price`, `transaction`, `asset`, `account`, `mutation_key`; then, since `dataset` and `app_user` reference each
-other, `app_user`'s two pointer constraints, then `dataset`, then `app_user`. `src/asset-delete.ts` walks
-children before their parent for the same reason.
+`user_price`, `transaction`, `asset`, `import_part`, `import_manifest`, `account`, `mutation_key`;
+then, since `dataset` and `app_user` reference each other, `app_user`'s two pointer constraints,
+then `dataset`, then `app_user`. `src/asset-delete.ts` walks children before their parent for the
+same reason.
 
 The cycle `010_dataset.sql` makes between `dataset` and `app_user` does not stop a rehearsal's `DROP
 SCHEMA … CASCADE`, and the cluster accepts `ADD COLUMN IF NOT EXISTS` and an `UPDATE` that sets a

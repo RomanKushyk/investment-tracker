@@ -1189,7 +1189,9 @@ moves it to a new, empty dataset in one request, whatever the old one holds. Eve
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
 writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
 and key, restricted on the user's delete; a row holds a claim's token and window, and its stored
-response whole or not at all. EVERY WRITE CARRIES AN `Idempotency-Key`, a UUID unique per user and
+response whole or not at all. An import's manifest lives in `import_manifest`, keyed by the
+generation it stages, and each staged part in `import_part`, keyed by that manifest, each restricted
+on the delete of what it names. EVERY WRITE CARRIES AN `Idempotency-Key`, a UUID unique per user and
 read lowercased; one missing or malformed is 400, and the bounds and its format are checked before
 anything is claimed. A CLAIM COMMITS FIRST, in a transaction of its own, under a token of the
 request's; the effect, the version bump and the stored response then commit together, under that

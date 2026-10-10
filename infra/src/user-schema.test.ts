@@ -118,7 +118,7 @@ describe('the draft applies as Postgres', () => {
     expect(applied).toBeGreaterThan(0);
   });
 
-  it('creates exactly the eight tables the spec, the official rate, the dataset and the mutation keys name', async () => {
+  it('creates exactly the ten tables the spec, the official rate, the dataset, the mutation keys and the import staging name', async () => {
     const { rows } = await db.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' ORDER BY table_name`,
@@ -128,6 +128,8 @@ describe('the draft applies as Postgres', () => {
       'app_user',
       'asset',
       'dataset',
+      'import_manifest',
+      'import_part',
       'mutation_key',
       'official_rate',
       'transaction',
@@ -165,6 +167,8 @@ describe('the draft applies as Postgres', () => {
       app_user: 'user_id',
       asset: 'dataset_id',
       dataset: 'user_id',
+      import_manifest: 'dataset_id',
+      import_part: 'dataset_id',
       mutation_key: 'user_id',
       official_rate: 'rate_date',
       transaction: 'dataset_id',
@@ -751,6 +755,144 @@ describe('mutation_key', () => {
       `SELECT indexname FROM pg_indexes WHERE tablename = 'mutation_key' ORDER BY indexname`,
     );
     expect(rows.map((r) => r.indexname)).toEqual(['mutation_key_user_id_key_pk']);
+  });
+});
+
+describe('import staging', () => {
+  /** SHA-256 of `import` in base64, as `Content-Digest` carries it: a `+` and a `/` among them. */
+  const DIGEST = `'2UL2SIZXjYdHMS42jtktn2sqjUVVbw+STiRE/pEdFa8='`;
+  const generation = async () => {
+    const id = nextId();
+    await db.exec(`INSERT INTO dataset (user_id, id, created_at) VALUES (${USER}, ${id}, now());`);
+    return id;
+  };
+  /** A generation whose import has begun: its manifest is written. */
+  const begun = async () => {
+    const id = await generation();
+    await db.exec(manifest(id));
+    return id;
+  };
+  /** One row of `table`; `over` replaces a column's SQL value. */
+  const row = (table: string, base: Record<string, string>, over: Record<string, string>) => {
+    const cols = { ...base, ...over };
+    return `INSERT INTO ${table} (${Object.keys(cols).join(', ')})
+            VALUES (${Object.values(cols).join(', ')});`;
+  };
+  const manifest = (dataset: string, over: Record<string, string> = {}) =>
+    row(
+      'import_manifest',
+      {
+        dataset_id: dataset,
+        digest: DIGEST,
+        assets: '2',
+        transactions: '30',
+        prices: '600',
+        staged_at: 'now()',
+      },
+      over,
+    );
+  const part = (dataset: string, over: Record<string, string> = {}) =>
+    row('import_part', { dataset_id: dataset, part: '1', digest: DIGEST }, over);
+
+  const DIGESTS: [string, string][] = [
+    ['a SHA-256 in hex', `'${'a'.repeat(64)}'`],
+    ['44 characters without the padding', `'${'A'.repeat(44)}'`],
+    ['42 characters and the padding', `'${'A'.repeat(42)}='`],
+    ['a URL-safe character', `'${'A'.repeat(42)}-='`],
+    // 32 bytes leave the last character two spare bits, zero in the one encoding of those bytes.
+    ['a last character with its spare bits set', `'${'A'.repeat(42)}B='`],
+  ];
+
+  describe('import_manifest', () => {
+    it('accepts a manifest, an empty import’s included', async () => {
+      await accepts(manifest(await generation()));
+      await accepts(manifest(await generation(), { assets: '0', transactions: '0', prices: '0' }));
+    });
+
+    it.each(['dataset_id', 'digest', 'assets', 'transactions', 'prices', 'staged_at'])(
+      'refuses a NULL %s, which DSQL could never require later',
+      async (column) => {
+        await refuses(manifest(await generation(), { [column]: 'NULL' }));
+      },
+    );
+
+    it.each(DIGESTS)('refuses a digest of %s', async (_, digest) => {
+      await refuses(manifest(await generation(), { digest }));
+    });
+
+    it.each(['assets', 'transactions', 'prices'])('refuses a negative count of %s', async (c) => {
+      await refuses(manifest(await generation(), { [c]: '-1' }));
+    });
+
+    it('refuses a manifest for a dataset that does not exist', async () => {
+      await refuses(manifest(nextId()));
+    });
+
+    it('refuses a second manifest for one dataset', async () => {
+      const id = await generation();
+      await accepts(manifest(id));
+      await refuses(manifest(id));
+    });
+
+    it('refuses deleting a dataset that holds a manifest', async () => {
+      const id = await generation();
+      await accepts(manifest(id));
+      await refuses(`DELETE FROM dataset WHERE id = ${id};`);
+    });
+  });
+
+  describe('import_part', () => {
+    it.each(['1', '10000'])('accepts part %s', async (n) => {
+      await accepts(part(await begun(), { part: n }));
+    });
+
+    it.each(['0', '-1', '10001'])('refuses part %s, outside S3’s range', async (n) => {
+      await refuses(part(await begun(), { part: n }));
+    });
+
+    it.each(['dataset_id', 'part', 'digest'])(
+      'refuses a NULL %s, which DSQL could never require later',
+      async (column) => {
+        await refuses(part(await begun(), { [column]: 'NULL' }));
+      },
+    );
+
+    it.each(DIGESTS)('refuses a digest of %s', async (_, digest) => {
+      await refuses(part(await begun(), { digest }));
+    });
+
+    it('refuses a part for a dataset that does not exist', async () => {
+      await refuses(part(nextId()));
+    });
+
+    it('refuses a part for a generation whose import never began', async () => {
+      await refuses(part(await generation()));
+    });
+
+    it('refuses one number twice in a generation, and takes it in another', async () => {
+      const id = await begun();
+      await accepts(part(id));
+      await refuses(part(id));
+      await accepts(part(await begun()));
+    });
+
+    it('refuses deleting the manifest a part names', async () => {
+      const id = await begun();
+      await accepts(part(id));
+      await refuses(`DELETE FROM import_manifest WHERE dataset_id = ${id};`);
+    });
+  });
+
+  // A part and a manifest are read by their generation, a range of the primary key.
+  it('carries no index but each table’s primary key', async () => {
+    const { rows } = await db.query<{ indexname: string }>(
+      `SELECT indexname FROM pg_indexes
+        WHERE tablename IN ('import_manifest', 'import_part') ORDER BY indexname`,
+    );
+    expect(rows.map((r) => r.indexname)).toEqual([
+      'import_manifest_dataset_id_pk',
+      'import_part_dataset_id_part_pk',
+    ]);
   });
 });
 
