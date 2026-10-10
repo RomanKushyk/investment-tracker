@@ -222,7 +222,8 @@ export const appUser = pgTable(
     // here than the cluster holds, and `schema-generated.test.ts` only
     // diffs this file against `003`. Every later constraint on an applied table
     // lands the same way, so read the migrations, not only this file: `010` adds
-    // the two dataset pointers and their keys, and the `dataset` table itself.
+    // the two dataset pointers and their keys, and the `dataset` table itself;
+    // `016` adds `settings`.
     //
     // THE DEMO ROW INVERTS THAT, and it is the reason its address is chosen
     // rather than invented: the database now holds an address Cognito has never

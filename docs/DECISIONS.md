@@ -1260,7 +1260,8 @@ writes one with the account. A write's idempotency keys live in `mutation_key`, 
 and key, restricted on the user's delete; a row holds a claim's token and window, and its stored
 response whole or not at all. An import's manifest lives in `import_manifest`, keyed by the
 generation it stages, and each staged part in `import_part`, keyed by that manifest, each restricted
-on the delete of what it names. EVERY WRITE CARRIES AN `Idempotency-Key`, a UUID unique per user and
+on the delete of what it names. The account's settings are `app_user.settings`, one nullable text
+column. EVERY WRITE CARRIES AN `Idempotency-Key`, a UUID unique per user and
 read lowercased; one missing or malformed is 400, and the bounds and its format are checked before
 anything is claimed. A CLAIM COMMITS FIRST, in a transaction of its own, under a token of the
 request's; the effect, the version bump and the stored response then commit together, under that

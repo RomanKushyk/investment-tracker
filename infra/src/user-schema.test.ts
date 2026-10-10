@@ -896,6 +896,44 @@ describe('import staging', () => {
   });
 });
 
+// The account's settings are one nullable text column on `app_user` (*Persistence today*). DSQL
+// cannot alter a column's type later, so the type is pinned here, and a row that never named the
+// column reads NULL.
+describe('app_user.settings', () => {
+  const settingsOf = async (id: string) => {
+    const { rows } = await db.query<{ settings: string | null }>(
+      `SELECT settings FROM app_user WHERE user_id = ${id}`,
+    );
+    return rows[0].settings;
+  };
+
+  it('is a plain nullable text column with no default', async () => {
+    const { rows } = await db.query<{
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `SELECT data_type, is_nullable, column_default FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'app_user' AND column_name = 'settings'`,
+    );
+    expect(rows).toEqual([{ data_type: 'text', is_nullable: 'YES', column_default: null }]);
+  });
+
+  it('reads NULL on a row that never named it', async () => {
+    expect(await settingsOf(USER)).toBeNull();
+  });
+
+  it('holds the text it is given byte for byte, and NULL again', async () => {
+    const id = nextId();
+    const text = '{"language":"uk","note":"Облігації ₴"}';
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at, settings)
+                     VALUES (${id}, 'settings@x.com', 'pending', 'user', now(), '${text}');`);
+    expect(await settingsOf(id)).toBe(text);
+    await accepts(`UPDATE app_user SET settings = NULL WHERE user_id = ${id};`);
+    expect(await settingsOf(id)).toBeNull();
+  });
+});
+
 describe('the OCC contract (contract 2)', () => {
   it('detects a conflict by ROWCOUNT, not by an error', async () => {
     // The rowcount is the conflict detector, and the SQLSTATE 40001 retry is a different mechanism

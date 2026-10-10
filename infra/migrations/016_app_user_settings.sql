@@ -1,0 +1,18 @@
+-- 016 — the account's settings, one nullable text column on the user row (W7, #412)
+--
+-- APPLIED BY `infra/src/migrate.ts`, which names its files rather than globbing
+-- them, so this one is enlisted by `MIGRATIONS` and by nothing else.
+--
+-- THE EXPAND HALF: nothing reads or writes the column yet, the code being live before the schema
+-- (*User schema and deletes*).
+--
+-- TEXT, NOT `jsonb`: a column's type is an alteration DSQL cannot make later. The fields are JSON
+-- in it, and NULL reads as their defaults (*Persistence today*). No CHECK: what a field may hold
+-- is the sanitiser's, not the column's.
+--
+-- PLAIN AND NULLABLE, because DSQL adds no column with a constraint. `IF NOT EXISTS` because the
+-- runner re-sends a statement a crash left open, and `42701` is not a code it absorbs (`010`).
+--
+-- HAND-WRITTEN, as `010` is: `003` is generated and frozen, and declaring this in
+-- `infra/schema/user.ts` would regenerate a different `003`.
+ALTER TABLE "app_user" ADD COLUMN IF NOT EXISTS "settings" text;
