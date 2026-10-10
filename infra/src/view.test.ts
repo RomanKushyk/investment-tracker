@@ -13,6 +13,7 @@ import {
   dayQuotes,
   deleteCounts,
   seriesBody,
+  type DayQuotes,
   type ViewBody,
 } from '@quirenote/core/view/serve';
 import { asPriceRows, LONG_ROWS } from '@quirenote/core/view/test-ledgers';
@@ -36,6 +37,7 @@ import type { StoredRate } from './official-rate';
 import { proveRouteContract, recorder } from './route-contract';
 import {
   BALANCES_ROUTE,
+  DAY_ROUTE,
   EXPOSED,
   RESPONSES,
   ROUTE,
@@ -120,12 +122,13 @@ const event = (headers: Record<string, string> = {}, sub = SUB, email = EMAIL): 
   requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub, email } } } },
 });
 
-/** A request to one of the three routes, each with a query it accepts unless given one; `null` is
+/** A request to one of the four routes, each with a query it accepts unless given one; `null` is
  *  no query string at all, which payload 2.0 sends as no field. */
 const ACCEPTED: Record<string, Record<string, string> | null> = {
   [ROUTE]: null,
   [SERIES_ROUTE]: { period: 'all' },
   [BALANCES_ROUTE]: {},
+  [DAY_ROUTE]: { date: TODAY },
 };
 const on = (
   routeKey: string,
@@ -138,7 +141,7 @@ const on = (
   routeKey,
   ...(query === null ? {} : { queryStringParameters: query }),
 });
-const ROUTES = [ROUTE, SERIES_ROUTE, BALANCES_ROUTE];
+const ROUTES = [ROUTE, SERIES_ROUTE, BALANCES_ROUTE, DAY_ROUTE];
 
 /** The rows the route reads, as core's bodies take them: the fixture and the archive's rows. */
 const rowsOf = (
@@ -691,7 +694,7 @@ describe('a failure answers rather than throws', () => {
     expect(res).toEqual(expect.objectContaining({ statusCode: 500, body: '{"error":"internal"}' }));
   });
 
-  it.each([SERIES_ROUTE, BALANCES_ROUTE])(
+  it.each([SERIES_ROUTE, BALANCES_ROUTE, DAY_ROUTE])(
     'answers a refused archive on %s with a 500',
     async (route) => {
       const res = (await view(
@@ -789,6 +792,84 @@ describe('GET /view/balances answers one page of the table', () => {
   });
 });
 
+describe('GET /view/day answers a day’s recorded quotes', () => {
+  const REIT = LEDGER.assets[SEED_ASSETS.findIndex((a) => a.id === 'reit')].id;
+  const STAMP = '2026-07-20T10:15:30';
+  const dayOf = (date: string, sub = SUB, email = EMAIL) =>
+    bodyOf<DayQuotes>(on(DAY_ROUTE, { date }, {}, sub, email));
+
+  // The fixture stamps every price with the clock; the stamp is a fact of the answer, so pin it.
+  beforeEach(async () => {
+    await db.query(`UPDATE user_price SET observed_at = '2026-07-20T10:15:30Z'`);
+  });
+
+  it.each(['2026-02-03', '2026-05-14', '2026-07-25', '2026-07-27', TODAY])(
+    '%s: core’s facts for that day, over the caller’s rows',
+    async (date) => {
+      const witnessed = LEDGER.userPrices.map((p) => ({ ...p, observedAt: STAMP }));
+      expect(await dayOf(date)).toEqual(
+        JSON.parse(JSON.stringify(dayQuotes(LEDGER.transactions, witnessed, date))),
+      );
+    },
+  );
+
+  it('is the facts GET /view carries, when the day asked for is the caller’s', async () => {
+    const { today } = await bodyOf<ViewBody>(on(ROUTE));
+    expect(await dayOf(TODAY)).toEqual(today);
+  });
+
+  it('names the quotes the user recorded that day and the last recorded before it', async () => {
+    const day = await dayOf('2026-07-27');
+    expect(day.quotes).toEqual({ [REIT]: 68702.1 });
+    expect(day.previous[REIT]).toEqual({ value: 68629.36, date: '2026-07-25' });
+    expect(day.savedAt).toBe(STAMP);
+  });
+
+  it('answers a day after today with no quote, and the last recorded before it', async () => {
+    const day = await dayOf('2026-08-15');
+    expect(day.quotes).toEqual({});
+    expect(day.previous[REIT]).toEqual({ value: 68702.1, date: '2026-07-27' });
+  });
+
+  it('answers a day before the first row with nothing recorded before it', async () => {
+    expect(await dayOf('2026-02-02')).toEqual({
+      date: '2026-02-02',
+      quotes: {},
+      previous: {},
+      savedAt: STAMP,
+    });
+  });
+
+  it('answers a ledger with no row, without a quote or a stamp', async () => {
+    await insertUser(db, TWIN, TWIN_EMAIL);
+    expect(await dayOf('2026-07-27', TWIN, TWIN_EMAIL)).toEqual({
+      date: '2026-07-27',
+      quotes: {},
+      previous: {},
+      savedAt: null,
+    });
+  });
+
+  // 2026-07-26 is a grid day the archive prices the fund on, and the user recorded nothing.
+  it('answers a day with no recorded quote with the last before it, carried', async () => {
+    const day = await dayOf('2026-07-26');
+    expect(day.quotes).toEqual({});
+    expect(day.previous[REIT]).toEqual({ value: 68629.36, date: '2026-07-25' });
+  });
+
+  it('lists the body’s keys exactly, as the published example does', async () => {
+    const keys = ['date', 'quotes', 'previous', 'savedAt'];
+    expect(Object.keys(await dayOf('2026-07-27'))).toEqual(keys);
+    const document = JSON.parse(
+      readFileSync(new URL('../../docs/reference/openapi.json', import.meta.url), 'utf8'),
+    );
+    const example =
+      document.paths['/view/day'].get.responses['200'].content['application/json'].examples.day
+        .value;
+    expect(Object.keys(example)).toEqual(keys);
+  });
+});
+
 // Each request's tag is its own representation's: a client keeping one tag per route would otherwise
 // be answered 304 for a period or a page it never stored.
 describe('each parameterized read tags its own representation', () => {
@@ -797,9 +878,9 @@ describe('each parameterized read tags its own representation', () => {
     expect(res.statusCode).toBe(200);
     return res.headers.etag;
   };
-  const SIBLINGS = [SERIES_ROUTE, BALANCES_ROUTE];
+  const SIBLINGS = [SERIES_ROUTE, BALANCES_ROUTE, DAY_ROUTE];
 
-  it('gives every route, period and page a tag of its own', async () => {
+  it('gives every route, period, page and day a tag of its own', async () => {
     const tags: string[] = [];
     for (const e of [
       on(ROUTE),
@@ -807,10 +888,27 @@ describe('each parameterized read tags its own representation', () => {
       on(SERIES_ROUTE, { period: '1m' }),
       on(BALANCES_ROUTE, { page: '0' }),
       on(BALANCES_ROUTE, { page: '1' }),
+      on(DAY_ROUTE, { date: '2026-07-26' }),
+      on(DAY_ROUTE, { date: '2026-07-27' }),
     ]) {
       tags.push(await tagOn(e));
     }
     expect(new Set(tags).size).toBe(tags.length);
+  });
+
+  it('tags one day alike', async () => {
+    const date = '2026-07-26';
+    expect(await tagOn(on(DAY_ROUTE, { date }))).toBe(await tagOn(on(DAY_ROUTE, { date })));
+  });
+
+  // The 304 a client of one day would otherwise get for another, the body being the other's.
+  it('answers one day’s tag in full on another day', async () => {
+    const etag = await tagOn(on(DAY_ROUTE, { date: '2026-07-26' }));
+    const res = await view(
+      deps(),
+      on(DAY_ROUTE, { date: '2026-07-27' }, { 'if-none-match': etag }),
+    );
+    expect(res.statusCode).toBe(200);
   });
 
   it('tags the first page alike, named or not', async () => {
@@ -861,7 +959,7 @@ describe('each parameterized read tags its own representation', () => {
   });
 });
 
-describe('a period or page the route cannot read is refused by name', () => {
+describe('a period, page or date the route cannot read is refused by name', () => {
   const refused = (field: string, value?: string) => ({
     error: 'invalid_query',
     issues: [{ field, code: 'invalid', ...(value === undefined ? {} : { value }) }],
@@ -891,11 +989,35 @@ describe('a period or page the route cannot read is refused by name', () => {
     },
   );
 
+  // A calendar date and nothing near it: a shape that rolls over (`Date` makes 30 February March), a
+  // spelling other than yyyy-MM-dd, a time, or a list.
+  it.each([
+    '2026-02-30',
+    '2026-13-01',
+    '2026-7-28',
+    '28.07.2026',
+    '2026-07-28T00:00:00',
+    'today',
+    '',
+    ' 2026-07-28',
+    '+2026-07-28',
+    '99999-01-01',
+    '2026-07-28,2026-07-27',
+  ])('refuses the date %j', async (date) => {
+    expect(await answer(DAY_ROUTE, { date })).toEqual([400, refused('date', date)]);
+  });
+
+  it('refuses a day request naming no date', async () => {
+    expect(await answer(DAY_ROUTE, {})).toEqual([400, refused('date')]);
+    expect(await answer(DAY_ROUTE, null)).toEqual([400, refused('date')]);
+  });
+
   // AIP-211: authorization is checked before the request is validated, so a caller the gate
   // refuses hears that, whatever the query says.
   it.each([
     [SERIES_ROUTE, { period: '1y' }],
     [BALANCES_ROUTE, { page: 'x' }],
+    [DAY_ROUTE, { date: 'x' }],
   ])('%s answers a pending caller its 403 before a bad query', async (route, query) => {
     await db.query("UPDATE app_user SET status = 'pending', decided_at = NULL, decided_by = NULL");
     const res = (await view(deps(), on(route, query))) as ApiResult;
@@ -923,6 +1045,7 @@ describe('a period or page the route cannot read is refused by name', () => {
     });
     expect(await answer(SERIES_ROUTE, { period: '1y' }, d)).toEqual([400, refused('period', '1y')]);
     expect(await answer(BALANCES_ROUTE, { page: 'x' }, d)).toEqual([400, refused('page', 'x')]);
+    expect(await answer(DAY_ROUTE, { date: 'x' }, d)).toEqual([400, refused('date', 'x')]);
     // The gate read the caller's row; nothing after it ran.
     expect(asked.length).toBeGreaterThan(0);
     expect(asked.filter((text) => /READ ONLY/i.test(text))).toEqual([]);

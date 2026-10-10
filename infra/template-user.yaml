@@ -444,6 +444,9 @@ Resources:
         'GET /view/balances':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'GET /view/day':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         'POST /mutations':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -776,6 +779,14 @@ Resources:
             ApiId: !Ref PublicApi
             Method: GET
             Path: /view/balances
+            Auth:
+              Authorizer: CognitoJwt
+        Day:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /view/day
             Auth:
               Authorizer: CognitoJwt
 

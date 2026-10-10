@@ -806,7 +806,8 @@ counts. A quote is recorded when a `user_price` row of the user gives it, priced
 so a carried grid day and an archive price are none and a price on a day its position holds none
 gives none. The delete counts are what `asset.delete` removes: the asset's transactions and every
 price row of it, a day its position held none included. One core function composes the quotes for
-any day, and only the caller's day rides `/view`, every recorded day growing with the history. The
+any day, and only the caller's day rides `/view`, every recorded day growing with the history:
+another day is a read of its own. The
 rules from core's types to the body live in core (`view/serve.ts`), so the derivation identifier
 covers them; the
 mapping of rows into those types stays in `infra/`, outside it: `infra/src/ledger.ts` reads the
@@ -834,6 +835,14 @@ page is digits with no sign or leading zero. Pages count from 0, newest first in
 date, then the quotes the row shows — by one size core names for the server and the screen alike. A
 page past the last is empty, every page names the `next` one or null, and the page names its assets
 in the order of its cells.
+A PAST DAY IS A READ OF ITS OWN: `GET /view/day?date` answers the facts `/view` carries for the
+caller's day, for the day it names, composed by the same core function and cut at no day, as a form
+reads every row. A day with nothing recorded, before the first row, after the last or between two,
+answers with no quote and the last recorded before it, if any. It goes through `/view`'s gate and
+read with `/view`'s cache policy, 304 and `derivation-id`, its tag `/view`'s seven inputs and its
+route and date, so it reads the archive and the rate its body does not use. Once the gate admits the
+caller and before the ledger is read, a `date` that is no calendar date in yyyy-MM-dd, by the door a
+snapshot's day is written through, or none, is refused by name with a 400 `invalid_query`.
 THE WRITE IS `POST /mutations` AND THE EXPORT `GET /state`, one function behind the same gate. A
 write is a list of ops — `asset.add`, `.patch`, `.delete`, `.prune`, `transaction.add`, `.patch`,
 `.delete`, `snapshot.patch`, `.delete`, `.move` and `dataset.clear`, and no `account.*` — applied in

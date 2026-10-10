@@ -1,16 +1,18 @@
-// `GET /view`, `buildView` for six periods, the day's rate and the rows the editors read, and its two
-// siblings, the yield curve and the Balances table, too wide to send whole: one gate and one read
-// (*Cloud target*).
+// `GET /view`, `buildView` for six periods, the day's rate and the rows the editors read, and its
+// three siblings, the yield curve and the Balances table, too wide to send whole, and the quotes of
+// a day other than the caller's: one gate and one read (*Cloud target*).
 //
 // The tag is WEAK, a wall-clock day being an input (RFC 9110 §8.8.3), so no `If-Match` accepts it;
 // COMPOSED, since under `no-cache` a body hash would rebuild the body to answer a 304.
 import { createHash } from 'node:crypto';
 
+import { priceRowSchema } from '@quirenote/core/backup/json';
 import { kyivDateIso } from '@quirenote/core/dates';
 import { PERIOD_OPTIONS, type PeriodOption } from '@quirenote/core/period';
 import {
   archiveSpan,
   balancesBody,
+  dayBody,
   seriesBody,
   viewBody,
   type ServedRows,
@@ -41,6 +43,7 @@ import { readPaymentDates, readSellObservations } from './sell-observations';
 export const ROUTE = 'GET /view';
 export const SERIES_ROUTE = 'GET /view/series';
 export const BALANCES_ROUTE = 'GET /view/balances';
+export const DAY_ROUTE = 'GET /view/day';
 
 /** Stored by the browser alone, and revalidated on every use. Not `must-revalidate`, which binds
  *  only a stale response and lets a shared cache reuse one sent with `Authorization` (RFC 9111
@@ -95,6 +98,17 @@ const BALANCES = derived({
     next: 1,
   },
 });
+const DAY = derived({
+  statusCode: 200,
+  name: 'day',
+  headers: ['etag', 'cache-control', 'derivation-id'],
+  example: {
+    date: '2026-10-05',
+    quotes: { '<asset id>': 1245.8 },
+    previous: { '<asset id>': { value: 1241.3, date: '2026-10-04' } },
+    savedAt: '2026-10-06T08:15:00',
+  },
+});
 /** RFC 9110 §15.4.5: the validator and the cache policy a 200 would carry, and no body. */
 const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
 /** A `period` or `page` the route cannot read, by name: a stale tab's retired period is the known one. */
@@ -103,6 +117,16 @@ const INVALID_QUERY = derived({
   name: 'invalid_query',
   headers: [],
   example: { error: 'invalid_query', issues: [{ field: 'period', code: 'invalid', value: '1y' }] },
+});
+/** The same answer to a `date` the route cannot read, its example naming the field. */
+const INVALID_DATE = derived({
+  statusCode: 400,
+  name: 'invalid_query',
+  headers: [],
+  example: {
+    error: 'invalid_query',
+    issues: [{ field: 'date', code: 'invalid', value: '2026-02-30' }],
+  },
 });
 
 /** What the route can answer, and the only list of it — `openapi.ts` builds the document from here,
@@ -120,6 +144,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [ROUTE]: [VIEWED, ...READ],
   [SERIES_ROUTE]: [SERIES, INVALID_QUERY, ...READ],
   [BALANCES_ROUTE]: [BALANCES, INVALID_QUERY, ...READ],
+  [DAY_ROUTE]: [DAY, INVALID_DATE, ...READ],
 };
 
 type Parameter = {
@@ -127,7 +152,13 @@ type Parameter = {
   in: 'header' | 'query';
   required: boolean;
   description?: string;
-  schema: { type: string; enum?: readonly string[]; minimum?: number; maximum?: number };
+  schema: {
+    type: string;
+    format?: string;
+    enum?: readonly string[];
+    minimum?: number;
+    maximum?: number;
+  };
 };
 /** The two preconditions a request may carry: neither is required. */
 const PRECONDITIONS: Parameter[] = [
@@ -157,11 +188,25 @@ export const PARAMETERS: Record<string, Parameter[]> = {
     },
     ...PRECONDITIONS,
   ],
+  [DAY_ROUTE]: [
+    {
+      name: 'date',
+      in: 'query',
+      required: true,
+      description: 'A calendar date, yyyy-MM-dd.',
+      schema: { type: 'string', format: 'date' },
+    },
+    ...PRECONDITIONS,
+  ],
 };
 
-const refused = (field: string, value: string | undefined): ApiResult =>
+const refused = (
+  field: string,
+  value: string | undefined,
+  answer: typeof INVALID_QUERY = INVALID_QUERY,
+): ApiResult =>
   respond(
-    INVALID_QUERY,
+    answer,
     {},
     JSON.stringify({
       error: 'invalid_query',
@@ -183,6 +228,15 @@ const pageOf = (event: ApiEvent): number | ApiResult => {
   if (value === undefined) return 0;
   const page = Number(value);
   return PAGE.test(value) && Number.isSafeInteger(page) ? page : refused('page', value);
+};
+
+/** Required, and a calendar date by the door a snapshot is written through, so the day asked for is
+ *  one the quotes screen could have saved and `2026-02-30` is refused rather than rolled into March. */
+const DATE = priceRowSchema.shape.asOf;
+const dateOf = (event: ApiEvent): string | ApiResult => {
+  const value = event.queryStringParameters?.date;
+  const date = DATE.safeParse(value);
+  return date.success ? date.data : refused('date', value, INVALID_DATE);
 };
 
 type ArchiveClient = SqlClient & { end(): Promise<void> };
@@ -220,8 +274,8 @@ const tagOf = (inputs: readonly unknown[]): string =>
   `W/"${createHash('sha256').update(JSON.stringify(inputs), 'utf8').digest('base64url')}"`;
 
 type Headers = { etag: string; 'cache-control': string; 'derivation-id': string };
-/** A route's part of the read: what joins the tag, so no period or page validates another, and its
- *  200 from the rows read, the rate served and the write's version. */
+/** A route's part of the read: what joins the tag, so no period, page or day validates another, and
+ *  its 200 from the rows read, the rate served and the write's version. */
 type Route = {
   variant: readonly unknown[];
   answer: (
@@ -267,13 +321,24 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
                 respond(BALANCES, headers, JSON.stringify(balancesBody(rows, page))),
             };
       });
+    case DAY_ROUTE:
+      return read(deps, event, () => {
+        const date = dateOf(event);
+        return typeof date === 'object'
+          ? date
+          : {
+              variant: [DAY_ROUTE, date],
+              answer: (rows, _fx, _version, headers) =>
+                respond(DAY, headers, JSON.stringify(dayBody(rows, date))),
+            };
+      });
     default:
       console.error('view answered a route it does not serve', event.routeKey);
       return INTERNAL;
   }
 }
 
-/** The read the three routes share, each precondition answered before the route builds its body.
+/** The read the four routes share, each precondition answered before the route builds its body.
  *  The route's query is checked once the gate admits the caller (AIP-211), before the ledger. */
 async function read(
   deps: ViewDeps,

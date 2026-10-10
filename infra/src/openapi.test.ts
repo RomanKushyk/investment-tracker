@@ -59,6 +59,7 @@ import {
 import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
 import {
   BALANCES_ROUTE,
+  DAY_ROUTE,
   PARAMETERS as VIEW_PARAMETERS,
   RESPONSES as VIEW_RESPONSES,
   ROUTE as VIEW_ROUTE,
@@ -462,7 +463,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-one routes and no others', () => {
+  it('declares the twenty-two routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -472,6 +473,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         VIEW_ROUTE,
         SERIES_ROUTE,
         BALANCES_ROUTE,
+        DAY_ROUTE,
         MUTATIONS_ROUTE,
         STATE_ROUTE,
         BEGIN_ROUTE,
@@ -505,6 +507,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       VIEW_ROUTE,
       SERIES_ROUTE,
       BALANCES_ROUTE,
+      DAY_ROUTE,
       MUTATIONS_ROUTE,
       STATE_ROUTE,
       BEGIN_ROUTE,
@@ -616,9 +619,10 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     expect(paramsOf(ABORT_ROUTE)).toEqual([path('id')]);
   });
 
-  // THE TWO PARAMETERIZED READS: the period from core's closed list and required, since a stale
-  // one is refused rather than defaulted; the page optional, a missing one being the first.
-  it('publishes the series’ period and the table’s page as query parameters', () => {
+  // THE THREE PARAMETERIZED READS: the period from core's closed list and required, since a stale
+  // one is refused rather than defaulted; the page optional, a missing one being the first; the
+  // day required, a missing one refused rather than read as the caller's, which `/view` carries.
+  it('publishes the series’ period, the table’s page and the day’s date as query parameters', () => {
     const paramsOf = (route: string) => {
       const [method, path] = route.split(' ');
       return spec.paths[path][method.toLowerCase()].parameters;
@@ -645,6 +649,17 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         required: false,
         description: 'Digits with no sign or leading zero; none is the first page.',
         schema: { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER },
+      },
+      ...preconditions,
+    ]);
+    expect(paramsOf(DAY_ROUTE)).toEqual(VIEW_PARAMETERS[DAY_ROUTE]);
+    expect(paramsOf(DAY_ROUTE)).toEqual([
+      {
+        name: 'date',
+        in: 'query',
+        required: true,
+        description: 'A calendar date, yyyy-MM-dd.',
+        schema: { type: 'string', format: 'date' },
       },
       ...preconditions,
     ]);

@@ -31,20 +31,24 @@ typed rows, and **`/view`'s payload type is the union of those interfaces**, not
 **So "the server derives, so the response gets smaller" is true of the first two rows and false of the
 last two**: at 20 assets over ten years of snapshots the yield curve is tens of thousands of numbers,
 and shipping it for all six periods is not viable. That single measurement is what makes the read
-surface **three endpoints rather than one**.
+surface **three endpoints rather than one**. A fourth, `GET /view/day`, has another cause: every
+recorded day on `/view` would grow it with the history, so `/view` carries the caller's day alone and
+another day is read on its own.
 
 | Endpoint | Carries | Parameters |
 |---|---|---|
 | `GET /view` | **everything that collapses** — every KPI and every per-asset row set, for all 6 `PERIOD_OPTIONS` at once | none |
 | `GET /view/series` | the yield curve — snapshot-shaped, so one period at a time | `period` |
 | `GET /view/balances` | the Balances table — already paged client-side at 6 rows (`paginateSnapshots`) | `page` |
+| `GET /view/day` | a past day's recorded quotes — `/view` carries the caller's day alone | `date` |
 | `GET /state` | raw rows, **for export/import and nothing else** | none |
 | `POST /mutations` | **unchanged** | `If-Match` |
 
-**The three reads are ETag'd on `app_user.data_version` AND on what moves without a write** — the
-day's capture and the day's rate both change a response while that counter stands still, so it cannot
-be the validator alone. `POST /mutations` is the write and sends `If-Match` rather than carrying an
-ETag, keeping #48's own asymmetry.
+**The four reads are ETag'd on `app_user.data_version` AND on what moves without a write** — the
+day's capture changes the response of `/view`, the curve and the table, and the day's rate that of
+`/view`, while that counter stands still, so it cannot be their validator alone; `/view/day` shares
+their read, and so their tag's inputs, its route and date added. `POST /mutations` is the write and
+sends `If-Match` rather than carrying an ETag, keeping #48's own asymmetry.
 
 ## §2 — Why `/view` takes no parameters
 
@@ -53,9 +57,9 @@ ships all six period blocks in ₴ with the rate beside them: a period change an
 cost **zero `/view` reads** — a period change writes the account's settings (*Persistence today*) —
 and language and theme are presentation only. That is what keeps the
 fluid-motion requirement intact, and it removes the cache-key combinatorics — an endpoint with no
-parameters has one cache entry per user per `data_version`. The two parameterized endpoints pay a
-request on period change and page change, which read as a chart or a table loading rather than the
-whole app stalling.
+parameters has one cache entry per user per `data_version`. The three parameterized endpoints pay a
+request on period change, page change and a day other than the caller's, which read as a chart, a
+table or a form loading rather than the whole app stalling.
 
 ## §3 — What the client stores, and why it is not zero
 

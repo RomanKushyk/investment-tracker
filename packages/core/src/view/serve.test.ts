@@ -11,6 +11,7 @@ import {
   ARCHIVE_LOOKBACK_DAYS,
   archiveSpan,
   balancesBody,
+  dayBody,
   dayQuotes,
   deleteCounts,
   seriesBody,
@@ -666,6 +667,54 @@ describe('dayQuotes — what the user recorded on a day and before it', () => {
     const answer = (t: Transaction[], p: PriceRow[]) =>
       JSON.stringify(dayQuotes(t, p, '2026-09-21'));
     expect(answer([...txs].reverse(), [...prices].reverse())).toBe(answer(txs, prices));
+  });
+});
+
+describe('dayBody — what GET /view/day answers', () => {
+  const rows = {
+    ...factRows,
+    userPrices: [...factPrices, { assetId: 'f', asOf: '2026-10-05', price: 12 }],
+  };
+
+  // One function composes the caller's day for /view and any day for this read: they cannot
+  // answer one day apart.
+  it('is the facts /view carries for the caller’s day, when that is the day asked for', () => {
+    const withToday = {
+      ...rows,
+      userPrices: [...rows.userPrices, { assetId: 'f', asOf: FACT_DAY, price: 10.45678 }],
+    };
+    expect(dayBody(withToday, FACT_DAY)).toEqual(viewBody({ ...withToday, fx: FX }).today);
+  });
+
+  it('answers a past day by the user’s rows: its quotes, and the last recorded before it', () => {
+    expect(dayBody(rows, '2026-09-20')).toEqual({
+      date: '2026-09-20',
+      quotes: { f: 1100 },
+      previous: { f: { value: 1000, date: '2026-09-10' } },
+      savedAt: '2026-09-20T09:30:00',
+    });
+  });
+
+  // 2026-09-25 is a grid day once the archive prices the fund on it, and the user recorded nothing.
+  it('reports no quote a carried grid day or an archive price gives', () => {
+    const priced = { ...rows, archiveRows: [observed('inzhur-reit', '2026-09-25', 12)] };
+    expect(servedInput(priced).snapshots.find((s) => s.date === '2026-09-25')?.quotes.f).toBe(1200);
+    expect(dayBody(priced, '2026-09-25')).toEqual({
+      date: '2026-09-25',
+      quotes: {},
+      previous: { f: { value: 1100, date: '2026-09-20' } },
+      savedAt: '2026-09-20T09:30:00',
+    });
+  });
+
+  // A form reads every row, and so does this: the day the figures are cut at bounds nothing here.
+  it('is not cut at the rows’ day: a later day is asked for as any other', () => {
+    const answer = (today: string, date: string) => dayBody({ ...rows, today }, date);
+    expect(answer(FACT_DAY, '2026-10-05').quotes).toEqual({ f: 1200 });
+    expect(answer(FACT_DAY, '2026-10-06').previous).toEqual({
+      f: { value: 1200, date: '2026-10-05' },
+    });
+    expect(answer('2020-01-01', '2026-10-06')).toEqual(answer(FACT_DAY, '2026-10-06'));
   });
 });
 

@@ -23,7 +23,7 @@ import {
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
-import { BALANCES_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
+import { BALANCES_ROUTE, DAY_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
 
 type Resource = {
   Type: string;
@@ -183,6 +183,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
       [VIEW_ROUTE, 'PublicApi', AUTHORIZER],
       [SERIES_ROUTE, 'PublicApi', AUTHORIZER],
       [BALANCES_ROUTE, 'PublicApi', AUTHORIZER],
+      [DAY_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('ViewFunction').Handler).toBe('view.handler');
     expect(user.Resources.ViewLogGroup?.Type).toBe('AWS::Logs::LogGroup');

@@ -364,9 +364,10 @@ jobs:
               console.log('archive-reader-grant bundle loads, sends the mapping, the default and the table grant, and checks the reader');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # Six periods and the editors' rows under a weak tag, a 304 to it stripped of its W/, a pending
-          # caller refused, no archive opened for a ledger linking nothing, and the identifier the bundle
-          # step defined.
+          # Six periods and the editors' rows under a weak tag, a 304 to it stripped of its W/, a day's
+          # quotes under a tag of its own, a date that is no day refused by name, a pending caller
+          # refused, no archive opened for a ledger linking nothing, and the identifier the bundle step
+          # defined.
           node -e "
             const v = require('./view.js');
             if (typeof v.handler !== 'function') throw new Error('handler missing from view bundle');
@@ -390,9 +391,10 @@ jobs:
               now: () => Date.parse('2026-10-06T09:00:00Z'),
               derivationId: id,
             });
-            const event = (headers) => ({
-              routeKey: 'GET /view',
+            const event = (headers, routeKey, query) => ({
+              routeKey: routeKey || 'GET /view',
               headers: headers,
+              ...(query ? { queryStringParameters: query } : {}),
               requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: SUB, email: EMAIL } } } },
             });
             (async () => {
@@ -410,10 +412,17 @@ jobs:
               if (again.statusCode !== 304 || 'body' in again || 'content-type' in again.headers || again.headers.etag !== tag) {
                 throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
               }
+              const day = await v.view(deps('active'), event({}, 'GET /view/day', { date: '2026-10-05' }));
+              if (day.statusCode !== 200) throw new Error('a day was not served: ' + day.statusCode);
+              const dayKeys = Object.keys(JSON.parse(day.body)).join();
+              if (dayKeys !== 'date,quotes,previous,savedAt') throw new Error('day body keys: ' + dayKeys);
+              if (!day.headers.etag.startsWith('W/') || day.headers.etag === tag) throw new Error('the day tag is not a weak tag of its own: ' + day.headers.etag);
+              const refused = await v.view(deps('active'), event({}, 'GET /view/day', { date: '2026-02-30' }));
+              if (refused.statusCode !== 400 || JSON.parse(refused.body).issues[0].field !== 'date') throw new Error('a date that is no day was not refused by name: ' + refused.body);
               const pending = await v.view(deps('pending'), event({}));
               if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
               if (opened !== 0) throw new Error('the archive was opened for a ledger that links nothing');
-              console.log('view bundle loads, serves six periods and the editors rows under a weak tag, answers it 304 compared weakly, refuses a pending caller and opens no archive');
+              console.log('view bundle loads, serves six periods and the editors rows under a weak tag, answers it 304 compared weakly, serves a day under a tag of its own and refuses a date that is no day, refuses a pending caller and opens no archive');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
           # The export under a strong tag no cache keeps, a bare 304 to it, a write with no or a `*`

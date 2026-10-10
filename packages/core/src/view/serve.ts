@@ -242,3 +242,9 @@ export function balancesBody(rows: ServedRows, page: number): BalancesBody {
     next: cut.next,
   };
 }
+
+/** `GET /view/day`: the facts `viewBody` carries for the caller's day, for any day. Cut at none, as
+ *  a form reads every row. */
+export function dayBody(rows: ServedRows, date: string): DayQuotes {
+  return dayQuotes(rows.transactions, rows.userPrices, date);
+}
