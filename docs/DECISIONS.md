@@ -907,6 +907,20 @@ and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE
 `If-Match` goes stale, and a patch applied twice leaves one state. The text lives on the row
 `data_version` lives on, so a settings write and a mutation touching the row at once conflict at
 commit, and the one that loses is retried.
+THE CLIENT BUILDS THE OPS in `src/lib/writes.ts`, which no screen calls yet. A repository write is a
+list of ops sent as one request under the strong tag `/view` or the last write gave. An update is a
+patch, so a member its caller left `undefined`, which a Dexie update removed, goes out as `null`. A
+day's save sends a `null` for each quote the stored day holds and the drafts no longer do, and no
+`savedAt`, the server stamping the witness time. An asset goes out without `inzhur.units`, which
+its door refuses, and with `createdAt` cut at the second, as the backup cuts it. A transaction that
+creates its asset sends `asset.add` before `transaction.add` in its one request: the transaction
+names the asset, and the request lands both or neither. The targets of the assets a save changes are
+one list of `asset.patch` ops, within a request's bound of ops. A delete past the row
+bound is the one write that is several requests: the 409 `too_many_rows` is answered with
+`asset.prune`, each step a request of its own under the tag the last gave, until one answers no row
+remaining, and then `asset.delete` is sent again. It stops at a reply that is not a write and at a
+count that is missing or does not fall. The `dropped` that `snapshot.patch` and `snapshot.move`
+answer is returned to the caller beside each op's answer.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -998,6 +1012,13 @@ commit, OC000, so a merge made from a read is guarded by the write's own conditi
 read, as the version bump is by the version it read. The column's ceiling is DSQL's "Maximum size of
 a column that's not part of an index", 1 MiB, which is also the most a request carries: the stored
 text is held to it, so a write that would outgrow it is refused by name and not by the cluster.
+A merge patch keeps what it leaves out and `JSON.stringify` leaves out a member whose value is
+`undefined`, so a removal sent as `undefined` would keep the stored value: RFC 7396 spells a removal
+`null`. A save of N targets as N requests spends N of the route's burst of five and its two requests
+a second, where one list lands whole as a request does and is, in Microsoft's Chatty I/O
+antipattern, "packaging the data into larger, fewer requests". Emptying an asset is the client's to
+drive (*User schema and deletes*). A loop driven by a count the server answers ends only if the
+count falls, so one that does not is returned rather than asked again.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -1045,7 +1066,10 @@ writers naming different fields, the later would put back the earlier's. · Writ
 what a read serves, the fields this build has with the values its rules accept or, for a list, its
 strings: a backend rolled
 back to a build that predates a setting, or accepts fewer values of one, would delete it at the
-next patch of any other.
+next patch of any other. · A day's save naming only the drafts: the merge keeps the quote they
+cleared. · The targets of N assets as N requests: a burst of five, and a failure partway leaves a
+plan half saved. · An asset's last prune and its delete in one request: when the delete still does
+not fit the bound the whole request is refused, and the prune with it.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
@@ -1480,7 +1504,9 @@ Testing Library's `renderHook`, in a file that opts into jsdom by its `@vitest-e
 the suite stays `node`, and such a test advances a fake clock inside `act`. THE USER-API TRANSPORT IS
 TESTED AGAINST MOCK SERVICE WORKER 2, in node: `src/lib/transport.test.ts` serves the routes with
 handlers and listens with `onUnhandledRequest: 'error'`, so a request no handler names is halted, and
-one test sends such a request to keep the option live.
+one test sends such a request to keep the option live. `src/lib/writes.test.ts` serves a fake of the
+user API the same way, which applies the ops with core's schemas and merge patch, a request landing
+whole or not at all, so that a list the builders make is read back from the day or the export.
 **Why.** These documents carry figures, contracts and instructions no type checker reads, and a gate
 whose verdict moves with whether an agent happens to be running is not a gate. `toJS()` discards an
 unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are one value to a
