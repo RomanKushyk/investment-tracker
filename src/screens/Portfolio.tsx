@@ -95,7 +95,7 @@ export function Portfolio() {
           min-width table on a phone, mounted a `ScrollArea` for it and ran the row
           derivation twice. `useIsDesktop` mounts one branch and only one. */}
       {/* The screen that owns the assets owns the empty sentence: deleting Settings'
-          Portfolio card left the LIVE dataset showing a table of zeros with nothing
+          Portfolio card left an empty portfolio showing a table of zeros with nothing
           telling anyone what to do. */}
       {assets.length === 0 ? (
         <div className="mb-3.5 text-[13px] leading-normal text-muted">{t.assets.empty}</div>

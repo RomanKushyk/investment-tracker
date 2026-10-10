@@ -17,7 +17,6 @@ const DEFAULTS: PersistedSettings = {
   usdRate: 44.83,
   theme: 'system',
   language: 'uk',
-  dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
   remindersEnabled: true,
@@ -36,7 +35,7 @@ vi.mock('@quirenote/core/settings', async (importOriginal) => {
 });
 
 // A v0 payload is what zustand persisted before `version: 1` — the `state` part of
-// `{"state":{"currency":…},"version":0}`. v0 and v1.1 carry no usdRate or dataset,
+// `{"state":{"currency":…},"version":0}`. v0 and v1.1 carry no usdRate,
 // so both fill from defaults.
 //
 // EVERY PAYLOAD HERE WRITES `currency`, WHICH IS THE LEGACY KEY — the field persists
@@ -51,7 +50,6 @@ describe('migrateSettings', () => {
       period: '3m',
       theme: 'dark',
       usdRate: 41.2,
-      dataset: 'live',
       accent: 'teal',
     });
     expect(vi.mocked(sanitiseSettings)).toHaveBeenCalledTimes(1);
@@ -60,10 +58,8 @@ describe('migrateSettings', () => {
       defaultCurrency: 'USD',
       period: '3m',
     });
-    expect(Object.keys(sane).sort()).toEqual(
-      [...SETTING_NAMES, 'dataset', 'theme', 'usdRate'].sort(),
-    );
-    expect(sane).toMatchObject({ theme: 'dark', usdRate: 41.2, dataset: 'live' });
+    expect(Object.keys(sane).sort()).toEqual([...SETTING_NAMES, 'theme', 'usdRate'].sort());
+    expect(sane).toMatchObject({ theme: 'dark', usdRate: 41.2 });
   });
 
   it('keeps a valid persisted currency from a v0 payload', () => {
@@ -170,24 +166,10 @@ describe('migrateSettings', () => {
     }
   });
 
-  it('keeps a persisted live dataset', () => {
-    expect(migrateSettings({ currency: 'UAH', dataset: 'live' })).toEqual({
-      ...DEFAULTS,
-      dataset: 'live',
-    });
-    expect(migrateSettings({ dataset: 'demo' })).toEqual(DEFAULTS);
-  });
-
-  it('treats anything but the exact "live" literal as demo, matching lib/db.ts', () => {
-    expect(migrateSettings({ dataset: 'staging' })).toEqual(DEFAULTS);
-    expect(migrateSettings({ dataset: 'LIVE' })).toEqual(DEFAULTS);
-    expect(migrateSettings({ dataset: 1 })).toEqual(DEFAULTS);
-  });
-
   // Both switches default ON, and a v1 payload written before they existed (the
   // shape on every existing profile) must hydrate to ON.
   it('defaults the automation switches ON and keeps an explicit OFF', () => {
-    expect(migrateSettings({ currency: 'UAH', usdRate: 44.83, dataset: 'demo' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'UAH', usdRate: 44.83 })).toEqual(DEFAULTS);
     expect(migrateSettings({ autoQuoteSuggest: false, couponSuggest: false })).toEqual({
       ...DEFAULTS,
       autoQuoteSuggest: false,
@@ -239,20 +221,15 @@ describe('migrateSettings', () => {
 // The persist `merge` option (mergeSettings): zustand runs `migrate` ONLY when the
 // stored version differs from the store's, so same-version payloads reach the store
 // exclusively through `merge` and it must apply the same sanitization. A hand-edited
-// v1 payload is the shape that matters: `lib/db.ts` would bind demo via its own
-// exact-'live' rule while an unsanitized store hydrated dataset:'garbage' /
-// usdRate:0 — a /settings crash and Infinity in the $ figures. The function and not
+// v1 payload is the shape that matters: an unsanitized store would hydrate usdRate:0 and
+// put Infinity in the $ figures. The function and not
 // the wiring, which is one declarative line at the same trust level as
 // `migrate: migrateSettings` above.
 describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   const current = useSettings.getInitialState();
 
   it('sanitizes a tampered same-version (v1) payload', () => {
-    const merged = mergeSettings(
-      { currency: 'UAH', usdRate: 0, dataset: 'garbage', autoQuoteSuggest: 'yes' },
-      current,
-    );
-    expect(merged.dataset).toBe('demo'); // exact-'live' rule, as lib/db.ts binds it
+    const merged = mergeSettings({ currency: 'UAH', usdRate: 0, autoQuoteSuggest: 'yes' }, current);
     expect(merged.usdRate).toBe(44.83); // finite and > 0
     expect(merged.currency).toBe('UAH');
     expect(merged.autoQuoteSuggest).toBe(true); // non-boolean → default ON
@@ -268,13 +245,11 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
       {
         currency: 'USD',
         usdRate: 41.2,
-        dataset: 'live',
         couponSuggest: false,
         dismissedReminders: ['coupon:ovdp8976:2026-08-25'],
       },
       current,
     );
-    expect(merged.dataset).toBe('live');
     expect(merged.usdRate).toBe(41.2);
     expect(merged.currency).toBe('USD');
     expect(merged.couponSuggest).toBe(false);
@@ -282,10 +257,9 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   });
 
   it('preserves the non-persisted store surface (actions)', () => {
-    const merged = mergeSettings({ dataset: 'live' }, current);
+    const merged = mergeSettings({ currency: 'USD' }, current);
     expect(merged.setCurrency).toBe(current.setCurrency);
     expect(merged.setUsdRate).toBe(current.setUsdRate);
-    expect(merged.setDataset).toBe(current.setDataset);
     expect(merged.setAutoQuoteSuggest).toBe(current.setAutoQuoteSuggest);
     expect(merged.setCouponSuggest).toBe(current.setCouponSuggest);
     expect(merged.setRemindersEnabled).toBe(current.setRemindersEnabled);
@@ -622,5 +596,26 @@ describe('the persist invariant itself — every field, not just the newest', ()
     expect(declared.length).toBeGreaterThan(8);
     expect(defaults).toEqual(declared);
     expect(written).toEqual(declared);
+  });
+});
+
+// ONE LOCAL STORE (#404): nothing selects a database, so no setting names one. A profile written
+// while one did still carries the key, and it is read past rather than applied.
+describe('the store holds no dataset', () => {
+  const STALE = ['live', 'demo', 'garbage', 1, null];
+
+  it('reads a stored dataset past, whatever it says', () => {
+    for (const dataset of STALE) {
+      expect(Object.keys(migrateSettings({ dataset }))).not.toContain('dataset');
+      expect(Object.keys(mergeSettings({ dataset }, useSettings.getInitialState()))).not.toContain(
+        'dataset',
+      );
+    }
+  });
+
+  it('keeps no dataset on the store, to set or to read', () => {
+    const state = useSettings.getInitialState();
+    expect(Object.keys(state)).not.toContain('dataset');
+    expect(Object.keys(state)).not.toContain('setDataset');
   });
 });

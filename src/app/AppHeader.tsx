@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { NAV_TRIGGER_ID } from './nav-ids';
-import { useDataset } from '../state/settings';
 import { useT } from '../i18n/useT';
 
 /** The trigger's DRAWN box. It does not grow below the breakpoint: the pressable region
@@ -42,7 +41,6 @@ export function AppHeader({
 }) {
   const t = useT();
   const capital = useCapitalCard();
-  const demo = useDataset() === 'demo';
   const empty = capital.net === undefined;
   // Radix publishes `aria-expanded` on the trigger, so the NAME has to agree with it,
   // or a screen reader reads out the contradiction in full.
@@ -69,9 +67,8 @@ export function AppHeader({
     >
       <div className="flex h-14 items-center gap-2.5 px-2.5">
         {trigger}
-        {/* `truncate` ON BOTH LINES: the row is over-subscribed at 360 once the badge
-            takes its slot, and a `min-w-0` block with nothing to clip it overflows the
-            viewport instead of ellipsising. No route may scroll sideways. */}
+        {/* `truncate` ON BOTH LINES: a `min-w-0` block with nothing to clip it overflows
+            the viewport instead of ellipsising. No route may scroll sideways. */}
         <div className="min-w-0">
           <div className="truncate text-[9.5px] tracking-[.12em] text-muted uppercase">
             {t.sidebar.totalCapital}
@@ -82,19 +79,8 @@ export function AppHeader({
             {capital.value}
           </div>
         </div>
-        {demo && (
-          // THE CAUTION FOLLOWS THE FIGURE: the badge is wider than the rail's column,
-          // and a caution that disappears when a rail narrows is one nobody can rely
-          // on. With the drawer open this one is `aria-hidden` behind the scrim.
-          <span
-            title={t.sidebar.demoTitle}
-            className="ml-2.5 flex-none animate-in rounded-[5px] border border-warn bg-warn-tint px-1.5 py-[2px] font-body text-[9px] font-bold tracking-[.08em] text-warn-tint-text uppercase duration-200 zoom-in-95 fade-in"
-          >
-            {t.sidebar.demoBadge}
-          </span>
-        )}
         {/* The delta STACKS rather than running on one line as the sidebar card does:
-            at 360 the row has little left after the trigger, the figure and the badge,
+            at 360 the row has little left after the trigger and the figure,
             and two lines fit the height the bar already has. */}
         <div className="ml-auto pr-1 text-right text-[11px] leading-[1.35]">
           {empty ? (

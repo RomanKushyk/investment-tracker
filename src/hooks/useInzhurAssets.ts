@@ -7,7 +7,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { msUntilNextKyivHour } from '@quirenote/core/dates';
 import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from '@quirenote/core/inzhur/parse';
 import { repo } from '../lib/repository';
-import { useDataset } from '../state/settings';
 
 /**
  * Public and unauthenticated. It MUST be requested as a BARE GET — zero custom headers
@@ -119,15 +118,12 @@ export interface UseInzhurAssets {
   isFetching: boolean;
   isError: boolean;
   error: Error | null;
-  /** True in the demo dataset, which fetches no market data. */
-  disabled: boolean;
   /** The ONLY way a request happens: the query is `enabled: false`. Undefined when
-   *  disabled or failed — the failure itself surfaces through isError/error. */
+   *  the fetch failed — the failure itself surfaces through isError/error. */
   fetchAssets: () => Promise<InzhurFeed | undefined>;
 }
 
 export function useInzhurAssets(): UseInzhurAssets {
-  const disabled = useDataset() === 'demo';
   const queryClient = useQueryClient();
 
   // Destructured field by field: TanStack re-renders only for the ones read.
@@ -167,7 +163,6 @@ export function useInzhurAssets(): UseInzhurAssets {
   const lastGood = useMemo(() => readCache(cached), [cached]);
 
   const fetchAssets = useCallback(async () => {
-    if (disabled) return undefined;
     const result = await refetch();
     // A failed refetch KEEPS the previous payload in `data`, so returning it would let
     // a caller mistake it for a fresh fetch.
@@ -176,7 +171,7 @@ export function useInzhurAssets(): UseInzhurAssets {
     await queryClient.invalidateQueries({ queryKey: inzhurKeys.lastFetch });
     await queryClient.invalidateQueries({ queryKey: inzhurKeys.lastParse });
     return result.data;
-  }, [disabled, refetch, queryClient]);
+  }, [refetch, queryClient]);
 
   return {
     data,
@@ -184,7 +179,6 @@ export function useInzhurAssets(): UseInzhurAssets {
     isFetching,
     isError,
     error,
-    disabled,
     fetchAssets,
   };
 }

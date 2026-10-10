@@ -130,7 +130,7 @@ export type Patched =
 /**
  * RFC 7396 over the stored members: a field the patch names takes its value, `null` removes it, one
  * it leaves out stays as it was. A patch is applied whole or refused whole, and refuses a name that
- * is no account setting (a theme, a rate, a dataset) even to reset it, and a value its field's rule
+ * is no account setting (a theme, a rate) even to reset it, and a value its field's rule
  * does not accept: unlike a read, a write salvages nothing. The text is written in the fields' own
  * order, so it is the same for the same settings however they were reached. A stored member the
  * patch does not name stays as it was, a value its field's rule refuses and a member no field is for

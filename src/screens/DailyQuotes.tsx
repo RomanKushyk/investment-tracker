@@ -101,7 +101,7 @@ export function DailyQuotes() {
   );
   // The fetch ritual only ever writes the draft store — "Save snapshot" stays the sole write path.
   const fetch = useQuoteFetch(assets, ledger.units, ledger.incomplete);
-  // Pure local derivations, so they run in demo as well as live.
+  // Pure local derivations, so nothing here waits on a fetch.
   const { autoQuoteSuggest, couponSuggest, dismissedReminders, dismissReminder, language } =
     useSettings();
   // Ghosts dismissed this session, stamped with the date dismissed: a dismissal is

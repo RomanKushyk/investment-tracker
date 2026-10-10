@@ -1,8 +1,7 @@
 // The file field and the drop target — the single way data comes into the app.
 // Nothing here reads, parses or writes until a file arrives, and reading always
 // resolves into exactly one of two dialogs, never a silent no-op and never a
-// write. Import is never disabled: it is the recovery path in every dataset,
-// demo included, where "Reset demo data…" is the escape hatch.
+// write. Import is never disabled: it is the recovery path.
 import { Download, FileText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -12,7 +11,6 @@ import { classifyImportFiles, diffBackup, validateImport } from '@quirenote/core
 import { todayIso } from '@quirenote/core/dates';
 import { useExportAll } from '../../hooks/queries';
 import { dbVersion } from '../../lib/repository';
-import { useDataset } from '../../state/settings';
 import { fileRejection, importToasts } from './import-labels';
 import { ImportDialog, type ImportAttempt } from './ImportDialog';
 import type { FileRejectionCode } from '@quirenote/core/backup/import';
@@ -23,7 +21,6 @@ const REJECTION_MS = 5000;
 
 export function ImportRow() {
   const t = useT();
-  const dataset = useDataset();
   const exportAll = useExportAll();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -62,11 +59,7 @@ export function ImportRow() {
               kind: 'preview',
               name: file.name,
               envelope: validation.envelope,
-              diff: diffBackup(current, validation.envelope, {
-                dataset,
-                today: todayIso(),
-                dbVersion,
-              }),
+              diff: diffBackup(current, validation.envelope, { today: todayIso(), dbVersion }),
             }
           : {
               kind: 'report',
@@ -97,11 +90,6 @@ export function ImportRow() {
       <div className="mt-[3px] max-w-[520px] text-xs leading-normal text-muted">
         {t.importing.row.helper}
       </div>
-      {dataset === 'demo' && (
-        <div className="mt-1.5 max-w-[520px] text-[11px] leading-relaxed text-muted">
-          {t.importing.row.demoNote}
-        </div>
-      )}
 
       {/* SOLID border, never dashed: a dashed affordance would read as a machine's
           guess. The panel is a container, not a pressable, and adds no second tab stop
@@ -169,7 +157,7 @@ export function ImportRow() {
 
       {rejection && (
         // `warn`, never `neg`: picking the wrong file is not an error worth alarming
-        // about, and the dataset is untouched.
+        // about, and the portfolio is untouched.
         <div
           role="status"
           className="mt-2 animate-in text-xs leading-normal text-warn duration-200 fade-in slide-in-from-top-1"

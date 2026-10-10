@@ -77,8 +77,7 @@ function inputClass(invalid: boolean): string {
 // Three rules the states below implement: the feed is fetched on FIRST OPEN, so
 // opening the form fires no request; linking is NEVER blocked by the network, so
 // every failure path lands in a working manual input, and offline reads `muted`
-// rather than `neg` because it is not a user mistake; demo forces manual mode,
-// since the demo fetches no market data.
+// rather than `neg` because it is not a user mistake.
 function InzhurGroup({ form }: { form: AssetFormHandle }) {
   const t = useT();
   const MSG = t.asset.message;
@@ -92,7 +91,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
   // the wrong instruments with no way to tell why.
   const yieldType = useWatch({ control: form.control, name: 'yieldType' });
   const kind: 'fund' | 'bond' = yieldType === 'fixed_coupon' ? 'bond' : 'fund';
-  const { data, lastGood, isFetching, isError, disabled, fetchAssets } = useInzhurAssets();
+  const { data, lastGood, isFetching, isError, fetchAssets } = useInzhurAssets();
   // ONE NAME FOR ONE FEED. Bound twice, a later change to the fallback rule
   // updates one binding and leaves the picker reading a different payload from
   // the one filling maturity, next coupon and the rate.
@@ -233,9 +232,9 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
   const options =
     feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '', f, t);
   const failed = isError && !isFetching && options.length === 0;
-  const showManual = disabled || manual || failed;
+  const showManual = manual || failed;
 
-  const note = disabled ? PICK.demo : failed ? PICK.failed : undefined;
+  const note = failed ? PICK.failed : undefined;
   // Before the first open there is no feed and no error yet — the open list is
   // about to fetch, so it reads "loading" rather than flashing "nothing here".
   const loading = isFetching || (feed === undefined && !isError);
@@ -318,18 +317,16 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
       {note !== undefined && (
         <p className="m-0 animate-in text-[11px] text-muted duration-200 fade-in">{note}</p>
       )}
-      {!disabled && (
-        <button
-          type="button"
-          onClick={() => {
-            setManual(!showManual);
-            if (showManual) ensureFeed(); // going back to the list = a retry
-          }}
-          className="cursor-pointer self-start p-0 text-[11px] text-ink transition hover:opacity-85 active:scale-[.97]"
-        >
-          {showManual ? PICK.toPicker : PICK.toManual}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          setManual(!showManual);
+          if (showManual) ensureFeed(); // going back to the list = a retry
+        }}
+        className="cursor-pointer self-start p-0 text-[11px] text-ink transition hover:opacity-85 active:scale-[.97]"
+      >
+        {showManual ? PICK.toPicker : PICK.toManual}
+      </button>
       <p className="m-0 text-[11px] leading-normal text-muted">{PICK.helper}</p>
     </>
   );

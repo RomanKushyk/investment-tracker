@@ -23,7 +23,6 @@ import {
   readEnvelopeHead,
   temporalKindAt,
   type BackupEnvelope,
-  type Dataset,
   type EnvelopeHeadCode,
   type IssueCode,
   type IssueTable,
@@ -297,7 +296,6 @@ export type DiffWarning =
   | { code: 'rows-removed'; assets: number; snapshots: number; transactions: number }
   | { code: 'no-assets' }
   | { code: 'no-snapshots'; current: number }
-  | { code: 'other-dataset'; dataset: Dataset }
   | { code: 'exported-long-ago'; days: number; date: string }
   | { code: 'newer-db-version'; file: number; app: number };
 
@@ -318,7 +316,7 @@ export const STALE_BACKUP_DAYS = 7;
 export function diffBackup(
   current: PortfolioTables,
   incoming: BackupEnvelope,
-  ctx: { dataset: Dataset; today: string; dbVersion: number },
+  ctx: { today: string; dbVersion: number },
 ): BackupDiff {
   const assets = countDiff(
     current.assets.map((a) => a.id),
@@ -349,9 +347,6 @@ export function diffBackup(
   };
   if (removed.assets + removed.snapshots + removed.transactions > 0) {
     warnings.push({ code: 'rows-removed', ...removed });
-  }
-  if (incoming.dataset !== ctx.dataset) {
-    warnings.push({ code: 'other-dataset', dataset: incoming.dataset });
   }
   const exportedOn = incoming.exportedAt.slice(0, 10);
   const age = daysBetween(exportedOn, ctx.today);

@@ -10,7 +10,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { kyivDateIso } from '@quirenote/core/dates';
 import { nbuRateUrl, parseNbuRate, type NbuRate } from '@quirenote/core/nbu/rate';
 import { repo } from '../lib/repository';
-import { useDataset } from '../state/settings';
 
 const NBU_TIMEOUT_MS = 10_000;
 
@@ -76,15 +75,12 @@ export interface UseNbuRate {
   lastGood: NbuRateResult | undefined;
   isFetching: boolean;
   isError: boolean;
-  /** True in the demo dataset, which fetches no market data. */
-  disabled: boolean;
-  /** The ONLY way a request happens. Resolves undefined when disabled or the
-   *  fetch failed — the failure surfaces through isError. */
+  /** The ONLY way a request happens. Resolves undefined when the fetch failed —
+   *  the failure surfaces through isError. */
   fetchRate: () => Promise<NbuRateResult | undefined>;
 }
 
 export function useNbuRate(): UseNbuRate {
-  const disabled = useDataset() === 'demo';
   const queryClient = useQueryClient();
 
   const { data, isFetching, isError, refetch } = useQuery({
@@ -118,9 +114,7 @@ export function useNbuRate(): UseNbuRate {
     lastGood: cached ?? undefined,
     isFetching,
     isError,
-    disabled,
     fetchRate: async () => {
-      if (disabled) return undefined;
       const r = await refetch();
       // A failed refetch keeps the PREVIOUS success in `data`, so returning it
       // unconditionally would let the caller mistake a dead network for a fresh

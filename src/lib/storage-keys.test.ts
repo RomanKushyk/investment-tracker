@@ -1,5 +1,5 @@
 // A key rename is not a find-and-replace: the key IS the data, so an untested
-// migration silently resets currency, rate, dataset flag and every dismissal.
+// migration silently resets currency, rate and every dismissal.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function fakeStorage(seed: Record<string, string> = {}) {

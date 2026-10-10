@@ -13,7 +13,6 @@ import { inputValue, storedNumber } from '@quirenote/core/money';
 import { THEME_ORDER, useSettings } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
-import { DatasetSwitch } from './settings/DatasetSwitch';
 import { ImportRow } from './settings/ImportRow';
 import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
@@ -95,8 +94,8 @@ function CurrencyControl() {
   );
   /* A GRID, like the controls beside it. A flex track shrink-wraps, so a fixed
   `calc(50% − N)` chip only lands while both labels are the same width — a bet on
-  the font and on nobody relabelling it, which the dataset switch lost. Two `1fr`
-  columns take the widest content, so the chip fits by construction. */
+  the font and on nobody relabelling it. Two `1fr` columns take the widest content,
+  so the chip fits by construction. */
   return (
     <div
       data-filled-track
@@ -119,7 +118,7 @@ function CurrencyControl() {
 // min-content. `grid-cols-3` columns are equal by construction whatever the words
 // are, so the labels can be translated without re-measuring. A flex track holds only
 // while a pair is equal-width in EVERY dictionary — true of ₴ UAH against $ USD in the
-// mono face this app sets, and not of the dataset switch's.
+// mono face this app sets.
 // The thumb's width is DERIVED from the track's padding box, not fitted.
 
 function ThemeControl() {
@@ -303,7 +302,7 @@ function RestoreDismissedButton() {
   );
 }
 
-// All three features are pure local derivations, so the card is identical in demo and live.
+// All three features are pure local derivations, so the card needs no data to switch on.
 function AutomationRows() {
   const t = useT();
   const {
@@ -380,17 +379,13 @@ export function Settings() {
           className="animate-in p-[22px] delay-75 duration-300 fade-in slide-in-from-bottom-1"
         >
           <SectionLabel>{t.settings.sections.data}</SectionLabel>
-          <SettingRow title={t.settings.dataset.title} helper={t.settings.dataset.helper}>
-            <DatasetSwitch />
-          </SettingRow>
-          <Divider />
           <SettingRow title={t.settings.backup.title} helper={t.settings.backup.helper}>
             <BackupButton />
           </SettingRow>
           <Divider />
           <ImportRow />
           <Divider />
-          {/* Row 4 of the pinned order: Dataset → Backup → Import → Spreadsheet export → Danger zone. */}
+          {/* The pinned order: Backup → Import → Spreadsheet export → Danger zone. */}
           <CsvExportRow />
           <Divider />
           <SettingRow title={t.settings.dangerZone.title} helper={t.settings.dangerZone.helper}>

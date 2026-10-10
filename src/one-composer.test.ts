@@ -423,7 +423,7 @@ const STORE_READERS: Record<string, string> = {
   'src/hooks/queries.ts': 'the ledger queries and every write',
   'src/lib/repository.ts': 'the repository over the database',
   'src/lib/db.ts': 'the Dexie databases themselves',
-  'src/main.tsx': 'the query client and the demo seed at boot',
+  'src/main.tsx': 'the query client and opening the store at boot',
   'src/hooks/useDbSync.ts': "invalidates the cache on another tab's replace or clear",
   'src/hooks/useInzhurAssets.ts': 'the Inzhur feed and its last-good copy in meta',
   'src/hooks/useNbuRate.ts': 'the NBU rate and its last-good copy in meta',

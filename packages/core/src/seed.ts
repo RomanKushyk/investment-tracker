@@ -201,7 +201,6 @@ export function buildSeedBackup(exportedAt: string, dbVersion: number): BackupEn
     })),
     SEED_TRANSACTIONS.map((t) => ({ ...t, id: named(t.id), assetId: named(t.assetId) })),
     undefined,
-    'live',
     exportedAt,
     dbVersion,
   );

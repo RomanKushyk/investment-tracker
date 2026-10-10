@@ -285,18 +285,6 @@ describe('the rail draws what the sheet draws', () => {
       /desktop \? null :/,
     );
   });
-
-  // BOTH SIDEBAR SHELLS KEEP THE CAUTION: gating the panel's badge on the expanded variant
-  // takes it out of the DRAWER, whose lockup row is the same row, and the header's copy is
-  // `aria-hidden` behind the scrim while the drawer is open — so the mobile drawer would be
-  // left with no dataset caution at all.
-  it('leaves the DEMO badge in both sidebar shells', () => {
-    const gate = SIDEBAR.split('\n').filter((l) => /\{demo &&/.test(l));
-    expect(gate.length, 'the panel draws its badge on more than one gate').toBe(1);
-    expect(gate[0], 'the badge is gated on the shell variant, so the drawer loses it').not.toMatch(
-      /\b(panel|drawer|rail)\b/,
-    );
-  });
 });
 
 // ONE ORDER IN BOTH STATES (`design/extensions/sign-out.dc.html`, T2): the currency above

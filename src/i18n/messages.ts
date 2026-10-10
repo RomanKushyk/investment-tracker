@@ -54,8 +54,6 @@ export const en = {
   },
   sidebar: {
     totalCapital: 'Total capital',
-    demoBadge: 'DEMO',
-    demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
   },
   toast: {
     /** A toast that stays until closed carries this button; sonner's own name is English only. */
@@ -80,13 +78,11 @@ export const en = {
     row: {
       title: 'Import',
       helper:
-        'Restore a JSON backup. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.',
+        'Restore a JSON backup. Import replaces everything — you review a summary first, and a safety backup downloads automatically.',
       dropLine: 'Drop a .json file here',
       dropHint: 'or use Choose file…',
       dragLine: 'Release to read the file',
       choose: 'Choose file…',
-      demoNote:
-        'You are in the demo dataset — importing here replaces the reference portfolio. "Reset demo data…" brings it back.',
       reading: (name: string) => `Reading ${name}…`,
     },
     fileRejection: {
@@ -136,10 +132,9 @@ export const en = {
       another: 'Choose another file…',
     },
     preview: {
-      title: (dataset: string) => `Import into ${dataset}`,
-      banner: (dataset: string) =>
-        `Replaces everything in the ${dataset} dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.`,
-      bannerDemoSuffix: ' "Reset demo data…" restores the reference portfolio afterwards.',
+      title: 'Import',
+      banner:
+        'Replaces everything in your portfolio. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.',
       diffLabel: 'What changes',
       colTable: 'Table',
       colAdded: 'Added',
@@ -162,30 +157,28 @@ export const en = {
       snapshots: (n: number) => `${n} snapshot${n === 1 ? '' : 's'}`,
       transactions: (n: number) => `${n} transaction${n === 1 ? '' : 's'}`,
     },
-    fileSubline: (name: string, date: string, time: string, dataset: string) =>
-      `${name} · exported ${date} ${time} · from ${dataset}`,
+    fileSubline: (name: string, date: string, time: string) => `${name} · exported ${date} ${time}`,
     resultLine: (assets: string, snapshots: string, transactions: string) =>
       `After import: ${assets} · ${snapshots} · ${transactions}.`,
     settingsOptInHelper: (symbol: string, rate: string) =>
-      `Replaces your default currency and ₴/$ rate (${symbol} · ${rate}). Dataset, automation and reminder preferences are never touched.`,
+      `Replaces your default currency and ₴/$ rate (${symbol} · ${rate}). Automation and reminder preferences are never touched.`,
     safetyBackupDone: (name: string) => `Safety backup downloaded — ${name}.json.`,
-    safetyBackupPending: (dataset: string, name: string) =>
-      `A backup of your current ${dataset} data downloads automatically before anything is replaced — ${name}.json.`,
+    safetyBackupPending: (name: string) =>
+      `A backup of your current data downloads automatically before anything is replaced — ${name}.json.`,
     warning: {
       // The list joiner and the verb agreement are assembled per language:
       // English needs "and" plus is/are, Ukrainian neither.
-      rowsRemoved: (parts: string[], dataset: string) => {
+      rowsRemoved: (parts: string[]) => {
         const subject =
           parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
         const single = parts.length === 1 && parts[0].startsWith('1 ');
         return single
-          ? `${subject} in ${dataset} is missing from this file — it will be removed.`
-          : `${subject} in ${dataset} are missing from this file — they will be removed.`;
+          ? `${subject} is missing from this file — it will be removed.`
+          : `${subject} are missing from this file — they will be removed.`;
       },
-      noAssets: 'This file has no assets — the dataset will be empty after import.',
-      noSnapshots: (current: number, dataset: string) =>
-        `This file has no snapshots — all ${current} saved days in ${dataset} would be removed.`,
-      otherDataset: (dataset: string) => `This file was exported from the ${dataset} dataset.`,
+      noAssets: 'This file has no assets — the portfolio will be empty after import.',
+      noSnapshots: (current: number) =>
+        `This file has no snapshots — all ${current} saved days would be removed.`,
       exportedLongAgo: (days: number, date: string) => `Exported ${days} days ago (${date}).`,
       newerDbVersion: (file: string, app: string) =>
         `The file comes from a newer database version (${file} vs ${app}) — fields this app does not know are ignored.`,
@@ -283,7 +276,6 @@ export const en = {
       empty: 'Nothing of this kind in the feed — enter it manually.',
       toManual: 'Enter manually',
       toPicker: 'Pick from the list',
-      demo: 'Live list is disabled in demo — enter the slug or ISIN manually.',
       helper:
         'Linked assets are valued as units × the fetched sell price. Units come from your transactions — record the quantity when you buy.',
       fund: 'Fund',
@@ -683,35 +675,24 @@ export const en = {
     sumOk: (sum: string) => `Σ ${sum}`,
     sumOff: (sum: string) => `Σ ${sum} — targets don't add up to 100%`,
   },
-  datasetSwitch: { demo: 'Demo', live: 'Live' },
   danger: {
-    // The typed word is DATA, not copy: the confirm compares it with the
-    // dataset name, so translating it would make the button unarmable.
+    // The typed word is DATA, not copy: the confirm compares it with the word the
+    // dialog names, so translating it would make the button unarmable.
     typeToConfirm: (word: string) => `Type ${word} to confirm`,
     backupFirst: 'Download backup first',
     backupDone: 'Backup downloaded ✓',
     failed: 'Could not complete — nothing was deleted.',
-    live: {
-      trigger: 'Erase live data…',
-      title: 'Erase live data?',
-      body: 'This permanently deletes every asset, snapshot and transaction in the live dataset. The unsaved quote draft is cleared too — settings are kept. This cannot be undone.',
-      action: 'Erase live data',
-      success: 'Live data erased',
-    },
-    demo: {
-      trigger: 'Reset demo data…',
-      title: 'Reset demo data?',
-      body: 'This replaces everything in the demo dataset with the built-in reference portfolio. Any changes you made in demo mode are lost.',
-      action: 'Reset demo data',
-      success: 'Demo data reset',
-    },
+    trigger: 'Erase data…',
+    title: 'Erase data?',
+    body: 'This permanently deletes every asset, snapshot and transaction. The unsaved quote draft is cleared too — settings are kept. This cannot be undone.',
+    action: 'Erase data',
+    success: 'Data erased',
   },
   nbu: {
     fetch: 'Fetch rate',
     fetching: 'Fetching…',
     title: 'Fetch the official National Bank of Ukraine rate',
     useIt: 'Use it',
-    demoDisabled: 'Demo data — no market data is fetched.',
     failed: 'Could not reach the NBU rate directory — please try again.',
     applied: (rate: string) => `Rate set to ${rate}`,
     shown: (rate: string, date: string) => `NBU ${rate} for ${date}`,
@@ -754,15 +735,9 @@ export const en = {
       uk: 'Українська',
       en: 'English',
     },
-    dataset: {
-      title: 'Dataset',
-      helper:
-        'Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app.',
-    },
     backup: {
       title: 'Backup',
-      helper:
-        'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.',
+      helper: 'Full JSON backup — quirenote-backup-<date>.json. Restore it with Import below.',
       button: 'Download backup',
       failedToast: 'Could not build the backup — please try again.',
       unreadableToast: (issue: string) =>
@@ -770,7 +745,7 @@ export const en = {
     },
     dangerZone: {
       title: 'Danger zone',
-      helper: 'Both actions ask for a typed confirmation and offer a backup first.',
+      helper: 'The action asks for a typed confirmation and offers a backup first.',
     },
     quoteSuggest: {
       title: 'Quote suggestions',
@@ -1016,7 +991,6 @@ export const en = {
       loading: 'Fetching…',
       fetchedAt: (time: string) => `Fetched ${time}`,
       unlinked: 'No Inzhur-linked assets yet — link one on Portfolio.',
-      demo: 'Fetching is disabled in the demo dataset — switch to Live in Settings → Data.',
       feedAsOf: (date: string) => `Inzhur as of ${date}`,
       feedAt: (time: string) => `Inzhur ${time}`,
     },
@@ -1199,8 +1173,6 @@ export const uk: Dict = {
   },
   sidebar: {
     totalCapital: 'Загальний капітал', // ✎
-    demoBadge: 'DEMO',
-    demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
   },
   toast: {
     close: 'Закрити сповіщення',
@@ -1222,13 +1194,11 @@ export const uk: Dict = {
     row: {
       title: 'Імпорт',
       helper:
-        'Відновлення з резервної копії JSON. Імпорт замінює все в активному наборі — спершу ви переглядаєте підсумок, а страхувальна копія завантажується автоматично.',
+        'Відновлення з резервної копії JSON. Імпорт замінює все — спершу ви переглядаєте підсумок, а страхувальна копія завантажується автоматично.',
       dropLine: 'Перетягніть сюди файл .json',
       dropHint: 'або скористайтеся «Обрати файл…»',
       dragLine: 'Відпустіть, щоб прочитати файл',
       choose: 'Обрати файл…',
-      demoNote:
-        'Ви в демонстраційному наборі — імпорт замінить еталонний портфель. «Скинути демонстраційні дані…» поверне його.',
       reading: (name: string) => `Читання ${name}…`,
     },
     fileRejection: {
@@ -1290,10 +1260,9 @@ export const uk: Dict = {
       another: 'Обрати інший файл…',
     },
     preview: {
-      title: (dataset: string) => `Імпорт у набір ${dataset}`,
-      banner: (dataset: string) =>
-        `Замінює все в наборі ${dataset}. Кожен актив, зріз і транзакцію буде видалено й відтворено з цього файлу. Скасувати це неможливо.`,
-      bannerDemoSuffix: ' «Скинути демонстраційні дані…» згодом поверне еталонний портфель.',
+      title: 'Імпорт',
+      banner:
+        'Замінює все у вашому портфелі. Кожен актив, зріз і транзакцію буде видалено й відтворено з цього файлу. Скасувати це неможливо.',
       diffLabel: 'Що зміниться',
       colTable: 'Таблиця',
       colAdded: 'Додано',
@@ -1315,28 +1284,27 @@ export const uk: Dict = {
       snapshots: (n: number) => `${n} ${plural(n, 'зріз', 'зрізи', 'зрізів')}`,
       transactions: (n: number) => `${n} ${plural(n, 'транзакція', 'транзакції', 'транзакцій')}`,
     },
-    fileSubline: (name: string, date: string, time: string, dataset: string) =>
-      `${name} · експортовано ${date} ${time} · з набору ${dataset}`,
+    fileSubline: (name: string, date: string, time: string) =>
+      `${name} · експортовано ${date} ${time}`,
     resultLine: (assets: string, snapshots: string, transactions: string) =>
       `Після імпорту: ${assets} · ${snapshots} · ${transactions}.`,
     settingsOptInHelper: (symbol: string, rate: string) =>
-      `Замінює вашу валюту за замовчуванням та курс ₴/$ (${symbol} · ${rate}). Набір даних, автоматизація та налаштування нагадувань лишаються недоторканими.`,
+      `Замінює вашу валюту за замовчуванням та курс ₴/$ (${symbol} · ${rate}). Автоматизація та налаштування нагадувань лишаються недоторканими.`,
     safetyBackupDone: (name: string) => `Страхувальну копію завантажено — ${name}.json.`,
-    safetyBackupPending: (dataset: string, name: string) =>
-      `Копія ваших поточних даних набору ${dataset} завантажиться автоматично, перш ніж щось буде замінено — ${name}.json.`,
+    safetyBackupPending: (name: string) =>
+      `Копія ваших поточних даних завантажиться автоматично, перш ніж щось буде замінено — ${name}.json.`,
     warning: {
       // Ukrainian joins with «і» and needs no verb agreement here: «немає»
       // governs the genitive and reads the same for one row or many, so this
       // sentence carries no singular/plural branch at all.
-      rowsRemoved: (parts: string[], dataset: string) => {
+      rowsRemoved: (parts: string[]) => {
         const subject =
           parts.length > 1 ? `${parts.slice(0, -1).join(', ')} і ${parts.at(-1)}` : parts[0];
-        return `${subject} у наборі «${dataset}» немає в цьому файлі — їх буде вилучено.`;
+        return `${subject} немає в цьому файлі — їх буде вилучено.`;
       },
-      noAssets: 'У файлі немає активів — після імпорту набір буде порожній.',
-      noSnapshots: (current: number, dataset: string) =>
-        `У файлі немає зрізів — усі ${current} ${plural(current, 'збережений день', 'збережені дні', 'збережених днів')} у наборі «${dataset}» буде вилучено.`,
-      otherDataset: (dataset: string) => `Цей файл експортовано з набору «${dataset}».`,
+      noAssets: 'У файлі немає активів — після імпорту портфель буде порожній.',
+      noSnapshots: (current: number) =>
+        `У файлі немає зрізів — усі ${current} ${plural(current, 'збережений день', 'збережені дні', 'збережених днів')} буде вилучено.`,
       exportedLongAgo: (days: number, date: string) =>
         `Експортовано ${days} ${plural(days, 'день', 'дні', 'днів')} тому (${date}).`,
       newerDbVersion: (file: string, app: string) =>
@@ -1424,7 +1392,6 @@ export const uk: Dict = {
       empty: 'Нічого такого виду в стрічці — введіть вручну.',
       toManual: 'Ввести вручну',
       toPicker: 'Обрати зі списку',
-      demo: 'Живий список вимкнено в демо — введіть ідентифікатор або ISIN вручну.',
       helper:
         'Прив’язані активи оцінюються як одиниці × отримана ціна продажу. Одиниці беруться з транзакцій — вказуйте кількість при купівлі.',
       fund: 'Фонд',
@@ -1735,33 +1702,22 @@ export const uk: Dict = {
     sumOk: (sum: string) => `Σ ${sum}`,
     sumOff: (sum: string) => `Σ ${sum} — цілі не дають у сумі 100 %`,
   },
-  datasetSwitch: { demo: 'Демо', live: 'Живий' },
   danger: {
     typeToConfirm: (word: string) => `Введіть ${word} для підтвердження`,
     backupFirst: 'Спершу завантажте копію',
     backupDone: 'Копію завантажено ✓',
     failed: 'Не вдалося виконати — нічого не видалено.',
-    live: {
-      trigger: 'Стерти живі дані…',
-      title: 'Стерти живі дані?',
-      body: 'Це назавжди видалить кожен актив, зріз і транзакцію в живому наборі. Незбережений чернетковий ввід котирувань також очищується — налаштування лишаються. Скасувати це неможливо.',
-      action: 'Стерти живі дані',
-      success: 'Живі дані стерто',
-    },
-    demo: {
-      trigger: 'Скинути демонстраційні дані…',
-      title: 'Скинути демонстраційні дані?',
-      body: 'Це замінить усе в демонстраційному наборі вбудованим еталонним портфелем. Будь-які зміни, зроблені в демо-режимі, буде втрачено.',
-      action: 'Скинути демонстраційні дані',
-      success: 'Демонстраційні дані скинуто',
-    },
+    trigger: 'Стерти дані…',
+    title: 'Стерти дані?',
+    body: 'Це назавжди видалить кожен актив, зріз і транзакцію. Незбережений чернетковий ввід котирувань також очищується — налаштування лишаються. Скасувати це неможливо.',
+    action: 'Стерти дані',
+    success: 'Дані стерто',
   },
   nbu: {
     fetch: 'Отримати курс',
     fetching: 'Отримання…',
     title: 'Отримати офіційний курс Національного банку України',
     useIt: 'Застосувати',
-    demoDisabled: 'Демонстраційні дані — ринкові дані не завантажуються.',
     failed: 'Не вдалося звернутися до довідника курсів НБУ — спробуйте ще раз.',
     applied: (rate: string) => `Курс встановлено на ${rate}`,
     shown: (rate: string, date: string) => `НБУ ${rate} на ${date}`,
@@ -1801,15 +1757,10 @@ export const uk: Dict = {
       uk: 'Українська', // ✎
       en: 'English', // ✎
     },
-    dataset: {
-      title: 'Набір даних',
-      helper:
-        'Демонстраційний містить вбудований еталонний портфель. Живий починається порожнім і містить ваші справжні дані. Перемикання перезавантажує застосунок.',
-    },
     backup: {
       title: 'Резервна копія',
       helper:
-        'Повна копія активного набору в JSON — quirenote-backup-<дата>.json. Відновлюється через Імпорт нижче.',
+        'Повна копія в JSON — quirenote-backup-<дата>.json. Відновлюється через Імпорт нижче.',
       button: 'Завантажити копію',
       failedToast: 'Не вдалося створити копію — спробуйте ще раз.',
       unreadableToast: (issue: string) =>
@@ -1817,7 +1768,7 @@ export const uk: Dict = {
     },
     dangerZone: {
       title: 'Небезпечна зона',
-      helper: 'Обидві дії просять підтвердження вводом і спершу пропонують резервну копію.',
+      helper: 'Дія просить підтвердження вводом і спершу пропонує резервну копію.',
     },
     quoteSuggest: {
       title: 'Пропозиції котирувань',
@@ -2029,7 +1980,6 @@ export const uk: Dict = {
       loading: 'Отримання…', // ✎
       fetchedAt: (time: string) => `Отримано ${time}`, // ✎
       unlinked: 'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Портфелі.',
-      demo: 'Отримання вимкнено на демонстраційному наборі — перемкніть на Живий у Налаштуваннях → Дані.',
       feedAsOf: (date: string) => `Inzhur станом на ${date}`, // ✎
       feedAt: (time: string) => `Inzhur ${time}`,
     },

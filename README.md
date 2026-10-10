@@ -15,12 +15,12 @@ pnpm install
 pnpm dev                                                    # http://localhost:3300
 pnpm lint && pnpm typecheck && pnpm test && pnpm format:check
 ```
-An empty IndexedDB seeds the demo dataset on first load. `/settings → Data` resets it or switches to the live dataset.
+A fresh profile opens to an empty portfolio, and nothing seeds it. `/settings → Data` imports a backup or erases the data; `navigation-map.md` says how to import the reference seed.
 
 ## Layout
 | Path | Holds |
 |---|---|
-| `packages/core/` | `@quirenote/core`, the pure domain layer the app and `infra/` both import: types, derivations, XIRR, accrual, parsers, the per-screen view models and the demo seed; no I/O, returns keys not prose |
+| `packages/core/` | `@quirenote/core`, the pure domain layer the app and `infra/` both import: types, derivations, XIRR, accrual, parsers, the per-screen view models and the reference seed; no I/O, returns keys not prose |
 | `src/lib/` | persistence and browser I/O: Dexie schema, `repository.ts`, file download, cross-tab sync |
 | `src/state/` | the settings store |
 | `src/screens/`, `src/components/` | the routes and the UI kit |
@@ -33,7 +33,7 @@ An empty IndexedDB seeds the demo dataset on first load. `/settings → Data` re
 ## Documentation
 - `CLAUDE.md` — working rules, workflow, Definition of Done.
 - `docs/DECISIONS.md` — why things are the way they are; current state only.
-- `navigation-map.md` — every route's expected values on the demo seed.
+- `navigation-map.md` — every route's expected values on the reference seed.
 - `docs/reference/` — deployment, versioning, Dependabot, provider and market-data facts, the formula audit, the Cognito pool's immutable parameters.
 - Work is tracked in GitHub Issues and the `Quirenote` project; milestones are releases (`vX.Y.Z`).
 

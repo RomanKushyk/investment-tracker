@@ -26,15 +26,10 @@ export function FetchQuotesButton({
 }) {
   const f = useFormat();
   const t = useT();
-  const gated = state === 'demo' || state === 'unlinked';
+  const gated = state === 'unlinked';
   const disabled = gated || state === 'loading';
   const success = state === 'success' && flashAt !== undefined;
-  const title =
-    state === 'demo'
-      ? t.dailyQuotes.fetch.demo
-      : state === 'unlinked'
-        ? t.dailyQuotes.fetch.unlinked
-        : undefined;
+  const title = state === 'unlinked' ? t.dailyQuotes.fetch.unlinked : undefined;
 
   const button = (
     <Button
@@ -67,11 +62,6 @@ export function FetchQuotesButton({
             ? t.dailyQuotes.fetch.fetchedAt(kyivTimeHm(new Date(flashAt)))
             : t.dailyQuotes.fetch.idle}
       </span>
-      {state === 'demo' && (
-        <span className="rounded-[5px] bg-warn-tint px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] text-warn-tint-text uppercase">
-          {t.sidebar.demoBadge}
-        </span>
-      )}
     </Button>
   );
 

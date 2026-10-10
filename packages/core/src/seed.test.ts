@@ -208,14 +208,13 @@ describe('backup envelope round-trip on the seed (D12)', () => {
       pricesOfSnapshots(SEED_TRANSACTIONS, snaps),
       SEED_TRANSACTIONS,
       { currency: 'UAH', usdRate: 44.83 },
-      'demo',
       '2026-07-28T12:00:00',
       2,
     );
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.formatVersion).toBe(13);
+    expect(result.data.formatVersion).toBe(14);
     expect(result.data.assets).toHaveLength(4);
     // One price per quote: the seed quotes a position only while the ledger holds it.
     expect(result.data.prices).toHaveLength(572);
@@ -297,11 +296,7 @@ describe('the seed as a backup the API takes', () => {
   });
 
   it('carries the stamps its caller gives, as a backup does, and no setting', () => {
-    expect([backup.exportedAt, backup.dbVersion, backup.dataset]).toEqual([
-      '2026-07-28T12:00:00',
-      2,
-      'live',
-    ]);
+    expect([backup.exportedAt, backup.dbVersion]).toEqual(['2026-07-28T12:00:00', 2]);
     expect(backup.settings).toBeUndefined();
   });
 });

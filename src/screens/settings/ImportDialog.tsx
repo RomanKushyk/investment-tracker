@@ -24,7 +24,7 @@ import { signed } from '@quirenote/core/money';
 import { snapshotsOfPrices } from '@quirenote/core/valuation';
 import { useReplaceAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
-import { migrateSettings, useDataset, useSettings } from '../../state/settings';
+import { migrateSettings, useSettings } from '../../state/settings';
 import {
   fileSubline,
   importToasts,
@@ -38,7 +38,7 @@ import {
 } from './import-labels';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
 import type { BackupDiff, ImportRejection, TableDiff } from '@quirenote/core/backup/import';
-import type { BackupEnvelope, Dataset } from '@quirenote/core/backup/json';
+import type { BackupEnvelope } from '@quirenote/core/backup/json';
 import { useFormat } from '../../hooks/useFormat';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
@@ -66,7 +66,6 @@ export function ImportDialog({
   onChooseAnother: () => void;
 }) {
   const t = useT();
-  const dataset = useDataset();
   const replaceAll = useReplaceAll();
   const backup = useBackupDownload();
   const [applySettings, setApplySettings] = useState(false);
@@ -109,12 +108,12 @@ export function ImportDialog({
         },
         onBlocked: () => setWaiting(true),
       });
-      // The imported dataset has its own asset ids: a draft left over from the
+      // The imported portfolio has its own asset ids: a draft left over from the
       // replaced one would show phantom values against them.
       useDraft.getState().setDate('');
       if (applySettings && envelope.settings) {
         // Through the store's setters and the sanitizer — never a direct localStorage
-        // write, and never the dataset, automation or reminder fields.
+        // write, and never the automation or reminder fields.
         const sane = migrateSettings(envelope.settings);
         // The PREFERENCE. `setCurrency` here would put the restored value in the session
         // only, where it evaporates on the next reload — a restored setting that
@@ -145,7 +144,6 @@ export function ImportDialog({
       {attempt.kind === 'preview' ? (
         <Preview
           attempt={attempt}
-          dataset={dataset}
           pending={pending}
           waiting={waiting}
           backedUp={backedUp}
@@ -163,7 +161,6 @@ export function ImportDialog({
 
 function Preview({
   attempt,
-  dataset,
   pending,
   waiting,
   backedUp,
@@ -173,7 +170,6 @@ function Preview({
   onConfirm,
 }: {
   attempt: Extract<ImportAttempt, { kind: 'preview' }>;
-  dataset: Dataset;
   pending: boolean;
   waiting: boolean;
   backedUp: boolean;
@@ -189,22 +185,19 @@ function Preview({
     <>
       <DialogHeader>
         <AlertDialogTitle asChild>
-          <h3 className="m-0 text-lg">{t.importing.preview.title(dataset)}</h3>
+          <h3 className="m-0 text-lg">{t.importing.preview.title}</h3>
         </AlertDialogTitle>
       </DialogHeader>
       <DialogBody>
         <div className="mb-3.5 text-[11px] leading-relaxed [overflow-wrap:anywhere] text-muted">
-          {fileSubline(name, envelope.exportedAt, envelope.dataset, f, t)}
+          {fileSubline(name, envelope.exportedAt, f, t)}
         </div>
 
-        {/* Never dismissible, and it names the dataset it destroys. */}
+        {/* Never dismissible, and it names what it destroys. */}
         <AlertDialogDescription asChild>
           <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-neg-tint px-3.5 py-3 text-[12.5px] leading-[1.55] text-neg-tint-text">
             <AlertTriangle size={16} strokeWidth={2.25} className="mt-0.5 flex-none" />
-            <span>
-              {t.importing.preview.banner(dataset)}
-              {dataset === 'demo' ? t.importing.preview.bannerDemoSuffix : ''}
-            </span>
+            <span>{t.importing.preview.banner}</span>
           </div>
         </AlertDialogDescription>
 
@@ -221,7 +214,7 @@ function Preview({
               {diff.warnings.map((w) => (
                 <div key={w.code} className="flex items-start gap-2 text-xs leading-normal">
                   <span className="flex-none font-bold">!</span>
-                  <span>{warningSentence(w, dataset, f, t)}</span>
+                  <span>{warningSentence(w, f, t)}</span>
                 </div>
               ))}
             </div>
@@ -256,7 +249,7 @@ function Preview({
         <div className="mt-3.5 flex items-start gap-2 text-[11px] leading-relaxed text-muted">
           <Download size={13} strokeWidth={2.5} className="mt-[3px] flex-none" />
           <span className="[overflow-wrap:anywhere]">
-            {safetyBackupLine(dataset, safetyName, backedUp, t)}
+            {safetyBackupLine(safetyName, backedUp, t)}
           </span>
         </div>
       </DialogBody>

@@ -238,11 +238,10 @@ describe('payloadStillFresh (S1 "re-serve, do not refetch")', () => {
 });
 
 describe('fetchButtonState (S1 machine)', () => {
-  const base = { demo: false, linked: 2, loading: false, flash: false };
+  const base = { linked: 2, loading: false, flash: false };
 
   it('resolves in the pinned precedence', () => {
-    expect(fetchButtonState({ ...base, demo: true, loading: true })).toBe('demo');
-    expect(fetchButtonState({ ...base, linked: 0 })).toBe('unlinked');
+    expect(fetchButtonState({ ...base, linked: 0, loading: true })).toBe('unlinked');
     expect(fetchButtonState({ ...base, loading: true, flash: true })).toBe('loading');
     expect(fetchButtonState({ ...base, flash: true })).toBe('success');
     expect(fetchButtonState(base)).toBe('idle');

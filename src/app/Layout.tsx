@@ -20,11 +20,11 @@ interface DrawerHistoryState {
 export function Layout() {
   const { pathname } = useLocation();
   // HERE BECAUSE THE LAYOUT SPANS EVERY PORTFOLIO ROUTE: the toast fires once on app open, and
-  // another tab's dataset change reaches this one on any route. Theme and language are `Root`'s.
+  // another tab's import or erase reaches this one on any route. Theme and language are `Root`'s.
   useReminderToast();
   useDbSync();
-  // The footer band offers a sign-out only once the relay says someone is signed in. Asked in
-  // either dataset, the session being the browser's, and again on each route until it answers:
+  // The footer band offers a sign-out only once the relay says someone is signed in. Asked on
+  // every load, the session being the browser's, and again on each route until it answers:
   // once it has, `restore` asks nothing.
   useEffect(() => {
     void session.restore();

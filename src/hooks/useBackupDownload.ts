@@ -36,7 +36,7 @@ export function useBackupDownload() {
   // The PREFERENCE, not the session value: a backup carries what the user chose,
   // never what they were glancing at when they pressed Export — and it restores
   // through `setDefaultCurrency`, so the two ends match.
-  const { defaultCurrency: currency, usdRate, dataset } = useSettings();
+  const { defaultCurrency: currency, usdRate } = useSettings();
 
   async function download(opts: BackupDownloadOptions = {}): Promise<boolean> {
     try {
@@ -47,7 +47,6 @@ export function useBackupDownload() {
         pricesOfSnapshots(tables.transactions, tables.snapshots),
         tables.transactions,
         { currency, usdRate },
-        dataset, // the ACTIVE dataset — exportAll reads the DB bound to it
         new Date().toISOString().slice(0, 19), // timezone-less, same stamp as saveSnapshot
         dbVersion,
       );

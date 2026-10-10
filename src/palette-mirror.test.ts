@@ -417,16 +417,9 @@ describe('the recorded readings still read as recorded', () => {
     expect(stated).toEqual(STATED_IN_THE_SHEET);
   });
 
-  // The DEMO badge is on `page` as well as on the wall, since the header carries one
-  // wherever it is mounted, and neither the sheet's table nor the arm below covers that
-  // plane. Its edge is what makes it a chip rather than floating text, so 1.4.11 binds at 3.
-  it.each(['light', 'dark'] as const)('%s: the DEMO edge identifies itself on `page`', (block) => {
-    expect(ratio(resolve(block, 'warn'), resolve(block, 'page'))).toBeGreaterThanOrEqual(3);
-  });
-
   // NOT a shortfall — the opposite, and that is why it needs pinning: `warn` clears 1.4.3 on
   // the binding plane by a hair, so a nudge to EITHER token in EITHER direction puts the
-  // Σ≠100 pill, the DEMO badge and every stale chip under the bar.
+  // Σ≠100 pill and every stale chip under the bar.
   it('keeps `warn` above 4.5 on `panel`, where it has 0.003 to spare', () => {
     expect(ratio(resolve('light', 'warn'), resolve('light', 'panel'))).toBeGreaterThanOrEqual(4.5);
   });

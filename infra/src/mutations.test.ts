@@ -731,7 +731,7 @@ describe('deleting an asset larger than one request', () => {
   const valid = async () => {
     const s = await state();
     const text = JSON.stringify(
-      buildBackup(s.assets, s.prices, s.transactions, undefined, 'live', '2026-10-09T10:00:00', 2),
+      buildBackup(s.assets, s.prices, s.transactions, undefined, '2026-10-09T10:00:00', 2),
     );
     expect(parseBackup(text).ok).toBe(true);
   };
@@ -1241,7 +1241,6 @@ describe('GET /state', () => {
         first.prices,
         first.transactions,
         undefined,
-        'live',
         '2026-10-09T10:00:00',
         2,
       ),

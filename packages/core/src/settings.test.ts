@@ -54,7 +54,7 @@ describe('the account’s settings', () => {
     ]);
     expect(Object.keys(SETTINGS_DEFAULTS)).toEqual([...SETTING_NAMES]);
     expect(SETTINGS_DEFAULTS).toEqual(DEFAULTS);
-    for (const device of ['theme', 'usdRate', 'dataset', 'currency']) {
+    for (const device of ['theme', 'usdRate', 'currency']) {
       expect(SETTING_NAMES).not.toContain(device);
     }
   });
@@ -92,7 +92,6 @@ describe('sanitiseSettings, the rule for each field', () => {
       period: '1m',
       theme: 'dark',
       usdRate: 40,
-      dataset: 'live',
       currency: 'USD',
       accent: 'teal',
     });
@@ -281,7 +280,7 @@ describe('patchSettings merges the fields it names', () => {
 });
 
 describe('patchSettings refuses what the sanitiser would not keep', () => {
-  it.each(['theme', 'usdRate', 'dataset', 'currency', 'accent', 'constructor', 'toString'])(
+  it.each(['theme', 'usdRate', 'currency', 'accent', 'constructor', 'toString'])(
     'refuses %s, which is no account setting, even to reset it',
     (field) => {
       expect(patchSettings(null, { [field]: 'x' })).toEqual({

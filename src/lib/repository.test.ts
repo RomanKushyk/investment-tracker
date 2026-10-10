@@ -8,8 +8,8 @@ import { diffBackup, validateImport } from '@quirenote/core/backup/import';
 import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { headlineKpis, headlineTotal } from '@quirenote/core/derive';
 import { pricesOfSnapshots, snapshotsOfPrices } from '@quirenote/core/valuation';
-import { activeDataset, db, makeDb } from './db';
-import { dbVersion, ensureSeeded, repo } from './repository';
+import { db, makeDb } from './db';
+import { dbVersion, repo } from './repository';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { SYNC_CHANNEL } from './sync';
 import type { Snapshot } from '@quirenote/core/types';
@@ -19,6 +19,13 @@ beforeEach(async () => {
   await db.open();
 });
 
+// What a build used to write on first run, now written by the test: the app seeds nothing.
+async function seedStore(): Promise<void> {
+  await db.assets.bulkAdd(SEED_ASSETS);
+  await db.snapshots.bulkAdd(buildSeedSnapshots());
+  await db.transactions.bulkAdd(SEED_TRANSACTIONS);
+}
+
 describe('dbVersion (backup envelopes)', () => {
   it('exposes the declared Dexie schema version', () => {
     expect(dbVersion).toBe(2);
@@ -27,7 +34,7 @@ describe('dbVersion (backup envelopes)', () => {
 
 describe('deleteAsset cascade', () => {
   it('atomically removes the asset, its transactions and its quote keys — nothing else', async () => {
-    await ensureSeeded();
+    await seedStore();
     await repo.deleteAsset('reit');
 
     const assets = await repo.listAssets();
@@ -46,41 +53,9 @@ describe('deleteAsset cascade', () => {
   });
 });
 
-describe('ensureSeeded meta guard', () => {
-  it('does NOT reseed after the last asset is deleted', async () => {
-    await ensureSeeded();
-    for (const a of await repo.listAssets()) await repo.deleteAsset(a.id);
-
-    await ensureSeeded();
-    expect(await repo.listAssets()).toEqual([]);
-  });
-
-  it('stays empty after clearAll({ reseed: false }) and a re-init', async () => {
-    await ensureSeeded();
-    await repo.clearAll({ reseed: false });
-
-    await ensureSeeded(); // simulated reload
-    expect(await db.assets.count()).toBe(0);
-    expect(await db.snapshots.count()).toBe(0);
-    expect(await db.transactions.count()).toBe(0);
-  });
-});
-
-describe('clearAll({ reseed: true })', () => {
-  it('restores the exact seed counts 4/174/25 after divergence', async () => {
-    await ensureSeeded();
-    await repo.deleteAsset('reit'); // diverge from the seed
-    await repo.clearAll({ reseed: true });
-
-    expect(await db.assets.count()).toBe(4);
-    expect(await db.snapshots.count()).toBe(174);
-    expect(await db.transactions.count()).toBe(25);
-  });
-});
-
 describe('replaceAll', () => {
   it('is all-or-nothing: a later row violating the PK commits nothing', async () => {
-    await ensureSeeded();
+    await seedStore();
     const before = await repo.exportAll();
 
     const bad = {
@@ -97,7 +72,7 @@ describe('replaceAll', () => {
   });
 
   it('replaces every table atomically when the data is valid', async () => {
-    await ensureSeeded();
+    await seedStore();
     const seed = await repo.exportAll();
     const snapshot: Snapshot = { date: '2026-08-01', quotes: { reit: 1 } };
     const data = {
@@ -122,7 +97,6 @@ async function exportSeedEnvelope() {
     pricesOfSnapshots(tables.transactions, tables.snapshots),
     tables.transactions,
     { currency: 'UAH', usdRate: 44.83 },
-    'demo',
     '2026-08-04T12:00:00',
     dbVersion,
   );
@@ -132,7 +106,7 @@ async function exportSeedEnvelope() {
 // envelope it built parses back.
 describe('a store holding a retired row shape', () => {
   async function seedWithRetiredKeys() {
-    await ensureSeeded();
+    await seedStore();
     const tx = (await repo.listTransactions())[0];
     await db.transactions.put({ ...tx, source: 'savings' } as typeof tx);
     const snap = (await db.snapshots.toArray())[0];
@@ -168,11 +142,11 @@ describe('a store holding a retired row shape', () => {
 
 describe('export → erase → import round-trip', () => {
   it('restores every row of the seed, with every D5-pinned figure intact', async () => {
-    await ensureSeeded();
+    await seedStore();
     const before = await repo.exportAll();
     const text = JSON.stringify(await exportSeedEnvelope());
 
-    await repo.clearAll({ reseed: false }); // the S6 erase, mid round-trip
+    await repo.clearAll(); // the S6 erase, mid round-trip
     expect(await db.assets.count()).toBe(0);
 
     const validation = validateImport(text);
@@ -197,16 +171,12 @@ describe('export → erase → import round-trip', () => {
     expect(headlineTotal(after.snapshots, after.transactions)).toBeCloseTo(149016.36, 2);
   });
 
-  it('previews the same-dataset re-import as all-replaced, nothing lost', async () => {
-    await ensureSeeded();
+  it('previews a re-import of what is stored as all-replaced, nothing lost', async () => {
+    await seedStore();
     const current = await repo.exportAll();
     const envelope = await exportSeedEnvelope();
 
-    const diff = diffBackup(current, envelope, {
-      dataset: 'demo',
-      today: '2026-08-04',
-      dbVersion,
-    });
+    const diff = diffBackup(current, envelope, { today: '2026-08-04', dbVersion });
     expect(diff.assets).toEqual({ added: 0, replaced: 4, removed: 0 });
     expect(diff.snapshots).toEqual({ added: 0, replaced: 174, removed: 0 });
     expect(diff.transactions).toEqual({ added: 0, replaced: 25, removed: 0 });
@@ -215,7 +185,7 @@ describe('export → erase → import round-trip', () => {
   });
 
   it('a rejected file writes nothing — validation happens before any write', async () => {
-    await ensureSeeded();
+    await seedStore();
     const before = await repo.exportAll();
     const broken = JSON.parse(JSON.stringify(await exportSeedEnvelope())) as Record<
       string,
@@ -244,7 +214,7 @@ describe('export → erase → import round-trip', () => {
   }
 
   it('tells other tabs after a committed replace, never before', async () => {
-    await ensureSeeded();
+    await seedStore();
     // A second channel object stands in for a second tab: the repository's own never delivers to itself.
     const otherTab = new BroadcastChannel(SYNC_CHANNEL);
     const heard: unknown[] = [];
@@ -265,7 +235,7 @@ describe('export → erase → import round-trip', () => {
       await waitForMessages(heard, 1);
       expect(heard).toEqual([{ kind: 'replace' }]);
 
-      await repo.clearAll({ reseed: false });
+      await repo.clearAll();
       await waitForMessages(heard, 2);
       expect(heard).toEqual([{ kind: 'replace' }, { kind: 'clear' }]);
     } finally {
@@ -276,7 +246,7 @@ describe('export → erase → import round-trip', () => {
 
 describe('moveSnapshotDate', () => {
   it('throws on collision and writes nothing', async () => {
-    await ensureSeeded();
+    await seedStore();
     await expect(repo.moveSnapshotDate('2026-07-25', '2026-07-27')).rejects.toThrow();
 
     expect(await db.snapshots.count()).toBe(174);
@@ -292,7 +262,7 @@ describe('moveSnapshotDate', () => {
   });
 
   it('moves a snapshot to a free date in one transaction', async () => {
-    await ensureSeeded();
+    await seedStore();
     await repo.moveSnapshotDate('2026-07-27', '2026-07-26');
 
     expect(await db.snapshots.get('2026-07-27')).toBeUndefined();
@@ -304,7 +274,7 @@ describe('moveSnapshotDate', () => {
 
 describe('exportAll', () => {
   it('returns all three tables with the seed row counts', async () => {
-    await ensureSeeded();
+    await seedStore();
     const all = await repo.exportAll();
 
     expect(all.assets).toHaveLength(4);
@@ -327,13 +297,6 @@ describe('meta accessors (P3 Inzhur last-good cache)', () => {
     expect(await repo.getMeta('inzhur:lastFetch')).toEqual({ payload: [], fetchedAt: 'y' });
     expect(await db.meta.count()).toBe(1);
   });
-
-  it('leaves the seeding flag alone', async () => {
-    await ensureSeeded();
-    await repo.setMeta('inzhur:lastFetch', { payload: [], fetchedAt: 'z' });
-
-    expect(await repo.getMeta('seeded')).toBe(true);
-  });
 });
 
 describe('makeDb factory (G4)', () => {
@@ -353,81 +316,54 @@ describe('makeDb factory (G4)', () => {
       await b.delete();
     }
   });
-
-  it('binds the demo DB (quirenote) when no dataset flag is persisted', () => {
-    // No stored settings in the node env, so the boot-time read falls back to demo.
-    expect(activeDataset).toBe('demo');
-    expect(db.name).toBe('quirenote');
-  });
 });
 
-describe('dataset boot binding (G4)', () => {
-  it('binds quirenote-live and never auto-seeds it when the persisted dataset is live', async () => {
-    // The same synchronous read the browser performs before React, with the live flag stubbed in.
+// ONE LOCAL STORE (#404): one database, bound the same way whatever a profile's settings say, and
+// nothing in it that the app put there. The seed is data for fixtures and the browser's import.
+describe('one local store', () => {
+  const SEED = {
+    assets: SEED_ASSETS,
+    snapshots: buildSeedSnapshots(),
+    transactions: SEED_TRANSACTIONS,
+  };
+  const EMPTY = { assets: [], snapshots: [], transactions: [] };
+
+  it('binds quirenote-live with nothing persisted', () => {
+    expect(db.name).toBe('quirenote-live');
+  });
+
+  // A profile written while a dataset was selectable still carries the key, and no read of it binds
+  // a database any more.
+  it.each(['demo', 'live'])('binds it for a profile that still names %s', async (dataset) => {
     vi.resetModules();
     vi.stubGlobal('localStorage', {
       getItem: (key: string) =>
-        key === 'quirenote-settings'
-          ? JSON.stringify({
-              state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' },
-              version: 1,
-            })
-          : null,
+        key === 'quirenote-settings' ? JSON.stringify({ state: { dataset }, version: 1 }) : null,
       setItem: () => {},
       removeItem: () => {},
     });
     try {
-      const freshDb = await import('./db');
-      const freshRepo = await import('./repository');
-
-      expect(freshDb.activeDataset).toBe('live');
-      expect(freshDb.db.name).toBe('quirenote-live');
-
-      await freshRepo.ensureSeeded(); // must be a no-op against live
-      expect(await freshDb.db.assets.count()).toBe(0);
-      expect(await freshDb.db.snapshots.count()).toBe(0);
-      expect(await freshDb.db.transactions.count()).toBe(0);
-      expect(await freshDb.db.meta.count()).toBe(0); // not even the seeded flag
-
-      await freshDb.db.delete();
+      expect((await import('./db')).db.name).toBe('quirenote-live');
     } finally {
       vi.unstubAllGlobals();
       vi.resetModules();
     }
   });
 
-  // The "Erase live data" flow: clearAll({reseed:false}) on live stays empty across reloads.
-  it('erase — clearAll({reseed:false}) on live stays empty across re-inits', async () => {
-    vi.resetModules();
-    vi.stubGlobal('localStorage', {
-      getItem: (key: string) =>
-        key === 'quirenote-settings'
-          ? JSON.stringify({
-              state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' },
-              version: 1,
-            })
-          : null,
-      setItem: () => {},
-      removeItem: () => {},
-    });
-    try {
-      const freshDb = await import('./db');
-      const freshRepo = await import('./repository');
+  it('erases with clearAll() and does not put the seed back', async () => {
+    await repo.replaceAll(SEED);
+    await repo.clearAll();
+    expect(await repo.exportAll()).toEqual(EMPTY);
+  });
 
-      await freshDb.db.assets.add(SEED_ASSETS[0]);
-      expect(await freshDb.db.assets.count()).toBe(1);
+  it('leaves no seeded flag behind, from an import or from an erase', async () => {
+    await repo.replaceAll(SEED);
+    expect(await repo.getMeta('seeded')).toBeUndefined();
+    await repo.clearAll();
+    expect(await repo.getMeta('seeded')).toBeUndefined();
+  });
 
-      await freshRepo.repo.clearAll({ reseed: false });
-      await freshRepo.ensureSeeded(); // simulated reload — no-op on live
-
-      expect(await freshDb.db.assets.count()).toBe(0);
-      expect(await freshDb.db.snapshots.count()).toBe(0);
-      expect(await freshDb.db.transactions.count()).toBe(0);
-
-      await freshDb.db.delete();
-    } finally {
-      vi.unstubAllGlobals();
-      vi.resetModules();
-    }
+  it('exports no seeding step', async () => {
+    expect(Object.keys(await import('./repository'))).not.toContain('ensureSeeded');
   });
 });

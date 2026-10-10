@@ -1,10 +1,10 @@
 // The localStorage keys, and the one-time rename that carries a pre-Quirenote
 // profile across (*Brand*).
 //
-// THE RENAME IS A MODULE SIDE EFFECT because db.ts reads the settings key
-// synchronously at module init; doing it when the module holding the keys is
-// evaluated is the only way to beat that read without making import order
-// load-bearing. Import the keys from here rather than inlining the string, or a
+// THE RENAME IS A MODULE SIDE EFFECT because the settings store reads its key
+// synchronously when its module is evaluated; doing it when the module holding
+// the keys is evaluated is the only way to beat that read without making import
+// order load-bearing. Import the keys from here rather than inlining the string, or a
 // consumer can read a stale one.
 
 export const SETTINGS_KEY = 'quirenote-settings';

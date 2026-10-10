@@ -144,14 +144,14 @@ describe('a filled segmented track carries data-filled-track', () => {
   it('finds the tracks at all, so an empty pass cannot look like a green one', () => {
     // A FLOOR, not an equality, and deliberately: another filled control must pass this and
     // be caught by the pairing test below instead. Only a vanished one fails here. THE
-    // NUMBER MOVES WHEN A CONTROL GOES, never when the rule weakens — it was one higher
-    // until the asset form's Fund/Bond segment was deleted outright.
+    // NUMBER MOVES WHEN A CONTROL GOES, never when the rule weakens — it was two higher
+    // until the asset form's Fund/Bond segment and the dataset switch were deleted outright.
     const all = files.flatMap((f) => filledTracks(stripTs(readFileSync(f, 'utf8'), f)));
     expect(
       all.length,
       'the filled tracks are disappearing from the walk — at zero every assertion below ' +
         'passes over nothing, which is what this floor exists to catch',
-    ).toBeGreaterThanOrEqual(6);
+    ).toBeGreaterThanOrEqual(5);
   });
 
   it('pairs every one of them with the attribute', () => {

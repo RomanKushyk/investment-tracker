@@ -23,7 +23,7 @@ import { RouterProvider } from 'react-router/dom';
 import { AppToaster } from './app/AppToaster';
 import { AppFailure } from './app/Boundaries';
 import { publishKeyboardInset } from './app/keyboard-inset';
-import { ensureSeeded } from './lib/repository';
+import { openStore } from './lib/repository';
 import { routes } from './routes';
 
 const queryClient = new QueryClient();
@@ -35,7 +35,7 @@ publishKeyboardInset();
 
 const root = createRoot(document.getElementById('root')!);
 
-void ensureSeeded().then(
+void openStore().then(
   () => {
     root.render(
       <StrictMode>

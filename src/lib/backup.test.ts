@@ -605,7 +605,6 @@ describe('the export over GET /state', () => {
         first.prices,
         first.transactions,
         undefined,
-        'live',
         '2026-10-10T12:00:00',
         2,
       ),

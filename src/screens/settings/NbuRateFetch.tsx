@@ -31,7 +31,7 @@ export interface NbuRateFetchProps {
 export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
   const t = useT();
   const f = useFormat();
-  const { data, lastGood, isFetching, isError, disabled, fetchRate } = useNbuRate();
+  const { data, lastGood, isFetching, isError, fetchRate } = useNbuRate();
   const usdRate = useSettings((s) => s.usdRate);
   // A failed fetch falls back to the last rate that parsed, and says which it is
   // showing. Silently rendering a cached number as fresh is the one thing this
@@ -47,7 +47,7 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
   async function handleFetch() {
     setTried(true);
     const r = await fetchRate();
-    if (r === undefined && !disabled) toast.error(t.nbu.failed);
+    if (r === undefined) toast.error(t.nbu.failed);
   }
 
   return (
@@ -58,19 +58,12 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
             being part of the accessible name and a voice-control user saying them hits
             nothing (WCAG 2.5.3). `title` adds the longer wording without taking the name
             away. */}
-        <Button
-          variant="outline"
-          onClick={handleFetch}
-          disabled={disabled || isFetching}
-          title={t.nbu.title}
-        >
+        <Button variant="outline" onClick={handleFetch} disabled={isFetching} title={t.nbu.title}>
           {isFetching ? t.nbu.fetching : t.nbu.fetch}
         </Button>
       </div>
 
-      {disabled && <span className="text-[11px] text-muted">{t.nbu.demoDisabled}</span>}
-
-      {!disabled && shown !== undefined && (
+      {shown !== undefined && (
         <div className="flex animate-in items-center gap-2 text-[11px] duration-200 fade-in slide-in-from-top-1">
           {/* INFO, not gain: a rate that is merely current has no direction. `stale` stays
               `muted` — the word already says it. */}
@@ -98,7 +91,7 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
         </div>
       )}
 
-      {!disabled && tried && isError && shown === undefined && (
+      {tried && isError && shown === undefined && (
         <span className="animate-in text-[11px] text-neg duration-200 fade-in">
           {t.nbu.none(f.units(usdRate))}
         </span>

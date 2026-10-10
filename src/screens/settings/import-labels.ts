@@ -7,7 +7,7 @@ import type {
   FileRejectionCode,
   FormatRejectionCode,
 } from '@quirenote/core/backup/import';
-import type { Dataset, RowIssue } from '@quirenote/core/backup/json';
+import type { RowIssue } from '@quirenote/core/backup/json';
 import type { Format } from '@quirenote/core/money';
 import type { Dict } from '../../i18n/messages';
 
@@ -90,19 +90,8 @@ export function problemCount(total: number, shown: number, t: Dict): string {
   return t.importing.problemCount(total, shown);
 }
 
-export function fileSubline(
-  name: string,
-  exportedAt: string,
-  dataset: Dataset,
-  f: Format,
-  t: Dict,
-): string {
-  return t.importing.fileSubline(
-    name,
-    f.date(exportedAt.slice(0, 10)),
-    exportedAt.slice(11, 16),
-    dataset,
-  );
+export function fileSubline(name: string, exportedAt: string, f: Format, t: Dict): string {
+  return t.importing.fileSubline(name, f.date(exportedAt.slice(0, 10)), exportedAt.slice(11, 16));
 }
 
 export function resultLine(
@@ -126,21 +115,12 @@ export function settingsOptInHelper(
   return t.importing.settingsOptInHelper(symbol, f.units(settings.usdRate));
 }
 
-export function safetyBackupLine(dataset: Dataset, name: string, done: boolean, t: Dict): string {
-  return done ? t.importing.safetyBackupDone(name) : t.importing.safetyBackupPending(dataset, name);
+export function safetyBackupLine(name: string, done: boolean, t: Dict): string {
+  return done ? t.importing.safetyBackupDone(name) : t.importing.safetyBackupPending(name);
 }
 
-export function warningSentence(
-  warning: DiffWarning,
-  dataset: Dataset,
-  f: Format,
-  t: Dict,
-): string {
+export function warningSentence(warning: DiffWarning, f: Format, t: Dict): string {
   const w = t.importing.warning;
-  // The dataset reaches here as its STORED token. Splicing that into a Ukrainian
-  // sentence left an English word inside it, while the switch two cards above
-  // named the same dataset in Ukrainian.
-  const name = t.datasetSwitch[dataset];
   switch (warning.code) {
     // Assets join the sentence when a file drops some but not all of them — the same
     // fact, stated for whichever tables actually lose rows.
@@ -151,15 +131,12 @@ export function warningSentence(
         warning.snapshots > 0 ? c.snapshots(warning.snapshots) : null,
         warning.transactions > 0 ? c.transactions(warning.transactions) : null,
       ].filter((part): part is string => part !== null);
-      return w.rowsRemoved(parts, name);
+      return w.rowsRemoved(parts);
     }
     case 'no-assets':
       return w.noAssets;
     case 'no-snapshots':
-      return w.noSnapshots(warning.current, name);
-    case 'other-dataset':
-      // The FILE's dataset, not the active one — same translation, other value.
-      return w.otherDataset(t.datasetSwitch[warning.dataset]);
+      return w.noSnapshots(warning.current);
     case 'exported-long-ago':
       return w.exportedLongAgo(warning.days, f.date(warning.date));
     case 'newer-db-version':

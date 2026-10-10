@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import type { PeriodOption } from '@quirenote/core/period';
 import { persist } from 'zustand/middleware';
 
-import type { Dataset } from '@quirenote/core/backup/json';
 import { DEFAULT_LEAD_DAYS, isLeadDays } from '@quirenote/core/reminders';
 import { SETTINGS_DEFAULTS, sanitiseSettings } from '@quirenote/core/settings';
 import { SETTINGS_KEY } from '../lib/storage-keys';
@@ -34,7 +33,6 @@ interface SettingsState {
   usdRate: number;
   theme: Theme;
   language: Language;
-  dataset: Dataset;
   autoQuoteSuggest: boolean;
   couponSuggest: boolean;
   remindersEnabled: boolean;
@@ -61,7 +59,6 @@ interface SettingsState {
   setUsdRate: (rate: number) => void;
   setTheme: (t: Theme) => void;
   setLanguage: (l: Language) => void;
-  setDataset: (d: Dataset) => void;
   setAutoQuoteSuggest: (on: boolean) => void;
   setCouponSuggest: (on: boolean) => void;
   setRemindersEnabled: (on: boolean) => void;
@@ -77,12 +74,11 @@ export interface PersistedSettings {
   // split; `migrateSettings` still reads that key — see the PERMANENT note there.
   defaultCurrency: 'UAH' | 'USD';
   usdRate: number;
-  // Doctrine 2 below binds `theme` and `dataset` — NOT the `language` between them — to
-  // the top level of the persisted JSON.
+  // Doctrine 2 below binds `theme`, and not the `language` after it, to the top level of
+  // the persisted JSON.
   theme: Theme;
   // Drives every number and date format, not only the strings: never display-only.
   language: Language;
-  dataset: Dataset;
   autoQuoteSuggest: boolean;
   couponSuggest: boolean;
   remindersEnabled: boolean;
@@ -100,7 +96,6 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
   ...SETTINGS_DEFAULTS,
   usdRate: 44.83,
   theme: 'system',
-  dataset: 'demo',
 };
 
 /**
@@ -126,17 +121,13 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     // Must agree with the head script, which cannot import this: an unrecognised value
     // is 'system', never a guess at what the user meant.
     theme: isTheme(p.theme) ? p.theme : PERSISTED_DEFAULTS.theme,
-    // Exact 'live' or demo — lib/db.ts applies the same rule when it binds the active
-    // DB at boot, and the two must agree.
-    dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
   };
 }
 
 /**
  * The persist `merge` option, and why both are wired: `migrate` runs only on a version
- * mismatch, so a hand-edited same-version payload would land unvalidated — a bad
- * dataset crashing /settings while lib/db.ts binds demo by its own rule. This runs on
- * EVERY rehydrate, which is what keeps the store and the DB in agreement.
+ * mismatch, so a hand-edited same-version payload would land unvalidated — a rate of 0
+ * putting Infinity in the $ figures. This runs on EVERY rehydrate.
  */
 export function mergeSettings(persisted: unknown, current: SettingsState): SettingsState {
   const merged = migrateSettings(persisted);
@@ -150,19 +141,18 @@ export function mergeSettings(persisted: unknown, current: SettingsState): Setti
  * 1. A new persisted field enters `partialize` below IN THE SAME COMMIT that adds it,
  *    alongside the interface, the defaults and the sanitizer. A field missing from
  *    `partialize` silently resets on every reload.
- * 2. `theme` and `dataset` stay TOP-LEVEL under `state`, never nested or renamed: the
- *    head script and lib/db.ts read them from localStorage before any module exists.
+ * 2. `theme` stays TOP-LEVEL under `state`, never nested or renamed: the head script
+ *    reads it from localStorage before any module exists.
  * 3. Bump `version` only for an incompatible reshape; additive fields never bump.
  */
 export const useSettings = create<SettingsState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       currency: 'UAH',
       defaultCurrency: 'UAH',
       usdRate: 44.83,
       theme: 'system',
       language: 'uk',
-      dataset: 'demo',
       autoQuoteSuggest: true,
       couponSuggest: true,
       remindersEnabled: true,
@@ -179,13 +169,6 @@ export const useSettings = create<SettingsState>()(
       // core/money.ts takes the language as a parameter rather than a module global,
       // so every formatted figure re-renders in place with no reload.
       setLanguage: (language) => set({ language }),
-      // Persist the flag, then reload: lib/db.ts rebinds the app to the other
-      // dataset's DB at the next boot. Never a live cache migration.
-      setDataset: (dataset) => {
-        if (get().dataset === dataset) return;
-        set({ dataset });
-        location.reload();
-      },
       setAutoQuoteSuggest: (autoQuoteSuggest) => set({ autoQuoteSuggest }),
       setCouponSuggest: (couponSuggest) => set({ couponSuggest }),
       setRemindersEnabled: (remindersEnabled) => set({ remindersEnabled }),
@@ -222,7 +205,6 @@ export const useSettings = create<SettingsState>()(
         usdRate: s.usdRate,
         theme: s.theme,
         language: s.language,
-        dataset: s.dataset,
         autoQuoteSuggest: s.autoQuoteSuggest,
         couponSuggest: s.couponSuggest,
         remindersEnabled: s.remindersEnabled,
@@ -235,7 +217,3 @@ export const useSettings = create<SettingsState>()(
     },
   ),
 );
-
-// The demo-mode guard contract: a surface that must not operate on demo data reads
-// this and disables itself. The dataset only changes with a reload, so it is stable.
-export const useDataset = (): Dataset => useSettings((s) => s.dataset);

@@ -27,9 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 13;
-
-export type Dataset = 'demo' | 'live';
+export const BACKUP_FORMAT_VERSION = 14;
 
 // A CALENDAR date (RFC 3339 §5.7), not a shape: `Date` rolls `2026-02-30` into March.
 // Any string that is not one takes the sentence; a missing or non-string value keeps zod's.
@@ -222,7 +220,6 @@ export const backupEnvelopeSchema = z.strictObject({
   formatVersion: z.literal(BACKUP_FORMAT_VERSION),
   exportedAt: isoDateTime,
   dbVersion: z.number().int().positive(),
-  dataset: z.enum(['demo', 'live']),
   assets: z.array(assetRowSchema),
   prices: z.array(priceRowSchema),
   transactions: transactionRowsSchema,
@@ -278,7 +275,6 @@ export function buildBackup(
   prices: PriceRow[],
   transactions: Transaction[],
   settings: Settings | undefined,
-  dataset: Dataset,
   exportedAt: string,
   dbVersion: number,
 ): BackupEnvelope {
@@ -287,7 +283,6 @@ export function buildBackup(
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt,
     dbVersion,
-    dataset,
     // Normalize datetimes to the pinned timezone-less convention: `buildNewAsset`
     // stamps a full `toISOString()`, so without the slice a backup holding any
     // user-created asset would fail this module’s own schema.

@@ -30,8 +30,6 @@ const UK = leaves(uk as unknown as Node);
 
 /** Keys whose value is legitimately identical in both languages. */
 const SHARED = new Set([
-  // A dataset marker, not prose — the same token in both, like the ₴/$ labels.
-  'sidebar.demoBadge',
   // Each language names ITSELF in its own script, in both dictionaries —
   // identical values here are the requirement, not a miss.
   'settings.language.uk',
@@ -215,17 +213,6 @@ describe('the deposit type', () => {
     // verb, which a future «внесіть» may still need.
     const stale = [...UK].filter(([, value]) => /внес(?:ок|к|ен)/iu.test(text(value)));
     expect(stale.map(([key]) => key)).toEqual([]);
-  });
-});
-
-describe("the demo dataset's promise", () => {
-  // Every portfolio load asks the relay for the session, in either dataset (#277), so the line
-  // beside the disabled rate button may claim only what the demo withholds.
-  it('claims that no market data is fetched, and not that no request leaves', () => {
-    expect(en.nbu.demoDisabled).not.toMatch(/request/i);
-    expect(uk.nbu.demoDisabled).not.toMatch(/[Зз]апит/);
-    expect(en.nbu.demoDisabled).toMatch(/market data/);
-    expect(uk.nbu.demoDisabled).toMatch(/ринкові дані/);
   });
 });
 

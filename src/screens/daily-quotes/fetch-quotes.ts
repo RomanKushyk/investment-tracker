@@ -25,7 +25,7 @@ export interface FeedFreshness {
 }
 
 /** The button machine; the error state is a toast, never a button style. */
-export type FetchButtonState = 'demo' | 'unlinked' | 'loading' | 'success' | 'idle';
+export type FetchButtonState = 'unlinked' | 'loading' | 'success' | 'idle';
 
 export interface DraftRow {
   raw: string | undefined;
@@ -154,14 +154,12 @@ export function payloadStillFresh(fetchedAt: string, now: Date, refreshHour: num
   return now.getTime() < at.getTime() + msUntilNextKyivHour(at, refreshHour);
 }
 
-/** Gating plus machine state. Demo wins, then "nothing to fetch". */
+/** Gating plus machine state. "Nothing to fetch" first. */
 export function fetchButtonState(opts: {
-  demo: boolean;
   linked: number;
   loading: boolean;
   flash: boolean;
 }): FetchButtonState {
-  if (opts.demo) return 'demo';
   if (opts.linked === 0) return 'unlinked';
   if (opts.loading) return 'loading';
   if (opts.flash) return 'success';

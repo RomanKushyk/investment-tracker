@@ -44,7 +44,7 @@ export interface QuoteFetch {
   freshness: FeedFreshness | undefined;
   /** Instant to render in the transient "Fetched 13:05" label. */
   flashAt: string | undefined;
-  /** Whatever feed is in hand, live or the last-good cache; always undefined in demo. */
+  /** Whatever feed is in hand, live or the last-good cache. */
   feed: ParsedFeed | undefined;
   /** The instant `feed` was actually fetched — NOT "now" on a cache hit, and never the
    *  date in the picker. Anything reasoning about how old the provider's prices are
@@ -69,7 +69,7 @@ export function useQuoteFetch(
   const t = useT();
   const f = useFormat();
   const language = useSettings((s) => s.language);
-  const { data, lastGood, isFetching, disabled, fetchAssets } = useInzhurAssets();
+  const { data, lastGood, isFetching, fetchAssets } = useInzhurAssets();
   const quotes = useDraft((s) => s.quotes);
   const origins = useDraft((s) => s.origins);
   const [offers, setOffers] = useState<Record<string, QuoteOffer>>({});
@@ -161,7 +161,6 @@ export function useQuoteFetch(
         apply(feed, 'fetch');
         return;
       }
-      if (disabled) return; // demo: no request left the app, so no failure
       // Never silent, never a thrown boundary: the cache is offered, never applied.
       toast.error(t.dailyQuotes.fetchFailed, {
         ...(lastGood === undefined
@@ -176,18 +175,15 @@ export function useQuoteFetch(
             }),
       });
     })();
-  }, [apply, data, disabled, fetchAssets, lastGood, f, t]);
+  }, [apply, data, fetchAssets, lastGood, f, t]);
 
   const chipFor = useCallback(
     (asset: Asset) =>
-      // A chip describes fetch provenance, and in demo there is no fetch.
-      disabled
-        ? undefined
-        : provenanceChip(asset.inzhur !== undefined, {
-            raw: quotes[asset.id],
-            origin: origins[asset.id],
-          }),
-    [disabled, origins, quotes],
+      provenanceChip(asset.inzhur !== undefined, {
+        raw: quotes[asset.id],
+        origin: origins[asset.id],
+      }),
+    [origins, quotes],
   );
 
   const offerFor = useCallback(
@@ -223,7 +219,6 @@ export function useQuoteFetch(
 
   return {
     state: fetchButtonState({
-      demo: disabled,
       linked: linkedCount(assets),
       loading: isFetching,
       flash: flashAt !== undefined,

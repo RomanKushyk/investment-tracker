@@ -13,27 +13,20 @@ import {
 } from '../../components/ui/Dialog';
 import { useClearAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
-import { useDataset } from '../../state/settings';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
-import type { Dataset } from '@quirenote/core/backup/json';
-import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 
 // The erase body's middle sentence documents the erase SCOPE: the quote draft
 // goes with the data, the settings key is retained. The one piece that must NOT
-// be translated is passed as DATA — `typeToConfirm(dataset)` keeps the literal
+// be translated is passed as DATA — `typeToConfirm(CONFIRM_WORD)` keeps the literal
 // the confirm compares against, so no translation can make the button unarmable.
-function variantCopy(t: Dict, dataset: Dataset) {
-  const v = dataset === 'live' ? t.danger.live : t.danger.demo;
-  return { ...v, inputLabel: t.danger.typeToConfirm(dataset) };
-}
+const CONFIRM_WORD = 'erase';
 
-// One trigger per dataset, both opening the typed-name AlertDialog below. A
-// fresh session key per open resets the typed and backed-up state while the
-// closed dialog stays mounted through its exit.
+// The one trigger, opening the typed-word AlertDialog below. A fresh session key
+// per open resets the typed and backed-up state while the closed dialog stays
+// mounted through its exit.
 export function DangerZone() {
   const t = useT();
-  const dataset = useDataset();
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(0);
   return (
@@ -45,31 +38,15 @@ export function DangerZone() {
           setOpen(true);
         }}
       >
-        {variantCopy(t, dataset).trigger}
+        {t.danger.trigger}
       </Button>
-      {session > 0 && (
-        <ClearDataDialog
-          key={session}
-          dataset={dataset}
-          open={open}
-          onClose={() => setOpen(false)}
-        />
-      )}
+      {session > 0 && <ClearDataDialog key={session} open={open} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function ClearDataDialog({
-  dataset,
-  open,
-  onClose,
-}: {
-  dataset: Dataset;
-  open: boolean;
-  onClose: () => void;
-}) {
+function ClearDataDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
-  const v = variantCopy(t, dataset);
   const clearAll = useClearAll();
   const backup = useBackupDownload();
   const [typed, setTyped] = useState('');
@@ -77,26 +54,21 @@ function ClearDataDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
 
-  // Progressive arming: the destructive button stays disabled until the typed name
+  // Progressive arming: the destructive button stays disabled until the typed word
   // matches, case-insensitive and trimmed.
-  const armed = typed.trim().toLowerCase() === dataset;
+  const armed = typed.trim().toLowerCase() === CONFIRM_WORD;
 
   function confirm() {
-    clearAll.mutate(
-      { reseed: dataset === 'demo' },
-      {
-        onSuccess: () => {
-          if (dataset === 'live') {
-            // The quote draft references erased asset ids, so it is reset with the data.
-            useDraft.getState().setDate('');
-          }
-          toast.success(v.success);
-          onClose();
-        },
-        // Atomic clearAll: a failure commits nothing and the dialog stays open.
-        onError: () => toast.error(t.danger.failed),
+    clearAll.mutate(undefined, {
+      onSuccess: () => {
+        // The quote draft references erased asset ids, so it is reset with the data.
+        useDraft.getState().setDate('');
+        toast.success(t.danger.success);
+        onClose();
       },
-    );
+      // Atomic clearAll: a failure commits nothing and the dialog stays open.
+      onError: () => toast.error(t.danger.failed),
+    });
   }
 
   return (
@@ -110,15 +82,15 @@ function ClearDataDialog({
     >
       <DialogHeader>
         <AlertDialogTitle asChild>
-          <h3 className="m-0 text-lg">{v.title}</h3>
+          <h3 className="m-0 text-lg">{t.danger.title}</h3>
         </AlertDialogTitle>
       </DialogHeader>
       <DialogBody>
         <AlertDialogDescription asChild>
-          <p className="m-0 mb-3.5 text-[13px] leading-normal text-muted">{v.body}</p>
+          <p className="m-0 mb-3.5 text-[13px] leading-normal text-muted">{t.danger.body}</p>
         </AlertDialogDescription>
         <label htmlFor={inputId} className="mb-1 block text-[11px] text-muted">
-          {v.inputLabel}
+          {t.danger.typeToConfirm(CONFIRM_WORD)}
         </label>
         <input
           ref={inputRef}
@@ -150,7 +122,7 @@ function ClearDataDialog({
             <Button variant="ghost">{t.assets.cancel}</Button>
           </AlertDialogCancel>
           <Button variant="danger" disabled={!armed || clearAll.isPending} onClick={confirm}>
-            {v.action}
+            {t.danger.action}
           </Button>
         </div>
       </DialogFooter>

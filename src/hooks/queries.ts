@@ -122,7 +122,7 @@ export function useReplaceAll() {
 export function useClearAll() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (opts: { reseed: boolean }) => repo.clearAll(opts),
+    mutationFn: () => repo.clearAll(),
     onSuccess: () => qc.invalidateQueries(),
   });
 }

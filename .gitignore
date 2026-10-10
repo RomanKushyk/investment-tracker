@@ -35,7 +35,7 @@ docs/statements_*.xlsx
 
 # Exports and throwaway fixtures dropped at the repo root. Root-anchored so that
 # real fixtures under src/**/__fixtures__/ stay committable. A CSV export of the
-# LIVE dataset is real financial data — this rule is a safety net, not tidiness.
+# real portfolio is real financial data — this rule is a safety net, not tidiness.
 /*.csv
 # Same net, same reasoning, added after a 650 KB SMIDA feed dump (`smf.xml`) was
 # found sitting unignored at the root of a PUBLIC repo — one `git add -A` from

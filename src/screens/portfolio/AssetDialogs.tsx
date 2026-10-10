@@ -21,7 +21,7 @@ import { useT } from '../../i18n/useT';
 import type { AssetDialogsControl } from './useAssetDialogs';
 
 // Destructive confirm with cascade counts and a backup CTA, but WITHOUT the
-// typed-name arming: that stays reserved for the whole-dataset erase and reset.
+// typed-name arming: that stays reserved for the whole-portfolio erase.
 function DeleteAssetDialog({
   asset,
   open,

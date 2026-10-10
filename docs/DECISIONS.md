@@ -44,20 +44,20 @@ its two exceptions, so the import would survive as a bare require Lambda cannot 
 projects is how the backend's tests get lost.
 
 ## Persistence today
-**Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; two databases — demo,
-seeded, and live, never auto-seeded — bound once at boot. Every persisted setting joins `partialize`
-in the commit that adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
+**Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; one database,
+`quirenote-live`, which nothing seeds. Every persisted setting joins `partialize` in the commit that
+adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
 One the platform answers each time it is asked — reduced motion, the colour the OS resolves, the
 viewport's side of the breakpoint — is DERIVED and stored nowhere. One naming a thing only this
 device holds, or offering to defer to what this device's platform answers, is PER-DEVICE and stays
-with that device: a provider payload's cache under a `meta` key; the store's `dataset`, which binds
-a database until it retires; and THE THEME, whose `system` defers to the OS's colour scheme. The
+with that device: a provider payload's cache under a `meta` key, and THE THEME, whose `system`
+defers to the OS's colour scheme. The
 rest but `usdRate` are a person's choices, and AT THE MIGRATION THEY FOLLOW THE ACCOUNT: the default
 currency, the language, the period, both suggestion switches, the reminder switch and its lead, the
 dismissed reminders with the skipped coupons among them, the collapsed nav groups and the rail. At
-the migration two fields retire: `dataset`, with nothing left to select once the demo is an identity
-of its own (*User schema and deletes*), and `usdRate`, the rate being the server's row (*External
-sources*). `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
+the migration `usdRate` retires, the rate being the server's row (*External sources*). A `dataset`
+key a profile still holds, from a build that offered the choice, is read past, and the store's next
+write leaves it out. `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
 `system | light | dark`, `system` by default, and the resolved colour is never stored. From the
 migration THE DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which the
 account's answer overwrites on every load, because a paint comes before that answer: the shell's
@@ -70,7 +70,7 @@ rule for each, is core's (`settings.ts`), so both sides run it: the server on a 
 read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member carries no per-device field: today a restore the person opts into
 sets the device's default currency and rate, and from the migration it sets the account's default
 currency.
-The JSON backup envelope refuses a newer, an older and an unreadable
+The JSON backup envelope names no dataset and refuses a newer, an older and an unreadable
 version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
 `inzhur` — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
 (`__proto__`, `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest), both by place
@@ -93,11 +93,12 @@ the model retired, still sitting in IndexedDB, never reaches the file and needs 
 VALUE the reader refuses — a moving row with no count, the retired `tax` type, an asset id such as
 `constructor` an older build imported — has nothing to project and still fails the envelope; that
 store cannot back itself up, and its exit is the CSV export, which validates nothing, then
-Settings → Danger zone, erase on live and reseed on demo.
+Settings → Danger zone, erase.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
 work is what the dialog must state before the press. The envelope's version tracks what a build
 ACCEPTS, not how long ago it shipped, so two live builds cannot share a number and disagree about
-fields — which is why a projecting writer bumps nothing. A strict reader needs a strict writer:
+fields — which is why a projecting writer bumps nothing, and why dropping the dataset from the
+envelope bumped it: a file that still names one is an older build's. A strict reader needs a strict writer:
 spread, the store's leftovers rode into the file and the file's own parser refused it, shutting
 the download, both destructive dialogs' backup and the import's safety backup at once. The export
 is terminal, the store the only truth and the file there to be restored into it, so nothing
@@ -120,7 +121,7 @@ attacks; a note and an asset's name are free text. The guard goes by the value's
 every other value is text, a column added later included. Every other reader pays for it: a
 program reading the file gets the apostrophe as part of the cell, and the JSON backup stays the
 lossless copy. It holds while the file is as exported — OWASP warns Excel may drop it on a save
-and re-open. A setting that names a local database is wrong on the next device however it feels, and
+and re-open. A setting that names a thing only this device holds is wrong on the next device however it feels, and
 feeling UI-ish is no rule: VS Code's sync takes every user setting except those of `machine` or
 `machine-overridable` scope and those a user excludes, and syncs the display language, view layout
 and visibility and the "do not show again" choices. The theme stays with the device because the
@@ -215,8 +216,9 @@ still decides: the user's Save is the sole write path. A hand-entered value is M
 one is not.
 The seed also exists as a backup file, `buildSeedBackup`, under fixed uuids, since the API's door
 takes no id like `'reit'` or `'d1'`; `seed.test.ts` pins them, and that the file rebuilds the
-seed's own ledger and series.
-**Why.** The seed exists so the first run reproduces the reference, and it reconciles by
+seed's own ledger and series. The app seeds nothing, at boot or after an erase: a profile holds the
+seed only once it has imported that file, and an empty store stays empty.
+**Why.** The seed exists as the reference the pinned figures reproduce, and it reconciles by
 construction rather than through exclusion rules — which is why its pinned figures MAY move when the
 ledger model requires it. The identity was proven before the archive joined, so each figure the
 join and its carried prices move is listed, not absorbed. Every mature tool reads a price at a date
@@ -613,7 +615,7 @@ and lopsided as its content grows, which `overlay` does not, being fixed by one 
 `useIsDesktop`, and the two must stay one number. Below it the sidebar is an off-canvas drawer, a
 Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's; at and
 above it the sidebar is a panel in flow or an icon rail, and the choice persists. Collapsed, the
-header carries the figure and the dataset caution, the two things a 56px shell cannot hold. 44 × 44
+header carries the figure, which a 56px shell cannot hold. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
 portfolio behind it — signed out, a refused caller, the first sign-in, the app that failed — mounts
@@ -626,7 +628,7 @@ answers, after a load it never answered too; a host with no relay is answered at
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,
-the dataset, the reminders — that such a caller does not have, and the card is top-anchored
+the reminders — that such a caller does not have, and the card is top-anchored
 because a centred one moves its button under the pointer whenever its height changes. A sign-out
 must be visible and reachable from every page that has a session (OWASP's *Logout Button*, ASVS
 7.4.4), and the owner ruled it last; a footer band is anchored to the bottom and grows upward, so
@@ -1177,8 +1179,8 @@ respond, sign-out — held until the answer lands: two refreshes with one token 
 the jar keeps whichever answer lands last, and a refresh answering after another tab's sign-in
 writes an ended family's token over the new cookie. The relay and the pool are looked up by the
 page's host, which is what the relay admits a caller by. THE PORTFOLIO SHELL ASKS FOR THE SESSION ON
-EVERY LOAD, in either dataset — the session is the browser's, not the demo's, and the demo withholds
-market data, not this — and once the relay has answered, a page asks no more; so a sign-out
+EVERY LOAD — the session is the browser's, not the portfolio's — and once the relay has answered, a
+page asks no more; so a sign-out
 is offered only once the relay says someone is signed in. The account's address is the ID token's
 `email`, READ AND NEVER VERIFIED, a label only: the ID token is the client's to read, and the API
 verifies every token it is sent.
@@ -1311,9 +1313,8 @@ client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no 
 types, and this pool gives none without a username. · Build-time settings for the relay and the
 pool: a build can disagree with the host serving it, and the host cannot. · A who-am-I route to learn
 the four answers: every authenticated route reads the same row and answers them, so the first read
-the app makes serves, and a route of its own would cost an invocation on every sign-in. · Asking for
-the session in the live dataset only: demo is the default a sign-in lands on, and it would offer that
-user no way out. · The signed-out confirmation as a toast: it leaves on a timer, and a toast here
+the app makes serves, and a route of its own would cost an invocation on every sign-in. · The
+signed-out confirmation as a toast: it leaves on a timer, and a toast here
 reports on the page the user stays on. · Deciding the offer from the address step's answer, a
 `SELECT_CHALLENGE` without `WEB_AUTHN`: it depends on which way the user reached the password, and no
 source documents it as a signal. · The access token in the page, where the relay handed it: any

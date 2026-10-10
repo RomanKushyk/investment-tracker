@@ -1,6 +1,5 @@
 // The ONLY module that touches the database. UI consumes it via hooks/queries.ts.
-import { activeDataset, db } from './db';
-import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
+import { db } from './db';
 import { postDbSync, withDbLock } from './sync';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 
@@ -14,11 +13,10 @@ export interface AllTables {
 // module may reach for db.ts. Backup envelopes record it as `dbVersion`.
 export const dbVersion = db.verno;
 
-async function seedTables(): Promise<void> {
-  await db.assets.bulkAdd(SEED_ASSETS);
-  await db.snapshots.bulkAdd(buildSeedSnapshots());
-  await db.transactions.bulkAdd(SEED_TRANSACTIONS);
-  await db.meta.put({ key: 'seeded', value: true });
+// Opened before the first render, so a database that cannot open is reported once, before any
+// screen asks it a question.
+export async function openStore(): Promise<void> {
+  await db.open();
 }
 
 export const repo = {
@@ -127,17 +125,15 @@ export const repo = {
   },
 
   // All-or-nothing: any row failure aborts the whole transaction and the previous
-  // data stays. Stamps the seeded flag, because imported data must never be
-  // reseeded over. Held under the cross-tab lock so a second tab cannot interleave.
+  // data stays. Held under the cross-tab lock so a second tab cannot interleave.
   async replaceAll(data: AllTables, opts: { onBlocked?: () => void } = {}): Promise<void> {
     await withDbLock(
       () =>
-        db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
+        db.transaction('rw', [db.assets, db.snapshots, db.transactions], async () => {
           await Promise.all([db.assets.clear(), db.snapshots.clear(), db.transactions.clear()]);
           await db.assets.bulkAdd(data.assets);
           await db.snapshots.bulkAdd(data.snapshots);
           await db.transactions.bulkAdd(data.transactions);
-          await db.meta.put({ key: 'seeded', value: true });
         }),
       opts.onBlocked,
     );
@@ -145,30 +141,13 @@ export const repo = {
     postDbSync('replace');
   },
 
-  // reseed:false leaves the dataset deliberately empty, and the seeded flag is what
-  // keeps ensureSeeded from resurrecting the seed across reloads.
-  async clearAll(opts: { reseed: boolean }): Promise<void> {
+  // The erase: every table emptied in one transaction, under the same lock as an import.
+  async clearAll(): Promise<void> {
     await withDbLock(() =>
-      db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
+      db.transaction('rw', [db.assets, db.snapshots, db.transactions], async () => {
         await Promise.all([db.assets.clear(), db.snapshots.clear(), db.transactions.clear()]);
-        if (opts.reseed) {
-          await seedTables();
-        } else {
-          await db.meta.put({ key: 'seeded', value: true });
-        }
       }),
     );
     postDbSync('clear');
   },
 };
-
-// Demo only: live starts empty and stays empty until the user writes or imports.
-// Within demo, the meta flag is what makes a deliberately emptied dataset stay empty.
-export async function ensureSeeded(): Promise<void> {
-  if (activeDataset !== 'demo') return;
-  await db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
-    if ((await db.assets.count()) > 0) return;
-    if (await db.meta.get('seeded')) return;
-    await seedTables();
-  });
-}

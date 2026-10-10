@@ -28,7 +28,7 @@ import { useSignOut } from '../hooks/useSignOut';
 import { useT } from '../i18n/useT';
 import type { accountRows } from './account-rows';
 import { SIDEBAR_COLLAPSE_ID } from './nav-ids';
-import { THEME_ORDER, useDataset, useSettings, type Theme } from '../state/settings';
+import { THEME_ORDER, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { Scroller } from '../components/ui/Scroller';
 import { TAP_44 } from '../components/ui/tap-target';
@@ -244,7 +244,6 @@ function SidebarPanel({
   // differ: `setCurrency` writes the session value only, so reading one KPI in `$` is
   // gone on reload, while `setTheme` writes the field the Appearance card writes.
   const { currency, setCurrency, theme, setTheme } = useSettings();
-  const demo = useDataset() === 'demo';
   const panel = variant === 'panel';
   const index = THEME_ORDER.indexOf(theme);
   const band = useBandHeight(!panel);
@@ -260,19 +259,6 @@ function SidebarPanel({
           <span className="font-body text-[15px] font-semibold tracking-[-0.03em] text-ink">
             quirenote
           </span>
-          {/* BOTH SHELLS DRAW IT; with the drawer open the header's copy is behind the
-              scrim and `aria-hidden`, so exactly one is announced. */}
-          {demo && (
-            // `warn-tint` and NOT the accent tint every other badge takes: a caution
-            // speaks with `warn` and never with the brand. THE OUTLINE IS WHAT MAKES
-            // IT A CHIP — on the wall the tint alone is not a visible box.
-            <span
-              title={t.sidebar.demoTitle}
-              className="ml-auto animate-in rounded-[5px] border border-warn bg-warn-tint px-1.5 py-[2px] font-body text-[9px] font-bold tracking-[.08em] text-warn-tint-text uppercase duration-200 zoom-in-95 fade-in"
-            >
-              {t.sidebar.demoBadge}
-            </span>
-          )}
         </div>
         {/* THE CAPITAL IS THE PANEL'S ALONE — below the breakpoint the header bar
             carries it, and both read the same hook so they cannot disagree. */}
@@ -541,9 +527,8 @@ function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
         </div>
       </div>
       {onCollapse !== undefined && (
-        // UNBOXED, AND THE INK IS THE OBJECT: a stroke here reads as a second badge
-        // beside the DEMO chip. The glyph fills its box to 2.5.8's floor, which is
-        // what lets the box carry no paint.
+        // UNBOXED, AND THE INK IS THE OBJECT: a stroke here reads as a badge. The glyph
+        // fills its box to 2.5.8's floor, which is what lets the box carry no paint.
         <button
           type="button"
           id={SIDEBAR_COLLAPSE_ID}
