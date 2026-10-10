@@ -77,10 +77,10 @@ export const assetRowSchema = z.strictObject({
   inzhur: inzhurSchema.optional(),
 });
 
-// A day's ₴ quotes, the row `snapshot.put` takes; the file carries the prices the store keeps.
-export const snapshotRowSchema = z.strictObject({
-  date: isoDate,
-  quotes: z.record(z.string(), z.number()),
+// A day's ₴ quotes as `snapshot.patch` takes them, `null` removing one; the file carries the prices
+// the store keeps.
+export const snapshotPatchSchema = z.strictObject({
+  quotes: z.record(z.string(), z.number().nullable()),
   savedAt: isoDateTime.optional(),
 });
 
@@ -233,9 +233,9 @@ export type BackupEnvelope = z.infer<typeof backupEnvelopeSchema>;
 
 export type TemporalKind = 'date' | 'datetime';
 
-// The envelope's rows, and the one only an op carries: `snapshot.put`'s, where `rowIssueCodes`
+// The envelope's rows, and the one only an op carries: `snapshot.patch`'s, where `rowIssueCodes`
 // roots it.
-const rowsSchema = backupEnvelopeSchema.extend({ snapshots: z.array(snapshotRowSchema) });
+const rowsSchema = backupEnvelopeSchema.extend({ snapshots: z.array(snapshotPatchSchema) });
 
 // The schema an issue's path lands on, found by walking the rows. Identity, not a list
 // of field names: a field is a date because it uses the date schema, and a quote keyed

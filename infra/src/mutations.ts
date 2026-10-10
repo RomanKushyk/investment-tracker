@@ -383,6 +383,12 @@ const PRICES_DELETE_AT = `DELETE FROM user_price
                            WHERE (dataset_id, as_of) IN (
                              SELECT u.dataset_id, $2::date FROM app_user u WHERE u.user_id = $1)
                        RETURNING asset_id`;
+// A patch rewrites only the prices it names; the rest of the day stays as stored.
+const PRICES_DELETE_NAMED = `DELETE FROM user_price
+                             WHERE (dataset_id, as_of) IN (
+                               SELECT u.dataset_id, $2::date FROM app_user u WHERE u.user_id = $1)
+                               AND asset_id = ANY($3::uuid[])
+                         RETURNING asset_id`;
 // One statement for a day's prices; a witness time the op did not name is the request's own.
 const PRICES_INSERT = `INSERT INTO user_price (dataset_id, asset_id, as_of, price, observed_at)
                        SELECT u.dataset_id, q.asset_id, $2::date, q.price, COALESCE(q.observed_at, now())
@@ -579,22 +585,28 @@ class Run {
         this.transactions = this.transactions.filter((t) => t.id !== id);
         return {};
       }
-      case 'snapshot.put': {
-        const { date, quotes, savedAt } = op.snapshot;
-        const held: Record<string, number> = {};
+      case 'snapshot.patch': {
+        const { date } = op;
+        const { quotes, savedAt } = op.patch;
+        const set: Record<string, number> = {};
+        const named = new Set<string>();
         for (const [key, value] of Object.entries(quotes)) {
           const id = canonicalUuid(key);
           const issue = { field: `quotes.${key}`, value: key };
           if (id === undefined || !this.assets.has(id)) {
             throw invalidOp(index, [{ ...issue, code: 'unknown-quote-asset' }]);
           }
-          if (Object.hasOwn(held, id))
-            throw invalidOp(index, [{ ...issue, code: 'duplicate-key' }]);
-          held[id] = value;
+          if (named.has(id)) throw invalidOp(index, [{ ...issue, code: 'duplicate-key' }]);
+          named.add(id);
+          if (value !== null) set[id] = value;
         }
-        const { prices, dropped } = pricesOfQuotes(held, this.units(date));
+        const { prices, dropped } = pricesOfQuotes(set, this.units(date));
         const observedAt = savedAt === undefined ? null : utc(savedAt);
-        this.used += (await this.query(PRICES_DELETE_AT, [date])).rows.length;
+        // A quote it drops by name changes nothing, so its asset keeps the stored price.
+        const rewritten = [...named].filter((id) => !dropped.includes(id));
+        if (rewritten.length > 0) {
+          this.used += (await this.query(PRICES_DELETE_NAMED, [date, rewritten])).rows.length;
+        }
         this.used += await this.insertPrices(
           date,
           prices.map((p) => ({ ...p, observedAt })),

@@ -3,7 +3,12 @@
 import { z } from 'zod';
 
 import { rowIssueCodes, type RowIssueCode, type ZodIssueLike } from './backup/import';
-import { assetRecordSchema, snapshotRowSchema, transactionRecordSchema } from './backup/json';
+import {
+  assetRecordSchema,
+  priceRowSchema,
+  snapshotPatchSchema,
+  transactionRecordSchema,
+} from './backup/json';
 
 /** One request's bounds: DynamoDB's and Azure's batch size, and a body well within what Lambda takes. */
 export const MAX_OPS = 100;
@@ -17,7 +22,7 @@ export const OP_NAMES = [
   'transaction.add',
   'transaction.patch',
   'transaction.delete',
-  'snapshot.put',
+  'snapshot.patch',
   'snapshot.delete',
   'snapshot.move',
   'dataset.clear',
@@ -25,7 +30,7 @@ export const OP_NAMES = [
 
 const id = z.string().min(1);
 const patch = z.record(z.string(), z.unknown());
-const date = snapshotRowSchema.shape.date;
+const date = priceRowSchema.shape.asOf;
 
 export const opSchema = z.discriminatedUnion('op', [
   z.strictObject({ op: z.literal('asset.add'), asset: assetRecordSchema }),
@@ -35,7 +40,7 @@ export const opSchema = z.discriminatedUnion('op', [
   z.strictObject({ op: z.literal('transaction.add'), transaction: transactionRecordSchema }),
   z.strictObject({ op: z.literal('transaction.patch'), id, patch }),
   z.strictObject({ op: z.literal('transaction.delete'), id }),
-  z.strictObject({ op: z.literal('snapshot.put'), snapshot: snapshotRowSchema }),
+  z.strictObject({ op: z.literal('snapshot.patch'), date, patch: snapshotPatchSchema }),
   z.strictObject({ op: z.literal('snapshot.delete'), date }),
   z.strictObject({ op: z.literal('snapshot.move'), from: date, to: date }),
   z.strictObject({ op: z.literal('dataset.clear') }),
@@ -43,7 +48,7 @@ export const opSchema = z.discriminatedUnion('op', [
 
 export type Op = z.infer<typeof opSchema>;
 
-const ROW_TABLE = { asset: 'assets', transaction: 'transactions', snapshot: 'snapshots' } as const;
+const ROW_TABLE = { asset: 'assets', transaction: 'transactions' } as const;
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -55,13 +60,23 @@ const schemaAt = (op: unknown, key: string): unknown => {
   return option === undefined ? undefined : (option.shape as Record<string, unknown>)[key];
 };
 
+/** The table an op's faults below `head` are coded as: an added row's, or a snapshot's patch, which
+ *  its schema validates as it comes, where an asset's or a transaction's is merged first. */
+function rowTableAt(
+  op: unknown,
+  head: unknown,
+): 'assets' | 'transactions' | 'snapshots' | undefined {
+  if (head === 'patch') return isObject(op) && op.op === 'snapshot.patch' ? 'snapshots' : undefined;
+  if (typeof head !== 'string' || !Object.hasOwn(ROW_TABLE, head)) return undefined;
+  return ROW_TABLE[head as keyof typeof ROW_TABLE];
+}
+
 /** An op's faults: a row's below the row, in the import's codes; the op's own at its key. */
 export function opIssues(issues: readonly ZodIssueLike[], op: unknown): RowIssueCode[] {
   return issues.flatMap((issue) => {
     const [head, ...rest] = issue.path;
-    if (typeof head === 'string' && Object.hasOwn(ROW_TABLE, head)) {
-      return rowIssueCodes(ROW_TABLE[head as keyof typeof ROW_TABLE], [{ ...issue, path: rest }]);
-    }
+    const table = rowTableAt(op, head);
+    if (table !== undefined) return rowIssueCodes(table, [{ ...issue, path: rest }]);
     const field = issue.path.map(String).join('.');
     const keys = Array.isArray(issue.keys) ? issue.keys.map(String) : [];
     return [

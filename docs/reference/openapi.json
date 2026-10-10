@@ -2180,7 +2180,7 @@
                             "transaction.add",
                             "transaction.patch",
                             "transaction.delete",
-                            "snapshot.put",
+                            "snapshot.patch",
                             "snapshot.delete",
                             "snapshot.move",
                             "dataset.clear"

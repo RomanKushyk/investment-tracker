@@ -40,7 +40,7 @@ describe('the op vocabulary', () => {
       'transaction.add',
       'transaction.patch',
       'transaction.delete',
-      'snapshot.put',
+      'snapshot.patch',
       'snapshot.delete',
       'snapshot.move',
       'dataset.clear',
@@ -65,6 +65,10 @@ describe('the op vocabulary', () => {
     expect(issuesOf({ op: 'account.add', account: {} })).toEqual([
       { field: 'op', code: 'invalid' },
     ]);
+    // A day is patched, never replaced: a replacement deletes what its sender did not send (#397).
+    expect(issuesOf({ op: 'snapshot.put', snapshot: { date: '2026-03-03', quotes: {} } })).toEqual([
+      { field: 'op', code: 'invalid' },
+    ]);
   });
 
   it('refuses a key an op does not take', () => {
@@ -79,15 +83,24 @@ describe('the op vocabulary', () => {
     expect(issuesOf({ op: 'transaction.add', transaction: noCount })).toEqual([
       { field: 'quantity', code: 'units-missing-on-position-row' },
     ]);
-    expect(issuesOf({ op: 'snapshot.put', snapshot: { date: '2026-02-30', quotes: {} } })).toEqual([
+    expect(issuesOf({ op: 'snapshot.patch', date: '2026-02-30', patch: { quotes: {} } })).toEqual([
       { field: 'date', code: 'expected-date' },
     ]);
     expect(
       issuesOf({
-        op: 'snapshot.put',
-        snapshot: { date: '2026-07-24', quotes: {}, savedAt: '2026-13-01T00:00:00' },
+        op: 'snapshot.patch',
+        date: '2026-07-24',
+        patch: { quotes: {}, savedAt: '2026-13-01T00:00:00' },
       }),
     ).toEqual([{ field: 'savedAt', code: 'expected-datetime' }]);
+    // The day is the patch's key, so a patch cannot move it; `snapshot.move` does.
+    expect(
+      issuesOf({
+        op: 'snapshot.patch',
+        date: '2026-07-24',
+        patch: { quotes: {}, date: '2026-07-25' },
+      }),
+    ).toEqual([{ code: 'unknown-key', value: 'date' }]);
     expect(
       issuesOf({ op: 'asset.add', asset: { id: 'a', name: 'x', surplus: 1 } }).find(
         (i) => i.code === 'unknown-key',
@@ -98,8 +111,8 @@ describe('the op vocabulary', () => {
   // A quote's key is an asset id, not a field name: `quotes.date` is a quote, not a date (#352).
   it('codes a quote by its place, whatever asset id keys it', () => {
     for (const key of ['reit', 'date', 'savedAt', 'amount']) {
-      const snapshot = { date: '2026-07-24', quotes: { [key]: 'abc' } };
-      expect(issuesOf({ op: 'snapshot.put', snapshot }), key).toEqual([
+      const patch = { quotes: { [key]: 'abc' } };
+      expect(issuesOf({ op: 'snapshot.patch', date: '2026-07-24', patch }), key).toEqual([
         { field: `quotes.${key}`, code: 'invalid' },
       ]);
     }
@@ -114,7 +127,7 @@ describe('the op vocabulary', () => {
       { op: 'transaction.add', transaction: BUY },
       { op: 'transaction.patch', id: 'b', patch: { quantity: null } },
       { op: 'transaction.delete', id: 'b' },
-      { op: 'snapshot.put', snapshot: { date: '2026-03-03', quotes: { a: 10 } } },
+      { op: 'snapshot.patch', date: '2026-03-03', patch: { quotes: { a: 10, b: null } } },
       { op: 'snapshot.delete', date: '2026-03-03' },
       { op: 'snapshot.move', from: '2026-03-03', to: '2026-03-04' },
       { op: 'dataset.clear' },

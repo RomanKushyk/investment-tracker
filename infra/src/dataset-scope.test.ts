@@ -277,7 +277,7 @@ describe('every statement over a data table reads the live dataset', () => {
   it('finds exactly the statements it guards, in the modules allowed to hold them', () => {
     // EXACT, not a floor: a scanner gone blind makes the count go DOWN. Update it in the commit
     // that adds or removes a statement; a new module joins the set by name.
-    expect(statements).toHaveLength(16);
+    expect(statements).toHaveLength(17);
     expect(new Set(statements.map((s) => s.file))).toEqual(
       new Set(['asset-delete.ts', 'ledger.ts', 'mutations.ts']),
     );

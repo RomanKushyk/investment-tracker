@@ -95,9 +95,10 @@ const sell = (
 
 const addAsset = (a: Asset) => ({ op: 'asset.add', asset: a });
 const addTx = (t: Transaction) => ({ op: 'transaction.add', transaction: t });
-const put = (date: string, quotes: Record<string, number>, savedAt?: string) => ({
-  op: 'snapshot.put',
-  snapshot: { date, quotes, ...(savedAt === undefined ? {} : { savedAt }) },
+const patchDay = (date: string, quotes: Record<string, number | null>, savedAt?: string) => ({
+  op: 'snapshot.patch',
+  date,
+  patch: { quotes, ...(savedAt === undefined ? {} : { savedAt }) },
 });
 
 let db: PGlite;
@@ -295,7 +296,7 @@ describe('a batch of ops', () => {
       addTx(buy(12, 1, '2026-03-08', 1000, 10)),
     ]);
     const res = await OK([
-      put('2026-03-05', { [u(1)]: 1234.5 }),
+      patchDay('2026-03-05', { [u(1)]: 1234.5 }),
       { op: 'snapshot.move', from: '2026-03-05', to: '2026-03-10' },
     ]);
     expect(res.results).toEqual([{ dropped: [] }, { dropped: [] }]);
@@ -449,6 +450,11 @@ describe('a batch of ops', () => {
       422,
       { error: 'invalid_op', index: 0, issues: [{ field: 'op', code: 'invalid' }] },
     ]);
+    const put = { op: 'snapshot.put', snapshot: { date: '2026-03-05', quotes: {} } };
+    expect(answer(await post([put]))).toEqual([
+      422,
+      { error: 'invalid_op', index: 0, issues: [{ field: 'op', code: 'invalid' }] },
+    ]);
   });
 });
 
@@ -465,7 +471,7 @@ describe('snapshots stored as prices', () => {
   });
 
   it('drops and names a quote of a position held none of that day, and stores none for it', async () => {
-    const res = await OK([put('2026-03-10', { [u(1)]: 500, [u(2)]: 2017.33 })]);
+    const res = await OK([patchDay('2026-03-10', { [u(1)]: 500, [u(2)]: 2017.33 })]);
     expect(res.results).toEqual([{ dropped: [u(1)] }]);
     const { rows } = await db.query<{ id: string }>('SELECT asset_id::text AS id FROM user_price');
     expect(rows.map((r) => r.id)).toEqual([u(2)]);
@@ -475,7 +481,7 @@ describe('snapshots stored as prices', () => {
   });
 
   it('gives back the quotes it was given, and the witness time it was told', async () => {
-    await OK([put('2026-03-05', { [u(1)]: 100.01, [u(2)]: 2017.33 }, '2026-03-05T18:00:00')]);
+    await OK([patchDay('2026-03-05', { [u(1)]: 100.01, [u(2)]: 2017.33 }, '2026-03-05T18:00:00')]);
     expect(quotesOf(await state())).toEqual([
       {
         date: '2026-03-05',
@@ -485,14 +491,30 @@ describe('snapshots stored as prices', () => {
     ]);
   });
 
-  it('replaces the day it puts', async () => {
-    await OK([put('2026-03-05', { [u(1)]: 100, [u(2)]: 2000 })]);
-    await OK([put('2026-03-05', { [u(2)]: 2100 })]);
+  it('sets the price it quotes, removes the one it names null, and leaves the rest', async () => {
+    await OK([patchDay('2026-03-05', { [u(1)]: 100, [u(2)]: 2000 })]);
+    await OK([patchDay('2026-03-05', { [u(2)]: 2100 })]);
+    expect(quotesOf(await state()).map((s) => s.quotes)).toEqual([{ [u(1)]: 100, [u(2)]: 2100 }]);
+    await OK([patchDay('2026-03-05', { [u(1)]: null })]);
     expect(quotesOf(await state()).map((s) => s.quotes)).toEqual([{ [u(2)]: 2100 }]);
   });
 
+  // A day's quotes as the server gives them back name no asset it holds none of, so a day written
+  // again from them leaves that asset out, and it keeps its price (#397).
+  it('leaves the price of an asset the day holds none of when the day is re-saved without it', async () => {
+    await OK([patchDay('2026-03-07', { [u(1)]: 1100, [u(2)]: 2100 })]);
+    // The sale moves before the 7th, so that day holds none of asset 1.
+    await OK([{ op: 'transaction.patch', id: u(13), patch: { date: '2026-03-06' } }]);
+    const res = await OK([patchDay('2026-03-07', { [u(2)]: 2200 })]);
+    expect(res.results).toEqual([{ dropped: [] }]);
+    expect((await state()).prices.map((p) => [p.asOf, p.assetId, p.price])).toEqual([
+      ['2026-03-07', u(1), 110],
+      ['2026-03-07', u(2), expect.closeTo(2200 / 16.1486, 6)],
+    ]);
+  });
+
   it('refuses a quote of an asset the dataset does not hold', async () => {
-    expect(answer(await post([put('2026-03-05', { [u(9)]: 10 })]))).toEqual([
+    expect(answer(await post([patchDay('2026-03-05', { [u(9)]: 10 })]))).toEqual([
       422,
       {
         error: 'invalid_op',
@@ -503,7 +525,7 @@ describe('snapshots stored as prices', () => {
   });
 
   it('refuses moving a day onto a stored one, or a day with nothing stored', async () => {
-    await OK([put('2026-03-05', { [u(2)]: 2000 }), put('2026-03-06', { [u(2)]: 2001 })]);
+    await OK([patchDay('2026-03-05', { [u(2)]: 2000 }), patchDay('2026-03-06', { [u(2)]: 2001 })]);
     const move = (from: string, to: string) => ({ op: 'snapshot.move', from, to });
     expect(answer(await post([move('2026-03-05', '2026-03-06')]))).toEqual([
       422,
@@ -525,7 +547,7 @@ describe('snapshots stored as prices', () => {
 
   // A price on a day that values nothing is exported as stored, so the client sees what refuses the move.
   it('refuses moving onto a stored day that values nothing, which the export shows', async () => {
-    await OK([put('2026-03-07', { [u(1)]: 1100 }), put('2026-03-05', { [u(2)]: 2100 })]);
+    await OK([patchDay('2026-03-07', { [u(1)]: 1100 }), patchDay('2026-03-05', { [u(2)]: 2100 })]);
     // The sale moves before the 7th, so that day values nothing.
     await OK([{ op: 'transaction.patch', id: u(13), patch: { date: '2026-03-06' } }]);
     expect((await state()).prices.map((p) => [p.asOf, p.assetId])).toEqual([
@@ -548,8 +570,42 @@ describe('snapshots stored as prices', () => {
     expect(rows.map((r) => r.id)).toEqual([u(1)]);
   });
 
+  it('leaves the stored price of a quote it drops by name', async () => {
+    await OK([patchDay('2026-03-07', { [u(1)]: 1100 })]);
+    // The sale moves before the 7th, so that day holds none of asset 1.
+    await OK([{ op: 'transaction.patch', id: u(13), patch: { date: '2026-03-06' } }]);
+    const res = await OK([patchDay('2026-03-07', { [u(1)]: 500 })]);
+    expect(res.results).toEqual([{ dropped: [u(1)] }]);
+    expect((await state()).prices.map((p) => [p.asOf, p.assetId, p.price])).toEqual([
+      ['2026-03-07', u(1), 110],
+    ]);
+    // A price no quote can carry is still removed by name.
+    expect((await OK([patchDay('2026-03-07', { [u(1)]: null })])).results).toEqual([
+      { dropped: [] },
+    ]);
+    expect((await state()).prices).toEqual([]);
+  });
+
+  it('refuses two spellings of one asset in one patch', async () => {
+    const id = '00000000-0000-4000-8000-00000000000a';
+    await OK([addAsset({ ...asset(3), id })]);
+    expect(
+      answer(await post([patchDay('2026-03-05', { [id.toUpperCase()]: null, [id]: 60 })])),
+    ).toEqual([
+      422,
+      {
+        error: 'invalid_op',
+        index: 0,
+        issues: [{ field: `quotes.${id}`, code: 'duplicate-key', value: id }],
+      },
+    ]);
+  });
+
   it('deletes a stored day', async () => {
-    await OK([put('2026-03-05', { [u(2)]: 2000 }), { op: 'snapshot.delete', date: '2026-03-05' }]);
+    await OK([
+      patchDay('2026-03-05', { [u(2)]: 2000 }),
+      { op: 'snapshot.delete', date: '2026-03-05' },
+    ]);
     expect((await state()).prices).toEqual([]);
   });
 });
@@ -650,7 +706,7 @@ describe('deleting an asset larger than one request', () => {
       addTx(buy(11 + i, 1, `2026-03-0${i + 2}`, 1000, 10)),
     );
     const prices = Array.from({ length: 6 }, (_, i) =>
-      put(`2026-03-0${i + 2}`, { [u(1)]: 1000 * (i + 1) }),
+      patchDay(`2026-03-0${i + 2}`, { [u(1)]: 1000 * (i + 1) }),
     );
     await OK([addAsset(asset(1)), addTx(deposit(10)), ...buys, ...prices]);
   });
@@ -1128,7 +1184,7 @@ describe('GET /state', () => {
 
   const write = async () => {
     await OK([addAsset(asset(1)), addAsset(BOND), ...LEDGER.map(addTx)]);
-    await OK(SNAPSHOTS.map((s) => put(s.date, s.quotes, s.savedAt)));
+    await OK(SNAPSHOTS.map((s) => patchDay(s.date, s.quotes, s.savedAt)));
   };
 
   it('answers the live dataset in the model’s shape, each stored price a row', async () => {
@@ -1181,7 +1237,7 @@ describe('GET /state', () => {
       { op: 'dataset.clear' },
       ...assets.map(addAsset),
       ...transactions.map(addTx),
-      ...quotesOf({ transactions, prices }).map((s) => put(s.date, s.quotes, s.savedAt)),
+      ...quotesOf({ transactions, prices }).map((s) => patchDay(s.date, s.quotes, s.savedAt)),
     ]);
     expect(await state()).toEqual(first);
   });
@@ -1193,7 +1249,7 @@ describe('GET /state', () => {
       addAsset(asset(1)),
       addTx(deposit(10)),
       addTx(buy(11, 1, '2026-03-02', 1000, 10)),
-      put('2026-03-05', { [u(1)]: 1100 }),
+      patchDay('2026-03-05', { [u(1)]: 1100 }),
     ]);
     await OK([{ op: 'transaction.delete', id: u(11) }]);
     expect((await state()).prices).toEqual([
@@ -1208,7 +1264,7 @@ describe('GET /state', () => {
       addAsset(asset(1)),
       addTx(deposit(10)),
       addTx(buy(11, 1, '2026-03-02', 1000, 10)),
-      put('2026-03-05', { [u(1)]: 0.004 }),
+      patchDay('2026-03-05', { [u(1)]: 0.004 }),
     ]);
     const { prices } = await state();
     expect(prices.map((p) => p.price)).toEqual([0.004 / 10]);
@@ -1221,7 +1277,7 @@ describe('GET /state', () => {
       addAsset(asset(1)),
       addTx(deposit(10)),
       addTx(buy(11, 1, '2026-03-02', 1000, 10)),
-      put('2026-03-05', { [u(1)]: 1000.01 }),
+      patchDay('2026-03-05', { [u(1)]: 1000.01 }),
     ]);
     await OK([addTx(buy(12, 1, '2026-03-03', 300, 3))]);
     const { prices } = await state();

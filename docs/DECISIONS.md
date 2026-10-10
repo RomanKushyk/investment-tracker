@@ -314,8 +314,9 @@ last quote outlives its sale and would count it twice. A snapshot dated after th
 quote the position, the same double count one day at a time; the cell shows it because a listed
 day's cells hide nothing stored, and the mark says the total left it out. A per-unit price stored on
 a day a later sale emptied values the units held, none, so the rebuilt series has no quote there to
-show; its price stays in the store until a `snapshot.put` or `.move` on that day replaces the day's
-prices, and *Cloud target* says how `GET /state` carries it. A snapshot stores a value, not a price
+show; its price stays in the store, since a `snapshot.patch` on that day leaves every price it does
+not name, until a patch names it `null` or a `snapshot.delete` or `.move` on that day, and
+*Cloud target* says how `GET /state` carries it. A snapshot stores a value, not a price
 per unit: a quote taken on a day the ledger held none values none of the units bought later,
 wherever the latest snapshot falls, and a last valuation day that held none values the position at
 nothing, so units bought after it wait for their own quote; the rebuilt series carries prices, not
@@ -822,18 +823,23 @@ page past the last is empty, every page names the `next` one or null, and the pa
 in the order of its cells.
 THE WRITE IS `POST /mutations` AND THE EXPORT `GET /state`, one function behind the same gate. A
 write is a list of ops — `asset.add`, `.patch`, `.delete`, `.prune`, `transaction.add`, `.patch`,
-`.delete`, `snapshot.put`, `.delete`, `.move` and `dataset.clear`, and no `account.*` — applied in
+`.delete`, `snapshot.patch`, `.delete`, `.move` and `dataset.clear`, and no `account.*` — applied in
 order in ONE TRANSACTION, each op seeing those before it and two allowed on one entity; it lands
-whole or not at all, and a refusal names the index of the op that failed. A patch is a JSON merge
-patch, `null` removing a member, and the merged row is validated whole by core's row schemas. A body
+whole or not at all, and a refusal names the index of the op that failed. AN UPDATE IS A PATCH, NEVER
+A REPLACEMENT: an asset's or a transaction's is a JSON merge patch of its row, `null` removing a
+member, and the merged row is validated whole by core's row schemas; a day's merges its quotes the
+same way, `null` removing an asset's price that day, and its `savedAt` is the witness time of the
+prices it writes. A body
 past its byte bound is 413 and more ops than its op bound 400; more mutated rows than its row bound,
 which sits under DSQL's per-transaction ceiling, is 409 `too_many_rows` with the count, as is the
 cluster's own `54000`; each refusal names its bound. The write's precondition is the STRONG tag
 `"<data_version>"`: no `If-Match`, or `*`, is 428, a stale one 412, and the 200 carries the new tag in
 its `etag` header and in its body. `/view`'s body carries the current one as `etag`, beside its own
 weak validator. `GET /state` answers the live dataset under that tag, `private, no-store`. A
-SNAPSHOT IS STORED AS PER-UNIT PRICES: `snapshot.put` replaces the day's prices, dividing each quote
-by the units held that day and dropping, naming it, one whose units or value is not above zero; and
+SNAPSHOT IS STORED AS PER-UNIT PRICES: `snapshot.patch` sets the price of each asset it quotes,
+dividing the quote by the units held that day and dropping, naming it, one whose units or value is
+not above zero, which leaves that asset's stored price; a `null` removes the asset's price that day,
+and an asset the patch does not name keeps its own; and
 `snapshot.move` revalues each price at the old day's units and divides it by the new day's, onto a day
 with nothing stored. THE EXPORT AND THE IMPORT CARRY THOSE PRICES, NOT ₴ QUOTES: one row per stored
 price, with its asset, day and witness time, a price on a day its position holds none included. The
@@ -884,7 +890,11 @@ together (*User schema and deletes*), and applying ops in order defines what two
 as JSON:API's atomic extension, Spanner and Datastore do. The tag names no caller and every user's
 first is `"0"`, so a browser that kept one user's export could revalidate it for the next: no cache
 keeps it. The quotes screen saves a quote for a position held none of on purpose, and no per-unit
-price reproduces one, so it is dropped rather than refused. A price is a fact about an asset on a
+price reproduces one, so it is dropped rather than refused. A replacement deletes whatever its
+sender did not send: AIP-134's example of a `PUT` that "unintentionally wiped out data because the
+previous version did not know about it" is why Google APIs "generally use the `PATCH` HTTP verb
+only". RFC 7396 has null values "indicate the removal of existing values in the target", and a
+member a merge patch leaves out stays as it is. A price is a fact about an asset on a
 day, not about a position, and every tracker read for the ruling keeps it so: Portfolio Performance
 holds `prices` on the `Security` and its CSV export walks that list; Ghostfolio keys `MarketData` by
 data source, symbol and date with no relation to a user, and exports every stored price of the
@@ -916,7 +926,11 @@ write it back. · Hiding such a day from the export: its rows still refuse a mov
 see. · Deleting such a price at the ledger edit: deleting a buy and adding it back wipes the prices
 the user entered. · Quotes plus a per-unit price only where no quote can carry one: two encodings in
 one row, and its quotes, rounded at each day's present units, still shift a price whose day's units
-a later edit changed.
+a later edit changed. · `snapshot.put`, replacing the day: a day's quotes as the server gives them
+back name no asset the day holds none of, and the screen prefills from them, so a day written again
+deleted that asset's price, which no quote can carry, and answered that nothing was dropped. · A
+put replacing only the positions the day holds: still a replacement, so a held position its sender
+left out lost its price, the loss AIP-134 gives.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
