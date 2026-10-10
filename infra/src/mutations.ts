@@ -54,6 +54,10 @@ import {
 import type { SqlClient } from './migrate';
 import { IMPORT_ROUTES, imports, type ImportDeps } from './imports';
 import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
+import { SETTINGS_ROUTE, settings } from './settings';
+
+// The function's entry is this module, so the deploy smoke test reaches the settings route here.
+export { settings };
 
 export const MUTATIONS_ROUTE = 'POST /mutations';
 export const STATE_ROUTE = 'GET /state';
@@ -822,6 +826,7 @@ export async function handler(
     if (event.routeKey === STATE_ROUTE) return await state(deps, event);
     if (event.routeKey === MUTATIONS_ROUTE) return await mutations(deps, event);
     if (IMPORT_ROUTES.includes(event.routeKey ?? '')) return await imports(deps, event);
+    if (event.routeKey === SETTINGS_ROUTE) return await settings(deps, event);
     return INTERNAL;
   } finally {
     await user.end().catch((err: unknown) => console.error('mutations disconnect failed', err));

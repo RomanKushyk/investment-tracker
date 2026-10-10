@@ -62,11 +62,12 @@ sources*). `currency` is the tab's and persists nowhere. THE THEME IS THE PREFER
 migration THE DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which the
 account's answer overwrites on every load, because a paint comes before that answer: the shell's
 first render reads the rail, and a signed-out page has no account at all, so there the copy is what
-applies and the signed-out bar's language control writes it. AT THE MIGRATION THE ACCOUNT'S SETTINGS
-BECOME ONE NULLABLE TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their
-defaults; A WRITE MERGES THE FIELDS IT NAMES onto those stored and leaves the rest as they are; and
-the sanitiser of those fields, `migrateSettings`' rule for each, moves into core so both sides run
-it. The backup's `settings` member carries no per-device field: today a restore the person opts into
+applies and the signed-out bar's language control writes it. THE ACCOUNT'S SETTINGS ARE ONE NULLABLE
+TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their defaults; A WRITE MERGES THE
+FIELDS IT NAMES onto those stored and leaves the rest as they are, `PATCH /settings` being that
+write and `/view` the read (*Cloud target*); and the sanitiser of those fields, `migrateSettings`'
+rule for each, is core's (`settings.ts`), so both sides run it: the server on a write and on the
+read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member carries no per-device field: today a restore the person opts into
 sets the device's default currency and rate, and from the migration it sets the account's default
 currency.
 The JSON backup envelope refuses a newer, an older and an unreadable
@@ -801,8 +802,9 @@ caller's prices and the archive's, the official rate and its day beside it, and 
 read, which a figure is cut from and a form is not: every asset and every transaction, uncut and in
 the order the composers read them, a row dated after the caller's day included; the quotes the user
 RECORDED on the caller's day, each asset's latest recorded one before it with the day it was
-recorded, and the latest witness time of any price the user recorded; and each asset's delete
-counts. A quote is recorded when a `user_price` row of the user gives it, priced as a stored day is,
+recorded, and the latest witness time of any price the user recorded; each asset's delete
+counts; and the account's settings, the ten fields with NULL read as their defaults, from the row
+the gate has read. A quote is recorded when a `user_price` row of the user gives it, priced as a stored day is,
 so a carried grid day and an archive price are none and a price on a day its position holds none
 gives none. The delete counts are what `asset.delete` removes: the asset's transactions and every
 price row of it, a day its position held none included. One core function composes the quotes for
@@ -819,7 +821,8 @@ archive is read for the linked refs from a week before the first transaction on 
 caller's day, so the first held day finds the observation before it. TWO VALIDATORS, NEVER ONE:
 the read's tag is WEAK and composed from seven inputs — the caller, `data_version`, a digest of the
 sell rows read, a digest of the payment dates served, the rate served with its day, the Kyiv day and
-the derivation identifier — while a write's precondition is `data_version` alone. `If-None-Match` compares weakly and `*` matches;
+the derivation identifier — and `/view`'s adds the caller's settings as served, the one body that
+carries them, while a write's precondition is `data_version` alone. `If-None-Match` compares weakly and `*` matches;
 `If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
 `private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
 HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
@@ -827,7 +830,7 @@ ships uncompressed until a first-paint measurement says otherwise.
 THE TWO WIDE FIGURES ARE READS OF THEIR OWN: one value per asset per date is too wide to send for six
 periods or for every row, so `GET /view/series?period` answers the yield curve of one period and
 `GET /view/balances?page` one page of the Balances table, each through `/view`'s gate and read, its
-tag `/view`'s seven inputs and its route and parameter, and each cut at the caller's day as
+tag the read's seven inputs and its route and parameter, and each cut at the caller's day as
 `buildView` cuts. Once the gate admits the caller and before the ledger is read, a `period` off
 core's list, or none, is refused by name with a 400 `invalid_query`, never read as another; no
 `page` is the first, and a
@@ -839,7 +842,7 @@ A PAST DAY IS A READ OF ITS OWN: `GET /view/day?date` answers the facts `/view` 
 caller's day, for the day it names, composed by the same core function and cut at no day, as a form
 reads every row. A day with nothing recorded, before the first row, after the last or between two,
 answers with no quote and the last recorded before it, if any. It goes through `/view`'s gate and
-read with `/view`'s cache policy, 304 and `derivation-id`, its tag `/view`'s seven inputs and its
+read with `/view`'s cache policy, 304 and `derivation-id`, its tag the read's seven inputs and its
 route and date, so it reads the archive and the rate its body does not use. Once the gate admits the
 caller and before the ledger is read, a `date` that is no calendar date in yyyy-MM-dd, by the door a
 snapshot's day is written through, or none, is refused by name with a 400 `invalid_query`.
@@ -881,6 +884,29 @@ the live pointer, closes the staging and bumps `data_version` in one row update;
 landed it answers the current tag. `DELETE /imports/{id}` closes the staging, 204. An import idle
 past its limit is gone. A price row is written as it stands, a witness time the file leaves out left
 out again.
+THE ACCOUNT'S SETTINGS ARE WRITTEN BY `PATCH /settings`, on the write's function and behind the same
+gate, and READ FROM `/view`: there is no `GET /settings`. The body is a JSON merge patch
+(RFC 7396) of the ten fields *Persistence today* names, sent as `application/merge-patch+json`: a
+field it names takes its value, `null` resets it to its default, and one it leaves out stays as
+stored (a value its rule refuses among them, which a read serves as the default, or as its strings
+when it is a list holding a non-string), as does a member of the stored object that no field of
+this build is for, written back after the fields;
+a list is replaced whole, "it is not possible to patch part of a target that is not an object,
+such as to replace just some of the values in an array" (RFC 7396 §2), so of two lists sent
+the later one stands. Once the gate admits the caller, a medium other than that is 415 naming it in
+`Accept-Patch`, a body past the byte bound 413, and one that is not JSON or not an object 400. Then
+EACH FIELD THE SANITISER REFUSES IS 422 `invalid_settings` and named with a code, `unknown-key` for
+a name that is no account setting — the theme and every per-device field among them, even to reset
+it — and `invalid` for a value its field does not accept, a list holding anything but strings
+included. A patch is applied whole or refused whole, and the 200 answers the settings in full. The
+write is made from the text the row holds and lands only where the row still holds that text, and is
+made again from what the row holds when it does not, or when the cluster reports a serialization
+failure, so two writers naming different fields keep both; one that changes nothing writes nothing;
+and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE MOVES NO
+`data_version` and takes no `Idempotency-Key`: a period change costs no `/view` read, no tab's
+`If-Match` goes stale, and a patch applied twice leaves one state. The text lives on the row
+`data_version` lives on, so a settings write and a mutation touching the row at once conflict at
+commit, and the one that loses is retried.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -957,6 +983,21 @@ and Spanner "must always load the parent before the children"; the client checks
 first, as Ghostfolio validates "before any data is persisted". A part is "a few hundred rows rather
 than thousands", AWS's loading guidance. A commit sent again answers 200 as AIP-155 answers a
 duplicate, with the tag the next write needs, and an abort is 204 as S3's and tus's are.
+A settings write is a route of its own because it is the one write that must not move
+`data_version`: a `/mutations` op bumps it, and every other tab's `If-Match` would go stale at each
+change of period. Its read rides `/view` as Grafana's page boots with a `window.grafanaBootData`
+whose `user` carries the signed-in user's theme, and as Mastodon's `InitialStateSerializer` lists
+`:settings`; Grafana changes preferences by `PATCH /api/user/preferences`, "Update one or more
+preferences without modifying the others." RFC 5789 §2 says "The server MUST apply the entire set of
+changes atomically" and, where it cannot, "MUST NOT apply any of the changes"; §2.2 answers a
+malformed patch document 400, one in a format the resource does not take 415 with an `Accept-Patch`
+header, and a patch the server understands and cannot process 422. AIP-134's update "should include
+the fully-populated resource", so the 200 answers the ten fields with their defaults filled. DSQL
+reports two transactions that "attempted to modify the same row" as a serialization failure at
+commit, OC000, so a merge made from a read is guarded by the write's own condition on the text it
+read, as the version bump is by the version it read. The column's ceiling is DSQL's "Maximum size of
+a column that's not part of an index", 1 MiB, which is also the most a request carries: the stored
+text is held to it, so a write that would outgrow it is refused by name and not by the cluster.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -991,7 +1032,20 @@ deleted that asset's price, which no quote can carry, and answered that nothing 
 put replacing only the positions the day holds: still a replacement, so a held position its sender
 left out lost its price, the loss AIP-134 gives. · Every recorded day in `/view`: its size follows
 the history, and the quotes screen reads one day. · The rebuilt series as the source of the recorded
-quotes: it quotes a carried grid day and an archive price as well.
+quotes: it quotes a carried grid day and an archive price as well. · The settings as an op of
+`/mutations`: it bumps `data_version`, so a period change costs a `/view` read and every other tab's
+write is refused 412. · A `GET /settings`: the read rides `/view`. · A `PUT` of the whole settings
+object: it deletes what its sender did not send, such as a field a build that loaded before does not
+know (AIP-134, above). · Dropping a name that is no setting, as a read does: a client sending a
+theme would be answered 200 and find it stored nowhere. · Salvaging a list's strings, as a read
+does: the write would store something other than what was sent and answer 200. · Taking
+`application/json` as a patch as well: the route takes one patch format, and RFC 5789 §2.2 answers
+any other 415. · A write that merges into the text the gate read without a condition on it: of two
+writers naming different fields, the later would put back the earlier's. · Writing back only
+what a read serves, the fields this build has with the values its rules accept or, for a list, its
+strings: a backend rolled
+back to a build that predates a setting, or accepts fewer values of one, would delete it at the
+next patch of any other.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
@@ -1251,9 +1305,10 @@ second generation. Moving the live pointer off a dataset bumps `data_version` in
 transaction, `/view`'s tag being composed from the version and not the pointer; `dataset.clear`
 moves it to a new, empty dataset in one request, whatever the old one holds. GARBAGE IS A DATASET
 NEITHER POINTER NAMES — what a commit, a clear, an abort or a new begin leaves, and an import idle
-past its limit, whose pointer the collector clears — and every later write removes one bounded batch
-of it, children first, in statements of their own after its transaction, their failure logged; a
-commit as many as the function's remaining time allows. Nothing collects on a schedule or on a read.
+past its limit, whose pointer the collector clears — and every later `POST /mutations` that
+answers 200 and every import request that succeeds removes one bounded batch of it, children first,
+in statements of their own after its transaction, their failure logged; a commit as many as the
+function's remaining time allows. Nothing collects on a schedule, on a read or on a settings write.
 Every account holder
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
 writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
@@ -1261,7 +1316,7 @@ and key, restricted on the user's delete; a row holds a claim's token and window
 response whole or not at all. An import's manifest lives in `import_manifest`, keyed by the
 generation it stages, and each staged part in `import_part`, keyed by that manifest, each restricted
 on the delete of what it names. The account's settings are `app_user.settings`, one nullable text
-column. EVERY WRITE CARRIES AN `Idempotency-Key`, a UUID unique per user and
+column. EVERY `POST /mutations` CARRIES AN `Idempotency-Key`, a UUID unique per user and
 read lowercased; one missing or malformed is 400, and the bounds and its format are checked before
 anything is claimed. A CLAIM COMMITS FIRST, in a transaction of its own, under a token of the
 request's; the effect, the version bump and the stored response then commit together, under that

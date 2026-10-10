@@ -14,6 +14,7 @@ import { parseDocument } from 'yaml';
 
 import { ADDRESS, MAX_ADDRESS } from '@quirenote/core/address';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
+import { SETTING_NAMES } from '@quirenote/core/settings';
 import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
@@ -57,6 +58,12 @@ import {
   STATE_ROUTE,
 } from './mutations';
 import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
+import {
+  BODY as SETTINGS_BODY,
+  MERGE_PATCH,
+  RESPONSES as SETTINGS_RESPONSES,
+  SETTINGS_ROUTE,
+} from './settings';
 import {
   BALANCES_ROUTE,
   DAY_ROUTE,
@@ -235,6 +242,7 @@ describe('the document is regenerated, never typed', () => {
       './http',
       './imports',
       './mutations',
+      './settings',
       './view',
       'node:fs',
       'yaml',
@@ -313,6 +321,7 @@ const DECLARED = {
   ...VIEW_RESPONSES,
   ...MUTATIONS_RESPONSES,
   ...IMPORT_RESPONSES,
+  ...SETTINGS_RESPONSES,
 };
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
@@ -387,6 +396,7 @@ describe('each operation publishes its own route’s answers', () => {
       [MUTATIONS_ROUTE, MUTATIONS_BODY],
       [BEGIN_ROUTE, BEGIN_BODY],
       [PART_ROUTE, PART_BODY],
+      [SETTINGS_ROUTE, SETTINGS_BODY],
     ]);
   });
 
@@ -463,7 +473,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-two routes and no others', () => {
+  it('declares the twenty-three routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -480,6 +490,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         PART_ROUTE,
         COMMIT_ROUTE,
         ABORT_ROUTE,
+        SETTINGS_ROUTE,
       ].sort(),
     );
   });
@@ -514,6 +525,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       PART_ROUTE,
       COMMIT_ROUTE,
       ABORT_ROUTE,
+      SETTINGS_ROUTE,
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
@@ -617,6 +629,30 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ['If-Match', true],
     ]);
     expect(paramsOf(ABORT_ROUTE)).toEqual([path('id')]);
+  });
+
+  // A MERGE PATCH, so its media type is the one the route takes and no other; the body names the
+  // account's settings and nothing per-device, and every one may be null, which resets it.
+  it('publishes the settings patch as a merge patch over the account’s settings alone', () => {
+    const op = spec.paths['/settings'].patch;
+    const content = (op.requestBody as { content: Record<string, { schema: unknown }> }).content;
+    expect(Object.keys(content)).toEqual([MERGE_PATCH]);
+    const schema = content[MERGE_PATCH].schema as {
+      type: string;
+      additionalProperties: boolean;
+      properties: Record<string, { nullable?: boolean; enum?: unknown[] }>;
+    };
+    expect([schema.type, schema.additionalProperties]).toEqual(['object', false]);
+    expect(Object.keys(schema.properties)).toEqual([...SETTING_NAMES]);
+    for (const [name, property] of Object.entries(schema.properties)) {
+      expect([name, property.nullable, property.enum?.includes(null) ?? true]).toEqual([
+        name,
+        true,
+        true,
+      ]);
+    }
+    expect(schema.properties.period.enum).toEqual([...PERIOD_OPTIONS, null]);
+    expect(op.parameters).toBeUndefined();
   });
 
   // THE THREE PARAMETERIZED READS: the period from core's closed list and required, since a stale

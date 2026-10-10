@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SETTING_NAMES, sanitiseSettings } from '@quirenote/core/settings';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   THEME_ORDER,
   mergeSettings,
@@ -27,6 +28,13 @@ const DEFAULTS: PersistedSettings = {
   period: 'all',
 };
 
+// Watched, not replaced: the rule for each account field is core's, which the server runs on a
+// write as well, and a copy kept here would be a second answer to what a field accepts.
+vi.mock('@quirenote/core/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@quirenote/core/settings')>();
+  return { ...actual, sanitiseSettings: vi.fn(actual.sanitiseSettings) };
+});
+
 // A v0 payload is what zustand persisted before `version: 1` — the `state` part of
 // `{"state":{"currency":…},"version":0}`. v0 and v1.1 carry no usdRate or dataset,
 // so both fill from defaults.
@@ -36,6 +44,28 @@ const DEFAULTS: PersistedSettings = {
 // doubles as a check that a payload written by a pre-split build still hydrates,
 // the compatibility that let the split ship without a `version` bump.
 describe('migrateSettings', () => {
+  it('hands the account’s fields to core’s sanitiser and answers the three it keeps itself', () => {
+    vi.mocked(sanitiseSettings).mockClear();
+    const sane = migrateSettings({
+      currency: 'USD',
+      period: '3m',
+      theme: 'dark',
+      usdRate: 41.2,
+      dataset: 'live',
+      accent: 'teal',
+    });
+    expect(vi.mocked(sanitiseSettings)).toHaveBeenCalledTimes(1);
+    // The legacy key is read here, onto the one core knows.
+    expect(vi.mocked(sanitiseSettings).mock.calls[0][0]).toMatchObject({
+      defaultCurrency: 'USD',
+      period: '3m',
+    });
+    expect(Object.keys(sane).sort()).toEqual(
+      [...SETTING_NAMES, 'dataset', 'theme', 'usdRate'].sort(),
+    );
+    expect(sane).toMatchObject({ theme: 'dark', usdRate: 41.2, dataset: 'live' });
+  });
+
   it('keeps a valid persisted currency from a v0 payload', () => {
     expect(migrateSettings({ currency: 'USD' })).toEqual({ ...DEFAULTS, defaultCurrency: 'USD' });
     expect(migrateSettings({ currency: 'UAH' })).toEqual({ ...DEFAULTS, defaultCurrency: 'UAH' });
@@ -579,10 +609,14 @@ describe('the persist invariant itself — every field, not just the newest', ()
       block('export interface PersistedSettings'),
       /^\s{2}'?([\w]+)'?[?]?:/gm,
     );
-    const defaults = keysOf(
-      block('const PERSISTED_DEFAULTS: PersistedSettings ='),
-      /^\s{2}'?([\w]+)'?:/gm,
-    );
+    const defaultsBlock = block('const PERSISTED_DEFAULTS: PersistedSettings =');
+    // The account's ten come from core's defaults, so only the fields the store keeps itself are
+    // written out beside the spread.
+    expect(defaultsBlock).toMatch(/\.\.\.SETTINGS_DEFAULTS\b/);
+    const defaults = [
+      ...keysOf(defaultsBlock, /^\s{2}'?([\w]+)'?:/gm),
+      ...(SETTING_NAMES as readonly string[]),
+    ].sort();
     const written = keysOf(block('partialize: (s) => ('), /^\s{8}([\w]+):/gm);
 
     expect(declared.length).toBeGreaterThan(8);

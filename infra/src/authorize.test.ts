@@ -158,7 +158,9 @@ describe('the row is what authorizes, on every request', () => {
   it('admits an active row and hands back the role the ROW carries', async () => {
     await db.exec(row(SUB, EMAIL, 'active', 'super_admin'));
     const gate = await authorize(db, token());
-    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'super_admin' } });
+    expect(gate).toEqual({
+      caller: { userId: SUB, email: EMAIL, role: 'super_admin', settings: null },
+    });
   });
 
   // `cognito:groups` is not the authorization source: a group is stamped into a token at issue
@@ -166,7 +168,7 @@ describe('the row is what authorizes, on every request', () => {
   it('ignores a cognito:groups claim that disagrees with the row', async () => {
     await db.exec(row(SUB, EMAIL, 'active', 'user'));
     const gate = await authorize(db, token({ 'cognito:groups': ['super_admin'] }));
-    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user' } });
+    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
     expect(superAdminOnly(gate)).toEqual({ refusal: expect.objectContaining({ statusCode: 403 }) });
   });
 
@@ -174,7 +176,36 @@ describe('the row is what authorizes, on every request', () => {
   it('admits a caller whose sub claim arrived in capitals', async () => {
     await db.exec(row(SUB, EMAIL, 'active'));
     const gate = await authorize(db, token({ sub: SUB.toUpperCase() }));
-    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user' } });
+    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
+  });
+
+  // The settings ride the read the gate already makes (*Persistence today*): one more column on a
+  // row already read, never a second statement.
+  it('hands back the settings text the row holds byte for byte, and NULL where it holds none', async () => {
+    await db.exec(row(SUB, EMAIL, 'active'));
+    const text = '{"language":"en","note":"Облігації ₴"}';
+    await db.query('UPDATE app_user SET settings = $1 WHERE user_id = $2', [text, SUB]);
+    expect(await authorize(db, token())).toEqual({
+      caller: { userId: SUB, email: EMAIL, role: 'user', settings: text },
+    });
+    await db.query('UPDATE app_user SET settings = NULL WHERE user_id = $1', [SUB]);
+    expect(await authorize(db, token())).toEqual({
+      caller: { userId: SUB, email: EMAIL, role: 'user', settings: null },
+    });
+  });
+
+  it('reads the settings in the statement that reads the row', async () => {
+    await db.exec(row(SUB, EMAIL, 'active'));
+    const sent: string[] = [];
+    const client: SqlClient = {
+      query: <R>(text: string, values?: unknown[]) => {
+        sent.push(text);
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    await authorize(client, token());
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatch(/\bsettings\b/);
   });
 
   it('names the string nowhere in its own source', () => {
@@ -254,7 +285,7 @@ describe('open registration is the only thing that writes a row here', () => {
   it('gives a valid token with no row one, active, keyed by its own sub', async () => {
     vi.stubEnv('OPEN_REGISTRATION', 'true');
     const gate = await authorize(db, token());
-    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user' } });
+    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
     expect(await rows()).toEqual([{ user_id: SUB, email: EMAIL, status: 'active', role: 'user' }]);
     // Self-decided, the only truthful shape `app_user_decided_ck` leaves open: it exempts
     // `role = 'demo'` alone, so an active row must carry both halves and the deploy is what ruled.
@@ -344,7 +375,7 @@ describe('open registration is the only thing that writes a row here', () => {
   it('does not re-ask it of a caller who already has a row', async () => {
     await db.exec(row(SUB, EMAIL, 'active'));
     const gate = await authorize(db, token({ email_verified: 'false' }));
-    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user' } });
+    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
   });
 
   // Every other value means closed: the variable arrives as text and `Boolean('false')` is `true`.

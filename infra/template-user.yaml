@@ -465,6 +465,9 @@ Resources:
         'DELETE /imports/{id}':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'PATCH /settings':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
       # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
       # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
@@ -480,7 +483,7 @@ Resources:
               https://www.quirenote.com,
               https://main.d17m4jf400my6.amplifyapp.com,
             ]
-          AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+          AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
           AllowHeaders:
             [
               authorization,
@@ -495,7 +498,7 @@ Resources:
           AllowCredentials: true
           MaxAge: 600
         - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
-          AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+          AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
           AllowHeaders:
             [
               authorization,
@@ -829,8 +832,9 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # `POST /mutations` and `GET /state`, the write and the export (`src/mutations.ts`, *Cloud target*).
-  # This stack's cluster alone: nothing here reads the archive.
+  # `POST /mutations`, `GET /state` and `PATCH /settings`, the write, the export and the settings
+  # write (`src/mutations.ts`, *Cloud target*). This stack's cluster alone: nothing here reads the
+  # archive.
   MutationsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -907,6 +911,15 @@ Resources:
             ApiId: !Ref PublicApi
             Method: DELETE
             Path: /imports/{id}
+            Auth:
+              Authorizer: CognitoJwt
+        # The account's settings (`settings.ts`): a merge patch, which moves no `data_version`.
+        Settings:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: PATCH
+            Path: /settings
             Auth:
               Authorizer: CognitoJwt
 

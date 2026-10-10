@@ -44,6 +44,7 @@ import {
   PARAMETERS as MUTATIONS_PARAMETERS,
   RESPONSES as MUTATIONS_RESPONSES,
 } from './mutations';
+import { BODY as SETTINGS_BODY, RESPONSES as SETTINGS_RESPONSES, SETTINGS_ROUTE } from './settings';
 import { PARAMETERS as VIEW_PARAMETERS, RESPONSES as VIEW_RESPONSES } from './view';
 
 /** The one security scheme, named as the template names it. */
@@ -73,8 +74,8 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'approve.handler': ADMIN_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
-  // The write, the export and the staged import share one function.
-  'mutations.handler': { ...MUTATIONS_RESPONSES, ...IMPORT_RESPONSES },
+  // The write, the export, the staged import and the settings share one function.
+  'mutations.handler': { ...MUTATIONS_RESPONSES, ...IMPORT_RESPONSES, ...SETTINGS_RESPONSES },
 };
 
 /** Keyed by route, not by handler: a second event on one function would otherwise attach a
@@ -90,6 +91,7 @@ const BODIES: Record<string, unknown> = {
   [MUTATIONS_ROUTE]: MUTATIONS_BODY,
   [BEGIN_ROUTE]: BEGIN_BODY,
   [PART_ROUTE]: PART_BODY,
+  [SETTINGS_ROUTE]: SETTINGS_BODY,
 };
 
 type Operation = {

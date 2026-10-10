@@ -23,6 +23,7 @@ import {
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
+import { SETTINGS_ROUTE } from './settings';
 import { BALANCES_ROUTE, DAY_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
 
 type Resource = {
@@ -190,7 +191,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('ViewLogGroup').RetentionInDays).toBe(30);
   });
 
-  it('puts the write, the export and the import on this API, each naming the authorizer', () => {
+  it('puts the write, the export, the import and the settings on this API, each naming the authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'MutationsFunction');
     expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [MUTATIONS_ROUTE, 'PublicApi', AUTHORIZER],
@@ -199,6 +200,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
       [PART_ROUTE, 'PublicApi', AUTHORIZER],
       [COMMIT_ROUTE, 'PublicApi', AUTHORIZER],
       [ABORT_ROUTE, 'PublicApi', AUTHORIZER],
+      [SETTINGS_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');
     expect(user.Resources.MutationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
@@ -351,10 +353,11 @@ describe('the browser origins are named per environment', () => {
       ['prod', prod],
       ['dev', dev],
     ] as const) {
-      // A part is a PUT and an abort a DELETE, neither of which a preflight allows unless named.
+      // A part is a PUT, an abort a DELETE and a settings write a PATCH, none of which a preflight
+      // allows unless named.
       expect([name, arm.AllowMethods?.slice().sort()]).toEqual([
         name,
-        ['DELETE', 'GET', 'OPTIONS', 'POST', 'PUT'],
+        ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT'],
       ]);
       // `authorization` is what lets a browser send the token at all: every admin call is
       // cross-origin, and the preflight refuses a header the list does not name — a failure that

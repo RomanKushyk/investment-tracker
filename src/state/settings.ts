@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { PERIOD_OPTIONS, type PeriodOption } from '@quirenote/core/period';
+import type { PeriodOption } from '@quirenote/core/period';
 import { persist } from 'zustand/middleware';
 
 import type { Dataset } from '@quirenote/core/backup/json';
 import { DEFAULT_LEAD_DAYS, isLeadDays } from '@quirenote/core/reminders';
+import { SETTINGS_DEFAULTS, sanitiseSettings } from '@quirenote/core/settings';
 import { SETTINGS_KEY } from '../lib/storage-keys';
 
 /** `system` is a PREFERENCE, never a resolved value — which is what lets an OS flip
@@ -94,20 +95,12 @@ export interface PersistedSettings {
   period: PeriodOption;
 }
 
+// The account's ten come from core, the rule for each being the one the server runs on a write.
 const PERSISTED_DEFAULTS: PersistedSettings = {
-  defaultCurrency: 'UAH',
+  ...SETTINGS_DEFAULTS,
   usdRate: 44.83,
   theme: 'system',
-  language: 'uk',
   dataset: 'demo',
-  autoQuoteSuggest: true,
-  couponSuggest: true,
-  remindersEnabled: true,
-  reminderLeadDays: DEFAULT_LEAD_DAYS,
-  dismissedReminders: [],
-  collapsedNavGroups: [],
-  sidebarCollapsed: false,
-  period: 'all',
 };
 
 /**
@@ -124,10 +117,8 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
   // once old localStorage payloads have aged out. The BACKUP FILE format still carries
   // the old `currency` key (`core/backup/json.ts`), deliberately, so every backup ever
   // written restores through this line. Remove it and restore silently falls back.
-  const stored = p.defaultCurrency ?? p.currency;
   return {
-    defaultCurrency:
-      stored === 'UAH' || stored === 'USD' ? stored : PERSISTED_DEFAULTS.defaultCurrency,
+    ...sanitiseSettings({ ...p, defaultCurrency: p.defaultCurrency ?? p.currency }),
     usdRate:
       typeof p.usdRate === 'number' && Number.isFinite(p.usdRate) && p.usdRate > 0
         ? p.usdRate
@@ -135,39 +126,9 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     // Must agree with the head script, which cannot import this: an unrecognised value
     // is 'system', never a guess at what the user meant.
     theme: isTheme(p.theme) ? p.theme : PERSISTED_DEFAULTS.theme,
-    language: p.language === 'uk' || p.language === 'en' ? p.language : PERSISTED_DEFAULTS.language,
     // Exact 'live' or demo — lib/db.ts applies the same rule when it binds the active
     // DB at boot, and the two must agree.
     dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
-    autoQuoteSuggest:
-      typeof p.autoQuoteSuggest === 'boolean'
-        ? p.autoQuoteSuggest
-        : PERSISTED_DEFAULTS.autoQuoteSuggest,
-    couponSuggest:
-      typeof p.couponSuggest === 'boolean' ? p.couponSuggest : PERSISTED_DEFAULTS.couponSuggest,
-    remindersEnabled:
-      typeof p.remindersEnabled === 'boolean'
-        ? p.remindersEnabled
-        : PERSISTED_DEFAULTS.remindersEnabled,
-    reminderLeadDays: isLeadDays(p.reminderLeadDays)
-      ? p.reminderLeadDays
-      : PERSISTED_DEFAULTS.reminderLeadDays,
-    // Only strings survive: a corrupt entry would hide banners nothing can restore.
-    dismissedReminders: Array.isArray(p.dismissedReminders)
-      ? p.dismissedReminders.filter((id): id is string => typeof id === 'string')
-      : [...PERSISTED_DEFAULTS.dismissedReminders],
-    collapsedNavGroups: Array.isArray(p.collapsedNavGroups)
-      ? p.collapsedNavGroups.filter((k): k is string => typeof k === 'string')
-      : [...PERSISTED_DEFAULTS.collapsedNavGroups],
-    sidebarCollapsed:
-      typeof p.sidebarCollapsed === 'boolean'
-        ? p.sidebarCollapsed
-        : PERSISTED_DEFAULTS.sidebarCollapsed,
-    // A WHITELIST HERE and none on `collapsedNavGroups`: an unknown group key collapses
-    // a group that does not exist, an unknown period reaches `resolveWindow`.
-    period: PERIOD_OPTIONS.includes(p.period as PeriodOption)
-      ? (p.period as PeriodOption)
-      : PERSISTED_DEFAULTS.period,
   };
 }
 

@@ -166,10 +166,10 @@ the same store as `live` or beside it.
 
 - **Deletion.** `asset.delete` cascade semantics are *User schema and deletes*'; nothing here picks or
   depends on them.
-- **The settings route.** Which endpoint reads and writes the `app_user` settings column, and whether
-  a settings write moves `data_version` — and with it `/view`'s tag and every other device's
-  `If-Match` — belong to W7's implementation task; *Persistence today* fixes the column, the merge
-  and which settings follow the account.
+- **The settings route.** Settled since: `GET /view` carries the account's settings and
+  `PATCH /settings` writes them, moving no `data_version` and so no other device's `If-Match`
+  (*Cloud target*); *Persistence today* fixes the column, the merge and which settings follow the
+  account.
 - **The `/view` payload's field-by-field schema.** §1 pins that it is the union of the existing
   view-model interfaces; the exact JSON, its versioning and its migration story belong to W7's
   implementation task.

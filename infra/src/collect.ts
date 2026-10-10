@@ -1,5 +1,5 @@
 // Dead generations — datasets of the caller that neither pointer names — removed a bounded batch
-// at a time by the requests that write, never on a schedule (*User schema and deletes*).
+// at a time by `POST /mutations` and the import's routes, never on a schedule (*User schema and deletes*).
 import { codeOf } from './dsql';
 import type { SqlClient } from './migrate';
 
@@ -92,7 +92,7 @@ async function batch(client: SqlClient, userId: string, rows: number): Promise<b
   return false;
 }
 
-/** A budget of exactly one batch, what each write after a commit's own carries. */
+/** A budget of exactly one batch, what every collecting request but an import's commit carries. */
 export const once = (): (() => boolean) => {
   let spent = false;
   return () => !spent && (spent = true);

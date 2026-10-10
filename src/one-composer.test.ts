@@ -270,7 +270,6 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
     'period#PERIOD_OPTIONS': 'the options it lists',
     'period#resolveWindow': "its hints; window.test.ts holds them equal to windowView's",
   },
-  'src/state/settings.ts': { 'period#PERIOD_OPTIONS': 'validates a stored period' },
   'src/screens/DailyQuotes.tsx': {
     ...each(
       QUOTES,

@@ -324,6 +324,19 @@ and `infra/src/collect.ts` rest on these, read from AWS or shown by PGlite:
   its commit landed meets. The conflict targets are primary keys, the measured shape; the begin's
   re-send is UNMEASURED.
 
+**What the settings write sends that no cluster has answered.** `infra/src/settings.ts` rests on
+these, read from AWS or shown by PGlite:
+
+- **A one-statement `UPDATE app_user SET settings = $2::text WHERE user_id = $1 AND settings IS NOT
+  DISTINCT FROM $3::text RETURNING user_id`**, the compare-and-set that makes a merge made from a
+  read safe. PGlite accepts it, and a miss is a rowcount of 0, as the version bump's is. UNMEASURED;
+  `IS DISTINCT FROM` is the collector's, and this is its negation over a bound text parameter that
+  may be NULL.
+- **The `app_user` row as the conflict point between a settings write and a mutation's version
+  bump.** Both write the one row, so of two overlapping, the later commit is refused `40001`
+  (`OC000`), AWS's "Two transactions attempted to modify the same row"; each side retries. READ
+  FROM AWS, UNMEASURED.
+
 [run 35599249065]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599249065
 [run 35599318279]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599318279
 

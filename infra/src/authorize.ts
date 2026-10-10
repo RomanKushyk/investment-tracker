@@ -11,8 +11,10 @@ import { INTERNAL, type ApiEvent, type ApiResult, canonicalUuid, claim, json } f
 import type { SqlClient } from './migrate';
 import { provision } from './provision';
 
-/** What the row says about the caller. `role` is the row's, never the token's. */
-export type Caller = { userId: string; email: string; role: string };
+/** What the row says about the caller. `role` is the row's, never the token's. `settings` is the
+ *  account's settings text as the column holds it, NULL when it holds none: one more column on a row
+ *  already read (*Persistence today*). */
+export type Caller = { userId: string; email: string; role: string; settings: string | null };
 
 /** Either the caller or the answer that refuses them — never both, and never a bare boolean. */
 export type Gate = { caller: Caller } | { refusal: ApiResult };
@@ -35,7 +37,7 @@ const registrationIsOpen = () => process.env.OPEN_REGISTRATION === 'true';
 /** By `user_id` is the ordinary case; by `email` is the one that would otherwise be a unique
  *  violation, since the address may already hold a row under a placeholder — somebody applied,
  *  registration was opened, they signed up. */
-const LOOK = `SELECT user_id, email, status, role FROM app_user
+const LOOK = `SELECT user_id, email, status, role, settings FROM app_user
               WHERE user_id = $1 OR email = $2`;
 
 /**
@@ -50,7 +52,13 @@ const CREATE = `INSERT INTO app_user (user_id, email, status, role, applied_at,
                 VALUES ($1, $2, 'active', 'user', now(), now(), $1)
                 ON CONFLICT (user_id) DO NOTHING`;
 
-type Row = { user_id: string; email: string; status: string; role: string };
+type Row = {
+  user_id: string;
+  email: string;
+  status: string;
+  role: string;
+  settings: string | null;
+};
 
 function answer(row: Row, sub: string): Gate {
   // THE DEMO IS NOT AN APPLICATION AND NEVER BECOMES ONE: no token can carry its `sub`, so this
@@ -65,7 +73,9 @@ function answer(row: Row, sub: string): Gate {
     console.error(`authorize: ${row.email} is active under ${row.user_id}, not ${sub}`);
     return { refusal: FORBIDDEN };
   }
-  return { caller: { userId: row.user_id, email: row.email, role: row.role } };
+  return {
+    caller: { userId: row.user_id, email: row.email, role: row.role, settings: row.settings },
+  };
 }
 
 async function look(client: SqlClient, sub: string, email: string): Promise<Row | undefined> {

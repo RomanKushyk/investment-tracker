@@ -1709,6 +1709,18 @@
                           "quoteDays": 174
                         }
                       },
+                      "settings": {
+                        "defaultCurrency": "UAH",
+                        "language": "uk",
+                        "autoQuoteSuggest": true,
+                        "couponSuggest": true,
+                        "remindersEnabled": true,
+                        "reminderLeadDays": 7,
+                        "dismissedReminders": [],
+                        "collapsedNavGroups": [],
+                        "sidebarCollapsed": false,
+                        "period": "all"
+                      },
                       "etag": "\"<data_version>\""
                     }
                   }
@@ -3322,6 +3334,239 @@
                   "no_such_import": {
                     "value": {
                       "error": "no_such_import"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings": {
+      "patch": {
+        "operationId": "patchSettings",
+        "summary": "PATCH /settings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "defaultCurrency": {
+                    "type": "string",
+                    "enum": [
+                      "UAH",
+                      "USD",
+                      null
+                    ],
+                    "nullable": true
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "uk",
+                      "en",
+                      null
+                    ],
+                    "nullable": true
+                  },
+                  "autoQuoteSuggest": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "couponSuggest": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "remindersEnabled": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "reminderLeadDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30,
+                    "nullable": true
+                  },
+                  "dismissedReminders": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "nullable": true
+                  },
+                  "collapsedNavGroups": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "nullable": true
+                  },
+                  "sidebarCollapsed": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "1m",
+                      "3m",
+                      "6m",
+                      "12m",
+                      "ytd",
+                      null
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "settings": {
+                    "value": {
+                      "defaultCurrency": "UAH",
+                      "language": "en",
+                      "autoQuoteSuggest": true,
+                      "couponSuggest": true,
+                      "remindersEnabled": true,
+                      "reminderLeadDays": 7,
+                      "dismissedReminders": [],
+                      "collapsedNavGroups": [],
+                      "sidebarCollapsed": false,
+                      "period": "3m"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "payload_too_large": {
+                    "value": {
+                      "error": "payload_too_large",
+                      "max": 1048576
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Refused",
+            "headers": {
+              "accept-patch": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unsupported_media_type": {
+                    "value": {
+                      "error": "unsupported_media_type"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_settings": {
+                    "value": {
+                      "error": "invalid_settings",
+                      "issues": [
+                        {
+                          "field": "theme",
+                          "code": "unknown-key"
+                        },
+                        {
+                          "field": "period",
+                          "code": "invalid"
+                        }
+                      ]
                     }
                   }
                 }
