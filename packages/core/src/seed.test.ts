@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildBackup, parseBackup } from './backup/json';
+import { validateImport } from './backup/import';
+import { importParts } from './backup/parts';
+import {
+  assetRecordSchema,
+  buildBackup,
+  parseBackup,
+  priceRowSchema,
+  transactionRecordSchema,
+} from './backup/json';
 import {
   depositedTotal,
   freeCashFromLedger,
@@ -19,7 +27,7 @@ import {
   totalCapital,
 } from './derive';
 import { daysBetween } from './dates';
-import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
+import { buildSeedBackup, buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 import { pricesOfSnapshots, snapshotsOfPrices } from './valuation';
 
 const snaps = buildSeedSnapshots();
@@ -215,6 +223,86 @@ describe('backup envelope round-trip on the seed (D12)', () => {
     expect(result.data.assets).toEqual(SEED_ASSETS);
     expect(snapshotsOfPrices(result.data.transactions, result.data.prices)).toEqual(snaps);
     expect(result.data.transactions).toEqual(SEED_TRANSACTIONS);
+  });
+});
+
+// The API's door takes a uuid, and the seed's ids are 'reit' and 'd1': the account a dev restore
+// lands in is the seed under fixed ones (#403).
+describe('the seed as a backup the API takes', () => {
+  const backup = buildSeedBackup('2026-07-28T12:00:00', 2);
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+  it('passes the importer and every row door the server holds a row to, under uuids', async () => {
+    expect(validateImport(JSON.stringify(backup)).ok).toBe(true);
+    expect(backup.assets.map((a) => assetRecordSchema.safeParse(a).success)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(backup.transactions.every((t) => transactionRecordSchema.safeParse(t).success)).toBe(
+      true,
+    );
+    expect(backup.prices.every((p) => priceRowSchema.safeParse(p).success)).toBe(true);
+    const ids = [
+      ...backup.assets.map((a) => a.id),
+      ...backup.transactions.flatMap((t) => (t.assetId === '' ? [t.id] : [t.id, t.assetId])),
+      ...backup.prices.map((p) => p.assetId),
+    ];
+    expect(ids.every((id) => UUID.test(id))).toBe(true);
+    expect((await importParts(backup)).ok).toBe(true);
+  });
+
+  it('is the seed’s own ledger and series under other ids (4 / 25 / 572)', () => {
+    expect([backup.assets.length, backup.transactions.length, backup.prices.length]).toEqual([
+      4, 25, 572,
+    ]);
+    const legacy = new Map([
+      ...backup.assets.map((a, i): [string, string] => [a.id, SEED_ASSETS[i].id]),
+      ...backup.transactions.map((t, i): [string, string] => [t.id, SEED_TRANSACTIONS[i].id]),
+    ]);
+    const named = (id: string) => (id === '' ? '' : legacy.get(id));
+    expect(backup.assets.map((a) => ({ ...a, id: named(a.id) }))).toEqual(SEED_ASSETS);
+    expect(
+      backup.transactions.map((t) => ({ ...t, id: named(t.id), assetId: named(t.assetId) })),
+    ).toEqual(SEED_TRANSACTIONS);
+    const series = snapshotsOfPrices(backup.transactions, backup.prices);
+    expect(
+      series.map((s) => ({
+        ...s,
+        quotes: Object.fromEntries(Object.entries(s.quotes).map(([id, q]) => [named(id), q])),
+      })),
+    ).toEqual(snaps);
+    expect(headlineTotal(series, backup.transactions)).toBeCloseTo(149016.36, 2);
+  });
+
+  it('pins its ids, so a restore is the same rows every time', () => {
+    expect(backup.assets.map((a) => a.id)).toEqual([
+      '5eed0000-0000-4000-8000-000000000001',
+      '5eed0000-0000-4000-8000-000000000002',
+      '5eed0000-0000-4000-8000-000000000003',
+      '5eed0000-0000-4000-8000-000000000004',
+    ]);
+    expect(backup.transactions.map((t) => t.id)).toEqual(
+      Array.from(
+        { length: 25 },
+        (_, i) => `5eed0000-0000-4000-8000-${(5 + i).toString(16).padStart(12, '0')}`,
+      ),
+    );
+    expect(backup.transactions[3]).toMatchObject({
+      id: '5eed0000-0000-4000-8000-000000000008',
+      type: 'buy',
+      assetId: '5eed0000-0000-4000-8000-000000000001',
+    });
+  });
+
+  it('carries the stamps its caller gives, as a backup does, and no setting', () => {
+    expect([backup.exportedAt, backup.dbVersion, backup.dataset]).toEqual([
+      '2026-07-28T12:00:00',
+      2,
+      'live',
+    ]);
+    expect(backup.settings).toBeUndefined();
   });
 });
 

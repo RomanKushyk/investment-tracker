@@ -313,6 +313,10 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
     'valuation#snapshotsOfPrices':
       'the backup carries per-unit prices; this store keeps ₴ snapshots',
   },
+  'src/lib/backup.ts': {
+    'valuation#snapshotsOfPrices':
+      "the CSV's days are the stored prices', as the importer reads them",
+  },
 };
 
 const walk = (dir: string): string[] =>

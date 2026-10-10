@@ -213,6 +213,9 @@ the store's order, since the composers sum in key order; on a ledger with archiv
 that moves is listed under the rule that moves it. Automation stays suggest-only wherever the app
 still decides: the user's Save is the sole write path. A hand-entered value is MARKED; an archive
 one is not.
+The seed also exists as a backup file, `buildSeedBackup`, under fixed uuids, since the API's door
+takes no id like `'reit'` or `'d1'`; `seed.test.ts` pins them, and that the file rebuilds the
+seed's own ledger and series.
 **Why.** The seed exists so the first run reproduces the reference, and it reconciles by
 construction rather than through exclusion rules — which is why its pinned figures MAY move when the
 ledger model requires it. The identity was proven before the archive joined, so each figure the
@@ -921,6 +924,25 @@ bound is the one write that is several requests: the 409 `too_many_rows` is answ
 remaining, and then `asset.delete` is sent again. It stops at a reply that is not a write and at a
 count that is missing or does not fall. The `dropped` that `snapshot.patch` and `snapshot.move`
 answer is returned to the caller beside each op's answer.
+THE CLIENT DRIVES THE IMPORT AND READS THE EXPORT in `src/lib/backup.ts`, which no screen calls yet,
+and core cuts the parts (`backup/parts.ts`). Core refuses a file before anything is sent: a row that
+fails a door the routes apply, `assetRecordSchema`, `transactionRecordSchema` or `priceRowSchema`, an
+id that is no uuid, an asset row naming no asset or a deposit or withdrawal naming one, or a row whose
+body alone passes the byte bound, is a fault in the importer's codes, since a part the route refuses
+stages nothing and the commit then finds the manifest unmet. The rules between rows, a key twice or a
+price naming no asset, are the importer's. A value no column takes, a NUL in a text or a date in year
+0000, passes those doors: its part is refused 422 naming its table and no row, and the import aborts.
+The rows go assets, then transactions, then prices, in parts within the route's bounds of rows and
+of bytes, the bytes counted as bytes, numbered from 1, each a JSON object of the tables it holds. A part may hold the last assets and the
+first rows naming them, since the route stages a part's assets first. An asset goes out without `inzhur.units`. Each part is put after the one before it answered,
+under the SHA-256 of its exact bytes as `Content-Digest`, and the manifest's digest is the SHA-256
+of the raw digests joined in part order. The commit goes under the tag the caller read. A 412 there
+leaves the import open and comes back as a conflict naming it, for the caller to commit under the
+new tag or to abort; a 5xx there is sent once more; any other failure of a part or of the commit, a
+second 5xx and an answer with no tag among them, aborts the import and is returned. A 429 and an
+answer lost in transit are the transport's, which sends the same bytes under the same number again. The export is `GET /state` read through the same row doors, and the CSV's
+snapshots are cut from its prices by `snapshotsOfPrices`: one for each day priced, and none for a
+day `/view`'s series merely carries an asset onto.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -997,6 +1019,16 @@ and Spanner "must always load the parent before the children"; the client checks
 first, as Ghostfolio validates "before any data is persisted". A part is "a few hundred rows rather
 than thousands", AWS's loading guidance. A commit sent again answers 200 as AIP-155 answers a
 duplicate, with the tag the next write needs, and an abort is 204 as S3's and tus's are.
+The caller cuts by bytes as well as rows because an asset's name has no bound of its own and the
+route counts the body's bytes, and a row that no cut can fit is the file's fault. A refused part or
+commit aborts the import: a refused part stages nothing, so the manifest can no longer be met, where
+a 412 leaves everything staged and means the dataset moved under the tag, which `If-Match` is for,
+and what the file replaces is for the caller to diff again. A commit answered 5xx is sent once more
+because that answer does not say whether the pointer moved, and the route answers it again either
+way, 200 with the tag if it landed and the commit itself if it did not; a part answered 5xx is not
+sent again, since the dataset is not replaced either way and the failure reported is then the true
+one. The CSV's days are the stored prices',
+the facts the export carries.
 A settings write is a route of its own because it is the one write that must not move
 `data_version`: a `/mutations` op bumps it, and every other tab's `If-Match` would go stale at each
 change of period. Its read rides `/view` as Grafana's page boots with a `window.grafanaBootData`
@@ -1035,7 +1067,7 @@ tag sent without its `W/` must still match. · Clamping a page past the last to 
 would answer another page as the rows grow, and a client's miscounted page would read as data. · A
 default period: a stale tab's retired one would be answered as another. · Refusing two ops on one entity, as DynamoDB and Azure
 do: neither gives a reason, and in-order application already defines the result. · Retrying a 412:
-it is the precondition doing its work. · Exporting snapshots rebuilt from the prices, a day a later
+it is the precondition doing its work. · A backup of snapshots rebuilt from the prices, a day a later
 edit left valuing nothing quoting nothing: the file holds no price for that day, so no restore can
 write it back. · Hiding such a day from the export: its rows still refuse a move onto a day the client cannot
 see. · Deleting such a price at the ledger edit: deleting a buy and adding it back wipes the prices
@@ -1069,7 +1101,11 @@ back to a build that predates a setting, or accepts fewer values of one, would d
 next patch of any other. · A day's save naming only the drafts: the merge keeps the quote they
 cleared. · The targets of N assets as N requests: a burst of five, and a failure partway leaves a
 plan half saved. · An asset's last prune and its delete in one request: when the delete still does
-not fit the bound the whole request is refused, and the prune with it.
+not fit the bound the whole request is refused, and the prune with it. · Putting an import's parts
+at once: a part naming an asset no earlier part staged is refused. · Carrying on past a refused
+part: it stages nothing, so the commit's counts and digest cannot be met by the file. · The CSV's
+snapshots from `/view`'s series: they quote the days an asset is carried onto, which the file
+would present as recorded.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER

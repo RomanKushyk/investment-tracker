@@ -4,7 +4,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import type { PGlite } from '@electric-sql/pglite';
+import { validateImport } from '@quirenote/core/backup/import';
+import { buildBackup } from '@quirenote/core/backup/json';
+import { importParts, type StagedImport } from '@quirenote/core/backup/parts';
 import { MAX_BODY_BYTES } from '@quirenote/core/ops';
+import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import type { PriceRow } from '@quirenote/core/valuation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +17,7 @@ import { ceilingClient, freshDb, refusingCommit } from './__fixtures__/pglite';
 import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
-import type { ApiEvent, ApiResult, EmptyResult } from './http';
+import { canonicalUuid, type ApiEvent, type ApiResult, type EmptyResult } from './http';
 import {
   ABORT_ROUTE,
   BEGIN_ROUTE,
@@ -1163,6 +1167,148 @@ describe('a route sent again after a serialization failure', () => {
       { error: 'no_such_import' },
     ]);
     expect(await pointers()).toEqual({ live: id, staged: null });
+  });
+});
+
+// The caller's half of the rules, built by core and taken by the routes as built (#403). The
+// manifest's and the parts' digests are the ones the routes check, so a commit that lands is the proof.
+describe('the parts core’s importParts builds', () => {
+  const day = (i: number) => new Date(Date.UTC(2019, 0, 1 + i)).toISOString().slice(0, 10);
+  /** More rows (3 123) than the 3 000 one DSQL transaction may mutate, in the order `GET /state`
+   *  answers them. */
+  const FILE = (): State => ({
+    assets: NEW.assets,
+    transactions: [
+      deposit(10, '2026-03-01', 1_000_000),
+      ...Array.from({ length: 119 }, (_, i) => buy(11 + i, 1 + (i % 3), '2026-03-02', 100, 1)),
+    ],
+    prices: Array.from({ length: 3_000 }, (_, i) =>
+      price(1 + (i % 3), day(i), 10 + i / 100, '2026-04-20T10:00:00'),
+    ),
+  });
+
+  const planned = async (tables: State): Promise<StagedImport> => {
+    const plan = await importParts(tables);
+    if (!plan.ok) throw new Error(JSON.stringify(plan.issues));
+    return plan;
+  };
+
+  /** Begin under core's manifest, every part with core's bytes and digest, commit: as a client does. */
+  const importPlanned = async (plan: StagedImport, d = deps()) => {
+    const begun = (await send(beginEvent(JSON.stringify(plan.manifest)), d)) as ApiResult;
+    expect(begun.statusCode).toBe(201);
+    const { id } = JSON.parse(begun.body) as { id: string };
+    for (const part of plan.parts) {
+      const staged = await send(
+        partEvent(id, part.number, {}, { body: part.body, digest: `sha-256=:${part.digest}:` }),
+        d,
+      );
+      expect(answer(staged)).toEqual([200, { part: part.number, digest: part.digest }]);
+    }
+    return commit(id, undefined, d);
+  };
+
+  it('are staged and committed as built, a dataset past one transaction whole', async () => {
+    const file = FILE();
+    const plan = await planned(file);
+    expect(plan.parts.length).toBeGreaterThan(5);
+    // The test's own reading of the manifest agrees with core's.
+    expect(plan.manifest).toEqual(manifestOf(plan.parts.map((p) => JSON.parse(p.body) as Part)));
+    const ceiling = ceilingClient(db, 3_000);
+
+    const committed = await importPlanned(plan, deps({ user: ceiling.client }));
+
+    expect(answer(committed)).toEqual([200, { etag: await tag() }]);
+    expect(await state()).toEqual(file);
+    expect(ceiling.seen.peak).toBeGreaterThan(0);
+    expect(ceiling.seen.peak).toBeLessThanOrEqual(3_000);
+  });
+
+  it('import an export of the dataset back to the same /state', async () => {
+    await importPlanned(await planned(FILE()));
+    const first = await state();
+    const before = await tag();
+
+    const file = buildBackup(
+      first.assets,
+      first.prices,
+      first.transactions,
+      undefined,
+      'live',
+      '2026-10-10T12:00:00',
+      2,
+    );
+    const read = validateImport(JSON.stringify(file));
+    if (!read.ok) throw new Error(JSON.stringify(read.rejection));
+    await importPlanned(await planned(read.envelope));
+
+    expect(await state()).toEqual(first);
+    expect(await tag()).not.toBe(before);
+  });
+
+  it('take the seed’s backup under its fixed ids', async () => {
+    const seed = buildSeedBackup('2026-07-28T12:00:00', 2);
+    const ordered = (a: string, b: string) => a.localeCompare(b);
+
+    await importPlanned(await planned(seed));
+
+    expect(await state()).toEqual({
+      assets: seed.assets,
+      transactions: [...seed.transactions].sort(
+        (a, b) => ordered(a.date, b.date) || ordered(a.id, b.id),
+      ),
+      prices: [...seed.prices].sort(
+        (a, b) => ordered(a.asOf, b.asOf) || ordered(a.assetId, b.assetId),
+      ),
+    });
+  });
+
+  // Core and the route read an id alike, so a file core takes is a file the route does not refuse
+  // for its ids.
+  it.each([
+    u(1),
+    u(1).replace('0000', 'ABCD'),
+    'reit',
+    'd1',
+    u(1).replace('1', 'g'),
+    u(1) + '0',
+    '',
+  ])('take an id when the route does: %j', async (id) => {
+    const plan = await importParts({
+      assets: [asset(1, { id })],
+      transactions: [],
+      prices: [],
+    });
+    expect(plan.ok).toBe(canonicalUuid(id) !== undefined);
+  });
+
+  // A value no column takes passes every door core applies, so core builds the part; the store
+  // refuses it there, naming the table and no row.
+  it.each([
+    [
+      'a NUL in a name',
+      { assets: [asset(1, { name: 'RE\u0000IT' })], transactions: [], prices: [] },
+      'assets',
+    ],
+    [
+      'a date in year 0000',
+      { assets: [], transactions: [deposit(10, '0000-01-01')], prices: [] },
+      'transactions',
+    ],
+  ])('build a part the store refuses for %s, naming its table', async (_, file, table) => {
+    const plan = await planned(file);
+    const begun = (await send(beginEvent(JSON.stringify(plan.manifest)))) as ApiResult;
+    const { id } = JSON.parse(begun.body) as { id: string };
+    const [part] = plan.parts;
+
+    const refused = await send(
+      partEvent(id, part.number, {}, { body: part.body, digest: `sha-256=:${part.digest}:` }),
+    );
+
+    expect(answer(refused)).toEqual([
+      422,
+      { error: 'invalid_part', table, issues: [{ code: 'invalid' }] },
+    ]);
   });
 });
 

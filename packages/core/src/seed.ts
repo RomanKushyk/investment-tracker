@@ -1,5 +1,7 @@
 // Reference seed dataset — pure data builders, no db access (*Derived figures and the seed*).
+import { buildBackup, type BackupEnvelope } from './backup/json';
 import type { Asset, Snapshot, Transaction } from './types';
+import { pricesOfSnapshots } from './valuation';
 
 export const SEED_ASSETS: Asset[] = [
   {
@@ -173,4 +175,34 @@ export function buildSeedSnapshots(): Snapshot[] {
   }
   out.push({ date: '2026-07-27', quotes: { reit: 68702.1 } });
   return out;
+}
+
+// The API's door takes a uuid, and the seed's ids are 'reit' and 'd1', so the account a dev restore
+// lands in holds the seed under these. Fixed, not minted: the same restore is the same rows, and the
+// ids are pinned by `seed.test.ts`.
+const seedUuid = (n: number) => `5eed0000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+
+/** The seed as a backup file the API takes: its assets, then its transactions, numbered in the
+ *  order they are written above, and the per-unit prices its snapshots store. `exportedAt` and
+ *  `dbVersion` are the caller's, as `buildBackup` leaves them. */
+export function buildSeedBackup(exportedAt: string, dbVersion: number): BackupEnvelope {
+  const ids = new Map(
+    [...SEED_ASSETS, ...SEED_TRANSACTIONS].map((row, i): [string, string] => [
+      row.id,
+      seedUuid(i + 1),
+    ]),
+  );
+  const named = (id: string) => (id === '' ? '' : (ids.get(id) as string));
+  return buildBackup(
+    SEED_ASSETS.map((a) => ({ ...a, id: named(a.id) })),
+    pricesOfSnapshots(SEED_TRANSACTIONS, buildSeedSnapshots()).map((p) => ({
+      ...p,
+      assetId: named(p.assetId),
+    })),
+    SEED_TRANSACTIONS.map((t) => ({ ...t, id: named(t.id), assetId: named(t.assetId) })),
+    undefined,
+    'live',
+    exportedAt,
+    dbVersion,
+  );
 }

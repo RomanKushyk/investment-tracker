@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 
 import { rowIssueCodes, type RowIssueCode } from '@quirenote/core/backup/import';
+import { MAX_PART_ROWS } from '@quirenote/core/backup/parts';
 import {
   assetRecordSchema,
   priceRowSchema,
@@ -45,9 +46,7 @@ export const PART_ROUTE = 'PUT /imports/{id}/parts/{part}';
 export const COMMIT_ROUTE = 'POST /imports/{id}/commit';
 export const ABORT_ROUTE = 'DELETE /imports/{id}';
 
-/** AWS's DSQL loading guidance: "Aim for transactions of a few hundred rows rather than
- *  thousands." */
-export const MAX_PART_ROWS = 500;
+export { MAX_PART_ROWS };
 /** S3 UploadPart's range. */
 const MAX_PART = 10_000;
 /** An `integer` column's ceiling, which a manifest's count is stored in. */
