@@ -93,8 +93,7 @@ export function OverviewPlaceholder() {
     <PlaceholderScreen>
       <ScreenHeader
         title={t.screen.overview.title}
-        // The rate is the view's, and nothing is known of it before the view answers.
-        subtitle={t.screen.overview.subtitle(f.date(today), '—')}
+        subtitle={t.screen.overview.subtitle(f.date(today))}
         actions={<PeriodSlot />}
       />
       <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
@@ -102,7 +101,13 @@ export function OverviewPlaceholder() {
           tone="wall"
           label={o.totalCapital}
           value={<Dash />}
-          sub={<Dash className="h-4" />}
+          // The figure in the other currency, and the rate line under it.
+          sub={
+            <>
+              <Dash className="h-4" />
+              <Dash className="h-4" />
+            </>
+          }
         />
         <KpiCard label={o.capitalGain} value={<Dash />} sub={<Dash className="h-4" />} />
         {/* Both sub-lines carry static words that wrap at the width of four across, and not at one. */}

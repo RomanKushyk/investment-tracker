@@ -1,5 +1,12 @@
+import type { Fx } from '@quirenote/core/view/serve';
 import { useView } from './queries';
 import { selectFx } from './slices';
+
+/** The official rate under the day it is NBU's for, as `/view` serves it, or none
+ *  (*External sources*). */
+export function useFx(): Fx | null {
+  return useView(selectFx);
+}
 
 /**
  * The rate a $ figure is converted at: `/view`'s, which the server stores for each day and serves
@@ -8,5 +15,5 @@ import { selectFx } from './slices';
  * is never converted at a rate made up.
  */
 export function useFxRate(): number {
-  return useView(selectFx)?.rate ?? NaN;
+  return useFx()?.rate ?? NaN;
 }

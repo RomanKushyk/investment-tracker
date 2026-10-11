@@ -123,6 +123,20 @@ describe('what a placeholder keeps of its screen', () => {
     expect(root.querySelectorAll('[data-dash]').length).toBeGreaterThanOrEqual(10);
   });
 
+  it('Overview holds the capital card’s figure and both its sub-lines as «—», and names no rate', () => {
+    const root = mount('overview');
+    const label = [...root.querySelectorAll('div')].find(
+      (d) => d.textContent === uk.analytics.overview.totalCapital,
+    )!;
+    const value = label.nextElementSibling!;
+    expect(value.querySelectorAll('[data-dash]')).toHaveLength(1);
+    expect(value.nextElementSibling!.querySelectorAll('[data-dash]')).toHaveLength(2);
+    // The rate is the view's, so nothing is known of it before the view answers.
+    const subtitle = root.querySelector('p')!.textContent;
+    expect(subtitle).toMatch(/ · \d{2}\.\d{2}\.\d{4}$/);
+    expect(subtitle).not.toMatch(/курс|₴\/\$/);
+  });
+
   it('Yield holds the chart as one block until its own read answers', () => {
     const root = mount('yield');
     expect(root.querySelectorAll('[data-placeholder="chart"]')).toHaveLength(1);

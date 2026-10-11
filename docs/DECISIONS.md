@@ -643,8 +643,9 @@ under English.
 language applies. Manrope's figures are proportional and it ships `tnum`, so the one rule on `body`
 is what buys the aligned KPI column, and `src/ui-face.test.ts` fails if the face and the rule are
 ever separated. A missing rate is NaN rather than 0 or one held from before, so the display boundary
-(*Metric families and windows*) renders every figure converted with it «—», and no call site has an
-empty case of its own.
+(*Metric families and windows*) renders every figure converted with it «—». Overview adds two cases
+for what a «—» cannot carry: it paints a «—» `muted`, since it has no sign for a colour to name, and
+a sentence built around the figure («+ … реінвестовано») gives way to the bare «—».
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · Judging a
 pasted mark the way a typed one is judged: it turns a refusal into a silent thousandfold. · A
 conversion at a default rate or one held from an earlier answer: a figure at a rate nobody served is
@@ -813,6 +814,10 @@ failed fetch is stored nowhere, and the same reader does not ask again inside RF
 on caching a failure. The fetch is no crawl and checks no
 `robots.txt`. THE APP FETCHES NO RATE AND STORES NONE: it converts at `/view`'s `fx`, the rate with
 the day it is NBU's for, and a figure converted with none reads «—» (*Language, numbers, fonts*).
+It shows the rate once, on Overview's Total-capital card, as a line under the figure in the other
+currency: «НБУ», the rate and the day, whatever the day is, or «НБУ — курс недоступний» with none.
+«НБУ» is a link to NBU's open-data page in the UI's language, which opens in the same tab and wears
+no icon.
 **Why.** A blanket `Disallow` is final even where a statute licenses the use: any exception is a
 rule every future source inherits with no bright line. And a false "this source is dead" does not
 fail loudly, it stops anyone looking again. RFC 9309 binds the URI requested and exempts none
@@ -824,7 +829,12 @@ before it takes effect, and weekends and holidays keep the last one, so every da
 stored row is final. A Lambda's module scope cannot hold the day's rate, each concurrent request
 running in an environment of its own, so it is a row. Serving the last good rate on a failure is
 RFC 5861's stale-if-error, and the rate keeps its own date. RFC 9309
-scopes robots rules to crawlers, and bank.gov.ua's robots file disallows nothing.
+scopes robots rules to crawlers, and bank.gov.ua's robots file disallows nothing. NBU's
+open-data terms require a reference to the source of any further use, "including a hyperlink to the
+data administrator's open data web page", so the rate carries one wherever it shows. A rate is NBU's
+for a day, so the date on it is true whether the day is today or an earlier one, and the line has
+no second state for the earlier. The GOV.UK Design System says to avoid opening links in a new tab
+and not to use an external link icon.
 **Rejected.** Crawling a disallowed path while claiming to respect the site's rules: self-refuting.
 · Checking the first URL only: a redirect would then carry a fetch past the rules unseen. · Any
 other path on the provider's API host: it publishes no robots.txt, but none of the conventional
@@ -835,7 +845,9 @@ the archive: a user stack cannot write it, and the archive keeps the provider's 
 purpose. · A rate fetched live per request and cached in memory: the next concurrent request runs
 where that memory is not. · A rate the person types, or fetches from the browser on a press and
 applies: nothing says it is last year's, and the browser would depend on NBU's CORS policy where
-one stored row serves every viewer.
+one stored row serves every viewer. · A date shown only for a rate from an earlier day: it adds a
+second state for a date that is always true. · The rate in the subtitle, or beside the converted totals of
+the header and the sidebar: it shows once, on the card. · A new-tab link, or an external-link icon.
 
 ## Alerting
 **Decision.** No SNS topic, and the alarms carry no `AlarmActions` at all: CloudWatch publishes

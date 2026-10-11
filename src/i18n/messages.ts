@@ -589,7 +589,14 @@ export const en = {
       reinvestedInto: (amount: string) => `reinvested (${amount})`,
       toAccount: 'account',
       ofAccount: (pct: string) => `${pct} of account`,
-      withRate: (total: string, rate: string) => `${total} · rate ${rate}`,
+      // The line under the capital card (rate-attribution.dc.html): `nbu` is the link, and
+      // `rateLine` or `rateNone` follows it. The no-break spaces keep «NBU 41.4983» and
+      // «for 10 Oct 2026» whole, so a narrow card breaks before «for».
+      nbu: 'NBU',
+      rateLine: (rate: string, date: string) => `\u00A0${rate} for\u00A0${date}`,
+      rateNone: ' rate unavailable',
+      // Starts with the visible word, so the name holds what is on screen (WCAG 2.5.3).
+      nbuLabel: 'NBU, open data',
       plusReinvested: (amount: string) => `+ ${amount} reinvested`,
       sinceDate: (pct: string, date: string) => `${pct} since ${date}`,
       onNetDeposits: (pct: string) => `${pct} on net deposits`,
@@ -1084,9 +1091,8 @@ export const en = {
     },
     overview: {
       title: 'Overview',
-      // ✎ the extension draws "Портфель одним поглядом · 27.07.2026 · курс 44,83 ₴/$"
-      subtitle: (date: string, rate: string) =>
-        `Portfolio at a glance · ${date} · rate ${rate} ₴/$`,
+      // The rate is under the capital card, not here (rate-attribution.dc.html).
+      subtitle: (date: string) => `Portfolio at a glance · ${date}`,
     },
     balances: {
       title: 'Balances',
@@ -1622,7 +1628,10 @@ export const uk: Dict = {
       reinvestedInto: (amount: string) => `реінвестовано (${amount})`,
       toAccount: 'на рахунок',
       ofAccount: (pct: string) => `${pct} від рахунку`,
-      withRate: (total: string, rate: string) => `${total} · курс ${rate}`,
+      nbu: 'НБУ',
+      rateLine: (rate: string, date: string) => `\u00A0${rate} на\u00A0${date}`,
+      rateNone: ' — курс недоступний',
+      nbuLabel: 'НБУ, відкриті дані',
       plusReinvested: (amount: string) => `+ ${amount} реінвестовано`,
       sinceDate: (pct: string, date: string) => `${pct} від ${date}`,
       onNetDeposits: (pct: string) => `${pct} на чисті поповнення`,
@@ -2049,8 +2058,7 @@ export const uk: Dict = {
     },
     overview: {
       title: 'Огляд',
-      subtitle: (date: string, rate: string) =>
-        `Портфель одним поглядом · ${date} · курс ${rate} ₴/$`, // ✎
+      subtitle: (date: string) => `Портфель одним поглядом · ${date}`,
     },
     balances: {
       title: 'Баланси',

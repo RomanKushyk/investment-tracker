@@ -7,6 +7,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { RateLine } from '../components/RateLine';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
 import { ShareBar } from '../components/ui/ShareBar';
 import { Share } from '../components/ui/Share';
@@ -23,6 +24,9 @@ import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
+
+/** The paint of a figure. A «—» is muted: it has no sign or direction for a colour to name. */
+const paint = (n: number, tone = '') => (Number.isFinite(n) ? tone : 'text-muted');
 
 export function Overview() {
   const f = useFormat();
@@ -43,17 +47,11 @@ export function Overview() {
   // Only these headline cards convert; tables and every other card stay ₴.
   const capitalUsd = toUsd(total, rate);
   const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
+  // The card shows the portfolio in both currencies: the headline, and the other one under it.
+  const capitalOther = usd ? total : capitalUsd;
   const capital = usd
-    ? {
-        value: f.money(tweenedCapital, 'USD'),
-        // `f.units` on the rate: it is a figure like any other, and a bare 44.83 beside a
-        // grouped ₴ total reads as a different notation for the same page.
-        sub: t.analytics.prose.withRate(f.money(total), f.units(rate)),
-      }
-    : {
-        value: f.money(tweenedCapital),
-        sub: t.analytics.prose.withRate(f.money(capitalUsd, 'USD'), f.units(rate)),
-      };
+    ? { value: f.money(tweenedCapital, 'USD'), other: f.money(total) }
+    : { value: f.money(tweenedCapital), other: f.money(capitalUsd, 'USD') };
 
   const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, rate) : net.uah);
   const netValue = usd ? f.signedMoney(tweenedNet, 'USD') : f.signedMoney(tweenedNet);
@@ -69,7 +67,10 @@ export function Overview() {
   const deposit = usd
     ? {
         value: f.money(tweenedDeposited, 'USD'),
-        sub: t.analytics.prose.plusReinvested(f.money(reinvestedUsd, 'USD')),
+        // `+ — reinvested` would read as a sum.
+        sub: Number.isFinite(reinvestedUsd)
+          ? t.analytics.prose.plusReinvested(f.money(reinvestedUsd, 'USD'))
+          : '—',
       }
     : {
         value: f.moneyWhole(tweenedDeposited),
@@ -93,7 +94,7 @@ export function Overview() {
       <ReminderStrip place="overview" />
       <ScreenHeader
         title={t.screen.overview.title}
-        subtitle={t.screen.overview.subtitle(f.date(today), f.units(rate))}
+        subtitle={t.screen.overview.subtitle(f.date(today))}
         actions={control}
       />
 
@@ -105,14 +106,20 @@ export function Overview() {
           className="animate-in duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalCapital}
           value={capital.value}
-          sub={capital.sub}
-          subClassName="text-pos"
+          valueClassName={paint(tweenedCapital)}
+          sub={
+            <>
+              {capital.other}
+              <RateLine />
+            </>
+          }
+          subClassName={paint(capitalOther, 'text-pos')}
         />
         <KpiCard
           className="animate-in delay-75 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.capitalGain}
           value={netValue}
-          valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
+          valueClassName={`whitespace-nowrap ${paint(tweenedNet, net.uah < 0 ? 'text-neg' : 'text-pos')}`}
           // A card measured ACROSS the window points at its LEFT end, which is the end that
           // moves on every press. `sinceDate` already names that end exactly, so it is fed
           // `win.from` and no copy is invented.
@@ -123,7 +130,7 @@ export function Overview() {
           className="animate-in delay-150 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalReturnNet}
           value={totalReturnValue}
-          valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
+          valueClassName={`whitespace-nowrap ${paint(tweenedTotalReturn, totalReturn.uah < 0 ? 'text-neg' : 'text-pos')}`}
           sub={
             <>
               {totalReturn.roi === null
@@ -157,12 +164,14 @@ export function Overview() {
           className="animate-in delay-200 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.depositedReinvested}
           value={deposit.value}
+          valueClassName={paint(tweenedDeposited)}
           sub={deposit.sub}
         />
         <KpiCard
           className="animate-in delay-300 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.freeCash}
           value={cashValue}
+          valueClassName={paint(tweenedCash)}
           sub={
             <>
               {view.cashShare === null ? (
