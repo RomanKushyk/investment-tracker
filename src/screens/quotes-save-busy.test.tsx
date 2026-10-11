@@ -5,10 +5,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
 import { uk } from '../i18n/messages';
+import { readView } from '../lib/local-view';
+import { repo } from '../lib/repository';
 
 vi.mock('../lib/local-view', async (importActual) => {
   const actual = await importActual<typeof import('../lib/local-view')>();
@@ -43,23 +45,50 @@ vi.mock('../lib/repository', () => ({
   openStore: async () => undefined,
   dbVersion: 1,
 }));
+// The shell a case renders, as wide-read-first-answer.test.tsx sets it.
+vi.mock('../hooks/useIsDesktop', () => ({
+  useIsDesktop: () => desktop,
+  subscribeToBreakpoint: () => () => {},
+}));
 
 const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
 
-beforeAll(() => {
-  const kept = new Map<string, string>();
-  vi.stubGlobal('localStorage', {
-    getItem: (k: string) => kept.get(k) ?? null,
-    setItem: (k: string, v: string) => void kept.set(k, v),
-    removeItem: (k: string) => void kept.delete(k),
-  });
-  vi.stubGlobal('__APP_VERSION__', '0.0.0');
-  globalThis.ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
+// Set before the route graph loads: the persisted stores read `localStorage` as they load.
+const kept = new Map<string, string>();
+vi.stubGlobal('localStorage', {
+  getItem: (k: string) => kept.get(k) ?? null,
+  setItem: (k: string, v: string) => void kept.set(k, v),
+  removeItem: (k: string) => void kept.delete(k),
 });
+vi.stubGlobal('__APP_VERSION__', '0.0.0');
+// jsdom answers no media query.
+vi.stubGlobal('matchMedia', (query: string) => ({
+  matches: false,
+  media: query,
+  addEventListener() {},
+  removeEventListener() {},
+  addListener() {},
+  removeListener() {},
+  dispatchEvent: () => false,
+  onchange: null,
+}));
+vi.stubGlobal(
+  'ResizeObserver',
+  globalThis.ResizeObserver ??
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+);
+let desktop = true;
+afterAll(() => vi.unstubAllGlobals());
+
+// Loaded while the file is collected, as routes.test.ts loads it, so the import counts against no
+// test's timeout.
+const { routes } = await import('../routes');
+const { useDraft } = await import('../state/draft');
+
 afterEach(cleanup);
 
 function deferred() {
@@ -68,24 +97,9 @@ function deferred() {
   return { promise, resolve };
 }
 
-/** The page at the desktop shell or below it: jsdom lays nothing out and answers no media query,
- *  and the breakpoint is read once per module, so each layout loads its own modules. */
-async function open(desktop: boolean) {
-  vi.resetModules();
-  window.matchMedia = ((query: string) => ({
-    matches: desktop && query.includes('min-width'),
-    media: query,
-    addEventListener() {},
-    removeEventListener() {},
-    addListener() {},
-    removeListener() {},
-    dispatchEvent: () => false,
-    onchange: null,
-  })) as unknown as typeof window.matchMedia;
-  const { routes } = await import('../routes');
-  const { useDraft } = await import('../state/draft');
-  const { repo } = await import('../lib/repository');
-  const { readView } = await import('../lib/local-view');
+/** The page at the desktop shell or below it. */
+async function open(atDesktop: boolean) {
+  desktop = atDesktop;
   // What an earlier case left queued is not this one's.
   vi.mocked(readView).mockReset();
   vi.mocked(repo.saveSnapshot).mockReset();
@@ -93,7 +107,7 @@ async function open(desktop: boolean) {
   useDraft.setState({ date: seed.today, quotes: { reit: '68000.00' }, origins: {} });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter(routes, { initialEntries: ['/'] });
-  render(
+  const { container } = render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
@@ -109,20 +123,20 @@ async function open(desktop: boolean) {
   await act(async () => {
     await new Promise((r) => setTimeout(r, 50));
   });
-  return { repo, readView: vi.mocked(readView) };
+  return { container };
 }
 
 describe.each([
   ['in flow at the desktop shell', true],
   ['on the sticky bar below it', false],
-])('Save %s', (_, desktop) => {
+])('Save %s', (_, atDesktop) => {
   it('stays disabled from the press until the view the save changed has been read again', async () => {
-    const { repo, readView } = await open(desktop);
+    const { container } = await open(atDesktop);
     const save = deferred();
     const read = deferred();
     vi.mocked(repo.saveSnapshot).mockImplementationOnce(() => save.promise);
-    readView.mockClear();
-    readView.mockImplementationOnce(async () => {
+    vi.mocked(readView).mockClear();
+    vi.mocked(readView).mockImplementationOnce(async () => {
       await read.promise;
       const actual = await vi.importActual<typeof import('../lib/local-view')>('../lib/local-view');
       return actual.viewOf(
@@ -133,6 +147,8 @@ describe.each([
 
     const button = () =>
       screen.getByRole<HTMLButtonElement>('button', { name: uk.dailyQuotes.saveSnapshot });
+    // The case is in the layout it names: the sticky bar is portalled out of the page.
+    expect(container.contains(button())).toBe(atDesktop);
     expect(button().disabled).toBe(false);
     fireEvent.click(button());
     // The write is out.

@@ -4,7 +4,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { inputValue, makeFormat } from '@quirenote/core/money';
 import type { Snapshot } from '@quirenote/core/types';
@@ -64,31 +64,40 @@ vi.mock('../lib/repository', () => ({
   dbVersion: 1,
 }));
 
-beforeAll(() => {
-  const kept = new Map<string, string>();
-  vi.stubGlobal('localStorage', {
-    getItem: (k: string) => kept.get(k) ?? null,
-    setItem: (k: string, v: string) => void kept.set(k, v),
-    removeItem: (k: string) => void kept.delete(k),
-  });
-  vi.stubGlobal('__APP_VERSION__', '0.0.0');
-  // jsdom lays nothing out and answers no media query.
-  window.matchMedia = ((query: string) => ({
-    matches: query.includes('min-width'),
-    media: query,
-    addEventListener() {},
-    removeEventListener() {},
-    addListener() {},
-    removeListener() {},
-    dispatchEvent: () => false,
-    onchange: null,
-  })) as unknown as typeof window.matchMedia;
-  globalThis.ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
+// Set before the route graph loads: the persisted stores read `localStorage` as they load.
+const kept = new Map<string, string>();
+vi.stubGlobal('localStorage', {
+  getItem: (k: string) => kept.get(k) ?? null,
+  setItem: (k: string, v: string) => void kept.set(k, v),
+  removeItem: (k: string) => void kept.delete(k),
 });
+vi.stubGlobal('__APP_VERSION__', '0.0.0');
+// jsdom lays nothing out and answers no media query.
+vi.stubGlobal('matchMedia', (query: string) => ({
+  matches: query.includes('min-width'),
+  media: query,
+  addEventListener() {},
+  removeEventListener() {},
+  addListener() {},
+  removeListener() {},
+  dispatchEvent: () => false,
+  onchange: null,
+}));
+vi.stubGlobal(
+  'ResizeObserver',
+  globalThis.ResizeObserver ??
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+);
+afterAll(() => vi.unstubAllGlobals());
+
+// Loaded while the file is collected, as routes.test.ts loads it, so the import counts against no
+// test's timeout.
+const { routes } = await import('../routes');
+const { useDraft } = await import('../state/draft');
 
 beforeEach(() => {
   vi.mocked(readView).mockClear();
@@ -96,10 +105,13 @@ beforeEach(() => {
   vi.mocked(readBalances).mockClear();
   vi.mocked(readDay).mockClear();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // A test that opens the quotes form on a past day leaves the draft on that day.
+  useDraft.setState(useDraft.getInitialState(), true);
+});
 
 async function open(path: string) {
-  const { routes } = await import('../routes');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const view = render(
@@ -192,7 +204,6 @@ describe('a form', () => {
   });
 
   it('the quotes form reads one day when it is opened on a past date', async () => {
-    const { useDraft } = await import('../state/draft');
     const past = '2026-07-20';
     useDraft.setState({ date: past, quotes: {}, origins: {} });
     await open('/');
@@ -266,7 +277,6 @@ describe('a page shown again after another tab wrote', () => {
   });
 
   it('reads again the day the quotes form left cached, and fills the form with it', async () => {
-    const { useDraft } = await import('../state/draft');
     const past = '2026-07-20';
     useDraft.setState({ date: past, quotes: {}, origins: {} });
     // The day as this tab first read it: nothing recorded yet.
