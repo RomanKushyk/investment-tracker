@@ -41,9 +41,10 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => void kept.delete(k),
 });
 vi.stubGlobal('__APP_VERSION__', '0.0.0');
-// jsdom lays nothing out and answers no media query.
+// jsdom lays nothing out and answers no media query. Reduced motion is answered yes, so a figure
+// renders at its value: jsdom's frame times trail `performance.now()`, stalling a tween's start.
 vi.stubGlobal('matchMedia', (query: string) => ({
-  matches: query.includes('min-width'),
+  matches: query.includes('min-width') || query.includes('prefers-reduced-motion: reduce'),
   media: query,
   addEventListener() {},
   removeEventListener() {},
