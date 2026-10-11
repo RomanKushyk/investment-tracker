@@ -4,11 +4,11 @@ import { Outlet, useLocation } from 'react-router';
 
 import { session } from '../auth/app';
 import { LoadingStatus } from '../components/loading/LoadingStatus';
-import { useViewDayRollover } from '../hooks/queries';
+import { useSettingsCopy, useViewDayRollover } from '../hooks/queries';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
 import { AppHeader } from './AppHeader';
-import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from './nav-ids';
+import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { Sidebar, SidebarDrawer } from './Sidebar';
 import { SidebarRail } from './SidebarRail';
 import { useSettings } from '../state/settings';
@@ -25,6 +25,8 @@ export function Layout() {
   useReminderToast();
   // The view is cut at the day, so a tab left open past midnight reads it again.
   useViewDayRollover();
+  // A change to a setting is sent to the account while this shell is mounted (*Persistence today*).
+  useSettingsCopy();
   // The footer band offers a sign-out only once the relay says someone is signed in. Asked on
   // every load, the session being the browser's, and again on each route until it answers:
   // once it has, `restore` asks nothing.
@@ -36,8 +38,8 @@ export function Layout() {
   // a drawer needs a focus trap and a focus trap has to know which shell is mounted.
   const desktop = useIsDesktop();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // `persist` reads localStorage synchronously, so the first render already carries the
-  // stored value and the focus effect below sees no change on load.
+  // `persist` reads localStorage synchronously, so the first render carries the device's copy;
+  // the account's answer may change it after (*Persistence today*).
   const collapsed = useSettings((s) => s.sidebarCollapsed);
   const setCollapsed = useSettings((s) => s.setSidebarCollapsed);
 
@@ -73,17 +75,35 @@ export function Layout() {
     [],
   );
 
-  // EITHER CONTROL DISAPPEARS WHEN IT IS ACTIVATED, so focus falls to `<body>` and a
-  // keyboard user Tabs from the top of the document to get the navigation back; it
-  // moves to whichever trigger replaced it. Compares against the PREVIOUS value rather
-  // than a mounted flag, so it is inert on the first render and under StrictMode's
-  // second invocation.
-  const prevCollapsed = useRef(collapsed);
+  // THE SIDEBAR'S CONTROLS DISAPPEAR WHEN THE RAIL FLIPS, so focus held in it falls to
+  // `<body>` and a keyboard user Tabs from the top of the document to get the navigation
+  // back; it moves to whichever trigger replaced them. A press names that trigger, and so
+  // does a flip with focus inside the sidebar, whoever moved the rail: the account's answer
+  // does too, and removes the panel with the link that held focus. An answer with focus
+  // elsewhere leaves it there. The name is set in a store listener, which runs before the
+  // commit while the focused control is still in the document. The effect spends the name
+  // it finds, so it is inert on the first render and under StrictMode's second invocation.
+  const focusAfter = useRef<string | undefined>(undefined);
+  useEffect(
+    () =>
+      useSettings.subscribe((state, previous) => {
+        if (state.sidebarCollapsed === previous.sidebarCollapsed) return;
+        if (document.getElementById(SIDEBAR_ID)?.contains(document.activeElement)) {
+          focusAfter.current = state.sidebarCollapsed ? NAV_TRIGGER_ID : SIDEBAR_COLLAPSE_ID;
+        }
+      }),
+    [],
+  );
   useEffect(() => {
-    if (prevCollapsed.current === collapsed) return;
-    prevCollapsed.current = collapsed;
-    document.getElementById(collapsed ? NAV_TRIGGER_ID : SIDEBAR_COLLAPSE_ID)?.focus();
+    if (focusAfter.current === undefined) return;
+    document.getElementById(focusAfter.current)?.focus();
+    focusAfter.current = undefined;
   }, [collapsed]);
+
+  function pressRail(next: boolean) {
+    focusAfter.current = next ? NAV_TRIGGER_ID : SIDEBAR_COLLAPSE_ID;
+    setCollapsed(next);
+  }
 
   // The hardware Back button closes the drawer INSTEAD OF LEAVING THE ROUTE, through
   // one synthetic history entry. It keeps the URL and SPREADS the router's own state,
@@ -120,8 +140,8 @@ export function Layout() {
           `min-h-screen` shell sits under the chrome. */}
       <div className="flex min-h-dvh">
         {desktop && (
-          <Sidebar collapsed={collapsed} onCollapse={() => setCollapsed(true)}>
-            <SidebarRail onExpand={() => setCollapsed(false)} />
+          <Sidebar collapsed={collapsed} onCollapse={() => pressRail(true)}>
+            <SidebarRail onExpand={() => pressRail(false)} />
           </Sidebar>
         )}
         {/* The safe-area insets live on this column ONCE rather than on the header and

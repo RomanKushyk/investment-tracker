@@ -84,6 +84,8 @@ afterEach(() => {
 });
 
 async function open(currency: 'UAH' | 'USD', sidebarCollapsed = false) {
+  // The rail is the account's: the view's answer overwrites the device's copy, so it holds the same.
+  api.settings = JSON.stringify({ sidebarCollapsed });
   useSettings.setState({ currency, sidebarCollapsed });
   const client = new QueryClient();
   const router = createMemoryRouter(routes, { initialEntries: ['/overview'] });

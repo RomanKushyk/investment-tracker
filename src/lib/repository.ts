@@ -13,6 +13,7 @@ import type { Asset, Transaction } from '@quirenote/core/types';
 import type { BalancesBody, DayQuotes, SeriesBody, ViewBody } from '@quirenote/core/view/serve';
 
 import { abortImport, exportState, replaceDataset, type ExportedState } from './backup';
+import type { SettingsCopy } from './settings-copy';
 import type { Reply, Transport } from './transport';
 import {
   type CouponReopen,
@@ -53,6 +54,11 @@ export class ApiError extends Error {
   }
 }
 
+/** What the repository asks of the device's copy of the account's settings: the view is read through
+ *  it, so each answer overwrites the copy, and the account ending reaches it. */
+export type AccountCopy = Pick<SettingsCopy, 'read' | 'forget'>;
+const noCopy: AccountCopy = { read: (load) => load(), forget() {} };
+
 /** A read's body with the weak validator it came under, which the next read of it sends. */
 export type Revalidated<T> = T & { validator?: string };
 
@@ -75,7 +81,8 @@ const isView = (b: unknown): b is ViewBody & { etag: string; settings: AccountSe
   Array.isArray(b.assets) &&
   Array.isArray(b.transactions) &&
   isObject(b.today) &&
-  isObject(b.deleteCounts);
+  isObject(b.deleteCounts) &&
+  isObject(b.settings);
 const isSeries = (b: unknown): b is SeriesBody =>
   isObject(b) && typeof b.period === 'string' && Array.isArray(b.series);
 const isBalances = (b: unknown): b is BalancesBody =>
@@ -83,7 +90,7 @@ const isBalances = (b: unknown): b is BalancesBody =>
 const isDay = (b: unknown): b is DayQuotes =>
   isObject(b) && typeof b.date === 'string' && isObject(b.quotes) && isObject(b.previous);
 
-export function createRepository(call: Transport) {
+export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
   /** The strong tag the next write goes under; none until the view or an export has been read. */
   let tag: string | undefined;
   /** How many writes of this tab have landed: a read sent before one is older than the tag it gave. */
@@ -170,25 +177,28 @@ export function createRepository(call: Transport) {
   }
 
   return {
-    async readView(previous?: ViewData): Promise<ViewData> {
-      // An older read never moves the tag back: one sent before a write of this tab landed is
-      // answered for a dataset that write has changed.
-      const sentAt = landed;
-      const answer = await get('/view', previous?.validator);
-      if (answer.unchanged) {
-        const held = previous as ViewData;
-        if (landed === sentAt) tag = held.tag;
-        return held;
-      }
-      if (!isView(answer.body)) throw misread(answer);
-      const { etag, ...rest } = answer.body;
-      if (landed === sentAt) tag = etag;
-      return {
-        ...rest,
-        tag: etag,
-        ...(answer.validator === undefined ? {} : { validator: answer.validator }),
-      };
-    },
+    readView: (previous?: ViewData): Promise<ViewData> =>
+      // Through the copy, whether the API sent the view or said it is unchanged: the settings it
+      // holds are the account's either way.
+      copy.read(async () => {
+        // An older read never moves the tag back: one sent before a write of this tab landed is
+        // answered for a dataset that write has changed.
+        const sentAt = landed;
+        const answer = await get('/view', previous?.validator);
+        if (answer.unchanged) {
+          const held = previous as ViewData;
+          if (landed === sentAt) tag = held.tag;
+          return held;
+        }
+        if (!isView(answer.body)) throw misread(answer);
+        const { etag, ...rest } = answer.body;
+        if (landed === sentAt) tag = etag;
+        return {
+          ...rest,
+          tag: etag,
+          ...(answer.validator === undefined ? {} : { validator: answer.validator }),
+        };
+      }),
     readSeries: (period: PeriodOption, previous?: SeriesData) =>
       revalidate(`/view/series?period=${period}`, previous, isSeries),
     readBalances: (page: number, previous?: BalancesData) =>
@@ -229,6 +239,19 @@ export function createRepository(call: Transport) {
     /** The erase: a new, empty dataset, with nothing put back. */
     clearAll: () => write(clearOps()),
 
+    /** Merges the fields into the account's settings (RFC 7396): it names what changed and the rest
+     *  stays as stored. It is no write of the dataset, so it goes under no tag and no key, moves
+     *  none and waits for no write; the merge applied twice leaves one state. */
+    async patchSettings(fields: Partial<AccountSettings>): Promise<void> {
+      const reply = await begun()({
+        method: 'PATCH',
+        path: '/settings',
+        headers: { 'content-type': 'application/merge-patch+json' },
+        body: JSON.stringify(fields),
+      });
+      if (reply.kind !== 'ok') throw new ApiError(reply);
+    },
+
     /** The dataset as the API holds it now, with the tag it is at. It moves no tag of this tab: a
      *  write goes under what the view this tab shows was read at, never under a newer one. */
     async exportState(): Promise<ExportedState> {
@@ -261,6 +284,7 @@ export function createRepository(call: Transport) {
     forget(): void {
       tag = undefined;
       accounts += 1;
+      copy.forget();
     },
   };
 }

@@ -21,7 +21,7 @@ The portfolio lives on the server, so the app needs an account: `pnpm dev` proxi
 | Path | Holds |
 |---|---|
 | `packages/core/` | `@quirenote/core`, the pure domain layer the app and `infra/` both import: types, derivations, XIRR, accrual, parsers, the per-screen view models and the reference seed; no I/O, returns keys not prose |
-| `src/lib/` | the client of the user API and browser I/O: `repository.ts` (reads, writes, backup), `transport.ts`, `api.ts` (the one client and query cache), the sign-out wipe, the feed caches in `localStorage`, file download |
+| `src/lib/` | the client of the user API and browser I/O: `repository.ts` (reads, writes, backup), `transport.ts`, `api.ts` (the one client and query cache), `settings-copy.ts` (the device's copy of the account's settings), the sign-out wipe, the feed caches in `localStorage`, file download |
 | `src/state/` | the settings store |
 | `src/screens/`, `src/components/` | the routes and the UI kit |
 | `src/i18n/` | the dictionary — English canonical, Ukrainian default |

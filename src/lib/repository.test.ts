@@ -23,7 +23,7 @@ import {
 import type { RelayAnswer, RelayCall } from '../auth/relay';
 import { createSession, type Locks, type Session } from '../auth/session';
 import { csvTablesOf } from './backup';
-import { ApiError, createRepository, type Repository } from './repository';
+import { ApiError, createRepository, type AccountCopy, type Repository } from './repository';
 import { createTransport } from './transport';
 
 const TODAY = '2026-07-28';
@@ -599,5 +599,104 @@ describe('an operation begun before the account changed', () => {
     await expect(importing).rejects.toBeInstanceOf(ApiError);
     expect(api.seen.filter((sent) => sent.path.startsWith('/imports/'))).toEqual([]);
     expect(api.rows.transactions).toHaveLength(SEED.transactions.length);
+  });
+});
+
+describe('the account’s settings', () => {
+  const isPatch = (sent: Sent) => sent.method === 'PATCH';
+  const passing = () => {
+    const reads = vi.fn();
+    const forgets = vi.fn();
+    const copy: AccountCopy = {
+      read: (load) => {
+        reads();
+        return load();
+      },
+      forget: forgets,
+    };
+    return { copy, reads, forgets };
+  };
+
+  it('are written as a merge patch naming the fields, under no tag and no key, and move no dataset', async () => {
+    const { api, repo } = await seeded();
+    const tag = api.tag();
+
+    await repo.patchSettings({ period: '3m', collapsedNavGroups: ['entry'] });
+
+    const [sent] = api.seen.filter(isPatch);
+    expect(sent).toMatchObject({
+      path: '/settings',
+      headers: { 'content-type': 'application/merge-patch+json' },
+      body: JSON.stringify({ period: '3m', collapsedNavGroups: ['entry'] }),
+    });
+    expect(sent.headers).not.toHaveProperty('if-match');
+    expect(sent.headers).not.toHaveProperty('idempotency-key');
+    expect(api.settings).toBe(JSON.stringify({ collapsedNavGroups: ['entry'], period: '3m' }));
+    expect(api.tag()).toBe(tag);
+  });
+
+  it('say what the API refused', async () => {
+    const { repo } = await seeded();
+
+    const refused = await repo.patchSettings({ theme: 'dark' } as never).catch((e: unknown) => e);
+
+    expect(refused).toBeInstanceOf(ApiError);
+    expect((refused as ApiError).reply).toMatchObject({ kind: 'failed', status: 422 });
+  });
+
+  it('are read through the copy the repository was given, whether the API sent the view or said it is unchanged', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const { copy, reads } = passing();
+    const repo = createRepository(
+      createTransport({
+        hostname: 'dev.quirenote.com',
+        fetch: api.fetch,
+        session: await signedIn(),
+        showAnswer: vi.fn(),
+        derivationId: DERIVATION_ID,
+      }),
+      copy,
+    );
+
+    const first = await repo.readView();
+    const again = await repo.readView(first);
+
+    expect(again).toBe(first);
+    expect(api.notModified).toBe(1);
+    expect(reads).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuse a view that names none, which would read as the defaults and overwrite the copy', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const without = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const answered = await api.fetch(input, init);
+      const body = (await answered.json()) as Record<string, unknown>;
+      delete body.settings;
+      return new Response(JSON.stringify(body), { status: 200, headers: answered.headers });
+    };
+    const repo = await tab({ ...api, fetch: without });
+
+    const refused = await repo.readView().catch((e: unknown) => e);
+
+    expect(refused).toBeInstanceOf(ApiError);
+    expect((refused as ApiError).reply).toMatchObject({ kind: 'failed', status: 200 });
+  });
+
+  it('tell the copy when the account changes, so what it waited to send is not the next account’s', async () => {
+    const { copy, forgets } = passing();
+    const repo = createRepository(
+      createTransport({
+        hostname: 'dev.quirenote.com',
+        fetch: fakeApi(SEED_ROWS(), { today: TODAY }).fetch,
+        session: await signedIn(),
+        showAnswer: vi.fn(),
+        derivationId: DERIVATION_ID,
+      }),
+      copy,
+    );
+
+    repo.forget();
+
+    expect(forgets).toHaveBeenCalledTimes(1);
   });
 });

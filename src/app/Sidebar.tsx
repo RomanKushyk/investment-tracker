@@ -27,7 +27,7 @@ import { useSessionAddress } from '../auth/app';
 import { useSignOut } from '../hooks/useSignOut';
 import { useT } from '../i18n/useT';
 import type { accountRows } from './account-rows';
-import { SIDEBAR_COLLAPSE_ID } from './nav-ids';
+import { SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { THEME_ORDER, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { Scroller } from '../components/ui/Scroller';
@@ -562,7 +562,7 @@ export function Sidebar({
 }) {
   return (
     <aside
-      id="app-sidebar"
+      id={SIDEBAR_ID}
       className={`sticky top-0 h-dvh flex-none overflow-hidden transition-[width] duration-[260ms] ease-soft ${
         collapsed ? 'w-[calc(56px+env(safe-area-inset-left))]' : 'w-[244px]'
       }`}

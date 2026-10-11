@@ -1,8 +1,8 @@
 // A fake of the user API for the client's tests: the reads `GET /view` and its three siblings, the
-// export, `POST /mutations` and the staged import, served as `fetch` answers over rows held in
-// memory. It applies the ops with core's own schemas and merge patch, so a client that sends the
-// wrong op, the wrong tag or the wrong bytes is refused as the API refuses it. The relay's refresh
-// answers too, so a page can sign in through it.
+// export, `POST /mutations`, `PATCH /settings` and the staged import, served as `fetch` answers over
+// rows held in memory. It applies the ops with core's own schemas and merge patch, and the settings
+// with core's own, so a client that sends the wrong op, the wrong tag or the wrong bytes is refused
+// as the API refuses it. The relay's refresh answers too, so a page can sign in through it.
 import { createHash } from 'node:crypto';
 
 import {
@@ -13,7 +13,7 @@ import {
 import { ledgerUnits } from '@quirenote/core/derive';
 import { mergePatch, opIssues, opSchema, type Op } from '@quirenote/core/ops';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
-import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
+import { patchSettings, settingsOf } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { movedPrices, pricesOfQuotes, type PriceRow } from '@quirenote/core/valuation';
 import {
@@ -71,6 +71,9 @@ export interface FakeApi {
   seen: Sent[];
   /** How many reads have been answered 304. */
   notModified: number;
+  /** The account's settings as the column holds them: NULL until a first write. `/view` serves them
+   *  and moves its validator when they change, and `PATCH /settings` merges onto them. */
+  settings: string | null;
   /** Whether the relay holds a refresh cookie: a refresh answers tokens, a sign-out takes it away
    *  and a respond gives it back. */
   signedIn: boolean;
@@ -92,6 +95,7 @@ export function fakeApi(
     version: 0,
     seen: [],
     notModified: 0,
+    settings: null,
     signedIn: true,
     tag: () => `"${api.version}"`,
   };
@@ -108,9 +112,9 @@ export function fakeApi(
     today,
   });
   /** The weak validator of a read: the dataset's version, the day, the rate and its day, and the
-   *  route with its query. */
+   *  route with its query. `/view`'s alone also holds the settings it serves. */
   const validator = (route: string) =>
-    `W/"${api.version}:${today}:${api.fx?.rate ?? ''}@${api.fx?.date ?? ''}:${route}"`;
+    `W/"${api.version}:${today}:${api.fx?.rate ?? ''}@${api.fx?.date ?? ''}:${route}${route === '/view' ? `:${api.settings ?? ''}` : ''}"`;
   const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), {
       status,
@@ -351,7 +355,7 @@ export function fakeApi(
     const rows = served();
     if (path === '/view') {
       return json(
-        { ...viewBody({ ...rows, fx: api.fx }), settings: SETTINGS_DEFAULTS, etag: api.tag() },
+        { ...viewBody({ ...rows, fx: api.fx }), settings: settingsOf(api.settings), etag: api.tag() },
         200,
         headers,
       );
@@ -365,6 +369,24 @@ export function fakeApi(
       return json(balancesBody(rows, Number(query.get('page') ?? 0)), 200, headers);
     }
     return json(dayBody(rows, query.get('date') ?? ''), 200, headers);
+  }
+
+  /** `PATCH /settings`: a merge patch, applied whole or refused whole. It moves no dataset version. */
+  function patched(request: Sent): Response {
+    const type = request.headers['content-type']?.split(';')[0].trim().toLowerCase();
+    if (type !== 'application/merge-patch+json') {
+      return json({ error: 'unsupported_media_type' }, 415, {
+        'accept-patch': 'application/merge-patch+json',
+      });
+    }
+    const body: unknown = JSON.parse(request.body);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      return json({ error: 'invalid_request' }, 400);
+    }
+    const result = patchSettings(api.settings, body as Record<string, unknown>);
+    if ('issues' in result) return json({ error: 'invalid_settings', issues: result.issues }, 422);
+    api.settings = result.text;
+    return json(result.settings);
   }
 
   api.fetch = async (input, init) => {
@@ -400,6 +422,7 @@ export function fakeApi(
       return read(request, path, url.searchParams);
     }
     if (request.method === 'POST' && path === '/mutations') return mutate(request);
+    if (request.method === 'PATCH' && path === '/settings') return patched(request);
     if (path.startsWith('/imports')) return importing(request, path);
     return json({ error: 'not_found' }, 404);
   };

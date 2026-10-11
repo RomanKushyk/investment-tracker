@@ -26,6 +26,8 @@ vi.mock('../lib/api', () => ({
     readDay: vi.fn(),
     saveSnapshot: vi.fn(),
   },
+  // The shell starts the copy of the account's settings; this case changes none.
+  settingsCopy: { start: () => () => {} },
 }));
 // The shell a case renders, as wide-read-first-answer.test.tsx sets it.
 vi.mock('../hooks/useIsDesktop', () => ({

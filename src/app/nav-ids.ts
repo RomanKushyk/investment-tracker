@@ -7,6 +7,7 @@
  * burger below the breakpoint, the rail's own at and above it.
  * `SIDEBAR_COLLAPSE_ID` is on the control that collapses it, in the expanded
  * panel's capital strip.
+ * `SIDEBAR_ID` is the desktop shell around both, which `Layout` asks whether focus is in.
  *
  * EXACTLY ONE ELEMENT CARRIES EACH, ALWAYS: the rail is mounted only when
  * `desktop` and the header's trigger only when it is not. That is why the header's
@@ -15,3 +16,4 @@
  */
 export const NAV_TRIGGER_ID = 'app-nav-trigger';
 export const SIDEBAR_COLLAPSE_ID = 'app-sidebar-collapse';
+export const SIDEBAR_ID = 'app-sidebar';

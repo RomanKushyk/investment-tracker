@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // The portfolio does not outlive its account on a shared browser (*Auth model*): once the relay has
-// answered a sign-out, the figures held in memory, the tag a write goes under and the draft are
-// gone. OWASP: "do not assume client-side storage provides confidentiality".
+// answered a sign-out, the figures held in memory, the tag a write goes under, a settings change not
+// yet sent and the draft are gone.
+// OWASP: "do not assume client-side storage provides confidentiality".
 import { QueryClient } from '@tanstack/react-query';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 

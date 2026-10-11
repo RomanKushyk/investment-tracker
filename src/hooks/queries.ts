@@ -22,7 +22,7 @@ import {
   type ViewBody,
 } from '@quirenote/core/view/serve';
 import { useT } from '../i18n/useT';
-import { repo } from '../lib/api';
+import { repo, settingsCopy } from '../lib/api';
 import {
   ApiError,
   type BalancesData,
@@ -169,6 +169,12 @@ export function useDayQuotes(date: string, today: DayQuotes): { day: DayQuotes; 
   if (!carried) throwFailedFirstRead(data, error);
   const empty = useMemo(() => emptyDay(date), [date]);
   return { day: carried ? today : (data ?? empty), pending: !carried && data === undefined };
+}
+
+/** The device's copy of the account's settings sends its changes while the portfolio shell is
+ *  mounted: the pages without it have no account to send to. Mounted once, where the shell is. */
+export function useSettingsCopy(): void {
+  useEffect(() => settingsCopy.start(), []);
 }
 
 /** The view is cut at the caller's day, so a new day is a new view: read again when the clock finds

@@ -12,6 +12,7 @@ import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { viewBody } from '@quirenote/core/view/serve';
 import { fakeApi, type FakeApi } from '../__fixtures__/fake-api';
+import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from '../app/nav-ids';
 import { uk } from '../i18n/messages';
 
 const SEED = buildSeedBackup('2026-07-28T12:00:00');
@@ -49,12 +50,17 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => void kept.delete(k),
 });
 vi.stubGlobal('__APP_VERSION__', '0.0.0');
-// jsdom lays nothing out and answers no media query.
+// jsdom lays nothing out and answers no media query: the breakpoint is the one a test moves.
+const breakpoint = { desktop: true, listeners: new Set<() => void>() };
 vi.stubGlobal('matchMedia', (query: string) => ({
-  matches: query.includes('min-width'),
+  get matches() {
+    return query.includes('min-width') && breakpoint.desktop;
+  },
   media: query,
-  addEventListener() {},
-  removeEventListener() {},
+  addEventListener: (_: string, listener: () => void) => {
+    if (query.includes('min-width')) breakpoint.listeners.add(listener);
+  },
+  removeEventListener: (_: string, listener: () => void) => breakpoint.listeners.delete(listener),
   addListener() {},
   removeListener() {},
   dispatchEvent: () => false,
@@ -75,7 +81,8 @@ afterAll(() => vi.unstubAllGlobals());
 // test's timeout.
 const { routes } = await import('../routes');
 const { useDraft } = await import('../state/draft');
-const { VIEW_STALE_MS } = await import('../hooks/queries');
+const { useSettings } = await import('../state/settings');
+const { VIEW_STALE_MS, viewKey } = await import('../hooks/queries');
 
 beforeEach(() => {
   api = fakeApi(rowsOfSeed(), { today: TODAY });
@@ -85,6 +92,8 @@ afterEach(() => {
   vi.useRealTimers();
   // A test that opens the quotes form on a past day leaves the draft on that day.
   useDraft.setState(useDraft.getInitialState(), true);
+  useSettings.setState(useSettings.getInitialState(), true);
+  breakpoint.desktop = true;
 });
 
 async function open(path: string) {
@@ -289,5 +298,158 @@ describe('a page shown again', () => {
       .total;
     expect(after).not.toBe(before);
     await waitFor(() => expect(document.body.textContent).toContain(makeFormat('uk').money(after)));
+  });
+});
+
+describe('the shell and the account’s settings', () => {
+  const patches = () => api.seen.filter((r) => r.method === 'PATCH');
+
+  it('sends a change made while it is mounted as a merge patch naming the field', async () => {
+    await open('/overview');
+
+    act(() => useSettings.getState().setPeriod('3m'));
+
+    await waitFor(() => expect(patches()).toHaveLength(1), { timeout: 3_000 });
+    expect(patches()[0].body).toBe(JSON.stringify({ period: '3m' }));
+  });
+
+  it('sends nothing for a change made once it has gone', async () => {
+    await open('/overview');
+    cleanup();
+
+    useSettings.getState().setPeriod('3m');
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    expect(patches()).toEqual([]);
+  });
+});
+
+describe('a page the account’s answer changes the settings of', () => {
+  /** The account's settings change under a page that is open, and the view is read again. */
+  async function answers(client: QueryClient, settings: object) {
+    api.settings = JSON.stringify(settings);
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: viewKey });
+    });
+    await settle(client);
+  }
+
+  const leadField = () => document.getElementById('reminder-lead-days') as HTMLInputElement;
+
+  it('moves no focus when the first answer collapses the rail', async () => {
+    useSettings.setState({ sidebarCollapsed: false });
+    api.settings = JSON.stringify({ sidebarCollapsed: true });
+
+    await open('/settings');
+
+    expect(useSettings.getState().sidebarCollapsed).toBe(true);
+    expect(document.activeElement?.tagName).toBe('BODY');
+  });
+
+  it('moves no focus out of a field when a later answer collapses the rail', async () => {
+    api.settings = JSON.stringify({ sidebarCollapsed: false });
+    const { client } = await open('/settings');
+    leadField().focus();
+    expect(document.activeElement?.id).toBe('reminder-lead-days');
+
+    await answers(client, { sidebarCollapsed: true });
+
+    expect(useSettings.getState().sidebarCollapsed).toBe(true);
+    expect(document.activeElement?.id).toBe('reminder-lead-days');
+  });
+
+  it('names no control for a change that leaves the rail where it was, though focus is in the sidebar', async () => {
+    useSettings.setState({ sidebarCollapsed: true });
+    api.settings = JSON.stringify({ sidebarCollapsed: true });
+    const { client } = await open('/settings');
+    document.getElementById(NAV_TRIGGER_ID)?.focus();
+    expect(document.activeElement?.closest('#app-sidebar')).not.toBeNull();
+    act(() => useSettings.getState().setCurrency('USD'));
+    // Below the breakpoint the header's burger carries the id the rail's did.
+    breakpoint.desktop = false;
+    await act(async () => breakpoint.listeners.forEach((listener) => listener()));
+    expect(document.getElementById('app-sidebar')).toBeNull();
+    leadField().focus();
+
+    await answers(client, { sidebarCollapsed: false });
+
+    expect(useSettings.getState().sidebarCollapsed).toBe(false);
+    expect(document.activeElement?.id).toBe('reminder-lead-days');
+  });
+
+  it('moves focus to the rail’s control when a later answer collapses the rail under the panel’s collapse control', async () => {
+    api.settings = JSON.stringify({ sidebarCollapsed: false });
+    const { client } = await open('/settings');
+    document.getElementById(SIDEBAR_COLLAPSE_ID)?.focus();
+    expect(document.activeElement?.id).toBe(SIDEBAR_COLLAPSE_ID);
+
+    await answers(client, { sidebarCollapsed: true });
+
+    expect(useSettings.getState().sidebarCollapsed).toBe(true);
+    expect(document.activeElement?.id).toBe(NAV_TRIGGER_ID);
+  });
+
+  it('moves focus to the rail’s control when a later answer collapses the rail under a link of the panel', async () => {
+    api.settings = JSON.stringify({ sidebarCollapsed: false });
+    const { client } = await open('/settings');
+    (document.querySelector('#app-sidebar a') as HTMLElement).focus();
+    expect(document.activeElement?.closest('#app-sidebar')).not.toBeNull();
+
+    await answers(client, { sidebarCollapsed: true });
+
+    expect(document.activeElement?.id).toBe(NAV_TRIGGER_ID);
+  });
+
+  it('moves focus to the panel’s collapse control when a later answer expands the rail under the rail’s control', async () => {
+    useSettings.setState({ sidebarCollapsed: true });
+    api.settings = JSON.stringify({ sidebarCollapsed: true });
+    const { client } = await open('/settings');
+    document.getElementById(NAV_TRIGGER_ID)?.focus();
+    expect(document.activeElement?.id).toBe(NAV_TRIGGER_ID);
+
+    await answers(client, { sidebarCollapsed: false });
+
+    expect(useSettings.getState().sidebarCollapsed).toBe(false);
+    expect(document.activeElement?.id).toBe(SIDEBAR_COLLAPSE_ID);
+  });
+
+  it('moves focus to the control that replaces the one the person pressed', async () => {
+    await open('/settings');
+
+    fireEvent.click(document.getElementById(SIDEBAR_COLLAPSE_ID) as HTMLElement);
+    await waitFor(() => expect(document.activeElement?.id).toBe(NAV_TRIGGER_ID));
+    fireEvent.click(document.getElementById(NAV_TRIGGER_ID) as HTMLElement);
+
+    await waitFor(() => expect(document.activeElement?.id).toBe(SIDEBAR_COLLAPSE_ID));
+  });
+
+  it('shows the lead time of the first answer, not the copy’s', async () => {
+    useSettings.setState({ reminderLeadDays: 21 });
+    api.settings = JSON.stringify({ reminderLeadDays: 14 });
+
+    await open('/settings');
+
+    expect(useSettings.getState().reminderLeadDays).toBe(14);
+    expect(leadField().value).toBe('14');
+  });
+
+  it('shows the lead time of a later answer, and drops an entry the field refused', async () => {
+    const { client } = await open('/settings');
+    fireEvent.change(leadField(), { target: { value: 'x' } });
+    expect(leadField().getAttribute('aria-invalid')).toBe('true');
+
+    await answers(client, { reminderLeadDays: 14 });
+
+    expect(leadField().value).toBe('14');
+    expect(leadField().getAttribute('aria-invalid')).toBe('false');
+  });
+
+  it('leaves what the person types as typed, where it is a lead time', async () => {
+    await open('/settings');
+
+    fireEvent.change(leadField(), { target: { value: '014' } });
+
+    expect(useSettings.getState().reminderLeadDays).toBe(14);
+    expect(leadField().value).toBe('014');
   });
 });

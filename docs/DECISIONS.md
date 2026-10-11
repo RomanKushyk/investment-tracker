@@ -64,8 +64,8 @@ every one.
 ## Persistence today
 **Decision.** The portfolio is the server's. The app reads it over the API into memory and writes
 it through `repository.ts`, the one client of the user API (*Cloud target*), and keeps none of it
-between loads: a sign-out empties the memory, the tag a write goes under and the quote draft's
-stored keys (*Auth model*), and the transport asks the browser's HTTP cache to store no answer,
+between loads: a sign-out empties the memory, the tag a write goes under, a settings change not yet
+sent and the quote draft's stored keys (*Auth model*), and the transport asks the browser's HTTP cache to store no answer,
 since nothing clears that. What the browser's own storage holds is the person's settings, the
 draft of the day's quotes, and the last good Inzhur payload with its parse record, each under a key
 of its own. Every persisted setting joins `partialize` in the commit
@@ -75,23 +75,37 @@ viewport's side of the breakpoint — is DERIVED and stored nowhere. One naming 
 device holds, or offering to defer to what this device's platform answers, is PER-DEVICE and stays
 with that device: a provider payload's cache under a key of its own, and THE THEME, whose `system`
 defers to the OS's colour scheme. The
-rest are a person's choices, and AT THE MIGRATION THEY FOLLOW THE ACCOUNT: the default
+rest are a person's choices, and THEY FOLLOW THE ACCOUNT: the default
 currency, the language, the period, both suggestion switches, the reminder switch and its lead, the
 dismissed reminders with the skipped coupons among them, the collapsed nav groups and the rail. The
 rate a conversion uses is none of them: it is the server's row, which `/view` serves as `fx`
 (*External sources*), and the store holds none. A `dataset` or `usdRate` key a profile still holds,
 from a build that kept one, is read past, and the store's next write leaves it out. `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
-`system | light | dark`, `system` by default, and the resolved colour is never stored. From the
-migration THE DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which the
-account's answer overwrites on every load, because a paint comes before that answer: the shell's
-first render reads the rail, and a signed-out page has no account at all, so there the copy is what
-applies and the signed-out bar's language control writes it. THE ACCOUNT'S SETTINGS ARE ONE NULLABLE
+`system | light | dark`, `system` by default, and the resolved colour is never stored. THE
+DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which EVERY `/view` ANSWER
+overwrites, the theme excepted, because a paint comes before that answer: the shell's first render
+reads the rail, and a signed-out page has no account at all, so there the copy is what applies and
+the signed-out bar's language control writes it and nothing else. A CHANGE WRITES THE COPY AT ONCE
+and reaches the account as `PATCH /settings` naming only the fields that changed, sent once changes
+have been quiet for `SETTINGS_PATCH_DELAY_MS` and one write at a time (`settings-copy.ts`), and the
+screen never waits on it. A FIELD IS THE DEVICE'S, NOT THE ACCOUNT'S, from its change until the answer
+to the write that carried it, and for any read begun before that answer, which may have been
+answered before the write landed and would put back what the person has just chosen. A write that
+fails leaves the copy, and the next answer restores the account's. A LIST CHANGED BEFORE THE ACCOUNT
+HAS ANSWERED IS NOT SENT: it goes whole, and would carry the rest of a list that may be the last
+account's, so the answer replaces it. A signed-out page has no token and sends nothing. The end of an
+account, by a sign-out or by a session that turns out to be another account's, leaves the copy and
+drops a change not yet sent, so the next account's first answer overwrites the copy, and the copy
+never fills an account. AN ANSWER CAN MOVE A SETTING UNDER A SCREEN THAT IS MOUNTED, so the lead time
+field reads the store again when the answer moves it, and the rail's focus handoff follows a press and a
+move of the rail under focus held in the sidebar, which takes the focused control away, so an answer
+leaves focus anywhere else where it is. THE ACCOUNT'S SETTINGS ARE ONE NULLABLE
 TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their defaults; A WRITE MERGES THE
 FIELDS IT NAMES onto those stored and leaves the rest as they are, `PATCH /settings` being that
 write and `/view` the read (*Cloud target*); and the sanitiser of those fields, `migrateSettings`'
 rule for each, is core's (`settings.ts`), so both sides run it: the server on a write and on the
 read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member is the default currency alone, with no per-device field and no
-rate: a restore the person opts into sets it, the device's today and from the migration the account's.
+rate: a restore the person opts into sets it as any other change of it does.
 The JSON backup envelope names no dataset, no database version and no rate, and refuses a newer, an
 older and an unreadable version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
 `inzhur` — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
@@ -165,6 +179,18 @@ are one more column on a row already read. A column added later on DSQL arrives 
 and a default or a `NOT VALID` CHECK follows as a statement of its own, never a NOT NULL
 (`infra/docs/dsql-constraints.md`), so a typed column per setting makes every new setting a
 migration where a text column makes it none — persist doctrine's third rule, kept on the server.
+A run of changes is one choice, so a change waits for the quiet and is sent once; the wait is the
+interval in which the route's throttle refills a token, so a run cannot send faster than the route
+takes. Mastodon's web client saves its settings behind a debounce of its own and sends nothing for a
+caller who is not signed in. The wait is trailing only, where Mastodon's also fires at the first
+change: a leading edge would be a second request for every run. The answer is held off the fields
+the person has touched as TanStack Query's guide to optimistic updates cancels outgoing refetches,
+"so they don't overwrite our optimistic update", except that the view's read is not cancelled: the
+first read of a page has nothing to fall back to, and one cancelled would leave it with no answer.
+The overwrite is by field, and by the account's answer and not by what it changed since the last,
+because a write that failed has to be put right by the next answer, which a comparison with the last
+would not see. A merge patch replaces an array whole, so a list changed on a copy that is still the
+last account's would carry that account's remaining entries to this one.
 **Rejected.** A library's own dump format: the envelope has to be app-owned, human-readable and
 domain-validated. · Preserving unknown keys through the round trip, as a relay does: it becomes
 right the day the backup carries data between two builds as a sync or merge channel, where a
@@ -195,7 +221,12 @@ device's platform gives for itself, the owner ruled it the device's, and with `s
 person who never picks one sees each device's own. · A copy of the language alone: the rail and the
 nav groups also paint before the account answers. · Filling an empty account from the device's copy:
 the copy outlives a sign-out, so a new account on that device would inherit the last one's choices
-and, in its skipped coupons, that account's asset ids. · A settings table of typed columns, GitLab's
+and, in its skipped coupons, that account's asset ids. · Cancelling the view's read when a setting
+changes: a page's first read would be left with no answer. · Putting only what the account changed
+since its last answer on the copy: a write that failed would never be put right. · A leading edge on
+the wait: a run of changes would cost two requests. · Keeping a list changed before the first answer, by
+putting its changed key on the answer's list: the copy would compare two lists to find the key, for a
+change made in the moments before the answer. · A settings table of typed columns, GitLab's
 and Discourse's shape: each new setting becomes a migration, its default and its CHECK each a
 further statement and the CHECK only `NOT VALID`, to hold what the sanitiser already holds on every
 read. · `jsonb` for the column: supported with no index, nothing queries inside the settings, and a
@@ -1396,9 +1427,10 @@ all its attempts, so an answer lost in transit finds the 200 the server stored. 
 returned with the answer and acted on by nothing: `pnpm dev` defines the build's from the local
 checkout and proxies to the deployed API, so on a branch the deploy lacks a reload on a difference
 would not end. A SIGN-OUT THE RELAY HAS ANSWERED, OR AN ACCOUNT CHANGE, EMPTIES WHAT THE PAGE HOLDS OF THE ACCOUNT:
-the query cache, the tag a write goes under and the quote draft with its stored keys, by one wire
-(`src/lib/api.ts`) whichever control began it, so the next account on the page reads its own and
-finds none of the last one's. The repository forgets first, because the reset starts the screens'
+the query cache, the tag a write goes under, a settings change not yet sent and the quote draft with
+its stored keys, by one wire (`src/lib/api.ts`) whichever control began it, so the next account on
+the page reads its own and finds none of the last one's. The device's copy of the settings stays,
+and the next account's first answer overwrites it (*Persistence today*). The repository forgets first, because the reset starts the screens'
 reads at once and they are the next account's. What it began for the account ends with it: a write
 still waiting its turn, an asset delete between its steps or an import between its parts sends
 nothing more, and an answer to any of its calls, a read's included, that comes after is returned as

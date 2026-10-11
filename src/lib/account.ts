@@ -6,7 +6,8 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { Session } from '../auth/session';
 import { useDraft } from '../state/draft';
 
-/** Every figure held in memory, the tag a write goes under, and the draft with its stored keys. */
+/** Every figure held in memory, the tag a write goes under, a settings change not yet sent, and the
+ *  draft with its stored keys. */
 export function forgetAccount(client: QueryClient, repo: { forget(): void }): void {
   // First: the reset starts the screens' reads at once, and they are the next account's.
   repo.forget();

@@ -161,13 +161,24 @@ function LeadDaysField() {
   const t = useT();
   const { reminderLeadDays, setReminderLeadDays } = useSettings();
   const [raw, setRaw] = useState(() => inputValue(reminderLeadDays));
+  // The lead time the field last agreed with the store on: the person's own entry or the account's.
+  const [agreed, setAgreed] = useState(reminderLeadDays);
   const [error, setError] = useState(false);
+
+  // The account's answer can move the lead time under a mounted field (*Persistence today*), so the
+  // field reads it again, ADJUSTED DURING RENDER like the drawer's close in `Layout`.
+  if (agreed !== reminderLeadDays) {
+    setAgreed(reminderLeadDays);
+    setRaw(inputValue(reminderLeadDays));
+    setError(false);
+  }
 
   function handleChange(value: string) {
     setRaw(value);
     const days = parseLeadDays(value);
     if (days !== null) {
       setError(false);
+      setAgreed(days);
       setReminderLeadDays(days);
     } else {
       setError(value.trim() !== '');
