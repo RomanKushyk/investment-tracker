@@ -79,7 +79,7 @@ const COMMITTED = derived({
   statusCode: 200,
   name: 'committed',
   headers: ['etag'],
-  example: { etag: '"<data_version>"' },
+  example: { etag: '"<digest of the account and its data_version>"' },
 });
 const ABORTED = bodiless({ statusCode: 204, name: 'aborted', headers: [] });
 const TOO_MANY_PART_ROWS = derived({
@@ -595,9 +595,10 @@ async function commit(deps: ImportDeps, userId: string, event: ApiEvent): Promis
       )
     ).rows;
     // The commit landed already, under an error or with its answer lost: AIP-155 answers it again.
-    if (p.live === id) return dataTag(p.data_version);
+    const current = dataTag(userId, p.data_version);
+    if (p.live === id) return current;
     if (p.staged !== id) throw new Refusal(NO_SUCH_IMPORT);
-    if (!strongMatch(ifMatch, dataTag(p.data_version))) throw new Refusal(PRECONDITION_FAILED);
+    if (!strongMatch(ifMatch, current)) throw new Refusal(PRECONDITION_FAILED);
     const [manifest] = (await client.query<Manifest>(TOUCH, [userId, id, IDLE_LIMIT])).rows;
     if (manifest === undefined) throw new Refusal(NO_SUCH_IMPORT);
     const mismatch = (field: string, expected: unknown, actual: unknown) =>
@@ -622,7 +623,7 @@ async function commit(deps: ImportDeps, userId: string, event: ApiEvent): Promis
     }
     const moved = await client.query<{ data_version: string }>(MOVE, [userId, p.data_version, id]);
     if (moved.rows.length === 0) throw new Refusal(PRECONDITION_FAILED);
-    return dataTag(moved.rows[0].data_version);
+    return dataTag(userId, moved.rows[0].data_version);
   });
   return respond(COMMITTED, { etag }, JSON.stringify({ etag }));
 }

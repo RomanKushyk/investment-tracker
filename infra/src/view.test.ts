@@ -33,6 +33,7 @@ import { handler as capture } from './capture';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult, EmptyResult } from './http';
+import { dataTag } from './ledger';
 import type { SqlClient } from './migrate';
 import type { StoredRate } from './official-rate';
 import { proveRouteContract, recorder } from './route-contract';
@@ -64,6 +65,17 @@ vi.mock('@quirenote/core/view/build', async (importOriginal) => {
 
 // Neither six nor the length of any page below: a route that cut its own pages would show it.
 vi.mock('@quirenote/core/view/balances-page', () => ({ BALANCES_PAGE_SIZE: 5 }));
+
+// A pass-through until a test turns the scheme: a salt in front of the version stands for a deploy
+// that builds the write's strong tag another way.
+const tagScheme = vi.hoisted(() => ({ salt: '' }));
+vi.mock('./ledger', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./ledger')>();
+  return {
+    ...actual,
+    dataTag: (userId: string, version: string) => actual.dataTag(userId, tagScheme.salt + version),
+  };
+});
 
 const { observed, record } = recorder(ROUTE);
 const view = async (deps: ViewDeps, event: ApiEvent) => record(event, await viewRoute(deps, event));
@@ -214,6 +226,7 @@ beforeEach(async () => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+  tagScheme.salt = '';
 });
 
 const byDateThenId = (a: Transaction, b: Transaction) =>
@@ -265,7 +278,7 @@ describe('a signed-in caller gets every figure in one answer', () => {
       today: dayQuotes(transactions, witnessed, TODAY),
       deleteCounts: deleteCounts(assets, transactions, user),
       settings: SETTINGS_DEFAULTS,
-      etag: '"0"',
+      etag: dataTag(SUB, '0'),
     };
     expect(numbers(expected).every(Number.isFinite)).toBe(true);
     const res = (await view(deps(), event())) as ApiResult;
@@ -357,9 +370,36 @@ describe('the read’s validator', () => {
   it('carries the write’s strong tag in its body, apart from its own weak one', async () => {
     const etagOf = async () =>
       (JSON.parse(((await view(deps(), event())) as ApiResult).body) as { etag: string }).etag;
-    expect(await etagOf()).toBe('"0"');
+    expect(await etagOf()).toBe(dataTag(SUB, '0'));
     await db.query('UPDATE app_user SET data_version = data_version + 1 WHERE user_id = $1', [SUB]);
-    expect(await etagOf()).toBe('"1"');
+    expect(await etagOf()).toBe(dataTag(SUB, '1'));
+  });
+
+  // A deploy that builds that tag another way moves no other input. The held validator must still
+  // miss, or the answer is a 304 whose tab keeps a tag no write matches.
+  it('moves with how the write’s strong tag is built: a held validator is answered in full', async () => {
+    const read = async (headers: Record<string, string> = {}) =>
+      (await view(deps(), event(headers))) as ApiResult;
+    const held = await read();
+    tagScheme.salt = 'rebuilt:';
+    const again = await read({ 'if-none-match': held.headers.etag });
+    expect(again.statusCode).toBe(200);
+    const [before, after] = [held, again].map((r) => (JSON.parse(r.body) as { etag: string }).etag);
+    expect(after).toBe(dataTag(SUB, '0'));
+    expect(after).not.toBe(before);
+  });
+
+  it('names the account in that strong tag: two people with identical rows share none', async () => {
+    await insertUser(db, TWIN, TWIN_EMAIL);
+    await writeLedger(db, TWIN, LEDGER);
+    const etagOf = async (e = event()) =>
+      (JSON.parse(((await view(deps(), e)) as ApiResult).body) as { etag: string }).etag;
+    const [mine, theirs] = [await etagOf(), await etagOf(event({}, TWIN, TWIN_EMAIL))];
+    const versions = await db.query<{ v: string }>(
+      'SELECT DISTINCT data_version::text AS v FROM app_user',
+    );
+    expect(versions.rows).toEqual([{ v: '0' }]);
+    expect(theirs).not.toBe(mine);
   });
 
   it('moves with the archive rows the ledger reads', async () => {

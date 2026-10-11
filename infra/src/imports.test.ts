@@ -27,7 +27,7 @@ import {
   RESPONSES,
   imports,
 } from './imports';
-import { readLedger } from './ledger';
+import { dataTag, readLedger } from './ledger';
 import type { SqlClient } from './migrate';
 import {
   MUTATIONS_ROUTE,
@@ -163,15 +163,14 @@ const caller = (sub = SUB, email = EMAIL) => ({
   authorizer: { jwt: { claims: { token_use: 'id', sub, email } } },
 });
 
-const tag = async () =>
-  `"${
-    (
-      await db.query<{ v: string }>(
-        'SELECT data_version::text AS v FROM app_user WHERE user_id = $1',
-        [SUB],
-      )
-    ).rows[0].v
-  }"`;
+const version = async () =>
+  (
+    await db.query<{ v: string }>(
+      'SELECT data_version::text AS v FROM app_user WHERE user_id = $1',
+      [SUB],
+    )
+  ).rows[0].v;
+const tag = async () => dataTag(SUB, await version());
 
 type Who = { sub?: string; email?: string };
 
@@ -400,6 +399,34 @@ describe('the commit', () => {
     // Still open: under the current tag it lands.
     expect((await commit(id)).statusCode).toBe(200);
     expect(await state()).toEqual(NEW);
+  });
+
+  // Both counters start at 0, so only the account can part the two tags.
+  it('is refused 412 under another account’s tag though both versions are equal, and stays open', async () => {
+    await insertUser(db, TWIN, TWIN_EMAIL);
+    await writeLedger(db, TWIN, { assets: [], transactions: [], userPrices: [] });
+    const theirs = { sub: TWIN, email: TWIN_EMAIL };
+    const tagOf = async (who: Who = {}) => {
+      const event: ApiEvent = {
+        routeKey: STATE_ROUTE,
+        headers: {},
+        requestContext: caller(who.sub, who.email),
+      };
+      return ((await stateRoute(deps(), event)) as ApiResult).headers.etag;
+    };
+    const versions = await db.query<{ v: string }>(
+      'SELECT DISTINCT data_version::text AS v FROM app_user',
+    );
+    expect(versions.rows).toEqual([{ v: '0' }]);
+    const begun = (await send(beginEvent(JSON.stringify(manifestOf([])), theirs))) as ApiResult;
+    const id = (JSON.parse(begun.body) as { id: string }).id;
+
+    expect(answer(await send(commitEvent(id, await tagOf(), theirs)))).toEqual([
+      412,
+      { error: 'precondition_failed' },
+    ]);
+    // Still open: under its own tag it lands.
+    expect((await send(commitEvent(id, await tagOf(theirs), theirs))).statusCode).toBe(200);
   });
 
   it.each([null, '*'])(
@@ -1070,14 +1097,14 @@ describe('a route sent again after a serialization failure', () => {
     const parts = partsOf(NEW, 25);
     const id = await begin(parts);
     for (const [i, part] of parts.entries()) await stage(id, i + 1, part);
-    const before = Number((await tag()).slice(1, -1));
+    const next = dataTag(SUB, String(Number(await version()) + 1));
     const { client, sent } = refusingCommit(db, '40001', {
       after: /SET dataset_id = import_dataset_id/,
       lands: true,
     });
     const res = await commit(id, undefined, deps({ user: client }));
-    expect(answer(res)).toEqual([200, { etag: `"${before + 1}"` }]);
-    expect(await tag()).toBe(`"${before + 1}"`);
+    expect(answer(res)).toEqual([200, { etag: next }]);
+    expect(await tag()).toBe(next);
     expect(sent.filter((q) => q === 'BEGIN').length).toBeGreaterThan(1);
     expect(await state()).toEqual(NEW);
   });

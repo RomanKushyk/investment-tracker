@@ -72,7 +72,7 @@ const VIEWED = derived({
     },
     deleteCounts: { '<asset id>': { transactions: 3, quoteDays: 174 } },
     settings: SETTINGS_DEFAULTS,
-    etag: '"<data_version>"',
+    etag: '"<digest of the account and its data_version>"',
   },
 });
 const SERIES = derived({
@@ -277,13 +277,13 @@ const tagOf = (inputs: readonly unknown[]): string =>
 
 type Headers = { etag: string; 'cache-control': string; 'derivation-id': string };
 /** A route's part of the read: what joins the tag, so no period, page or day validates another, and
- *  its 200 from the rows read, the rate served and the write's version. */
+ *  its 200 from the rows read, the rate served and the write's strong tag. */
 type Route = {
   variant: readonly unknown[];
   answer: (
     rows: ServedRows,
     fx: StoredRate | undefined,
-    dataVersion: string,
+    writeTag: string,
     headers: Headers,
   ) => ApiResult;
 };
@@ -295,7 +295,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
         // The account's settings as served, so another device is answered in full after a change
         // and a write that serves the same ones moves nothing.
         variant: [settings],
-        answer: (rows, fx, dataVersion, headers) =>
+        answer: (rows, fx, writeTag, headers) =>
           respond(
             VIEWED,
             headers,
@@ -303,7 +303,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
             JSON.stringify({
               ...viewBody({ ...rows, fx }),
               settings,
-              etag: dataTag(dataVersion),
+              etag: writeTag,
             }),
           ),
       }));
@@ -378,9 +378,12 @@ async function read(
     }
     if (archived.status === 'rejected') throw archived.reason;
     const [fx, archive] = [rated.value, archived.value];
+    // The write's strong tag, which /view's body carries: a change to how it is built must move
+    // the read's validator, or a 304 hands back a tag no write matches.
+    const writeTag = dataTag(gate.caller.userId, ledger.dataVersion);
     const etag = tagOf([
       gate.caller.userId,
-      ledger.dataVersion,
+      writeTag,
       archive?.digest ?? null,
       archive?.datesDigest ?? null,
       fx?.rate ?? null,
@@ -405,7 +408,7 @@ async function read(
       paymentDates: archive?.dates ?? [],
       today,
     };
-    return route.answer(rows, fx, ledger.dataVersion, {
+    return route.answer(rows, fx, writeTag, {
       etag,
       'cache-control': CACHE_POLICY,
       'derivation-id': deps.derivationId,

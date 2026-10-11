@@ -16,6 +16,7 @@ import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-le
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult, EmptyResult } from './http';
+import { dataTag } from './ledger';
 import type { SqlClient } from './migrate';
 import {
   CLAIM_WINDOW_SECONDS,
@@ -124,7 +125,8 @@ const version = async () =>
       [SUB],
     )
   ).rows[0].v;
-const tag = async () => `"${await version()}"`;
+const tagAt = (version: string, sub = SUB) => dataTag(sub, version);
+const tag = async () => tagAt(await version());
 
 type Send = {
   /** A fresh key unless named; `null` sends none. */
@@ -240,8 +242,8 @@ describe('a batch of ops', () => {
       addTx(deposit(10)),
       addTx(buy(11, 1, '2026-03-02', 1000, 10)),
     ]);
-    expect(answer(res)).toEqual([200, { etag: '"1"', results: [{}, {}, {}] }]);
-    expect(res.headers.etag).toBe('"1"');
+    expect(answer(res)).toEqual([200, { etag: tagAt('1'), results: [{}, {}, {}] }]);
+    expect(res.headers.etag).toBe(tagAt('1'));
     const s = await state();
     expect(s.assets).toEqual([asset(1)]);
     expect(s.transactions).toEqual([deposit(10), buy(11, 1, '2026-03-02', 1000, 10)]);
@@ -763,13 +765,13 @@ describe('deleting an asset larger than one request', () => {
 describe('the precondition', () => {
   it('refuses a stale tag 412 and changes nothing', async () => {
     await OK([addTx(deposit(1))]);
-    const res = await post([addTx(deposit(2)), { op: 'dataset.clear' }], { ifMatch: '"0"' });
+    const res = await post([addTx(deposit(2)), { op: 'dataset.clear' }], { ifMatch: tagAt('0') });
     expect(answer(res)).toEqual([412, { error: 'precondition_failed' }]);
     expect([await live('transaction'), await version(), await keyRows()]).toEqual([1, '1', 1]);
   });
 
   it('passes a list that holds the current tag anywhere', async () => {
-    await OK([addTx(deposit(1))], { ifMatch: '"7", "0"' });
+    await OK([addTx(deposit(1))], { ifMatch: `"7", ${tagAt('0')}` });
   });
 
   it('takes the tag /view’s body carries, and answers the next one', async () => {
@@ -784,14 +786,41 @@ describe('the precondition', () => {
     const read = (await view(viewDeps, viewEvent)) as ApiResult;
     const { etag } = JSON.parse(read.body) as { etag: string };
     const written = await OK([addTx(deposit(1))], { ifMatch: etag });
-    expect(written.etag).toBe('"1"');
+    expect(written.etag).toBe(tagAt('1'));
     expect(answer(await post([addTx(deposit(2))], { ifMatch: etag }))[0]).toBe(412);
+  });
+
+  // A tag read under one account and sent under another's token is the client's error (RFC 9110
+  // §8.8.3: a tag validates one resource's representations), and the tag is what lets the server
+  // tell. Both counters start at 0, so only the account can part the two tags.
+  it('refuses another account’s tag 412 though both versions are equal, and changes nothing', async () => {
+    await insertUser(db, TWIN, TWIN_EMAIL);
+    await writeLedger(db, TWIN, { assets: [], transactions: [], userPrices: [] });
+    const twin = { sub: TWIN, email: TWIN_EMAIL };
+    const read = async (who: { sub?: string; email?: string } = {}) =>
+      (await get({}, who.sub, who.email)) as ApiResult;
+    const [mine, theirs] = [(await read()).headers.etag, (await read(twin)).headers.etag];
+    const versions = await db.query<{ v: string }>(
+      'SELECT DISTINCT data_version::text AS v FROM app_user',
+    );
+    expect(versions.rows).toEqual([{ v: '0' }]);
+
+    const refused = await post([addTx(deposit(1))], { ifMatch: mine, ...twin });
+    expect(answer(refused)).toEqual([412, { error: 'precondition_failed' }]);
+    const after = await read(twin);
+    expect([after.headers.etag, (JSON.parse(after.body) as State).transactions]).toEqual([
+      theirs,
+      [],
+    ]);
+
+    // Under its own tag the same write lands.
+    expect((await post([addTx(deposit(1))], { ifMatch: theirs, ...twin })).statusCode).toBe(200);
   });
 
   it('moves a version past 2^53 as text', async () => {
     await db.query('UPDATE app_user SET data_version = 9007199254740993 WHERE user_id = $1', [SUB]);
-    expect((await OK([addTx(deposit(1))], { ifMatch: '"9007199254740993"' })).etag).toBe(
-      '"9007199254740994"',
+    expect((await OK([addTx(deposit(1))], { ifMatch: tagAt('9007199254740993') })).etag).toBe(
+      tagAt('9007199254740994'),
     );
   });
 });
@@ -799,8 +828,8 @@ describe('the precondition', () => {
 describe('the idempotency key', () => {
   it('replays a completed request rather than applying it twice', async () => {
     const key = randomUUID();
-    const first = await post([addTx(deposit(1))], { key, ifMatch: '"0"' });
-    const again = await post([addTx(deposit(1))], { key, ifMatch: '"0"' });
+    const first = await post([addTx(deposit(1))], { key, ifMatch: tagAt('0') });
+    const again = await post([addTx(deposit(1))], { key, ifMatch: tagAt('0') });
     expect(again.statusCode).toBe(200);
     expect([again.body, again.headers.etag]).toEqual([first.body, first.headers.etag]);
     expect([await live('transaction'), await version()]).toEqual([1, '1']);
@@ -810,7 +839,7 @@ describe('the idempotency key', () => {
     const key = randomUUID();
     await OK([addTx(deposit(1))], { key });
     // The tag the first request sent is stale now.
-    expect((await post([addTx(deposit(1))], { key, ifMatch: '"0"' })).statusCode).toBe(200);
+    expect((await post([addTx(deposit(1))], { key, ifMatch: tagAt('0') })).statusCode).toBe(200);
   });
 
   it('replays a body sent with its keys in another order and other spacing', async () => {
@@ -819,7 +848,9 @@ describe('the idempotency key', () => {
     const reordered = `{ "ops" : [ { "transaction": ${JSON.stringify(
       Object.fromEntries(Object.entries(deposit(1)).reverse()),
     )}, "op": "transaction.add" } ] }`;
-    expect((await post(undefined, { key, body: reordered, ifMatch: '"0"' })).statusCode).toBe(200);
+    expect((await post(undefined, { key, body: reordered, ifMatch: tagAt('0') })).statusCode).toBe(
+      200,
+    );
     expect(await live('transaction')).toBe(1);
   });
 
@@ -942,7 +973,8 @@ describe('a serialization failure', () => {
     await OK([addTx(deposit(1))]);
     const { client, sent } = watching();
     expect(
-      (await post([addTx(deposit(2))], { ifMatch: '"0"', d: deps({ user: client }) })).statusCode,
+      (await post([addTx(deposit(2))], { ifMatch: tagAt('0'), d: deps({ user: client }) }))
+        .statusCode,
     ).toBe(412);
     expect(slept).toEqual([]);
     expect(sent.filter((s) => s === 'BEGIN')).toHaveLength(2);
@@ -954,7 +986,7 @@ describe('a serialization failure', () => {
       lands: true,
     });
     const res = await post([addTx(deposit(1))], { d: deps({ user: client }) });
-    expect(answer(res)).toEqual([200, { etag: '"1"', results: [{}] }]);
+    expect(answer(res)).toEqual([200, { etag: tagAt('1'), results: [{}] }]);
     expect([await live('transaction'), await version()]).toEqual([1, '1']);
     expect(sent.filter((s) => s === 'BEGIN')).toHaveLength(2);
     expect(slept).toEqual([]);
@@ -997,7 +1029,7 @@ describe('a serialization failure', () => {
       },
     };
     const res = await post([addTx(deposit(1))], { d: deps({ user: late }) });
-    expect(answer(res)).toEqual([200, { etag: '"1"', results: [{}] }]);
+    expect(answer(res)).toEqual([200, { etag: tagAt('1'), results: [{}] }]);
     expect(slept).toEqual([20, 80, 200]);
     expect([await live('transaction'), await version()]).toEqual([1, '1']);
   });
@@ -1024,7 +1056,7 @@ describe('a serialization failure', () => {
       },
     };
     const res = await post([addTx(deposit(1))], { d: deps({ user: flaky }) });
-    expect(answer(res)).toEqual([200, { etag: '"1"', results: [{}] }]);
+    expect(answer(res)).toEqual([200, { etag: tagAt('1'), results: [{}] }]);
     expect([await live('transaction'), await version()]).toEqual([1, '1']);
   });
 
@@ -1098,7 +1130,7 @@ describe('a serialization failure', () => {
       },
     };
     const res = await post([addTx(deposit(1))], { d: deps({ user: late }) });
-    expect(answer(res)).toEqual([200, { etag: '"1"', results: [{}] }]);
+    expect(answer(res)).toEqual([200, { etag: tagAt('1'), results: [{}] }]);
     expect(slept).toEqual([20, 80, 200]);
     expect([await live('transaction'), await version()]).toEqual([1, '1']);
   });
@@ -1309,28 +1341,57 @@ describe('GET /state', () => {
     expect(pinned[0][1]).toBe(Object.keys(await state()).join());
   });
 
+  // The same smoke test keeps the tag its stub account's export wears, by hand: the account is the
+  // one that step names, not this file's.
+  it('answers the tag the deploy smoke test expects', () => {
+    const workflow = readFileSync(
+      new URL('../../.github/workflows/deploy-backend.yml', import.meta.url),
+      'utf8',
+    );
+    const block = workflow.slice(workflow.indexOf("require('./mutations.js')"));
+    const stub = /const SUB = '([^']+)'/.exec(block);
+    if (stub === null) throw new Error('the mutations smoke block names no SUB');
+    const kept = `ok.headers.etag !== '${tagAt('0', stub[1]).replaceAll('"', '\\"')}'`;
+    expect(block).toContain(kept);
+  });
+
   it('answers under the strong tag, kept by no cache', async () => {
     const res = (await get()) as ApiResult;
-    expect([res.headers.etag, res.headers['cache-control']]).toEqual(['"0"', 'private, no-store']);
+    expect([res.headers.etag, res.headers['cache-control']]).toEqual([
+      tagAt('0'),
+      'private, no-store',
+    ]);
   });
 
   it('answers 304 to its own tag, and 412 to a stale If-Match', async () => {
-    const unchanged = await get({ 'if-none-match': '"0"' });
+    const unchanged = await get({ 'if-none-match': tagAt('0') });
     expect(unchanged).toEqual({
       statusCode: 304,
-      headers: { etag: '"0"', 'cache-control': 'private, no-store' },
+      headers: { etag: tagAt('0'), 'cache-control': 'private, no-store' },
     });
-    expect(answer(await get({ 'if-match': '"3"' }))).toEqual([
+    expect(answer(await get({ 'if-match': tagAt('3') }))).toEqual([
       412,
       { error: 'precondition_failed' },
     ]);
     expect((await get({ 'if-match': '*' })).statusCode).toBe(200);
   });
+
+  it('answers another account’s tag with the export, not a 304, and a 412 to its If-Match', async () => {
+    await insertUser(db, TWIN, TWIN_EMAIL);
+    await writeLedger(db, TWIN, { assets: [], transactions: [], userPrices: [] });
+    const mine = ((await get()) as ApiResult).headers.etag;
+    const unchanged = await get({ 'if-none-match': mine }, TWIN, TWIN_EMAIL);
+    const matched = await get({ 'if-match': mine }, TWIN, TWIN_EMAIL);
+    expect([unchanged.statusCode, answer(matched)]).toEqual([
+      200,
+      [412, { error: 'precondition_failed' }],
+    ]);
+  });
 });
 
 describe('the gate', () => {
   const both = async (expected: string) => {
-    const mutated = await post([addTx(deposit(1))], { ifMatch: '"0"' });
+    const mutated = await post([addTx(deposit(1))], { ifMatch: tagAt('0') });
     const read = (await get()) as ApiResult;
     expect([answer(mutated), answer(read)]).toEqual([
       [403, { error: expected }],
@@ -1350,7 +1411,7 @@ describe('the gate', () => {
 
   it('tells a caller with no row that there is no application, on either route', async () => {
     const mutated = await post([addTx(deposit(1))], {
-      ifMatch: '"0"',
+      ifMatch: tagAt('0'),
       sub: TWIN,
       email: TWIN_EMAIL,
     });
@@ -1364,7 +1425,7 @@ describe('the gate', () => {
   it('refuses the demo as a non-caller, on either route', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     const mutated = await post([addTx(deposit(1))], {
-      ifMatch: '"0"',
+      ifMatch: tagAt('0'),
       sub: TWIN,
       email: DEMO_USER_EMAIL,
     });
@@ -1381,7 +1442,10 @@ describe('a failure answers rather than throws', () => {
 
   it('answers a failing database with its own 500, on either route', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const mutated = await post([addTx(deposit(1))], { ifMatch: '"0"', d: deps({ user: broken }) });
+    const mutated = await post([addTx(deposit(1))], {
+      ifMatch: tagAt('0'),
+      d: deps({ user: broken }),
+    });
     const read = await get({}, SUB, EMAIL, deps({ user: broken }));
     expect([answer(mutated), answer(read)]).toEqual([
       [500, { error: 'internal' }],
@@ -1392,7 +1456,7 @@ describe('a failure answers rather than throws', () => {
   it('answers a connection failure with its own 500, on either route', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     for (const event of [
-      await mutationEvent([addTx(deposit(1))], { ifMatch: '"0"' }),
+      await mutationEvent([addTx(deposit(1))], { ifMatch: tagAt('0') }),
       { routeKey: STATE_ROUTE, headers: {}, requestContext: caller() },
     ]) {
       const res = await rawHandler(event);

@@ -1721,7 +1721,7 @@
                         "sidebarCollapsed": false,
                         "period": "all"
                       },
-                      "etag": "\"<data_version>\""
+                      "etag": "\"<digest of the account and its data_version>\""
                     }
                   }
                 }
@@ -2426,7 +2426,7 @@
                 "examples": {
                   "mutated": {
                     "value": {
-                      "etag": "\"<data_version>\"",
+                      "etag": "\"<digest of the account and its data_version>\"",
                       "results": [
                         {},
                         {
@@ -3162,7 +3162,7 @@
                 "examples": {
                   "committed": {
                     "value": {
-                      "etag": "\"<data_version>\""
+                      "etag": "\"<digest of the account and its data_version>\""
                     }
                   }
                 }

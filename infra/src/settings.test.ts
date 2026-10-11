@@ -12,6 +12,7 @@ import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-le
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult } from './http';
+import { dataTag } from './ledger';
 import type { SqlClient } from './migrate';
 import {
   handler as rawHandler,
@@ -297,15 +298,15 @@ describe('a settings write moves no data_version', () => {
   });
 
   it('leaves a write under the tag read before it applying', async () => {
-    const before = `"${await version()}"`;
+    const before = dataTag(SUB, await version());
     await patch({ period: '3m', language: 'en' });
     const res = await mutate(write(before));
-    expect([res.statusCode, res.headers.etag]).toEqual([200, '"1"']);
+    expect([res.statusCode, res.headers.etag]).toEqual([200, dataTag(SUB, '1')]);
   });
 
   it('is left as it was by a write', async () => {
     await patch({ period: '3m' });
-    await mutate(write('"0"'));
+    await mutate(write(dataTag(SUB, '0')));
     expect(await stored()).toBe('{"period":"3m"}');
   });
 

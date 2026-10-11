@@ -1,5 +1,7 @@
 // The caller's rows as core reads them, from this stack's cluster: the schema's vocabulary turned
 // into core's, the inverse of the seam `model-parity.test.ts` holds.
+import { createHash } from 'node:crypto';
+
 import { COLOR_KEYS } from '@quirenote/core/colors';
 import type { Asset, PayoutSchedule, Transaction, TxType, YieldType } from '@quirenote/core/types';
 import type { PriceRow } from '@quirenote/core/valuation';
@@ -129,8 +131,13 @@ export const transactionColumns = (t: Transaction) => [
   t.note ?? null,
 ];
 
-/** `data_version` as the strong tag a write sends back in `If-Match` (RFC 9110 §8.8.3). */
-export const dataTag = (version: string): string => `"${version}"`;
+/** The strong tag a write sends back in `If-Match` (RFC 9110 §8.8.3): the account and its
+ *  `data_version` digested together, so another account's tag at the same version never matches
+ *  and the id itself is not served. */
+export function dataTag(userId: string, version: string): string {
+  const hash = createHash('sha256').update(JSON.stringify([userId, version]), 'utf8');
+  return `"${hash.digest('base64url')}"`;
+}
 
 /** ABSENT IS THE ONLY SPELLING OF NONE in core, so a NULL column leaves its key out. */
 const present = <K extends string, V>(key: K, value: V | null): { [P in K]?: V } =>

@@ -82,7 +82,7 @@ const MUTATED = derived({
   name: 'mutated',
   headers: ['etag'],
   example: {
-    etag: '"<data_version>"',
+    etag: '"<digest of the account and its data_version>"',
     results: [{}, { dropped: ['<asset id>'] }, { remaining: 0 }],
   },
 });
@@ -660,7 +660,7 @@ async function apply(
         await client.query<{ data_version: string }>(VERSION, [userId])
       ).rows;
       // A stale tag is 412, never retried: the rowcount is what makes the write conditional.
-      if (!strongMatch(ifMatch, dataTag(current))) throw new Refusal(PRECONDITION_FAILED);
+      if (!strongMatch(ifMatch, dataTag(userId, current))) throw new Refusal(PRECONDITION_FAILED);
       const valid = validated(ops);
       const bumped = await client.query<{ data_version: string }>(BUMP, [userId, current]);
       if (bumped.rows.length === 0) throw new Refusal(PRECONDITION_FAILED);
@@ -672,7 +672,7 @@ async function apply(
         if (run.used > maxRows) throw new Refusal(tooManyRows(index, run.used, maxRows));
       }
       index = undefined;
-      const etag = dataTag(bumped.rows[0].data_version);
+      const etag = dataTag(userId, bumped.rows[0].data_version);
       const body = JSON.stringify({ etag, results });
       // The effect and the stored response commit together (the Builders' Library's ACID rule).
       if ((await client.query(DONE, [userId, key, token, body])).rows.length === 0) {
@@ -789,7 +789,7 @@ export async function state(
     const gate = await authorize(deps.user, event);
     if ('refusal' in gate) return gate.refusal;
     const ledger = await readLedger(deps.user, gate.caller.userId);
-    const etag = dataTag(ledger.dataVersion);
+    const etag = dataTag(gate.caller.userId, ledger.dataVersion);
     const ifMatch = headerValues(event, 'if-match');
     if (ifMatch.length > 0 && !strongMatch(ifMatch, etag)) return PRECONDITION_FAILED;
     if (weakMatch(headerValues(event, 'if-none-match'), etag)) {

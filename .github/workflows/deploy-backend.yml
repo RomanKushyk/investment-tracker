@@ -427,10 +427,11 @@ jobs:
               console.log('view bundle loads, serves six periods, the editors rows and the stored settings under a weak tag, answers it 304 compared weakly, serves a day under a tag of its own and refuses a date that is no day, refuses a pending caller and opens no archive');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
-          # The export under a strong tag no cache keeps, a bare 304 to it, a write with no or a `*`
-          # precondition refused before its key is claimed, and a pending caller refused; and the
-          # settings patch: a type other than a merge patch refused, a theme refused by name, an empty
-          # patch answered with the defaults and writing nothing, a pending caller refused.
+          # The export under a strong tag that names its account and no cache keeps, a bare 304 to
+          # it, a write with no or a `*` precondition refused before its key is claimed, and a
+          # pending caller refused; and the settings patch: a type other than a merge patch refused,
+          # a theme refused by name, an empty patch answered with the defaults and writing nothing,
+          # a pending caller refused.
           node -e "
             const m = require('./mutations.js');
             if (typeof m.handler !== 'function') throw new Error('handler missing from mutations bundle');
@@ -463,7 +464,7 @@ jobs:
             });
             (async () => {
               const ok = await m.state(deps('active'), read({}));
-              if (ok.statusCode !== 200 || ok.headers.etag !== '\"0\"') throw new Error('the export was not served under its tag: ' + JSON.stringify(ok));
+              if (ok.statusCode !== 200 || ok.headers.etag !== '\"fgAaIgfTnvRtXtOGU4I1GTbu-3si0JHOgMGC9BiVERA\"') throw new Error('the export was not served under its tag: ' + JSON.stringify(ok));
               if (ok.headers['cache-control'] !== 'private, no-store') throw new Error('cache policy: ' + ok.headers['cache-control']);
               if (Object.keys(JSON.parse(ok.body)).join() !== 'assets,transactions,prices') throw new Error('export shape: ' + ok.body);
               const again = await m.state(deps('active'), read({ 'if-none-match': ok.headers.etag }));

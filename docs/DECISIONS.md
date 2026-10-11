@@ -921,10 +921,11 @@ payment dates of its latest `bond_terms` row, each date once, and digests each. 
 dates to the build under the assets linked to that ref as a bond. The
 archive is read for the linked refs from a week before the first transaction on or before the
 caller's day, so the first held day finds the observation before it. TWO VALIDATORS, NEVER ONE:
-the read's tag is WEAK and composed from seven inputs — the caller, `data_version`, a digest of the
-sell rows read, a digest of the payment dates served, the rate served with its day, the Kyiv day and
-the derivation identifier — and `/view`'s adds the caller's settings as served, the one body that
-carries them, while a write's precondition is `data_version` alone. `If-None-Match` compares weakly and `*` matches;
+the read's tag is WEAK and composed from seven inputs — the caller, the write's strong tag, a digest
+of the sell rows read, a digest of the payment dates served, the rate served with its day, the Kyiv
+day and the derivation identifier — and `/view`'s adds the caller's settings as served, the one body that
+carries them, while a write's precondition is the caller and `data_version` alone, as a strong tag. `If-None-Match`
+compares weakly and `*` matches;
 `If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
 `private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
 HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
@@ -959,9 +960,10 @@ same way, `null` removing an asset's price that day, and its `savedAt` is the wi
 prices it writes. A body
 past its byte bound is 413 and more ops than its op bound 400; more mutated rows than its row bound,
 which sits under DSQL's per-transaction ceiling, is 409 `too_many_rows` with the count, as is the
-cluster's own `54000`; each refusal names its bound. The write's precondition is the STRONG tag
-`"<data_version>"`: no `If-Match`, or `*`, is 428, a stale one 412, and the 200 carries the new tag in
-its `etag` header and in its body. `/view`'s body carries the current one as `etag`, beside its own
+cluster's own `54000`; each refusal names its bound. The write's precondition is the STRONG tag, a
+digest of the caller and `data_version` that carries neither: no `If-Match`, or `*`, is 428, a stale
+one 412, another account's too whatever its version, and the 200 carries the new tag in its `etag`
+header and in its body. `/view`'s body carries the current one as `etag`, beside its own
 weak validator. `GET /state` answers the live dataset under that tag, `private, no-store`. A
 SNAPSHOT IS STORED AS PER-UNIT PRICES: `snapshot.patch` sets the price of each asset it quotes,
 dividing the quote by the units held that day and dropping, naming it, one whose units or value is
@@ -1107,7 +1109,17 @@ requires strong comparison for `If-Match`, so one tag serving both would fail ev
 Composing beats hashing the body: §8.8.1 blesses a digest only where it need not be recalculated
 for each validation request, and under `no-cache` each request is one. The caller is an input
 because every `data_version` starts at 0 and RFC 9111 §4.3.1 lets a cache validate a response it
-cannot choose. `must-revalidate` binds only a stale response and lets a shared cache reuse one sent
+cannot choose. The write's strong tag is an input, not `data_version`, so a change to how it is
+built moves every read's validator: a read the held validator still matched would be answered 304,
+and a tab would keep a tag no write matches. The strong tag names the caller too, so a tag read
+under one account and sent under another's token, which a tab whose cookie another tab's sign-in replaced can do, is a 412 rather
+than a write into the wrong dataset: RFC 9110 §8.8.3 gives a tag to the representations of one
+resource, so sending another's is the client's error. The client closes it for a write: `forget()`
+drops the tag the tab holds, and an operation begun for the old account sends nothing after. An
+import commits under the tag of an export read in an earlier operation, which `forget()` does not
+reach, so there the tag is what refuses it. The pair is digested, as the weak tag digests its inputs and as Rails digests the validators it is given, the
+current user's id among those its documentation suggests, so the id is not served in a header CORS
+exposes. `must-revalidate` binds only a stale response and lets a shared cache reuse one sent
 with `Authorization` (RFC 9111 §5.2.2.2). None of AIP-185, Azure's, Zalando's or GitHub's API
 guidelines puts a version in a response body, which can neither route nor cheaply reject; Next.js
 sends its deployment id as a header. A header takes no `X-` (RFC 6648). The dates' digest leaves out the day of their row, which

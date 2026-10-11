@@ -278,8 +278,25 @@ describe('the write half of the vocabulary', () => {
     });
   });
 
-  // RFC 9110 §8.8.3: a strong tag is a quoted opaque string.
-  it('tags a version as the strong tag a write sends back', () => {
-    expect([dataTag('0'), dataTag('9007199254740993')]).toEqual(['"0"', '"9007199254740993"']);
+  describe('the strong tag a write sends back', () => {
+    // RFC 9110 §8.8.3: a quoted opaque string, with no W/ and no backslash.
+    it('is a strong opaque tag that carries no id', () => {
+      const tag = dataTag(OWNER, '0');
+      expect(tag).toMatch(/^"[A-Za-z0-9_-]+"$/);
+      expect(tag).not.toContain(OWNER);
+    });
+
+    it('is the same for the same account and version, and for no other', () => {
+      expect(dataTag(OWNER, '0')).toBe(dataTag(OWNER, '0'));
+      expect(new Set([dataTag(OWNER, '0'), dataTag(OTHER, '0'), dataTag(OWNER, '1')]).size).toBe(3);
+    });
+
+    it('parts a version past 2^53 from its neighbour, as text', () => {
+      expect(dataTag(OWNER, '9007199254740992')).not.toBe(dataTag(OWNER, '9007199254740993'));
+    });
+
+    it('is made from the pair, not from the two run together', () => {
+      expect(dataTag('1', '23')).not.toBe(dataTag('12', '3'));
+    });
   });
 });
