@@ -77,7 +77,7 @@ const TRANSACTIONS: Transaction[] = [
 const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
 
 function envelope(): BackupEnvelope {
-  return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00', 2);
+  return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
 }
 
 // Serialize a hand-mutated envelope for the rejection fixtures.
@@ -102,9 +102,9 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(14);
+    expect(env.formatVersion).toBe(15);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
-    expect(env.dbVersion).toBe(2);
+    expect(Object.keys(env)).not.toContain('dbVersion');
     expect(env.settings).toEqual(SETTINGS);
   });
 
@@ -124,7 +124,6 @@ describe('buildBackup', () => {
       TRANSACTIONS,
       SETTINGS,
       '2026-07-28T12:00:00',
-      2,
     );
     expect(env.assets[2].createdAt).toBe('2026-07-28T09:30:15');
     expect(env.prices[0].observedAt).toBe('2026-07-24T21:14:05');
@@ -133,13 +132,13 @@ describe('buildBackup', () => {
   });
 
   it('omits the settings key entirely when none are passed', () => {
-    const env = buildBackup(ASSETS, PRICES, TRANSACTIONS, undefined, '2026-07-28T12:00:00', 2);
+    const env = buildBackup(ASSETS, PRICES, TRANSACTIONS, undefined, '2026-07-28T12:00:00');
     expect('settings' in env).toBe(false);
     expect(parseBackup(JSON.stringify(env)).ok).toBe(true);
   });
 });
 
-// A key the model retired stays in IndexedDB: a field removal bumps no Dexie version.
+// A row can still carry a key the model retired: a field removal bumps no version.
 function withRetired<T>(row: T, retired: Record<string, unknown>): T {
   return { ...row, ...retired };
 }
@@ -154,7 +153,6 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
       TRANSACTIONS,
       SETTINGS,
       '2026-09-22T12:00:00',
-      2,
     );
     const stored = buildBackup(
       [
@@ -165,7 +163,6 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
       [withRetired(TRANSACTIONS[0], { source: 'savings' }), ...TRANSACTIONS.slice(1)],
       withRetired(SETTINGS, { theme: 'dark' }),
       '2026-09-22T12:00:00',
-      2,
     );
     expect(JSON.stringify(stored)).toBe(JSON.stringify(clean));
     expect(parseBackup(JSON.stringify(stored)).ok).toBe(true);
@@ -205,14 +202,7 @@ describe('buildBackup writes the model’s shape, not the store’s', () => {
       note: 'March payout',
     };
     const buy: Transaction = { ...TRANSACTIONS[1], unitPrice: 10.4852 };
-    const env = buildBackup(
-      [asset],
-      [price],
-      [buy, transaction],
-      SETTINGS,
-      '2026-09-22T12:00:00',
-      2,
-    );
+    const env = buildBackup([asset], [price], [buy, transaction], SETTINGS, '2026-09-22T12:00:00');
     expect(env.assets).toStrictEqual([asset]);
     expect(env.prices).toStrictEqual([price]);
     expect(env.transactions).toStrictEqual([buy, transaction]);
@@ -251,7 +241,6 @@ describe('parseBackup round-trip', () => {
       [...TRANSACTIONS, withUnits],
       SETTINGS,
       '2026-07-28T12:00:00',
-      2,
     );
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
@@ -289,7 +278,7 @@ describe('parseBackup round-trip', () => {
         inzhur: { kind: 'bond', ref: 'UA4000238976', units: 15 },
       },
     ];
-    const env = buildBackup(linked, [], [], SETTINGS, '2026-08-01T12:00:00', 2);
+    const env = buildBackup(linked, [], [], SETTINGS, '2026-08-01T12:00:00');
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -322,13 +311,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 15 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 15)));
+  it('rejects formatVersion 16 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 16)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 15/);
-    expect(result.issues[0]).toMatch(/formatVersion 14/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 16/);
+    expect(result.issues[0]).toMatch(/formatVersion 15/);
   });
 
   // `String` of a parsed value can throw: an array joins itself once per level of nesting, and
@@ -362,19 +351,19 @@ describe('parseBackup rejections', () => {
 
     it('a formatVersion that is an array nested 20,000 deep', () => {
       expect(oneIssue(deepArrayAt('formatVersion'))).toMatch(
-        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 14 only\./,
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 15 only\./,
       );
     });
 
     it('a formatVersion whose toString is not callable', () => {
       expect(oneIssue(mutated((env) => void (env.formatVersion = { toString: 1 })))).toMatch(
-        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 14 only\./,
+        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 15 only\./,
       );
     });
 
     it('a formatVersion that is an array holding such an object', () => {
       expect(oneIssue(mutated((env) => void (env.formatVersion = [{ toString: 1 }])))).toMatch(
-        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 14 only\./,
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 15 only\./,
       );
     });
   });
@@ -509,8 +498,8 @@ describe('parseBackup rejections', () => {
       assetId: 'reit',
       amount: 1000,
     };
-    const env = buildBackup(ASSETS, PRICES, [legacy], SETTINGS, '2026-09-01T12:00:00', 2);
-    expect(env.formatVersion).toBe(14);
+    const env = buildBackup(ASSETS, PRICES, [legacy], SETTINGS, '2026-09-01T12:00:00');
+    expect(env.formatVersion).toBe(15);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -935,16 +924,16 @@ describe('the backup carries a formula note as typed', () => {
       note,
     }));
     const text = JSON.stringify(
-      buildBackup(ASSETS, PRICES, [...TRANSACTIONS, ...noted], SETTINGS, '2026-09-30T12:00:00', 2),
+      buildBackup(ASSETS, PRICES, [...TRANSACTIONS, ...noted], SETTINGS, '2026-09-30T12:00:00'),
     );
     for (const note of notes) expect(text, JSON.stringify(note)).toContain(JSON.stringify(note));
     const back = parseBackup(text);
     expect(back.ok).toBe(true);
     if (!back.ok) return;
-    const { assets, prices, transactions, settings, exportedAt, dbVersion } = back.data;
-    expect(
-      JSON.stringify(buildBackup(assets, prices, transactions, settings, exportedAt, dbVersion)),
-    ).toBe(text);
+    const { assets, prices, transactions, settings, exportedAt } = back.data;
+    expect(JSON.stringify(buildBackup(assets, prices, transactions, settings, exportedAt))).toBe(
+      text,
+    );
   });
 });
 
@@ -1214,9 +1203,9 @@ describe('the envelope names no dataset', () => {
   });
 
   it('writes none, and a file written now parses', () => {
-    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00', 2);
+    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
     expect(Object.keys(written)).not.toContain('dataset');
-    expect([written.exportedAt, written.dbVersion]).toEqual(['2026-07-28T12:00:00', 2]);
+    expect(written.exportedAt).toBe('2026-07-28T12:00:00');
     const parsed = parseBackup(JSON.stringify(written));
     if (!parsed.ok) throw new Error(`expected the file to pass: ${parsed.issues.join('; ')}`);
     expect(parsed.data).toEqual(written);
@@ -1231,9 +1220,47 @@ describe('the envelope names no dataset', () => {
   });
 
   it('refuses the current version carrying a dataset key as a stray key', () => {
-    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00', 2);
+    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
     const result = parseBackup(JSON.stringify({ ...written, dataset: 'live' }));
     if (result.ok) throw new Error('expected a refusal');
     expect(result.issues).toEqual(['(root): Unrecognized key: "dataset"']);
+  });
+});
+
+// THE DATABASE VERSION LEFT WITH THE DEVICE'S DATABASE (#407): the file is read by an API that has no
+// such number, so a reader that stops requiring it accepts strictly more and a reader that stops
+// allowing it accepts strictly less, which is the narrowing the version gate is for.
+describe('the envelope names no database version', () => {
+  const LAST_WITH_DB_VERSION = JSON.stringify({
+    format: 'quirenote-backup',
+    formatVersion: 14,
+    exportedAt: '2026-07-28T12:00:00',
+    dbVersion: 2,
+    assets: [],
+    prices: [],
+    transactions: [],
+  });
+
+  it('writes none, and a file written now parses', () => {
+    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
+    expect(Object.keys(written)).not.toContain('dbVersion');
+    const parsed = parseBackup(JSON.stringify(written));
+    if (!parsed.ok) throw new Error(`expected the file to pass: ${parsed.issues.join('; ')}`);
+    expect(parsed.data).toEqual(written);
+  });
+
+  it('refuses a file that still carries one, as the older version it is', () => {
+    const result = parseBackup(LAST_WITH_DB_VERSION);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.issues).toEqual([
+      `Unsupported formatVersion 14 — this app reads formatVersion ${BACKUP_FORMAT_VERSION} only.`,
+    ]);
+  });
+
+  it('refuses the current version carrying one as a stray key', () => {
+    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
+    const result = parseBackup(JSON.stringify({ ...written, dbVersion: 2 }));
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.issues).toEqual(['(root): Unrecognized key: "dbVersion"']);
   });
 });

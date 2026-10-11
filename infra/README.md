@@ -1,8 +1,8 @@
 # infra/ — the AWS backend
 
-A daily job archives prices into Aurora DSQL. **The app does not read any of this yet**: `src/` calls the
-backend only to apply for access and, through the auth relay, for the session: asked once on every portfolio load,
-and to sign in and out. Design and rationale live in
+A daily job archives prices into Aurora DSQL, which the API alone reads. `src/` reads and writes the
+portfolio over the user API through `src/lib/repository.ts`, applies for access, and calls the auth
+relay for the session: asked once on every portfolio load, and to sign in and out. Design and rationale live in
 `docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md` (why this stack) and
 `2026-08-04-data-model.md` (what is stored and why); the why for what changed since is
 `docs/DECISIONS.md`, under **The price archive**, **External sources** and **Cloud target**.

@@ -2,15 +2,14 @@
 // One local store (#404): no profile is a demo that fetches no market data, so the press is the
 // only thing between the Settings button and the NBU directory.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useNbuRate } from './useNbuRate';
+import { NBU_LAST_RATE_KEY, useNbuRate } from './useNbuRate';
 
-vi.mock('../lib/repository', () => ({
-  repo: { getMeta: vi.fn(async () => undefined), setMeta: vi.fn(async () => undefined) },
-}));
+// The browser's own storage, held in a map: the last good rate is what this device keeps.
+const kept = new Map<string, string>();
 
 // Verbatim from the live endpoint, as `core/nbu/rate.test.ts` holds it.
 const OK =
@@ -23,6 +22,14 @@ function mount() {
   return renderHook(useNbuRate, { wrapper });
 }
 
+beforeEach(() => {
+  kept.clear();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => kept.get(k) ?? null,
+    setItem: (k: string, v: string) => void kept.set(k, v),
+    removeItem: (k: string) => void kept.delete(k),
+  });
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -42,5 +49,22 @@ describe('useNbuRate', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(rate!).toMatchObject({ rate: 44.866, date: '2026-08-12', currency: 'USD' });
+  });
+
+  it('keeps the last good rate in the browser, and a fresh mount reads it back', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(OK)),
+    );
+    const first = mount();
+    await act(async () => {
+      await first.result.current.fetchRate();
+    });
+    expect(JSON.parse(kept.get(NBU_LAST_RATE_KEY) ?? 'null')).toMatchObject({ rate: 44.866 });
+    first.unmount();
+
+    const second = mount();
+    await waitFor(() => expect(second.result.current.lastGood).toBeDefined());
+    expect(second.result.current.lastGood).toMatchObject({ rate: 44.866, date: '2026-08-12' });
   });
 });

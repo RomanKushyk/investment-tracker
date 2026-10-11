@@ -1,5 +1,5 @@
 // The NBU exchange rate's network half: a MANUAL-ONLY TanStack query over the
-// public directory, plus the last-good rate in the Dexie meta table. Parsing
+// public directory, plus the last-good rate in the browser's storage. Parsing
 // stays pure (core/nbu/rate.ts) — core never fetches.
 //
 // Nothing here writes settings. A fetch produces a value in memory; only the
@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { kyivDateIso } from '@quirenote/core/dates';
 import { nbuRateUrl, parseNbuRate, type NbuRate } from '@quirenote/core/nbu/rate';
-import { repo } from '../lib/repository';
+import { readMeta, writeMeta } from '../lib/device-meta';
 
 const NBU_TIMEOUT_MS = 10_000;
 
@@ -17,7 +17,7 @@ export const nbuKeys = {
   rate: ['nbu', 'rate'] as const,
 };
 
-/** Meta row key — the last rate that parsed, so a failed fetch still has
+/** Storage key — the last rate that parsed, so a failed fetch still has
  *  something honest to show. */
 export const NBU_LAST_RATE_KEY = 'nbu:lastRate';
 
@@ -51,7 +51,7 @@ async function fetchRate(querySignal: AbortSignal): Promise<NbuRateResult> {
     const rate = parseNbuRate(await response.text());
     if (rate === undefined) throw new Error('NBU returned no readable rate');
     const result: NbuRateResult = { ...rate, fetchedAt: new Date().toISOString() };
-    await repo.setMeta(NBU_LAST_RATE_KEY, result);
+    writeMeta(NBU_LAST_RATE_KEY, result);
     return result;
   } finally {
     clearTimeout(timeout);
@@ -70,7 +70,7 @@ function readCache(row: unknown): NbuRateResult | undefined {
 export interface UseNbuRate {
   /** The last successful fetch of this session. */
   data: NbuRateResult | undefined;
-  /** Last-good rate from the meta cache — survives reloads, and is what the UI
+  /** Last-good rate from the stored cache — survives reloads, and is what the UI
    *  shows when a fetch fails. */
   lastGood: NbuRateResult | undefined;
   isFetching: boolean;
@@ -101,10 +101,10 @@ export function useNbuRate(): UseNbuRate {
     queryKey: [...nbuKeys.rate, 'lastGood'] as const,
     // `?? null`: TanStack rejects `undefined` as query data, and "no cache row
     // yet" is the normal state on a fresh profile.
-    queryFn: async () => readCache(await repo.getMeta(NBU_LAST_RATE_KEY)) ?? null,
+    queryFn: () => readCache(readMeta(NBU_LAST_RATE_KEY)) ?? null,
     staleTime: Infinity,
     gcTime: Infinity,
-    // A local IndexedDB read — never let it be paused for being "offline":
+    // A local read — never let it be paused for being "offline":
     // offline is exactly when the last-good rate has to be readable.
     networkMode: 'always',
   });
@@ -120,7 +120,7 @@ export function useNbuRate(): UseNbuRate {
       // unconditionally would let the caller mistake a dead network for a fresh
       // rate — and skip the error toast entirely.
       if (r.error !== null) return undefined;
-      // The success rewrote the meta row — re-read it so lastGood keeps up.
+      // The success rewrote the stored rate — re-read it so lastGood keeps up.
       await queryClient.invalidateQueries({ queryKey: [...nbuKeys.rate, 'lastGood'] });
       return r.data;
     },

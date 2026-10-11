@@ -7,12 +7,14 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { pageHasNotHeldQuote } from '@quirenote/core/view/balances';
+import { useHold } from '../hooks/loading';
 import { useBalancesPage, useView } from '../hooks/queries';
 import { selectBalances } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import { BalancesTablePlaceholder } from './placeholders';
 
 // One source for the glyph: the cell that wears it and the legend that explains it must never disagree.
 const NOT_HELD_MARK = '*';
@@ -26,12 +28,16 @@ export function Balances() {
 
   // The table is one row per snapshot, read a page at a time (#189).
   const body = useBalancesPage(page);
+  // The table is a read of its own: its rows are held once the read has been out for a while, and
+  // until then the same box is laid out unseen, so nothing moves when they are drawn.
+  const held = useHold(body === undefined);
+  const waiting = held || body === undefined;
   const rows = body?.rows ?? [];
   const next = body?.next ?? null;
   // A page not read yet states no emptiness and no count: those are for a page that was read.
   const empty = body !== undefined && rows.length === 0;
-  // A replace in another tab re-renders this screen in place (`useDbSync`): a page the new rows do
-  // not reach starts over, set while rendering as React allows for state of this component. The
+  // A page the dataset no longer reaches (another tab erased or replaced it) starts over, set while
+  // rendering as React allows for state of this component. The
   // page on its way is the one before's rows, so only a page that landed empty starts it over.
   if (empty && page > 0) setPage(0);
   // The cells line up with the assets the page names, so the heads are named from that list.
@@ -98,7 +104,19 @@ export function Balances() {
       {/* ONE MECHANISM FOR ONE DECISION: `max-md:hidden` + `md:hidden` still built the
           min-width table on a phone, mounted a `ScrollArea` for it and ran the row
           derivation twice. `useIsDesktop` mounts one branch and only one. */}
-      {desktop ? (
+      {waiting ? (
+        <div aria-busy="true" className={held ? undefined : 'invisible'}>
+          <BalancesTablePlaceholder
+            desktop={desktop}
+            headers={[
+              t.analytics.snapshot,
+              ...assets.map((a) => a.name),
+              t.analytics.cash,
+              t.analytics.totalUah,
+            ]}
+          />
+        </div>
+      ) : desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
           {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
               sets no overflow: a rounded card clipping its own content is where the square

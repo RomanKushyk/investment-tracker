@@ -7,10 +7,16 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
-import { classifyImportFiles, diffBackup, validateImport } from '@quirenote/core/backup/import';
+import {
+  classifyImportFiles,
+  diffBackup,
+  rowsRejection,
+  validateImport,
+} from '@quirenote/core/backup/import';
+import { importParts } from '@quirenote/core/backup/parts';
 import { todayIso } from '@quirenote/core/dates';
-import { useExportAll } from '../../hooks/queries';
-import { dbVersion } from '../../lib/repository';
+import { useExportState } from '../../hooks/queries';
+import { csvTablesOf } from '../../lib/backup';
 import { fileRejection, importToasts } from './import-labels';
 import { ImportDialog, type ImportAttempt } from './ImportDialog';
 import type { FileRejectionCode } from '@quirenote/core/backup/import';
@@ -21,7 +27,7 @@ const REJECTION_MS = 5000;
 
 export function ImportRow() {
   const t = useT();
-  const exportAll = useExportAll();
+  const exportState = useExportState();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [reading, setReading] = useState<string | null>(null);
@@ -49,24 +55,29 @@ export function ImportRow() {
     setReading(file.name);
     try {
       const text = await file.text();
-      // Read fresh from the DB rather than off a cached query: the diff is what the
-      // user is about to authorise.
-      const current = await exportAll.mutateAsync();
       const validation = validateImport(text);
-      setAttempt(
-        validation.ok
-          ? {
-              kind: 'preview',
-              name: file.name,
-              envelope: validation.envelope,
-              diff: diffBackup(current, validation.envelope, { today: todayIso(), dbVersion }),
-            }
-          : {
-              kind: 'report',
-              name: file.name,
-              rejection: validation.rejection,
-            },
-      );
+      if (!validation.ok) {
+        setAttempt({ kind: 'report', name: file.name, rejection: validation.rejection });
+      } else {
+        // THE ROWS THE API WOULD REFUSE, found before anything is sent: a part it refuses stages
+        // nothing, and the import could then never be committed.
+        const plan = await importParts(validation.envelope);
+        if (!plan.ok) {
+          setAttempt({ kind: 'report', name: file.name, rejection: rowsRejection(plan.issues) });
+        } else {
+          // Read fresh from the API rather than off a cached query: the diff is what the user is
+          // about to authorise.
+          const state = await exportState.mutateAsync();
+          setAttempt({
+            kind: 'preview',
+            name: file.name,
+            envelope: validation.envelope,
+            plan,
+            diff: diffBackup(csvTablesOf(state), validation.envelope, { today: todayIso() }),
+            etag: state.etag,
+          });
+        }
+      }
       setSession((s) => s + 1);
       setOpen(true);
     } catch {

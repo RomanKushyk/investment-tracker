@@ -1,67 +1,44 @@
 // @vitest-environment jsdom
-// Every route, rendered cold through the real router and shell: the view is read once, and a
-// screen or a form reads no more than that beyond the wide figures it names (*Cloud target*).
+// Every route, rendered cold through the real router, shell, client and transport over a fake of the
+// user API, counting the requests the API sees: the view is read once, and a screen or a form reads
+// no more than that beyond the wide figures it names (*Cloud target*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { inputValue, makeFormat } from '@quirenote/core/money';
-import type { Snapshot } from '@quirenote/core/types';
-import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
+import { buildSeedBackup } from '@quirenote/core/seed';
+import type { Asset, Transaction } from '@quirenote/core/types';
+import { viewBody } from '@quirenote/core/view/serve';
+import { fakeApi, type FakeApi } from '../__fixtures__/fake-api';
 import { uk } from '../i18n/messages';
-import {
-  balancesOf,
-  dayOf,
-  readBalances,
-  readDay,
-  readSeries,
-  readView,
-  seriesOf,
-  viewOf,
-} from '../lib/local-view';
 
-const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
-const TABLES = { assets: seed.assets, snapshots: seed.snapshots, transactions: seed.transactions };
-const TODAY = seed.today;
-
-vi.mock('../lib/local-view', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/local-view')>();
-  // Read when called, not when the factory runs: the seed is imported after the mock is hoisted.
-  const tables = () => {
-    const seeded = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
-    return {
-      tables: {
-        assets: seeded.assets,
-        snapshots: seeded.snapshots,
-        transactions: seeded.transactions,
-      },
-      today: seeded.today,
-    };
-  };
-  return {
-    ...actual,
-    readView: vi.fn(async () => actual.viewOf(tables().tables, tables().today)),
-    readSeries: vi.fn(async (period) => actual.seriesOf(tables().tables, period, tables().today)),
-    readBalances: vi.fn(async (page) => actual.balancesOf(tables().tables, page, tables().today)),
-    readDay: vi.fn(async (date) => actual.dayOf(tables().tables, date)),
-  };
+const SEED = buildSeedBackup('2026-07-28T12:00:00');
+const TODAY = '2026-07-28';
+const rowsOfSeed = () => ({
+  assets: SEED.assets as Asset[],
+  transactions: SEED.transactions as Transaction[],
+  prices: SEED.prices,
 });
+const served = () => ({
+  assets: SEED.assets as Asset[],
+  transactions: SEED.transactions as Transaction[],
+  userPrices: SEED.prices,
+  archiveRows: [],
+  paymentDates: [],
+  today: TODAY,
+  fx: undefined,
+});
+
+// The API a page is served by: a new one for each test, behind the one `fetch` the page was given.
+let api: FakeApi;
+vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => api.fetch(input, init));
 // jsdom lays nothing out for a chart, so the curve is told by the date it ends on.
 vi.mock('../components/charts/YieldLines', () => ({
   YieldLines: ({ data }: { data: { date: string }[] }) => (
     <div data-testid="curve" data-ends={data.at(-1)?.date} />
   ),
-}));
-// Nothing here opens a database: the meta keys the Inzhur and NBU hooks read answer empty.
-vi.mock('../lib/repository', () => ({
-  repo: {
-    getMeta: async () => undefined,
-    setMeta: async () => undefined,
-    exportAll: async () => ({ assets: [], snapshots: [], transactions: [] }),
-  },
-  openStore: async () => undefined,
-  dbVersion: 1,
 }));
 
 // Set before the route graph loads: the persisted stores read `localStorage` as they load.
@@ -98,21 +75,20 @@ afterAll(() => vi.unstubAllGlobals());
 // test's timeout.
 const { routes } = await import('../routes');
 const { useDraft } = await import('../state/draft');
+const { VIEW_STALE_MS } = await import('../hooks/queries');
 
 beforeEach(() => {
-  vi.mocked(readView).mockClear();
-  vi.mocked(readSeries).mockClear();
-  vi.mocked(readBalances).mockClear();
-  vi.mocked(readDay).mockClear();
+  api = fakeApi(rowsOfSeed(), { today: TODAY });
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   // A test that opens the quotes form on a past day leaves the draft on that day.
   useDraft.setState(useDraft.getInitialState(), true);
 });
 
 async function open(path: string) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const view = render(
     <QueryClientProvider client={client}>
@@ -132,6 +108,18 @@ async function settle(client: QueryClient) {
   await waitFor(() => expect(client.isFetching()).toBe(0));
 }
 
+/** What the API was asked, by route: the data routes only, the relay's refresh being the session's. */
+const asked = () => {
+  const count = (route: string) => api.seen.filter((r) => r.path.split('?')[0] === route).length;
+  return {
+    view: count('/view'),
+    series: count('/view/series'),
+    balances: count('/view/balances'),
+    day: count('/view/day'),
+    total: api.seen.length,
+  };
+};
+
 // The wide figures are reads of their own: the curve by period, the table by page.
 const READS: [string, { series: number; balances: number }][] = [
   ['/', { series: 0, balances: 0 }],
@@ -148,165 +136,158 @@ const READS: [string, { series: number; balances: number }][] = [
 ];
 
 describe('a cold render', () => {
-  it.each(READS)('%s reads the view once', async (path, wide) => {
+  it.each(READS)('%s sends one data request, and the wide figure it names', async (path, wide) => {
     await open(path);
-    expect(readView).toHaveBeenCalledTimes(1);
-    expect(readSeries).toHaveBeenCalledTimes(wide.series);
-    expect(readBalances).toHaveBeenCalledTimes(wide.balances);
-    // Today's quotes ride the view, so no route asks for a day.
-    expect(readDay).not.toHaveBeenCalled();
+    // Today's quotes ride the view, so no route asks for a day, and none of them writes.
+    expect(asked()).toEqual({
+      view: 1,
+      series: wide.series,
+      balances: wide.balances,
+      day: 0,
+      total: 1 + wide.series + wide.balances,
+    });
   });
 
   it('shows the figures of the view it read', async () => {
     await open('/payouts');
-    const { income } = viewOf(TABLES, TODAY).view.payouts;
+    const { income } = viewBody(served()).view.payouts;
     expect(document.body.textContent).toContain(makeFormat('uk').money(income.total));
   });
 });
 
 describe('moving between screens', () => {
-  it('reads the view no more, and reads a screen’s own wide figure when it is opened', async () => {
+  it('sends nothing more, and a screen’s own wide figure when it is opened', async () => {
     const { client, router } = await open('/overview');
-    expect(readView).toHaveBeenCalledTimes(1);
+    expect(asked().total).toBe(1);
     for (const path of ['/payouts', '/yield', '/balances', '/portfolio', '/']) {
       await act(async () => {
         await router.navigate(path);
       });
       await settle(client);
     }
-    expect(readView).toHaveBeenCalledTimes(1);
-    expect(readSeries).toHaveBeenCalledTimes(1);
-    expect(readBalances).toHaveBeenCalledTimes(1);
-    expect(readDay).not.toHaveBeenCalled();
+    expect(asked()).toEqual({ view: 1, series: 1, balances: 1, day: 0, total: 3 });
+  });
+
+  it('sends nothing for any screen that has no wide figure of its own', async () => {
+    const { client, router } = await open('/overview');
+    for (const path of [
+      '/transactions',
+      '/payouts',
+      '/attributes',
+      '/seasonality',
+      '/portfolio',
+      '/allocation',
+      '/settings',
+      '/',
+    ]) {
+      await act(async () => {
+        await router.navigate(path);
+      });
+      await settle(client);
+    }
+    expect(asked().total).toBe(1);
   });
 });
 
 describe('a form', () => {
-  it('the asset dialogs read nothing more: opening the form and the delete dialog', async () => {
+  it('the asset dialogs send nothing: opening the form and the delete dialog', async () => {
     await open('/portfolio');
     fireEvent.click(screen.getByRole('button', { name: uk.edit.edit }));
     fireEvent.click(await screen.findByRole('button', { name: uk.assets.add }));
     await screen.findByRole('dialog');
-    expect(readView).toHaveBeenCalledTimes(1);
+    expect(asked().total).toBe(1);
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
-    const reit = TABLES.assets[0];
-    const counts = viewOf(TABLES, TODAY).deleteCounts[reit.id];
+    const reit = SEED.assets[0];
+    const counts = viewBodyCounts(reit.id);
     fireEvent.click(await screen.findByRole('button', { name: uk.assets.deleteAria(reit.name) }));
     const dialog = await screen.findByRole('alertdialog');
     // The delete dialog names what the delete takes, as the view counted it.
     expect(dialog.textContent).toContain(
       uk.assets.deleteBody(counts.transactions, counts.quoteDays),
     );
-    expect(readView).toHaveBeenCalledTimes(1);
-    expect(readDay).not.toHaveBeenCalled();
+    expect(asked().total).toBe(1);
   });
 
   it('the quotes form reads one day when it is opened on a past date', async () => {
     const past = '2026-07-20';
     useDraft.setState({ date: past, quotes: {}, origins: {} });
     await open('/');
-    expect(readView).toHaveBeenCalledTimes(1);
-    expect(readDay).toHaveBeenCalledTimes(1);
-    expect(readDay).toHaveBeenCalledWith(past);
+    expect(asked()).toMatchObject({ view: 1, day: 1, total: 2 });
+    expect(api.seen.at(-1)?.path).toBe(`/view/day?date=${past}`);
     // The form is filled with what was recorded that day, not with today's.
-    const day = await readDayOf(past);
-    expect(Object.keys(day.quotes).length).toBeGreaterThan(0);
-    for (const [id, quote] of Object.entries(day.quotes)) {
+    await waitFor(() => expect(Object.keys(useDraft.getState().quotes).length).toBeGreaterThan(0));
+    for (const [id, quote] of Object.entries(recordedOn(past))) {
       expect(useDraft.getState().quotes[id]).toBe(inputValue(quote, 2));
     }
   });
 });
 
-describe('a page shown again after another tab wrote', () => {
-  // A row written in one tab is announced to no other, so the page being shown again is the only
-  // thing that tells this tab. It reaches a read the screen on show holds and one it left cached.
-  const written: Snapshot = { date: '2026-07-28', quotes: { reit: 75000 } };
-  const WRITTEN = { ...TABLES, snapshots: [...TABLES.snapshots, written] };
+function viewBodyCounts(id: string) {
+  return viewBody(served()).deleteCounts[id];
+}
+function recordedOn(date: string) {
+  const day = api.seen.find((r) => r.path === `/view/day?date=${date}`);
+  expect(day).toBeDefined();
+  return viewBody({ ...served(), today: date }).today.quotes;
+}
 
-  async function visit(
-    router: Awaited<ReturnType<typeof open>>['router'],
-    client: QueryClient,
-    path: string,
-  ) {
-    await act(async () => {
-      await router.navigate(path);
-    });
-    await settle(client);
-  }
-  async function showAgain(client: QueryClient) {
+describe('a page shown again', () => {
+  const showAgain = async (client: QueryClient) => {
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
     });
     await settle(client);
-  }
-  const curveEnds = () => screen.getByTestId('curve').getAttribute('data-ends');
+  };
 
-  it('reads again the curve /yield left cached, when it is opened', async () => {
-    const { client, router } = await open('/yield');
-    expect(curveEnds()).toBe(seriesOf(TABLES, 'all', TODAY).series.at(-1)?.date);
-    expect(curveEnds()).not.toBe(written.date);
-    await visit(router, client, '/portfolio');
-
-    vi.mocked(readSeries).mockImplementationOnce(async (period) =>
-      seriesOf(WRITTEN, period, TODAY),
-    );
-    await showAgain(client);
-    await visit(router, client, '/yield');
-
-    expect(readSeries).toHaveBeenCalledTimes(2);
-    expect(curveEnds()).toBe(written.date);
-  });
-
-  it('reads again the page /balances left cached, when it is opened', async () => {
-    const { client, router } = await open('/balances');
-    await visit(router, client, '/portfolio');
-
-    vi.mocked(readBalances).mockImplementationOnce(async (page) =>
-      balancesOf(WRITTEN, page, TODAY),
-    );
-    await showAgain(client);
-    await visit(router, client, '/balances');
-
-    expect(readBalances).toHaveBeenCalledTimes(2);
-    const since = makeFormat('uk').date(viewOf(TABLES, TODAY).view.balances.earliest!);
-    expect(document.body.textContent).toContain(
-      uk.analytics.prose.showingSnapshots(6, WRITTEN.snapshots.length, since),
-    );
-  });
-
-  it('reads again the day the quotes form left cached, and fills the form with it', async () => {
-    const past = '2026-07-20';
-    useDraft.setState({ date: past, quotes: {}, origins: {} });
-    // The day as this tab first read it: nothing recorded yet.
-    const unrecorded = { ...TABLES, snapshots: TABLES.snapshots.filter((s) => s.date !== past) };
-    vi.mocked(readDay).mockImplementationOnce(async (date) => dayOf(unrecorded, date));
-    const { client, router } = await open('/');
-    expect(readDay).toHaveBeenCalledTimes(1);
-    expect(useDraft.getState().quotes).toEqual({});
-    await visit(router, client, '/portfolio');
-
-    await showAgain(client);
-    await visit(router, client, '/');
-
-    expect(readDay).toHaveBeenCalledTimes(2);
-    const recorded = dayOf(TABLES, past).quotes;
-    await waitFor(() => expect(Object.keys(useDraft.getState().quotes).length).toBeGreaterThan(0));
-    for (const [id, quote] of Object.entries(recorded)) {
-      expect(useDraft.getState().quotes[id]).toBe(inputValue(quote, 2));
-    }
-  });
-
-  it('reads what is on show once more, not twice', async () => {
+  it('sends nothing while what it holds is fresh', async () => {
     const { client } = await open('/yield');
+    const before = asked().total;
+
     await showAgain(client);
-    expect(readView).toHaveBeenCalledTimes(2);
-    expect(readSeries).toHaveBeenCalledTimes(2);
+
+    expect(asked().total).toBe(before);
+  });
+
+  it('revalidates what is on show once it has gone stale, with the tag it holds, and gets 304s', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
+    const { client } = await open('/yield');
+    expect(api.seen.every((r) => r.headers['if-none-match'] === undefined)).toBe(true);
+    const before = asked().total;
+
+    vi.setSystemTime(Date.now() + VIEW_STALE_MS + 1_000);
+    await showAgain(client);
+
+    // The view and the curve on show, each once more, each under its validator and unchanged.
+    expect(asked().total).toBe(before + 2);
+    const again = api.seen.slice(before);
+    expect(again.map((r) => r.path.split('?')[0]).sort()).toEqual(['/view', '/view/series']);
+    expect(again.every((r) => r.headers['if-none-match']?.startsWith('W/'))).toBe(true);
+    expect(api.notModified).toBe(2);
+  });
+
+  it('shows the rows another tab wrote, once the view has gone stale and is shown again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
+    const { client } = await open('/payouts');
+    const before = viewBody(served()).view.payouts.income.total;
+    expect(document.body.textContent).toContain(makeFormat('uk').money(before));
+
+    // Another tab recorded a payout: the dataset is at another version, and the figure moves.
+    api.rows.transactions.push({
+      id: '5eed0000-0000-4000-8000-0000000000ff',
+      date: TODAY,
+      type: 'interest_payout',
+      assetId: SEED.assets[2].id,
+      amount: 1_000,
+    });
+    api.version += 1;
+    vi.setSystemTime(Date.now() + VIEW_STALE_MS + 1_000);
+    await showAgain(client);
+
+    const after = viewBody({ ...served(), transactions: api.rows.transactions }).view.payouts.income
+      .total;
+    expect(after).not.toBe(before);
+    await waitFor(() => expect(document.body.textContent).toContain(makeFormat('uk').money(after)));
   });
 });
-
-async function readDayOf(date: string) {
-  const { dayOf } = await vi.importActual<typeof import('../lib/local-view')>('../lib/local-view');
-  return dayOf(TABLES, date);
-}

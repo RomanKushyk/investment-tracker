@@ -11,7 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
 } from '../../components/ui/Dialog';
-import { useClearAll } from '../../hooks/queries';
+import { toastWriteFailure, useClearAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
 import { useT } from '../../i18n/useT';
@@ -67,7 +67,7 @@ function ClearDataDialog({ open, onClose }: { open: boolean; onClose: () => void
         onClose();
       },
       // Atomic clearAll: a failure commits nothing and the dialog stays open.
-      onError: () => toast.error(t.danger.failed),
+      onError: (error) => toastWriteFailure(error, t.danger.failed),
     });
   }
 

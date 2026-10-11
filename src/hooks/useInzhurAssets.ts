@@ -1,12 +1,12 @@
 // The Inzhur feed's network half: a MANUAL-ONLY query plus the last-good payload in the
-// meta table. Nothing here writes portfolio data — a fetch produces values in memory,
+// browser's storage. Nothing here writes portfolio data — a fetch produces values in memory,
 // and only the user's own press records anything. *External sources*
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { msUntilNextKyivHour } from '@quirenote/core/dates';
 import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from '@quirenote/core/inzhur/parse';
-import { repo } from '../lib/repository';
+import { readMeta, writeMeta } from '../lib/device-meta';
 
 /**
  * Public and unauthenticated. It MUST be requested as a BARE GET — zero custom headers
@@ -80,10 +80,10 @@ async function fetchFeed(querySignal: AbortSignal): Promise<InzhurFeed> {
     throw new Error('Inzhur returned no readable assets');
   }
   const fetchedAt = new Date().toISOString();
-  await repo.setMeta(INZHUR_LAST_FETCH_KEY, { payload, fetchedAt } satisfies InzhurLastFetch);
+  writeMeta(INZHUR_LAST_FETCH_KEY, { payload, fetchedAt } satisfies InzhurLastFetch);
   // Written whether or not anything was skipped: "nothing wrong as of <when>" is a
   // different statement from "no record", and only the first is evidence.
-  await repo.setMeta(INZHUR_LAST_PARSE_KEY, {
+  writeMeta(INZHUR_LAST_PARSE_KEY, {
     at: fetchedAt,
     entries: feed.entries.length,
     skipped: feed.skipped,
@@ -95,7 +95,7 @@ async function fetchFeed(querySignal: AbortSignal): Promise<InzhurFeed> {
 export function useLastParse(): InzhurLastParse | undefined {
   const { data } = useQuery({
     queryKey: inzhurKeys.lastParse,
-    queryFn: async () => (await repo.getMeta<InzhurLastParse>(INZHUR_LAST_PARSE_KEY)) ?? null,
+    queryFn: () => readMeta<InzhurLastParse>(INZHUR_LAST_PARSE_KEY) ?? null,
     staleTime: Infinity,
     gcTime: Infinity,
     networkMode: 'always',
@@ -149,7 +149,7 @@ export function useInzhurAssets(): UseInzhurAssets {
     queryKey: inzhurKeys.lastFetch,
     // `?? null`: TanStack REJECTS `undefined` as query data and leaves the query
     // failed, while "no cache row yet" is the normal state on a fresh profile.
-    queryFn: async () => (await repo.getMeta<InzhurLastFetch>(INZHUR_LAST_FETCH_KEY)) ?? null,
+    queryFn: () => readMeta<InzhurLastFetch>(INZHUR_LAST_FETCH_KEY) ?? null,
     staleTime: Infinity,
     gcTime: Infinity,
     // A local read, never paused for being "offline" — which is exactly when the
@@ -167,7 +167,7 @@ export function useInzhurAssets(): UseInzhurAssets {
     // A failed refetch KEEPS the previous payload in `data`, so returning it would let
     // a caller mistake it for a fresh fetch.
     if (result.error !== null) return undefined;
-    // The success rewrote both meta rows, so re-read them.
+    // The success rewrote both caches, so re-read them.
     await queryClient.invalidateQueries({ queryKey: inzhurKeys.lastFetch });
     await queryClient.invalidateQueries({ queryKey: inzhurKeys.lastParse });
     return result.data;

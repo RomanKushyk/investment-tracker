@@ -571,7 +571,7 @@ export function cashYieldPct(
 }
 
 // `null` and NOT `undefined`, which the arms can also produce from an
-// unvalidated Dexie read of a row missing its amount — that must reach `xirr`
+// unvalidated read of a row missing its amount — that must reach `xirr`
 // and become the «—» that says so, not be skipped as internal.
 function externalFlowAmount(t: Transaction): number | null {
   switch (t.type) {

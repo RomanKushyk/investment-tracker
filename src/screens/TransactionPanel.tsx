@@ -14,9 +14,9 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
 import { TAP_44, TAP_44_BOX } from '../components/ui/tap-target';
 import {
+  toastWriteFailure,
   useDeleteTransaction,
   useRecordTransaction,
-  useUpdateAsset,
   useView,
 } from '../hooks/queries';
 import { selectLedgerForm } from '../hooks/slices';
@@ -255,7 +255,6 @@ export function TransactionPanel() {
   const { assets, transactions } = useView(selectLedgerForm);
   const recordTransaction = useRecordTransaction();
   const deleteTransaction = useDeleteTransaction();
-  const updateAsset = useUpdateAsset();
   // WHICH ROW IS ASKING — one id, because two rows asking at once is a state the screen has no use for.
   const [confirmingId, setConfirmingId] = useState<string | undefined>(undefined);
   // A row dated after today counts in no figure, so the ledger marks it until its day.
@@ -405,8 +404,8 @@ export function TransactionPanel() {
       type: values.type,
       assetId: newAsset ? newAsset.id : values.assetId,
       amount,
-      // Spread rather than assigned: Dexie stores `undefined` as a present key, and
-      // `json.ts` round-trips the object, so an absent field must be ABSENT.
+      // Spread rather than assigned: an absent field is ABSENT from the row, never a key
+      // holding `undefined`.
       ...(values.quantity === undefined ? {} : { quantity: values.quantity }),
       ...(unitPrice === undefined ? {} : { unitPrice }),
       // The note needs it MOST: the schema turns a blank field into `undefined`, and
@@ -464,9 +463,9 @@ export function TransactionPanel() {
             keepDirty: true,
           });
         },
-        onError: () => {
+        onError: (error) => {
           releaseLatch();
-          toast.error(t.transaction.failedToast);
+          toastWriteFailure(error, t.transaction.failedToast);
         },
       },
     );
@@ -478,36 +477,42 @@ export function TransactionPanel() {
   };
 
   function removeTransaction(tx: Transaction) {
-    deleteTransaction.mutate(tx.id, {
-      onSuccess: () => {
-        // A CONFIRMED COUPON GETS ITS OCCURRENCE BACK. The card's confirm writes the
-        // payout AND rolls `asset.nextCoupon` forward, and `nextUnsettledCoupon` walks
-        // the grid FORWARD, so deleting only the transaction loses the occurrence from
-        // the ledger, the due cards, the reminders and income at once. The pointer moves
-        // only through a confirm, and a delete is that confirm taken back; the
-        // arithmetic is `rollbackNextCoupon`.
-        const asset = assetById.get(tx.assetId);
-        const reopened =
-          asset === undefined
-            ? undefined
-            : rollbackNextCoupon(
-                asset,
-                tx,
-                transactions.filter((t) => t.id !== tx.id),
-              );
-        if (asset !== undefined && reopened !== undefined) {
-          updateAsset.mutate({ id: asset.id, patch: { nextCoupon: reopened } });
-        }
-        setConfirmingId(undefined);
-        toast.success(
-          reopened === undefined
-            ? t.transaction.delete.doneToast
-            : t.transaction.delete.couponReopenedToast,
-        );
+    // A CONFIRMED COUPON GETS ITS OCCURRENCE BACK. The card's confirm writes the
+    // payout AND rolls `asset.nextCoupon` forward, and `nextUnsettledCoupon` walks
+    // the grid FORWARD, so deleting only the transaction loses the occurrence from
+    // the ledger, the due cards, the reminders and income at once. The pointer moves
+    // only through a confirm, and a delete is that confirm taken back; the
+    // arithmetic is `rollbackNextCoupon`. BOTH GO IN THE ONE REQUEST, so a refused one
+    // leaves the row, the pointer and the toast as they were.
+    const asset = assetById.get(tx.assetId);
+    const reopened =
+      asset === undefined
+        ? undefined
+        : rollbackNextCoupon(
+            asset,
+            tx,
+            transactions.filter((t) => t.id !== tx.id),
+          );
+    deleteTransaction.mutate(
+      {
+        id: tx.id,
+        ...(asset !== undefined && reopened !== undefined
+          ? { reopen: { assetId: asset.id, nextCoupon: reopened } }
+          : {}),
       },
-      // The row stays in its asking state on failure, so the answer is still one press away.
-      onError: () => toast.error(t.transaction.delete.failedToast),
-    });
+      {
+        onSuccess: () => {
+          setConfirmingId(undefined);
+          toast.success(
+            reopened === undefined
+              ? t.transaction.delete.doneToast
+              : t.transaction.delete.couponReopenedToast,
+          );
+        },
+        // The row stays in its asking state on failure, so the answer is still one press away.
+        onError: (error) => toastWriteFailure(error, t.transaction.delete.failedToast),
+      },
+    );
   }
 
   function onSubmit(values: TransactionFormValues) {

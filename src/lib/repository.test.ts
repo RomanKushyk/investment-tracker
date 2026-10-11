@@ -1,181 +1,222 @@
-// The one test file that touches IndexedDB, against fake-indexeddb. The auto
-// import must come FIRST so Dexie picks up the fake globals.
-import 'fake-indexeddb/auto';
-
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// The client of the user API against a fake of it (`src/__fixtures__/fake-api.ts`): the cascade of
+// a delete, an import that lands whole or not at all, the round trip through an erase, a move onto
+// a taken day, a backup that carries a version its importer accepts, and the precondition that
+// stands between two tabs: a tab writing against a tag another tab has moved is refused, and what a
+// tab began for an account sends and keeps nothing once the account has changed (*Cloud target*).
+import { describe, expect, it, vi } from 'vitest';
 
 import { diffBackup, validateImport } from '@quirenote/core/backup/import';
 import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
+import { importParts, type StagedImport } from '@quirenote/core/backup/parts';
 import { headlineKpis, headlineTotal } from '@quirenote/core/derive';
-import { pricesOfSnapshots, snapshotsOfPrices } from '@quirenote/core/valuation';
-import { db, makeDb } from './db';
-import { dbVersion, repo } from './repository';
-import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
-import { SYNC_CHANNEL } from './sync';
-import type { Snapshot } from '@quirenote/core/types';
+import { buildSeedBackup } from '@quirenote/core/seed';
+import type { Asset, Transaction } from '@quirenote/core/types';
+import { snapshotsOfPrices } from '@quirenote/core/valuation';
 
-beforeEach(async () => {
-  await db.delete();
-  await db.open();
-});
+import {
+  DERIVATION_ID,
+  fakeApi,
+  type FakeApi,
+  type Rows,
+  type Sent,
+} from '../__fixtures__/fake-api';
+import type { RelayAnswer, RelayCall } from '../auth/relay';
+import { createSession, type Locks, type Session } from '../auth/session';
+import { csvTablesOf } from './backup';
+import { ApiError, createRepository, type Repository } from './repository';
+import { createTransport } from './transport';
 
-// What a build used to write on first run, now written by the test: the app seeds nothing.
-async function seedStore(): Promise<void> {
-  await db.assets.bulkAdd(SEED_ASSETS);
-  await db.snapshots.bulkAdd(buildSeedSnapshots());
-  await db.transactions.bulkAdd(SEED_TRANSACTIONS);
+const TODAY = '2026-07-28';
+const TOKENS: RelayAnswer = { kind: 'tokens', tokens: { idToken: 'h.e30.s', expiresIn: 3600 } };
+const noLocks = { request: (_: string, callback: () => unknown) => callback() } as unknown as Locks;
+
+async function signedIn(): Promise<Session> {
+  const session = createSession({ relay: vi.fn<RelayCall>(async () => TOKENS), locks: noLocks });
+  await session.restore();
+  return session;
 }
 
-describe('dbVersion (backup envelopes)', () => {
-  it('exposes the declared Dexie schema version', () => {
-    expect(dbVersion).toBe(2);
-  });
+/** A tab: its own repository, and so its own tag, over the one API. */
+async function tab(api: FakeApi, session?: Session): Promise<Repository> {
+  return createRepository(
+    createTransport({
+      hostname: 'dev.quirenote.com',
+      fetch: api.fetch,
+      session: session ?? (await signedIn()),
+      showAnswer: vi.fn(),
+      derivationId: DERIVATION_ID,
+    }),
+  );
+}
+
+const SEED = buildSeedBackup('2026-07-28T12:00:00');
+const SEED_ROWS = (): Rows => ({
+  assets: SEED.assets as Asset[],
+  transactions: SEED.transactions as Transaction[],
+  prices: SEED.prices,
 });
+const [REIT, ENERGY, OVDP8976, OVDP6475] = SEED.assets.map((a) => a.id);
+
+/** The API holding the seed, and a repository that has read the view of it. */
+async function seeded(rows: Rows = SEED_ROWS()) {
+  const api = fakeApi(rows, { today: TODAY });
+  const repo = await tab(api);
+  await repo.readView();
+  return { api, repo };
+}
+
+const planOf = async (rows: Pick<Rows, 'assets' | 'transactions' | 'prices'>) => {
+  const plan = await importParts(rows);
+  if (!plan.ok) throw new Error(JSON.stringify(plan.issues));
+  return plan;
+};
+
+/** What a backup file written now holds, from the API's export. */
+async function exportText(repo: Repository): Promise<string> {
+  const { assets, transactions, prices } = await repo.exportState();
+  return JSON.stringify(
+    buildBackup(
+      assets,
+      prices,
+      transactions,
+      { currency: 'UAH', usdRate: 44.83 },
+      '2026-08-04T12:00:00',
+    ),
+  );
+}
+
+const writes = (api: FakeApi) => api.seen.filter((r) => r.method === 'POST');
 
 describe('deleteAsset cascade', () => {
-  it('atomically removes the asset, its transactions and its quote keys — nothing else', async () => {
-    await seedStore();
-    await repo.deleteAsset('reit');
+  it('removes the asset, its transactions and its prices — nothing else', async () => {
+    const { api, repo } = await seeded();
+    const before = SEED_ROWS();
 
-    const { assets, transactions: txs, snapshots } = await repo.exportAll();
-    expect(assets.map((a) => a.id)).toEqual(['energy', 'ovdp8976', 'ovdp6475']);
+    await repo.deleteAsset(REIT);
 
-    expect(txs.some((t) => t.assetId === 'reit')).toBe(false);
-    expect(txs).toHaveLength(SEED_TRANSACTIONS.filter((t) => t.assetId !== 'reit').length);
-
-    const expected = buildSeedSnapshots().map((s) => {
-      const quotes = { ...s.quotes };
-      delete quotes.reit;
-      return { ...s, quotes };
-    });
-    expect(snapshots).toEqual(expected);
+    const { assets, transactions, prices } = await repo.exportState();
+    expect(assets.map((a) => a.id)).toEqual([ENERGY, OVDP8976, OVDP6475]);
+    expect(transactions.some((t) => t.assetId === REIT)).toBe(false);
+    expect(transactions).toHaveLength(before.transactions.filter((t) => t.assetId !== REIT).length);
+    expect(prices).toEqual(before.prices.filter((p) => p.assetId !== REIT));
+    expect(api.rows.assets).toHaveLength(3);
   });
 });
 
 describe('replaceAll', () => {
-  it('is all-or-nothing: a later row violating the PK commits nothing', async () => {
-    await seedStore();
-    const before = await repo.exportAll();
+  it('is all-or-nothing: a file the API refuses part-way commits nothing and closes the import', async () => {
+    const { api, repo } = await seeded();
+    const before = structuredClone(api.rows);
+    const { etag } = await repo.exportState();
+    // Two assets under one id pass every door a row has, and are refused as the second is staged.
+    const file = { ...SEED_ROWS(), assets: [...SEED.assets, SEED.assets[0]] as Asset[] };
 
-    const bad = {
-      assets: before.assets,
-      snapshots: [...before.snapshots.slice(0, 3), { ...before.snapshots[0] }],
-      transactions: before.transactions,
-    };
-    await expect(repo.replaceAll(bad)).rejects.toThrow();
+    await expect(repo.replaceAll(etag, await planOf(file))).rejects.toBeInstanceOf(ApiError);
 
-    expect(await db.assets.count()).toBe(4);
-    expect(await db.snapshots.count()).toBe(174);
-    expect(await db.transactions.count()).toBe(25);
-    expect(await repo.exportAll()).toEqual(before);
+    expect(api.rows).toEqual(before);
+    expect(api.seen.at(-1)).toMatchObject({ method: 'DELETE' });
   });
 
-  it('replaces every table atomically when the data is valid', async () => {
-    await seedStore();
-    const seed = await repo.exportAll();
-    const snapshot: Snapshot = { date: '2026-08-01', quotes: { reit: 1 } };
-    const data = {
-      assets: [seed.assets[0]],
-      snapshots: [snapshot],
-      transactions: [seed.transactions[0]],
+  it('replaces every table when the data is valid', async () => {
+    const { api, repo } = await seeded();
+    const { etag } = await repo.exportState();
+    const one = {
+      assets: [SEED.assets[0]] as Asset[],
+      transactions: [SEED.transactions[0]] as Transaction[],
+      prices: SEED.prices.filter((p) => p.assetId === REIT).slice(0, 3),
     };
 
-    await repo.replaceAll(data);
-    expect(await repo.exportAll()).toEqual(data);
+    expect(await repo.replaceAll(etag, await planOf(one))).toBe('imported');
+
+    expect(api.rows).toEqual(one);
+  });
+
+  it('chains the next write on the tag the import gave', async () => {
+    const { api, repo } = await seeded();
+    const { etag } = await repo.exportState();
+    await repo.replaceAll(etag, await planOf(SEED_ROWS()));
+
+    await repo.deleteTransaction(SEED.transactions[0].id);
+
+    expect(api.rows.transactions).toHaveLength(24);
+  });
+
+  it('comes back as a conflict, with the import closed, when another tab wrote since the tag', async () => {
+    const { api, repo } = await seeded();
+    const { etag } = await repo.exportState();
+    const other = await tab(api);
+    await other.readView();
+    await other.deleteTransaction(SEED.transactions[0].id);
+
+    expect(await repo.replaceAll(etag, await planOf(SEED_ROWS()))).toBe('conflict');
+
+    expect(api.rows.transactions).toHaveLength(24);
+    expect(api.seen.at(-1)).toMatchObject({ method: 'DELETE' });
   });
 });
 
-// The headline invariant: export → erase → import returns every row equal, its
-// quotes keyed in asset order. Here rather than beside core/backup because it needs
-// the real database and the seed, which core tests may not import.
+describe('a backup written now', () => {
+  it('parses back, carries a version its importer accepts, and names no database version', async () => {
+    const { repo } = await seeded();
+    const text = await exportText(repo);
 
-async function exportSeedEnvelope() {
-  const tables = await repo.exportAll();
-  return buildBackup(
-    tables.assets,
-    pricesOfSnapshots(tables.transactions, tables.snapshots),
-    tables.transactions,
-    { currency: 'UAH', usdRate: 44.83 },
-    '2026-08-04T12:00:00',
-    dbVersion,
-  );
-}
-
-// All four backup doors are `useBackupDownload`, which writes nothing unless the
-// envelope it built parses back.
-describe('a store holding a retired row shape', () => {
-  async function seedWithRetiredKeys() {
-    await seedStore();
-    const tx = (await repo.exportAll()).transactions[0];
-    await db.transactions.put({ ...tx, source: 'savings' } as typeof tx);
-    const snap = (await db.snapshots.toArray())[0];
-    await db.snapshots.put({ ...snap, cash: 7.75 } as typeof snap);
-  }
-
-  it('exports a file that parses, carrying no retired key', async () => {
-    await seedWithRetiredKeys();
-    const text = JSON.stringify(await exportSeedEnvelope());
-    expect(parseBackup(text)).toMatchObject({ ok: true });
-    expect(text).not.toContain('"source"');
-    expect(text).not.toContain('"cash"');
+    expect(parseBackup(text).ok).toBe(true);
+    expect(validateImport(text).ok).toBe(true);
+    expect(text).not.toContain('dbVersion');
   });
 
-  it('imports: the safety backup parses and the replace clears the retired keys', async () => {
-    await seedWithRetiredKeys();
-    const safety = JSON.stringify(await exportSeedEnvelope());
-    expect(parseBackup(safety).ok).toBe(true);
+  it('is refused as an older version when it carries a database version', async () => {
+    const { repo } = await seeded();
+    const envelope = JSON.parse(await exportText(repo)) as Record<string, unknown>;
+    const legacy = JSON.stringify({ ...envelope, formatVersion: 14, dbVersion: 2 });
 
-    const validation = validateImport(safety);
-    expect(validation.ok).toBe(true);
-    if (!validation.ok) return;
-    await repo.replaceAll({
-      assets: validation.envelope.assets,
-      snapshots: snapshotsOfPrices(validation.envelope.transactions, validation.envelope.prices),
-      transactions: validation.envelope.transactions,
-    });
-    const after = JSON.stringify(await repo.exportAll());
-    expect(after).not.toContain('"source"');
-    expect(after).not.toContain('"cash"');
+    const result = validateImport(legacy);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.rejection).toMatchObject({ kind: 'format', code: 'older-format', version: 14 });
   });
 });
 
 describe('export → erase → import round-trip', () => {
-  it('restores every row of the seed, with every D5-pinned figure intact', async () => {
-    await seedStore();
-    const before = await repo.exportAll();
-    const text = JSON.stringify(await exportSeedEnvelope());
+  it('restores every row of the seed, with every pinned figure intact', async () => {
+    const { api, repo } = await seeded();
+    const before = structuredClone(api.rows);
+    const text = await exportText(repo);
 
-    await repo.clearAll(); // the S6 erase, mid round-trip
-    expect(await db.assets.count()).toBe(0);
+    await repo.clearAll();
+    expect(api.rows.assets).toHaveLength(0);
 
     const validation = validateImport(text);
     expect(validation.ok).toBe(true);
     if (!validation.ok) return;
-    await repo.replaceAll({
-      assets: validation.envelope.assets,
-      snapshots: snapshotsOfPrices(validation.envelope.transactions, validation.envelope.prices),
-      transactions: validation.envelope.transactions,
-    });
+    const { etag } = await repo.exportState();
+    expect(await repo.replaceAll(etag, await planOf(validation.envelope))).toBe('imported');
 
-    const after = await repo.exportAll();
-    expect(after).toEqual(before);
+    const after = await repo.exportState();
+    expect(after.assets).toEqual(before.assets);
+    expect(after.transactions).toEqual(before.transactions);
+    expect(after.prices).toEqual(before.prices);
+    const days = snapshotsOfPrices(after.transactions, after.prices);
     expect(after.assets).toHaveLength(4);
-    expect(after.snapshots).toHaveLength(174);
+    expect(days).toHaveLength(174);
     expect(after.transactions).toHaveLength(25);
-
-    const kpis = headlineKpis(after.snapshots, after.transactions);
+    const kpis = headlineKpis(days, after.transactions);
     expect(kpis.total).toBeCloseTo(149016.36, 2);
     expect(kpis.net.uah).toBeCloseTo(4452.61, 2);
     expect(kpis.net.pct * 100).toBeCloseTo(3.08, 2);
-    expect(headlineTotal(after.snapshots, after.transactions)).toBeCloseTo(149016.36, 2);
+    expect(headlineTotal(days, after.transactions)).toBeCloseTo(149016.36, 2);
   });
 
   it('previews a re-import of what is stored as all-replaced, nothing lost', async () => {
-    await seedStore();
-    const current = await repo.exportAll();
-    const envelope = await exportSeedEnvelope();
+    const { repo } = await seeded();
+    const current = csvTablesOf(await repo.exportState());
+    const validation = validateImport(await exportText(repo));
+    expect(validation.ok).toBe(true);
+    if (!validation.ok) return;
 
-    const diff = diffBackup(current, envelope, { today: '2026-08-04', dbVersion });
+    const diff = diffBackup(current, validation.envelope, { today: '2026-08-04' });
+
     expect(diff.assets).toEqual({ added: 0, replaced: 4, removed: 0 });
     expect(diff.snapshots).toEqual({ added: 0, replaced: 174, removed: 0 });
     expect(diff.transactions).toEqual({ added: 0, replaced: 25, removed: 0 });
@@ -183,186 +224,386 @@ describe('export → erase → import round-trip', () => {
     expect(diff.warnings).toEqual([]);
   });
 
-  it('a rejected file writes nothing — validation happens before any write', async () => {
-    await seedStore();
-    const before = await repo.exportAll();
-    const broken = JSON.parse(JSON.stringify(await exportSeedEnvelope())) as Record<
-      string,
-      unknown
-    >;
+  it('writes nothing for a rejected file — validation happens before any request', async () => {
+    const { api, repo } = await seeded();
+    const broken = JSON.parse(await exportText(repo)) as Record<string, unknown>;
     (broken.assets as Record<string, unknown>[])[0].createdAt = '2026-02-03T10:00:00Z';
+    const sent = api.seen.length;
 
     expect(validateImport(JSON.stringify(broken)).ok).toBe(false);
-    expect(await repo.exportAll()).toEqual(before);
-    expect(await db.assets.count()).toBe(4);
+
+    expect(api.seen).toHaveLength(sent);
   });
 
-  /**
-   * Wait until `heard` holds `count` messages, or give up after a deadline.
-   *
-   * `BroadcastChannel` delivery is asynchronous with no guaranteed turnaround, so
-   * one macrotask tick is not enough on a loaded runner. Polling returns the
-   * instant the message lands and still fails loudly if it never does, which a
-   * longer fixed sleep does not.
-   */
-  async function waitForMessages(heard: unknown[], count: number): Promise<void> {
-    const deadline = Date.now() + 2_000;
-    while (heard.length < count && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-  }
+  it('erases with clearAll() and puts nothing back', async () => {
+    const { api, repo } = await seeded();
 
-  it('tells other tabs after a committed replace, never before', async () => {
-    await seedStore();
-    // A second channel object stands in for a second tab: the repository's own never delivers to itself.
-    const otherTab = new BroadcastChannel(SYNC_CHANNEL);
-    const heard: unknown[] = [];
-    otherTab.onmessage = (e: MessageEvent) => void heard.push(e.data);
-    try {
-      const bad = { assets: SEED_ASSETS, snapshots: [], transactions: SEED_TRANSACTIONS };
-      // A rejected write must stay silent, and bulkAdd of transactions referencing no
-      // snapshots is fine — so break it with a duplicate primary key instead.
-      await expect(
-        repo.replaceAll({ ...bad, assets: [...SEED_ASSETS, SEED_ASSETS[0]] }),
-      ).rejects.toThrow();
-      // Asserting ABSENCE, so this one must NOT wait for an arrival: it gives a wrong
-      // implementation a real window to speak up and then insists on silence.
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(heard).toEqual([]);
+    await repo.clearAll();
 
-      await repo.replaceAll(bad);
-      await waitForMessages(heard, 1);
-      expect(heard).toEqual([{ kind: 'replace' }]);
+    expect(api.rows).toEqual({ assets: [], transactions: [], prices: [] });
+  });
+});
 
+describe('two tabs', () => {
+  it('refuse the write of the tab that is behind with one 412, and lose no update', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const a = await tab(api);
+    const b = await tab(api);
+    await a.readView();
+    await b.readView();
+
+    await a.deleteTransaction(SEED.transactions[0].id);
+    const refused = await b.deleteTransaction(SEED.transactions[1].id).catch((e: unknown) => e);
+
+    expect(refused).toBeInstanceOf(ApiError);
+    expect((refused as ApiError).stale).toBe(true);
+    expect(writes(api)).toHaveLength(2);
+    // The first write stands and the second changed nothing; the 412 is never retried.
+    expect(api.rows.transactions.map((t) => t.id)).not.toContain(SEED.transactions[0].id);
+    expect(api.rows.transactions.map((t) => t.id)).toContain(SEED.transactions[1].id);
+
+    await b.readView();
+    await b.deleteTransaction(SEED.transactions[1].id);
+    expect(api.rows.transactions).toHaveLength(23);
+  });
+
+  it('chain their own writes on the tag each answer gives, with no read between', async () => {
+    const { api, repo } = await seeded();
+
+    await repo.deleteTransaction(SEED.transactions[0].id);
+    await repo.deleteTransaction(SEED.transactions[1].id);
+
+    expect(api.rows.transactions).toHaveLength(23);
+  });
+
+  it('send the writes of one tab one at a time, so none is refused against its own tag', async () => {
+    const { api, repo } = await seeded();
+
+    await Promise.all([
+      repo.deleteTransaction(SEED.transactions[0].id),
+      repo.deleteTransaction(SEED.transactions[1].id),
+      repo.deleteTransaction(SEED.transactions[2].id),
+    ]);
+
+    expect(api.rows.transactions).toHaveLength(22);
+    expect(writes(api)).toHaveLength(3);
+  });
+});
+
+describe('a tab and its own tag', () => {
+  // The three writes that give a tag. A read of the view sent before one landed, and answered after
+  // it, is for a dataset it has changed.
+  const landing: [string, (repo: Repository, api: FakeApi) => Promise<unknown>][] = [
+    ['a write', (repo) => repo.deleteTransaction(SEED.transactions[0].id)],
+    ['a delete of an asset', (repo) => repo.deleteAsset(REIT)],
+    ['an import', async (repo, api) => repo.replaceAll(api.tag(), await planOf(SEED_ROWS()))],
+  ];
+
+  describe.each(landing)('after %s', (_, land) => {
+    it.each([
+      ['a 200', false],
+      ['a 304', true],
+    ])('is not moved back by %s answered after it', async (__, revalidated) => {
+      const api = fakeApi(SEED_ROWS(), { today: TODAY });
+      const serve = api.fetch;
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      let views = 0;
+      api.fetch = async (input, init) => {
+        const response = await serve(input, init);
+        if (String(input).endsWith('/view') && (views += 1) === 2) await held;
+        return response;
+      };
+      const repo = await tab(api);
+      const first = await repo.readView();
+      const late = repo.readView(revalidated ? first : undefined);
+      await vi.waitFor(() => expect(api.seen.filter((r) => r.path === '/view')).toHaveLength(2));
+
+      await land(repo, api);
+      release();
+      await late;
       await repo.clearAll();
-      await waitForMessages(heard, 2);
-      expect(heard).toEqual([{ kind: 'replace' }, { kind: 'clear' }]);
-    } finally {
-      otherTab.close();
-    }
+
+      expect(api.rows.transactions).toEqual([]);
+    });
+  });
+
+  it('adopts the tag of a read that no write of the tab overtook', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
+    await repo.readView();
+    await repo.deleteTransaction(SEED.transactions[0].id);
+
+    const view = await repo.readView();
+
+    expect(view.tag).toBe(api.tag());
+    await repo.deleteTransaction(SEED.transactions[1].id);
+    expect(api.rows.transactions).toHaveLength(23);
   });
 });
 
 describe('moveSnapshotDate', () => {
-  it('throws on collision and writes nothing', async () => {
-    await seedStore();
-    await expect(repo.moveSnapshotDate('2026-07-25', '2026-07-27')).rejects.toThrow();
+  it('is refused onto a taken day and writes nothing', async () => {
+    const { api, repo } = await seeded();
+    const before = structuredClone(api.rows);
 
-    expect(await db.snapshots.count()).toBe(174);
-    const s25 = await db.snapshots.get('2026-07-25');
-    expect(s25?.quotes).toEqual({
-      reit: 68629.36,
-      energy: 60086.09,
-      ovdp8976: 15846.3,
-      ovdp6475: 4374.12,
-    });
-    const s27 = await db.snapshots.get('2026-07-27');
-    expect(s27?.quotes).toEqual({ reit: 68702.1 });
+    await expect(repo.moveSnapshotDate('2026-07-25', '2026-07-27')).rejects.toBeInstanceOf(
+      ApiError,
+    );
+
+    expect(api.rows).toEqual(before);
   });
 
-  it('moves a snapshot to a free date in one transaction', async () => {
-    await seedStore();
+  it('moves a day to a free date', async () => {
+    const { api, repo } = await seeded();
+
     await repo.moveSnapshotDate('2026-07-27', '2026-07-26');
 
-    expect(await db.snapshots.get('2026-07-27')).toBeUndefined();
-    const moved = await db.snapshots.get('2026-07-26');
-    expect(moved).toEqual({ date: '2026-07-26', quotes: { reit: 68702.1 } });
-    expect(await db.snapshots.count()).toBe(174);
+    expect(api.rows.prices.some((p) => p.asOf === '2026-07-27')).toBe(false);
+    expect(api.rows.prices.filter((p) => p.asOf === '2026-07-26')).toHaveLength(1);
+    expect(api.rows.prices).toHaveLength(SEED.prices.length);
   });
 });
 
-describe('exportAll', () => {
+describe('exportState', () => {
   it('returns all three tables with the seed row counts', async () => {
-    await seedStore();
-    const all = await repo.exportAll();
+    const { repo } = await seeded();
 
-    expect(all.assets).toHaveLength(4);
-    expect(all.snapshots).toHaveLength(174);
-    expect(all.transactions).toHaveLength(25);
+    const { assets, transactions, prices } = await repo.exportState();
+
+    expect(assets).toHaveLength(4);
+    expect(transactions).toHaveLength(25);
+    expect(prices).toHaveLength(572);
   });
 });
 
-describe('meta accessors (P3 Inzhur last-good cache)', () => {
-  it('round-trips an arbitrary value and overwrites it in place', async () => {
-    expect(await repo.getMeta('inzhur:lastFetch')).toBeUndefined();
+describe('the reads', () => {
+  it('hand back the view with the tag a write goes under and the validator it came under', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
 
-    await repo.setMeta('inzhur:lastFetch', { payload: [{ slug: 'inzhur-reit' }], fetchedAt: 'x' });
-    expect(await repo.getMeta('inzhur:lastFetch')).toEqual({
-      payload: [{ slug: 'inzhur-reit' }],
-      fetchedAt: 'x',
+    const view = await repo.readView();
+
+    expect(view.tag).toBe(api.tag());
+    expect(view.validator).toMatch(/^W\//);
+    expect(view.assets).toHaveLength(4);
+  });
+
+  it('revalidate with If-None-Match, and hand back what they had when the answer is a 304', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
+    const first = await repo.readView();
+
+    const second = await repo.readView(first);
+
+    expect(second).toBe(first);
+    expect(api.seen.at(-1)?.headers['if-none-match']).toBe(first.validator);
+    expect(api.notModified).toBe(1);
+  });
+
+  it('read the new view once a write has changed it', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
+    const first = await repo.readView();
+    await repo.deleteTransaction(SEED.transactions[0].id);
+
+    const second = await repo.readView(first);
+
+    expect(second).not.toBe(first);
+    expect(second.transactions).toHaveLength(24);
+    expect(second.tag).toBe(api.tag());
+  });
+
+  it('keep one validator for each period, page and day', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
+    const curve = await repo.readSeries('3m');
+    const page = await repo.readBalances(1);
+    const day = await repo.readDay('2026-07-25');
+
+    expect(await repo.readSeries('3m', curve)).toBe(curve);
+    expect(await repo.readBalances(1, page)).toBe(page);
+    expect(await repo.readDay('2026-07-25', day)).toBe(day);
+    expect(api.notModified).toBe(3);
+    expect(new Set([curve.validator, page.validator, day.validator]).size).toBe(3);
+  });
+
+  it('send nothing without a token, and say the caller is signed out', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const signedOut = createSession({
+      relay: vi.fn<RelayCall>(async () => ({ kind: 'refused', reason: 'notAuthorized' })),
+      locks: noLocks,
     });
+    await signedOut.restore();
+    const repo = await tab(api, signedOut);
 
-    await repo.setMeta('inzhur:lastFetch', { payload: [], fetchedAt: 'y' });
-    expect(await repo.getMeta('inzhur:lastFetch')).toEqual({ payload: [], fetchedAt: 'y' });
-    expect(await db.meta.count()).toBe(1);
+    const refused = await repo.readView().catch((e: unknown) => e);
+
+    expect(refused).toBeInstanceOf(ApiError);
+    expect((refused as ApiError).signedOut).toBe(true);
+    expect(api.seen).toEqual([]);
   });
 });
 
-describe('makeDb factory (G4)', () => {
-  it('returns an independent instance per name — rows never bleed across', async () => {
-    const a = makeDb('kubushka-test-a');
-    const b = makeDb('kubushka-test-b');
-    try {
-      expect(a).not.toBe(b);
-      expect(a.name).toBe('kubushka-test-a');
-      expect(b.name).toBe('kubushka-test-b');
+describe('forgetting the account', () => {
+  it('drops the tag, so the next write reads the dataset it goes under', async () => {
+    const { api, repo } = await seeded();
+    const other = await tab(api);
+    await other.readView();
+    await other.deleteTransaction(SEED.transactions[0].id);
 
-      await a.assets.add(SEED_ASSETS[0]);
-      expect(await a.assets.count()).toBe(1);
-      expect(await b.assets.count()).toBe(0);
-    } finally {
-      await a.delete();
-      await b.delete();
+    repo.forget();
+    await repo.deleteTransaction(SEED.transactions[1].id);
+
+    // Not refused: a tag from before the forgetting would have been stale.
+    expect(api.rows.transactions).toHaveLength(23);
+    expect(api.seen.filter((r) => r.path === '/state')).toHaveLength(1);
+  });
+});
+
+/** Holds the answer to the `nth` request `matches` picks out until `release`, once the API has
+ *  acted on it. Installed before the tab is made, since the transport keeps the fetch it is given. */
+function holding(api: FakeApi, matches: (sent: Sent) => boolean, nth = 1) {
+  const serve = api.fetch;
+  let count = 0;
+  let reached!: () => void;
+  const arrived = new Promise<void>((resolve) => (reached = resolve));
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  api.fetch = async (input, init) => {
+    const before = api.seen.length;
+    const response = await serve(input, init);
+    const sent = api.seen[before];
+    if (sent !== undefined && matches(sent) && (count += 1) === nth) {
+      reached();
+      await held;
     }
-  });
-});
-
-// ONE LOCAL STORE (#404): one database, bound the same way whatever a profile's settings say, and
-// nothing in it that the app put there. The seed is data for fixtures and the browser's import.
-describe('one local store', () => {
-  const SEED = {
-    assets: SEED_ASSETS,
-    snapshots: buildSeedSnapshots(),
-    transactions: SEED_TRANSACTIONS,
+    return response;
   };
-  const EMPTY = { assets: [], snapshots: [], transactions: [] };
+  return { arrived, release };
+}
 
-  it('binds quirenote-live with nothing persisted', () => {
-    expect(db.name).toBe('quirenote-live');
+const isView = (sent: Sent) => sent.method === 'GET' && sent.path === '/view';
+const isMutation = (sent: Sent) => sent.method === 'POST' && sent.path === '/mutations';
+const isExport = (sent: Sent) => sent.method === 'GET' && sent.path === '/state';
+const isImportBegun = (sent: Sent) => sent.method === 'POST' && sent.path === '/imports';
+
+describe('an operation begun before the account changed', () => {
+  // The account changes under a tab when another tab signs in as someone else; the tab forgets what
+  // it held. What it began for the last account is that account's: its tag, its ops, its file.
+
+  it('hands back no view answered after it, and leaves no tag of it behind', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const gate = holding(api, isView, 2);
+    const repo = await tab(api);
+    await repo.readView();
+
+    const late = repo.readView();
+    await gate.arrived;
+    repo.forget();
+    gate.release();
+
+    await expect(late).rejects.toBeInstanceOf(ApiError);
+    await repo.deleteTransaction(SEED.transactions[0].id);
+    // The write read the dataset it goes under, rather than going under the last account's tag.
+    expect(api.seen.filter(isExport)).toHaveLength(1);
   });
 
-  // A profile written while a dataset was selectable still carries the key, and no read of it binds
-  // a database any more.
-  it.each(['demo', 'live'])('binds it for a profile that still names %s', async (dataset) => {
-    vi.resetModules();
-    vi.stubGlobal('localStorage', {
-      getItem: (key: string) =>
-        key === 'quirenote-settings' ? JSON.stringify({ state: { dataset }, version: 1 }) : null,
-      setItem: () => {},
-      removeItem: () => {},
-    });
-    try {
-      expect((await import('./db')).db.name).toBe('quirenote-live');
-    } finally {
-      vi.unstubAllGlobals();
-      vi.resetModules();
-    }
+  it('sends nothing of a write queued behind one in flight: an erase does not land', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const gate = holding(api, isMutation);
+    const repo = await tab(api);
+    await repo.readView();
+
+    const first = repo.deleteTransaction(SEED.transactions[0].id);
+    const erase = repo.clearAll();
+    await gate.arrived;
+    repo.forget();
+    gate.release();
+
+    // The first had landed when the account changed; its answer is the last account's.
+    await expect(first).rejects.toBeInstanceOf(ApiError);
+    await expect(erase).rejects.toBeInstanceOf(ApiError);
+    expect(api.seen.filter(isMutation)).toHaveLength(1);
+    expect(api.rows.transactions).toHaveLength(SEED.transactions.length - 1);
   });
 
-  it('erases with clearAll() and does not put the seed back', async () => {
-    await repo.replaceAll(SEED);
-    await repo.clearAll();
-    expect(await repo.exportAll()).toEqual(EMPTY);
+  const queuing: [
+    string,
+    (repo: Repository, api: FakeApi, plan: StagedImport) => Promise<unknown>,
+  ][] = [
+    ['a write', (repo) => repo.deleteTransaction(SEED.transactions[1].id)],
+    ['an asset delete', (repo) => repo.deleteAsset(REIT)],
+    ['an import', (repo, api, plan) => repo.replaceAll(api.tag(), plan)],
+  ];
+
+  it.each(queuing)(
+    'sends nothing of %s queued before it, under the tag the next account’s view gave',
+    async (_, queue) => {
+      const api = fakeApi(SEED_ROWS(), { today: TODAY });
+      const gate = holding(api, isMutation);
+      const repo = await tab(api);
+      await repo.readView();
+      const plan = await planOf(SEED_ROWS());
+
+      const first = repo.deleteTransaction(SEED.transactions[0].id);
+      const queued = queue(repo, api, plan);
+      await gate.arrived;
+      repo.forget();
+      // The next account's view, read while the first write's answer is still out, gives a tag.
+      await repo.readView();
+      gate.release();
+
+      await expect(first).rejects.toBeInstanceOf(ApiError);
+      await expect(queued).rejects.toBeInstanceOf(ApiError);
+      expect(api.seen.filter((sent) => sent.method !== 'GET')).toHaveLength(1);
+    },
+  );
+
+  it('sends no write under the tag of an export answered after it', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const gate = holding(api, isExport);
+    const repo = await tab(api);
+
+    // No view read: the write reads the dataset's tag from the export first.
+    const writing = repo.deleteTransaction(SEED.transactions[0].id);
+    await gate.arrived;
+    repo.forget();
+    gate.release();
+
+    await expect(writing).rejects.toBeInstanceOf(ApiError);
+    expect(api.seen.filter(isMutation)).toHaveLength(0);
   });
 
-  it('leaves no seeded flag behind, from an import or from an erase', async () => {
-    await repo.replaceAll(SEED);
-    expect(await repo.getMeta('seeded')).toBeUndefined();
-    await repo.clearAll();
-    expect(await repo.getMeta('seeded')).toBeUndefined();
+  it('stops an asset delete between its steps', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY, maxRows: 5 });
+    const gate = holding(api, isMutation);
+    const repo = await tab(api);
+    await repo.readView();
+
+    const deleting = repo.deleteAsset(REIT);
+    await gate.arrived;
+    repo.forget();
+    gate.release();
+
+    await expect(deleting).rejects.toBeInstanceOf(ApiError);
+    expect(api.seen.filter(isMutation)).toHaveLength(1);
   });
 
-  it('exports no seeding step', async () => {
-    expect(Object.keys(await import('./repository'))).not.toContain('ensureSeeded');
+  it('sends no part and no commit of an import begun before it', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const gate = holding(api, isImportBegun);
+    const repo = await tab(api);
+    const rows = SEED_ROWS();
+    const plan = await planOf({ ...rows, transactions: rows.transactions.slice(0, 3) });
+
+    const importing = repo.replaceAll(api.tag(), plan);
+    await gate.arrived;
+    repo.forget();
+    gate.release();
+
+    await expect(importing).rejects.toBeInstanceOf(ApiError);
+    expect(api.seen.filter((sent) => sent.path.startsWith('/imports/'))).toEqual([]);
+    expect(api.rows.transactions).toHaveLength(SEED.transactions.length);
   });
 });

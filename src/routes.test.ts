@@ -1,4 +1,4 @@
-import { isValidElement, type ComponentType } from 'react';
+import { isValidElement, type ComponentType, type ReactElement } from 'react';
 import { matchRoutes, type RouteObject } from 'react-router';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,7 @@ afterAll(() => vi.unstubAllGlobals());
 const { routes } = await import('./routes');
 const { Root } = await import('./app/Root');
 const { Layout } = await import('./app/Layout');
+const { Loadable } = await import('./components/loading/Loadable');
 const { AppFailure, NotFound, ScreenFailure } = await import('./app/Boundaries');
 const { DailyQuotes } = await import('./screens/DailyQuotes');
 const { Transactions } = await import('./screens/Transactions');
@@ -28,6 +29,14 @@ const { GoogleCallback } = await import('./screens/sign-in/GoogleCallback');
 
 const typeOf = (element: RouteObject['element']): unknown =>
   isValidElement(element) ? element.type : undefined;
+
+/** What a route shows. A screen that reads the portfolio waits behind the view, so it is the child of
+ *  `Loadable`, and the one that reads none (Settings) stands alone. */
+const screenOf = (element: RouteObject['element']): { screen: unknown; waits: boolean } => {
+  if (typeOf(element) !== Loadable) return { screen: typeOf(element), waits: false };
+  const { children } = (element as ReactElement<{ children: RouteObject['element'] }>).props;
+  return { screen: typeOf(children), waits: true };
+};
 
 /** The routes a path walks through, root first. */
 function chain(path: string): RouteObject[] {
@@ -106,7 +115,10 @@ describe('the routes that exist', () => {
     expect(walked).toHaveLength(4);
     expect(typeOf(walked[1]!.element)).toBe(Layout);
     expect(isScreenBoundary(walked[2]!)).toBe(true);
-    expect(typeOf(walked[3]!.element)).toBe(Screen);
+    const { screen, waits } = screenOf(walked[3]!.element);
+    expect(screen).toBe(Screen);
+    // Every screen but Settings reads the view and waits behind it, holding its place meanwhile.
+    expect(waits).toBe(path !== '/settings');
   });
 
   it.each([

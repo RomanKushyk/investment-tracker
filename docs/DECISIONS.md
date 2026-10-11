@@ -4,8 +4,8 @@ Current state only, one topic per section: what is decided, why, and what stays 
 
 ## Core is pure
 **Decision.** The domain layer is `packages/core`, declared in `pnpm-workspace.yaml` as
-`@quirenote/core` and imported by the SPA and by `infra/` alike — no React, no Dexie, no store, no
-UI, and no climbing back out into `src/` or `infra/`; `src/lib/` holds persistence. The reference
+`@quirenote/core` and imported by the SPA and by `infra/` alike — no React, no store, no
+UI, and no climbing back out into `src/` or `infra/`; `src/lib/` holds the client of the API. The reference
 seed is domain and travels with it. IT IS CONSUMED FROM SOURCE: its `exports` point at `.ts`, there
 is no build step and it carries no `tsconfig.json`, so the SPA's compiler options and the backend's
 each compile the same files and a browser-only type fails one of them. `infra/` is a workspace
@@ -22,18 +22,19 @@ bound, which lint holds as well. The figures are `view/`'s composers, each a fun
 and of whichever of the period option, the caller's `today` and the Inzhur feed it reads.
 `buildView` runs them all, the windowed ones once per period option and the rest once, and its
 type is the `view` member of `/view`'s payload, which `viewBody` completes with the rows the
-editors read. No screen calls one: until the API answers the reads, `src/lib/local-view.ts` is
-the one file of `src/` outside the tests that does (`src/hooks/slices.test.ts` calls them as the
-oracle the slices are held to), and a source test pins it so.
+editors read. No file of `src/` outside the tests calls one, and a source test pins it so:
+`src/hooks/slices.test.ts` calls them, over a fixture of the ledgers as stored, as the oracle the
+slices are held to, and the tests' fake of the API composes its bodies with `viewBody`.
 Two figures of the package are computed on one of the eight analytics screens: a bond's YTM at
 purchase, laid over its card, since the feed it is solved against is the device's and the server
 never holds it (*External sources*), and Balances' `pageHasNotHeldQuote`, whether the page it shows
-holds a marked cell, which decides its footnote. The clock is an input: nothing in the package reads it for a figure. New code calls
-`repository.ts`, never `db.ts`. A dependency is a decision, and it is recorded under the topic it
+holds a marked cell, which decides its footnote. The clock is an input: nothing in the package reads it for a figure. New code reads and
+writes through `repository.ts`, which holds the tag a write goes under, and never calls the
+transport itself. A dependency is a decision, and it is recorded under the topic it
 serves rather than in a register of its own. The seam test against `infra/schema/user.ts` sits in
 `infra/src/`, so the edge between them runs one way.
 **Why.** The domain layer is the part a move to a server does not touch, and the repository is the
-seam it replaces. A `package.json` is a boundary and relative imports were crossing it, which is
+client of the server it moved to. A `package.json` is a boundary and relative imports were crossing it, which is
 what a package removes; it was taken while the shared surface was small rather than after server
 derivation widened it. Two programs compiling one source is the property worth paying for — it is
 what catches a browser-only type before a backend build does, and it is the reason no compiled
@@ -43,7 +44,8 @@ rules out. A selector is bound at module level because TanStack Query runs `sele
 when the data or the function changes and shares what it returns with the last answer, so a
 consumer of one slice does not render when another moves (query-core's `queryObserver`, and its
 render-optimizations guide): made in a render, it runs again on every one.
-**Rejected.** A component reaching for `db.ts`: it bypasses the one surface the migration swaps. ·
+**Rejected.** A component calling the transport itself: it bypasses the one surface that holds the
+tag a write goes under and puts a tab's writes in order. ·
 A composer only the server calls: the screens' inline copies would stay a second implementation with
 nothing checking that the two agree. · Every screen in every period block: the Balances chart is one
 point per snapshot, six times over. ·
@@ -60,13 +62,18 @@ rows would be read again for each. · Every consumer reading the whole body: any
 every one.
 
 ## Persistence today
-**Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; one database,
-`quirenote-live`, which nothing seeds. Every persisted setting joins `partialize` in the commit that
-adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
+**Decision.** The portfolio is the server's. The app reads it over the API into memory and writes
+it through `repository.ts`, the one client of the user API (*Cloud target*), and keeps none of it
+between loads: a sign-out empties the memory, the tag a write goes under and the quote draft's
+stored keys (*Auth model*), and the transport asks the browser's HTTP cache to store no answer,
+since nothing clears that. What the browser's own storage holds is the person's settings, the
+draft of the day's quotes, and the last good Inzhur payload with its parse record and the last
+NBU rate, each under a key of its own. Every persisted setting joins `partialize` in the commit
+that adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
 One the platform answers each time it is asked — reduced motion, the colour the OS resolves, the
 viewport's side of the breakpoint — is DERIVED and stored nowhere. One naming a thing only this
 device holds, or offering to defer to what this device's platform answers, is PER-DEVICE and stays
-with that device: a provider payload's cache under a `meta` key, and THE THEME, whose `system`
+with that device: a provider payload's cache under a key of its own, and THE THEME, whose `system`
 defers to the OS's colour scheme. The
 rest but `usdRate` are a person's choices, and AT THE MIGRATION THEY FOLLOW THE ACCOUNT: the default
 currency, the language, the period, both suggestion switches, the reminder switch and its lead, the
@@ -86,8 +93,8 @@ rule for each, is core's (`settings.ts`), so both sides run it: the server on a 
 read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member carries no per-device field: today a restore the person opts into
 sets the device's default currency and rate, and from the migration it sets the account's default
 currency.
-The JSON backup envelope names no dataset and refuses a newer, an older and an unreadable
-version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
+The JSON backup envelope names no dataset and no database version and refuses a newer, an older
+and an unreadable version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
 `inzhur` — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
 (`__proto__`, `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest), both by place
 and before the row schemas. THE FILE CARRIES PER-UNIT PRICES, NOT THE STORE'S ₴ SNAPSHOTS, as the
@@ -96,31 +103,30 @@ day, dropping one no price reproduces — of a position held none of, of an asse
 or valued at nothing — and a day left with none, and the import rebuilds each day's snapshot from
 the prices, each quote in kopecks as `/view` rounds it and `savedAt` the day's latest witness time. It refuses a price naming no asset, a second price for one asset and day, and one not above
 zero;
-import validates fully, shows a diff, then replaces the dataset — in one transaction on the device,
-and on the server in staged parts one pointer move commits (*Cloud target*) — a key the file omits
-is REMOVED — after a safety backup that cannot be cancelled. CSV is export-only, and A TEXT CELL
+import validates fully, shows a diff against the dataset the API holds, then replaces it in staged
+parts one pointer move commits (*Cloud target*) — a key the file omits is REMOVED — after a safety
+backup, that dataset as the API exports it, that cannot be cancelled. CSV is export-only, and A TEXT CELL
 NEVER
 STARTS A FORMULA: one beginning with a character OWASP's CSV Injection page lists — `=`,
 `+`, `-`, `@`, tab, CR, LF, or the full-width `＝＋－＠` — is written after an apostrophe. A number
 is never guarded, so a negative amount stays a number; the JSON backup writes every note as typed,
 since it is restored into the store rather than opened in a spreadsheet. THE BACKUP WRITES
 THE MODEL'S SHAPE, NOT THE STORE'S: `buildBackup` projects every row onto its schema's keys, so a key
-the model retired, still sitting in IndexedDB, never reaches the file and needs no migration. A
-VALUE the reader refuses — a moving row with no count, the retired `tax` type, an asset id such as
-`constructor` an older build imported — has nothing to project and still fails the envelope; that
-store cannot back itself up, and its exit is the CSV export, which validates nothing, then
-Settings → Danger zone, erase.
+the model retired never reaches the file and needs no migration. A VALUE the reader refuses — a
+moving row with no count, the retired `tax` type, an asset id such as `constructor` — has nothing
+to project and still fails the envelope, and the download is shut; the CSV export, which validates
+nothing, is the way out.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
 work is what the dialog must state before the press. The envelope's version tracks what a build
 ACCEPTS, not how long ago it shipped, so two live builds cannot share a number and disagree about
-fields — which is why a projecting writer bumps nothing, and why dropping the dataset from the
-envelope bumped it: a file that still names one is an older build's. A strict reader needs a strict writer:
-spread, the store's leftovers rode into the file and the file's own parser refused it, shutting
-the download, both destructive dialogs' backup and the import's safety backup at once. The export
-is terminal, the store the only truth and the file there to be restored into it, so nothing
-downstream waits for a field this build has never heard of. One file for both stores lets a backup
-taken here restore into the server, and the quote the conversion drops is one the server cannot
-store either. zod drops a `__proto__` key before any
+fields — which is why a projecting writer bumps nothing, and why dropping the dataset and then the
+database version from the envelope each bumped it: a file that still names one is an older build's.
+A strict reader needs a strict writer, so the file is read back through the parser before it is
+saved and a download that fails it is shut, both destructive dialogs' backup and the import's
+safety backup with it. The export is terminal, the server the only truth and the file there to be
+restored into it, so nothing downstream waits for a field this build has never heard of. The file
+carries what the server stores, and the quote the conversion drops is one the server cannot store
+either. zod drops a `__proto__` key before any
 schema sees it, and an assignment to that key on a plain quote map stores nothing, so a file
 carrying it would lose a key or an asset's prices in silence — against the rule that nothing partial passes; `secure-json-parse` and `bourne` refuse the
 key by default too. A plain quote map with no own key for an asset id such as `constructor` answers
@@ -129,7 +135,7 @@ day as complete; `qs` drops any key `Object.prototype` owns by default, and the 
 file instead of dropping the asset, by the same rule. The import is the only door for an arbitrary
 asset id — the form stamps a UUID and the seed's ids are fixed — so from this build on no store gains
 such an id, and one check there covers every map keyed by an asset id, the ones built later
-included; a store an older build filled keeps its id and takes the exit above. OWASP lists those
+included. OWASP lists those
 characters as ones a
 spreadsheet can read as starting a formula, and names exfiltrating the sheet's contents among the
 attacks; a note and an asset's name are free text. The guard goes by the value's run-time type, as
@@ -201,16 +207,15 @@ and this app obeys it everywhere (*Interaction rules*).
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a
 date is `units(a, D) × price(a, D)`, the price being the latest observation at or before D from
 either source, the user's or the archive's, the newer winning and the user's on a same-day tie, so
-nothing is prefilled because nothing is written. The app stores and reads ₴ snapshots
-(*Persistence today*), and composes its figures over them as stored (`src/lib/local-view.ts`). Core
-can rebuild that series from the ledger and both sources' per-unit prices instead, and `GET /view`
-serves the rebuild, which the app does not read yet: one snapshot per grid day from the first that values anything —
+nothing is prefilled because nothing is written. The server stores per-unit prices and
+the app reads what it derives (*Cloud target*): core rebuilds the series from the ledger and both
+sources' per-unit prices, and `GET /view` serves it, one snapshot per grid day from the first that values anything —
 every day a held asset is observed on, every transaction day, and the day before each period opens,
 resolved by the window composer — each asset at that day's units × price, rounded once to the
 kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
 transaction dated after the last observation closes them at carried prices, a full exit at none;
 no grid day falls after the caller's day, so a transaction or a price dated later adds none, and
-`buildView` reads the ledger to that day (`ledgerAsOf`), the device's own day when the app asks
+`buildView` reads the ledger to that day (`ledgerAsOf`), the server's Kyiv day when the API answers
 (*Metric families and windows*), so a
 transaction or a quote snapshot dated after it counts in none of the view's figures until its day, the
 next payouts' projection included, so a sale entered ahead of a coupon's date leaves that coupon
@@ -331,8 +336,9 @@ it; a field's own value stays the field boundary's. A bond's price ON the paymen
 before maturity is EX that coupon: the DCF re-derivation (`futureFlows`) discounts only flows
 strictly after the pricing date, and a quote suggested for that date already deducts the coupon.
 Every figure of the eight analytics screens but a bond's YTM, the capital card and `/`'s yield
-card is the view's, which `buildView` cuts at the caller's day: the device's own, the view being
-read again when `useToday()`, one clock every reader shares, finds a new one, so Balances lists the
+card is the view's, which `buildView` cuts at the caller's day: the Kyiv day the server reads, the view being
+read again when `useToday()`, one clock every reader shares, finds a new local day (the tag it is
+answered under names the Kyiv day, so a view that has not moved costs a 304), so Balances lists the
 snapshots and the Payouts log the payouts dated on or before today; the reminders, the coupon due
 cards, both forms, the ledger on `/transactions`, the delete counts, the export and the import
 preview read every row, and the YTM the feed solves reads the transactions cut to the view's day by
@@ -663,25 +669,43 @@ A sign-out offered to every visitor regardless of session: a way out for someone
 
 ## Not found and failures
 **Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE
-CARRIES THE APP-FAILURE PAGE, for a throw in `Root`, in `Layout` or on a signed-out page, and
-`main.tsx` renders the same page when the database cannot open at boot. It stands in the signed-out
-frame, having no shell left to keep, and owns `<html lang>` and the theme while `Root` is not
-mounted. A PATHLESS ROUTE BETWEEN `Layout` AND THE SCREENS carries the failed-screen state, so a
-screen that throws keeps the sidebar and reaching any route clears it. A `*` among the screens
-catches every other path, `/sign-in/x` too, inside the shell. Each state is an answer's block — a
-muted glyph, the title, the lead, one button — and in the shell its card sits where the signed-out
-card does. The two failures share their words and one reload; not found sends to `/`. NO STATE SHOWS
-THE ERROR, a status code or a stack: the router and React log what a boundary catches, and the boot
-logs its own.
+CARRIES THE APP-FAILURE PAGE, for a throw in `Root`, in `Layout` or on a signed-out page. It stands
+in the signed-out frame, having no shell left to keep, and owns `<html lang>` and the theme while
+`Root` is not mounted. A PATHLESS ROUTE BETWEEN `Layout` AND THE SCREENS carries the failed-screen
+state, so a screen that throws keeps the sidebar and reaching any route clears it. A `*` among the
+screens catches every other path, `/sign-in/x` too, inside the shell. Each state is an answer's
+block — a muted glyph, the title, the lead, one button — and in the shell its card sits where the
+signed-out card does. The two failures share their words and one reload; not found sends to `/`.
+NO STATE SHOWS THE ERROR, a status code or a stack: the router and React log what a boundary
+catches. A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
+that failed, and so does one of the wide figures (a curve, a page of the table, a day other than
+the caller's), and the failed-screen state is what shows, the sidebar kept; an answer already in
+hand stays on screen when a later read of it fails. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
+shows neither an empty portfolio nor a spinner: the shell alone until the read has been out for a
+while, then every box whose size is known in place for a while at least, a figure as «—», a list as three rows, a chart
+as one block, a form with its title and its fields held, and nothing in it that can be reached; one
+line outside the screen, which carries `aria-busy`, tells a screen reader that the portfolio is
+loading (*Cloud target*).
 **Why.** GOV.UK asks for the same page for all unexpected problems, and for no jargon like 404, no
 "oops" and no red. OWASP logs the details and returns none to the user, and the console is this
 app's log. React Router renders a boundary in place of its own route's element, so where a boundary
-sits decides what survives the throw.
-**Rejected.** A loading state, `HydrateFallback` or `Suspense`: no route loads and nothing suspends.
-· A real 404 status: the host rewrites every app path to the SPA with a 200. · A "Try again" that
-re-renders in place: with no loaders to revalidate, a location change is the only reset this app's
-router has, a render that threw usually throws again on the same data, and a reload also drops the
-in-memory caches a re-render keeps. · Reporting errors to a service.
+sits decides what survives the throw. A cold Lambda makes a first visit wait, and the screens' own
+empty-portfolio states would state something false meanwhile: "an editor opened over an empty list
+… is the one failure a user reads as 'my data is gone'" (`design/extensions/where-things-live.dc.html`).
+Primer's loading patterns warn that "Seeing a loading indicator flash on the screen could be
+distracting and make the product feel slower than it is", so a warm read shows none, and React holds
+a Suspense fallback before revealing content for the same reason. Few screen readers honour
+`aria-busy` (Adrian Roselli, *More Accessible Skeletons*), so each block is hidden from them and the
+status line speaks, outside the busy element since WAI-ARIA 1.2 lets assistive technology hold the
+changes of one until its busy period ends.
+**Rejected.** `HydrateFallback`, `Suspense` and a route loader: the read is a query whose state the
+screen reads itself, and nothing suspends. · A centred spinner, or «—» with no boxes: the layout
+would jump when the data lands, and an empty box reads as an empty portfolio. · A placeholder from
+the first frame, or after a second or two: a warm read answers inside the delay, and a cold one would
+sit on an empty screen for as long as that. · A "Try again" that re-renders in place: a location change is
+the only reset this app's router has, a render that threw usually throws again on the same data, and
+a reload also drops the in-memory caches a re-render keeps. · A real 404 status: the host rewrites
+every app path to the SPA with a 200. · Reporting errors to a service.
 
 ## Brand
 **Decision.** The product is Quirenote and the domain is `quirenote.com`. The logo is the 5h mark,
@@ -696,8 +720,8 @@ geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free.
 
 ## The price archive
-**Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet, and the
-one way into it from a user stack is `archive_reader`, read-only (*Cloud target*). It buys
+**Decision.** A daily job archives prices into Aurora DSQL; the app reads it only through the figures
+the `/view` routes serve, and the one way into it from a user stack is `archive_reader`, read-only (*Cloud target*). It buys
 the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV series, both captured
 nightly from the provider's offer page (*External sources*); a night the page is not read is a
 dealer quote the archive will never hold. NBU
@@ -934,21 +958,26 @@ and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE
 `If-Match` goes stale, and a patch applied twice leaves one state. The text lives on the row
 `data_version` lives on, so a settings write and a mutation touching the row at once conflict at
 commit, and the one that loses is retried.
-THE CLIENT BUILDS THE OPS in `src/lib/writes.ts`, which no screen calls yet. A repository write is a
-list of ops sent as one request under the strong tag `/view` or the last write gave. An update is a
-patch, so a member its caller left `undefined`, which a Dexie update removed, goes out as `null`. A
+THE CLIENT BUILDS THE OPS in `src/lib/writes.ts`, which the repository calls. A repository write is
+a list of ops sent as one request under the strong tag `/view` or the last write gave, one write
+at a time, so a tab is never refused against its own tag, and a read of the view sent before one of
+its writes landed does not move that tag back. An update is a
+patch, so a member its caller left `undefined`, which a form's update meant as a removal, goes out as `null`. A
 day's save sends a `null` for each quote the stored day holds and the drafts no longer do, and no
 `savedAt`, the server stamping the witness time. An asset goes out without `inzhur.units`, which
 its door refuses, and with `createdAt` cut at the second, as the backup cuts it. A transaction that
 creates its asset sends `asset.add` before `transaction.add` in its one request: the transaction
 names the asset, and the request lands both or neither. The targets of the assets a save changes are
-one list of `asset.patch` ops, within a request's bound of ops. A delete past the row
+one list of `asset.patch` ops, within a request's bound of ops. A coupon confirmed from its card is
+one list of the payout, the reinvest when it is ticked and the `asset.patch` that rolls `nextCoupon`,
+and the delete of a confirmed coupon's payout is one list of the delete and the `asset.patch` that
+moves the pointer back. A delete past the row
 bound is the one write that is several requests: the 409 `too_many_rows` is answered with
 `asset.prune`, each step a request of its own under the tag the last gave, until one answers no row
 remaining, and then `asset.delete` is sent again. It stops at a reply that is not a write and at a
 count that is missing or does not fall. The `dropped` that `snapshot.patch` and `snapshot.move`
 answer is returned to the caller beside each op's answer.
-THE CLIENT DRIVES THE IMPORT AND READS THE EXPORT in `src/lib/backup.ts`, which no screen calls yet,
+THE CLIENT DRIVES THE IMPORT AND READS THE EXPORT in `src/lib/backup.ts`, which the repository calls,
 and core cuts the parts (`backup/parts.ts`). Core refuses a file before anything is sent: a row that
 fails a door the routes apply, `assetRecordSchema`, `transactionRecordSchema` or `priceRowSchema`, an
 id that is no uuid, an asset row naming no asset or a deposit or withdrawal naming one, or a row whose
@@ -967,29 +996,46 @@ second 5xx and an answer with no tag among them, aborts the import and is return
 answer lost in transit are the transport's, which sends the same bytes under the same number again. The export is `GET /state` read through the same row doors, and the CSV's
 snapshots are cut from its prices by `snapshotsOfPrices`: one for each day priced, and none for a
 day `/view`'s series merely carries an asset onto.
+THE DIALOG REPLACES NOTHING BEHIND THE PERSON'S BACK. The diff it shows is the file against the
+export read when the file was picked, and the press reads the export again and compares its tag with
+the first's: a dataset that has moved since is shown again, with a caution, and replaced by nothing.
+The safety backup is that second export, handed to the browser before the first part is sent, and
+the commit goes under its tag; a commit refused 412 closes its import and shows the difference
+again. An export moves no tag of the repository's: a write goes under what the view on screen was
+read at, never under a newer one.
 THE APP READS `/view` THROUGH ONE QUERY. `src/hooks/queries.ts` names the reads (`viewQuery`, and
-`seriesQuery`, `balancesQuery` and `dayQuery` under the same `['view']` key), and
-`src/lib/local-view.ts` answers each over the rows Dexie holds, by the composers the server runs
-over the ledger and the ₴ snapshots as stored, in place of the series the server rebuilds, with no
-archive row, no payment date and no rate, in the device's own day: a quote stored for a day its
-position is not held still prefills the form and still counts in the delete dialog, as the delete
-removes it. The API's client replaces those calls and nothing above them. A screen or a
-form takes its SLICE with `useView(selector)`, the selector bound at module level in
-`src/hooks/slices.ts`, and until the read answers it is handed the slice of an empty portfolio, as
-a screen showed before its rows were listed. The curve of a period and a page of the table are
-nothing until their first read answers, so Yield's chart and Balances' table and count state
-nothing of an empty portfolio while theirs is out, and they keep the one they had until the next
-lands, the table's Next control waiting for the page it stepped to; a day other than the caller's,
-which the quotes screen reads only when its date is not the view's, shows as an empty day until it
-lands. A read is fresh until
-something invalidates the key: a write, which hands back the invalidation's promise, so a mutation
-settles only once the view it changed has been read again and a control that waits on it is never
-idle beside the old figure; another tab's replace or erase; the clock finding a new day
-(`useViewDayRollover`); or the page being shown again (`useViewShownAgain`). A row written in one
-tab is announced to no other, so a page shown again invalidates every view read: the ones on screen
-are read at once, and a curve, a page or a day cached off screen is read again when next mounted.
-Moving between screens reads the view no more; a wide figure is read when its period or page is
-first shown, and again once its cache has been collected.
+`seriesQuery`, `balancesQuery` and `dayQuery` under the same `['view']` key), and each is the
+repository's, which sends the validator it last had for that read in `If-None-Match` and hands back
+what it holds when the answer is 304, so a read of an unchanged view moves no body and renders
+nothing. A screen or a form takes its SLICE with `useView(selector)`, the selector bound at module
+level in `src/hooks/slices.ts`; until the read answers, a consumer in the shell is handed the slice
+of an empty portfolio, `viewBody` over no rows, and reads `useViewReady` beside it. A SCREEN THAT
+READS THE PORTFOLIO WAITS BEHIND THE VIEW (`Loadable`): the shell alone until the read has been out
+for `PLACEHOLDER_AFTER_MS`, then the screen's drawn placeholders (`src/screens/placeholders.tsx`, from
+`design/extensions/first-paint.dc.html`) for at least `PLACEHOLDER_HOLD_MS`, then the screen; a refetch shows
+none, a first read that failed throws to the failed-screen state (*Not found and failures*), and a
+caller nobody has signed in asks for nothing and sees neither the portfolio nor a placeholder, the
+transport sending nothing without a token (*Auth model*). The curve of a period, a page of the
+table and a day other than the caller's are reads of their own, nothing until their first answer
+lands, so Yield's chart, Balances' table and the quotes screen's rows hold their own boxes by the
+same rule while theirs is out, and keep the one they had until the next lands (the curve and the
+page) or are an empty day (the day), the table's Next control waiting for the page it stepped to
+and Save waiting for the day it would write over. A first read of one of them that fails throws to
+the failed-screen state as the view's does, a period or page whose read failed included, since the
+curve kept in the meantime is the last one's; a caller nobody has signed in fails nothing. A READ IS FRESH FOR A BOUNDED WHILE,
+`VIEW_STALE_MS`, and revalidated after it: TanStack's refetch on mount and on focus takes every read
+that has gone stale, a curve, a page or a day cached off screen included, so moving between
+screens within the window sends nothing, and a screen opened after it costs a request that is
+usually a 304. A write invalidates the key and hands back the invalidation's promise, so a mutation
+settles only once the view it may have changed has been read again and a control that waits on it
+is never idle beside the old figure; the clock finding a new day (`useViewDayRollover`) does the
+same. A CHANGE ANOTHER TAB OR DEVICE MAKES IS ANNOUNCED TO NO ONE: the write that would overwrite it
+goes under a tag the API has moved, is refused 412, changes nothing, and says so once, in one
+toast whichever control sent it, the failure message a control has of its own being for any other
+refusal, while the view is read again; it is never sent again. The tag a
+write goes under is the last the view or a write gave, which a sign-out or an account change forgets, and one that finds
+none reads the dataset's own with the export. The transport asks the browser to store no answer
+(`cache: 'no-store'`).
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -1100,11 +1146,21 @@ drive (*User schema and deletes*). A loop driven by a count the server answers e
 count falls, so one that does not is returned rather than asked again.
 The reads share a key prefix because one invalidation of it then reads again every read mounted, and
 TanStack Query's guide on invalidations from mutations has a mutation whose `onSuccess` returns the
-invalidation's promise stay pending until it finishes. A read's `staleTime` is infinite because the
-default, zero, would read the view again at every mount of a screen, where the owner's rule is the
-fewest reads the client can bear, and a change of the data goes by one of the paths above or by
-the page being shown again, which invalidates the key itself: TanStack Query's refetch on focus
-goes through a query's mounted observers, and a curve, a page or a day cached off screen has none.
+invalidation's promise stay pending until it finishes. A read's `staleTime` is bounded, not zero and not
+infinite: zero would read the view again at every mount of a screen, where the owner's rule is the
+fewest reads the client can bear, and infinite would leave a screen as old as its page. A window
+that ends lets TanStack Query's refetch on mount and on focus ask whether the view moved, which a
+conditional read answers without the body, so no hook of ours invalidates on focus: it would send a
+request for every read mounted at every focus, the window's included, and TanStack's own focus
+refetch goes through a query's mounted observers, which a curve, a page or a day cached off screen
+has none of, while a stale one is read again on its next mount. The only thing that changes the
+view behind a tab is the sole user's other tab or device, and a write from this one against a tag
+that moved is refused, so the window bounds how long a screen is behind and never what is lost.
+The browser's HTTP cache is asked to store nothing because it would keep the portfolio on disk past
+a sign-out, which nothing clears (OWASP's HTML5 Security Cheat Sheet: "do not assume client-side
+storage provides confidentiality"); the client revalidates what it holds in memory. A write waits
+for the one before it because, of two sent together under one tag, the one that commits later is
+refused with a 412 against the tag the first moved, and the tab would have refused itself.
 A day other than the caller's shows as empty rather than as the last
 one picked because its rows are the baseline of a form, which would stand under another date.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
@@ -1156,12 +1212,21 @@ strings: a backend rolled
 back to a build that predates a setting, or accepts fewer values of one, would delete it at the
 next patch of any other. · A day's save naming only the drafts: the merge keeps the quote they
 cleared. · The targets of N assets as N requests: a burst of five, and a failure partway leaves a
-plan half saved. · An asset's last prune and its delete in one request: when the delete still does
-not fit the bound the whole request is refused, and the prune with it. · Putting an import's parts
-at once: a part naming an asset no earlier part staged is refused. · Carrying on past a refused
-part: it stages nothing, so the commit's counts and digest cannot be met by the file. · The CSV's
-snapshots from `/view`'s series: they quote the days an asset is carried onto, which the file
-would present as recorded. · A `staleTime` of zero: every screen mounted would read the view again.
+plan half saved. · A coupon's payout, reinvest and roll, or a payout's delete and its reopening, as
+requests of their own: a payout that landed alone settles the occurrence and takes the card away
+with no reinvest or roll left to press, and a delete that landed alone loses the occurrence from the
+due cards, the reminders and income. · An asset's last prune and its delete in one request: when the
+delete still does not fit the bound the whole request is refused, and the prune with it. · Putting
+an import's parts at once: a part naming an asset no earlier part staged is refused. · Carrying on
+past a refused part: it stages nothing, so the commit's counts and digest cannot be met by the file.
+· The CSV's snapshots from `/view`'s series: they quote the days an asset is carried onto, which the
+file would present as recorded. · A `staleTime` of zero: every screen mounted would read the view again. · An infinite one, with
+an invalidation when the page is shown again: a request for every read mounted at every focus, and
+a hook where TanStack's own refetch of what has gone stale does the work. · An export that moves
+the tag a write goes under: a tab would then write from a view older than the tag it sends, the
+lost update the precondition is there to refuse. · The browser's HTTP cache, and a cache of the
+view in storage: a portfolio left on the device past its account's sign-out; first paint shows its
+placeholders instead, and what a persisted cache would be worth is #411's to measure.
 · The last day kept while another loads: its baselines would stand under a date they are not
 before.
 
@@ -1298,18 +1363,21 @@ answers every address with one constant, so the form can say only that it was re
 API REFUSES on a route every user may call — pending, rejected, no application, forbidden — sees that
 answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out; an
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
-not read that way. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which no screen calls
-yet. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
-each answer back as a typed reply: the four refusals apart; a 412, a 409 for a write still running,
+not read that way. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which the
+repository calls. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
+each answer back as a typed reply: the four refusals apart; a 304 and a 412, a 409 for a write still running,
 a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
 own; any other answer by its status and body. A body goes as the text it was given, under
 `application/json` unless its caller names a type, as `PATCH /settings` must. Nothing is sent where
 the host names no API, nor where the account is signed out or a sign-out is running, the pair held
 meanwhile being the account's that is leaving; the reply to the latter two is a 401's kind. It shows
 a refusal only for a route every user may call, which the first segment of its path names, and only
-when no sign-out has begun since the request did: the session counts a sign-out when it begins,
-because its status changes only once the relay answers. A sign-out that begins during a call ends
-it before its next send, since the next token may be another account's. A 412 is never sent again.
+when no sign-out has begun and the account has not changed since the request did: the session counts
+a sign-out when it begins, because its status changes only once the relay answers, and an account
+change when a signed-in answer names another account than the one held with no sign-out between,
+the cookie another tab replaced. A sign-out that begins, or an account change, during a call ends it
+before its next send, since the next token may be another account's and a write would carry the
+first one's tag. A 412 is never sent again.
 A 429, a lost connection and a 409 for a write still running are sent again after a Full Jitter wait
 drawn from up to half a second and doubled at each retry, at most four times, and are then returned
 as they stand. A token the relay could not be reached for, a refresh the network lost or a load it
@@ -1319,7 +1387,19 @@ and one it does not answer is a lost connection. A keyed write goes under one `I
 all its attempts, so an answer lost in transit finds the 200 the server stored. A `derivation-id` that differs from the build's is
 returned with the answer and acted on by nothing: `pnpm dev` defines the build's from the local
 checkout and proxies to the deployed API, so on a branch the deploy lacks a reload on a difference
-would not end. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE, ONCE: the fact rides the navigation
+would not end. A SIGN-OUT THE RELAY HAS ANSWERED, OR AN ACCOUNT CHANGE, EMPTIES WHAT THE PAGE HOLDS OF THE ACCOUNT:
+the query cache, the tag a write goes under and the quote draft with its stored keys, by one wire
+(`src/lib/api.ts`) whichever control began it, so the next account on the page reads its own and
+finds none of the last one's. The repository forgets first, because the reset starts the screens'
+reads at once and they are the next account's. What it began for the account ends with it: a write
+still waiting its turn, an asset delete between its steps or an import between its parts sends
+nothing more, and an answer to any of its calls, a read's included, that comes after is returned as
+a 401's kind, so no tag, ops or file of the last account go out under the next one's token. Another tab's sign-out or sign-in reaches a page only when its own
+refresh meets the cookie, as a refusal or as the other account's pair; until then it shows what it
+last read. The queries are reset and not removed, since a removed query leaves the screens
+mounted over it on their last figures and a read in flight unsettled; a load the relay never answered says nothing of the account and clears nothing. A
+portfolio route asks the API only with a token, so signed out it sends nothing and shows no
+portfolio and no placeholder. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE, ONCE: the fact rides the navigation
 as router state, and the page replaces its own history entry the moment it arrives, a status line
 above the title that submit empties and holds. Through Cognito's logout the page arrives by a load
 from another origin, which router state cannot cross, so this tab's session storage carries the fact
@@ -1347,7 +1427,9 @@ sending it again unchanged cannot change. AWS's backoff study shows exponential 
 leaves clusters of calls and jitter spreads them, and says most AWS SDKs support both in their
 standard retry mode; its Builders' Library calls a retry "selfish", hence a bound. The window starts at
 the half second in which the API's two requests per second refill one token.
-**Rejected.** As the relying party, a Cognito prefix domain — a later move to the custom one strips
+**Rejected.** A portfolio kept in the browser as a cache keyed by the account's `sub`: nothing
+client-side is confidential (OWASP), so a shared browser would hold the last account's figures
+until something cleared them, and what is not kept needs no clearing. · As the relying party, a Cognito prefix domain — a later move to the custom one strips
 the passkeys registered against it — or the auth host, which would scope every credential to managed
 login alone. · A post-confirmation trigger creating the row: AWS does not invoke it for an
 admin-created or a federated user, the two routes into the pool that matter. ·

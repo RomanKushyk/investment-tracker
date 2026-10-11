@@ -1,10 +1,9 @@
-// The device's answer to the user API's four reads: the server's composers over the rows Dexie
-// holds. The device keeps ₴ snapshots, so it composes the figures over them as they are stored, and
-// reads the day and the delete counts from them as stored; the server rebuilds the series from
-// per-unit prices, and has an archive and payment dates the device has not. The reads below are
-// what a query calls; the API's client takes their place by swapping the calls and nothing above
-// them.
+// The view's four reads over ledgers held as tests hold them, with ₴ snapshots as stored: the server's
+// composers over the rows given, in place of the series the server rebuilds from per-unit prices.
+// The golden ledgers are stored this way, so a screen's figures are held to the composers' own on
+// them, and a body built here stands in for the API's wherever a test needs one.
 import { todayIso } from '@quirenote/core/dates';
+import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { PeriodOption } from '@quirenote/core/period';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { buildBalanceRow, paginateSnapshots } from '@quirenote/core/view/balances';
@@ -20,7 +19,13 @@ import {
 } from '@quirenote/core/view/serve';
 import { windowView } from '@quirenote/core/view/window';
 import { cumulativeYieldSeriesIn } from '@quirenote/core/view/yield';
-import { repo, type AllTables } from './repository';
+import type { ViewData } from '../lib/repository';
+
+export interface AllTables {
+  assets: Asset[];
+  snapshots: Snapshot[];
+  transactions: Transaction[];
+}
 
 export const NO_TABLES: AllTables = { assets: [], snapshots: [], transactions: [] };
 
@@ -82,6 +87,12 @@ export function viewOf(tables: AllTables, today = todayIso()): ViewBody {
     deleteCounts: storedDeleteCounts(input.assets, input.transactions, tables.snapshots),
   };
 }
+/** The body as the API serves it: the view and the rows, the tag a write goes under, the settings. */
+export const viewDataOf = (tables: AllTables, today = todayIso()): ViewData => ({
+  ...viewOf(tables, today),
+  tag: '"0"',
+  settings: SETTINGS_DEFAULTS,
+});
 export function seriesOf(tables: AllTables, period: PeriodOption, today = todayIso()): SeriesBody {
   const { assets, snapshots, transactions } = ledgerAsOf(storedInput(tables, today));
   const w = windowView({ assets, snapshots, transactions, period });
@@ -100,21 +111,3 @@ export function balancesOf(tables: AllTables, page: number, today = todayIso()):
 }
 export const dayOf = (tables: AllTables, date: string): DayQuotes =>
   storedDay(tables.snapshots, date);
-
-// What a screen shows before its read answers: the same functions over no rows.
-export const emptyView = (): ViewBody => viewOf(NO_TABLES);
-export const emptyDay = (date: string): DayQuotes => dayOf(NO_TABLES, date);
-
-// One consistent read of the three tables per answer, so a figure never mixes two states.
-export async function readView(): Promise<ViewBody> {
-  return viewOf(await repo.exportAll());
-}
-export async function readSeries(period: PeriodOption): Promise<SeriesBody> {
-  return seriesOf(await repo.exportAll(), period);
-}
-export async function readBalances(page: number): Promise<BalancesBody> {
-  return balancesOf(await repo.exportAll(), page);
-}
-export async function readDay(date: string): Promise<DayQuotes> {
-  return dayOf(await repo.exportAll(), date);
-}

@@ -166,7 +166,6 @@ describe('the envelope reports a file’s rows as it did', () => {
       ],
       undefined,
       '2026-07-28T12:00:00',
-      2,
     );
     const parsed = backupEnvelopeSchema.safeParse(env);
     expect(parsed.success).toBe(false);

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ledgerUnits } from '@quirenote/core/derive';
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import type { Snapshot, Transaction } from '@quirenote/core/types';
-import { dayOf, NO_TABLES } from '../../lib/local-view';
+import { dayOf, NO_TABLES } from '../../__fixtures__/stored-view';
 import {
   bondAbbrev,
   collectQuotes,

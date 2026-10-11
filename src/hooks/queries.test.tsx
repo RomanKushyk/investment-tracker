@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The view query, its slices and its writes, mounted: a slice is read through a selector held at
 // module level, so a consumer renders only when its own slice moves (*Core is pure*).
-import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react';
 import { createElement, useEffect, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,79 +10,67 @@ import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import type { PeriodOption } from '@quirenote/core/period';
 import type { BalancesBody, DayQuotes, SeriesBody, ViewBody } from '@quirenote/core/view/serve';
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
-import {
-  balancesOf,
-  dayOf,
-  readBalances,
-  readDay,
-  readSeries,
-  readView,
-  seriesOf,
-  viewOf,
-} from '../lib/local-view';
-import {
-  useAddAsset,
-  useBalancesPage,
-  useClearAll,
-  useDeleteAsset,
-  useDeleteSnapshot,
-  useDeleteTransaction,
-  useRecordTransaction,
-  useReplaceAll,
-  useSaveSnapshot,
-  useUpdateAsset,
-  useUpdateTransaction,
-  useDayQuotes,
-  useSeries,
-  useView,
-  useViewDayRollover,
-  useViewReady,
-  useViewShownAgain,
-  viewKey,
-} from './queries';
-import {
-  selectCapital,
-  selectLedgerForm,
-  selectPayouts,
-  selectPortfolio,
-  selectQuotesForm,
-} from './slices';
+import { balancesOf, dayOf, seriesOf, viewDataOf, viewOf } from '../__fixtures__/stored-view';
+import { selectCapital, selectPayouts, selectPortfolio, selectQuotesForm } from './slices';
 
-vi.mock('../lib/local-view', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/local-view')>();
-  return {
-    ...actual,
-    readView: vi.fn(),
-    readSeries: vi.fn(),
-    readBalances: vi.fn(),
-    readDay: vi.fn(),
-  };
-});
-vi.mock('../lib/repository', () => {
+// The API's client: its reads answer the seed unless a case says otherwise, and each write resolves.
+vi.mock('../lib/api', () => {
   const write = () => vi.fn(async () => undefined);
   return {
     repo: {
+      readView: vi.fn(),
+      readSeries: vi.fn(),
+      readBalances: vi.fn(),
+      readDay: vi.fn(),
       saveSnapshot: write(),
       recordTransaction: write(),
+      recordCoupon: write(),
       addAsset: write(),
       updateAsset: write(),
+      saveTargets: write(),
       deleteAsset: write(),
       updateTransaction: write(),
       deleteTransaction: write(),
       deleteSnapshot: write(),
-      replaceAll: write(),
+      replaceAll: vi.fn(async () => 'imported'),
       clearAll: write(),
-      exportAll: vi.fn(async () => ({ assets: [], snapshots: [], transactions: [] })),
+      exportState: vi.fn(),
     },
   };
 });
+const { repo } = await import('../lib/api');
+const {
+  useAddAsset,
+  useBalancesPage,
+  useClearAll,
+  useDayQuotes,
+  useDeleteAsset,
+  useDeleteSnapshot,
+  useDeleteTransaction,
+  useRecordCoupon,
+  useRecordTransaction,
+  useReplaceAll,
+  useSaveSnapshot,
+  useSaveTargets,
+  useSeries,
+  useUpdateAsset,
+  useUpdateTransaction,
+  useView,
+  useViewDayRollover,
+  useViewReady,
+  viewKey,
+} = await import('./queries');
+const readView = vi.mocked(repo.readView);
+const readSeries = vi.mocked(repo.readSeries);
+const readBalances = vi.mocked(repo.readBalances);
+const readDay = vi.mocked(repo.readDay);
 
 const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
 const TODAY = seed.today;
 const bodyOf = (
   tables: { assets: Asset[]; snapshots: Snapshot[]; transactions: Transaction[] } = seed,
   today = TODAY,
-) => viewOf(tables, today);
+) => viewDataOf(tables, today);
 
 /** A read that answers when the test says so. */
 function deferred<T>() {
@@ -292,7 +280,8 @@ describe('a read by period or by day', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(result.current).toBe(opening);
+    expect(result.current.day).toBe(opening);
+    expect(result.current.pending).toBe(false);
     expect(readDay).not.toHaveBeenCalled();
   });
 
@@ -307,16 +296,19 @@ describe('a read by period or by day', () => {
       wrapper: providerOf(clientOf()),
       initialProps: { date: first },
     });
-    expect(result.current).toMatchObject({ date: first, quotes: {}, previous: {} });
-    await waitFor(() => expect(Object.keys(result.current.quotes).length).toBeGreaterThan(0));
-    expect(result.current.date).toBe(first);
+    expect(result.current.day).toMatchObject({ date: first, quotes: {}, previous: {} });
+    expect(result.current.pending).toBe(true);
+    await waitFor(() => expect(Object.keys(result.current.day.quotes).length).toBeGreaterThan(0));
+    expect(result.current.day.date).toBe(first);
+    expect(result.current.pending).toBe(false);
 
     rerender({ date: second });
     // The second day is out and not back: no quote of the first stands in its place.
-    expect(result.current).toMatchObject({ date: second, quotes: {}, previous: {} });
+    expect(result.current.day).toMatchObject({ date: second, quotes: {}, previous: {} });
+    expect(result.current.pending).toBe(true);
     await act(async () => later.resolve(dayOf(seed, second)));
-    await waitFor(() => expect(Object.keys(result.current.quotes).length).toBeGreaterThan(0));
-    expect(result.current.date).toBe(second);
+    await waitFor(() => expect(Object.keys(result.current.day.quotes).length).toBeGreaterThan(0));
+    expect(result.current.day.date).toBe(second);
   });
 });
 
@@ -336,7 +328,7 @@ describe('a write', () => {
       'saveSnapshot',
       function useWrite() {
         const m = useSaveSnapshot();
-        return { mutateAsync: () => m.mutateAsync({ date: TODAY, quotes: {} }) };
+        return { mutateAsync: () => m.mutateAsync({ date: TODAY, quotes: {}, stored: {} }) };
       },
     ],
     [
@@ -344,6 +336,13 @@ describe('a write', () => {
       function useWrite() {
         const m = useRecordTransaction();
         return { mutateAsync: () => m.mutateAsync({ tx }) };
+      },
+    ],
+    [
+      'recordCoupon',
+      function useWrite() {
+        const m = useRecordCoupon();
+        return { mutateAsync: () => m.mutateAsync({ payout: tx }) };
       },
     ],
     [
@@ -358,6 +357,13 @@ describe('a write', () => {
       function useWrite() {
         const m = useUpdateAsset();
         return { mutateAsync: () => m.mutateAsync({ id: asset.id, patch: { targetPct: 1 } }) };
+      },
+    ],
+    [
+      'saveTargets',
+      function useWrite() {
+        const m = useSaveTargets();
+        return { mutateAsync: () => m.mutateAsync([{ id: asset.id, targetPct: 1 }]) };
       },
     ],
     [
@@ -378,7 +384,7 @@ describe('a write', () => {
       'deleteTransaction',
       function useWrite() {
         const m = useDeleteTransaction();
-        return { mutateAsync: () => m.mutateAsync(tx.id) };
+        return { mutateAsync: () => m.mutateAsync({ id: tx.id }) };
       },
     ],
     [
@@ -394,7 +400,7 @@ describe('a write', () => {
         const m = useReplaceAll();
         return {
           mutateAsync: () =>
-            m.mutateAsync({ data: { assets: [], snapshots: [], transactions: [] } }),
+            m.mutateAsync({ etag: '"1"', plan: { manifest: {} as never, parts: [] } }),
         };
       },
     ],
@@ -493,92 +499,6 @@ describe('a control that waits on a write', () => {
   });
 });
 
-describe('a page shown again', () => {
-  // A row written in one tab is announced to no other (only a replace or an erase is), and a read
-  // is fresh until something invalidates it, so the page coming back invalidates every view read.
-  // The shell mounts the hook above the screens.
-  const showAgain = () =>
-    act(async () => {
-      focusManager.setFocused(false);
-      focusManager.setFocused(true);
-      await Promise.resolve();
-    });
-  afterEach(() => focusManager.setFocused(undefined));
-
-  it('reads the view again, and shows a row another tab wrote', async () => {
-    const { result } = renderHook(
-      () => {
-        useViewShownAgain();
-        return { form: useView(selectLedgerForm), ready: useViewReady() };
-      },
-      { wrapper: providerOf(clientOf()) },
-    );
-    await waitFor(() => expect(result.current.ready).toBe(true));
-    expect(result.current.form.assets).toEqual(seed.assets);
-
-    const written = { ...seed.assets[0], id: 'written-elsewhere', name: 'Written elsewhere' };
-    vi.mocked(readView).mockImplementation(async () =>
-      bodyOf({ ...seed, assets: [...seed.assets, written] }),
-    );
-    await showAgain();
-    await waitFor(() => expect(result.current.form.assets).toHaveLength(seed.assets.length + 1));
-    expect(readView).toHaveBeenCalledTimes(2);
-  });
-
-  it('reads the curve of a period again', async () => {
-    const all = seriesOf(seed, 'all', TODAY);
-    const month = seriesOf(seed, '1m', TODAY);
-    vi.mocked(readSeries).mockReset();
-    vi.mocked(readSeries).mockResolvedValueOnce(all).mockResolvedValueOnce(month);
-    const { result } = renderHook(
-      () => {
-        useViewShownAgain();
-        return useSeries('all');
-      },
-      { wrapper: providerOf(clientOf()) },
-    );
-    await waitFor(() => expect(result.current).toEqual(all));
-    await showAgain();
-    await waitFor(() => expect(result.current).toEqual(month));
-  });
-
-  it('reads the page of the table again', async () => {
-    const first = balancesOf(seed, 0, TODAY);
-    const second = balancesOf(seed, 1, TODAY);
-    vi.mocked(readBalances).mockReset();
-    vi.mocked(readBalances).mockResolvedValueOnce(first).mockResolvedValueOnce(second);
-    const { result } = renderHook(
-      () => {
-        useViewShownAgain();
-        return useBalancesPage(0);
-      },
-      { wrapper: providerOf(clientOf()) },
-    );
-    await waitFor(() => expect(result.current).toEqual(first));
-    await showAgain();
-    await waitFor(() => expect(result.current).toEqual(second));
-  });
-
-  it('reads a day other than the caller again', async () => {
-    const opening = viewOf(seed, TODAY).today;
-    const date = '2026-07-20';
-    const was = dayOf(seed, date);
-    const now = { ...was, quotes: { ...was.quotes, 'written-elsewhere': 1 } };
-    vi.mocked(readDay).mockReset();
-    vi.mocked(readDay).mockResolvedValueOnce(was).mockResolvedValueOnce(now);
-    const { result } = renderHook(
-      () => {
-        useViewShownAgain();
-        return useDayQuotes(date, opening);
-      },
-      { wrapper: providerOf(clientOf()) },
-    );
-    await waitFor(() => expect(result.current).toEqual(was));
-    await showAgain();
-    await waitFor(() => expect(result.current).toEqual(now));
-  });
-});
-
 describe('the day', () => {
   const buy = (id: string, date: string): Transaction => ({
     id,
@@ -613,7 +533,7 @@ describe('the day', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 6, 28, 23, 59, 30)); // local 28.07, half a minute to midnight
     // The device's day is read when the read is made, as the real one does.
-    vi.mocked(readView).mockImplementation(async () => viewOf(tables, '2026-07-28'));
+    vi.mocked(readView).mockImplementation(async () => viewDataOf(tables, '2026-07-28'));
   });
 
   it('reads the view again when the day changes, so a row dated tomorrow counts on its day', async () => {
@@ -634,7 +554,7 @@ describe('the day', () => {
     expect(readView).toHaveBeenCalledTimes(1);
     expect(result.current.day.date).toBe('2026-07-28');
 
-    vi.mocked(readView).mockImplementation(async () => viewOf(tables, '2026-07-29'));
+    vi.mocked(readView).mockImplementation(async () => viewDataOf(tables, '2026-07-29'));
     // Before midnight nothing is read again.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);

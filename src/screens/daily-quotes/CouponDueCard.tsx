@@ -17,7 +17,7 @@ import { rollNextCoupon, type DueCoupon } from '@quirenote/core/accrual';
 import { inputValue } from '@quirenote/core/money';
 import { amountInputSchema, couldNotRead } from '@quirenote/core/schemas';
 import type { Asset, Transaction } from '@quirenote/core/types';
-import { useRecordTransaction, useUpdateAsset } from '../../hooks/queries';
+import { toastWriteFailure, useRecordCoupon } from '../../hooks/queries';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
@@ -58,8 +58,7 @@ export function CouponDueCard({
   const [unitsError, setUnitsError] = useState(false);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
-  const recordTransaction = useRecordTransaction();
-  const updateAsset = useUpdateAsset();
+  const recordCoupon = useRecordCoupon();
   // One confirm per card, whatever the browser or StrictMode does: the latch is
   // checked and set synchronously, before any await.
   const confirmed = useRef(false);
@@ -98,29 +97,30 @@ export function CouponDueCard({
     setPending(true);
     void (async () => {
       try {
-        await recordTransaction.mutateAsync({ tx: tx('interest_payout', parsed.data) });
-        // The paired reinvest makes the payout count as reinvested rather than paid out
-        // (same date + asset is what the derivations match on).
-        if (parsedUnits?.success === true)
-          await recordTransaction.mutateAsync({
-            tx: tx('reinvest', parsed.data, parsedUnits.data),
-          });
-        // Rolled off the occurrence just recorded, not off the asset's stored pointer:
+        // Rolled off the occurrence being recorded, not off the asset's stored pointer:
         // the two differ whenever an earlier occurrence was settled by hand, and the
         // pointer must land on a date that is still open.
         const roll = rollNextCoupon(asset, due.date, schedule);
-        if (roll?.kind === 'rolled') {
-          await updateAsset.mutateAsync({ id: asset.id, patch: { nextCoupon: roll.nextCoupon } });
-        }
+        // ONE REQUEST, so it lands whole or not at all: a payout that landed alone settles the
+        // occurrence and takes the card away, with no reinvest or roll left to press again. The
+        // paired reinvest makes the payout count as reinvested rather than paid out (same date +
+        // asset is what the derivations match on).
+        await recordCoupon.mutateAsync({
+          payout: tx('interest_payout', parsed.data),
+          ...(parsedUnits?.success === true
+            ? { reinvest: tx('reinvest', parsed.data, parsedUnits.data) }
+            : {}),
+          ...(roll?.kind === 'rolled' ? { nextCoupon: roll.nextCoupon } : {}),
+        });
         toast.success(
           reinvest
             ? t.dailyQuotes.coupon.recordedReinvestToast
             : t.dailyQuotes.coupon.recordedToast,
         );
-      } catch {
+      } catch (error) {
         confirmed.current = false;
         setPending(false);
-        toast.error(t.transaction.failedToast);
+        toastWriteFailure(error, t.transaction.failedToast);
       }
     })();
   }
@@ -203,7 +203,7 @@ export function CouponDueCard({
 
       {/* REVEALED WITH THE CHECKBOX, and required while it is on. This card is the
           writer that bypasses the form entirely, handing a `Transaction` straight to
-          `recordTransaction` — so without the field it would write a row the backup
+          `recordCoupon` — so without the field it would write a row the backup
           importer and the DDL both refuse, and the app could hold local data it
           cannot export. */}
       {reinvest && (

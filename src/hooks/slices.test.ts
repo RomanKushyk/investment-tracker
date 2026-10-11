@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { computeReminders } from '@quirenote/core/reminders';
@@ -15,9 +15,12 @@ import { seasonalityView } from '@quirenote/core/view/seasonality';
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
 import { windowView } from '@quirenote/core/view/window';
 import { cumulativeYieldSeriesIn, yieldView } from '@quirenote/core/view/yield';
-import { balancesOf, dayOf, seriesOf, viewOf } from '../lib/local-view';
+import { balancesOf, dayOf, seriesOf, viewOf } from '../__fixtures__/stored-view';
 import * as slices from './slices';
 import { remindersOf } from './useReminders';
+
+// The reminders sit beside the hooks that read the view; nothing here reads the API.
+vi.mock('../lib/api', () => ({ repo: {} }));
 
 // BEFORE AND AFTER. Before: the composers each screen called, over the rows the device stored, cut
 // to today as `useLedgerAsOfToday` cut them. After: the slice that screen reads of the view the

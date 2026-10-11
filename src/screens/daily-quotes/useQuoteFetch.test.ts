@@ -15,10 +15,6 @@ vi.hoisted(() => {
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 });
 
-vi.mock('../../lib/repository', () => ({
-  repo: { getMeta: vi.fn(async () => undefined), setMeta: vi.fn(async () => undefined) },
-}));
-
 const linked: Asset = {
   id: 'reit',
   name: 'Inzhur REIT',

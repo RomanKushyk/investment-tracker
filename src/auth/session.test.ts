@@ -302,6 +302,62 @@ describe('one tab', () => {
     expect(await session.getAccount()).toBeUndefined();
   });
 
+  // A COOKIE ANOTHER TAB REPLACED: this tab learns of it only when its own pair runs out and the
+  // refresh answers for the other account. No sign-out happened here, so the count of them is no tell.
+  it('counts an account change: a refresh that answers another account than the one held', async () => {
+    let now = 0;
+    const relay = scripted(
+      ID_TOKEN(jwt({ sub: 'user-1' })),
+      ID_TOKEN(jwt({ sub: 'user-2' })),
+      ID_TOKEN(jwt({ sub: 'user-2' })),
+    );
+    const session = createSession({ relay, locks: webLocks(), now: () => now });
+    await session.restore();
+    expect(session.accountChanges()).toBe(0);
+
+    now = 3_541_000;
+    await session.getIdToken();
+    expect(session.accountChanges()).toBe(1);
+
+    now = 2 * 3_541_000;
+    await session.getIdToken();
+    expect(session.accountChanges()).toBe(1);
+  });
+
+  it('counts no change for the same account refreshed, or for a pair that names none', async () => {
+    let now = 0;
+    const relay = scripted(
+      ID_TOKEN(jwt({ sub: 'user-1' })),
+      ID_TOKEN(jwt({ sub: 'user-1' })),
+      TOKENS('opaque'),
+    );
+    const session = createSession({ relay, locks: webLocks(), now: () => now });
+    await session.restore();
+
+    now = 3_541_000;
+    await session.getIdToken();
+    now = 2 * 3_541_000;
+    await session.getIdToken();
+
+    expect(relay).toHaveBeenCalledTimes(3);
+    expect(session.accountChanges()).toBe(0);
+  });
+
+  it('counts no change when someone signs in after a sign-out: that one emptied the page', async () => {
+    const relay = scripted(
+      ID_TOKEN(jwt({ sub: 'user-1' })),
+      { kind: 'signedOut' },
+      ID_TOKEN(jwt({ sub: 'user-2' })),
+    );
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+    await session.signOut();
+    await session.respond({});
+
+    expect(session.status()).toBe('signedIn');
+    expect(session.accountChanges()).toBe(0);
+  });
+
   it('hands out no token once it has expired and the refresh could not run', async () => {
     let now = 0;
     const session = createSession({

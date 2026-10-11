@@ -97,6 +97,8 @@ describe('a request', () => {
     expect(seen).toHaveLength(1);
     expect(seen[0].headers.get('authorization')).toBe(`Bearer ${ID_TOKEN}`);
     expect(seen[0].credentials).toBe('omit');
+    // Nothing of the portfolio is left in the browser's HTTP cache, which no sign-out clears.
+    expect(seen[0].cache).toBe('no-store');
     expect(seen[0].headers.get('cookie')).toBeNull();
     expect(seen[0].headers.get('idempotency-key')).toBeNull();
     expect(seen[0].headers.get('content-type')).toBeNull();
@@ -374,6 +376,88 @@ describe('a refusal', () => {
     await leaving;
   });
 
+  // A COOKIE ANOTHER TAB REPLACED: the next refresh answers for another account, and a request typed,
+  // and tagged, against the first one's portfolio must not go out under the other's pair.
+  async function overAnotherAccount() {
+    const other = jwt({ sub: 'u2', email: 'other@example.com' });
+    const answers: RelayAnswer[] = [
+      TOKENS,
+      { kind: 'tokens', tokens: { idToken: other, expiresIn: 3600 } },
+    ];
+    const relay = vi.fn<RelayCall>(
+      async () => answers.shift() ?? { kind: 'refused', reason: 'failed' },
+    );
+    let clock = 0;
+    const session = createSession({ relay, locks: noLocks, now: () => clock });
+    await session.restore();
+    const showAnswer = vi.fn();
+    const call = createTransport({
+      hostname: HOST,
+      fetch: (input, init) => fetch(input, init),
+      session,
+      showAnswer,
+      derivationId: BUILD,
+    });
+    return {
+      other,
+      call,
+      session,
+      showAnswer,
+      // The pair has 30 s left, under the minute ahead of which a token is refreshed.
+      runOut: () => (clock = 3_600_000 - 30_000),
+    };
+  }
+
+  it('ends a request whose token waited on a refresh that answered another account, and sends none', async () => {
+    const bearers: (string | null)[] = [];
+    server.use(
+      http.post(`${API}/mutations`, ({ request }) => {
+        bearers.push(request.headers.get('authorization'));
+        return answering(200, { ok: true });
+      }),
+      http.get(`${API}/view`, ({ request }) => {
+        bearers.push(request.headers.get('authorization'));
+        return answering(200, { ok: true });
+      }),
+    );
+    const { other, call, runOut } = await overAnotherAccount();
+
+    runOut();
+    const reply = await call(write);
+
+    expect(reply).toEqual({ kind: 'unauthorized' });
+    expect(bearers).toEqual([]);
+    // The account is the other's now, and a request that begins after it goes under its pair.
+    expect(await call(view)).toMatchObject({ kind: 'ok' });
+    expect(bearers).toEqual([`Bearer ${other}`]);
+  });
+
+  it('shows no answer to a request that began before the account changed', async () => {
+    let reached!: () => void;
+    const arrived = new Promise<void>((resolve) => (reached = resolve));
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get(`${API}/view`, async () => {
+        reached();
+        await held;
+        return answering(403, { error: 'pending' });
+      }),
+    );
+    const { call, session, showAnswer, runOut } = await overAnotherAccount();
+
+    const asking = call(view);
+    await arrived;
+    runOut();
+    await session.getIdToken();
+    release();
+
+    // The answer is the first account's, and the page shows the other's.
+    expect(await asking).toEqual({ kind: 'answer', answer: 'pending' });
+    expect(session.accountChanges()).toBe(1);
+    expect(showAnswer).not.toHaveBeenCalled();
+  });
+
   it('shows an answer to a request that began after the sign-out, once someone signed in again', async () => {
     server.use(http.get(`${API}/view`, () => answering(403, { error: 'rejected' })));
     const { call, session, showAnswer } = await transport(HOST, { kind: 'signedOut' }, TOKENS);
@@ -437,6 +521,26 @@ describe('an answer that is not a success', () => {
     expect(reply).toMatchObject(expected);
     if (reply.kind === 'failed') expect(reply.body).toEqual(body);
     expect(sent).toBe(1);
+  });
+
+  it('surfaces a 304 as not modified, with the tag it carries, and sends the request once', async () => {
+    const seen: Request[] = [];
+    server.use(
+      http.get(`${API}/view`, ({ request }) => {
+        seen.push(request.clone());
+        return new HttpResponse(null, {
+          status: 304,
+          headers: { etag: 'W/"abc"', 'derivation-id': BUILD },
+        });
+      }),
+    );
+    const { call } = await transport();
+
+    const reply = await call({ ...view, headers: { 'if-none-match': 'W/"abc"' } });
+
+    expect(reply).toEqual({ kind: 'notModified', etag: 'W/"abc"' });
+    expect(seen).toHaveLength(1);
+    expect(seen[0].headers.get('if-none-match')).toBe('W/"abc"');
   });
 
   it('reads a body that is not JSON as no body', async () => {

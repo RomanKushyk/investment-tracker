@@ -29,6 +29,10 @@ export interface Session {
   /** True from when a sign-out begins until the relay answers it: the pair held meanwhile is the
    *  account's that is leaving. */
   signingOut(): boolean;
+  /** How many times a signed-in answer has named another account than the one held, with no
+   *  sign-out between: the cookie another tab replaced. Counted as the answer lands, so a reader that
+   *  saw a different count when it asked holds what is the earlier account's. */
+  accountChanges(): number;
   getIdToken(): Promise<string | undefined>;
   /** The `sub` of the same pair: each passkey call names it, so the relay acts only for the account
    *  this tab shows. */
@@ -71,6 +75,9 @@ export function createSession({
   let refreshing: Promise<void> | undefined;
   let leaving: Promise<false | SignedOut> | undefined;
   let begun = 0;
+  // The `sub` the last signed-in answer named, forgotten at a sign-out, which empties the page.
+  let account: string | undefined;
+  let changes = 0;
   // A signed-out status the relay never gave: the next reader asks again.
   let unanswered = false;
   const listeners = new Set<() => void>();
@@ -81,6 +88,12 @@ export function createSession({
     address = tokens && claimOf(tokens.idToken, 'email');
     status = next;
     unanswered = !answered;
+    const sub = tokens && claimOf(tokens.idToken, 'sub');
+    if (tokens === undefined) account = undefined;
+    else if (sub !== undefined) {
+      if (account !== undefined && sub !== account) changes += 1;
+      account = sub;
+    }
     for (const listener of listeners) listener();
   };
 
@@ -146,6 +159,7 @@ export function createSession({
     },
     signOuts: () => begun,
     signingOut: () => leaving !== undefined,
+    accountChanges: () => changes,
     getIdToken: async () => (await fresh())?.idToken,
     getAccount: async () => {
       const pair = await fresh();

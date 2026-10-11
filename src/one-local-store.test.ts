@@ -39,6 +39,7 @@ const ALLOWED: Record<string, Partial<Record<Needle, number>>> = {
   'packages/core/src/ops.ts': { dataset: 2 },
   // The staged import replaces the dataset the server holds for the account.
   'src/lib/backup.ts': { dataset: 1 },
+  'src/lib/repository.ts': { dataset: 2 },
 };
 
 const scriptKind = (name: string) => (/x$/.test(name) ? ts.ScriptKind.TSX : ts.ScriptKind.TS);

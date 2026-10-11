@@ -1,10 +1,11 @@
-// The localStorage keys, and the one-time rename that carries a pre-Quirenote
-// profile across (*Brand*).
+// The localStorage keys of the two persisted stores, settings and the quote draft, and the
+// one-time rename that carries a pre-Quirenote profile across (*Brand*). The feed caches' keys
+// sit with the hooks that write them, through `device-meta.ts`.
 //
 // THE RENAME IS A MODULE SIDE EFFECT because the settings store reads its key
 // synchronously when its module is evaluated; doing it when the module holding
 // the keys is evaluated is the only way to beat that read without making import
-// order load-bearing. Import the keys from here rather than inlining the string, or a
+// order load-bearing. Import these keys from here rather than inlining the string, or a
 // consumer can read a stale one.
 
 export const SETTINGS_KEY = 'quirenote-settings';

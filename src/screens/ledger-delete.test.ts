@@ -5,7 +5,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // A LEDGER ROW CAN BE DELETED, and the property worth pinning is not that it can — it is
-// that the ✕ ASKS. A DELETE HERE IS NOT UNDOABLE: the row leaves Dexie and every derived
+// that the ✕ ASKS. A DELETE HERE IS NOT UNDOABLE: the row leaves the dataset and every derived
 // figure recomputes from what is left, so one mis-click on a hover-revealed glyph is a
 // silent loss of money data.
 //
@@ -69,9 +69,12 @@ describe('deleting a ledger row', () => {
     // WALK NEVER LOOKS BEHIND THE POINTER — so deleting only the transaction took the
     // occurrence out of the ledger, the due cards, the reminders and income at once.
     expect(CODE).toMatch(/rollbackNextCoupon\(/);
+    // In the delete's own request: a second write of the pointer could fail on its own, after the
+    // row was gone and the success toast shown.
     expect(CODE).toMatch(
-      /updateAsset\.mutate\(\{ id: asset\.id, patch: \{ nextCoupon: reopened \} \}\)/,
+      /deleteTransaction\.mutate\(\s*\{\s*id: tx\.id,[\s\S]*?reopen: \{ assetId: asset\.id, nextCoupon: reopened \}/,
     );
+    expect(CODE).not.toMatch(/updateAsset/);
     expect(
       CODE,
       'the deleted row can settle its own occurrence — the REMAINING ledger is what decides it',

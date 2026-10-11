@@ -14,7 +14,7 @@ import {
   Dialog,
 } from '../../components/ui/Dialog';
 import type { Asset } from '@quirenote/core/types';
-import { useDeleteAsset, useView } from '../../hooks/queries';
+import { toastWriteFailure, useDeleteAsset, useView } from '../../hooks/queries';
 import { selectDeleteCounts } from '../../hooks/slices';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
 import { useT } from '../../i18n/useT';
@@ -49,7 +49,7 @@ function DeleteAssetDialog({
         toast.success(t.assets.deletedToast);
         onClose();
       },
-      onError: () => toast.error(t.assets.deleteFailed),
+      onError: (error) => toastWriteFailure(error, t.assets.deleteFailed),
     });
   }
 

@@ -41,7 +41,7 @@ describe('the domain package is held pure by lint, not by convention', () => {
     expect(readdirSync(join(REPO, PKG)).filter((f) => f.endsWith('.ts'))).not.toHaveLength(0);
   });
 
-  it.each(['react', 'react-dom', 'dexie', 'zustand'])('refuses `%s`', async (specifier) => {
+  it.each(['react', 'react-dom', 'zustand'])('refuses `%s`', async (specifier) => {
     expect((await restricted(`${PKG}/derive.ts`, specifier)).join(' ')).toContain(
       'the domain package',
     );

@@ -8,42 +8,24 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
+import { dayOf, viewDataOf } from '../__fixtures__/stored-view';
 import { uk } from '../i18n/messages';
-import { readView } from '../lib/local-view';
-import { repo } from '../lib/repository';
+import { ApiError, type Refusal } from '../lib/repository';
 
-vi.mock('../lib/local-view', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/local-view')>();
-  // Read when called, not when the factory runs: the seed is imported after the mock is hoisted.
-  const tables = () => {
-    const seeded = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
-    return {
-      tables: {
-        assets: seeded.assets,
-        snapshots: seeded.snapshots,
-        transactions: seeded.transactions,
-      },
-      today: seeded.today,
-    };
-  };
-  return {
-    ...actual,
-    readView: vi.fn(async () => actual.viewOf(tables().tables, tables().today)),
-    readSeries: vi.fn(async (period) => actual.seriesOf(tables().tables, period, tables().today)),
-    readBalances: vi.fn(async (page) => actual.balancesOf(tables().tables, page, tables().today)),
-    readDay: vi.fn(async (date) => actual.dayOf(tables().tables, date)),
-  };
-});
-// Nothing here opens a database: the meta keys the Inzhur and NBU hooks read answer empty.
-vi.mock('../lib/repository', () => ({
+vi.mock('sonner', () => ({
+  Toaster: () => null,
+  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), dismiss: vi.fn() }),
+}));
+
+// The API's client: its reads answer the seed, and its save is held for the case to settle.
+vi.mock('../lib/api', () => ({
   repo: {
-    getMeta: async () => undefined,
-    setMeta: async () => undefined,
-    exportAll: async () => ({ assets: [], snapshots: [], transactions: [] }),
+    readView: vi.fn(),
+    readSeries: vi.fn(),
+    readBalances: vi.fn(),
+    readDay: vi.fn(),
     saveSnapshot: vi.fn(),
   },
-  openStore: async () => undefined,
-  dbVersion: 1,
 }));
 // The shell a case renders, as wide-read-first-answer.test.tsx sets it.
 vi.mock('../hooks/useIsDesktop', () => ({
@@ -88,6 +70,19 @@ afterAll(() => vi.unstubAllGlobals());
 // test's timeout.
 const { routes } = await import('../routes');
 const { useDraft } = await import('../state/draft');
+const { repo } = await import('../lib/api');
+const { toast } = await import('sonner');
+
+const seedTables = {
+  assets: seed.assets,
+  snapshots: seed.snapshots,
+  transactions: seed.transactions,
+};
+const bodyOf = () =>
+  viewDataOf(
+    { assets: seed.assets, snapshots: seed.snapshots, transactions: seed.transactions },
+    seed.today,
+  );
 
 afterEach(cleanup);
 
@@ -101,7 +96,8 @@ function deferred() {
 async function open(atDesktop: boolean) {
   desktop = atDesktop;
   // What an earlier case left queued is not this one's.
-  vi.mocked(readView).mockReset();
+  vi.mocked(repo.readView).mockReset();
+  vi.mocked(repo.readView).mockImplementation(async () => bodyOf());
   vi.mocked(repo.saveSnapshot).mockReset();
   // A quote typed for today, so there is something to save.
   useDraft.setState({ date: seed.today, quotes: { reit: '68000.00' }, origins: {} });
@@ -126,6 +122,73 @@ async function open(atDesktop: boolean) {
   return { container };
 }
 
+// A day other than the caller's is a read of its own, and the save writes over what it holds.
+describe.each([
+  ['in flow at the desktop shell', true],
+  ['on the sticky bar below it', false],
+])('Save on a past day %s', (_, atDesktop) => {
+  const PAST = '2026-07-20';
+
+  /** The page on `PAST`, its day read answering when the test lets it. */
+  async function openPast() {
+    desktop = atDesktop;
+    vi.mocked(repo.readView).mockReset();
+    vi.mocked(repo.readView).mockImplementation(async () => bodyOf());
+    vi.mocked(repo.saveSnapshot).mockReset();
+    useDraft.setState({ date: PAST, quotes: {}, origins: {} });
+    const day = deferred();
+    vi.mocked(repo.readDay).mockReset();
+    vi.mocked(repo.readDay).mockImplementation(async (date) => {
+      await day.promise;
+      return dayOf(seedTables, date);
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter(routes, { initialEntries: ['/'] });
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(repo.readDay).toHaveBeenCalledTimes(1));
+    return { day, container };
+  }
+  const save = () =>
+    screen.getByRole<HTMLButtonElement>('button', { name: uk.dailyQuotes.saveSnapshot });
+
+  it('waits for the day it would write over, and is enabled once the day has landed', async () => {
+    const { day, container } = await openPast();
+    // A quote typed before the day lands has nothing to be compared with.
+    act(() => useDraft.setState({ quotes: { [seed.assets[0].id]: '68000.00' } }));
+    // The case is in the layout it names: the sticky bar is portalled out of the page.
+    expect(container.contains(save())).toBe(atDesktop);
+    expect(save().disabled).toBe(true);
+
+    await act(async () => day.resolve());
+
+    await waitFor(() => expect(save().disabled).toBe(false));
+  });
+
+  it('sends the day as it was stored, so a quote the drafts left out is cleared', async () => {
+    const { day } = await openPast();
+    await act(async () => day.resolve());
+    const stored = dayOf(seedTables, PAST).quotes;
+    const [kept, cleared] = Object.keys(stored);
+    // The form prefills from the stored day; the person empties one of its rows.
+    await waitFor(() => expect(Object.keys(useDraft.getState().quotes).length).toBeGreaterThan(1));
+    act(() => useDraft.getState().setQuote(cleared, ''));
+    await waitFor(() => expect(save().disabled).toBe(false));
+
+    fireEvent.click(save());
+
+    await waitFor(() => expect(repo.saveSnapshot).toHaveBeenCalledTimes(1));
+    const [date, sent, held] = vi.mocked(repo.saveSnapshot).mock.calls[0];
+    expect(date).toBe(PAST);
+    expect(Object.keys(sent)).toContain(kept);
+    expect(Object.keys(sent)).not.toContain(cleared);
+    expect(held).toEqual(stored);
+  });
+});
+
 describe.each([
   ['in flow at the desktop shell', true],
   ['on the sticky bar below it', false],
@@ -135,14 +198,10 @@ describe.each([
     const save = deferred();
     const read = deferred();
     vi.mocked(repo.saveSnapshot).mockImplementationOnce(() => save.promise);
-    vi.mocked(readView).mockClear();
-    vi.mocked(readView).mockImplementationOnce(async () => {
+    vi.mocked(repo.readView).mockClear();
+    vi.mocked(repo.readView).mockImplementationOnce(async () => {
       await read.promise;
-      const actual = await vi.importActual<typeof import('../lib/local-view')>('../lib/local-view');
-      return actual.viewOf(
-        { assets: seed.assets, snapshots: seed.snapshots, transactions: seed.transactions },
-        seed.today,
-      );
+      return bodyOf();
     });
 
     const button = () =>
@@ -157,10 +216,50 @@ describe.each([
 
     // The write is done and the view it changed is not read yet: the control is still busy.
     await act(async () => save.resolve());
-    await waitFor(() => expect(readView).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(repo.readView).toHaveBeenCalledTimes(1));
     expect(button().disabled).toBe(true);
 
     await act(async () => read.resolve());
     await waitFor(() => expect(button().disabled).toBe(false));
+  });
+
+  // A save is a request that can fail, and the person leaves believing the day was saved unless the
+  // control says it was not.
+  it.each<[string, Refusal]>([
+    ['offline', { kind: 'offline' }],
+    ['a server error', { kind: 'failed', status: 500 }],
+    ['a value the API refuses', { kind: 'invalidOp', index: 0, issues: [] }],
+  ])('says it could not save after %s, and is pressable again', async (_, refusal) => {
+    await open(atDesktop);
+    vi.mocked(toast.error).mockClear();
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(repo.saveSnapshot).mockRejectedValueOnce(new ApiError(refusal));
+    const button = () =>
+      screen.getByRole<HTMLButtonElement>('button', { name: uk.dailyQuotes.saveSnapshot });
+
+    fireEvent.click(button());
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(uk.dailyQuotes.saveFailed));
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.success).not.toHaveBeenCalled();
+    await waitFor(() => expect(button().disabled).toBe(false));
+  });
+
+  it('leaves a save refused for a stale tag to the one toast that says so', async () => {
+    await open(atDesktop);
+    vi.mocked(toast.error).mockClear();
+    vi.mocked(repo.saveSnapshot).mockRejectedValueOnce(new ApiError({ kind: 'conflict' }));
+
+    fireEvent.click(
+      screen.getByRole<HTMLButtonElement>('button', { name: uk.dailyQuotes.saveSnapshot }),
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(uk.sync.staleWrite, expect.anything()),
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(toast.error).toHaveBeenCalledTimes(1);
   });
 });

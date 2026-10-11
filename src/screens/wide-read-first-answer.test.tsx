@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // A wide read that has not answered is not an empty one: with the view already held, /yield and
-// /balances say nothing of "no snapshots" until the curve and the page land (*Cloud target*).
+// /balances say nothing of "no snapshots" until the curve and the page land (*Cloud target*), and
+// once the read has been out for a while their boxes are held (the first-paint loading state).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -10,7 +11,7 @@ import { makeFormat } from '@quirenote/core/money';
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
 import { viewKey } from '../hooks/queries';
 import { uk } from '../i18n/messages';
-import { readBalances, readSeries, viewOf } from '../lib/local-view';
+import { balancesOf, seriesOf, viewOf } from '../__fixtures__/stored-view';
 
 const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
 const TABLES = { assets: seed.assets, snapshots: seed.snapshots, transactions: seed.transactions };
@@ -19,32 +20,9 @@ const TABLES = { assets: seed.assets, snapshots: seed.snapshots, transactions: s
 let gate: Promise<void> | undefined;
 let desktop = true;
 
-vi.mock('../lib/local-view', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/local-view')>();
-  // Read when called, not when the factory runs: the seed is imported after the mock is hoisted.
-  const tables = () => {
-    const seeded = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
-    return {
-      tables: {
-        assets: seeded.assets,
-        snapshots: seeded.snapshots,
-        transactions: seeded.transactions,
-      },
-      today: seeded.today,
-    };
-  };
-  return {
-    ...actual,
-    readSeries: vi.fn(async (period) => {
-      await gate;
-      return actual.seriesOf(tables().tables, period, tables().today);
-    }),
-    readBalances: vi.fn(async (page) => {
-      await gate;
-      return actual.balancesOf(tables().tables, page, tables().today);
-    }),
-  };
-});
+// The API's client, whose two wide reads are held back until the test lets them through.
+vi.mock('../lib/api', () => ({ repo: { readSeries: vi.fn(), readBalances: vi.fn() } }));
+const { repo } = await import('../lib/api');
 // The charts are not what is measured, and jsdom lays nothing out for them.
 vi.mock('../components/charts/YieldLines', () => ({
   YieldLines: () => <div data-testid="curve" />,
@@ -72,8 +50,16 @@ const { Yield } = await import('./Yield');
 const { Balances } = await import('./Balances');
 
 beforeEach(() => {
-  vi.mocked(readSeries).mockClear();
-  vi.mocked(readBalances).mockClear();
+  vi.mocked(repo.readSeries).mockReset();
+  vi.mocked(repo.readSeries).mockImplementation(async (period) => {
+    await gate;
+    return seriesOf(TABLES, period, seed.today);
+  });
+  vi.mocked(repo.readBalances).mockReset();
+  vi.mocked(repo.readBalances).mockImplementation(async (page) => {
+    await gate;
+    return balancesOf(TABLES, page, seed.today);
+  });
 });
 afterEach(() => {
   cleanup();
@@ -102,7 +88,7 @@ describe.each([true, false])('on the desktop shell: %s', (onDesktop) => {
   it('/yield draws no empty chart while the curve of its period is out', async () => {
     const release = hold();
     const { container } = mount(<Yield />);
-    await waitFor(() => expect(readSeries).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(repo.readSeries).toHaveBeenCalledTimes(1));
     // The figures beside it are the view's, which is held.
     expect(container.textContent).toContain(seed.assets[0].name);
     expect(container.textContent).not.toContain(uk.analytics.empty.chart);
@@ -112,10 +98,50 @@ describe.each([true, false])('on the desktop shell: %s', (onDesktop) => {
     expect(container.textContent).not.toContain(uk.analytics.empty.chart);
   });
 
+  it('/yield holds the chart’s box once the curve has been out for 300 ms, and not before', async () => {
+    const release = hold();
+    const { container } = mount(<Yield />);
+    await waitFor(() => expect(repo.readSeries).toHaveBeenCalledTimes(1));
+    expect(container.querySelector('[data-placeholder="chart"]')).toBeNull();
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-placeholder="chart"]')).not.toBeNull(),
+    );
+    expect(container.textContent).not.toContain(uk.analytics.empty.chart);
+
+    await release();
+    await screen.findByTestId('curve');
+    await waitFor(() => expect(container.querySelector('[data-placeholder]')).toBeNull(), {
+      timeout: 1500,
+    });
+  });
+
+  it('/balances holds three rows once the page has been out for 300 ms', async () => {
+    const release = hold();
+    const { container } = mount(<Balances />);
+    await waitFor(() => expect(repo.readBalances).toHaveBeenCalledTimes(1));
+    // Laid out unseen at first, so the rows' box is there and nothing moves when it is drawn.
+    expect(container.querySelector('.invisible [data-placeholder-row]')).not.toBeNull();
+
+    await waitFor(() =>
+      expect(container.querySelector('[aria-busy="true"]:not(.invisible)')).not.toBeNull(),
+    );
+    expect(container.querySelectorAll('[data-placeholder-row]').length).toBeGreaterThanOrEqual(3);
+    expect(container.textContent).not.toContain(uk.analytics.empty.table);
+
+    await release();
+    await waitFor(
+      () => expect(container.querySelectorAll('[data-placeholder-row]').length).toBe(0),
+      {
+        timeout: 1500,
+      },
+    );
+  });
+
   it('/balances states no empty table and no count while its first page is out', async () => {
     const release = hold();
     const { container } = mount(<Balances />);
-    await waitFor(() => expect(readBalances).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(repo.readBalances).toHaveBeenCalledTimes(1));
     const { earliest } = viewOf(TABLES, seed.today).view.balances;
     const since = makeFormat('uk').date(earliest!);
     expect(container.textContent).not.toContain(uk.analytics.empty.table);

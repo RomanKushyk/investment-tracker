@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { assetFromForm, assetPatchFromForm } from '@quirenote/core/asset-builder';
 import type { AssetFormValues } from '@quirenote/core/schemas';
 import type { Asset } from '@quirenote/core/types';
-import { useAddAsset, useUpdateAsset } from '../../hooks/queries';
+import { toastWriteFailure, useAddAsset, useUpdateAsset } from '../../hooks/queries';
 import { useT } from '../../i18n/useT';
 
 export type DialogState =
@@ -47,7 +47,7 @@ export function useAssetDialogs(assets: Asset[]) {
         toast.success(t.assets.addedToast);
         close();
       },
-      onError: () => toast.error(t.assets.saveFailed),
+      onError: (error) => toastWriteFailure(error, t.assets.saveFailed),
     });
   }
 
@@ -60,7 +60,7 @@ export function useAssetDialogs(assets: Asset[]) {
           toast.success(t.assets.updatedToast);
           close();
         },
-        onError: () => toast.error(t.assets.saveFailed),
+        onError: (error) => toastWriteFailure(error, t.assets.saveFailed),
       },
     );
   }

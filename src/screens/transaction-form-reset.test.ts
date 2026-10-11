@@ -367,8 +367,8 @@ describe('the two controls #136 adds obey the panel\u2019s own rules', () => {
   });
 
   it('stores both ABSENT rather than empty, and clears both on a record', () => {
-    // Dexie stores `undefined` as a present key and `json.ts` round-trips the object, so an
-    // absent field must be ABSENT — spread, never assigned.
+    // An absent field is ABSENT from the row, never a key holding `undefined` — spread, never
+    // assigned.
     expect(CODE).toMatch(
       /\.\.\.\(values\.taxWithheld === undefined \? \{\} : \{ taxWithheld: values\.taxWithheld \}\)/,
     );

@@ -399,6 +399,8 @@ function fieldSites(file: string): ClassList[] {
  *  invisible to the line-based discovery this replaced. */
 const FIELD_FILES = sourceFiles(here)
   .map((f) => relative(here, f).split(sep).join('/'))
+  // A placeholder draws the box a field will fill, in the field's size and radius, and is no field.
+  .filter((f) => f !== 'screens/placeholders.tsx')
   .filter((f) => fieldSites(f).length > 0);
 
 /** The one site with no hover, named rather than counted: the sheet rules that giving

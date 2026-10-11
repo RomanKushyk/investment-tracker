@@ -2,9 +2,12 @@
 //
 // SAFETY FIRST, the phase's binding doctrine: the Confirm press is the SOLE
 // write path — opening this dialog, reading its diff, toggling the checkbox and
-// cancelling all leave the dataset byte-identical. The safety backup is handed
-// to the browser BEFORE `repo.replaceAll`, and a safety backup that cannot be
-// built stops the import.
+// cancelling all leave the dataset byte-identical. The safety backup is the
+// dataset as the API holds it, handed to the browser BEFORE `repo.replaceAll`,
+// and a safety backup that cannot be built stops the import. The diff the person
+// confirmed is the file against what the API held when they looked: where the
+// dataset has moved since, whether before the backup or at the commit, the new
+// difference is shown and nothing is replaced behind their back.
 import { AlertTriangle, Download } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -19,10 +22,12 @@ import {
   DialogFooter,
   DialogHeader,
 } from '../../components/ui/Dialog';
+import { diffBackup } from '@quirenote/core/backup/import';
+import type { ImportParts } from '@quirenote/core/backup/parts';
 import { todayIso } from '@quirenote/core/dates';
 import { signed } from '@quirenote/core/money';
-import { snapshotsOfPrices } from '@quirenote/core/valuation';
-import { useReplaceAll } from '../../hooks/queries';
+import { useExportState, useReplaceAll } from '../../hooks/queries';
+import { csvTablesOf, type ExportedState } from '../../lib/backup';
 import { useDraft } from '../../state/draft';
 import { migrateSettings, useSettings } from '../../state/settings';
 import {
@@ -50,7 +55,11 @@ export type ImportAttempt =
       kind: 'preview';
       name: string;
       envelope: BackupEnvelope;
+      /** The file cut into the parts the API stages, which the row has found to be sendable. */
+      plan: Extract<ImportParts, { ok: true }>;
       diff: BackupDiff;
+      /** The tag of the export the diff was made against. */
+      etag: string;
     }
   | { kind: 'report'; name: string; rejection: ImportRejection };
 
@@ -66,12 +75,15 @@ export function ImportDialog({
   onChooseAnother: () => void;
 }) {
   const t = useT();
+  const exportState = useExportState();
   const replaceAll = useReplaceAll();
   const backup = useBackupDownload();
   const [applySettings, setApplySettings] = useState(false);
   const [pending, setPending] = useState(false);
-  const [waiting, setWaiting] = useState(false);
   const [backedUp, setBackedUp] = useState(false);
+  // The difference shown: the one the row made, until the dataset is found to have moved.
+  const [shown, setShown] = useState(attempt.kind === 'preview' ? attempt.diff : undefined);
+  const [shownTag, setShownTag] = useState(attempt.kind === 'preview' ? attempt.etag : undefined);
   // One press = one run: the confirm awaits two async steps, and a second click
   // inside that window must not start a second import. A ref, so it is set before
   // React can re-render.
@@ -80,11 +92,27 @@ export function ImportDialog({
   const safetyName = `quirenote-before-import-${todayIso()}`;
 
   async function confirm() {
-    if (running.current || attempt.kind !== 'preview') return;
+    if (running.current || attempt.kind !== 'preview' || shown === undefined) return;
     running.current = true;
     setPending(true);
-    const { envelope, diff } = attempt;
+    const { envelope, plan } = attempt;
+    const against = (state: ExportedState) =>
+      diffBackup(csvTablesOf(state), envelope, { today: todayIso() });
+    // A change since the person was shown the difference is shown again, with the caution, and the
+    // press replaces nothing.
+    const moved = (state: ExportedState) => {
+      const next = against(state);
+      setShown({ ...next, warnings: [{ code: 'data-moved' }, ...next.warnings] });
+      setShownTag(state.etag);
+      setBackedUp(false);
+    };
     try {
+      const state = await exportState.mutateAsync();
+      // The tag, not the difference: a change that keeps every id keeps every count.
+      if (state.etag !== shownTag) {
+        moved(state);
+        return;
+      }
       // The safety backup downloads BEFORE anything is replaced, and a failure to
       // build it means nothing is imported at all. `via: 'anchor'` keeps that true now
       // that exports can open a Save-as dialog: a modal in front of a guarantee is a
@@ -93,21 +121,19 @@ export function ImportDialog({
         name: safetyName,
         quiet: true,
         via: 'anchor',
+        state,
       });
       if (!saved) {
         toast.error(importToasts(t).safetyFailed);
         return;
       }
       setBackedUp(true);
-      await replaceAll.mutateAsync({
-        data: {
-          assets: envelope.assets,
-          // The file carries per-unit prices; this store keeps ₴ snapshots (*Persistence today*).
-          snapshots: snapshotsOfPrices(envelope.transactions, envelope.prices),
-          transactions: envelope.transactions,
-        },
-        onBlocked: () => setWaiting(true),
-      });
+      const outcome = await replaceAll.mutateAsync({ etag: state.etag, plan });
+      if (outcome === 'conflict') {
+        // Another write landed between the backup and the commit: the import is closed.
+        moved(await exportState.mutateAsync());
+        return;
+      }
       // The imported portfolio has its own asset ids: a draft left over from the
       // replaced one would show phantom values against them.
       useDraft.getState().setDate('');
@@ -121,13 +147,13 @@ export function ImportDialog({
         useSettings.getState().setDefaultCurrency(sane.defaultCurrency);
         useSettings.getState().setUsdRate(sane.usdRate);
       }
-      toast.success(importToasts(t).success(diff.after));
+      toast.success(importToasts(t).success(shown.after));
       onClose();
     } catch {
-      // replaceAll is all-or-nothing: nothing was written, so the dialog stays open on the same diff.
+      // The import lands whole or not at all, so nothing was written: the dialog stays open on the
+      // same difference.
       toast.error(importToasts(t).failed);
     } finally {
-      setWaiting(false);
       setPending(false);
       running.current = false;
     }
@@ -144,8 +170,8 @@ export function ImportDialog({
       {attempt.kind === 'preview' ? (
         <Preview
           attempt={attempt}
+          diff={shown ?? attempt.diff}
           pending={pending}
-          waiting={waiting}
           backedUp={backedUp}
           safetyName={safetyName}
           applySettings={applySettings}
@@ -161,8 +187,8 @@ export function ImportDialog({
 
 function Preview({
   attempt,
+  diff,
   pending,
-  waiting,
   backedUp,
   safetyName,
   applySettings,
@@ -170,8 +196,8 @@ function Preview({
   onConfirm,
 }: {
   attempt: Extract<ImportAttempt, { kind: 'preview' }>;
+  diff: BackupDiff;
   pending: boolean;
-  waiting: boolean;
   backedUp: boolean;
   safetyName: string;
   applySettings: boolean;
@@ -180,7 +206,7 @@ function Preview({
 }) {
   const t = useT();
   const f = useFormat();
-  const { name, envelope, diff } = attempt;
+  const { name, envelope } = attempt;
   return (
     <>
       <DialogHeader>
@@ -268,21 +294,17 @@ function Preview({
             className="@max-[419px]:w-full"
             onClick={onConfirm}
           >
-            {/* No percentage bar: the write is one atomic transaction and a progress number
+            {/* No percentage bar: the import lands whole or not at all and a progress number
                 would be fiction. */}
             <span
-              key={pending ? (waiting ? 'waiting' : 'pending') : 'idle'}
+              key={pending ? 'pending' : 'idle'}
               className={
                 pending
                   ? 'animate-pulse [animation-duration:1.2s]'
                   : 'animate-in duration-200 fade-in'
               }
             >
-              {pending
-                ? waiting
-                  ? t.importing.preview.waiting
-                  : t.importing.preview.pending
-                : t.importing.preview.confirm}
+              {pending ? t.importing.preview.pending : t.importing.preview.confirm}
             </span>
           </Button>
         </div>

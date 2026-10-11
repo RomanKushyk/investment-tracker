@@ -82,31 +82,10 @@ export default tseslint.config(
     },
   },
   // Import zones (*Core is pure*).
-  // Everywhere: lib/db.ts is imported ONLY by lib/repository.ts — plus its
-  // colocated test, which needs db.delete()/open() for per-test isolation.
-  {
-    files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/lib/repository.ts', 'src/lib/repository.test.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['**/lib/db', './db'],
-              message: 'lib/db.ts is imported only by lib/repository.ts (D2).',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  // packages/core is the pure domain layer: no react/dexie/zustand, no reach back into the app
+  // packages/core is the pure domain layer: no react/zustand, no reach back into the app
   // or the backend. THE SELECTOR IS THE WHOLE MECHANISM and it fails silently — a config whose
   // `files` matches nothing still parses green — so `src/domain-purity.test.ts` lints text AT a
   // package path rather than reading this block.
-  // (It REPLACES the rule above rather than merging with it, so it restates the db restriction
-  // via the lib/** pattern.)
   {
     files: ['packages/core/**/*.{ts,tsx}'],
     rules: {
@@ -121,11 +100,6 @@ export default tseslint.config(
             {
               name: 'react-dom',
               message: 'the domain package is pure — no React (*Core is pure*).',
-            },
-            {
-              name: 'dexie',
-              message:
-                'the domain package never touches persistence — that is src/lib (*Core is pure*).',
             },
             {
               name: 'zustand',

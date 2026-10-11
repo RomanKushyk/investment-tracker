@@ -151,7 +151,7 @@ function formatRejection(
   return { kind: 'format', code: code === 'not-json' ? 'not-json' : 'not-a-backup', detail };
 }
 
-function rowsRejection(issues: RowIssue[]): RowsRejection {
+export function rowsRejection(issues: RowIssue[]): RowsRejection {
   return { kind: 'rows', issues: issues.slice(0, ISSUE_LIST_CAP), total: issues.length };
 }
 
@@ -291,13 +291,14 @@ export interface TableDiff {
 }
 
 /** Non-blocking cautions the dialog lists. Tokens only — the sentences live in
- *  `screens/settings/import-labels.ts`. */
+ *  `screens/settings/import-labels.ts`. `data-moved` is the caller's: it adds it when the dataset
+ *  the diff was made against has changed since the person was shown it. */
 export type DiffWarning =
   | { code: 'rows-removed'; assets: number; snapshots: number; transactions: number }
   | { code: 'no-assets' }
   | { code: 'no-snapshots'; current: number }
   | { code: 'exported-long-ago'; days: number; date: string }
-  | { code: 'newer-db-version'; file: number; app: number };
+  | { code: 'data-moved' };
 
 export interface BackupDiff {
   assets: TableDiff;
@@ -316,7 +317,7 @@ export const STALE_BACKUP_DAYS = 7;
 export function diffBackup(
   current: PortfolioTables,
   incoming: BackupEnvelope,
-  ctx: { today: string; dbVersion: number },
+  ctx: { today: string },
 ): BackupDiff {
   const assets = countDiff(
     current.assets.map((a) => a.id),
@@ -352,9 +353,6 @@ export function diffBackup(
   const age = daysBetween(exportedOn, ctx.today);
   if (age >= STALE_BACKUP_DAYS) {
     warnings.push({ code: 'exported-long-ago', days: age, date: exportedOn });
-  }
-  if (incoming.dbVersion > ctx.dbVersion) {
-    warnings.push({ code: 'newer-db-version', file: incoming.dbVersion, app: ctx.dbVersion });
   }
 
   return {

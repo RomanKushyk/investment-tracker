@@ -149,7 +149,6 @@ export const en = {
       cancel: 'Cancel',
       confirm: 'Replace all data',
       pending: 'Replacing…',
-      waiting: 'Waiting for another tab…',
     },
     // Counted nouns: every sentence that quotes one takes the finished phrase.
     count: {
@@ -180,8 +179,8 @@ export const en = {
       noSnapshots: (current: number) =>
         `This file has no snapshots — all ${current} saved days would be removed.`,
       exportedLongAgo: (days: number, date: string) => `Exported ${days} days ago (${date}).`,
-      newerDbVersion: (file: string, app: string) =>
-        `The file comes from a newer database version (${file} vs ${app}) — fields this app does not know are ignored.`,
+      dataMoved:
+        'The data changed while this dialog was open. The summary above is updated — check it and confirm again.',
     },
     toast: {
       success: (assets: string, snapshots: string, transactions: string) =>
@@ -299,7 +298,11 @@ export const en = {
     hide: 'hide',
     show: 'show',
   },
-  sync: { replacedInOtherTab: 'Data was replaced in another tab.' },
+  sync: {
+    staleWrite:
+      'This changed in another tab or on another device, so nothing was saved. The screen shows the current data now — check it and try again.',
+  },
+  loading: { status: 'Loading your portfolio…' },
   reminders: {
     quoteMissing: 'No quotes saved today yet.',
     coupon: (asset: string, when: string, date: string) =>
@@ -666,10 +669,6 @@ export const en = {
     title: 'Targets',
     savedToast: 'Targets saved',
     saveFailed: 'Could not save targets — please try again.',
-    // A partial write is not a failure and not a success; naming the count is
-    // the only way the user knows which rows are still theirs to fix.
-    savePartial: (written: number, total: number) =>
-      `Saved ${written} of ${total} — the rest were not written.`,
     invalid: 'Enter a percentage.',
     fieldAria: (asset: string) => `${asset} target, %`,
     sumOk: (sum: string) => `Σ ${sum}`,
@@ -1019,6 +1018,7 @@ export const en = {
     unreadable: 'Enter a number.',
     unreadableToast: (names: string) => `Not saved — check ${names}.`,
     nothingToSave: 'Nothing to save — enter at least one quote.',
+    saveFailed: 'Could not save the snapshot — please try again.',
     // A HEADING, not an inline prefix — so no trailing colon.
     yieldSinceStart: 'Yield since start',
     yieldChartLink: 'Yield chart →',
@@ -1277,7 +1277,6 @@ export const uk: Dict = {
       cancel: 'Скасувати',
       confirm: 'Замінити всі дані',
       pending: 'Заміна…',
-      waiting: 'Очікування іншої вкладки…',
     },
     count: {
       assets: (n: number) => `${n} ${plural(n, 'актив', 'активи', 'активів')}`,
@@ -1307,8 +1306,8 @@ export const uk: Dict = {
         `У файлі немає зрізів — усі ${current} ${plural(current, 'збережений день', 'збережені дні', 'збережених днів')} буде вилучено.`,
       exportedLongAgo: (days: number, date: string) =>
         `Експортовано ${days} ${plural(days, 'день', 'дні', 'днів')} тому (${date}).`,
-      newerDbVersion: (file: string, app: string) =>
-        `Файл походить із новішої версії бази (${file} проти ${app}) — поля, яких застосунок не знає, ігноруються.`,
+      dataMoved:
+        'Дані змінилися, поки діалог був відкритий. Підсумок вище оновлено — перевірте його й підтвердьте ще раз.',
     },
     toast: {
       success: (assets: string, snapshots: string, transactions: string) =>
@@ -1415,7 +1414,11 @@ export const uk: Dict = {
     hide: 'сховати',
     show: 'показати',
   },
-  sync: { replacedInOtherTab: 'Дані замінено в іншій вкладці.' },
+  sync: {
+    staleWrite:
+      'Це змінилося в іншій вкладці чи на іншому пристрої, тож нічого не збережено. Екран показує актуальні дані — перевірте їх і спробуйте ще раз.',
+  },
+  loading: { status: 'Завантаження портфеля…' },
   reminders: {
     quoteMissing: 'Котирувань сьогодні ще не збережено.',
     coupon: (asset: string, when: string, date: string) =>
@@ -1695,8 +1698,6 @@ export const uk: Dict = {
     title: 'Цілі',
     savedToast: 'Цілі збережено',
     saveFailed: 'Не вдалося зберегти цілі — спробуйте ще раз.',
-    savePartial: (written: number, total: number) =>
-      `Збережено ${written} з ${total} — решту не записано.`,
     invalid: 'Введіть відсоток.',
     fieldAria: (asset: string) => `Ціль ${asset}, %`,
     sumOk: (sum: string) => `Σ ${sum}`,
@@ -2008,6 +2009,7 @@ export const uk: Dict = {
     unreadable: 'Вкажіть число.',
     unreadableToast: (names: string) => `Не збережено — перевірте ${names}.`,
     nothingToSave: 'Нічого зберігати — введіть хоча б одне котирування.',
+    saveFailed: 'Не вдалося зберегти зріз — спробуйте ще раз.',
     yieldSinceStart: 'Дохідність від початку',
     yieldChartLink: 'Графік дохідності →',
     pendingChange: {

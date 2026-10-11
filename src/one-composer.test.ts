@@ -215,25 +215,12 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
   'src/hooks/slices.ts': {
     'period#PERIOD_OPTIONS': 'the options a screen with a period takes its slice by',
   },
-  'src/lib/local-view.ts': {
+  'src/hooks/queries.ts': {
     ...each(
-      "the device's answers to the view's reads, which the API's client replaces",
-      'view/balances#buildBalanceRow',
-      'view/balances#paginateSnapshots',
-      'view/build#buildView',
-      'view/build#ledgerAsOf',
-      'view/serve#servedInput',
-      'view/window#windowView',
-      'view/yield#cumulativeYieldSeriesIn',
+      'the body of a portfolio with no rows, which the shell holds until the first read answers',
+      'view/serve#dayQuotes',
+      'view/serve#viewBody',
     ),
-  },
-  'src/hooks/useBackupDownload.ts': {
-    'valuation#pricesOfSnapshots':
-      'the backup carries per-unit prices; this store keeps ₴ snapshots',
-  },
-  'src/screens/settings/ImportDialog.tsx': {
-    'valuation#snapshotsOfPrices':
-      'the backup carries per-unit prices; this store keeps ₴ snapshots',
   },
   'src/lib/backup.ts': {
     'valuation#snapshotsOfPrices':
@@ -244,20 +231,21 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
 const walk = (dir: string): string[] =>
   readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
     const rel = `${dir}/${e.name}`;
-    if (e.isDirectory()) return skipped(e.name) ? [] : walk(rel);
+    // A fixture is test support: it composes figures to stand in for the API, and no screen imports it.
+    if (e.isDirectory()) return skipped(e.name) || e.name === '__fixtures__' ? [] : walk(rel);
     return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [rel] : [];
   });
 
 describe('no file computes a figure of its own', () => {
-  // The device answers the view's reads itself until the API does (*Cloud target*), so its stand-in
-  // for the server is the one file that composes; no screen, form or hook does.
-  it("only the device's stand-in for the server calls a composer", () => {
+  // The server composes every figure (*Cloud target*), and a fixture stands in for it in tests, so
+  // no screen, form or hook calls a composer.
+  it('no file calls a composer', () => {
     const callers = walk('src').filter((rel) =>
       coreImports(parse(rel)).some(
         (i) => !i.typeOnly && i.key.startsWith('view/') && /View$/.test(i.key.split('#')[1]),
       ),
     );
-    expect(callers).toEqual(['src/lib/local-view.ts']);
+    expect(callers).toEqual([]);
   });
 
   it('every other file in src/ takes only the figures it gives a reason for', () => {
@@ -280,14 +268,9 @@ describe('no file computes a figure of its own', () => {
 // file by its path and a package by its name, so no spelling of a specifier (an extension, an
 // alias) leads around the list.
 const QUERIES = ['src/hooks/queries.ts'];
-// The imports that reach the stored rows: the repository, the database, Dexie and the query cache.
-const STORE = [
-  'src/lib/repository.ts',
-  'src/lib/db.ts',
-  'dexie',
-  'dexie-react-hooks',
-  '@tanstack/react-query',
-];
+// The imports that reach the portfolio: the client of the user API, the app's one instance of it,
+// and the query cache.
+const STORE = ['src/lib/repository.ts', 'src/lib/api.ts', '@tanstack/react-query'];
 // Each file that calls `useView`, once: the screens, the forms and the hooks that read the view.
 const VIEW_READERS = [
   'src/hooks/useCapitalCard.ts',
@@ -305,25 +288,21 @@ const VIEW_READERS = [
   'src/screens/Yield.tsx',
   'src/screens/portfolio/AssetDialogs.tsx',
 ];
-// Every file that reaches the repository, the database or the query cache, and what for.
+// Every file that reaches the client or the query cache, and what for.
 const STORE_READERS: Record<string, string> = {
   'src/hooks/queries.ts': 'the view queries and every write',
-  'src/lib/local-view.ts': "the device's four reads, over the repository",
-  'src/lib/repository.ts': 'the repository over the database',
-  'src/lib/db.ts': 'the Dexie databases themselves',
-  'src/main.tsx': 'the query client and opening the store at boot',
-  'src/hooks/useDbSync.ts': "invalidates the cache on another tab's replace or clear",
-  'src/hooks/useInzhurAssets.ts': 'the Inzhur feed and its last-good copy in meta',
-  'src/hooks/useNbuRate.ts': 'the NBU rate and its last-good copy in meta',
-  'src/hooks/useBackupDownload.ts': 'the schema version a backup is stamped with',
-  'src/screens/settings/ImportRow.tsx': "the schema version an import's preview compares against",
+  'src/lib/api.ts':
+    'the one client of the user API and the one query cache, made with their session',
+  'src/main.tsx': 'the query client provider',
+  'src/hooks/useInzhurAssets.ts': 'the Inzhur feed, a query of its own',
+  'src/hooks/useNbuRate.ts': 'the NBU rate, a query of its own',
 };
 
 const { options: OPTIONS } = ts.convertCompilerOptionsFromJson(
   ts.readConfigFile(join(REPO, 'tsconfig.json'), ts.sys.readFile).config.compilerOptions,
   REPO,
 );
-// Paths compare in one case where the file system ignores it, so `../lib/DB` is `src/lib/db.ts`.
+// Paths compare in one case where the file system ignores it, so `../lib/API` is `src/lib/api.ts`.
 const canon = (path: string) => (ts.sys.useCaseSensitiveFileNames ? path : path.toLowerCase());
 const RESOLUTIONS = ts.createModuleResolutionCache(REPO, (f) => f, OPTIONS);
 /** Where TypeScript resolves a specifier from a file: a repo file by its path, a package by name. */
@@ -469,7 +448,7 @@ describe('every screen reads one slice of the one view query', () => {
     expect(existsSync(join(REPO, 'src/hooks/useLedgerAsOfToday.ts'))).toBe(false);
   });
 
-  it('only the files with a reason reach the repository, the database or the query cache', () => {
+  it('only the files with a reason reach the client of the API or the query cache', () => {
     const reach = files.filter((rel) => importsFrom(parse(rel), STORE).length > 0);
     expect(reach.sort()).toEqual(Object.keys(STORE_READERS).sort());
   });

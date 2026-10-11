@@ -6,13 +6,19 @@ import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
-import { useDayQuotes, useSaveSnapshot, useView, useViewReady } from '../hooks/queries';
+import { useHold } from '../hooks/loading';
+import {
+  toastWriteFailure,
+  useDayQuotes,
+  useSaveSnapshot,
+  useView,
+  useViewReady,
+} from '../hooks/queries';
 import { selectQuotesForm } from '../hooks/slices';
 import { couponReminderId, dueCoupons } from '@quirenote/core/accrual';
 import { dayBefore, kyivDateIso } from '@quirenote/core/dates';
 import { investedByAsset, ledgerUnits, unitsByAsset } from '@quirenote/core/derive';
 import type { QuoteVerdict } from '@quirenote/core/inzhur/dcf';
-import type { Snapshot } from '@quirenote/core/types';
 import { useDraft } from '../state/draft';
 import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
@@ -28,6 +34,7 @@ import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { PendingChange } from './daily-quotes/PendingChange';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
+import { QuoteRowsPlaceholder } from './placeholders';
 import { inputValue } from '@quirenote/core/money';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
@@ -79,8 +86,9 @@ export function DailyQuotes() {
   const today = opening.date;
   const selectedDate = date || today;
   // What was recorded on the picked day and before it. The caller's day rides the view; another is
-  // read, and is an empty day until it lands.
-  const day = useDayQuotes(selectedDate, opening);
+  // read, and is an empty day until it lands, with its rows held once that has taken a while.
+  const { day, pending: dayPending } = useDayQuotes(selectedDate, opening);
+  const dayHeld = useHold(dayPending);
   // The units the ledger says are held ON THE DRAFTED DATE, not today's: a quote
   // drafted for a past day must value the position that existed then, or a
   // purchase landing restates history. `matchAssets` falls back to the asset's
@@ -125,7 +133,7 @@ export function DailyQuotes() {
 
   function handleSave() {
     // Refuse before writing: a row that cannot be read must not vanish from the day
-    // silently, and the date-keyed `put` would replace the stored day.
+    // silently, and the save clears a quote the day holds that the drafts left out.
     if (collected.unreadable.length > 0) {
       const names = collected.unreadable
         .map((id) => assets.find((a) => a.id === id)?.name ?? id)
@@ -137,10 +145,13 @@ export function DailyQuotes() {
       toast.error(t.dailyQuotes.nothingToSave);
       return;
     }
-    const snapshot: Snapshot = { date: selectedDate, quotes: collected.quotes };
-    saveSnapshot.mutate(snapshot, {
-      onSuccess: () => toast.success(t.dailyQuotes.snapshotSavedToast),
-    });
+    saveSnapshot.mutate(
+      { date: selectedDate, quotes: collected.quotes, stored: day.quotes },
+      {
+        onSuccess: () => toast.success(t.dailyQuotes.snapshotSavedToast),
+        onError: (error) => toastWriteFailure(error, t.dailyQuotes.saveFailed),
+      },
+    );
   }
 
   function handleCopyYesterday() {
@@ -292,44 +303,51 @@ export function DailyQuotes() {
               <ParseSkips className="mt-2" />
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              {assets.map((a) => (
-                <QuoteRow
-                  key={a.id}
-                  asset={a}
-                  raw={quotes[a.id]}
-                  yesterday={yesterdayQuote(day.previous, a.id)}
-                  chip={fetch.chipFor(a)}
-                  offer={fetch.offerFor(a)}
-                  verdict={verdicts[a.id]}
-                  suggestion={suggestionFor(a.id)}
-                  onChange={(v) => setQuote(a.id, v)}
-                  onAcceptOffer={() => fetch.acceptOffer(a.id)}
-                  onDismissOffer={() => fetch.dismissOffer(a.id)}
-                  onAcceptSuggestion={() => {
-                    const value = suggestionFor(a.id);
-                    if (value === undefined) return;
-                    fillQuote(a.id, inputValue(value, 2), {
-                      source: 'accrual',
-                      at: new Date().toISOString(),
-                    });
-                  }}
-                  onDismissSuggestion={() =>
-                    setDismissed({
-                      date: selectedDate,
-                      ids: dismissedSuggestions.includes(a.id)
-                        ? dismissedSuggestions
-                        : [...dismissedSuggestions, a.id],
-                    })
-                  }
-                />
-              ))}
-            </div>
+            {dayPending || dayHeld ? (
+              // The same box is laid out unseen until the delay has passed, so nothing moves.
+              <div aria-busy="true" className={dayHeld ? undefined : 'invisible'}>
+                <QuoteRowsPlaceholder />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {assets.map((a) => (
+                  <QuoteRow
+                    key={a.id}
+                    asset={a}
+                    raw={quotes[a.id]}
+                    yesterday={yesterdayQuote(day.previous, a.id)}
+                    chip={fetch.chipFor(a)}
+                    offer={fetch.offerFor(a)}
+                    verdict={verdicts[a.id]}
+                    suggestion={suggestionFor(a.id)}
+                    onChange={(v) => setQuote(a.id, v)}
+                    onAcceptOffer={() => fetch.acceptOffer(a.id)}
+                    onDismissOffer={() => fetch.dismissOffer(a.id)}
+                    onAcceptSuggestion={() => {
+                      const value = suggestionFor(a.id);
+                      if (value === undefined) return;
+                      fillQuote(a.id, inputValue(value, 2), {
+                        source: 'accrual',
+                        at: new Date().toISOString(),
+                      });
+                    }}
+                    onDismissSuggestion={() =>
+                      setDismissed({
+                        date: selectedDate,
+                        ids: dismissedSuggestions.includes(a.id)
+                          ? dismissedSuggestions
+                          : [...dismissedSuggestions, a.id],
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            )}
 
             <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
               {!stickyActions && (
                 <>
-                  <Button disabled={saveSnapshot.isPending} onClick={handleSave}>
+                  <Button disabled={saveSnapshot.isPending || dayPending} onClick={handleSave}>
                     {t.dailyQuotes.saveSnapshot}
                   </Button>
                   <Button variant="outline" onClick={handleCopyYesterday}>
@@ -418,7 +436,11 @@ export function DailyQuotes() {
             >
               {/* SQUARE CORNERS, hairline top edge: a full-bleed bar has no designed short
                   side, so the proportional rule has nothing to read. */}
-              <Button className="flex-1" disabled={saveSnapshot.isPending} onClick={handleSave}>
+              <Button
+                className="flex-1"
+                disabled={saveSnapshot.isPending || dayPending}
+                onClick={handleSave}
+              >
                 {t.dailyQuotes.saveSnapshot}
               </Button>
               <Button variant="outline" className="flex-1" onClick={handleCopyYesterday}>

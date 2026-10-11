@@ -94,7 +94,7 @@ const TRANSACTIONS: Transaction[] = [
 const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
 
 function envelope(exportedAt = '2026-08-04T12:00:00'): BackupEnvelope {
-  return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, exportedAt, 2);
+  return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, exportedAt);
 }
 
 function mutated(mutate: (env: Record<string, unknown>) => void): string {
@@ -127,7 +127,7 @@ const CARRIES: Record<TxType, { asset: boolean; quantity: boolean }> = {
 };
 const everyType = Object.keys(CARRIES) as TxType[];
 
-const CTX = { today: '2026-08-04', dbVersion: 2 } as const;
+const CTX = { today: '2026-08-04' } as const;
 
 describe('classifyImportFiles (S2 file gate)', () => {
   it('accepts one .json file of a sane size', () => {
@@ -190,7 +190,7 @@ describe('validateImport — accepted', () => {
   });
 
   it('accepts an envelope with no settings block', () => {
-    const env = buildBackup(ASSETS, [], [], undefined, '2026-08-04T12:00:00', 2);
+    const env = buildBackup(ASSETS, [], [], undefined, '2026-08-04T12:00:00');
     const result = validateImport(JSON.stringify(env));
     expect(result.ok).toBe(true);
   });
@@ -222,14 +222,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 15 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 15)));
+  it('rejects formatVersion 16 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 16)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(15);
+    expect(result.rejection.version).toBe(16);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 15 — this app reads formatVersion 14 only.',
+      'Unsupported formatVersion 16 — this app reads formatVersion 15 only.',
     );
   });
 
@@ -248,7 +248,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 15;
+        env.formatVersion = 16;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -292,7 +292,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an array) — this app reads formatVersion 14 only.',
+        'Unsupported formatVersion (an array) — this app reads formatVersion 15 only.',
       );
     });
 
@@ -301,7 +301,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an object) — this app reads formatVersion 14 only.',
+        'Unsupported formatVersion (an object) — this app reads formatVersion 15 only.',
       );
     });
 
@@ -312,7 +312,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an array) — this app reads formatVersion 14 only.',
+        'Unsupported formatVersion (an array) — this app reads formatVersion 15 only.',
       );
     });
   });
@@ -670,10 +670,10 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
   });
 
   it('keeps envelope-level and settings issues out of the row tables', () => {
-    const result = validateImport(mutated((env) => void (env.dbVersion = 0)));
+    const result = validateImport(mutated((env) => void (env.exportedAt = 'yesterday')));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'rows') return;
-    expect(result.rejection.issues[0]).toMatchObject({ table: 'envelope', field: 'dbVersion' });
+    expect(result.rejection.issues[0]).toMatchObject({ table: 'envelope', field: 'exportedAt' });
 
     const bad = validateImport(
       mutated((env) => void (env.settings = { currency: 'PLN', usdRate: 44.83 })),
@@ -753,14 +753,14 @@ describe('diffBackup', () => {
   });
 
   it('warns once when the file empties a table — never twice for the same rows', () => {
-    const env = buildBackup(ASSETS, [], TRANSACTIONS, SETTINGS, '2026-08-04T12:00:00', 2);
+    const env = buildBackup(ASSETS, [], TRANSACTIONS, SETTINGS, '2026-08-04T12:00:00');
     const diff = diffBackup(tables(), env, CTX);
     expect(diff.snapshots).toEqual({ added: 0, replaced: 0, removed: 2 });
     expect(diff.warnings).toEqual([{ code: 'no-snapshots', current: 2 }]);
   });
 
   it('warns that an asset-less file empties the dataset', () => {
-    const env = buildBackup([], [], [], SETTINGS, '2026-08-04T12:00:00', 2);
+    const env = buildBackup([], [], [], SETTINGS, '2026-08-04T12:00:00');
     const diff = diffBackup(tables(), env, CTX);
     expect(diff.warnings).toContainEqual({ code: 'no-assets' });
     expect(diff.warnings).toContainEqual({ code: 'no-snapshots', current: 2 });
@@ -786,19 +786,8 @@ describe('diffBackup', () => {
     expect(diffBackup(tables(), envelope('2026-08-09T09:02:00'), CTX).warnings).toEqual([]);
   });
 
-  it('warns about a file from a newer database version, never an older one', () => {
-    const newer = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-08-04T12:00:00', 3);
-    expect(diffBackup(tables(), newer, CTX).warnings).toContainEqual({
-      code: 'newer-db-version',
-      file: 3,
-      app: 2,
-    });
-    const older = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-08-04T12:00:00', 1);
-    expect(diffBackup(tables(), older, CTX).warnings).toEqual([]);
-  });
-
   it('reports a missing settings block so the opt-in can step aside', () => {
-    const env = buildBackup(ASSETS, PRICES, TRANSACTIONS, undefined, '2026-08-04T12:00:00', 2);
+    const env = buildBackup(ASSETS, PRICES, TRANSACTIONS, undefined, '2026-08-04T12:00:00');
     expect(diffBackup(tables(), env, CTX).hasSettings).toBe(false);
   });
 
@@ -926,6 +915,20 @@ describe('an OLDER backup is named as older, not as broken', () => {
     expect(result.rejection.version).toBe(13);
   });
 
+  it('maps formatVersion 14, whose envelope named a database version, to `older-format` (#407)', () => {
+    const result = validateImport(
+      mutated((env) => {
+        env.formatVersion = 14;
+        env.dbVersion = 2;
+      }),
+    );
+    if (result.ok || result.rejection.kind !== 'format') {
+      throw new Error('expected a format reject');
+    }
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(14);
+  });
+
   it('does not call a fractional version an older backup', () => {
     // `1.5` is below the current version and at least 1, so the bare `>= 1` read it as a
     // real backup from an older app and reported "version 1.5". A version counts format
@@ -952,7 +955,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 14');
+    expect(result.rejection.detail).toContain('formatVersion 15');
   });
 });
 

@@ -13,13 +13,14 @@ import { derivedYtmPct } from '@quirenote/core/view/attributes';
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
 import { viewKey } from '../hooks/queries';
 import { uk } from '../i18n/messages';
-import { viewOf } from '../lib/local-view';
+import { viewOf } from '../__fixtures__/stored-view';
 
 const held = vi.hoisted(() => ({ feed: undefined as { feed: unknown } | undefined }));
 vi.mock('../hooks/useInzhurAssets', () => ({
   useInzhurAssets: () => ({ data: undefined, lastGood: held.feed }),
 }));
-vi.mock('../lib/repository', () => ({ repo: {}, openStore: async () => undefined }));
+// The view is held in the cache the test fills, so nothing reads the API.
+vi.mock('../lib/api', () => ({ repo: {} }));
 
 const linked = TEST_LEDGERS.find((l) => l.name === 'linked')!.input;
 const bond = linked.assets[0];

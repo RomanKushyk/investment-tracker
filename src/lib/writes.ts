@@ -49,7 +49,7 @@ const rowOf = (asset: Asset) => ({
   ...(asset.inzhur === undefined ? {} : { inzhur: linkOf(asset.inzhur) }),
 });
 
-/** A patch as RFC 7396 spells it: a member left `undefined`, which Dexie removed, is `null`, since
+/** A patch as RFC 7396 spells it: a member left `undefined`, which a form's update meant as a removal, is `null`, since
  *  JSON drops `undefined` and the merge would then keep the stored value. */
 const removing = (patch: object): Record<string, unknown> =>
   Object.fromEntries(
@@ -89,12 +89,39 @@ export function updateAssetOps(id: string, patch: Partial<Asset>): Op[] {
   return [{ op: 'asset.patch', id, patch: { ...removing(patch), ...link } }];
 }
 
+/** A coupon confirmed from its card: the payout, the reinvest that makes it count as reinvested and
+ *  the roll of the asset's `nextCoupon`, in one list, so a failure leaves the occurrence open. */
+export function recordCouponOps(
+  payout: Transaction,
+  reinvest?: Transaction,
+  nextCoupon?: string,
+): Op[] {
+  return [
+    ...recordTransactionOps(payout),
+    ...(reinvest === undefined ? [] : recordTransactionOps(reinvest)),
+    ...(nextCoupon === undefined ? [] : updateAssetOps(payout.assetId, { nextCoupon })),
+  ];
+}
+
 export function updateTransactionOps(id: string, patch: Partial<Transaction>): Op[] {
   return [{ op: 'transaction.patch', id, patch: removing(patch) }];
 }
 
-export function deleteTransactionOps(id: string): Op[] {
-  return [{ op: 'transaction.delete', id }];
+/** The asset whose `nextCoupon` goes back onto the occurrence a deleted payout had settled. */
+export interface CouponReopen {
+  assetId: string;
+  nextCoupon: string;
+}
+
+/** The delete and, for a confirmed coupon's payout, the reopening of its occurrence, in one list, so
+ *  a failure leaves the row and the pointer as they were. */
+export function deleteTransactionOps(id: string, reopen?: CouponReopen): Op[] {
+  return [
+    { op: 'transaction.delete', id },
+    ...(reopen === undefined
+      ? []
+      : updateAssetOps(reopen.assetId, { nextCoupon: reopen.nextCoupon })),
+  ];
 }
 
 export function deleteSnapshotOps(date: string): Op[] {

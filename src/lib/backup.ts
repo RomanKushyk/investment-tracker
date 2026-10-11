@@ -1,5 +1,6 @@
 // The backup over the API: the export is `GET /state`, the import the staged routes (*Cloud
-// target*). No screen calls it yet: the query layer (#407) wires the dialog and the rows.
+// target*). The repository calls its requests, and the Settings rows and the import dialog reach
+// those through `src/hooks/queries.ts`.
 import { z } from 'zod';
 
 import {

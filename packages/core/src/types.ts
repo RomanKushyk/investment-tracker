@@ -18,7 +18,7 @@ export type TxType =
  * is written without a silent `default:` to buy.
  *
  * It ANSWERS rather than throwing because the arm IS reachable at runtime, by a
- * row whose type the union no longer names: Dexie reads are unvalidated and no
+ * row whose type the union no longer names: a read is typed, not validated, and no
  * migration retired `tax`. `freeCashFromLedger` passes its accumulator, so such a
  * row leaves the sum finite; a fallback is chosen per caller, never a fabricated 0.
  */
@@ -162,7 +162,7 @@ export interface Transaction {
   note?: string;
 }
 
-// Where a quote DRAFT value came from. It lives with the draft, not in any Dexie
+// Where a quote DRAFT value came from. It lives with the draft, not in any stored
 // row: it describes an unsaved input, and a saved Snapshot keeps no provenance.
 // Both machine sources may be refilled by a later fetch — only a value with NO
 // origin is the user’s and untouchable.

@@ -7,7 +7,7 @@ import { investedByAsset } from '@quirenote/core/derive';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
-import { dayOf, NO_TABLES } from '../../lib/local-view';
+import { dayOf, NO_TABLES } from '../../__fixtures__/stored-view';
 import { accrualSuggestion, couponPrefill } from './suggestions';
 
 const snapshots = buildSeedSnapshots();

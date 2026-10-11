@@ -209,12 +209,11 @@ describe('backup envelope round-trip on the seed (D12)', () => {
       SEED_TRANSACTIONS,
       { currency: 'UAH', usdRate: 44.83 },
       '2026-07-28T12:00:00',
-      2,
     );
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.formatVersion).toBe(14);
+    expect(result.data.formatVersion).toBe(15);
     expect(result.data.assets).toHaveLength(4);
     // One price per quote: the seed quotes a position only while the ledger holds it.
     expect(result.data.prices).toHaveLength(572);
@@ -228,7 +227,7 @@ describe('backup envelope round-trip on the seed (D12)', () => {
 // The API's door takes a uuid, and the seed's ids are 'reit' and 'd1': the account a dev restore
 // lands in is the seed under fixed ones (#403).
 describe('the seed as a backup the API takes', () => {
-  const backup = buildSeedBackup('2026-07-28T12:00:00', 2);
+  const backup = buildSeedBackup('2026-07-28T12:00:00');
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
   it('passes the importer and every row door the server holds a row to, under uuids', async () => {
@@ -296,7 +295,8 @@ describe('the seed as a backup the API takes', () => {
   });
 
   it('carries the stamps its caller gives, as a backup does, and no setting', () => {
-    expect([backup.exportedAt, backup.dbVersion]).toEqual(['2026-07-28T12:00:00', 2]);
+    expect(backup.exportedAt).toBe('2026-07-28T12:00:00');
+    expect(Object.keys(backup)).not.toContain('dbVersion');
     expect(backup.settings).toBeUndefined();
   });
 });

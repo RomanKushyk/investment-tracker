@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react';
 import type { RouteObject } from 'react-router';
 
 import { AppFailure, NotFound, ScreenFailure } from './app/Boundaries';
 import { Layout } from './app/Layout';
 import { Root } from './app/Root';
+import { Loadable } from './components/loading/Loadable';
 import { Allocation } from './screens/Allocation';
 import { Attributes } from './screens/Attributes';
 import { Balances } from './screens/Balances';
@@ -17,6 +19,23 @@ import { Apply } from './screens/sign-in/Apply';
 import { GoogleCallback } from './screens/sign-in/GoogleCallback';
 import { SignIn } from './screens/sign-in/SignIn';
 import { Yield } from './screens/Yield';
+import {
+  AllocationPlaceholder,
+  AttributesPlaceholder,
+  BalancesPlaceholder,
+  DailyQuotesPlaceholder,
+  OverviewPlaceholder,
+  PayoutsPlaceholder,
+  PortfolioPlaceholder,
+  SeasonalityPlaceholder,
+  TransactionsPlaceholder,
+  YieldPlaceholder,
+} from './screens/placeholders';
+
+/** A screen that reads the portfolio waits behind the view, and holds its place while it does. */
+const behindView = (placeholder: ReactNode, screen: ReactNode) => (
+  <Loadable placeholder={placeholder}>{screen}</Loadable>
+);
 
 export const routes: RouteObject[] = [
   {
@@ -36,18 +55,31 @@ export const routes: RouteObject[] = [
             // Between the shell and the screens, so a screen that throws keeps the sidebar.
             errorElement: <ScreenFailure />,
             children: [
-              { index: true, element: <DailyQuotes /> },
+              { index: true, element: behindView(<DailyQuotesPlaceholder />, <DailyQuotes />) },
               // The Transaction panel left `/` for a route of its own; `/` stays
               // the index, because it is the daily ritual and the app opens on it.
-              { path: 'transactions', element: <Transactions /> },
-              { path: 'overview', element: <Overview /> },
-              { path: 'balances', element: <Balances /> },
-              { path: 'payouts', element: <Payouts /> },
-              { path: 'yield', element: <Yield /> },
-              { path: 'attributes', element: <Attributes /> },
-              { path: 'seasonality', element: <Seasonality /> },
-              { path: 'portfolio', element: <Portfolio /> },
-              { path: 'allocation', element: <Allocation /> },
+              {
+                path: 'transactions',
+                element: behindView(<TransactionsPlaceholder />, <Transactions />),
+              },
+              { path: 'overview', element: behindView(<OverviewPlaceholder />, <Overview />) },
+              { path: 'balances', element: behindView(<BalancesPlaceholder />, <Balances />) },
+              { path: 'payouts', element: behindView(<PayoutsPlaceholder />, <Payouts />) },
+              { path: 'yield', element: behindView(<YieldPlaceholder />, <Yield />) },
+              {
+                path: 'attributes',
+                element: behindView(<AttributesPlaceholder />, <Attributes />),
+              },
+              {
+                path: 'seasonality',
+                element: behindView(<SeasonalityPlaceholder />, <Seasonality />),
+              },
+              { path: 'portfolio', element: behindView(<PortfolioPlaceholder />, <Portfolio />) },
+              {
+                path: 'allocation',
+                element: behindView(<AllocationPlaceholder />, <Allocation />),
+              },
+              // Settings reads no figure of the view, so it waits for nothing.
               { path: 'settings', element: <Settings /> },
               // Every path nothing else matches, `/sign-in/x` too, inside the shell.
               { path: '*', element: <NotFound /> },

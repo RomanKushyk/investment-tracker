@@ -4,7 +4,9 @@ import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
+import { Block } from '../components/loading/Placeholder';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { useHold } from '../hooks/loading';
 import { useSeries, useView } from '../hooks/queries';
 import { yieldOf } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
@@ -32,6 +34,9 @@ export function Yield() {
 
   // The curve is one value per asset per date, so it is a read of its own by period.
   const series = useSeries(period)?.series;
+  // The curve is a read of its own: its box is held, once the read has been out for a while, even
+  // when the table beside it came with the view.
+  const curveHeld = useHold(series === undefined);
   const xirrHeader = view.xirrExtrapolated ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
 
   // The basis is DERIVED, so it can be absent, and a footnote naming no start is
@@ -55,7 +60,11 @@ export function Yield() {
         actions={control}
       />
 
-      <Card radius={24} className="mb-3.5 animate-in p-[22px] duration-300 fade-in">
+      <Card
+        radius={24}
+        className="mb-3.5 animate-in p-[22px] duration-300 fade-in"
+        aria-busy={curveHeld || undefined}
+      >
         <div className="mb-2 flex flex-wrap gap-4 text-[11.5px] text-muted">
           {assets.map((a) => (
             <span key={a.id} className="flex items-center gap-1.5">
@@ -65,8 +74,10 @@ export function Yield() {
           ))}
         </div>
         {/* A curve not read yet holds the chart's height and says nothing: "no snapshots" is for a
-            curve that was read and is empty. */}
-        {series === undefined ? (
+            curve that was read and is empty. Past the delay its box is drawn. */}
+        {curveHeld ? (
+          <Block kind="chart" className="h-[280px] rounded-[2px]" />
+        ) : series === undefined ? (
           <div style={{ height: 280 }} />
         ) : series.length === 0 ? (
           <EmptyState message={t.analytics.empty.chart} height={280} />

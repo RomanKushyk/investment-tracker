@@ -600,14 +600,7 @@ describe('the export over GET /state', () => {
 
     // The file a person would keep: built, written out and read back as the dialog reads it.
     const text = JSON.stringify(
-      buildBackup(
-        first.assets,
-        first.prices,
-        first.transactions,
-        undefined,
-        '2026-10-10T12:00:00',
-        2,
-      ),
+      buildBackup(first.assets, first.prices, first.transactions, undefined, '2026-10-10T12:00:00'),
     );
     const read = validateImport(text);
     if (!read.ok) throw new Error(JSON.stringify(read.rejection));

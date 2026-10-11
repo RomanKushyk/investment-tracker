@@ -139,8 +139,8 @@ export function warningSentence(warning: DiffWarning, f: Format, t: Dict): strin
       return w.noSnapshots(warning.current);
     case 'exported-long-ago':
       return w.exportedLongAgo(warning.days, f.date(warning.date));
-    case 'newer-db-version':
-      return w.newerDbVersion(String(warning.file), String(warning.app));
+    case 'data-moved':
+      return w.dataMoved;
   }
 }
 

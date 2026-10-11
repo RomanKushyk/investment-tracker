@@ -74,10 +74,10 @@ export function assetFromForm(
   };
 }
 
-// Edit mode. Explicit `undefined` values are deliberate: Dexie’s `update()`
-// DELETES a key set to undefined, so emptying a visible optional field clears the
-// stored value instead of leaving a stale one — and a field the form never showed
-// must be omitted rather than passed through.
+// Edit mode. Explicit `undefined` values are deliberate: the client sends one as `null`, which
+// removes the key (RFC 7396), so emptying a visible optional field clears the stored value
+// instead of leaving a stale one — and a field the form never showed must be omitted rather
+// than passed through.
 export function assetPatchFromForm(
   values: AssetFormValues,
   /**

@@ -1235,7 +1235,6 @@ describe('the parts core’s importParts builds', () => {
       first.transactions,
       undefined,
       '2026-10-10T12:00:00',
-      2,
     );
     const read = validateImport(JSON.stringify(file));
     if (!read.ok) throw new Error(JSON.stringify(read.rejection));
@@ -1246,7 +1245,7 @@ describe('the parts core’s importParts builds', () => {
   });
 
   it('take the seed’s backup under its fixed ids', async () => {
-    const seed = buildSeedBackup('2026-07-28T12:00:00', 2);
+    const seed = buildSeedBackup('2026-07-28T12:00:00');
     const ordered = (a: string, b: string) => a.localeCompare(b);
 
     await importPlanned(await planned(seed));

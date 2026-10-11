@@ -183,9 +183,9 @@ export function buildSeedSnapshots(): Snapshot[] {
 const seedUuid = (n: number) => `5eed0000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 
 /** The seed as a backup file the API takes: its assets, then its transactions, numbered in the
- *  order they are written above, and the per-unit prices its snapshots store. `exportedAt` and
- *  `dbVersion` are the caller's, as `buildBackup` leaves them. */
-export function buildSeedBackup(exportedAt: string, dbVersion: number): BackupEnvelope {
+ *  order they are written above, and the per-unit prices its snapshots store. `exportedAt` is the
+ *  caller's, as `buildBackup` leaves it. */
+export function buildSeedBackup(exportedAt: string): BackupEnvelope {
   const ids = new Map(
     [...SEED_ASSETS, ...SEED_TRANSACTIONS].map((row, i): [string, string] => [
       row.id,
@@ -202,6 +202,5 @@ export function buildSeedBackup(exportedAt: string, dbVersion: number): BackupEn
     SEED_TRANSACTIONS.map((t) => ({ ...t, id: named(t.id), assetId: named(t.assetId) })),
     undefined,
     exportedAt,
-    dbVersion,
   );
 }

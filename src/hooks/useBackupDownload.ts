@@ -1,6 +1,6 @@
 // One backup-download path for every Settings surface that offers it: the Data-card
 // button, the destructive dialogs' "Download backup first" CTA and the import's
-// automatic pre-import safety backup. repo.exportAll → buildBackup → lib/download.
+// automatic pre-import safety backup. GET /state → buildBackup → lib/download.
 // Resolves true only when the file actually reached the disk, so a CTA can flip to
 // its success label and the import can refuse to start when the safety backup could
 // not be created.
@@ -8,10 +8,9 @@ import { toast } from 'sonner';
 
 import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { todayIso } from '@quirenote/core/dates';
-import { pricesOfSnapshots } from '@quirenote/core/valuation';
-import { useExportAll } from './queries';
+import { useExportState } from './queries';
+import type { ExportedState } from '../lib/backup';
 import { saveTextFile } from '../lib/download';
-import { dbVersion } from '../lib/repository';
 import { useSettings } from '../state/settings';
 import { useT } from '../i18n/useT';
 
@@ -28,11 +27,13 @@ export interface BackupDownloadOptions {
    * one pinned exception to save-picker parity. *Persistence today*
    */
   via?: 'picker' | 'anchor';
+  /** The export to write, where the caller has just read one it goes on to act on. */
+  state?: ExportedState;
 }
 
 export function useBackupDownload() {
   const t = useT();
-  const exportAll = useExportAll();
+  const exportState = useExportState();
   // The PREFERENCE, not the session value: a backup carries what the user chose,
   // never what they were glancing at when they pressed Export — and it restores
   // through `setDefaultCurrency`, so the two ends match.
@@ -40,15 +41,14 @@ export function useBackupDownload() {
 
   async function download(opts: BackupDownloadOptions = {}): Promise<boolean> {
     try {
-      const tables = await exportAll.mutateAsync();
+      const tables = opts.state ?? (await exportState.mutateAsync());
       const envelope = buildBackup(
         tables.assets,
-        // The file carries per-unit prices; this store keeps ₴ snapshots (*Persistence today*).
-        pricesOfSnapshots(tables.transactions, tables.snapshots),
+        // The API stores per-unit prices, and the file carries them as they are (*Persistence today*).
+        tables.prices,
         tables.transactions,
         { currency, usdRate },
-        new Date().toISOString().slice(0, 19), // timezone-less, same stamp as saveSnapshot
-        dbVersion,
+        new Date().toISOString().slice(0, 19), // timezone-less, as the file's own stamps are
       );
       // NEVER WRITE WHAT YOU CANNOT READ: the export parses its own output through
       // the parser that will read it back, and checks the WHOLE envelope rather than
@@ -80,5 +80,5 @@ export function useBackupDownload() {
     }
   }
 
-  return { download, pending: exportAll.isPending };
+  return { download, pending: exportState.isPending };
 }

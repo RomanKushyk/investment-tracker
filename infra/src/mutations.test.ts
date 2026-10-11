@@ -731,7 +731,7 @@ describe('deleting an asset larger than one request', () => {
   const valid = async () => {
     const s = await state();
     const text = JSON.stringify(
-      buildBackup(s.assets, s.prices, s.transactions, undefined, '2026-10-09T10:00:00', 2),
+      buildBackup(s.assets, s.prices, s.transactions, undefined, '2026-10-09T10:00:00'),
     );
     expect(parseBackup(text).ok).toBe(true);
   };
@@ -1236,14 +1236,7 @@ describe('GET /state', () => {
     await write();
     const first = await state();
     const text = JSON.stringify(
-      buildBackup(
-        first.assets,
-        first.prices,
-        first.transactions,
-        undefined,
-        '2026-10-09T10:00:00',
-        2,
-      ),
+      buildBackup(first.assets, first.prices, first.transactions, undefined, '2026-10-09T10:00:00'),
     );
     const imported = validateImport(text);
     if (!imported.ok) throw new Error('expected the export to import');

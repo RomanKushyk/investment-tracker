@@ -67,9 +67,8 @@ export interface PriceParts {
 export function priceParts(input: PriceInput): PriceParts | undefined {
   const { amount, quantity, priceMode } = input;
 
-  // A DERIVED VALUE THAT ROUNDS TO ZERO IS NOT A VALUE: a zero would reach Dexie
-  // unvalidated and then be REFUSED by this app’s own backup parser — a row the app
-  // wrote that it cannot read back.
+  // A DERIVED VALUE THAT ROUNDS TO ZERO IS NOT A VALUE: a zero would be REFUSED by this
+  // app’s own backup parser — a row the app wrote that it cannot read back.
   const positive = (n: number): number | undefined => (n > 0 ? n : undefined);
 
   if (priceMode === 'unit') {

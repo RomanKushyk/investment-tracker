@@ -15,43 +15,45 @@ import {
   serializeTransactionsCsv,
 } from '@quirenote/core/backup/csv';
 import { todayIso } from '@quirenote/core/dates';
-import { useExportAll } from '../../hooks/queries';
+import { useExportState } from '../../hooks/queries';
+import { csvTablesOf } from '../../lib/backup';
 import { saveTextFile } from '../../lib/download';
-import type { AllTables } from '../../lib/repository';
 import { useT } from '../../i18n/useT';
 
 const CSV_MIME = 'text/csv';
+
+type Tables = ReturnType<typeof csvTablesOf>;
 
 /** Pinned order, pinned file names. */
 const TABLES = [
   {
     key: 'assets',
     labelKey: 'assets' as const,
-    build: (t: AllTables) => serializeAssetsCsv(t.assets),
+    build: (t: Tables) => serializeAssetsCsv(t.assets),
   },
   {
     key: 'snapshots',
     labelKey: 'snapshots' as const,
-    build: (t: AllTables) => serializeSnapshotsCsv(t.snapshots, t.assets),
+    build: (t: Tables) => serializeSnapshotsCsv(t.snapshots, t.assets),
   },
   {
     key: 'transactions',
     labelKey: 'transactions' as const,
-    build: (t: AllTables) => serializeTransactionsCsv(t.transactions),
+    build: (t: Tables) => serializeTransactionsCsv(t.transactions),
   },
 ] as const;
 
 export function CsvExportRow() {
   const t = useT();
-  const exportAll = useExportAll();
+  const exportState = useExportState();
   const [building, setBuilding] = useState<string | null>(null);
 
   async function run(table: (typeof TABLES)[number]) {
     setBuilding(table.key);
     try {
-      // Read fresh at click time — an export must reflect the DB now, exactly like the
+      // Read fresh at click time — an export must reflect the dataset now, exactly like the
       // JSON backup.
-      const tables = await exportAll.mutateAsync();
+      const tables = csvTablesOf(await exportState.mutateAsync());
       await saveTextFile(`quirenote-${table.key}-${todayIso()}.csv`, table.build(tables), {
         mime: CSV_MIME,
       });

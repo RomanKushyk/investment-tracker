@@ -9,7 +9,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { makeFormat } from '@quirenote/core/money';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import type { Snapshot } from '@quirenote/core/types';
-import { readBalances } from '../lib/local-view';
+import { balancesOf, viewDataOf } from '../__fixtures__/stored-view';
 
 const SNAPSHOTS = buildSeedSnapshots();
 let snapshots: Snapshot[] = SNAPSHOTS;
@@ -18,22 +18,8 @@ let gate: Promise<void> | undefined;
 const TODAY = '2026-07-28';
 
 vi.mock('@quirenote/core/view/balances-page', () => ({ BALANCES_PAGE_SIZE: 4 }));
-vi.mock('../lib/local-view', async (importActual) => {
-  const actual = await importActual<typeof import('../lib/local-view')>();
-  const tables = () => ({
-    assets: SEED_ASSETS,
-    snapshots,
-    transactions: SEED_TRANSACTIONS,
-  });
-  return {
-    ...actual,
-    readView: vi.fn(async () => actual.viewOf(tables(), TODAY)),
-    readBalances: vi.fn(async (page: number) => {
-      await gate;
-      return actual.balancesOf(tables(), page, TODAY);
-    }),
-  };
-});
+// The API's client, whose pages are held back until the test lets them through.
+vi.mock('../lib/api', () => ({ repo: { readView: vi.fn(), readBalances: vi.fn() } }));
 // The chart is not what is measured, and jsdom lays nothing out for it.
 vi.mock('../components/charts/BalancesArea', () => ({ BalancesArea: () => null }));
 vi.mock('../hooks/useIsDesktop', () => ({ useIsDesktop: () => true }));
@@ -49,9 +35,20 @@ beforeAll(() => {
   });
 });
 const { Balances } = await import('./Balances');
+const { repo } = await import('../lib/api');
+
+const tables = () => ({ assets: SEED_ASSETS, snapshots, transactions: SEED_TRANSACTIONS });
+/** The pages asked for, in order. */
+const pagesAsked = () => vi.mocked(repo.readBalances).mock.calls.map(([page]) => page);
 
 beforeEach(() => {
-  vi.mocked(readBalances).mockClear();
+  vi.mocked(repo.readView).mockReset();
+  vi.mocked(repo.readView).mockImplementation(async () => viewDataOf(tables(), TODAY));
+  vi.mocked(repo.readBalances).mockReset();
+  vi.mocked(repo.readBalances).mockImplementation(async (page: number) => {
+    await gate;
+    return balancesOf(tables(), page, TODAY);
+  });
 });
 afterEach(() => {
   cleanup();
@@ -89,14 +86,14 @@ describe('the Balances table', () => {
     let release!: () => void;
     gate = new Promise<void>((r) => (release = r));
     fireEvent.click(next(container));
-    await waitFor(() => expect(readBalances).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(pagesAsked()).toContain(1));
     // The page is out and not back: the table holds the rows it had, and the screen has not gone
     // back to the first page for want of rows.
     expect(firstDates(container)).toEqual(first);
 
     await act(async () => release());
     await waitFor(() => expect(firstDates(container)).not.toEqual(first));
-    expect(vi.mocked(readBalances).mock.calls.filter(([page]) => page === 0)).toHaveLength(1);
+    expect(pagesAsked().filter((page) => page === 0)).toHaveLength(1);
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
   });
 
@@ -114,14 +111,14 @@ describe('the Balances table', () => {
     let release!: () => void;
     gate = new Promise<void>((r) => (release = r));
     fireEvent.click(next(container));
-    await waitFor(() => expect(readBalances).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(pagesAsked()).toContain(2));
     expect(next(container).disabled).toBe(true);
     fireEvent.click(next(container));
 
     await act(async () => release());
     // The last page, two rows, and no read past it.
     await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(2));
-    expect(readBalances).not.toHaveBeenCalledWith(3);
+    expect(pagesAsked()).not.toContain(3);
   });
 
   // Two presses before the screen has drawn the first both come from the page it drew.
@@ -140,11 +137,11 @@ describe('the Balances table', () => {
     });
     // The last page, two rows, and no read past it.
     await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(2));
-    expect(readBalances).not.toHaveBeenCalledWith(3);
+    expect(pagesAsked()).not.toContain(3);
   });
 
-  // A replace or a clear in another tab re-renders this screen in place (`useDbSync`): a page the
-  // new rows do not reach starts over rather than showing an empty table.
+  // A replace or a clear made elsewhere reaches this screen when the view is read again: a page
+  // the new rows do not reach starts over rather than showing an empty table.
   it('starts over on the first page when the rows shrink under the one it is on', async () => {
     const { container, client } = mount();
     await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(4));
@@ -160,10 +157,8 @@ describe('the Balances table', () => {
     await act(async () => {
       await client.invalidateQueries();
     });
-    await waitFor(() => expect(readBalances).toHaveBeenLastCalledWith(0));
+    await waitFor(() => expect(pagesAsked().at(-1)).toBe(0));
     // The first page of the shrunken rows, not a page the rows no longer reach.
-    const { balancesOf } =
-      await vi.importActual<typeof import('../lib/local-view')>('../lib/local-view');
     const shrunk = balancesOf(
       { assets: SEED_ASSETS, snapshots, transactions: SEED_TRANSACTIONS },
       0,

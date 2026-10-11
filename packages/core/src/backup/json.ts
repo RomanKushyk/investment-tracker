@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 14;
+export const BACKUP_FORMAT_VERSION = 15;
 
 // A CALENDAR date (RFC 3339 §5.7), not a shape: `Date` rolls `2026-02-30` into March.
 // Any string that is not one takes the sentence; a missing or non-string value keeps zod's.
@@ -219,7 +219,6 @@ export const backupEnvelopeSchema = z.strictObject({
   format: z.literal(BACKUP_FORMAT),
   formatVersion: z.literal(BACKUP_FORMAT_VERSION),
   exportedAt: isoDateTime,
-  dbVersion: z.number().int().positive(),
   assets: z.array(assetRowSchema),
   prices: z.array(priceRowSchema),
   transactions: transactionRowsSchema,
@@ -262,27 +261,24 @@ function unwrapOptional(schema: z.ZodType): z.ZodType {
   return schema instanceof z.ZodOptional ? (schema.unwrap() as z.ZodType) : schema;
 }
 
-// THE MODEL'S SHAPE, NOT THE STORE'S: a retired key stays in IndexedDB, and the strict
+// THE MODEL'S SHAPE, NOT THE STORE'S: a row can carry a key the model retired, and the strict
 // reader refuses it. The keys come from the row schemas, so no list is written twice.
 function project<T extends object>(row: T, shape: object): T {
   return Object.fromEntries(Object.entries(row).filter(([k]) => Object.hasOwn(shape, k))) as T;
 }
 
-// `exportedAt` and `dbVersion` are produced by the CALLER, so this module stays
-// deterministic and pure.
+// `exportedAt` is produced by the CALLER, so this module stays deterministic and pure.
 export function buildBackup(
   assets: Asset[],
   prices: PriceRow[],
   transactions: Transaction[],
   settings: Settings | undefined,
   exportedAt: string,
-  dbVersion: number,
 ): BackupEnvelope {
   return {
     format: BACKUP_FORMAT,
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt,
-    dbVersion,
     // Normalize datetimes to the pinned timezone-less convention: `buildNewAsset`
     // stamps a full `toISOString()`, so without the slice a backup holding any
     // user-created asset would fail this module’s own schema.

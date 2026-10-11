@@ -21,6 +21,7 @@ import {
   deleteSnapshotOps,
   deleteTransactionOps,
   moveSnapshotOps,
+  recordCouponOps,
   recordTransactionOps,
   saveSnapshotOps,
   saveTargetsOps,
@@ -285,6 +286,7 @@ describe('every repository write builds a list core accepts', () => {
     ['saveSnapshot', saveSnapshotOps(DAY, { [u(1)]: 1000 }, { [u(1)]: 900, [u(2)]: 500 })],
     ['recordTransaction', recordTransactionOps(tx)],
     ['recordTransaction with a new asset', recordTransactionOps(tx, existing)],
+    ['recordCoupon', recordCouponOps(tx, { ...tx, id: u(11), type: 'reinvest', quantity: 1 }, DAY)],
     ['addAsset', addAssetOps(existing)],
     ['updateAsset', updateAssetOps(u(1), { name: 'Fund', nextCoupon: undefined })],
     ['updateTransaction', updateTransactionOps(u(10), { note: undefined, amount: 500 })],
@@ -301,6 +303,43 @@ describe('every repository write builds a list core accepts', () => {
       const parsed = opSchema.safeParse(op);
       if (!parsed.success) throw new Error(JSON.stringify(parsed.error.issues));
     }
+  });
+});
+
+describe('a confirmed coupon', () => {
+  const payout: Transaction = {
+    id: u(30),
+    date: DAY,
+    type: 'interest_payout',
+    assetId: u(1),
+    amount: 100,
+  };
+  const reinvest: Transaction = { ...payout, id: u(31), type: 'reinvest', quantity: 1 };
+
+  it('is the payout, the reinvest and the roll of the asset it names, in that order, in one list', () => {
+    expect(recordCouponOps(payout, reinvest, '2027-02-25')).toEqual([
+      { op: 'transaction.add', transaction: payout },
+      { op: 'transaction.add', transaction: reinvest },
+      { op: 'asset.patch', id: u(1), patch: { nextCoupon: '2027-02-25' } },
+    ]);
+  });
+
+  it('holds only what it was given', () => {
+    expect(recordCouponOps(payout)).toEqual([{ op: 'transaction.add', transaction: payout }]);
+    expect(recordCouponOps(payout, undefined, '2027-02-25').map((op) => op.op)).toEqual([
+      'transaction.add',
+      'asset.patch',
+    ]);
+  });
+});
+
+describe('deleting a transaction', () => {
+  it('is the delete alone, or the delete and the pointer moved back onto the occurrence it settled', () => {
+    expect(deleteTransactionOps(u(10))).toEqual([{ op: 'transaction.delete', id: u(10) }]);
+    expect(deleteTransactionOps(u(10), { assetId: u(1), nextCoupon: '2026-02-25' })).toEqual([
+      { op: 'transaction.delete', id: u(10) },
+      { op: 'asset.patch', id: u(1), patch: { nextCoupon: '2026-02-25' } },
+    ]);
   });
 });
 

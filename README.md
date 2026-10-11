@@ -7,7 +7,7 @@ A single-user tracker for a Ukrainian portfolio: government bonds (ОВДП) and
 Live: https://quirenote.com (`main`) · https://dev.quirenote.com (`dev`, behind basic auth).
 
 ## Stack
-React 19 · Vite · TypeScript · Tailwind 4 · Dexie.js on IndexedDB · Radix UI · vitest · Manrope + JetBrains Mono. Backend in `infra/`: AWS SAM, Lambda, Aurora DSQL — a daily price archive the app does not read yet.
+React 19 · Vite · TypeScript · Tailwind 4 · TanStack Query · Radix UI · vitest · Manrope + JetBrains Mono. Backend in `infra/`: AWS SAM, Lambda, Cognito and Aurora DSQL — the user API the app reads and writes its portfolio over, and a daily price archive that API reads.
 
 ## Run
 ```sh
@@ -15,13 +15,13 @@ pnpm install
 pnpm dev                                                    # http://localhost:3300
 pnpm lint && pnpm typecheck && pnpm test && pnpm format:check
 ```
-A fresh profile opens to an empty portfolio, and nothing seeds it. `/settings → Data` imports a backup or erases the data; `navigation-map.md` says how to import the reference seed.
+The portfolio lives on the server, so the app needs an account: `pnpm dev` proxies `/relay` to the dev API, and a signed-in account that has no data opens to an empty portfolio that nothing seeds. `/settings → Data` imports a backup or erases the data; `navigation-map.md` says how to import the reference seed.
 
 ## Layout
 | Path | Holds |
 |---|---|
 | `packages/core/` | `@quirenote/core`, the pure domain layer the app and `infra/` both import: types, derivations, XIRR, accrual, parsers, the per-screen view models and the reference seed; no I/O, returns keys not prose |
-| `src/lib/` | persistence and browser I/O: Dexie schema, `repository.ts`, `local-view.ts` (the device's answers to the view's reads), file download, cross-tab sync |
+| `src/lib/` | the client of the user API and browser I/O: `repository.ts` (reads, writes, backup), `transport.ts`, `api.ts` (the one client and query cache), the sign-out wipe, the feed caches in `localStorage`, file download |
 | `src/state/` | the settings store |
 | `src/screens/`, `src/components/` | the routes and the UI kit |
 | `src/i18n/` | the dictionary — English canonical, Ukrainian default |

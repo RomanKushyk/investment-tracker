@@ -8,7 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EditActions } from '../components/ui/EditActions';
 import { useEditMode } from '../hooks/useEditMode';
-import { useUpdateAsset, useView } from '../hooks/queries';
+import { toastWriteFailure, useSaveTargets, useView } from '../hooks/queries';
 import { selectAllocation } from '../hooks/slices';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
 import { useSettings } from '../state/settings';
@@ -35,7 +35,7 @@ export function Allocation() {
   const t = useT();
   const { allocation, assets } = useView(selectAllocation);
 
-  const updateAsset = useUpdateAsset();
+  const saveTargetsWrite = useSaveTargets();
   // Keyed by asset id and raw: `targetRowStates` owns the parsing.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -58,39 +58,19 @@ export function Allocation() {
   // CANCEL IS LOCKED WHILE A SAVE IS IN FLIGHT: a save cannot be un-issued, so it
   // cannot be abandoned either — discarding mid-save persisted the values and then
   // congratulated the user on a page they had explicitly abandoned.
-  //
-  // LOCAL STATE, NOT `updateAsset.isPending`: a TanStack mutation observer holds
-  // ONE current mutation, so each `mutateAsync` replaces the last and `isPending`
-  // reports only the most recently STARTED write. With four targets edited it went
-  // false when the fourth settled, which is not when the batch is done.
-  const [saving, setSaving] = useState(false);
+  const saving = saveTargetsWrite.isPending;
 
-  // `allSettled`, NOT `all`, and the difference is what the user is told: `all`
-  // rejects on the FIRST failure while the other writes are already committed, so
-  // a partial save reported itself as a total failure. Nothing here can be a
-  // transaction — `updateAsset` is one row per call — so the honest move is to
-  // count what landed and say so.
+  // EVERY CHANGED TARGET IN ONE REQUEST, which lands whole or not at all: a plan is never half
+  // saved, and the save costs one of the route's two requests a second (*Cloud target*).
   function saveTargets() {
-    setSaving(true);
-    void Promise.allSettled(
-      pending.map((patch) =>
-        updateAsset.mutateAsync({ id: patch.id, patch: { targetPct: patch.targetPct } }),
-      ),
-    ).then((results) => {
-      setSaving(false);
-      const written = results.filter((r) => r.status === 'fulfilled').length;
-      if (written === results.length) {
+    saveTargetsWrite.mutate(pending, {
+      onSuccess: () => {
         setDrafts({});
         mode.exit();
         toast.success(t.targets.savedToast);
-        return;
-      }
-      // EDIT MODE STAYS OPEN and the drafts stay put: the rows that DID land stop
-      // differing from stored once the query invalidates, so they drop out of
-      // `pending` on their own.
-      toast.error(
-        written === 0 ? t.targets.saveFailed : t.targets.savePartial(written, results.length),
-      );
+      },
+      // EDIT MODE STAYS OPEN and the drafts stay put.
+      onError: (error) => toastWriteFailure(error, t.targets.saveFailed),
     });
   }
 

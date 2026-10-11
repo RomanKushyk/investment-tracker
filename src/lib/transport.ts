@@ -19,11 +19,13 @@ export interface Call {
   keyed?: boolean;
 }
 
-/** What a call came to. `conflict` is a 412: the caller re-reads the tag and decides, since the
- *  precondition is doing its work. `answer` is one of the four 403s, shown in place of the route
- *  when the route is a user's own and no sign-out began meanwhile. `failed` is any other answer, the
- *  status and body as they came, for the caller that knows its route. `stale` is a `derivation-id`
- *  that differs from this build's: reported, never acted on. */
+/** What a call came to. `notModified` is a 304: the caller's `If-None-Match` named what the API
+ *  would have sent, and no body comes with it. `conflict` is a 412: the caller re-reads the tag and
+ *  decides, since the precondition is doing its work. `answer` is one of the four 403s, shown in
+ *  place of the route when the route is a user's own and neither a sign-out began nor the account
+ *  changed meanwhile. `failed` is any other answer, the status and body as they came, for the caller
+ *  that knows its route. `stale` is a `derivation-id` that differs from this build's: reported,
+ *  never acted on. */
 export type Reply =
   | {
       kind: 'ok';
@@ -33,6 +35,7 @@ export type Reply =
       derivationId?: string;
       stale: boolean;
     }
+  | { kind: 'notModified'; etag?: string }
   | { kind: 'answer'; answer: Answer }
   | { kind: 'conflict' }
   | { kind: 'inFlight' }
@@ -53,7 +56,13 @@ export interface TransportDeps {
   fetch: typeof globalThis.fetch;
   session: Pick<
     Session,
-    'getIdToken' | 'address' | 'signOuts' | 'signingOut' | 'status' | 'unanswered'
+    | 'getIdToken'
+    | 'address'
+    | 'signOuts'
+    | 'accountChanges'
+    | 'signingOut'
+    | 'status'
+    | 'unanswered'
   >;
   showAnswer: (held: HeldAnswer) => void;
   /** This build's `__DERIVATION_ID__`. */
@@ -106,6 +115,9 @@ export function createTransport({
       const response = await fetch(`${base}${call.path}`, {
         method: call.method,
         credentials: 'omit',
+        // The portfolio is not left in the browser's HTTP cache, which a sign-out cannot clear. The
+        // client revalidates what it holds in memory under the validator it keeps.
+        cache: 'no-store',
         signal: controller.signal,
         headers,
         ...(call.body === undefined ? {} : { body: call.body }),
@@ -125,7 +137,7 @@ export function createTransport({
     }
   }
 
-  function read(call: Call, { status, headers, body }: Seen, signOuts: number): Reply {
+  function read(call: Call, { status, headers, body }: Seen, moved: () => boolean): Reply {
     if (status >= 200 && status < 300) {
       const served = headers.get('derivation-id') ?? undefined;
       return {
@@ -137,12 +149,13 @@ export function createTransport({
         stale: served !== undefined && served !== derivationId,
       };
     }
+    if (status === 304) return { kind: 'notModified', etag: headers.get('etag') ?? undefined };
     const error = errorOf(body);
     if (status === 403) {
       const answer = answerOf(status, body);
       if (answer === undefined) return { kind: 'failed', status, body };
       const mine = DATA_ROOTS.some((root) => root === call.path.split(/[/?]/)[1]);
-      if (mine && session.signOuts() === signOuts) {
+      if (mine && !moved()) {
         showAnswer({ answer, email: session.address() });
       }
       return { kind: 'answer', answer };
@@ -166,14 +179,17 @@ export function createTransport({
   return async (call) => {
     // Read before anything is awaited: an answer is for the page as it was when the call began.
     const signOuts = session.signOuts();
+    const changes = session.accountChanges();
+    const moved = () => session.signOuts() !== signOuts || session.accountChanges() !== changes;
     if (base === undefined) return { kind: 'failed' };
     // The pair held while a sign-out runs is the account's that is leaving.
     if (session.signingOut()) return { kind: 'unauthorized' };
     const key = call.keyed ? crypto.randomUUID() : undefined;
     for (let retry = 0; ; retry += 1) {
       const idToken = await session.getIdToken();
-      // A sign-out since the call began ends it: this token may be another account's.
-      if (session.signOuts() !== signOuts) return { kind: 'unauthorized' };
+      // A sign-out or an account change since the call began ends it: this token may be another
+      // account's, and the call carries the first one's tag.
+      if (moved()) return { kind: 'unauthorized' };
       // Signed out, there is no token to wait for; a refresh the network lost is a lost connection.
       if (idToken === undefined && session.status() !== 'signedIn' && !session.unanswered()) {
         return { kind: 'unauthorized' };
@@ -183,7 +199,7 @@ export function createTransport({
         await backoff(retry);
         continue;
       }
-      return seen === undefined ? { kind: 'offline' } : read(call, seen, signOuts);
+      return seen === undefined ? { kind: 'offline' } : read(call, seen, moved);
     }
   };
 }
