@@ -4,8 +4,13 @@ import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
-import { attributesView, type PayoutScheduleFact } from '@quirenote/core/view/attributes';
+import { useView } from '../hooks/queries';
+import { selectAttributes } from '../hooks/slices';
+import {
+  derivedYtmPct,
+  type AttributeCard,
+  type PayoutScheduleFact,
+} from '@quirenote/core/view/attributes';
 import { useInzhurAssets } from '../hooks/useInzhurAssets';
 import { useFormat } from '../hooks/useFormat';
 import type { Dict } from '../i18n/messages';
@@ -19,18 +24,24 @@ function payoutScheduleLabel(fact: PayoutScheduleFact, t: Dict): string {
 export function Attributes() {
   const f = useFormat();
   const t = useT();
-  const { assets, snapshots, transactions } = useLedgerAsOfToday();
+  const { cards: served, transactions } = useView(selectAttributes);
   // WHATEVER THE APP ALREADY HAS — `data` when a fetch has run this session,
   // otherwise the last-good cache. This screen deliberately does NOT trigger a
   // fetch: a reference table that quietly hits the provider on open is what the
   // picker's "first open, never on mount" rule exists to prevent.
   const { data, lastGood } = useInzhurAssets();
   const feed = (data ?? lastGood)?.feed;
-  // MEMOIZED because the YTM is the expensive one: per bond it rebuilds the feed's ref
-  // Map and runs `impliedYield`'s bisection over the whole payment schedule.
-  const view = useMemo(
-    () => attributesView({ assets, snapshots, transactions, feed }),
-    [assets, snapshots, transactions, feed],
+  // THE FEED IS THIS DEVICE'S, so the view's cards carry no YTM and it is laid over them here
+  // (*External sources*). MEMOIZED because it is the expensive one: per bond it rebuilds the feed's
+  // ref Map and runs `impliedYield`'s bisection over the whole payment schedule.
+  const cards = useMemo(
+    () =>
+      served.map((card): AttributeCard =>
+        card.kind === 'bond'
+          ? { ...card, ytm: derivedYtmPct(card.asset, transactions, feed) }
+          : card,
+      ),
+    [served, transactions, feed],
   );
 
   // The mark is `/yield`'s (`shortBasisIn`): one figure greyed there and painted green here
@@ -53,7 +64,7 @@ export function Attributes() {
       {/* The card the other four screens borrow lives in `components/ui/RecordCard`;
           this screen is where its anatomy was designed. */}
       <div className="grid grid-cols-2 gap-3.5 max-md:grid-cols-1">
-        {view.cards.map((card, i) => {
+        {cards.map((card, i) => {
           const a = card.asset;
           return (
             <RecordCard

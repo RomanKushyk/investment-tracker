@@ -21,7 +21,7 @@ A fresh profile opens to an empty portfolio, and nothing seeds it. `/settings â†
 | Path | Holds |
 |---|---|
 | `packages/core/` | `@quirenote/core`, the pure domain layer the app and `infra/` both import: types, derivations, XIRR, accrual, parsers, the per-screen view models and the reference seed; no I/O, returns keys not prose |
-| `src/lib/` | persistence and browser I/O: Dexie schema, `repository.ts`, file download, cross-tab sync |
+| `src/lib/` | persistence and browser I/O: Dexie schema, `repository.ts`, `local-view.ts` (the device's answers to the view's reads), file download, cross-tab sync |
 | `src/state/` | the settings store |
 | `src/screens/`, `src/components/` | the routes and the UI kit |
 | `src/i18n/` | the dictionary â€” English canonical, Ukrainian default |

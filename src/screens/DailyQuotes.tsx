@@ -6,19 +6,18 @@ import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
-import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
+import { useDayQuotes, useSaveSnapshot, useView, useViewReady } from '../hooks/queries';
+import { selectQuotesForm } from '../hooks/slices';
 import { couponReminderId, dueCoupons } from '@quirenote/core/accrual';
 import { dayBefore, kyivDateIso } from '@quirenote/core/dates';
 import { investedByAsset, ledgerUnits, unitsByAsset } from '@quirenote/core/derive';
 import type { QuoteVerdict } from '@quirenote/core/inzhur/dcf';
-import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
-import { yieldTableRows } from '@quirenote/core/view/yield';
+import type { Snapshot } from '@quirenote/core/types';
 import { useDraft } from '../state/draft';
 import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
 import { FetchQuotesButton } from './daily-quotes/FetchQuotesButton';
-import { collectQuotes, maxSavedAt, quoteProgress, yesterdayQuote } from './daily-quotes/quotes';
+import { collectQuotes, quoteProgress, yesterdayQuote } from './daily-quotes/quotes';
 import {
   accrualSuggestion,
   bondQuoteCheck,
@@ -33,15 +32,6 @@ import { inputValue } from '@quirenote/core/money';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useT } from '../i18n/useT';
-
-/** One frozen instance, so "no assets yet" keeps a STABLE identity: a fresh
- *  `[]` per render changes the verdict memo's dependency every time. */
-const NO_ASSETS: Asset[] = [];
-// Load-bearing rather than tidy: `?? []` mints a new array on every render, so
-// the `unitsByAsset` memo would recompute forever and hand `useQuoteFetch` a new
-// object each time.
-const NO_TRANSACTIONS: Transaction[] = [];
-const NO_SNAPSHOTS: Snapshot[] = [];
 
 /**
  * Publishes the action bar's RENDERED height as `--action-bar-h` while the bar
@@ -79,17 +69,18 @@ function useActionBarHeight(active: boolean) {
 export function DailyQuotes() {
   const f = useFormat();
   const t = useT();
-  const assets = useAssets().data ?? NO_ASSETS;
-  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
-  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
-  // The yield card is a figure, so it reads the ledger to today; the form and the cards read every row.
-  const figures = useLedgerAsOfToday();
+  // One slice of the view, whose rows keep a stable identity from read to read: the memos below
+  // key on them. The yield card is a figure, cut to today; the form and the cards read every row.
+  const { assets, transactions, day: opening, yields } = useView(selectQuotesForm);
   const { date, quotes, setDate, setQuote, fillQuote } = useDraft();
   const saveSnapshot = useSaveSnapshot();
-  // The hook's clock, so the due cards change day in the render the yield card does; a clock
+  // The view's day, so the due cards change day in the render the yield card does; a clock
   // read inside a memo below would be a value its deps cannot see.
-  const today = figures.today;
+  const today = opening.date;
   const selectedDate = date || today;
+  // What was recorded on the picked day and before it. The caller's day rides the view; another is
+  // read, and is an empty day until it lands.
+  const day = useDayQuotes(selectedDate, opening);
   // The units the ledger says are held ON THE DRAFTED DATE, not today's: a quote
   // drafted for a past day must value the position that existed then, or a
   // purchase landing restates history. `matchAssets` falls back to the asset's
@@ -112,20 +103,21 @@ export function DailyQuotes() {
     ids: [],
   });
 
+  // Pinned from the view's day, never from the empty view's, which is the device's clock.
+  const ready = useViewReady();
   useEffect(() => {
-    if (!date) setDate(today);
-  }, [date, setDate, today]);
+    if (ready && !date) setDate(today);
+  }, [ready, date, setDate, today]);
 
   const dismissedSuggestions = dismissed.date === selectedDate ? dismissed.ids : [];
-  const todaySnapshot = snapshots.find((s) => s.date === selectedDate);
+  const recorded = day.quotes;
 
-  // Prefill any asset the user has not touched this session, from today's saved snapshot merged with the draft.
+  // Prefill any asset the user has not touched this session, from the day's recorded quotes merged with the draft.
   useEffect(() => {
-    if (!todaySnapshot) return;
-    for (const assetId of Object.keys(todaySnapshot.quotes)) {
-      if (!(assetId in quotes)) setQuote(assetId, inputValue(todaySnapshot.quotes[assetId], 2));
+    for (const assetId of Object.keys(recorded)) {
+      if (!(assetId in quotes)) setQuote(assetId, inputValue(recorded[assetId], 2));
     }
-  }, [todaySnapshot, quotes, setQuote]);
+  }, [recorded, quotes, setQuote]);
 
   const collected = collectQuotes(quotes, assets, language);
   const filledCount = Object.keys(collected.quotes).length;
@@ -153,7 +145,7 @@ export function DailyQuotes() {
 
   function handleCopyYesterday() {
     for (const a of assets) {
-      const y = yesterdayQuote(snapshots, a.id, selectedDate);
+      const y = yesterdayQuote(day.previous, a.id);
       if (y !== undefined) setQuote(a.id, inputValue(y, 2));
     }
   }
@@ -177,13 +169,8 @@ export function DailyQuotes() {
   const stickyActions = !desktop && filledCount > 0;
   const actionBarRef = useActionBarHeight(stickyActions);
 
-  const lastSavedAt = maxSavedAt(snapshots);
-  // `/yield`'s own row at «Від початку», the figure the yield card shows. Memoized as `/yield`
-  // memoizes it: each row solves an XIRR, and this screen re-renders per keystroke.
-  const yields = useMemo(
-    () => yieldTableRows(figures.assets, figures.snapshots, figures.transactions),
-    [figures],
-  );
+  // The latest save of any day, which every day's read answers alike: the stamp is the dataset's.
+  const lastSavedAt = opening.savedAt ?? undefined;
   const invested = investedByAsset(transactions);
 
   // A suggestion, never a draft. Accepting it is the only path into the draft
@@ -194,7 +181,7 @@ export function DailyQuotes() {
     if (asset === undefined) return undefined;
     const value = accrualSuggestion(
       asset,
-      snapshots,
+      day.previous,
       invested[assetId] ?? 0,
       selectedDate,
       fetch.feed,
@@ -311,7 +298,7 @@ export function DailyQuotes() {
                   key={a.id}
                   asset={a}
                   raw={quotes[a.id]}
-                  yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
+                  yesterday={yesterdayQuote(day.previous, a.id)}
                   chip={fetch.chipFor(a)}
                   offer={fetch.offerFor(a)}
                   verdict={verdicts[a.id]}
@@ -342,7 +329,9 @@ export function DailyQuotes() {
             <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
               {!stickyActions && (
                 <>
-                  <Button onClick={handleSave}>{t.dailyQuotes.saveSnapshot}</Button>
+                  <Button disabled={saveSnapshot.isPending} onClick={handleSave}>
+                    {t.dailyQuotes.saveSnapshot}
+                  </Button>
                   <Button variant="outline" onClick={handleCopyYesterday}>
                     {t.dailyQuotes.copyYesterday}
                   </Button>
@@ -386,7 +375,7 @@ export function DailyQuotes() {
               assets={assets}
               units={ledger.units}
               drafts={quotes}
-              snapshots={snapshots}
+              previous={day.previous}
               selectedDate={selectedDate}
             />
             <YieldTeaser rows={yields} />
@@ -429,7 +418,7 @@ export function DailyQuotes() {
             >
               {/* SQUARE CORNERS, hairline top edge: a full-bleed bar has no designed short
                   side, so the proportional rule has nothing to read. */}
-              <Button className="flex-1" onClick={handleSave}>
+              <Button className="flex-1" disabled={saveSnapshot.isPending} onClick={handleSave}>
                 {t.dailyQuotes.saveSnapshot}
               </Button>
               <Button variant="outline" className="flex-1" onClick={handleCopyYesterday}>

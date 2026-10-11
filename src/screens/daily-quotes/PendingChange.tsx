@@ -1,6 +1,6 @@
 import { Card } from '../../components/ui/Card';
-import type { Asset, Snapshot } from '@quirenote/core/types';
-import { pendingChange } from './quotes';
+import type { Asset } from '@quirenote/core/types';
+import { pendingChange, type PreviousQuotes } from './quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
@@ -21,13 +21,13 @@ export function PendingChange({
   assets,
   units,
   drafts,
-  snapshots,
+  previous,
   selectedDate,
 }: {
   assets: Asset[];
   units: Record<string, number>;
   drafts: Record<string, string | undefined>;
-  snapshots: Snapshot[];
+  previous: PreviousQuotes;
   selectedDate: string;
 }) {
   const f = useFormat();
@@ -37,7 +37,7 @@ export function PendingChange({
     assets,
     units,
     drafts,
-    snapshots,
+    previous,
     selectedDate,
     language,
   );

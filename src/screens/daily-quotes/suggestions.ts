@@ -15,9 +15,9 @@ import {
   NO_UNITS,
   type ParsedFeed,
 } from '@quirenote/core/inzhur/parse';
-import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import type { Asset, Transaction } from '@quirenote/core/types';
 
-import { lastQuoteBefore } from './quotes';
+import { lastQuoteBefore, type PreviousQuotes } from './quotes';
 
 /** One extractor: the divisor, the gap count and the roll have to agree about which
  *  dates exist. Undefined falls a caller back to the roll's own step. */
@@ -66,7 +66,7 @@ function feedPeriodDays(
  *  not run still needs the fallback. */
 export function accrualSuggestion(
   asset: Asset,
-  snapshots: Snapshot[],
+  previous: PreviousQuotes,
   invested: number,
   selectedDate: string,
   /** Only SHARPENS the accrual, with the provider's real period length; without it the
@@ -91,7 +91,7 @@ export function accrualSuggestion(
   // returns `undefined` for both "no figure" and "closed", only the first may reach the
   // fallback, and `invested` is never reduced by a sale.
   if (unitsHeld !== undefined && unitsHeld <= 0) return null;
-  const last = lastQuoteBefore(snapshots, asset.id, selectedDate);
+  const last = lastQuoteBefore(previous, asset.id);
   if (last === undefined) return null; // never quoted → nothing to carry forward
   // ONE BINDING FOR THE NEXT COUPON, used by the daily rate and handed to the gap.
   const perCoupon = couponPerPayment(asset, unitsHeld);

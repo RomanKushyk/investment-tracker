@@ -14,10 +14,10 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
+import { useView } from '../hooks/queries';
+import { selectPortfolio } from '../hooks/slices';
 import type { Asset } from '@quirenote/core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
-import { portfolioView } from '@quirenote/core/view/portfolio';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
@@ -40,15 +40,11 @@ export function Portfolio() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const { assets, snapshots, transactions } = useLedgerAsOfToday();
+  const { portfolio, assets } = useView(selectPortfolio);
 
   // One shape for both forms, so the table and the cards read the same numbers
   // from the same place rather than each doing the arithmetic again.
-  const { rows, totals, cash, cashShort, best, bestWeeks, worst, engine } = portfolioView({
-    assets,
-    snapshots,
-    transactions,
-  });
+  const { rows, totals, cash, cashShort, best, bestWeeks, worst, engine } = portfolio;
 
   // THE PER-ENTITY VARIANT: `Done` alone, no Save and no Cancel, because create /
   // edit / delete each commit through their own dialog. A Save would have nothing

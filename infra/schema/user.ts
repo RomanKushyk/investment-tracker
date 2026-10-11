@@ -332,7 +332,7 @@ export const asset = pgTable(
     // resolved.
     check('asset_provider_pair_ck', sql`(${t.providerKind} IS NULL) = (${t.providerRef} IS NULL)`),
     primaryKey({ columns: [t.userId, t.id] }), // contract 3
-    // Display order within one user (`listAssets`). The key already serves
+    // Display order within one user (what `servedInput` sorts by). The key already serves
     // "everything for this user"; this serves it SORTED. On DSQL, promotion
     // adds ASYNC and strips `USING btree` — both, or the statement fails (D99).
     index('asset_user_created').on(t.userId, t.createdAt),

@@ -16,7 +16,7 @@ import {
   soldAmountByAsset,
   usableTotal,
 } from '../derive';
-import type { Asset, Snapshot, Transaction } from '../types';
+import type { Asset, Transaction } from '../types';
 import type { LedgerInput } from './input';
 import { yieldView } from './yield';
 
@@ -82,22 +82,6 @@ export function incomeEngine(
   if (!asset) return undefined;
   const { dividends, coupons } = byAsset.get(bestId)!;
   return { asset, dividends, coupons };
-}
-
-/**
- * What deleting an asset cascades over — the asset, its transactions and its
- * quote key in every snapshot — as structured counts; the confirm dialog owns
- * the sentence.
- */
-export function cascadeCounts(
-  assetId: string,
-  transactions: Transaction[],
-  snapshots: Snapshot[],
-): { transactions: number; quoteDays: number } {
-  return {
-    transactions: transactions.filter((t) => t.assetId === assetId).length,
-    quoteDays: snapshots.filter((s) => assetId in s.quotes).length,
-  };
 }
 
 export interface PortfolioRow {

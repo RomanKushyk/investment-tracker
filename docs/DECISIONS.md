@@ -13,12 +13,22 @@ member, so ONE INSTALL covers both trees and the backend's handlers bundle the p
 externalising it. The zone is enforced by lint KEYED TO THE PACKAGE PATH, and because a selector
 that stops matching still parses green, a test lints text at a path inside the package rather than
 reading the config back. Pure modules return keys and tokens, never assembled prose. EVERY SCREEN
-TAKES ITS FIGURES FROM ONE COMPOSER in `view/`, a function of the ledger and of whichever of the
-period option, the caller's `today` and the Inzhur feed that screen reads; the component formats,
-tweens and converts what it returns, and a source test holds each screen to one call. `buildView`
-runs them all, the windowed ones once per period option and the rest once, and its type is the
-`view` member of `/view`'s payload, which `viewBody` completes with the rows the editors read. The
-clock is an input: nothing in the package reads it for a figure. New code calls
+TAKES ITS FIGURES FROM `/view`'S BODY through ONE SELECTOR, bound at module level in
+`src/hooks/slices.ts` and handed to `useView`, but for the two figures too wide for it, Yield's curve
+of a period and a page of Balances' table, which `useSeries` and `useBalancesPage` read from
+`/view/series` and `/view/balances` by the screen's period and page; the component formats, tweens
+and converts what it gets, and a source test holds each reader to one call with a selector so
+bound, which lint holds as well. The figures are `view/`'s composers, each a function of the ledger
+and of whichever of the period option, the caller's `today` and the Inzhur feed it reads.
+`buildView` runs them all, the windowed ones once per period option and the rest once, and its
+type is the `view` member of `/view`'s payload, which `viewBody` completes with the rows the
+editors read. No screen calls one: until the API answers the reads, `src/lib/local-view.ts` is
+the one file of `src/` outside the tests that does (`src/hooks/slices.test.ts` calls them as the
+oracle the slices are held to), and a source test pins it so.
+Two figures of the package are computed on one of the eight analytics screens: a bond's YTM at
+purchase, laid over its card, since the feed it is solved against is the device's and the server
+never holds it (*External sources*), and Balances' `pageHasNotHeldQuote`, whether the page it shows
+holds a marked cell, which decides its footnote. The clock is an input: nothing in the package reads it for a figure. New code calls
 `repository.ts`, never `db.ts`. A dependency is a decision, and it is recorded under the topic it
 serves rather than in a register of its own. The seam test against `infra/schema/user.ts` sits in
 `infra/src/`, so the edge between them runs one way.
@@ -29,7 +39,10 @@ derivation widened it. Two programs compiling one source is the property worth p
 what catches a browser-only type before a backend build does, and it is the reason no compiled
 artifact sits between them. A figure a screen composes for itself is one the server does not have,
 so `/view` would have to rebuild it — a second implementation, which is what serving the import
-rules out.
+rules out. A selector is bound at module level because TanStack Query runs `select` again only
+when the data or the function changes and shares what it returns with the last answer, so a
+consumer of one slice does not render when another moves (query-core's `queryObserver`, and its
+render-optimizations guide): made in a render, it runs again on every one.
 **Rejected.** A component reaching for `db.ts`: it bypasses the one surface the migration swaps. ·
 A composer only the server calls: the screens' inline copies would stay a second implementation with
 nothing checking that the two agree. · Every screen in every period block: the Balances chart is one
@@ -41,7 +54,10 @@ bundle: esbuild externalises anything shaped like a package path, and a package 
 its two exceptions, so the import would survive as a bare require Lambda cannot resolve. ·
 `injectWorkspacePackages`: `dedupeInjectedDeps` defaults true, so it symlinks anyway. · A
 `projects` key in the vitest config: one root pattern already collects every tree, and naming
-projects is how the backend's tests get lost.
+projects is how the backend's tests get lost. · A selector made where it is
+used: it runs again on every render. · A query for each screen, or a key for each slice: the same
+rows would be read again for each. · Every consumer reading the whole body: any change would render
+every one.
 
 ## Persistence today
 **Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; one database,
@@ -185,17 +201,18 @@ and this app obeys it everywhere (*Interaction rules*).
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a
 date is `units(a, D) × price(a, D)`, the price being the latest observation at or before D from
 either source, the user's or the archive's, the newer winning and the user's on a same-day tie, so
-nothing is prefilled because nothing is written. The app still stores and reads ₴ snapshots
-(*Persistence today*). Core can rebuild that series from the ledger and both sources' per-unit
-prices instead, and `GET /view` serves the rebuild, which the app does not call yet: one snapshot per grid day from the first that values anything —
+nothing is prefilled because nothing is written. The app stores and reads ₴ snapshots
+(*Persistence today*), and composes its figures over them as stored (`src/lib/local-view.ts`). Core
+can rebuild that series from the ledger and both sources' per-unit prices instead, and `GET /view`
+serves the rebuild, which the app does not read yet: one snapshot per grid day from the first that values anything —
 every day a held asset is observed on, every transaction day, and the day before each period opens,
 resolved by the window composer — each asset at that day's units × price, rounded once to the
 kopeck as the figure is made, and no save time. The latest grid day closes every window, so a
 transaction dated after the last observation closes them at carried prices, a full exit at none;
 no grid day falls after the caller's day, so a transaction or a price dated later adds none, and
-`buildView` reads the ledger to that day (`ledgerAsOf`), and the app's screens that call a
-composer, the capital card and `/`'s yield card read it to theirs through `useLedgerAsOfToday` (*Metric families and windows*), so a
-transaction or a quote snapshot dated after it counts in none of their figures until its day, the
+`buildView` reads the ledger to that day (`ledgerAsOf`), the device's own day when the app asks
+(*Metric families and windows*), so a
+transaction or a quote snapshot dated after it counts in none of the view's figures until its day, the
 next payouts' projection included, so a sale entered ahead of a coupon's date leaves that coupon
 projected until the sale's day; an asset whose only buy is dated ahead composes as one with no
 transaction yet; the readers that keep every row are named under *Metric families and windows*. A
@@ -211,7 +228,11 @@ composer's output over every period is pinned to the stored series' but for the 
 price predicts — a day quoting some held positions and not others, which the rest complete at their
 carried price — listed per ledger, exactly in each snapshot's own quote order and to float noise in
 the store's order, since the composers sum in key order; on a ledger with archive rows every figure
-that moves is listed under the rule that moves it. Automation stays suggest-only wherever the app
+that moves is listed under the rule that moves it. The app shows none of those moves:
+`src/hooks/slices.test.ts` holds the slice of each analytics screen and of the capital card, the
+Yield curve and each page of the Balances table to the composers over the stored rows on every
+golden ledger, so the seed's newest stored day, which quotes one position, still leaves the
+rest awaiting on Balances, whose chart ends on the last complete snapshot. Automation stays suggest-only wherever the app
 still decides: the user's Save is the sole write path. A hand-entered value is MARKED; an archive
 one is not.
 The seed also exists as a backup file, `buildSeedBackup`, under fixed uuids, since the API's door
@@ -242,8 +263,8 @@ observed ahead of the day. Ghostfolio ends every range but a calendar year at `e
 when no end is given, and Portfolio Performance's last-X, since-X, month-to-date and year-to-date periods
 end on the day they are relative to; unlike both, the caller's day is a grid day only when
 something is observed or transacted on it, so a window closes on the latest grid day at or before
-it. The ledger is cut before the composers run, at `buildView`'s entry and in the app's
-`useLedgerAsOfToday`, so every composer keeps its signature and the
+it. The ledger is cut before the composers run, at `buildView`'s entry, so every composer keeps its
+signature and the
 golden master, which runs the composers directly, pins what each did; a row ahead is absent rather
 than counted as of its date because it is entered ahead on purpose — a coupon known to be coming, a
 planned deposit — and Ghostfolio tags such an activity a draft and leaves drafts out of every
@@ -309,19 +330,19 @@ that shows a share. Every display formatter renders a non-finite figure as «—
 it; a field's own value stays the field boundary's. A bond's price ON the payment date of a coupon
 before maturity is EX that coupon: the DCF re-derivation (`futureFlows`) discounts only flows
 strictly after the pricing date, and a quote suggested for that date already deducts the coupon.
-The app's screens that call a composer, the capital card and `/`'s yield card take the ledger from
-one hook, `useLedgerAsOfToday`,
-which cuts it at `useToday()`, one clock every reader shares, as `buildView` cuts it at the caller's
-day, so Balances lists the
+Every figure of the eight analytics screens but a bond's YTM, the capital card and `/`'s yield
+card is the view's, which `buildView` cuts at the caller's day: the device's own, the view being
+read again when `useToday()`, one clock every reader shares, finds a new one, so Balances lists the
 snapshots and the Payouts log the payouts dated on or before today; the reminders, the coupon due
 cards, both forms, the ledger on `/transactions`, the delete counts, the export and the import
-preview read every row.
+preview read every row, and the YTM the feed solves reads the transactions cut to the view's day by
+the selector that hands them over.
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. Capital gain is realized plus unrealized,
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
 last quote outlives its sale and would count it twice. A snapshot dated after the sale can still
-quote the position, the same double count one day at a time; the cell shows it because a listed
-day's cells hide nothing stored, and the mark says the total left it out. A per-unit price stored on
+quote the position, the same double count one day at a time; `buildBalanceRow` shows it because a
+listed day's cells hide nothing stored, and the mark says the total left it out. A per-unit price stored on
 a day a later sale emptied values the units held, none, so the rebuilt series has no quote there to
 show; its price stays in the store, since a `snapshot.patch` on that day leaves every price it does
 not name, until a patch names it `null` or a `snapshot.delete` or `.move` on that day, and
@@ -369,7 +390,8 @@ tolerance in each closed-position test: the residue would still reach every figu
 units. · Testing the last quote's own day in place of the last valuation day: the quote of a
 sold-out holding would value a different one bought back after a day that held none. · A cut in
 each screen: every screen would make it, and one that did not would disagree with the rest about
-the same figure; `src/one-composer.test.ts` holds each of those readers to the hook.
+the same figure; the cut is `buildView`'s, and `src/one-composer.test.ts` holds each reader to a
+slice of the view.
 
 ## Coupon cadence
 **Decision.** Where a linked bond's published payment dates are passed, a roll lands on the first of
@@ -945,6 +967,29 @@ second 5xx and an answer with no tag among them, aborts the import and is return
 answer lost in transit are the transport's, which sends the same bytes under the same number again. The export is `GET /state` read through the same row doors, and the CSV's
 snapshots are cut from its prices by `snapshotsOfPrices`: one for each day priced, and none for a
 day `/view`'s series merely carries an asset onto.
+THE APP READS `/view` THROUGH ONE QUERY. `src/hooks/queries.ts` names the reads (`viewQuery`, and
+`seriesQuery`, `balancesQuery` and `dayQuery` under the same `['view']` key), and
+`src/lib/local-view.ts` answers each over the rows Dexie holds, by the composers the server runs
+over the ledger and the ₴ snapshots as stored, in place of the series the server rebuilds, with no
+archive row, no payment date and no rate, in the device's own day: a quote stored for a day its
+position is not held still prefills the form and still counts in the delete dialog, as the delete
+removes it. The API's client replaces those calls and nothing above them. A screen or a
+form takes its SLICE with `useView(selector)`, the selector bound at module level in
+`src/hooks/slices.ts`, and until the read answers it is handed the slice of an empty portfolio, as
+a screen showed before its rows were listed. The curve of a period and a page of the table are
+nothing until their first read answers, so Yield's chart and Balances' table and count state
+nothing of an empty portfolio while theirs is out, and they keep the one they had until the next
+lands, the table's Next control waiting for the page it stepped to; a day other than the caller's,
+which the quotes screen reads only when its date is not the view's, shows as an empty day until it
+lands. A read is fresh until
+something invalidates the key: a write, which hands back the invalidation's promise, so a mutation
+settles only once the view it changed has been read again and a control that waits on it is never
+idle beside the old figure; another tab's replace or erase; the clock finding a new day
+(`useViewDayRollover`); or the page being shown again (`useViewShownAgain`). A row written in one
+tab is announced to no other, so a page shown again invalidates every view read: the ones on screen
+are read at once, and a curve, a page or a day cached off screen is read again when next mounted.
+Moving between screens reads the view no more; a wide figure is read when its period or page is
+first shown, and again once its cache has been collected.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing core answers it. The archive is public reference data, so a second
 copy would be a second history to keep honest and worthless anyway, its value being its
@@ -1053,6 +1098,15 @@ a second, where one list lands whole as a request does and is, in Microsoft's Ch
 antipattern, "packaging the data into larger, fewer requests". Emptying an asset is the client's to
 drive (*User schema and deletes*). A loop driven by a count the server answers ends only if the
 count falls, so one that does not is returned rather than asked again.
+The reads share a key prefix because one invalidation of it then reads again every read mounted, and
+TanStack Query's guide on invalidations from mutations has a mutation whose `onSuccess` returns the
+invalidation's promise stay pending until it finishes. A read's `staleTime` is infinite because the
+default, zero, would read the view again at every mount of a screen, where the owner's rule is the
+fewest reads the client can bear, and a change of the data goes by one of the paths above or by
+the page being shown again, which invalidates the key itself: TanStack Query's refetch on focus
+goes through a query's mounted observers, and a curve, a page or a day cached off screen has none.
+A day other than the caller's shows as empty rather than as the last
+one picked because its rows are the baseline of a form, which would stand under another date.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A mapping naming a user stack's function role: the archive deploys
 from `dev` alone, so a role `main` replaced could not be granted again. · A `Principal` naming those
@@ -1107,7 +1161,9 @@ not fit the bound the whole request is refused, and the prune with it. · Puttin
 at once: a part naming an asset no earlier part staged is refused. · Carrying on past a refused
 part: it stages nothing, so the commit's counts and digest cannot be met by the file. · The CSV's
 snapshots from `/view`'s series: they quote the days an asset is carried onto, which the file
-would present as recorded.
+would present as recorded. · A `staleTime` of zero: every screen mounted would read the view again.
+· The last day kept while another loads: its baselines would stand under a date they are not
+before.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER

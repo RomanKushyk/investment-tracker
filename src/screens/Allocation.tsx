@@ -8,14 +8,13 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EditActions } from '../components/ui/EditActions';
 import { useEditMode } from '../hooks/useEditMode';
-import { useUpdateAsset } from '../hooks/queries';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
+import { useUpdateAsset, useView } from '../hooks/queries';
+import { selectAllocation } from '../hooks/slices';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
 import { useSettings } from '../state/settings';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
 import type { Asset, ColorKey } from '@quirenote/core/types';
-import { allocationView } from '@quirenote/core/view/allocation';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
@@ -34,18 +33,14 @@ function planLabel(asset: Asset): string {
 export function Allocation() {
   const f = useFormat();
   const t = useT();
-  const { assets, snapshots, transactions } = useLedgerAsOfToday();
+  const { allocation, assets } = useView(selectAllocation);
 
   const updateAsset = useUpdateAsset();
   // Keyed by asset id and raw: `targetRowStates` owns the parsing.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   // No free-cash figure lives on this screen, so `cashShort` heads the plan built on it.
-  const { total, cashShort, usable, slices, rows, plan } = allocationView({
-    assets,
-    snapshots,
-    transactions,
-  });
+  const { total, cashShort, usable, slices, rows, plan } = allocation;
   const { actions, withinRange } = plan;
 
   // THE LANGUAGE, because the grammar is a language rule: under Ukrainian `17,500`

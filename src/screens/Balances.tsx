@@ -6,13 +6,9 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
-import {
-  balancesView,
-  buildBalanceRow,
-  pageHasNotHeldQuote,
-  paginateSnapshots,
-} from '@quirenote/core/view/balances';
+import { pageHasNotHeldQuote } from '@quirenote/core/view/balances';
+import { useBalancesPage, useView } from '../hooks/queries';
+import { selectBalances } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
@@ -25,24 +21,37 @@ export function Balances() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const { assets, snapshots, transactions } = useLedgerAsOfToday();
+  const { chart: chartData, earliest, assets } = useView(selectBalances);
   const [page, setPage] = useState(0);
 
-  const { chart: chartData, earliest } = balancesView({ assets, snapshots, transactions });
   // The table is one row per snapshot, read a page at a time (#189).
-  const { rows, total, next } = paginateSnapshots(snapshots, page);
+  const body = useBalancesPage(page);
+  const rows = body?.rows ?? [];
+  const next = body?.next ?? null;
+  // A page not read yet states no emptiness and no count: those are for a page that was read.
+  const empty = body !== undefined && rows.length === 0;
   // A replace in another tab re-renders this screen in place (`useDbSync`): a page the new rows do
-  // not reach starts over, set while rendering as React allows for state of this component.
-  if (rows.length === 0 && page > 0) setPage(0);
+  // not reach starts over, set while rendering as React allows for state of this component. The
+  // page on its way is the one before's rows, so only a page that landed empty starts it over.
+  if (empty && page > 0) setPage(0);
+  // The cells line up with the assets the page names, so the heads are named from that list.
+  const columns = (body?.assets ?? []).map((id) => ({
+    id,
+    name: assets.find((a) => a.id === id)?.name ?? id,
+  }));
   // Derived once for both forms: the footnote has to know whether this page holds
   // a marked cell before either form has drawn one.
-  const built = rows.map((s) => buildBalanceRow(s, assets, transactions));
-  const hasNotHeldQuote = pageHasNotHeldQuote(built);
+  const hasNotHeldQuote = pageHasNotHeldQuote(rows);
 
   const pager = (
     <div className="flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
       <span>
-        {t.analytics.prose.showingSnapshots(rows.length, total, earliest ? f.date(earliest) : '—')}
+        {body &&
+          t.analytics.prose.showingSnapshots(
+            rows.length,
+            body.total,
+            earliest ? f.date(earliest) : '—',
+          )}
       </span>
       <div className="flex gap-2">
         <Button
@@ -56,8 +65,11 @@ export function Balances() {
         <Button
           variant="outline"
           className="px-3.5 py-1.5 text-xs"
-          onClick={() => setPage((p) => p + 1)}
-          disabled={next === null}
+          onClick={() => setPage(page + 1)}
+          // The page shown while the next is out is the one before's, and its `next` is the page
+          // already asked for: a step from it would ask for one past the end. Two presses before
+          // the screen has drawn the first both step from the page it drew.
+          disabled={next === null || body?.page !== page}
         >
           {t.analytics.next}
         </Button>
@@ -96,9 +108,9 @@ export function Balances() {
               <thead>
                 <tr className="text-left text-muted">
                   <th className="py-2 font-normal">{t.analytics.snapshot}</th>
-                  {assets.map((a) => (
-                    <th key={a.id} className="py-2 text-right font-normal">
-                      {a.name}
+                  {columns.map((c) => (
+                    <th key={c.id} className="py-2 text-right font-normal">
+                      {c.name}
                     </th>
                   ))}
                   <th className="py-2 text-right font-normal">{t.analytics.cash}</th>
@@ -106,14 +118,14 @@ export function Balances() {
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 && (
+                {empty && (
                   <tr>
-                    <td colSpan={assets.length + 3} className="py-4 text-center text-muted">
+                    <td colSpan={columns.length + 3} className="py-4 text-center text-muted">
                       {t.analytics.empty.table}
                     </td>
                   </tr>
                 )}
-                {built.map((row) => (
+                {rows.map((row) => (
                   <tr
                     key={row.date}
                     className="border-t border-hairline transition-colors hover:bg-page/60"
@@ -121,7 +133,7 @@ export function Balances() {
                     <td className="py-2 font-semibold whitespace-nowrap">{f.date(row.date)}</td>
                     {row.cells.map((cell, i) => (
                       <td
-                        key={assets[i].id}
+                        key={columns[i].id}
                         className="py-2 text-right"
                         title={
                           cell.status === 'value' && cell.notHeld
@@ -167,15 +179,15 @@ export function Balances() {
          a different number next year. One `dt` per asset makes the record grow in
          HEIGHT instead, which the page already scrolls. */
         <div className="flex flex-col gap-2.5">
-          {rows.length === 0 && (
+          {empty && (
             <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
               <div className="text-center text-muted">{t.analytics.empty.table}</div>
             </Card>
           )}
-          {built.map((row, i) => (
+          {rows.map((row, i) => (
             <RecordCard key={row.date} index={i} title={f.date(row.date)}>
               {row.cells.map((cell, ci) => (
-                <Fact key={assets[ci].id} label={assets[ci].name}>
+                <Fact key={columns[ci].id} label={columns[ci].name}>
                   {/* The same mark in both shells, and it names itself — a glyph with nothing in
                       the accessible tree behind it is not a message. */}
                   {cell.status === 'value' && (

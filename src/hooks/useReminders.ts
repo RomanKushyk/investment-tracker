@@ -1,15 +1,15 @@
-// The glue: stored data → `core/reminders.computeReminders` → the strip and the
+// The glue: the view's rows → `core/reminders.computeReminders` → the strip and the
 // one app-open toast. Reminders are PURE local derivations, so `remindersEnabled` is
 // the only gate, read at render time so a flip lands without a reload.
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 import { reminderToastText } from '../components/ui/reminder-labels';
-import { todayIso } from '@quirenote/core/dates';
-import { computeReminders, type Reminder } from '@quirenote/core/reminders';
+import { computeReminders, type Reminder, type ReminderOptions } from '@quirenote/core/reminders';
 import { useSettings } from '../state/settings';
 import { useFormat } from './useFormat';
-import { useAssets, useSnapshots, useTransactions } from './queries';
+import { useView, useViewReady } from './queries';
+import { selectReminders } from './slices';
 import { useT } from '../i18n/useT';
 
 export interface RemindersView {
@@ -17,35 +17,32 @@ export interface RemindersView {
   reminders: Reminder[];
   /** assetId → name, for the banner sentences (the copy layer owns the words). */
   names: Record<string, string>;
-  /** All three reads have resolved — the strip and the toast wait for this. */
+  /** The view has been read — the strip and the toast wait for this. */
   ready: boolean;
 }
 
+/** The reminders over the slice the view hands. Of the stored days they read one, the caller's:
+ *  whether its quotes are in. */
+export function remindersOf(
+  { assets, transactions, today, quotes }: ReturnType<typeof selectReminders>,
+  opts: ReminderOptions,
+): Reminder[] {
+  return computeReminders(assets, [{ date: today, quotes }], transactions, today, opts);
+}
+
 export function useReminders(): RemindersView {
-  const assetsQuery = useAssets();
-  const snapshotsQuery = useSnapshots();
-  const transactionsQuery = useTransactions();
+  const slice = useView(selectReminders);
+  const ready = useViewReady();
   const { remindersEnabled, reminderLeadDays, dismissedReminders } = useSettings();
 
-  const assets = assetsQuery.data ?? [];
   const names: Record<string, string> = {};
-  for (const asset of assets) names[asset.id] = asset.name;
+  for (const asset of slice.assets) names[asset.id] = asset.name;
 
   const reminders = remindersEnabled
-    ? computeReminders(
-        assets,
-        snapshotsQuery.data ?? [],
-        transactionsQuery.data ?? [],
-        todayIso(),
-        { leadDays: reminderLeadDays, dismissed: dismissedReminders },
-      )
+    ? remindersOf(slice, { leadDays: reminderLeadDays, dismissed: dismissedReminders })
     : [];
 
-  return {
-    reminders,
-    names,
-    ready: assetsQuery.isSuccess && snapshotsQuery.isSuccess && transactionsQuery.isSuccess,
-  };
+  return { reminders, names, ready };
 }
 
 // ONE toast per app open — not per navigation, not per render. The latch is

@@ -4,8 +4,8 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
-import { payoutsView } from '@quirenote/core/view/payouts';
+import { useView } from '../hooks/queries';
+import { selectPayouts } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
@@ -15,9 +15,8 @@ export function Payouts() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  // Today, not the last snapshot — see the note in Overview.tsx.
-  const { assets, transactions, today } = useLedgerAsOfToday();
-  const view = payoutsView({ assets, transactions, today });
+  // The view's day, not the last snapshot — see the note in Overview.tsx.
+  const { payouts: view, assets } = useView(selectPayouts);
   const { income, reinvested, reinvestedPct, nextPayouts: payoutRows } = view;
 
   const chartData = view.months.map((m) => ({

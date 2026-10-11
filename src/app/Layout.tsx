@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 
 import { session } from '../auth/app';
+import { useViewDayRollover, useViewShownAgain } from '../hooks/queries';
 import { useDbSync } from '../hooks/useDbSync';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
@@ -23,6 +24,10 @@ export function Layout() {
   // another tab's import or erase reaches this one on any route. Theme and language are `Root`'s.
   useReminderToast();
   useDbSync();
+  // The view is cut at the day, so a tab left open past midnight reads it again.
+  useViewDayRollover();
+  // A row another tab wrote reaches this one by nothing but the page being shown again.
+  useViewShownAgain();
   // The footer band offers a sign-out only once the relay says someone is signed in. Asked on
   // every load, the session being the browser's, and again on each route until it answers:
   // once it has, `restore` asks nothing.

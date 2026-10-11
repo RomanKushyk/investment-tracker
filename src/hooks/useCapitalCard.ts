@@ -1,15 +1,15 @@
 import { toUsd } from '@quirenote/core/money';
-import { capitalView } from '@quirenote/core/view/capital';
 import { useSettings } from '../state/settings';
+import { useView, useViewReady } from './queries';
+import { selectCapital } from './slices';
 import { useFormat } from './useFormat';
-import { useLedgerAsOfToday } from './useLedgerAsOfToday';
 import { useTweenedNumber } from './useTweenedNumber';
 
 /**
  * The one capital figure, with TWO renderers — the sidebar's Total
  * capital card and the mobile header bar. It lives here rather
  * than in either of them precisely so there is never a second derivation: both
- * read `capitalView`, through this, and a change to the number is a change to one
+ * read the view's capital, through this, and a change to the number is a change to one
  * function.
  *
  * Returns the PARTS, not a sentence. The sidebar joins
@@ -36,8 +36,8 @@ export interface CapitalCard {
 export function useCapitalCard(): CapitalCard {
   const f = useFormat();
   const { currency, usdRate } = useSettings();
-  const { snapshots, transactions, ready } = useLedgerAsOfToday();
-  const kpis = ready ? capitalView({ snapshots, transactions }) : undefined;
+  const capital = useView(selectCapital);
+  const kpis = useViewReady() ? capital : undefined;
   const total = kpis?.total ?? 0;
   const usdTotal = toUsd(total, usdRate);
   const tweened = useTweenedNumber(currency === 'UAH' ? total : usdTotal);

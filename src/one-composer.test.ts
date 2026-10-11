@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
@@ -6,84 +6,39 @@ import { describe, expect, it } from 'vitest';
 import { REPO, skipped } from './repo-root';
 
 // A figure a screen computes for itself is one `/view` does not have, so each screen takes its
-// figures from ONE composer call, held on the source; arithmetic on what it returns is review's.
+// figures from the one view query, through ONE selector defined at module level and held on the
+// source (*Core is pure*); arithmetic on what a selector returns is review's.
 
 interface Rule {
-  /** `module#export`, the module relative to `@quirenote/core/`. */
-  composer: string;
-  /** Inside `useMemo`, where the screen re-renders per frame or the composer is costly. */
-  memo: boolean;
-  /** Every other name it takes from the package, each with why the composer does not own it. */
+  /** Every name it takes from the package that is not a type, each with why the slice does not own it. */
   allow: Record<string, string>;
 }
 
-const EMPTIES = {
-  'types#Asset': 'the stable empty arrays the memo keys on',
-  'types#Snapshot': 'the stable empty arrays the memo keys on',
-  'types#Transaction': 'the stable empty arrays the memo keys on',
-};
-
 const RULES: Record<string, Rule> = {
   'src/screens/Overview.tsx': {
-    composer: 'view/overview#overviewView',
-    memo: true,
-    allow: {
-      'money#toUsd': 'currency conversion stays in the component',
-    },
+    allow: { 'money#toUsd': 'currency conversion stays in the component' },
   },
-  'src/screens/Yield.tsx': {
-    composer: 'view/yield#yieldView',
-    memo: true,
-    allow: {
-      'view/yield#cumulativeYieldSeriesIn': 'the curve is one value per asset per date: #189',
-    },
-  },
-  'src/screens/Seasonality.tsx': {
-    composer: 'view/seasonality#seasonalityView',
-    memo: true,
-    allow: {},
-  },
+  'src/screens/Yield.tsx': { allow: {} },
+  'src/screens/Seasonality.tsx': { allow: {} },
   'src/screens/Attributes.tsx': {
-    composer: 'view/attributes#attributesView',
-    memo: true,
     allow: {
-      'view/attributes#PayoutScheduleFact': 'the type the schedule label is worded from',
+      'view/attributes#derivedYtmPct':
+        'the YTM overlay: the feed is the device’s, and the server never holds it',
     },
   },
-  'src/screens/Payouts.tsx': {
-    composer: 'view/payouts#payoutsView',
-    memo: false,
-    allow: {},
-  },
-  'src/screens/Portfolio.tsx': {
-    composer: 'view/portfolio#portfolioView',
-    memo: false,
-    allow: { 'types#Asset': 'labels and the row actions' },
-  },
-  'src/screens/Allocation.tsx': {
-    composer: 'view/allocation#allocationView',
-    memo: false,
-    allow: { 'types#Asset': 'labels', 'types#ColorKey': 'the bar paint table' },
-  },
+  'src/screens/Payouts.tsx': { allow: {} },
+  'src/screens/Portfolio.tsx': { allow: {} },
+  'src/screens/Allocation.tsx': { allow: {} },
   'src/screens/Balances.tsx': {
-    composer: 'view/balances#balancesView',
-    memo: false,
     allow: {
-      'view/balances#paginateSnapshots': 'the table is one row per snapshot: #189',
-      'view/balances#buildBalanceRow': 'the table is one row per snapshot: #189',
-      'view/balances#pageHasNotHeldQuote': 'the table is one row per snapshot: #189',
+      'view/balances#pageHasNotHeldQuote':
+        'the footnote asks whether the page it shows holds a marked cell',
     },
   },
   'src/hooks/useCapitalCard.ts': {
-    composer: 'view/capital#capitalView',
-    memo: false,
     allow: { 'money#toUsd': 'currency conversion stays in the component' },
   },
-  'src/hooks/usePeriodWindow.tsx': {
-    composer: 'view/window#windowView',
-    memo: false,
-    allow: { ...EMPTIES, 'period#PeriodOption': 'the period it hands each screen' },
-  },
+  'src/hooks/usePeriodWindow.tsx': { allow: {} },
 };
 
 const CORE = '@quirenote/core/';
@@ -177,33 +132,8 @@ function importsOf(sf: ts.SourceFile, matches: (spec: string) => boolean): Impor
 
 const coreImports = (sf: ts.SourceFile) => importsOf(sf, (spec) => spec.startsWith(CORE));
 
-const identifiers = (sf: ts.SourceFile, name: string): ts.Identifier[] => {
-  const out: ts.Identifier[] = [];
-  const visit = (n: ts.Node) => {
-    if (ts.isIdentifier(n) && n.text === name && !ts.isImportSpecifier(n.parent)) out.push(n);
-    ts.forEachChild(n, visit);
-  };
-  visit(sf);
-  return out;
-};
-
-const insideUseMemo = (n: ts.Node): boolean => {
-  for (let p: ts.Node | undefined = n.parent; p; p = p.parent) {
-    if (
-      ts.isCallExpression(p) &&
-      ts.isIdentifier(p.expression) &&
-      p.expression.text === 'useMemo'
-    ) {
-      return true;
-    }
-  }
-  return false;
-};
-
 describe.each(Object.entries(RULES))('%s', (rel, rule) => {
   const sf = parse(rel);
-  const imported = coreImports(sf);
-  const composerName = rule.composer.split('#')[1];
 
   it('parses', () => {
     // Not in the public typings; `stripTs` reads the same field.
@@ -211,13 +141,14 @@ describe.each(Object.entries(RULES))('%s', (rel, rule) => {
     expect(diagnostics).toEqual([]);
   });
 
-  it('imports its composer and nothing from the package that is a figure', () => {
-    expect([...new Set(imported.map((i) => i.key))].sort()).toEqual(
-      [rule.composer, ...Object.keys(rule.allow)].sort(),
-    );
+  it('takes nothing from the package that is a figure but what it gives a reason for', () => {
+    const taken = coreImports(sf)
+      .filter((i) => !i.typeOnly)
+      .map((i) => i.key);
+    expect([...new Set(taken)].sort()).toEqual(Object.keys(rule.allow).sort());
   });
 
-  // `today` comes from useToday; a clock read here is one the server cannot reproduce.
+  // The view's day is the screen's day; a clock read here is one the server cannot reproduce.
   it('reads no clock', () => {
     const isDate = (e: ts.Expression) => ts.isIdentifier(e) && e.text === 'Date';
     const reads: string[] = [];
@@ -238,22 +169,6 @@ describe.each(Object.entries(RULES))('%s', (rel, rule) => {
     };
     visit(sf);
     expect(reads).toEqual([]);
-  });
-
-  it('calls its composer once, by its own name', () => {
-    const entry = imported.find((i) => i.key === rule.composer);
-    expect(entry?.aliased, 'the composer is imported under another name').toBe(false);
-    const uses = identifiers(sf, composerName);
-    expect(uses, `${composerName} is used ${uses.length} times`).toHaveLength(1);
-    const call = uses[0].parent;
-    expect(
-      ts.isCallExpression(call) && call.expression === uses[0],
-      `${composerName} is referenced but not called`,
-    ).toBe(true);
-    expect(
-      insideUseMemo(call),
-      `${composerName}'s call ${rule.memo ? 'left' : 'entered'} useMemo`,
-    ).toBe(rule.memo);
   });
 });
 
@@ -280,8 +195,6 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
       'derive#ledgerUnits',
       'derive#unitsByAsset',
     ),
-    'view/yield#yieldTableRows':
-      "the yield card is /yield's row at «Від початку»; yield.test.ts holds it equal to yieldView's",
   },
   'src/screens/daily-quotes/CouponDueCard.tsx': each(QUOTES, 'accrual#rollNextCoupon'),
   'src/screens/daily-quotes/QuoteRow.tsx': each(QUOTES, 'derive#yieldSinceStart'),
@@ -299,11 +212,20 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
   'src/screens/TransactionPanel.tsx': {
     'accrual#rollbackNextCoupon': 'the transaction form moves the coupon pointer back on a delete',
   },
-  'src/screens/portfolio/AssetDialogs.tsx': {
-    'view/portfolio#cascadeCounts': 'the delete dialog counts the rows a deletion takes',
+  'src/hooks/slices.ts': {
+    'period#PERIOD_OPTIONS': 'the options a screen with a period takes its slice by',
   },
-  'src/hooks/useLedgerAsOfToday.ts': {
-    'view/build#ledgerAsOf': "cuts the ledger every screen's composer reads, as buildView cuts it",
+  'src/lib/local-view.ts': {
+    ...each(
+      "the device's answers to the view's reads, which the API's client replaces",
+      'view/balances#buildBalanceRow',
+      'view/balances#paginateSnapshots',
+      'view/build#buildView',
+      'view/build#ledgerAsOf',
+      'view/serve#servedInput',
+      'view/window#windowView',
+      'view/yield#cumulativeYieldSeriesIn',
+    ),
   },
   'src/hooks/useBackupDownload.ts': {
     'valuation#pricesOfSnapshots':
@@ -326,14 +248,16 @@ const walk = (dir: string): string[] =>
     return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [rel] : [];
   });
 
-describe('the rules cover every composer and every caller', () => {
-  it('every file in src/ that calls a composer has a rule', () => {
+describe('no file computes a figure of its own', () => {
+  // The device answers the view's reads itself until the API does (*Cloud target*), so its stand-in
+  // for the server is the one file that composes; no screen, form or hook does.
+  it("only the device's stand-in for the server calls a composer", () => {
     const callers = walk('src').filter((rel) =>
       coreImports(parse(rel)).some(
         (i) => !i.typeOnly && i.key.startsWith('view/') && /View$/.test(i.key.split('#')[1]),
       ),
     );
-    expect(callers.sort()).toEqual(Object.keys(RULES).sort());
+    expect(callers).toEqual(['src/lib/local-view.ts']);
   });
 
   it('every other file in src/ takes only the figures it gives a reason for', () => {
@@ -350,39 +274,13 @@ describe('the rules cover every composer and every caller', () => {
     );
     expect(taken).toEqual(reasons);
   });
-
-  it('every composer the package exports belongs to exactly one rule', () => {
-    const exported = walk('packages/core/src/view')
-      .filter((rel) => rel.endsWith('.ts'))
-      .flatMap((rel) => {
-        const mod = rel.replace(/^packages\/core\/src\//, '').replace(/\.ts$/, '');
-        return parse(rel)
-          .statements.filter(
-            (s): s is ts.FunctionDeclaration =>
-              ts.isFunctionDeclaration(s) &&
-              !!s.name &&
-              /View$/.test(s.name.text) &&
-              !!s.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword),
-          )
-          .map((s) => `${mod}#${s.name!.text}`);
-      })
-      // The union of the others, not a screen's.
-      .filter((key) => key !== 'view/build#buildView');
-    expect(exported.sort()).toEqual(
-      Object.values(RULES)
-        .map((r) => r.composer)
-        .sort(),
-    );
-  });
 });
 
-// A figure reads the ledger to today (*Metric families and windows*), so every figure reader takes
-// it from one hook, and only the hook and the readers that keep every row read a ledger query.
-// Modules by where TypeScript resolves them, a file by its path and a package by its name, so no
-// spelling of a specifier (an extension, an alias) leads around them.
-const LEDGER_HOOK = ['src/hooks/useLedgerAsOfToday.ts'];
+// Every figure reader takes its slice of one query. The module is where TypeScript resolves it, a
+// file by its path and a package by its name, so no spelling of a specifier (an extension, an
+// alias) leads around the list.
 const QUERIES = ['src/hooks/queries.ts'];
-// The imports that reach the stored ledger: the repository, the database, Dexie and the query cache.
+// The imports that reach the stored rows: the repository, the database, Dexie and the query cache.
 const STORE = [
   'src/lib/repository.ts',
   'src/lib/db.ts',
@@ -390,37 +288,27 @@ const STORE = [
   'dexie-react-hooks',
   '@tanstack/react-query',
 ];
-// The query module's names that read no ledger row; any other, a new export included, reads it.
-const NON_LEDGER_NAMES = [
-  'useAssets',
-  'useSaveSnapshot',
-  'useRecordTransaction',
-  'useAddAsset',
-  'useUpdateAsset',
-  'useDeleteAsset',
-  'useUpdateTransaction',
-  'useDeleteTransaction',
-  'useDeleteSnapshot',
-  'useReplaceAll',
-  'useClearAll',
+// Each file that calls `useView`, once: the screens, the forms and the hooks that read the view.
+const VIEW_READERS = [
+  'src/hooks/useCapitalCard.ts',
+  'src/hooks/usePeriodWindow.tsx',
+  'src/hooks/useReminders.ts',
+  'src/screens/Allocation.tsx',
+  'src/screens/Attributes.tsx',
+  'src/screens/Balances.tsx',
+  'src/screens/DailyQuotes.tsx',
+  'src/screens/Overview.tsx',
+  'src/screens/Payouts.tsx',
+  'src/screens/Portfolio.tsx',
+  'src/screens/Seasonality.tsx',
+  'src/screens/TransactionPanel.tsx',
+  'src/screens/Yield.tsx',
+  'src/screens/portfolio/AssetDialogs.tsx',
 ];
-const readsLedger = (name: string) => !NON_LEDGER_NAMES.includes(name);
-const LEDGER_READERS: Record<string, string> = {
-  'src/hooks/useLedgerAsOfToday.ts': 'the hook that cuts it',
-  'src/hooks/useReminders.ts': 'the reminders',
-  'src/screens/DailyQuotes.tsx':
-    "the quotes form, the coupon due cards and a picked day's snapshot",
-  'src/screens/TransactionPanel.tsx': 'the transaction form and the ledger list',
-  'src/screens/portfolio/AssetDialogs.tsx': 'the delete counts',
-  'src/hooks/useBackupDownload.ts': 'the backup file',
-  'src/screens/settings/CsvExportRow.tsx': 'the CSV export',
-  'src/screens/settings/ImportRow.tsx': "the import preview's diff against what is stored",
-};
-// Takes the lists its screen hands it.
-const HANDED = ['src/hooks/usePeriodWindow.tsx'];
 // Every file that reaches the repository, the database or the query cache, and what for.
 const STORE_READERS: Record<string, string> = {
-  'src/hooks/queries.ts': 'the ledger queries and every write',
+  'src/hooks/queries.ts': 'the view queries and every write',
+  'src/lib/local-view.ts': "the device's four reads, over the repository",
   'src/lib/repository.ts': 'the repository over the database',
   'src/lib/db.ts': 'the Dexie databases themselves',
   'src/main.tsx': 'the query client and opening the store at boot',
@@ -465,24 +353,120 @@ const importsFrom = (sf: ts.SourceFile, from: readonly string[]): string[] =>
     .filter((i) => !i.typeOnly)
     .map((i) => i.key.slice(i.key.lastIndexOf('#') + 1));
 
-describe('every figure reader takes the ledger as of today', () => {
+const callsTo = (sf: ts.SourceFile, name: string): ts.CallExpression[] => {
+  const out: ts.CallExpression[] = [];
+  const visit = (n: ts.Node) => {
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === name) {
+      out.push(n);
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+};
+
+/** The names a file binds at the top of its module: its imports, and what its `const`s, functions
+ *  and classes declare. A selector bound anywhere else is made again on every render. */
+const moduleLevelNames = (sf: ts.SourceFile): Set<string> => {
+  const names = new Set<string>();
+  for (const s of sf.statements) {
+    if (ts.isImportDeclaration(s) && s.importClause) {
+      const { name, namedBindings } = s.importClause;
+      if (name) names.add(name.text);
+      if (namedBindings && ts.isNamespaceImport(namedBindings)) names.add(namedBindings.name.text);
+      else if (namedBindings) for (const el of namedBindings.elements) names.add(el.name.text);
+    } else if (ts.isVariableStatement(s)) {
+      for (const d of s.declarationList.declarations)
+        if (ts.isIdentifier(d.name)) names.add(d.name.text);
+    } else if ((ts.isFunctionDeclaration(s) || ts.isClassDeclaration(s)) && s.name) {
+      names.add(s.name.text);
+    }
+  }
+  return names;
+};
+
+/** An identifier, or a read off one (`overviewOf[period]`, `slices.payouts`): a value that exists
+ *  before any render. A function expression, an arrow or a call is made inside the render. */
+const rootIdentifier = (e: ts.Expression): ts.Identifier | undefined => {
+  if (ts.isIdentifier(e)) return e;
+  if (ts.isElementAccessExpression(e) || ts.isPropertyAccessExpression(e)) {
+    return rootIdentifier(e.expression);
+  }
+  return undefined;
+};
+
+const selectProperties = (sf: ts.SourceFile): ts.ObjectLiteralElementLike[] => {
+  const out: ts.ObjectLiteralElementLike[] = [];
+  const visit = (n: ts.Node) => {
+    if (
+      (ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) &&
+      ts.isIdentifier(n.name) &&
+      n.name.text === 'select'
+    ) {
+      out.push(n);
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+};
+
+describe('every screen reads one slice of the one view query', () => {
   const files = walk('src');
 
-  it('only the hook and the readers that keep every row read a ledger query', () => {
-    const readers = files.filter((rel) => importsFrom(parse(rel), QUERIES).some(readsLedger));
-    expect(readers.sort()).toEqual(Object.keys(LEDGER_READERS).sort());
+  it('the files that call useView are the readers listed, and no other', () => {
+    const callers = files.filter((rel) => importsFrom(parse(rel), QUERIES).includes('useView'));
+    expect(callers.sort()).toEqual([...VIEW_READERS].sort());
   });
 
-  it('every composer caller, and the yield card on `/`, takes it from useLedgerAsOfToday', () => {
-    const takers = files.filter((rel) =>
-      importsFrom(parse(rel), LEDGER_HOOK).includes('useLedgerAsOfToday'),
+  it.each(VIEW_READERS)('%s calls useView once, with a selector defined at module level', (rel) => {
+    const sf = parse(rel);
+    const calls = callsTo(sf, 'useView');
+    expect(calls, `${rel} calls useView ${calls.length} times`).toHaveLength(1);
+    const root = rootIdentifier(calls[0].arguments[0]);
+    expect(root, 'the selector is made inside the render').toBeDefined();
+    expect(moduleLevelNames(sf).has(root!.text), `${root!.text} is not bound at module level`).toBe(
+      true,
     );
-    expect(takers.sort()).toEqual(
-      [
-        ...Object.keys(RULES).filter((rel) => !HANDED.includes(rel)),
-        'src/screens/DailyQuotes.tsx',
-      ].sort(),
+  });
+
+  // `select` re-runs only when the data or the function changes (query-core's `queryObserver`), so
+  // one built in a render re-runs on every render. Only `useView` hands one to a query, and it is
+  // given one.
+  it('no query is handed a select of its own', () => {
+    const inline = files
+      .filter((rel) => !QUERIES.includes(rel))
+      .filter((rel) => selectProperties(parse(rel)).length > 0);
+    expect(inline).toEqual([]);
+  });
+
+  it('the one place a select reaches a query is useView, which is given it', () => {
+    const sf = parse(QUERIES[0]);
+    expect(selectProperties(sf).map((p) => p.getText(sf))).toEqual(['select']);
+  });
+
+  it('the ledger queries and the hook that cut them are gone', () => {
+    const sf = parse(QUERIES[0]);
+    const exported = sf.statements.flatMap((s) => {
+      if (
+        !ts.canHaveModifiers(s) ||
+        !ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+      ) {
+        return [];
+      }
+      if (ts.isVariableStatement(s)) {
+        return s.declarationList.declarations.flatMap((d) =>
+          ts.isIdentifier(d.name) ? [d.name.text] : [],
+        );
+      }
+      return (ts.isFunctionDeclaration(s) || ts.isClassDeclaration(s)) && s.name
+        ? [s.name.text]
+        : [];
+    });
+    expect(exported).toEqual(
+      expect.not.arrayContaining(['keys', 'useAssets', 'useSnapshots', 'useTransactions']),
     );
+    expect(existsSync(join(REPO, 'src/hooks/useLedgerAsOfToday.ts'))).toBe(false);
   });
 
   it('only the files with a reason reach the repository, the database or the query cache', () => {
@@ -490,7 +474,7 @@ describe('every figure reader takes the ledger as of today', () => {
     expect(reach.sort()).toEqual(Object.keys(STORE_READERS).sort());
   });
 
-  it('no file re-exports the ledger queries or the store, which would hand them on unlisted', () => {
+  it('no file re-exports the view queries or the store, which would hand them on unlisted', () => {
     const relays = files.filter((rel) =>
       importsFrom(parse(rel), [...QUERIES, ...STORE]).includes('export'),
     );
@@ -504,68 +488,11 @@ describe('every figure reader takes the ledger as of today', () => {
     expect(computed).toEqual([]);
   });
 
-  it.each(Object.keys(RULES))('%s reads no ledger query of its own', (rel) => {
-    const queries = importsFrom(parse(rel), QUERIES);
-    expect(queries.filter((n) => readsLedger(n) || n === 'useAssets')).toEqual([]);
-  });
-
-  it("the coupon due cards on `/` read the hook's clock", () => {
+  // The quotes screen's day is the view's, so its due cards and its form change day in the render
+  // the figures do; a clock of its own would be a value the query cannot see.
+  it("the quotes screen takes today from the view's day, with no clock of its own", () => {
     const sf = parse('src/screens/DailyQuotes.tsx');
-    const todays: string[] = [];
-    const dueArgs: string[] = [];
-    const visit = (n: ts.Node) => {
-      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'today') {
-        todays.push(n.initializer?.getText(sf) ?? '');
-      }
-      if (
-        ts.isCallExpression(n) &&
-        ts.isIdentifier(n.expression) &&
-        n.expression.text === 'dueCoupons'
-      ) {
-        dueArgs.push(n.arguments[2]?.getText(sf) ?? '');
-      }
-      ts.forEachChild(n, visit);
-    };
-    visit(sf);
-    expect(todays).toEqual(['figures.today']);
-    expect(dueArgs).toEqual(['today']);
-  });
-
-  it("the yield card on `/` reads every argument off the hook's ledger", () => {
-    const sf = parse('src/screens/DailyQuotes.tsx');
-    const holders: string[] = [];
-    const calls: ts.CallExpression[] = [];
-    const visit = (n: ts.Node) => {
-      if (
-        ts.isVariableDeclaration(n) &&
-        ts.isIdentifier(n.name) &&
-        n.initializer &&
-        ts.isCallExpression(n.initializer) &&
-        ts.isIdentifier(n.initializer.expression) &&
-        n.initializer.expression.text === 'useLedgerAsOfToday'
-      ) {
-        holders.push(n.name.text);
-      }
-      if (
-        ts.isCallExpression(n) &&
-        ts.isIdentifier(n.expression) &&
-        n.expression.text === 'yieldTableRows'
-      ) {
-        calls.push(n);
-      }
-      ts.forEachChild(n, visit);
-    };
-    visit(sf);
-    expect(holders).toHaveLength(1);
-    expect(calls).toHaveLength(1);
-    expect(
-      calls[0].arguments.map((a) =>
-        ts.isPropertyAccessExpression(a) &&
-        ts.isIdentifier(a.expression) &&
-        a.expression.text === holders[0]
-          ? `${holders[0]}.${a.name.text}`
-          : a.getText(sf),
-      ),
-    ).toEqual(['assets', 'snapshots', 'transactions'].map((k) => `${holders[0]}.${k}`));
+    expect(coreImports(sf).map((i) => i.key)).not.toContain('dates#todayIso');
+    expect(importsFrom(sf, ['src/hooks/useToday.ts'])).toEqual([]);
   });
 });

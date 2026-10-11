@@ -20,19 +20,6 @@ export async function openStore(): Promise<void> {
 }
 
 export const repo = {
-  async listAssets(): Promise<Asset[]> {
-    const assets = await db.assets.toArray();
-    return assets.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  },
-
-  async listSnapshots(): Promise<Snapshot[]> {
-    return db.snapshots.orderBy('date').toArray(); // ascending by date
-  },
-
-  async listTransactions(): Promise<Transaction[]> {
-    return db.transactions.orderBy('date').toArray(); // ascending by date
-  },
-
   // UPSERT by date — re-saving a day replaces it — and stamps savedAt.
   async saveSnapshot(s: Snapshot): Promise<void> {
     await db.snapshots.put({ ...s, savedAt: new Date().toISOString().slice(0, 19) });

@@ -7,6 +7,7 @@ import { investedByAsset } from '@quirenote/core/derive';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
+import { dayOf, NO_TABLES } from '../../lib/local-view';
 import { accrualSuggestion, couponPrefill } from './suggestions';
 
 const snapshots = buildSeedSnapshots();
@@ -17,10 +18,27 @@ function seedAsset(id: string): Asset {
   return SEED_ASSETS.find((a) => a.id === id)!;
 }
 
+type After<T extends unknown[]> = T extends [unknown, unknown, unknown, unknown, ...infer R]
+  ? R
+  : never;
+
+/** The suggestion over the quotes the device stored: the day's read answers the last quote before
+ *  the day (`dayOf`), and that is what the suggestion carries forward from. */
+function suggestStored(
+  asset: Asset,
+  stored: Snapshot[],
+  investedAmount: number,
+  date: string,
+  ...rest: After<Parameters<typeof accrualSuggestion>>
+): number | null {
+  const { previous } = dayOf({ ...NO_TABLES, snapshots: stored }, date);
+  return accrualSuggestion(asset, previous, investedAmount, date, ...rest);
+}
+
 describe('accrualSuggestion', () => {
   it('carries a seed bond forward to the selected date', () => {
     expect(
-      accrualSuggestion(
+      suggestStored(
         seedAsset('ovdp6475'),
         snapshots,
         invested.ovdp6475,
@@ -32,7 +50,7 @@ describe('accrualSuggestion', () => {
       ),
     ).toBe(4376.49);
     expect(
-      accrualSuggestion(
+      suggestStored(
         seedAsset('ovdp8976'),
         snapshots,
         invested.ovdp8976,
@@ -48,7 +66,7 @@ describe('accrualSuggestion', () => {
   it('subtracts a coupon the gap crossed', () => {
     // …8976's coupon grid hits 25.08, so quoting 26.08 from the 25.07 quote crosses one payment.
     expect(
-      accrualSuggestion(
+      suggestStored(
         seedAsset('ovdp8976'),
         snapshots,
         invested.ovdp8976,
@@ -61,7 +79,7 @@ describe('accrualSuggestion', () => {
     ).toBe(14823.72);
     // Same accrual, coupon grid shifted a month later → nothing to subtract.
     expect(
-      accrualSuggestion(
+      suggestStored(
         { ...seedAsset('ovdp8976'), nextCoupon: '2026-09-25' },
         snapshots,
         invested.ovdp8976,
@@ -84,7 +102,7 @@ describe('accrualSuggestion', () => {
       amount: 1240,
     };
     expect(
-      accrualSuggestion(
+      suggestStored(
         { ...seedAsset('ovdp8976'), nextCoupon: '2027-02-25' },
         snapshots,
         invested.ovdp8976,
@@ -102,7 +120,7 @@ describe('accrualSuggestion', () => {
     // payment, so the carry to the maturity drops 1 240,00 once, not twice.
     const quoted: Snapshot[] = [{ date: '2027-02-10', quotes: { ovdp8976: 15000 } }];
     expect(
-      accrualSuggestion(
+      suggestStored(
         { ...seedAsset('ovdp8976'), nextCoupon: '2027-02-20' },
         quoted,
         invested.ovdp8976,
@@ -120,7 +138,7 @@ describe('accrualSuggestion', () => {
     // stops there, so the carry drops 3 × 1 240,00, not one more for every month drafted past.
     const quoted: Snapshot[] = [{ date: '2027-01-10', quotes: { ovdp8976: 15000 } }];
     expect(
-      accrualSuggestion(
+      suggestStored(
         {
           ...seedAsset('ovdp8976'),
           payoutSchedule: 'monthly',
@@ -143,7 +161,7 @@ describe('accrualSuggestion', () => {
     // grid month from it to the drafted date; the accrual stops on the maturity, 10.03.
     const quoted: Snapshot[] = [{ date: '2027-03-01', quotes: { ovdp8976: 15000 } }];
     expect(
-      accrualSuggestion(
+      suggestStored(
         {
           ...seedAsset('ovdp8976'),
           payoutSchedule: 'monthly',
@@ -175,7 +193,7 @@ describe('accrualSuggestion', () => {
     });
     const ledger = [...SEED_TRANSACTIONS, paid('p1', '2027-01-25'), paid('p2', '2027-02-25')];
     const suggest = (nextCoupon: string) =>
-      accrualSuggestion(
+      suggestStored(
         { ...seedAsset('ovdp8976'), payoutSchedule: 'monthly', nextCoupon, maturity: '2027-03-02' },
         quoted,
         invested.ovdp8976,
@@ -204,7 +222,7 @@ describe('accrualSuggestion', () => {
     };
     const quoted: Snapshot[] = [{ date: '2026-03-20', quotes: { ovdp8976: 15000 } }];
     const suggest = (feed: ParsedFeed | undefined) =>
-      accrualSuggestion(linked, quoted, invested.ovdp8976, '2026-03-30', feed, 15, () => 15, [
+      suggestStored(linked, quoted, invested.ovdp8976, '2026-03-30', feed, 15, () => 15, [
         ...SEED_TRANSACTIONS,
       ]);
     // Neither feed brackets the gap, so the daily rate is the same; the gap owes 25.03 both ways.
@@ -214,7 +232,7 @@ describe('accrualSuggestion', () => {
 
   it('suggests nothing for a non-bond, an unquoted asset or an already-quoted date', () => {
     expect(
-      accrualSuggestion(
+      suggestStored(
         seedAsset('reit'),
         snapshots,
         invested.reit,
@@ -227,7 +245,7 @@ describe('accrualSuggestion', () => {
     ).toBeNull();
     const fresh: Asset = { ...seedAsset('ovdp6475'), id: 'new' };
     expect(
-      accrualSuggestion(
+      suggestStored(
         fresh,
         snapshots,
         0,
@@ -240,7 +258,7 @@ describe('accrualSuggestion', () => {
     ).toBeNull();
     // The first seed snapshot — nothing before it to carry forward.
     expect(
-      accrualSuggestion(
+      suggestStored(
         seedAsset('ovdp8976'),
         snapshots,
         invested.ovdp8976,
@@ -261,7 +279,7 @@ describe('accrualSuggestion', () => {
     // answer rather than one constant.
     const bond: Asset = { ...seedAsset('ovdp8976'), couponRatePct: 15.68 };
     const held = (couponDate: string) => (couponDate === '2026-08-25' ? 10 : 20);
-    const perDate = accrualSuggestion(
+    const perDate = suggestStored(
       bond,
       snapshots,
       invested.ovdp8976,
@@ -271,7 +289,7 @@ describe('accrualSuggestion', () => {
       held,
       SEED_TRANSACTIONS,
     );
-    const flat = accrualSuggestion(
+    const flat = suggestStored(
       bond,
       snapshots,
       invested.ovdp8976,
@@ -294,7 +312,7 @@ describe('accrualSuggestion', () => {
     // holding that no longer exists.
     const sold = { ...seedAsset('ovdp8976'), couponRatePct: 15.68 };
     expect(
-      accrualSuggestion(
+      suggestStored(
         sold,
         snapshots,
         invested.ovdp8976,
@@ -309,7 +327,7 @@ describe('accrualSuggestion', () => {
     // the assertion above is refusing — not merely a different one.
     const bare: Asset = { ...sold, couponAmount: undefined, couponRatePct: undefined };
     expect(
-      accrualSuggestion(
+      suggestStored(
         bare,
         snapshots,
         invested.ovdp8976,
@@ -322,7 +340,7 @@ describe('accrualSuggestion', () => {
     ).toBe(15860.13);
     // UNKNOWN IS NOT ZERO: a bond with no quantities still accrues.
     expect(
-      accrualSuggestion(
+      suggestStored(
         sold,
         snapshots,
         invested.ovdp8976,
@@ -338,7 +356,7 @@ describe('accrualSuggestion', () => {
   it('uses the expectedPct fallback for a bond with no stated coupon', () => {
     const bare: Asset = { ...seedAsset('ovdp8976'), couponAmount: undefined };
     expect(
-      accrualSuggestion(
+      suggestStored(
         bare,
         snapshots,
         invested.ovdp8976,

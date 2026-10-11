@@ -7,7 +7,12 @@ import type { Lang } from '@quirenote/core/money';
 function kopiykas(n: number): number {
   return Math.round(n * 100);
 }
-import type { Asset, Snapshot } from '@quirenote/core/types';
+import type { Asset } from '@quirenote/core/types';
+import type { DayQuotes } from '@quirenote/core/view/serve';
+
+/** Each asset's latest recorded quote strictly before the day, with the day it was recorded: the
+ *  day's read answers it (`GET /view/day`), and a day's rows are read for no other. */
+export type PreviousQuotes = DayQuotes['previous'];
 
 export interface CollectedQuotes {
   /** Every non-empty draft the schema accepts, by asset id. */
@@ -58,29 +63,18 @@ export function quoteProgress(
 }
 
 // The latest quote strictly BEFORE the selected date, WITH its date: the accrual
-// carry-forward needs both.
+// carry-forward needs both. An OWN key only: an asset id is a key of a plain map.
 export function lastQuoteBefore(
-  snapshots: Snapshot[],
+  previous: PreviousQuotes,
   assetId: string,
-  selectedDate: string,
 ): { value: number; date: string } | undefined {
-  let best: Snapshot | undefined;
-  for (const s of snapshots) {
-    if (s.date < selectedDate && s.quotes[assetId] !== undefined) {
-      if (!best || s.date > best.date) best = s;
-    }
-  }
-  return best === undefined ? undefined : { value: best.quotes[assetId], date: best.date };
+  return Object.hasOwn(previous, assetId) ? previous[assetId] : undefined;
 }
 
 // The same quote as a bare number. The row subline always reads "yesterday" even
 // when the actual gap is bigger.
-export function yesterdayQuote(
-  snapshots: Snapshot[],
-  assetId: string,
-  selectedDate: string,
-): number | undefined {
-  return lastQuoteBefore(snapshots, assetId, selectedDate)?.value;
+export function yesterdayQuote(previous: PreviousQuotes, assetId: string): number | undefined {
+  return lastQuoteBefore(previous, assetId)?.value;
 }
 
 // THE PENDING CHANGE the rail names. Not a total: the sidebar already shows the
@@ -108,7 +102,7 @@ export function pendingChange(
   assets: Asset[],
   units: Record<string, number>,
   drafts: Record<string, string | undefined>,
-  snapshots: Snapshot[],
+  previous: PreviousQuotes,
   selectedDate: string,
   lang: Lang,
 ): { sum: number; changed: number; total: number } {
@@ -121,21 +115,12 @@ export function pendingChange(
   for (const a of needed) {
     const value = quotes[a.id];
     if (value === undefined) continue;
-    const baseline = yesterdayQuote(snapshots, a.id, selectedDate);
+    const baseline = yesterdayQuote(previous, a.id);
     if (baseline === undefined || kopiykas(value) === kopiykas(baseline)) continue;
     sum += value - baseline;
     changed += 1;
   }
   return { sum, changed, total: needed.length };
-}
-
-// Only snapshots actually saved through the Save button carry `savedAt`.
-export function maxSavedAt(snapshots: Snapshot[]): string | undefined {
-  let best: string | undefined;
-  for (const s of snapshots) {
-    if (s.savedAt && (!best || s.savedAt > best)) best = s.savedAt;
-  }
-  return best;
 }
 
 // Bonds are labelled by their last four digits, other assets by the last word of

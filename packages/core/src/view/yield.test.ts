@@ -8,7 +8,6 @@ import {
   shortBasisIn,
   windowedBasisByAsset,
   xirrIsExtrapolated,
-  yieldTableRows,
   yieldTableRowsIn,
   yieldView,
   type YieldTableRow,
@@ -23,8 +22,12 @@ import { latestSnapshotDate } from '../dates';
 
 const snaps = buildSeedSnapshots();
 
-describe('yieldTableRows', () => {
-  const rows = yieldTableRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS);
+// The table at the full history, which is `/yield` at «Від початку».
+const allRows = (assets: Asset[], snapshots: Snapshot[], transactions: Transaction[]) =>
+  yieldView({ assets, snapshots, transactions, period: 'all' }).rows;
+
+describe('yieldView at the full history', () => {
+  const rows = allRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS);
 
   it('REIT: +4.41% total, +9.3% annualized (global 174-day basis), -4.7pp vs expected', () => {
     const reit = rows.find((r) => r.asset.id === 'reit')!;
@@ -57,7 +60,7 @@ describe('yieldTableRows', () => {
   it('an asset with no quote yet reports undefined figures instead of a bogus huge negative % (empty-state guard)', () => {
     // No snapshots at all → every asset is unquoted although invested capital
     // exists, and yieldSinceStart(0, invested) would annualize a −100%.
-    const noQuoteRows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
+    const noQuoteRows = allRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
     for (const r of noQuoteRows) {
       expect(r.value).toBeUndefined();
       expect(r.deltaTotal).toBeUndefined();
@@ -68,7 +71,7 @@ describe('yieldTableRows', () => {
 
   it('an asset with invested capital but no quote is undefined even when OTHER assets are quoted', () => {
     const onlyReit: Snapshot[] = [{ date: '2026-07-25', quotes: { reit: 68629.36 } }];
-    const partialRows = yieldTableRows(SEED_ASSETS, onlyReit, SEED_TRANSACTIONS);
+    const partialRows = allRows(SEED_ASSETS, onlyReit, SEED_TRANSACTIONS);
     const reit = partialRows.find((r) => r.asset.id === 'reit')!;
     const energy = partialRows.find((r) => r.asset.id === 'energy')!;
     expect(reit.value).toBe(68629.36);
@@ -81,9 +84,7 @@ describe('yieldTableRows', () => {
 
   it('a quoted zero is a figure, not a missing quote', () => {
     const zero: Snapshot[] = [{ date: '2026-07-25', quotes: { reit: 0 } }];
-    const reit = yieldTableRows(SEED_ASSETS, zero, SEED_TRANSACTIONS).find(
-      (r) => r.asset.id === 'reit',
-    )!;
+    const reit = allRows(SEED_ASSETS, zero, SEED_TRANSACTIONS).find((r) => r.asset.id === 'reit')!;
     expect(reit.deltaTotal).toBe(-1);
     expect(reit.annualized).toBeLessThan(0);
   });
@@ -109,15 +110,12 @@ describe('yieldTableRows', () => {
   });
 });
 
-describe("yieldTableRows — the quotes card's figures are /yield's row at «Від початку»", () => {
+describe('yieldView at the full history — a sale, an unquoted asset, a buy-back', () => {
   // The ledger sells part of energy's holding and holds an asset no snapshot quotes.
   const input = TEST_LEDGERS.find((l) => l.name === 'sold-and-unquoted')!.input;
-  const rows = yieldTableRows(input.assets, input.snapshots, input.transactions);
+  const rows = allRows(input.assets, input.snapshots, input.transactions);
 
-  it("every Δ is /yield's at the full history, the sale proceeds included", () => {
-    expect(rows.map((r) => [r.asset.id, r.deltaTotal])).toStrictEqual(
-      yieldView({ ...input, period: 'all' }).rows.map((r) => [r.asset.id, r.deltaTotal]),
-    );
+  it('Δ takes the sale proceeds in', () => {
     const energy = rows.find((r) => r.asset.id === 'energy')!;
     expect(energy.deltaTotal).toBeCloseTo((60_086.09 + 10_000) / 59_208 - 1, 10);
   });
@@ -137,10 +135,9 @@ describe("yieldTableRows — the quotes card's figures are /yield's row at «В�
       amount: 1000,
       quantity: 100,
     };
-    const energy = yieldTableRows(soldOut.assets, soldOut.snapshots, [
-      ...soldOut.transactions,
-      back,
-    ]).find((r) => r.asset.id === 'energy')!;
+    const energy = allRows(soldOut.assets, soldOut.snapshots, [...soldOut.transactions, back]).find(
+      (r) => r.asset.id === 'energy',
+    )!;
     expect(energy.value).toBeUndefined();
     expect(energy.deltaTotal).toBeUndefined();
   });
@@ -148,7 +145,7 @@ describe("yieldTableRows — the quotes card's figures are /yield's row at «В�
 
 // The illusion-of-loss triple: a capital-gain loss coexists with a positive
 // total return — the columns MAY disagree by design.
-describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total return)', () => {
+describe('yieldView at the full history — illusion-of-loss fixture (capital gain vs total return)', () => {
   const bond: Asset = {
     id: 'b6475',
     name: 'OVDP UA4000236475',
@@ -172,7 +169,7 @@ describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total ret
     },
   ];
   const snapsOne: Snapshot[] = [{ date: '2026-07-27', quotes: { b6475: 4379.52 } }];
-  const row = yieldTableRows([bond], snapsOne, txs)[0];
+  const row = allRows([bond], snapsOne, txs)[0];
 
   it('Δ total (capital-gain family) reads −2.6% — the "loss"', () => {
     expect(row.deltaTotal! * 100).toBeCloseTo(-2.6, 1);
@@ -188,7 +185,7 @@ describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total ret
   });
 });
 
-describe('yieldTableRows — xirr column wiring (flow signs)', () => {
+describe('yieldView at the full history — xirr column wiring (flow signs)', () => {
   const asset: Asset = {
     id: 'a1',
     name: 'Test Asset',
@@ -211,7 +208,7 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
   const oneYearLater: Snapshot[] = [{ date: '2027-01-01', quotes: { a1: 1080 } }];
 
   it('known-good: −1,000 buy → +1,080 terminal over exactly one year = 8% (audit §6.1 fixture)', () => {
-    const row = yieldTableRows([asset], oneYearLater, [buy])[0];
+    const row = allRows([asset], oneYearLater, [buy])[0];
     expect(row.xirr).toBeCloseTo(0.08, 9);
   });
 
@@ -228,8 +225,8 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       amount: 100,
       ...(taxWithheld === undefined ? {} : { taxWithheld }),
     });
-    const gross = yieldTableRows([asset], oneYearLater, [buy, payout()])[0].xirr!;
-    const net = yieldTableRows([asset], oneYearLater, [buy, payout(30)])[0].xirr!;
+    const gross = allRows([asset], oneYearLater, [buy, payout()])[0].xirr!;
+    const net = allRows([asset], oneYearLater, [buy, payout(30)])[0].xirr!;
     expect(net).toBeLessThan(gross);
   });
 
@@ -246,8 +243,8 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       amount: 100,
       taxWithheld: 100,
     };
-    const none = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
-    expect(yieldTableRows([asset], oneYearLater, [buy, full])[0].xirr!).toBeCloseTo(none, 9);
+    const none = allRows([asset], oneYearLater, [buy])[0].xirr!;
+    expect(allRows([asset], oneYearLater, [buy, full])[0].xirr!).toBeCloseTo(none, 9);
   });
 
   it('deposit/withdrawal rows carrying the assetId are NOT asset flows (portfolio-level cash)', () => {
@@ -265,9 +262,8 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       assetId: 'a1',
       amount: 200,
     };
-    const base = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
-    const withCashMoves = yieldTableRows([asset], oneYearLater, [buy, deposit, withdrawal])[0]
-      .xirr!;
+    const base = allRows([asset], oneYearLater, [buy])[0].xirr!;
+    const withCashMoves = allRows([asset], oneYearLater, [buy, deposit, withdrawal])[0].xirr!;
     expect(withCashMoves).toBeCloseTo(base, 12);
   });
 });
@@ -325,15 +321,14 @@ describe('cumulativeYieldSeries', () => {
 
 describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
   const full = resolveWindow('all', '2026-02-03', '2026-07-27')!;
-  const byId = (rows: ReturnType<typeof yieldTableRows>) =>
-    Object.fromEntries(rows.map((r) => [r.asset.id, r]));
+  const byId = (rows: YieldTableRow[]) => Object.fromEntries(rows.map((r) => [r.asset.id, r]));
 
   it('THE FULL HISTORY IS NOT A SPECIAL CASE — it reduces exactly', () => {
-    // The property the whole design hangs on, and the reason `yieldTableRows` is
-    // allowed to delegate: if this fails, two implementations have started to
-    // disagree and every pinned figure is in play.
+    // The property the whole design hangs on: the full history is a window like any
+    // other. If this fails, `yieldView` at 'all' and a window spanning the whole history
+    // have started to disagree and every pinned figure is in play.
     expect(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, full)).toEqual(
-      yieldTableRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+      allRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
     );
   });
 
@@ -441,14 +436,14 @@ describe('the two regressions A39 shipped and its review caught', () => {
       assetId: 'reit',
       amount: 50_000,
     };
-    const rows = yieldTableRows(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, later]);
+    const rows = allRows(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, later]);
     expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(115_800);
   });
 
   it('no snapshots is no VALUATION, not an empty ledger', () => {
     // `invested` renders unconditionally, so this read a zero beside an em dash for
     // anyone who had entered buys but saved no snapshot.
-    const rows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
+    const rows = allRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
     expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(65_800);
     expect(rows.find((r) => r.asset.id === 'reit')!.value).toBeUndefined();
   });

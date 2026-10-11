@@ -37,10 +37,9 @@ describe('deleteAsset cascade', () => {
     await seedStore();
     await repo.deleteAsset('reit');
 
-    const assets = await repo.listAssets();
+    const { assets, transactions: txs, snapshots } = await repo.exportAll();
     expect(assets.map((a) => a.id)).toEqual(['energy', 'ovdp8976', 'ovdp6475']);
 
-    const txs = await repo.listTransactions();
     expect(txs.some((t) => t.assetId === 'reit')).toBe(false);
     expect(txs).toHaveLength(SEED_TRANSACTIONS.filter((t) => t.assetId !== 'reit').length);
 
@@ -49,7 +48,7 @@ describe('deleteAsset cascade', () => {
       delete quotes.reit;
       return { ...s, quotes };
     });
-    expect(await repo.listSnapshots()).toEqual(expected);
+    expect(snapshots).toEqual(expected);
   });
 });
 
@@ -107,7 +106,7 @@ async function exportSeedEnvelope() {
 describe('a store holding a retired row shape', () => {
   async function seedWithRetiredKeys() {
     await seedStore();
-    const tx = (await repo.listTransactions())[0];
+    const tx = (await repo.exportAll()).transactions[0];
     await db.transactions.put({ ...tx, source: 'savings' } as typeof tx);
     const snap = (await db.snapshots.toArray())[0];
     await db.snapshots.put({ ...snap, cash: 7.75 } as typeof snap);

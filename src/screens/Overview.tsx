@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Link } from 'react-router';
 
 import { buttonVariants } from '../components/ui/button-variants';
@@ -12,12 +11,12 @@ import { usePeriodWindow } from '../hooks/usePeriodWindow';
 import { ShareBar } from '../components/ui/ShareBar';
 import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
+import { useView } from '../hooks/queries';
+import { overviewOf } from '../hooks/slices';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import { toUsd } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
-import { overviewView } from '@quirenote/core/view/overview';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
@@ -27,20 +26,16 @@ const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 export function Overview() {
   const f = useFormat();
   const t = useT();
-  const { assets, snapshots, transactions, today } = useLedgerAsOfToday();
   // NARROWED: `useSettings()` with no selector re-renders this screen on ANY store
   // change — the currency toggle and every unrelated field.
   const currency = useSettings((s) => s.currency);
   const usdRate = useSettings((s) => s.usdRate);
   const usd = currency === 'USD';
 
-  const { period, control } = usePeriodWindow(assets, snapshots, transactions);
-  // Memoized: five tweens re-render this every frame. `today` is state, so the next payouts and
-  // the subtitle move on at midnight: a payout dated before today is not next.
-  const view = useMemo(
-    () => overviewView({ assets, snapshots, transactions, period, today }),
-    [assets, snapshots, transactions, period, today],
-  );
+  const { period, control } = usePeriodWindow();
+  // The view's day moves on at midnight with the view: the next payouts and the subtitle follow,
+  // and a payout dated before today is not next.
+  const { overview: view, today } = useView(overviewOf[period]);
   const { total, cash, cashShort, deposited, reinvested, net, totalReturn, income, incomeNet } =
     view;
   const win = view.window;

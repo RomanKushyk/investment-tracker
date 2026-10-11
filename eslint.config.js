@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
+import query from '@tanstack/eslint-plugin-query';
 
 const PGLITE_HELPER = ['infra/src/__fixtures__/pglite.ts', 'infra/src/__fixtures__/pglite.test.ts'];
 const EVERY_SOURCE = '**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}';
@@ -17,6 +18,18 @@ const loadsPGlite = [
   `ImportExpression[source.value=${PGLITE_PACKAGE}]`,
   `ImportExpression[source.quasis.0.value.cooked=${PGLITE_PACKAGE}]`,
 ].map((selector) => ({ selector, message: PGLITE_MESSAGE }));
+// A selector made in a render is made again on every one, and `select` runs again whenever its
+// function changes (query-core's `queryObserver`): each is bound at module level, in
+// `src/hooks/slices.ts`. `src/query-lint.test.ts` lints text at a path, because a selector that
+// stops matching still parses green.
+const inlineSelectors = [
+  "CallExpression[callee.name='useView'] > :matches(ArrowFunctionExpression, FunctionExpression, CallExpression)",
+  "Property[key.name='select'] > :matches(ArrowFunctionExpression, FunctionExpression)",
+].map((selector) => ({
+  selector,
+  message:
+    'a selector is bound at module level (src/hooks/slices.ts): one made in a render runs again on every render.',
+}));
 const runsConcurrently = [
   `MemberExpression[property.name='concurrent']`,
   `MemberExpression[property.value='concurrent']`,
@@ -61,6 +74,7 @@ export default tseslint.config(
       ...tseslint.configs.recommended,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
+      ...query.configs['flat/recommended'],
     ],
     languageOptions: {
       ecmaVersion: 2022,
@@ -178,6 +192,13 @@ export default tseslint.config(
       ],
       'no-restricted-syntax': ['error', ...loadsPGlite],
     },
+  },
+  // The app's own files, which the block above covers too: its rule is REPLACED here, not merged,
+  // so the PGlite selectors are restated beside the one this adds. Tests and fixtures, below, build
+  // selectors of their own.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-syntax': ['error', ...loadsPGlite, ...inlineSelectors] },
   },
   // The same rule restated with concurrency added, for tests and the configs that run them only.
   {

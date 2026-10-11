@@ -14,8 +14,8 @@ import {
   Dialog,
 } from '../../components/ui/Dialog';
 import type { Asset } from '@quirenote/core/types';
-import { useDeleteAsset, useSnapshots, useTransactions } from '../../hooks/queries';
-import { cascadeCounts } from '@quirenote/core/view/portfolio';
+import { useDeleteAsset, useView } from '../../hooks/queries';
+import { selectDeleteCounts } from '../../hooks/slices';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
 import { useT } from '../../i18n/useT';
 import type { AssetDialogsControl } from './useAssetDialogs';
@@ -32,17 +32,16 @@ function DeleteAssetDialog({
   onClose: () => void;
 }) {
   const t = useT();
-  const transactions = useTransactions().data ?? [];
-  const snapshots = useSnapshots().data ?? [];
+  const deleteCounts = useView(selectDeleteCounts);
   const deleteAsset = useDeleteAsset();
   const backup = useBackupDownload();
   const [backedUp, setBackedUp] = useState(false);
 
-  // FROZEN AT OPEN, not recomputed. `useDeleteAsset` invalidates every query on
-  // success and this node stays MOUNTED for its exit, so a live computation
+  // FROZEN AT OPEN, not read live. `useDeleteAsset` invalidates the view on
+  // success and this node stays MOUNTED for its exit, so a live read
   // repainted the sentence to zero counts while the dialog was still fading —
   // turning the last thing the user sees into a lie about what was deleted.
-  const [counts] = useState(() => cascadeCounts(asset.id, transactions, snapshots));
+  const [counts] = useState(() => deleteCounts[asset.id]);
 
   function confirm() {
     deleteAsset.mutate(asset.id, {

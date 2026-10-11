@@ -111,9 +111,7 @@ describe('the Next coupon fact on /attributes', () => {
   // The walk itself moved into `attributesView`, and is held there
   // (`view/attributes.test.ts`): the screen renders the card's answer.
   it("renders the card's walk, and «—» when the walk answers nothing", () => {
-    expect(SCREEN, '`card` is not a card from `attributesView`').toMatch(
-      /\bview\.cards\.map\(\(card\b/,
-    );
+    expect(SCREEN, '`card` is not a card of the view').toMatch(/\bcards\.map\(\(card\b/);
     const fact = SCREEN.match(
       /<Fact label=\{t\.analytics\.attributes\.nextCoupon\}>([\s\S]*?)<\/Fact>/,
     );

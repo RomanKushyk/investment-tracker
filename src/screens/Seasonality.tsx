@@ -5,10 +5,10 @@ import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
+import { useView } from '../hooks/queries';
+import { seasonalityOf } from '../hooks/slices';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
 import { shortLabel } from './daily-quotes/quotes';
-import { seasonalityView } from '@quirenote/core/view/seasonality';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 
@@ -23,15 +23,11 @@ function dayPart(day: number): 'early' | 'mid' | 'late' {
 export function Seasonality() {
   const f = useFormat();
   const t = useT();
-  const { assets, snapshots, transactions } = useLedgerAsOfToday();
 
-  const { period, control } = usePeriodWindow(assets, snapshots, transactions);
+  const { period, control } = usePeriodWindow();
   // Every FLOW figure here reads the windowed ledger, so a bar and the card beneath it
   // are on the same side of the boundary (`seasonalityView`).
-  const view = useMemo(
-    () => seasonalityView({ assets, snapshots, transactions, period }),
-    [assets, snapshots, transactions, period],
-  );
+  const { seasonality: view, assets } = useView(seasonalityOf[period]);
 
   /**
    * THE AXIS TOGGLE IS EPHEMERAL, and that is forced: the day buckets are what

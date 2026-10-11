@@ -88,21 +88,6 @@ function assetCashFlows(
   return flows;
 }
 
-/** The table, unwindowed. It DELEGATES because the full history IS a window, and two
- *  implementations would be two chances to disagree. */
-export function yieldTableRows(
-  assets: Asset[],
-  snapshots: Snapshot[],
-  transactions: Transaction[],
-): YieldTableRow[] {
-  const from = portfolioStart(assets, snapshots, transactions);
-  const to = latestSnapshotDate(snapshots);
-  if (from === undefined || to === undefined) {
-    return yieldTableRowsIn(assets, snapshots, transactions, undefined);
-  }
-  return yieldTableRowsIn(assets, snapshots, transactions, { from, to, clamped: false });
-}
-
 /** What a window measures each position against: its value the day before the window opens,
  *  plus what was bought inside it. A position no snapshot values that day has no key in either:
  *  the window's basis is ABSENT. *Metric families and windows* */

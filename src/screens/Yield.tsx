@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import { YieldLines } from '../components/charts/YieldLines';
 import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
@@ -7,8 +5,8 @@ import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useLedgerAsOfToday } from '../hooks/useLedgerAsOfToday';
-import { cumulativeYieldSeriesIn, yieldView } from '@quirenote/core/view/yield';
+import { useSeries, useView } from '../hooks/queries';
+import { yieldOf } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
@@ -26,19 +24,14 @@ export function Yield() {
   const f = useFormat();
   const t = useT();
   const desktop = useIsDesktop();
-  const { assets, snapshots, transactions } = useLedgerAsOfToday();
 
-  const { period, control } = usePeriodWindow(assets, snapshots, transactions);
-  // MEMOIZED: every row solves an XIRR, and only the ledger or the period changes them.
-  const view = useMemo(
-    () => yieldView({ assets, snapshots, transactions, period }),
-    [assets, snapshots, transactions, period],
-  );
+  const { period, control } = usePeriodWindow();
+  const { yield: view, assets } = useView(yieldOf[period]);
   const win = view.window;
   const rows = view.rows;
 
-  // The curve is one value per asset per date, and stays out of `/view` (#189).
-  const series = cumulativeYieldSeriesIn(snapshots, transactions, assets, win);
+  // The curve is one value per asset per date, so it is a read of its own by period.
+  const series = useSeries(period)?.series;
   const xirrHeader = view.xirrExtrapolated ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
 
   // The basis is DERIVED, so it can be absent, and a footnote naming no start is
@@ -71,7 +64,11 @@ export function Yield() {
             </span>
           ))}
         </div>
-        {series.length === 0 ? (
+        {/* A curve not read yet holds the chart's height and says nothing: "no snapshots" is for a
+            curve that was read and is empty. */}
+        {series === undefined ? (
+          <div style={{ height: 280 }} />
+        ) : series.length === 0 ? (
           <EmptyState message={t.analytics.empty.chart} height={280} />
         ) : (
           <YieldLines data={series} assets={assets} />

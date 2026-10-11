@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { ledgerUnits } from '@quirenote/core/derive';
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import type { Snapshot, Transaction } from '@quirenote/core/types';
+import { dayOf, NO_TABLES } from '../../lib/local-view';
 import {
   bondAbbrev,
   collectQuotes,
-  maxSavedAt,
+  lastQuoteBefore,
   pendingChange,
   quoteProgress,
   yesterdayQuote,
@@ -19,6 +20,9 @@ const complete2507: Snapshot = {
 };
 const partial2707: Snapshot = { date: '2026-07-27', quotes: { reit: 68702.1 } };
 const snaps = [complete2507, partial2707];
+/** What the day's read answers as the last quote before `date`, over the quotes the device stored. */
+const previousOn = (stored: Snapshot[], date: string) =>
+  dayOf({ ...NO_TABLES, snapshots: stored }, date).previous;
 // …8976's 15 units, sold out on 01.07.
 const sale: Transaction = {
   id: 's2',
@@ -30,38 +34,28 @@ const sale: Transaction = {
 };
 
 describe('yesterdayQuote', () => {
-  it('finds the latest prior snapshot with a quote for the asset, skipping the gap day (no 26.07)', () => {
-    expect(yesterdayQuote(snaps, 'reit', '2026-07-27')).toBe(68629.36);
-    expect(yesterdayQuote(snaps, 'energy', '2026-07-27')).toBe(60086.09);
+  it('reads the last quote before the day, skipping the gap day (no 26.07)', () => {
+    const previous = previousOn(snaps, '2026-07-27');
+    expect(yesterdayQuote(previous, 'reit')).toBe(68629.36);
+    expect(yesterdayQuote(previous, 'energy')).toBe(60086.09);
   });
 
-  it('returns undefined when the asset has no quote before the selected date', () => {
-    expect(yesterdayQuote(snaps, 'reit', '2026-02-03')).toBeUndefined();
-    expect(yesterdayQuote([], 'reit', '2026-07-27')).toBeUndefined();
+  it('returns undefined when the asset has no quote before the day', () => {
+    expect(yesterdayQuote(previousOn(snaps, '2026-02-03'), 'reit')).toBeUndefined();
+    expect(yesterdayQuote({}, 'reit')).toBeUndefined();
   });
 
-  it('ignores same-date and future snapshots', () => {
-    expect(yesterdayQuote(snaps, 'reit', '2026-07-25')).toBeUndefined();
-  });
-});
-
-describe('maxSavedAt', () => {
-  it('picks the most recent savedAt, ignoring snapshots that were never saved', () => {
-    expect(maxSavedAt(snaps)).toBe('2026-07-25T21:14:00');
+  it('ignores a quote on the day and after it', () => {
+    expect(yesterdayQuote(previousOn(snaps, '2026-07-25'), 'reit')).toBeUndefined();
   });
 
-  it('returns undefined when nothing has been saved', () => {
-    expect(maxSavedAt([partial2707])).toBeUndefined();
-    expect(maxSavedAt([])).toBeUndefined();
-  });
-
-  it('takes the max across multiple saved snapshots', () => {
-    const earlier: Snapshot = {
-      date: '2026-07-20',
-      quotes: {},
-      savedAt: '2026-07-20T10:00:00',
-    };
-    expect(maxSavedAt([earlier, complete2507])).toBe('2026-07-25T21:14:00');
+  // An asset id is a key of a plain map: one that names a member `Object.prototype` has would
+  // answer with that member (*Persistence today*).
+  it('reads an own key of the map and nothing it inherits', () => {
+    for (const id of ['constructor', 'toString', '__proto__']) {
+      expect(lastQuoteBefore({}, id)).toBeUndefined();
+      expect(yesterdayQuote({}, id)).toBeUndefined();
+    }
   });
 });
 
@@ -77,13 +71,13 @@ describe('bondAbbrev', () => {
 describe('pendingChange — what the rail names', () => {
   // There is no 26.07 snapshot, so «учора» on the 27th is the 25th. Every case
   // below drafts against that.
-  const snapshots = [complete2507];
+  const previous = previousOn([complete2507], '2026-07-27');
   const assets = SEED_ASSETS;
   const on = '2026-07-27';
   const units = ledgerUnits(SEED_TRANSACTIONS, on).units;
 
   it('is silent until a draft differs from its baseline', () => {
-    expect(pendingChange(assets, units, {}, snapshots, on, 'uk')).toEqual({
+    expect(pendingChange(assets, units, {}, previous, on, 'uk')).toEqual({
       sum: 0,
       changed: 0,
       total: 4,
@@ -93,7 +87,7 @@ describe('pendingChange — what the rail names', () => {
   it('counts a row that is FILLED but unchanged as no change at all', () => {
     // Exactly what the baseline holds for REIT — the row is filled, the portfolio
     // moves by nothing, and `filled(n, m)` would still count it.
-    expect(pendingChange(assets, units, { reit: '68629.36' }, snapshots, on, 'uk')).toEqual({
+    expect(pendingChange(assets, units, { reit: '68629.36' }, previous, on, 'uk')).toEqual({
       sum: 0,
       changed: 0,
       total: 4,
@@ -105,7 +99,7 @@ describe('pendingChange — what the rail names', () => {
       assets,
       units,
       { reit: '68702.10', energy: '60086.09', ovdp8976: '15900' },
-      snapshots,
+      previous,
       on,
       'uk',
     );
@@ -114,14 +108,14 @@ describe('pendingChange — what the rail names', () => {
   });
 
   it('subtracts a NEGATIVE move too — it is a change, not a total', () => {
-    const got = pendingChange(assets, units, { reit: '68000' }, snapshots, on, 'uk');
+    const got = pendingChange(assets, units, { reit: '68000' }, previous, on, 'uk');
     expect(got.changed).toBe(1);
     expect(got.sum).toBeCloseTo(-629.36, 2);
   });
 
   it('ignores a draft the schema refuses', () => {
     for (const bad of ['', 'abc', '-5', '0']) {
-      expect(pendingChange(assets, units, { reit: bad }, snapshots, on, 'uk')).toEqual({
+      expect(pendingChange(assets, units, { reit: bad }, previous, on, 'uk')).toEqual({
         sum: 0,
         changed: 0,
         total: 4,
@@ -137,7 +131,7 @@ describe('pendingChange — what the rail names', () => {
       assets,
       ledgerUnits(SEED_TRANSACTIONS, '2026-07-26').units,
       { reit: '68700' },
-      [complete2507, later],
+      previousOn([complete2507, later], '2026-07-26'),
       '2026-07-26',
       'uk',
     );
@@ -149,7 +143,14 @@ describe('pendingChange — what the rail names', () => {
     // Its row shows no «учора», so there is nothing to be less than — and a first
     // quote is not a change of anything.
     const fresh: Snapshot = { date: '2026-07-25', quotes: { reit: 68629.36 } };
-    const got = pendingChange(assets, units, { energy: '60000' }, [fresh], on, 'uk');
+    const got = pendingChange(
+      assets,
+      units,
+      { energy: '60000' },
+      previousOn([fresh], on),
+      on,
+      'uk',
+    );
     expect(got).toEqual({ sum: 0, changed: 0, total: 4 });
   });
 });
@@ -159,17 +160,18 @@ describe("pendingChange — only the assets the day needs quoted count, over the
   const on = '2026-07-28';
   const four = { reit: '68800', energy: '60100', ovdp6475: '4380', ovdp8976: '15900' };
   const soldOut = ledgerUnits([...SEED_TRANSACTIONS, sale], on).units;
+  const previous = previousOn(snaps, on);
 
   it('leaves a position sold out that day out of the net and of both counts', () => {
     // 97,90 + 13,91 + 5,88; …8976's +53,70 against its 25.07 quote moves nothing 28.07 values.
-    const got = pendingChange(SEED_ASSETS, soldOut, four, snaps, on, 'uk');
+    const got = pendingChange(SEED_ASSETS, soldOut, four, previous, on, 'uk');
     expect(got.changed).toBe(3);
     expect(got.total).toBe(3);
     expect(got.sum).toBeCloseTo(117.69, 2);
   });
 
   it('reads nothing entered when only the sold-out position is drafted', () => {
-    expect(pendingChange(SEED_ASSETS, soldOut, { ovdp8976: '15900' }, snaps, on, 'uk')).toEqual({
+    expect(pendingChange(SEED_ASSETS, soldOut, { ovdp8976: '15900' }, previous, on, 'uk')).toEqual({
       sum: 0,
       changed: 0,
       total: 3,
@@ -178,7 +180,7 @@ describe("pendingChange — only the assets the day needs quoted count, over the
 
   it('counts all four on the seed, where all four are held', () => {
     const units = ledgerUnits(SEED_TRANSACTIONS, on).units;
-    const got = pendingChange(SEED_ASSETS, units, four, snaps, on, 'uk');
+    const got = pendingChange(SEED_ASSETS, units, four, previous, on, 'uk');
     expect(got.changed).toBe(4);
     expect(got.total).toBe(4);
     expect(got.sum).toBeCloseTo(171.39, 2);

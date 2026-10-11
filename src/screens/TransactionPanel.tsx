@@ -14,12 +14,12 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
 import { TAP_44, TAP_44_BOX } from '../components/ui/tap-target';
 import {
-  useAssets,
   useDeleteTransaction,
   useRecordTransaction,
-  useTransactions,
   useUpdateAsset,
+  useView,
 } from '../hooks/queries';
+import { selectLedgerForm } from '../hooks/slices';
 import { rollbackNextCoupon } from '@quirenote/core/accrual';
 import { assetFromForm } from '@quirenote/core/asset-builder';
 import { NumberField } from '../components/ui/NumberField';
@@ -252,9 +252,7 @@ export function TransactionPanel() {
   // UNBOUNDED percent, so a Ukrainian `16,400` read under the English grouping
   // rule stores 16400 with nothing to catch it.
   const newAssetSchema = useMemo(() => assetFormSchema('create', language), [language]);
-  const assetsData = useAssets().data;
-  const assets = useMemo(() => assetsData ?? [], [assetsData]);
-  const transactions = useTransactions().data ?? [];
+  const { assets, transactions } = useView(selectLedgerForm);
   const recordTransaction = useRecordTransaction();
   const deleteTransaction = useDeleteTransaction();
   const updateAsset = useUpdateAsset();
@@ -645,7 +643,7 @@ export function TransactionPanel() {
                     value={field.value}
                     onValueChange={field.onChange}
                     placeholder={t.transaction.assetPlaceholder}
-                    // Reachable with no assets at all, or on a press before `useAssets()` resolves:
+                    // Reachable with no assets at all, or on a press before the view has been read:
                     // the schema refuses an empty id on a type that needs one.
                     invalid={fieldState.invalid}
                     options={[

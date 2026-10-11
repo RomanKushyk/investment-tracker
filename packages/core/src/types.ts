@@ -37,7 +37,7 @@ export interface Asset {
   targetPct: number;
   payoutSchedule: PayoutSchedule;
   firstPurchase: string; // ISO yyyy-MM-dd (all dates below too)
-  createdAt: string; // ISO datetime — listAssets display order
+  createdAt: string; // ISO datetime — display order (`servedInput`)
   maturity?: string;
   /**
    * THE RATE, not the amount, because the rate is what a bond actually has: set at
