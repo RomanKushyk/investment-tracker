@@ -30,7 +30,6 @@ interface SettingsState {
    *  preference. */
   currency: 'UAH' | 'USD';
   defaultCurrency: 'UAH' | 'USD';
-  usdRate: number;
   theme: Theme;
   language: Language;
   autoQuoteSuggest: boolean;
@@ -56,7 +55,6 @@ interface SettingsState {
    *  effect until the next reload reads as a control that does nothing. The reverse
    *  does not hold. */
   setDefaultCurrency: (c: 'UAH' | 'USD') => void;
-  setUsdRate: (rate: number) => void;
   setTheme: (t: Theme) => void;
   setLanguage: (l: Language) => void;
   setAutoQuoteSuggest: (on: boolean) => void;
@@ -73,7 +71,6 @@ export interface PersistedSettings {
   // The DEFAULT, not the live value. Stored under the old `currency` key until the
   // split; `migrateSettings` still reads that key — see the PERMANENT note there.
   defaultCurrency: 'UAH' | 'USD';
-  usdRate: number;
   // Doctrine 2 below binds `theme`, and not the `language` after it, to the top level of
   // the persisted JSON.
   theme: Theme;
@@ -94,7 +91,6 @@ export interface PersistedSettings {
 // The account's ten come from core, the rule for each being the one the server runs on a write.
 const PERSISTED_DEFAULTS: PersistedSettings = {
   ...SETTINGS_DEFAULTS,
-  usdRate: 44.83,
   theme: 'system',
 };
 
@@ -114,10 +110,6 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
   // written restores through this line. Remove it and restore silently falls back.
   return {
     ...sanitiseSettings({ ...p, defaultCurrency: p.defaultCurrency ?? p.currency }),
-    usdRate:
-      typeof p.usdRate === 'number' && Number.isFinite(p.usdRate) && p.usdRate > 0
-        ? p.usdRate
-        : PERSISTED_DEFAULTS.usdRate,
     // Must agree with the head script, which cannot import this: an unrecognised value
     // is 'system', never a guess at what the user meant.
     theme: isTheme(p.theme) ? p.theme : PERSISTED_DEFAULTS.theme,
@@ -126,8 +118,8 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
 
 /**
  * The persist `merge` option, and why both are wired: `migrate` runs only on a version
- * mismatch, so a hand-edited same-version payload would land unvalidated — a rate of 0
- * putting Infinity in the $ figures. This runs on EVERY rehydrate.
+ * mismatch, so a hand-edited same-version payload would land unvalidated — a period nothing
+ * resolves a window for. This runs on EVERY rehydrate.
  */
 export function mergeSettings(persisted: unknown, current: SettingsState): SettingsState {
   const merged = migrateSettings(persisted);
@@ -150,7 +142,6 @@ export const useSettings = create<SettingsState>()(
     (set) => ({
       currency: 'UAH',
       defaultCurrency: 'UAH',
-      usdRate: 44.83,
       theme: 'system',
       language: 'uk',
       autoQuoteSuggest: true,
@@ -163,7 +154,6 @@ export const useSettings = create<SettingsState>()(
       period: 'all',
       setCurrency: (currency) => set({ currency }),
       setDefaultCurrency: (defaultCurrency) => set({ defaultCurrency, currency: defaultCurrency }),
-      setUsdRate: (usdRate) => set({ usdRate }),
       // No DOM write — `useTheme` owns the attribute, so there is one writer.
       setTheme: (theme) => set({ theme }),
       // core/money.ts takes the language as a parameter rather than a module global,
@@ -202,7 +192,6 @@ export const useSettings = create<SettingsState>()(
         // `currency` is deliberately NOT here: a field in this object is a field
         // that survives a reload, and the session value must not.
         defaultCurrency: s.defaultCurrency,
-        usdRate: s.usdRate,
         theme: s.theme,
         language: s.language,
         autoQuoteSuggest: s.autoQuoteSuggest,

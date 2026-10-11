@@ -105,19 +105,6 @@ function marksOf(lang: Lang): { group: string; decimal: string } {
  *  can neither show nor read back. */
 const PLAIN = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20, useGrouping: false });
 
-/**
- * LANGUAGE-FREE on purpose: what a field stores is canonical, so its validity
- * cannot depend on which language is on screen — validating under the live one is
- * how a box and its store come to disagree.
- */
-export function storedNumber(value: string): number | undefined {
-  if (!CANONICAL.test(value)) return undefined;
-  const held = Number(value);
-  // FINITE, which a digit run long enough to overflow is not: `Infinity` is
-  // positive, so it passes a caller’s range check, and `persist` writes it as `null`.
-  return Number.isFinite(held) ? held : undefined;
-}
-
 export function inputValue(n: number, fractionDigits?: number): string {
   // A field shows nothing rather than the word NaN, which it could not read back.
   if (!Number.isFinite(n)) return '';

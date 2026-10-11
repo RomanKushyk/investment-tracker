@@ -14,7 +14,6 @@ import {
 
 const DEFAULTS: PersistedSettings = {
   defaultCurrency: 'UAH',
-  usdRate: 44.83,
   theme: 'system',
   language: 'uk',
   autoQuoteSuggest: true,
@@ -35,15 +34,15 @@ vi.mock('@quirenote/core/settings', async (importOriginal) => {
 });
 
 // A v0 payload is what zustand persisted before `version: 1` — the `state` part of
-// `{"state":{"currency":…},"version":0}`. v0 and v1.1 carry no usdRate,
-// so both fill from defaults.
+// `{"state":{"currency":…},"version":0}`, which lacks most of today's fields, so they fill from
+// defaults.
 //
 // EVERY PAYLOAD HERE WRITES `currency`, WHICH IS THE LEGACY KEY — the field persists
 // as `defaultCurrency` since the split. Left that way on purpose: each one then
 // doubles as a check that a payload written by a pre-split build still hydrates,
 // the compatibility that let the split ship without a `version` bump.
 describe('migrateSettings', () => {
-  it('hands the account’s fields to core’s sanitiser and answers the three it keeps itself', () => {
+  it('hands the account’s fields to core’s sanitiser and answers the theme it keeps itself', () => {
     vi.mocked(sanitiseSettings).mockClear();
     const sane = migrateSettings({
       currency: 'USD',
@@ -58,8 +57,8 @@ describe('migrateSettings', () => {
       defaultCurrency: 'USD',
       period: '3m',
     });
-    expect(Object.keys(sane).sort()).toEqual([...SETTING_NAMES, 'theme', 'usdRate'].sort());
-    expect(sane).toMatchObject({ theme: 'dark', usdRate: 41.2 });
+    expect(Object.keys(sane).sort()).toEqual([...SETTING_NAMES, 'theme'].sort());
+    expect(sane).toMatchObject({ theme: 'dark' });
   });
 
   it('keeps a valid persisted currency from a v0 payload', () => {
@@ -114,22 +113,6 @@ describe('migrateSettings', () => {
     expect(migrateSettings('garbage')).toEqual(DEFAULTS);
   });
 
-  it('keeps a valid persisted usdRate', () => {
-    expect(migrateSettings({ currency: 'UAH', usdRate: 41.2 })).toEqual({
-      ...DEFAULTS,
-      usdRate: 41.2,
-    });
-  });
-
-  it('falls back to the default rate for invalid usdRate values', () => {
-    // The validity rule: a finite number above 0.
-    expect(migrateSettings({ currency: 'UAH', usdRate: '44.83' })).toEqual(DEFAULTS);
-    expect(migrateSettings({ currency: 'UAH', usdRate: 0 })).toEqual(DEFAULTS);
-    expect(migrateSettings({ currency: 'UAH', usdRate: -5 })).toEqual(DEFAULTS);
-    expect(migrateSettings({ currency: 'UAH', usdRate: NaN })).toEqual(DEFAULTS);
-    expect(migrateSettings({ currency: 'UAH', usdRate: Infinity })).toEqual(DEFAULTS);
-  });
-
   it('keeps each of the three themes, and defaults to system', () => {
     for (const theme of ['light', 'dark', 'system'] as const) {
       expect(migrateSettings({ theme })).toEqual({ ...DEFAULTS, theme });
@@ -169,7 +152,7 @@ describe('migrateSettings', () => {
   // Both switches default ON, and a v1 payload written before they existed (the
   // shape on every existing profile) must hydrate to ON.
   it('defaults the automation switches ON and keeps an explicit OFF', () => {
-    expect(migrateSettings({ currency: 'UAH', usdRate: 44.83 })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'UAH' })).toEqual(DEFAULTS);
     expect(migrateSettings({ autoQuoteSuggest: false, couponSuggest: false })).toEqual({
       ...DEFAULTS,
       autoQuoteSuggest: false,
@@ -221,16 +204,19 @@ describe('migrateSettings', () => {
 // The persist `merge` option (mergeSettings): zustand runs `migrate` ONLY when the
 // stored version differs from the store's, so same-version payloads reach the store
 // exclusively through `merge` and it must apply the same sanitization. A hand-edited
-// v1 payload is the shape that matters: an unsanitized store would hydrate usdRate:0 and
-// put Infinity in the $ figures. The function and not
+// v1 payload is the shape that matters: an unsanitized store would hydrate a period nothing
+// resolves a window for. The function and not
 // the wiring, which is one declarative line at the same trust level as
 // `migrate: migrateSettings` above.
 describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   const current = useSettings.getInitialState();
 
   it('sanitizes a tampered same-version (v1) payload', () => {
-    const merged = mergeSettings({ currency: 'UAH', usdRate: 0, autoQuoteSuggest: 'yes' }, current);
-    expect(merged.usdRate).toBe(44.83); // finite and > 0
+    const merged = mergeSettings(
+      { currency: 'UAH', period: '1y', autoQuoteSuggest: 'yes' },
+      current,
+    );
+    expect(merged.period).toBe('all'); // not one of the six
     expect(merged.currency).toBe('UAH');
     expect(merged.autoQuoteSuggest).toBe(true); // non-boolean → default ON
   });
@@ -244,13 +230,11 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
     const merged = mergeSettings(
       {
         currency: 'USD',
-        usdRate: 41.2,
         couponSuggest: false,
         dismissedReminders: ['coupon:ovdp8976:2026-08-25'],
       },
       current,
     );
-    expect(merged.usdRate).toBe(41.2);
     expect(merged.currency).toBe('USD');
     expect(merged.couponSuggest).toBe(false);
     expect(merged.dismissedReminders).toEqual(['coupon:ovdp8976:2026-08-25']);
@@ -259,7 +243,6 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   it('preserves the non-persisted store surface (actions)', () => {
     const merged = mergeSettings({ currency: 'USD' }, current);
     expect(merged.setCurrency).toBe(current.setCurrency);
-    expect(merged.setUsdRate).toBe(current.setUsdRate);
     expect(merged.setAutoQuoteSuggest).toBe(current.setAutoQuoteSuggest);
     expect(merged.setCouponSuggest).toBe(current.setCouponSuggest);
     expect(merged.setRemindersEnabled).toBe(current.setRemindersEnabled);
@@ -617,5 +600,26 @@ describe('the store holds no dataset', () => {
     const state = useSettings.getInitialState();
     expect(Object.keys(state)).not.toContain('dataset');
     expect(Object.keys(state)).not.toContain('setDataset');
+  });
+});
+
+// THE RATE IS THE SERVER'S (#408): `/view` serves the one a conversion uses, so no setting names
+// one. A profile written while one did still carries the key, and it is read past rather than applied.
+describe('the store holds no rate', () => {
+  const STALE = [41.2, 0, '44.83', null];
+
+  it('reads a stored rate past, whatever it says', () => {
+    for (const usdRate of STALE) {
+      expect(Object.keys(migrateSettings({ usdRate }))).not.toContain('usdRate');
+      expect(Object.keys(mergeSettings({ usdRate }, useSettings.getInitialState()))).not.toContain(
+        'usdRate',
+      );
+    }
+  });
+
+  it('keeps no rate on the store, to set or to read', () => {
+    const state = useSettings.getInitialState();
+    expect(Object.keys(state)).not.toContain('usdRate');
+    expect(Object.keys(state)).not.toContain('setUsdRate');
   });
 });

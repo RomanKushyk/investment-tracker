@@ -106,13 +106,9 @@ export function resultLine(
   );
 }
 
-export function settingsOptInHelper(
-  settings: { currency: 'UAH' | 'USD'; usdRate: number },
-  f: Format,
-  t: Dict,
-): string {
+export function settingsOptInHelper(settings: { currency: 'UAH' | 'USD' }, t: Dict): string {
   const symbol = settings.currency === 'UAH' ? '₴ UAH' : '$ USD';
-  return t.importing.settingsOptInHelper(symbol, f.units(settings.usdRate));
+  return t.importing.settingsOptInHelper(symbol);
 }
 
 export function safetyBackupLine(name: string, done: boolean, t: Dict): string {

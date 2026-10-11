@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * imported into production between a merge and the next promotion — and without
  * the bump that refusal arrives as a wall of per-row errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 15;
+export const BACKUP_FORMAT_VERSION = 16;
 
 // A CALENDAR date (RFC 3339 §5.7), not a shape: `Date` rolls `2026-02-30` into March.
 // Any string that is not one takes the sentence; a missing or non-string value keeps zod's.
@@ -212,7 +212,6 @@ export const assetRecordSchema = assetRowSchema.extend({
 
 const settingsSchema = z.strictObject({
   currency: z.enum(['UAH', 'USD']),
-  usdRate: z.number(),
 });
 
 export const backupEnvelopeSchema = z.strictObject({

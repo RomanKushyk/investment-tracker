@@ -274,6 +274,7 @@ const STORE = ['src/lib/repository.ts', 'src/lib/api.ts', '@tanstack/react-query
 // Each file that calls `useView`, once: the screens, the forms and the hooks that read the view.
 const VIEW_READERS = [
   'src/hooks/useCapitalCard.ts',
+  'src/hooks/useFxRate.ts',
   'src/hooks/usePeriodWindow.tsx',
   'src/hooks/useReminders.ts',
   'src/screens/Allocation.tsx',
@@ -295,7 +296,6 @@ const STORE_READERS: Record<string, string> = {
     'the one client of the user API and the one query cache, made with their session',
   'src/main.tsx': 'the query client provider',
   'src/hooks/useInzhurAssets.ts': 'the Inzhur feed, a query of its own',
-  'src/hooks/useNbuRate.ts': 'the NBU rate, a query of its own',
 };
 
 const { options: OPTIONS } = ts.convertCompilerOptionsFromJson(

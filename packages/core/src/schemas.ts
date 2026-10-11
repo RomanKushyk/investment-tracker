@@ -79,8 +79,8 @@ export function normalizeNumberInput(input: string, groupsWithComma: boolean): s
  */
 export const UNREADABLE = 'invalid_type';
 
-/** WHAT A FIELD MAY HOLD AS A NUMBER. Both readers need it — this file’s transform
- *  and `money.ts`’s `storedNumber` — and two copies is how they came to disagree. */
+/** WHAT A FIELD MAY HOLD AS A NUMBER. This file’s transform and `money.ts`’s `valueFromInput` and
+ *  `groupedForInput` all test it, and two copies is how they came to disagree. */
 export const CANONICAL = /^[+-]?(\d+\.?\d*|\.\d+)$/;
 
 /** THE ONE READER of a field’s text: bare `Number()` also reads `1.2E+09`, `0x10`

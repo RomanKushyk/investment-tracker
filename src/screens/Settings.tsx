@@ -4,17 +4,15 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
-import { NumberField } from '../components/ui/NumberField';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
-import { inputValue, storedNumber } from '@quirenote/core/money';
+import { inputValue } from '@quirenote/core/money';
 import { THEME_ORDER, useSettings } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
 import { ImportRow } from './settings/ImportRow';
-import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
 import { useBackupDownload } from '../hooks/useBackupDownload';
 import { useT } from '../i18n/useT';
@@ -156,86 +154,7 @@ function ThemeControl() {
   );
 }
 
-// Stored language-free and shown by `NumberField` in the language on screen, so
-// validity is language-free too: an invalid or ≤0 value never reaches the store
-// and the last valid rate stays in effect.
-const USD_RATE_ERROR_ID = 'usd-rate-error';
-
-/** The rate this text holds, or nothing — a rate is a finite number above zero. */
-function asRate(text: string): number | undefined {
-  const held = storedNumber(text);
-  return held !== undefined && held > 0 ? held : undefined;
-}
-
-function UsdRateField() {
-  const t = useT();
-  const { usdRate, setUsdRate } = useSettings();
-  // Its own string, because a half-typed or refused value is not a rate and must
-  // not reach the store.
-  const [raw, setRaw] = useState(() => inputValue(usdRate));
-  const [error, setError] = useState(false);
-  // ONE READING AND ONE RULE, language-free: what the field STORES is canonical,
-  // and reading it under the live language left a box that had gone green while
-  // `usdRate` held the old number. `asRate` owns what counts as a rate and
-  // `storedNumber` whether the text was readable at all — running them together is
-  // what let «Enter a rate above 0.» answer a pasted «16,5».
-  const valid = asRate(raw) !== undefined;
-  const unreadable = raw.trim() !== '' && storedNumber(raw) === undefined;
-
-  function handleChange(value: string) {
-    setRaw(value);
-    const next = asRate(value);
-    if (next !== undefined) {
-      setError(false);
-      setUsdRate(next);
-    } else {
-      setError(value.trim() !== '');
-    }
-  }
-
-  // Applied HERE rather than by the fetch control, so the stored number and the
-  // draft string this input shows can never disagree.
-  function applyFetched(rate: number) {
-    setRaw(inputValue(rate));
-    setError(false);
-    setUsdRate(rate);
-  }
-
-  return (
-    // The input goes INSIDE the fetch block: the two are one control, and only that
-    // nesting keeps them on one line.
-    <div className="ml-auto flex flex-col items-end gap-2">
-      <NbuRateFetch onApply={applyFetched}>
-        {/* The error travels WITH the input: as a sibling below the fetch block it
-            rendered under the NBU status line, two rows from the field it describes. */}
-        <div className="flex flex-col items-end gap-1">
-          <NumberField
-            id="usd-rate"
-            name="usdRate"
-            value={raw}
-            onChange={handleChange}
-            onBlur={() => setError(!valid)}
-            aria-label={t.settings.rate.ariaLabel}
-            aria-invalid={error}
-            aria-describedby={error ? USD_RATE_ERROR_ID : undefined}
-            className={`h-9 w-[110px] rounded-[9px] border bg-page px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
-          />
-          {error && (
-            <div
-              id={USD_RATE_ERROR_ID}
-              className="animate-in text-right text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
-            >
-              {unreadable ? t.settings.rate.unreadable : t.settings.rate.invalid}
-            </div>
-          )}
-        </div>
-      </NbuRateFetch>
-    </div>
-  );
-}
-
-// Same arming rule as the ₴/$ rate above: an invalid entry never reaches the
-// store, so the last valid lead time stays in effect.
+// An invalid entry never reaches the store, so the last valid lead time stays in effect.
 const LEAD_DAYS_ERROR_ID = 'reminder-lead-days-error';
 
 function LeadDaysField() {
@@ -418,10 +337,6 @@ export function Settings() {
           <Divider />
           <SettingRow title={t.settings.currency.title} helper={t.settings.currency.helper}>
             <CurrencyControl />
-          </SettingRow>
-          <Divider />
-          <SettingRow title={t.settings.rate.title} helper={t.settings.rate.helper}>
-            <UsdRateField />
           </SettingRow>
         </Card>
       </div>

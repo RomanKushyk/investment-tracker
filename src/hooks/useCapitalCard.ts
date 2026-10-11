@@ -3,6 +3,7 @@ import { useSettings } from '../state/settings';
 import { useView, useViewReady } from './queries';
 import { selectCapital } from './slices';
 import { useFormat } from './useFormat';
+import { useFxRate } from './useFxRate';
 import { useTweenedNumber } from './useTweenedNumber';
 
 /**
@@ -35,11 +36,12 @@ export interface CapitalCard {
 
 export function useCapitalCard(): CapitalCard {
   const f = useFormat();
-  const { currency, usdRate } = useSettings();
+  const { currency } = useSettings();
+  const rate = useFxRate();
   const capital = useView(selectCapital);
   const kpis = useViewReady() ? capital : undefined;
   const total = kpis?.total ?? 0;
-  const usdTotal = toUsd(total, usdRate);
+  const usdTotal = toUsd(total, rate);
   const tweened = useTweenedNumber(currency === 'UAH' ? total : usdTotal);
 
   if (!kpis) return { value: '—', pct: undefined, counter: undefined, net: undefined };

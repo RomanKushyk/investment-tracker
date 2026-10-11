@@ -123,11 +123,5 @@ describe('only one control can change the language', () => {
     // re-render for every site on it — which is why those inputs are absent from the four.
     const field = CODE.find(({ name }) => name.endsWith('NumberField.tsx'));
     expect(field?.text).toMatch(/groupedForInput\(value, language\)/);
-    // BOUNDED: no other tag may open between the two, or this passes on any `NumberField`
-    // anywhere above a plain `<input id="usd-rate">`.
-    const settings = CODE.find(({ name }) => name === 'screens/Settings.tsx');
-    expect(settings?.text, 'the rate box went back to holding its own writing').toMatch(
-      /<NumberField[^<>]*\sid="usd-rate"/,
-    );
   });
 });

@@ -207,13 +207,13 @@ describe('backup envelope round-trip on the seed (D12)', () => {
       SEED_ASSETS,
       pricesOfSnapshots(SEED_TRANSACTIONS, snaps),
       SEED_TRANSACTIONS,
-      { currency: 'UAH', usdRate: 44.83 },
+      { currency: 'UAH' },
       '2026-07-28T12:00:00',
     );
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.formatVersion).toBe(15);
+    expect(result.data.formatVersion).toBe(16);
     expect(result.data.assets).toHaveLength(4);
     // One price per quote: the seed quotes a position only while the ledger holds it.
     expect(result.data.prices).toHaveLength(572);

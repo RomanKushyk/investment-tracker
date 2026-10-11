@@ -91,7 +91,7 @@ const TRANSACTIONS: Transaction[] = [
   },
 ];
 
-const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
+const SETTINGS = { currency: 'UAH' } as const;
 
 function envelope(exportedAt = '2026-08-04T12:00:00'): BackupEnvelope {
   return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, exportedAt);
@@ -222,14 +222,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 16 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 16)));
+  it('rejects formatVersion 17 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 17)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(16);
+    expect(result.rejection.version).toBe(17);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 16 — this app reads formatVersion 15 only.',
+      'Unsupported formatVersion 17 — this app reads formatVersion 16 only.',
     );
   });
 
@@ -248,7 +248,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 16;
+        env.formatVersion = 17;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -292,7 +292,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an array) — this app reads formatVersion 15 only.',
+        'Unsupported formatVersion (an array) — this app reads formatVersion 16 only.',
       );
     });
 
@@ -301,7 +301,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an object) — this app reads formatVersion 15 only.',
+        'Unsupported formatVersion (an object) — this app reads formatVersion 16 only.',
       );
     });
 
@@ -312,7 +312,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
       expect(rejection.code).toBe('unsupported-format');
       expect(rejection.version).toBeUndefined();
       expect(rejection.detail).toBe(
-        'Unsupported formatVersion (an array) — this app reads formatVersion 15 only.',
+        'Unsupported formatVersion (an array) — this app reads formatVersion 16 only.',
       );
     });
   });
@@ -675,9 +675,7 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     if (result.ok || result.rejection.kind !== 'rows') return;
     expect(result.rejection.issues[0]).toMatchObject({ table: 'envelope', field: 'exportedAt' });
 
-    const bad = validateImport(
-      mutated((env) => void (env.settings = { currency: 'PLN', usdRate: 44.83 })),
-    );
+    const bad = validateImport(mutated((env) => void (env.settings = { currency: 'PLN' })));
     if (bad.ok || bad.rejection.kind !== 'rows') throw new Error('expected rows');
     expect(bad.rejection.issues[0]).toMatchObject({
       table: 'settings',
@@ -929,6 +927,20 @@ describe('an OLDER backup is named as older, not as broken', () => {
     expect(result.rejection.version).toBe(14);
   });
 
+  it('maps formatVersion 15, whose settings named a rate, to `older-format` (#408)', () => {
+    const result = validateImport(
+      mutated((env) => {
+        env.formatVersion = 15;
+        env.settings = { currency: 'UAH', usdRate: 44.83 };
+      }),
+    );
+    if (result.ok || result.rejection.kind !== 'format') {
+      throw new Error('expected a format reject');
+    }
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(15);
+  });
+
   it('does not call a fractional version an older backup', () => {
     // `1.5` is below the current version and at least 1, so the bare `>= 1` read it as a
     // real backup from an older app and reported "version 1.5". A version counts format
@@ -955,7 +967,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 15');
+    expect(result.rejection.detail).toContain('formatVersion 16');
   });
 });
 

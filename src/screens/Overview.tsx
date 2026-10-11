@@ -13,6 +13,7 @@ import { Share } from '../components/ui/Share';
 import { CashShortChip } from '../components/ui/CashShortChip';
 import { useView } from '../hooks/queries';
 import { overviewOf } from '../hooks/slices';
+import { useFxRate } from '../hooks/useFxRate';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import { toUsd } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
@@ -29,7 +30,7 @@ export function Overview() {
   // NARROWED: `useSettings()` with no selector re-renders this screen on ANY store
   // change — the currency toggle and every unrelated field.
   const currency = useSettings((s) => s.currency);
-  const usdRate = useSettings((s) => s.usdRate);
+  const rate = useFxRate();
   const usd = currency === 'USD';
 
   const { period, control } = usePeriodWindow();
@@ -40,32 +41,30 @@ export function Overview() {
     view;
   const win = view.window;
   // Only these headline cards convert; tables and every other card stay ₴.
-  const capitalUsd = toUsd(total, usdRate);
+  const capitalUsd = toUsd(total, rate);
   const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
   const capital = usd
     ? {
         value: f.money(tweenedCapital, 'USD'),
         // `f.units` on the rate: it is a figure like any other, and a bare 44.83 beside a
         // grouped ₴ total reads as a different notation for the same page.
-        sub: t.analytics.prose.withRate(f.money(total), f.units(usdRate)),
+        sub: t.analytics.prose.withRate(f.money(total), f.units(rate)),
       }
     : {
         value: f.money(tweenedCapital),
-        sub: t.analytics.prose.withRate(f.money(capitalUsd, 'USD'), f.units(usdRate)),
+        sub: t.analytics.prose.withRate(f.money(capitalUsd, 'USD'), f.units(rate)),
       };
 
-  const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, usdRate) : net.uah);
+  const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, rate) : net.uah);
   const netValue = usd ? f.signedMoney(tweenedNet, 'USD') : f.signedMoney(tweenedNet);
 
-  const tweenedTotalReturn = useTweenedNumber(
-    usd ? toUsd(totalReturn.uah, usdRate) : totalReturn.uah,
-  );
+  const tweenedTotalReturn = useTweenedNumber(usd ? toUsd(totalReturn.uah, rate) : totalReturn.uah);
   const totalReturnValue = usd
     ? f.signedMoney(tweenedTotalReturn, 'USD')
     : f.signedMoney(tweenedTotalReturn);
 
-  const depositedUsd = toUsd(deposited, usdRate);
-  const reinvestedUsd = toUsd(reinvested, usdRate);
+  const depositedUsd = toUsd(deposited, rate);
+  const reinvestedUsd = toUsd(reinvested, rate);
   const tweenedDeposited = useTweenedNumber(usd ? depositedUsd : deposited);
   const deposit = usd
     ? {
@@ -77,7 +76,7 @@ export function Overview() {
         sub: t.analytics.prose.plusReinvested(f.money(reinvested)),
       };
 
-  const tweenedCash = useTweenedNumber(usd ? toUsd(cash, usdRate) : cash);
+  const tweenedCash = useTweenedNumber(usd ? toUsd(cash, rate) : cash);
   const cashValue = usd ? f.money(tweenedCash, 'USD') : f.money(tweenedCash);
 
   const shareSegments = view.rows.map((r) => ({
@@ -94,7 +93,7 @@ export function Overview() {
       <ReminderStrip place="overview" />
       <ScreenHeader
         title={t.screen.overview.title}
-        subtitle={t.screen.overview.subtitle(f.date(today), f.units(usdRate))}
+        subtitle={t.screen.overview.subtitle(f.date(today), f.units(rate))}
         actions={control}
       />
 

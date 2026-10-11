@@ -74,7 +74,7 @@ const TRANSACTIONS: Transaction[] = [
   },
 ];
 
-const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
+const SETTINGS = { currency: 'UAH' } as const;
 
 function envelope(): BackupEnvelope {
   return buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
@@ -102,7 +102,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(15);
+    expect(env.formatVersion).toBe(16);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(Object.keys(env)).not.toContain('dbVersion');
     expect(env.settings).toEqual(SETTINGS);
@@ -311,13 +311,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 16 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 16)));
+  it('rejects formatVersion 17 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 17)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 16/);
-    expect(result.issues[0]).toMatch(/formatVersion 15/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 17/);
+    expect(result.issues[0]).toMatch(/formatVersion 16/);
   });
 
   // `String` of a parsed value can throw: an array joins itself once per level of nesting, and
@@ -351,19 +351,19 @@ describe('parseBackup rejections', () => {
 
     it('a formatVersion that is an array nested 20,000 deep', () => {
       expect(oneIssue(deepArrayAt('formatVersion'))).toMatch(
-        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 15 only\./,
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 16 only\./,
       );
     });
 
     it('a formatVersion whose toString is not callable', () => {
       expect(oneIssue(mutated((env) => void (env.formatVersion = { toString: 1 })))).toMatch(
-        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 15 only\./,
+        /^Unsupported formatVersion \(an object\) — this app reads formatVersion 16 only\./,
       );
     });
 
     it('a formatVersion that is an array holding such an object', () => {
       expect(oneIssue(mutated((env) => void (env.formatVersion = [{ toString: 1 }])))).toMatch(
-        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 15 only\./,
+        /^Unsupported formatVersion \(an array\) — this app reads formatVersion 16 only\./,
       );
     });
   });
@@ -499,7 +499,7 @@ describe('parseBackup rejections', () => {
       amount: 1000,
     };
     const env = buildBackup(ASSETS, PRICES, [legacy], SETTINGS, '2026-09-01T12:00:00');
-    expect(env.formatVersion).toBe(15);
+    expect(env.formatVersion).toBe(16);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -1262,5 +1262,45 @@ describe('the envelope names no database version', () => {
     const result = parseBackup(JSON.stringify({ ...written, dbVersion: 2 }));
     if (result.ok) throw new Error('expected a refusal');
     expect(result.issues).toEqual(['(root): Unrecognized key: "dbVersion"']);
+  });
+});
+
+// THE RATE LEFT WITH THE SETTING (#408): a conversion uses the rate `/view` serves, so the file
+// carries none and a reader that stops allowing the member accepts strictly less, which is the
+// narrowing the version gate is for.
+describe('the envelope’s settings name no rate', () => {
+  const LAST_WITH_RATE = JSON.stringify({
+    format: 'quirenote-backup',
+    formatVersion: 15,
+    exportedAt: '2026-07-28T12:00:00',
+    assets: [],
+    prices: [],
+    transactions: [],
+    settings: { currency: 'UAH', usdRate: 44.83 },
+  });
+
+  it('writes the currency alone, and a file written now parses', () => {
+    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
+    expect(written.settings).toEqual({ currency: 'UAH' });
+    const parsed = parseBackup(JSON.stringify(written));
+    if (!parsed.ok) throw new Error(`expected the file to pass: ${parsed.issues.join('; ')}`);
+    expect(parsed.data).toEqual(written);
+  });
+
+  it('refuses a file that still carries one, as the older version it is', () => {
+    const result = parseBackup(LAST_WITH_RATE);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.issues).toEqual([
+      `Unsupported formatVersion 15 — this app reads formatVersion ${BACKUP_FORMAT_VERSION} only.`,
+    ]);
+  });
+
+  it('refuses the current version carrying one as a stray key', () => {
+    const written = buildBackup(ASSETS, PRICES, TRANSACTIONS, SETTINGS, '2026-07-28T12:00:00');
+    const result = parseBackup(
+      JSON.stringify({ ...written, settings: { ...written.settings, usdRate: 44.83 } }),
+    );
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.issues).toEqual(['settings: Unrecognized key: "usdRate"']);
   });
 });

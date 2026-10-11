@@ -145,7 +145,6 @@ export function ImportDialog({
         // only, where it evaporates on the next reload — a restored setting that
         // silently un-restores itself.
         useSettings.getState().setDefaultCurrency(sane.defaultCurrency);
-        useSettings.getState().setUsdRate(sane.usdRate);
       }
       toast.success(importToasts(t).success(shown.after));
       onClose();
@@ -263,7 +262,7 @@ function Preview({
             <span className="flex-1">
               <span className="block text-[13px]">{t.importing.preview.settingsOptIn}</span>
               <span className="mt-[3px] block text-[11px] leading-relaxed text-muted">
-                {settingsOptInHelper(envelope.settings, f, t)}
+                {settingsOptInHelper(envelope.settings, t)}
               </span>
             </span>
           </label>

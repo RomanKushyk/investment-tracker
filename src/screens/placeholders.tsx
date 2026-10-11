@@ -20,7 +20,6 @@ import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useToday } from '../hooks/useToday';
 import { useT } from '../i18n/useT';
-import { useSettings } from '../state/settings';
 
 /** The period control's slot: the select and the line that names its window. */
 function PeriodSlot() {
@@ -89,13 +88,13 @@ export function OverviewPlaceholder() {
   const f = useFormat();
   const t = useT();
   const today = useToday();
-  const usdRate = useSettings((s) => s.usdRate);
   const o = t.analytics.overview;
   return (
     <PlaceholderScreen>
       <ScreenHeader
         title={t.screen.overview.title}
-        subtitle={t.screen.overview.subtitle(f.date(today), f.units(usdRate))}
+        // The rate is the view's, and nothing is known of it before the view answers.
+        subtitle={t.screen.overview.subtitle(f.date(today), '—')}
         actions={<PeriodSlot />}
       />
       <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">

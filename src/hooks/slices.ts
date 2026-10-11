@@ -19,6 +19,9 @@ function perPeriod<T>(pick: (body: ViewBody, period: PeriodOption) => T) {
 
 export const selectCapital = (body: ViewBody) => body.view.capital;
 
+/** The official rate under its day, or none: what a ₴ figure is converted at. */
+export const selectFx = (body: ViewBody) => body.fx;
+
 /** What the period control spans: the whole history, whatever period is chosen. */
 export const selectSpan = (body: ViewBody) => ({ window: body.view.periods.all.window });
 

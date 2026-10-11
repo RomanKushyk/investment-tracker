@@ -21,6 +21,7 @@ import {
   dayBody,
   seriesBody,
   viewBody,
+  type Fx,
   type ServedRows,
 } from '@quirenote/core/view/serve';
 
@@ -62,6 +63,8 @@ export interface FakeApi {
   fetch: typeof fetch;
   /** The dataset the API holds. */
   rows: Rows;
+  /** The official rate `/view` answers with, under its day. None answers `fx: null`. */
+  fx: Fx | undefined;
   /** Writes so far: the strong tag is `"<version>"`. */
   version: number;
   /** Every request to a data route, in order. */
@@ -85,6 +88,7 @@ export function fakeApi(
   const api: FakeApi = {
     fetch: undefined as unknown as typeof fetch,
     rows: structuredClone({ assets: [], transactions: [], prices: [], ...initial }),
+    fx: undefined,
     version: 0,
     seen: [],
     notModified: 0,
@@ -103,8 +107,10 @@ export function fakeApi(
     paymentDates: [],
     today,
   });
-  /** The weak validator of a read: the dataset's version, the day, and the route with its query. */
-  const validator = (route: string) => `W/"${api.version}:${today}:${route}"`;
+  /** The weak validator of a read: the dataset's version, the day, the rate and its day, and the
+   *  route with its query. */
+  const validator = (route: string) =>
+    `W/"${api.version}:${today}:${api.fx?.rate ?? ''}@${api.fx?.date ?? ''}:${route}"`;
   const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), {
       status,
@@ -345,7 +351,7 @@ export function fakeApi(
     const rows = served();
     if (path === '/view') {
       return json(
-        { ...viewBody({ ...rows, fx: undefined }), settings: SETTINGS_DEFAULTS, etag: api.tag() },
+        { ...viewBody({ ...rows, fx: api.fx }), settings: SETTINGS_DEFAULTS, etag: api.tag() },
         200,
         headers,
       );

@@ -175,5 +175,4 @@ export interface QuoteOrigin {
 
 export interface Settings {
   currency: 'UAH' | 'USD';
-  usdRate: number; // 44.83
 }

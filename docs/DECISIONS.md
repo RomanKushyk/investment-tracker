@@ -67,20 +67,20 @@ it through `repository.ts`, the one client of the user API (*Cloud target*), and
 between loads: a sign-out empties the memory, the tag a write goes under and the quote draft's
 stored keys (*Auth model*), and the transport asks the browser's HTTP cache to store no answer,
 since nothing clears that. What the browser's own storage holds is the person's settings, the
-draft of the day's quotes, and the last good Inzhur payload with its parse record and the last
-NBU rate, each under a key of its own. Every persisted setting joins `partialize` in the commit
+draft of the day's quotes, and the last good Inzhur payload with its parse record, each under a key
+of its own. Every persisted setting joins `partialize` in the commit
 that adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
 One the platform answers each time it is asked — reduced motion, the colour the OS resolves, the
 viewport's side of the breakpoint — is DERIVED and stored nowhere. One naming a thing only this
 device holds, or offering to defer to what this device's platform answers, is PER-DEVICE and stays
 with that device: a provider payload's cache under a key of its own, and THE THEME, whose `system`
 defers to the OS's colour scheme. The
-rest but `usdRate` are a person's choices, and AT THE MIGRATION THEY FOLLOW THE ACCOUNT: the default
+rest are a person's choices, and AT THE MIGRATION THEY FOLLOW THE ACCOUNT: the default
 currency, the language, the period, both suggestion switches, the reminder switch and its lead, the
-dismissed reminders with the skipped coupons among them, the collapsed nav groups and the rail. At
-the migration `usdRate` retires, the rate being the server's row (*External sources*). A `dataset`
-key a profile still holds, from a build that offered the choice, is read past, and the store's next
-write leaves it out. `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
+dismissed reminders with the skipped coupons among them, the collapsed nav groups and the rail. The
+rate a conversion uses is none of them: it is the server's row, which `/view` serves as `fx`
+(*External sources*), and the store holds none. A `dataset` or `usdRate` key a profile still holds,
+from a build that kept one, is read past, and the store's next write leaves it out. `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
 `system | light | dark`, `system` by default, and the resolved colour is never stored. From the
 migration THE DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which the
 account's answer overwrites on every load, because a paint comes before that answer: the shell's
@@ -90,11 +90,10 @@ TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their defaults
 FIELDS IT NAMES onto those stored and leaves the rest as they are, `PATCH /settings` being that
 write and `/view` the read (*Cloud target*); and the sanitiser of those fields, `migrateSettings`'
 rule for each, is core's (`settings.ts`), so both sides run it: the server on a write and on the
-read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member carries no per-device field: today a restore the person opts into
-sets the device's default currency and rate, and from the migration it sets the account's default
-currency.
-The JSON backup envelope names no dataset and no database version and refuses a newer, an older
-and an unreadable version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
+read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member is the default currency alone, with no per-device field and no
+rate: a restore the person opts into sets it, the device's today and from the migration the account's.
+The JSON backup envelope names no dataset, no database version and no rate, and refuses a newer, an
+older and an unreadable version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
 `inzhur` — and AN ASSET ID THAT IS ANY OWN PROPERTY NAME OF `Object.prototype`
 (`__proto__`, `constructor`, `toString`, `valueOf`, `hasOwnProperty` and the rest), both by place
 and before the row schemas. THE FILE CARRIES PER-UNIT PRICES, NOT THE STORE'S ₴ SNAPSHOTS, as the
@@ -119,8 +118,9 @@ nothing, is the way out.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
 work is what the dialog must state before the press. The envelope's version tracks what a build
 ACCEPTS, not how long ago it shipped, so two live builds cannot share a number and disagree about
-fields — which is why a projecting writer bumps nothing, and why dropping the dataset and then the
-database version from the envelope each bumped it: a file that still names one is an older build's.
+fields — which is why a projecting writer bumps nothing, and why dropping the dataset, then the
+database version and then the rate from the envelope each bumped it: a file that still names one is
+an older build's.
 A strict reader needs a strict writer, so the file is read back through the parser before it is
 saved and a download that fails it is shut, both destructive dialogs' backup and the import's
 safety backup with it. The export is terminal, the server the only truth and the file there to be
@@ -600,7 +600,8 @@ separates completely per language: Ukrainian groups on whitespace and reads both
 decimal, English keeps the comma as grouping, and when both marks appear the last one is the
 decimal. A currency token beside the number is dropped before the grammar reads it; a token alone or
 any other letter is not, so `12abc` stays refused. The ₴/$ toggle converts the DISPLAY of headline
-KPIs and the sidebar capital only; tables stay in ₴, and dates are `dd.MM.yyyy`. Faces: Manrope for
+KPIs and the sidebar capital only, at the rate `/view` serves (*External sources*) and to «—» where
+it serves none; tables stay in ₴, and dates are `dd.MM.yyyy`. Faces: Manrope for
 headings, buttons and KPI numbers, JetBrains Mono for body and tables, and `body` sets
 `font-variant-numeric: tabular-nums`. Google's button alone takes Google Sans Medium, the face
 Google's guidelines fix for it; its Cyrillic subset carries the Ukrainian label (*Auth model*). A field holding an unsaved number STORES A LANGUAGE-FREE
@@ -610,9 +611,13 @@ under English.
 **Why.** A face without Cyrillic drops the app into a system fallback the moment the default
 language applies. Manrope's figures are proportional and it ships `tnum`, so the one rule on `body`
 is what buys the aligned KPI column, and `src/ui-face.test.ts` fails if the face and the rule are
-ever separated.
+ever separated. A missing rate is NaN rather than 0 or one held from before, so the display boundary
+(*Metric families and windows*) renders every figure converted with it «—», and no call site has an
+empty case of its own.
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · Judging a
-pasted mark the way a typed one is judged: it turns a refusal into a silent thousandfold.
+pasted mark the way a typed one is judged: it turns a refusal into a silent thousandfold. · A
+conversion at a default rate or one held from an earlier answer: a figure at a rate nobody served is
+a wrong number that reads as a right one.
 
 ## Shape system
 **Decision.** Nothing in the app is a capsule. A standalone control takes `round(min(w, h) × 0.26)`
@@ -775,7 +780,8 @@ ahead by a schedule once NBU has set tomorrow's rate, in a transaction holding t
 today's row, else a fetch stored the same way, else the latest earlier rate under its own date. A
 failed fetch is stored nowhere, and the same reader does not ask again inside RFC 2308's ceiling
 on caching a failure. The fetch is no crawl and checks no
-`robots.txt`.
+`robots.txt`. THE APP FETCHES NO RATE AND STORES NONE: it converts at `/view`'s `fx`, the rate with
+the day it is NBU's for, and a figure converted with none reads «—» (*Language, numbers, fonts*).
 **Why.** A blanket `Disallow` is final even where a statute licenses the use: any exception is a
 rule every future source inherits with no bright line. And a false "this source is dead" does not
 fail loudly, it stops anyone looking again. RFC 9309 binds the URI requested and exempts none
@@ -786,7 +792,7 @@ basis across the switch. NBU Board Resolution 148 sets a date's official rate on
 before it takes effect, and weekends and holidays keep the last one, so every date answers and a
 stored row is final. A Lambda's module scope cannot hold the day's rate, each concurrent request
 running in an environment of its own, so it is a row. Serving the last good rate on a failure is
-RFC 5861's stale-if-error, labelled with its date as the client's fallback labels it. RFC 9309
+RFC 5861's stale-if-error, and the rate keeps its own date. RFC 9309
 scopes robots rules to crawlers, and bank.gov.ua's robots file disallows nothing.
 **Rejected.** Crawling a disallowed path while claiming to respect the site's rules: self-refuting.
 · Checking the first URL only: a redirect would then carry a fetch past the rules unseen. · Any
@@ -796,7 +802,9 @@ published — the document list is read because the provider's own page sends th
 hand-written decoder for the page's state: the site's serializer reads it exactly. · The rate in
 the archive: a user stack cannot write it, and the archive keeps the provider's conversion out on
 purpose. · A rate fetched live per request and cached in memory: the next concurrent request runs
-where that memory is not.
+where that memory is not. · A rate the person types, or fetches from the browser on a press and
+applies: nothing says it is last year's, and the browser would depend on NBU's CORS policy where
+one stored row serves every viewer.
 
 ## Alerting
 **Decision.** No SNS topic, and the alarms carry no `AlarmActions` at all: CloudWatch publishes

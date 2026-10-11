@@ -75,13 +75,7 @@ const planOf = async (rows: Pick<Rows, 'assets' | 'transactions' | 'prices'>) =>
 async function exportText(repo: Repository): Promise<string> {
   const { assets, transactions, prices } = await repo.exportState();
   return JSON.stringify(
-    buildBackup(
-      assets,
-      prices,
-      transactions,
-      { currency: 'UAH', usdRate: 44.83 },
-      '2026-08-04T12:00:00',
-    ),
+    buildBackup(assets, prices, transactions, { currency: 'UAH' }, '2026-08-04T12:00:00'),
   );
 }
 

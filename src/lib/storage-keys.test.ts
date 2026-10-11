@@ -1,5 +1,5 @@
 // A key rename is not a find-and-replace: the key IS the data, so an untested
-// migration silently resets currency, rate and every dismissal.
+// migration silently resets currency and every dismissal.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -15,7 +15,6 @@ function fakeStorage(seed: Record<string, string> = {}) {
 const PROFILE = JSON.stringify({
   state: {
     currency: 'USD',
-    usdRate: 41.5,
     dataset: 'live',
     dismissedReminders: ['coupon:x:2026-09-23'],
   },

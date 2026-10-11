@@ -52,6 +52,7 @@ afterAll(() => vi.unstubAllGlobals());
 
 const { ImportRow } = await import('./ImportRow');
 const { session } = await import('../../auth/app');
+const { useSettings } = await import('../../state/settings');
 
 const SEED = buildSeedBackup('2026-07-28T12:00:00');
 const TODAY = '2026-07-28';
@@ -76,7 +77,10 @@ beforeEach(async () => {
   saved.length = 0;
   await session.restore();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  useSettings.setState(useSettings.getInitialState(), true);
+});
 
 function mount() {
   const view = render(
@@ -156,6 +160,27 @@ describe('confirming', () => {
     });
     expect(requests('POST', '/imports/')).toHaveLength(1);
     expect(requests('POST', '/imports/')[0].headers['if-match']).toBe('"0"');
+  });
+
+  it('restores the default currency the file carries when the opt-in is ticked, and nothing else of the settings', async () => {
+    const before = useSettings.getState();
+    const { pick } = mount();
+    await pick(fileOf(JSON.stringify({ ...SEED, settings: { currency: 'USD' } })));
+    expect(await screen.findByText(uk.importing.settingsOptInHelper('$ USD'))).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(await confirm());
+
+    await waitFor(() => expect(useSettings.getState().defaultCurrency).toBe('USD'));
+    const { defaultCurrency, currency, ...kept } = useSettings.getState();
+    const { defaultCurrency: wasDefault, currency: wasCurrency, ...was } = before;
+    expect([defaultCurrency, currency, wasDefault, wasCurrency]).toEqual([
+      'USD',
+      'USD',
+      'UAH',
+      'UAH',
+    ]);
+    expect(kept).toEqual(was);
   });
 
   it('shows the diff again, and replaces nothing, when the dataset moved since it was shown', async () => {

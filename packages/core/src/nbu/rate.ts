@@ -1,5 +1,5 @@
 // The National Bank’s official exchange rate, PURE half — no fetch, no clock, no
-// storage. The network half is `src/hooks/useNbuRate.ts`.
+// storage. The network half is `infra/src/official-rate.ts`.
 //
 //   GET https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange
 //       ?valcode=usd&date=YYYYMMDD&json

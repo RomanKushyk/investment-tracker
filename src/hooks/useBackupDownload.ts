@@ -37,7 +37,7 @@ export function useBackupDownload() {
   // The PREFERENCE, not the session value: a backup carries what the user chose,
   // never what they were glancing at when they pressed Export — and it restores
   // through `setDefaultCurrency`, so the two ends match.
-  const { defaultCurrency: currency, usdRate } = useSettings();
+  const { defaultCurrency: currency } = useSettings();
 
   async function download(opts: BackupDownloadOptions = {}): Promise<boolean> {
     try {
@@ -47,7 +47,7 @@ export function useBackupDownload() {
         // The API stores per-unit prices, and the file carries them as they are (*Persistence today*).
         tables.prices,
         tables.transactions,
-        { currency, usdRate },
+        { currency },
         new Date().toISOString().slice(0, 19), // timezone-less, as the file's own stamps are
       );
       // NEVER WRITE WHAT YOU CANNOT READ: the export parses its own output through

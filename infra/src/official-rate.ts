@@ -16,7 +16,7 @@ import type { SqlClient } from './migrate';
 /** RFC 2308's ceiling on caching a failure: "MUST NOT cache it for longer than five (5) minutes". */
 export const RATE_SPACING_MS = 300_000;
 
-/** The browser's and the capture's figure for the same host. */
+/** The capture's figure for the same host. */
 export const RATE_FETCH_TIMEOUT_MS = 10_000;
 
 export interface StoredRate {

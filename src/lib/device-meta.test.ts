@@ -1,6 +1,6 @@
 // What this device keeps of the public feeds (*Persistence today*): the last good Inzhur payload and
-// its parse record, and the last NBU rate. They name nothing of the account, so they live in the
-// browser's own storage and not behind the API.
+// its parse record. They name nothing of the account, so they live in the browser's own storage and
+// not behind the API.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { readMeta, writeMeta } from './device-meta';
@@ -59,7 +59,7 @@ describe('a store that cannot be trusted', () => {
         throw new Error('quota');
       },
     });
-    expect(readMeta('nbu:lastRate')).toBeUndefined();
-    expect(() => writeMeta('nbu:lastRate', { rate: 1 })).not.toThrow();
+    expect(readMeta('inzhur:lastFetch')).toBeUndefined();
+    expect(() => writeMeta('inzhur:lastFetch', { fetchedAt: 'x' })).not.toThrow();
   });
 });

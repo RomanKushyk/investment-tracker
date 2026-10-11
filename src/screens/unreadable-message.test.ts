@@ -62,24 +62,22 @@ const read = (...parts: string[]) =>
 // WHAT IS NOT CLOSED: the asset form's three percent inputs and `/allocation`'s target row
 // still answer every failure with one sentence, and the quote row answers two of its three
 // with «Enter a number.».
-describe('an unreadable value says so, in the six fields this issue covers', () => {
+describe('an unreadable value says so, in the five fields this issue covers', () => {
   it('carries the message in both dictionaries', () => {
     for (const dict of [en, uk]) {
       expect(dict.transaction.amountUnreadable.length).toBeGreaterThan(0);
       expect(dict.transaction.quantityUnreadable.length).toBeGreaterThan(0);
-      expect(dict.settings.rate.unreadable.length).toBeGreaterThan(0);
     }
     // Each says something different from the sign message it used to borrow.
     expect(en.transaction.amountUnreadable).not.toBe(en.transaction.amountNotPositive);
     expect(uk.transaction.amountUnreadable).not.toBe(uk.transaction.amountNotPositive);
-    // ONE FAILURE, ONE SENTENCE: four namespaces carry it, and a copy-edit to any one of
+    // ONE FAILURE, ONE SENTENCE: three namespaces carry it, and a copy-edit to any one of
     // them has to reach the rest or the app says it two ways.
     for (const dict of [en, uk]) {
       const said = dict.dailyQuotes.unreadable;
       expect(dict.transaction.amountUnreadable).toBe(said);
       expect(dict.transaction.quantityUnreadable).toBe(said);
       expect(dict.transaction.withholdingUnreadable).toBe(said);
-      expect(dict.settings.rate.unreadable).toBe(said);
     }
   });
 
@@ -133,16 +131,5 @@ describe('an unreadable value says so, in the six fields this issue covers', () 
       code,
       'the arm no longer asks CORE which failure it was — imported is not the same as used',
     ).toMatch(/couldNotRead\([^)]*Fault/);
-  });
-
-  it('reads it in the rate box, which has no schema to ask', () => {
-    // `storedNumber` is `undefined` for text the field could not read, so the distinction was
-    // already there and only the message was missing.
-    const code = read('Settings.tsx');
-    const start = code.indexOf('id={USD_RATE_ERROR_ID}');
-    expect(start, 'the rate error block is gone').toBeGreaterThan(-1);
-    const block = code.slice(start, code.indexOf('</div>', start));
-    expect(block, 'no unreadable arm').toContain('rate.unreadable');
-    expect(block, 'lost the range arm').toContain('rate.invalid');
   });
 });

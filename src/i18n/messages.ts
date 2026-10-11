@@ -159,8 +159,8 @@ export const en = {
     fileSubline: (name: string, date: string, time: string) => `${name} · exported ${date} ${time}`,
     resultLine: (assets: string, snapshots: string, transactions: string) =>
       `After import: ${assets} · ${snapshots} · ${transactions}.`,
-    settingsOptInHelper: (symbol: string, rate: string) =>
-      `Replaces your default currency and ₴/$ rate (${symbol} · ${rate}). Automation and reminder preferences are never touched.`,
+    settingsOptInHelper: (symbol: string) =>
+      `Replaces your default currency (${symbol}). Automation and reminder preferences are never touched.`,
     safetyBackupDone: (name: string) => `Safety backup downloaded — ${name}.json.`,
     safetyBackupPending: (name: string) =>
       `A backup of your current data downloads automatically before anything is replaced — ${name}.json.`,
@@ -687,17 +687,6 @@ export const en = {
     action: 'Erase data',
     success: 'Data erased',
   },
-  nbu: {
-    fetch: 'Fetch rate',
-    fetching: 'Fetching…',
-    title: 'Fetch the official National Bank of Ukraine rate',
-    useIt: 'Use it',
-    failed: 'Could not reach the NBU rate directory — please try again.',
-    applied: (rate: string) => `Rate set to ${rate}`,
-    shown: (rate: string, date: string) => `NBU ${rate} for ${date}`,
-    stale: ' · last known, not refreshed',
-    none: (rate: string) => `No rate available — the stored ${rate} stays in effect.`,
-  },
   settings: {
     sections: {
       data: 'Data',
@@ -716,13 +705,6 @@ export const en = {
       title: 'Currency',
       helper:
         'The currency the app opens in. The sidebar toggle previews the other one without saving it.',
-    },
-    rate: {
-      title: '₴/$ rate',
-      helper: 'Used for the $ view of headline figures. Tables always stay in ₴.',
-      ariaLabel: '₴/$ rate',
-      invalid: 'Enter a rate above 0.',
-      unreadable: 'Enter a number.',
     },
     language: {
       title: 'Language',
@@ -1287,8 +1269,8 @@ export const uk: Dict = {
       `${name} · експортовано ${date} ${time}`,
     resultLine: (assets: string, snapshots: string, transactions: string) =>
       `Після імпорту: ${assets} · ${snapshots} · ${transactions}.`,
-    settingsOptInHelper: (symbol: string, rate: string) =>
-      `Замінює вашу валюту за замовчуванням та курс ₴/$ (${symbol} · ${rate}). Автоматизація та налаштування нагадувань лишаються недоторканими.`,
+    settingsOptInHelper: (symbol: string) =>
+      `Замінює вашу валюту за замовчуванням (${symbol}). Автоматизація та налаштування нагадувань лишаються недоторканими.`,
     safetyBackupDone: (name: string) => `Страхувальну копію завантажено — ${name}.json.`,
     safetyBackupPending: (name: string) =>
       `Копія ваших поточних даних завантажиться автоматично, перш ніж щось буде замінено — ${name}.json.`,
@@ -1714,17 +1696,6 @@ export const uk: Dict = {
     action: 'Стерти дані',
     success: 'Дані стерто',
   },
-  nbu: {
-    fetch: 'Отримати курс',
-    fetching: 'Отримання…',
-    title: 'Отримати офіційний курс Національного банку України',
-    useIt: 'Застосувати',
-    failed: 'Не вдалося звернутися до довідника курсів НБУ — спробуйте ще раз.',
-    applied: (rate: string) => `Курс встановлено на ${rate}`,
-    shown: (rate: string, date: string) => `НБУ ${rate} на ${date}`,
-    stale: ' · останній відомий, не оновлювався',
-    none: (rate: string) => `Курс недоступний — лишається збережений ${rate}.`,
-  },
   settings: {
     sections: {
       data: 'Дані',
@@ -1743,13 +1714,6 @@ export const uk: Dict = {
       title: 'Валюта',
       helper:
         'Валюта, з якою відкривається застосунок. Перемикач у бічній панелі лише показує іншу, не зберігаючи вибір.',
-    },
-    rate: {
-      title: 'Курс ₴/$',
-      helper: 'Використовується для показу підсумків у $. Таблиці завжди лишаються в ₴.',
-      ariaLabel: 'Курс ₴/$',
-      invalid: 'Введіть курс, більший за 0.',
-      unreadable: 'Вкажіть число.',
     },
     language: {
       title: 'Мова', // ✎

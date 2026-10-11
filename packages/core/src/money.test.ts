@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  groupedForInput,
-  inputValue,
-  makeFormat,
-  signed,
-  storedNumber,
-  toUsd,
-  valueFromInput,
-} from './money';
+import { groupedForInput, inputValue, makeFormat, signed, toUsd, valueFromInput } from './money';
 import { amountInputSchema, groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 describe('pp — a signed percentage-point gap', () => {
@@ -508,24 +500,6 @@ describe('what a held value does when the language moves under it', () => {
       for (const lang of ['uk', 'en'] as const) {
         expect(typed(groupedForInput(held, lang), lang, held), `${v} in ${lang}`).toBe(held);
       }
-    }
-  });
-
-  it('tells a stored number from text a field could not read', () => {
-    // What the rate box's validity rests on, and the reason it needs no language: the
-    // stored form is canonical or it is not a number at all.
-    expect(storedNumber('44.83')).toBe(44.83);
-    expect(storedNumber('0.5')).toBe(0.5);
-    expect(storedNumber('6.')).toBe(6);
-    // Signed forms READ — a caller's own range check is what refuses them, and pinning
-    // that here is what stops a later edit moving the line silently.
-    expect(storedNumber('+44.83')).toBe(44.83);
-    expect(storedNumber('-1')).toBe(-1);
-    // Overflow does not: `Infinity` is positive, so it would pass that same range check
-    // and `persist` would write it out as `null`.
-    expect(storedNumber('9'.repeat(400))).toBeUndefined();
-    for (const text of ['16,5', '1234,567', '', '-', 'abc', '0x1000', '1e5']) {
-      expect(storedNumber(text), text).toBeUndefined();
     }
   });
 });

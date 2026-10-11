@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { storedNumber } from './money';
-
 import {
   amountInputSchema,
   couldNotRead,
@@ -584,8 +582,6 @@ describe('a value that cannot be READ is a different failure from one that is no
       expect(amountInputSchema('en').safeParse(text).success, text).toBe(false);
       expect(unreadable(amountInputSchema('en').safeParse(text)), text).toBe(true);
     }
-    // And the field's own reader agrees, which is the point of one shape.
-    expect(storedNumber('1.2E+09')).toBeUndefined();
   });
 
   it('says too_small for a number that is merely not positive', () => {

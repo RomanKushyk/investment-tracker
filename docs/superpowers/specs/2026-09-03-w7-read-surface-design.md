@@ -116,9 +116,9 @@ control goes with the field, and what is bought is that the displayed rate can n
 `screens/Overview.tsx`, `screens/Settings.tsx` (the editable ₴/$ input and `setUsdRate`),
 `settings/NbuRateFetch.tsx`, `settings/import-labels.ts`, `hooks/useCapitalCard.ts`,
 `hooks/useBackupDownload.ts`, `settings/ImportDialog.tsx`, `core/types.ts` and `core/backup/json.ts`.
-**The backup envelope is the one with a compatibility tail:** it carries `usdRate` today, so it drops
-the field and the importer must accept an old backup that still has one and **ignore** the value — a
-backup must not be able to pin last year's rate onto today's screen.
+**The backup envelope drops the field too,** which narrows its reader and so bumps its version: an
+older file that still carries `usdRate` is refused like any older version, on the owner's ruling, so
+a backup cannot pin last year's rate onto today's screen.
 
 ## §4 — What the client does before the first response
 

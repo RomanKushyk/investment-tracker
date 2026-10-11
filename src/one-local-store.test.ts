@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { REPO, skipped } from './repo-root';
 
 // ONE LOCAL STORE (#404): the demo/live pair, the boot seed and the DEMO badge are gone, and nothing
-// brings one back by a new name. A census over the app and the domain package, read through
+// brings one back by a new name. THE RATE IS NOT STORED EITHER (#408): a conversion uses `/view`'s
+// `fx`, so the setting, its Fetch control and the device's copy of the last rate are gone too. A census over the app and the domain package, read through
 // TypeScript: it sees the NAMES a module declares or spells (identifiers, string and template text,
 // JSX text), never a comment, so a sentence that merely says "seeded" is not a hit and a key such as
 // `datasetSwitch` is. Prose is swept by hand, because a guard over prose is a regex over claims.
@@ -27,6 +28,9 @@ const RETIRED = {
   демо: { re: /демо/i, in: ANY }, // the same, in the Ukrainian dictionary
   // The demo database's name, as a string: the live one is `quirenote-live`, and the wordmark is JSX text.
   database: { re: /^quirenote$/, in: ['string'] },
+  usdRate: { re: /usdrate/i, in: ANY }, // the setting, its setter, the backup's member
+  fetchRate: { re: /nburatefetch|usenburate/i, in: ANY }, // the Fetch control and its hook
+  lastRate: { re: /^nbu:lastrate$/i, in: ['string'] }, // the device's copy of the last rate fetched
 } as const satisfies Record<string, { re: RegExp; in: readonly Kind[] }>;
 type Needle = keyof typeof RETIRED;
 
@@ -109,7 +113,7 @@ describe('the app keeps one local store', () => {
     for (const rel of Object.keys(ALLOWED)) expect(present, rel).toContain(rel);
   });
 
-  it('names no dataset, seed flag, demo or demo database outside the allow-list', () => {
+  it('names no dataset, seed flag, demo, demo database or stored rate outside the allow-list', () => {
     expect(hits(SOURCES)).toEqual(allowed);
   });
 
@@ -128,6 +132,11 @@ describe('the app keeps one local store', () => {
       ['JSX text', '<b>DE' + 'MO</b>;', 'demo'],
       ['a Ukrainian string', "const m = 'Де" + "мо';", 'демо'],
       ['the database name', "const n = 'quire" + "note';", 'database'],
+      ['the rate setting', 'export const set' + 'UsdRate = (r: number) => r;', 'usdRate'],
+      ['a rate in a type', 'type S = { usd' + 'Rate: number };', 'usdRate'],
+      ['the Fetch control', 'export function Nbu' + 'RateFetch() {}', 'fetchRate'],
+      ['its hook', 'export const use' + 'NbuRate = () => 1;', 'fetchRate'],
+      ['the stored rate', "const k = 'nbu:last" + "Rate';", 'lastRate'],
     ] as const)('%s', (_what, text, needle) => {
       expect(control(text)).toEqual([`src/control.tsx:${needle}:1`]);
     });
@@ -136,6 +145,8 @@ describe('the app keeps one local store', () => {
       ['a comment', '// the dataset is seeded for the demo\nconst a = 1;'],
       ['the live database', "const n = 'quirenote-live';"],
       ['the wordmark', '<span>quirenote</span>;'],
+      ['the NBU rate url', 'const u = nbu' + 'RateUrl(day);'],
+      ['a rate in a comment', '// the usd' + 'Rate setting, no longer stored\nconst a = 1;'],
     ])('and leaves %s alone', (_what, text) => {
       expect(control(text)).toEqual([]);
     });
