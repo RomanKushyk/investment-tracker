@@ -54,6 +54,7 @@ export function KpiCard({
   tone = 'default',
   className = '',
   style,
+  timing,
 }: {
   label: string;
   value: ReactNode;
@@ -64,6 +65,9 @@ export function KpiCard({
   tone?: Tone;
   className?: string;
   style?: CSSProperties;
+  /** The name the paint of this value is reported under (`PerformanceElementTiming.identifier`).
+   *  The browser stamps the paint of the element itself, which a mark set from an effect cannot. */
+  timing?: string;
 }) {
   return (
     <div
@@ -71,7 +75,10 @@ export function KpiCard({
       style={style}
     >
       <div className={`text-[10px] tracking-[.12em] uppercase ${TONE_LABEL[tone]}`}>{label}</div>
-      <div className={`font-display font-semibold ${VALUE_SIZE[valueSize]} ${valueClassName}`}>
+      <div
+        className={`font-display font-semibold ${VALUE_SIZE[valueSize]} ${valueClassName}`}
+        {...(timing === undefined ? {} : { elementtiming: timing })}
+      >
         {value}
       </div>
       {sub != null && <div className={`mt-0.5 text-xs ${subClassName}`}>{sub}</div>}

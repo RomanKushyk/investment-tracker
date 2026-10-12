@@ -106,6 +106,10 @@ export function Overview() {
           className="animate-in duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalCapital}
           value={capital.value}
+          // Mounted only once the view has answered, so an entry for this is never the loading
+          // state's. The screen's fade (`Loadable`) and the card's are part of what it reads
+          // unless collapsed (*Measurement*).
+          timing="figures"
           valueClassName={paint(tweenedCapital)}
           sub={
             <>

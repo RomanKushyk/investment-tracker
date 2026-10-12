@@ -1288,8 +1288,15 @@ an invalidation when the page is shown again: a request for every read mounted a
 a hook where TanStack's own refetch of what has gone stale does the work. · An export that moves
 the tag a write goes under: a tab would then write from a view older than the tag it sends, the
 lost update the precondition is there to refuse. · The browser's HTTP cache, and a cache of the
-view in storage: a portfolio left on the device past its account's sign-out; first paint shows its
-placeholders instead, and what a persisted cache would be worth is #411's to measure.
+view in storage (`experimental_createQueryPersister`): a portfolio left on the device past its
+account's sign-out, which empties memory and leaves a persister's copy standing; a restore while the
+session is still being asked for, since the view's read is mounted by then and a persister restores
+in place of its query function, so the portfolio would paint before the app knows who is signed in
+(*Auth model*); and figures older than their window shown before they are read again. The screen
+shows its placeholders instead. A persister is taken up only where, at 360 with Slow 4G and CPU ×4
+as delivered (*Measurement*), the page's first contentful paint, which waits on no API answer, is
+at or under 2.5 s at p75 (web.dev's LCP "good" line) while the figures' paint is over it; #411
+found the first not so.
 · The last day kept while another loads: its baselines would stand under a date they are not
 before.
 
@@ -1909,12 +1916,33 @@ calibration probe before recording any figure, disable transitions before readin
 animatable, check `document.visibilityState` before believing a motion reading, and RELOAD rather
 than flip `data-theme`. Read the rendered box, never the class list. The dev server's port is pinned
 with `strictPort`, but that only says where THIS checkout binds, so confirm the `Quirenote` title
-before trusting whatever answers there.
+before trusting whatever answers there. THE FIGURES' PAINT is the Element Timing entry `figures`:
+the paint of the capital figure on `/overview` (`KpiCard`'s `timing`), read as `renderTime` from a
+`PerformanceObserver` of type `element`, with the fades the figure enters under collapsed as
+`prefers-reduced-motion` collapses them (`index.css`), the screen's as it replaces its placeholder
+(`Loadable`) and the capital card's, and the collapse read on each of them, not on the card alone:
+left running, the entry lands at the first frame in some loads and a fade's length (300 ms) later in
+others, so it reads the animation and not the figures. It is taken at p75 over at least 20 runs
+with p95 as the tail, a cold function and a warm one kept apart, the cache disabled, at 360 with
+`emulate`'s Slow 4G and a CPU slowdown of ×4 as delivered, and on the desktop unthrottled. A CPU
+rate is relative to the host and not a speed (Lighthouse's throttling doc, *Calibrating the CPU
+slowdown*), so the rate `emulate` is given is raised until a loop of several hundred milliseconds,
+timed in the page with the slowdown and without it, reads about four times as long with it, and the
+figures are taken at that rate. The figures are kept in the issue that took them, never here.
 **Why.** A wrong instrument puts wrong figures through review with full confidence, and the reviewer
 has nothing to check them against but the arithmetic of the classes. A background tab freezes
-transitions and never fires `animationend`, which reads as "the animation is broken".
+transitions and never fires `animationend`, which reads as "the animation is broken". The shell
+and the loading state's words paint before the view answers, so a first or largest contentful paint
+can stop the clock on a screen with no figures in it; the attribute is on a screen that mounts only
+once the view has answered, so an entry for it is never the loading state's. A slowdown that was
+asked for and not delivered makes every mobile figure taken under it look faster than the phone's.
 **Rejected.** Sampling a property mid-transition: a focus ring answers differently depending on when
-the sample lands.
+the sample lands. · LCP for the figures' paint: it names the largest element painted, which need
+not be the figures, and a larger one painted later would move it. · A `performance.mark` from an
+effect: it stamps when the code ran, not when the browser painted. · The entry with a fade
+running: its time is the first frame's in some loads and the fade's end in others. · One short loop
+per run as the host's gate: its readings with the slowdown and without it overlap, so a run that
+was not slowed passes.
 
 ## Interaction rules
 **Decision.** Every interaction animates, soft and fluid; every pressable takes a small active
