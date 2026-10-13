@@ -292,13 +292,61 @@ describe("the account is the footer band's last control", () => {
     const end = SIDEBAR.indexOf('</AccountFold>', at);
     expect(end, '`AccountRows` no longer closes its fold').toBeGreaterThan(at);
     const rows = SIDEBAR.slice(at, end);
-    expect(rows, 'the sign-out is not a button').toMatch(/<button\b/);
-    expect(rows, "the sign-out left Settings' pill recipe").toMatch(
-      /pillClass\('py-2', 'rounded-\[9px\]'\)/,
+    // The button's own markup: the entry beside it is a pill in the same recipe, so a read of the
+    // whole slot would pass on the entry's classes alone.
+    const from = rows.search(/<button\b/);
+    expect(from, 'the sign-out is not a button').toBeGreaterThan(-1);
+    const button = rows.slice(from, rows.indexOf('</button>', from));
+    expect(button, "the sign-out left the account's pill").toMatch(/\$\{ACCOUNT_PILL\}/);
+    expect(SIDEBAR, "the account's pill left Settings' recipe").toMatch(
+      /const ACCOUNT_PILL = `\$\{ACCOUNT_STEP\} \$\{pillClass\('py-2', 'rounded-\[9px\]'\)/,
     );
-    expect(rows, 'busy no longer announces itself').toMatch(/aria-disabled=/);
-    expect(rows, 'busy disables the pill and drops its focus').not.toMatch(/\sdisabled=/);
-    expect(rows, 'the sign-out lost its glyph').toMatch(/Icon=\{LogOut\}/);
+    expect(button, 'busy no longer announces itself').toMatch(/aria-disabled=/);
+    expect(button, 'busy disables the pill and drops its focus').not.toMatch(/\sdisabled=/);
+    expect(button, 'the sign-out lost its glyph').toMatch(/Icon=\{LogOut\}/);
+  });
+
+  // SIGNED OUT, THE SLOT KEEPS ITS SIGNED-IN SHAPE (`sign-in-entry.dc.html`, T1): the status
+  // where the address stands, then «Увійти» where «Вийти» stands. A LINK, because it goes to a
+  // route; a plain `Link` and never a `NavLink`, because `/sign-in/x` falls into the shell, where
+  // a `NavLink` would mark the entry current.
+  it('offers a sign-in link in the same slot, after a status row', () => {
+    const at = SIDEBAR.indexOf('function AccountRows');
+    const end = SIDEBAR.indexOf('</AccountFold>', at);
+    const rows = SIDEBAR.slice(at, end);
+    expect(rows, 'the status row is gone').toMatch(/label=\{t\.auth\.notSignedIn\}/);
+    const link = rows.search(/<Link\s+to="\/sign-in"/);
+    expect(link, 'the entry is not a link to /sign-in').toBeGreaterThan(-1);
+    expect(rows, 'the entry lost its glyph').toMatch(/Icon=\{LogIn\}/);
+    expect(rows, 'the entry lost its label').toMatch(/label=\{t\.auth\.signInEntry\}/);
+    expect(rows, 'a NavLink would mark /sign-in/x current').not.toMatch(/<NavLink\b/);
+    expect(
+      rows.indexOf('t.auth.notSignedIn'),
+      'the status row does not stand above the entry',
+    ).toBeLessThan(link);
+    expect(rows, 'the entry no longer answers the signed-out state').toMatch(/rows === 'entry' \?/);
+  });
+
+  // ONE GEOMETRY BY CONSTRUCTION: the held slot is the signed-in rows' height, so the signed-out
+  // rows take the same row and the same pill, or Settings moves when the relay answers.
+  it('draws both answers from one row and one pill', () => {
+    const at = SIDEBAR.indexOf('function AccountRows');
+    const rows = SIDEBAR.slice(at, SIDEBAR.indexOf('</AccountFold>', at));
+    expect(rows.match(/className=\{ACCOUNT_ROW\}/g)?.length, 'a row left the shared row').toBe(2);
+    expect(rows.match(/ACCOUNT_PILL\b/g)?.length, 'a pill left the shared pill').toBe(2);
+    // Exactly the shared pill, so a class added on one answer cannot move Settings on the other.
+    expect(rows, 'the entry added to the pill').toMatch(
+      /<Link to="\/sign-in" className=\{ACCOUNT_PILL\}>/,
+    );
+    expect(rows, 'the sign-out added geometry to the pill').toMatch(
+      /className=\{`\$\{ACCOUNT_PILL\} cursor-pointer aria-disabled:opacity-70`\}/,
+    );
+    expect(SIDEBAR, 'the account pill is drawn active').toMatch(
+      /const ACCOUNT_PILL = `[^`]*\(\{ isActive: false \}\)\}`;/,
+    );
+    expect(SIDEBAR, "the row left the pill's step").toMatch(
+      /const ACCOUNT_ROW = `\$\{ACCOUNT_STEP\} /,
+    );
   });
 
   // An address set on one line is an unbreakable run, and an implicit `auto` column grows to
@@ -309,7 +357,7 @@ describe("the account is the footer band's last control", () => {
     );
     // The account's fold is a grid too, and grew the rows past the band the same way.
     expect(SIDEBAR, "the account's fold lost its explicit column").toMatch(
-      /grid grid-cols-\[minmax\(0,1fr\)\] transition-\[grid-template-rows\]/,
+      /grid grid-cols-\[minmax\(0,1fr\)\] \$\{rows === 'closed'/,
     );
   });
 });

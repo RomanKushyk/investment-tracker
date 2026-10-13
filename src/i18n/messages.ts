@@ -848,6 +848,9 @@ export const en = {
     /** The account row when the ID token names no address. */
     signedIn: 'Signed in',
     signOut: 'Sign out',
+    /** The same row answered signed out, and the entry under it, a link to `/sign-in`. */
+    notSignedIn: 'Not signed in',
+    signInEntry: 'Sign in',
     signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
     // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival.
     signedOut: 'You’re signed out.',
@@ -1852,6 +1855,8 @@ export const uk: Dict = {
     signedInAs: (email: string) => `Ви увійшли як ${email}`,
     signedIn: 'Ви увійшли',
     signOut: 'Вийти',
+    notSignedIn: 'Ви не ввійшли',
+    signInEntry: 'Увійти',
     signOutFailed: 'Не вдалося вийти — ви досі в системі. Спробуйте ще раз.',
     signedOut: 'Ви вийшли з системи.',
     pending: {

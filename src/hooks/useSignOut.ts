@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
 import { accountRows } from '../app/account-rows';
-import { leaveThroughLogout, session, useSessionStatus, useSessionUnanswered } from '../auth/app';
+import {
+  hasAuthEnvironment,
+  leaveThroughLogout,
+  session,
+  useSessionStatus,
+  useSessionUnanswered,
+} from '../auth/app';
 import { SIGNED_OUT } from '../auth/signed-out';
 import { useT } from '../i18n/useT';
 
@@ -15,8 +21,8 @@ const failedId = (n: number) => `sign-out-failed-${n}`;
 /**
  * One press signs out. A sign-out the relay could not complete keeps both cookies, so the user is
  * still signed in: a toast that stays says so, and the control is the retry. After a success the
- * control stays busy until the route changes, as the answer screens' does. `rows` is what the
- * footer band draws for the account.
+ * control stays busy while the page leaves, as the answer screens' does. `rows` is what the
+ * footer band draws for the account, the sign-in entry included.
  */
 export function useSignOut() {
   const t = useT();
@@ -24,6 +30,15 @@ export function useSignOut() {
   const status = useSessionStatus();
   const unanswered = useSessionUnanswered();
   const [leaving, setLeaving] = useState(false);
+
+  // Back from Cognito's logout can restore this page from the back/forward cache, `leaving` and all.
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) setLeaving(false);
+    };
+    addEventListener('pageshow', restored);
+    return () => removeEventListener('pageshow', restored);
+  }, []);
 
   async function leave() {
     if (leaving) return;
@@ -41,10 +56,12 @@ export function useSignOut() {
     }
     // Through Cognito's logout while Google is on; `leaving` holds the rows until the page goes.
     if (leaveThroughLogout(out.logout, '/sign-in')) return;
-    // The session is signed out already; `leaving` keeps the rows up until the route changes, and
+    // The session is signed out already; `leaving` keeps the rows up while the page leaves, and
     // `flushSync` commits that change at once rather than in a transition. `/sign-in` says so.
     await navigate('/sign-in', { flushSync: true, state: SIGNED_OUT });
+    // Still mounted only when unsaved work held the way out: the page stays, signed out.
+    setLeaving(false);
   }
 
-  return { rows: accountRows(status, leaving, unanswered), leaving, leave };
+  return { rows: accountRows(status, leaving, unanswered, hasAuthEnvironment), leaving, leave };
 }

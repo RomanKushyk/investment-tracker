@@ -225,6 +225,18 @@ describe('the reused temporary password', () => {
   });
 });
 
+describe('the account slot signed out', () => {
+  // The status is the negative of the row's own fallback, and the entry says what `/apply`'s link
+  // to `/sign-in` says (*Two shells, one breakpoint*; `sign-in-entry.dc.html`).
+  it('reads not signed in, then the word the sign-in link already uses', () => {
+    expect(en.auth.notSignedIn).toBe('Not signed in');
+    expect(uk.auth.notSignedIn).toBe('Ви не ввійшли');
+    expect(en.auth.signInEntry).toBe(en.auth.apply.signInLink);
+    expect(uk.auth.signInEntry).toBe(uk.auth.apply.signInLink);
+    expect(uk.auth.signInEntry).toBe('Увійти');
+  });
+});
+
 describe('the not-found and failure states', () => {
   const BOUNDARY = [...EN, ...UK].filter(([key]) => key.startsWith('boundary.'));
 

@@ -199,12 +199,13 @@ describe('the rail draws what the sheet draws', () => {
   // suite asserting an edge-minus-hover count across it. Do not "tidy" it.
   it('sizes its items 40 x 36 at the drawn radius, and stays out of the field scope', () => {
     const radius = railLines(/rounded-\[9px\]/);
-    // THREE SITES, all the item: the box that paints it, and the link and the sign-out button
-    // that ring it — one box shared, so the two focusables cannot draw it two ways.
+    // FOUR SITES, all the item: the box that paints it, and the route link, the sign-out button
+    // and the sign-in link that ring it — one box shared, so the focusables cannot draw it
+    // three ways.
     expect(
       radius.length,
-      'the drawn item radius is not on exactly the box, the link and the button',
-    ).toBe(3);
+      'the drawn item radius is not on exactly the box, the two links and the button',
+    ).toBe(4);
     const item = radius.filter((l) => /\bw-10\b/.test(l));
     expect(item.length, 'the rail item is not one element').toBe(1);
     expect(item[0], 'the rail item is not 36 tall').toMatch(/h-\[36px\]/);
@@ -290,32 +291,58 @@ describe('the rail draws what the sheet draws', () => {
 // ONE ORDER IN BOTH STATES (`design/extensions/sign-out.dc.html`, T2): the currency above
 // Settings, as its track sits above Settings in the panel, and the sign-out last.
 describe("the rail's foot reads in the panel's order", () => {
-  it('draws the currency box, then Settings, then the sign-out', () => {
+  it('draws the currency box, then Settings, then the account', () => {
     const currency = RAIL.indexOf('h-8 w-10');
     const settings = RAIL.indexOf('to="/settings"');
-    const signOut = RAIL.indexOf('<RailSignOut />');
+    const account = RAIL.indexOf('<RailAccount />');
     expect(currency, 'the currency box is gone').toBeGreaterThan(-1);
     expect(settings, 'Settings moved above the currency box').toBeGreaterThan(currency);
-    expect(signOut, 'the sign-out is not last in the foot band').toBeGreaterThan(settings);
+    expect(account, 'the account is not last in the foot band').toBeGreaterThan(settings);
   });
 
   // NAMED, because the tooltip only describes; a STRING className, because the tooltip's Slot
   // stringifies a callback; the item's radius, because the focus ring follows the button; and
   // busy without `disabled`, which would drop the focus the retry needs.
   it('signs out from a named button on the item radius that keeps its focus while busy', () => {
-    const at = RAIL.indexOf('function RailSignOut');
-    expect(at, '`RailSignOut` is gone').toBeGreaterThan(-1);
+    const at = RAIL.indexOf('function RailAccount');
+    expect(at, '`RailAccount` is gone').toBeGreaterThan(-1);
     // Bounded by the markup's own close: a stripped JSX comment can leave a bare `}` at a
     // line's start, so the function's closing brace is not a bound that can be found.
     const end = RAIL.indexOf('</AccountFold>', at);
-    expect(end, '`RailSignOut` no longer closes its fold').toBeGreaterThan(at);
+    expect(end, '`RailAccount` no longer closes its fold').toBeGreaterThan(at);
+    // The button's own markup: the entry before it is ringed on the same radius, so a read of
+    // the whole item would pass on the link's classes alone.
     const item = RAIL.slice(at, end);
-    expect(item, 'the sign-out is not a button').toMatch(/<button\b/);
-    expect(item, 'the sign-out has no name of its own').toMatch(/aria-label=\{t\.auth\.signOut\}/);
-    expect(item, 'the button is not ringed on the item radius').toMatch(
+    const from = item.search(/<button\b/);
+    expect(from, 'the sign-out is not a button').toBeGreaterThan(-1);
+    const button = item.slice(from, item.indexOf('</button>', from));
+    expect(button, 'the sign-out has no name of its own').toMatch(
+      /aria-label=\{t\.auth\.signOut\}/,
+    );
+    expect(button, 'the button is not ringed on the item radius').toMatch(
       /className="[^"]*rounded-\[9px\]/,
     );
-    expect(item, 'busy no longer announces itself').toMatch(/aria-disabled=/);
-    expect(item, 'busy disables the button and drops its focus').not.toMatch(/\sdisabled=/);
+    expect(button, 'busy no longer announces itself').toMatch(/aria-disabled=/);
+    expect(button, 'busy disables the button and drops its focus').not.toMatch(/\sdisabled=/);
+  });
+
+  // SIGNED OUT, «Увійти» IN THE SAME SLOT (`sign-in-entry.dc.html`, T2): a plain `Link` and never
+  // `RailItem`'s `NavLink`, since `/sign-in/x` falls into the shell; named, because the tooltip
+  // only describes; a STRING className on the item radius; hover only, as its neighbours.
+  it('offers a named sign-in link on the item radius, with no press scale', () => {
+    const at = RAIL.indexOf('function RailAccount');
+    const end = RAIL.indexOf('</AccountFold>', at);
+    const item = RAIL.slice(at, end);
+    const start = item.search(/<Link\s+to="\/sign-in"/);
+    expect(start, 'the entry is not a link to /sign-in').toBeGreaterThan(-1);
+    expect(item, 'the entry has no name of its own').toMatch(/aria-label=\{t\.auth\.signInEntry\}/);
+    expect(item, 'the entry lost its glyph').toMatch(/Icon=\{LogIn\}/);
+    expect(item, 'a NavLink would mark /sign-in/x current').not.toMatch(/<NavLink\b/);
+    expect(item, 'the rail item took a press scale').not.toMatch(/active:scale/);
+    expect(item, 'the entry no longer answers the signed-out state').toMatch(/rows === 'entry' \?/);
+    const link = item.slice(start, item.indexOf('</Link>', start));
+    expect(link, 'the link is not ringed on the item radius').toMatch(
+      /className="[^"]*rounded-\[9px\]/,
+    );
   });
 });

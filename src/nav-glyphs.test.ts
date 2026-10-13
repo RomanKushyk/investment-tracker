@@ -75,11 +75,21 @@ const TABLE = [
   ['/settings', 'Settings'],
 ] as const;
 
-/** The glyphs that name no route. A chevron folds a group or collapses the shell and the theme
- *  track's three are segments — controls, which is why `parchment-5h.dc.html` keeps group headers
- *  glyphless; the account's two label its address row and its sign-out (`sign-out.dc.html`).
+/** The glyphs that wear none of the eleven routes. A chevron folds a group or collapses the shell
+ *  and the theme track's three are segments — controls, which is why `parchment-5h.dc.html` keeps
+ *  group headers glyphless; the account's three label its status row, its sign-out and its sign-in
+ *  entry, whose link `sidebar-structure.test.ts` pins (`sign-out.dc.html`, `sign-in-entry.dc.html`).
  *  Listed so the import assertion can tell them from a route's icon. */
-const CONTROLS = ['ChevronDown', 'ChevronLeft', 'CircleUser', 'LogOut', 'Monitor', 'Moon', 'Sun'];
+const CONTROLS = [
+  'ChevronDown',
+  'ChevronLeft',
+  'CircleUser',
+  'LogIn',
+  'LogOut',
+  'Monitor',
+  'Moon',
+  'Sun',
+];
 
 /** Matched TO ITS OWN `/>` rather than the first `>`: an arbitrary variant may hold one
  *  (`[&>path]:…`), and a tag cut short there fails the anatomy checks on correct markup

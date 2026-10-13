@@ -683,13 +683,19 @@ above it the sidebar is a panel in flow or an icon rail, and the choice persists
 header carries the figure, which a 56px shell cannot hold. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
-portfolio behind it — signed out, a refused caller, the first sign-in, the app that failed — mounts
-NEITHER: a top bar with the mark and the language control over one top-anchored card, `md` still its
+portfolio behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
+failed — mounts NEITHER: a top bar with the mark and the language control over one top-anchored card, `md` still its
 only breakpoint.
-SIGNED IN, THE ACCOUNT IS EVERY FOOTER BAND'S LAST CONTROL: in the panel and the drawer the address,
-then a sign-out pill in Settings' recipe, above the version; in the rail a sign-out item, the rail's
-foot reading in the panel's order — currency, Settings, sign-out. Their slot is HELD until the relay
-answers, after a load it never answered too; a host with no relay is answered at once.
+THE ACCOUNT IS EVERY FOOTER BAND'S LAST CONTROL, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
+in the panel and the drawer a status row, then a pill in Settings' recipe, above the version; in the
+rail one item, the rail's foot reading in the panel's order — currency, Settings, account. Signed in
+the rows are the address and «Вийти»; signed out «Ви не ввійшли» and «Увійти», a LINK to `/sign-in`
+with the counterpart of the sign-out's glyph, the rail showing «Увійти» alone. The entry is a plain
+link and never a nav link, since `/sign-in/x` falls into the shell. Their slot is HELD until the
+relay answers, after a load it never answered too, and closed from the first render only on a host
+with no auth environment, which has nothing to sign in to. A sign-out that succeeded keeps the
+signed-in rows while the page leaves; where unsaved work holds the page, or Back restores it, the
+slot answers signed out.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,
@@ -698,11 +704,23 @@ because a centred one moves its button under the pointer whenever its height cha
 must be visible and reachable from every page that has a session (OWASP's *Logout Button*, ASVS
 7.4.4), and the owner ruled it last; a footer band is anchored to the bottom and grows upward, so
 rows appearing on the session's answer would move every target above them — held, they fade into
-their slot, and only a signed-out load sees the band close once.
+their slot, whose height is the same answered either way, so nothing above it moves under a resting
+pointer. Where the page stays after a sign-out, held by unsaved work or restored by Back, the slot
+answers signed out at once, departing from `sign-in-entry.dc.html` T4: a busy «Вийти» under a
+signed-in label would misstate the session (NN/g's visibility of system status), and the swap moves
+no target. Signed out, a screen behind the portfolio's view mounts the shell over an empty `main`,
+and a visitor with no way in reads the app as having no auth at all; the entry is a signed-out
+visitor's one control there that reaches `/sign-in`, and it offers sign-in alone because the
+sign-in card is one link from the application. It is a link because it goes to a route (APG's link
+pattern), and the status row keeps the slot's shape where a blank row would read as nothing loaded.
 **Rejected.** A theme control in the rail: one glyph cannot show the two states it is not in, where
 currency's box shows the state you are in. · An account menu: a second press for one item, where
 the menus it copies switch accounts. · An avatar: only asset avatars and colour dots are round. ·
-A sign-out offered to every visitor regardless of session: a way out for someone never in.
+A sign-out offered to every visitor regardless of session: a way out for someone never in. · The
+slot folding shut on a signed-out answer: it moves Settings under a resting pointer. · An Apply
+control in the shell: the sign-in card is one link from the application. · «Гість» as the status:
+the app has no guest mode. · A person glyph on the entry: it would read as the profile the status
+row stands for.
 
 ## Not found and failures
 **Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE

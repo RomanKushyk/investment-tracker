@@ -18,6 +18,9 @@ import { carrySignedOut, throughLogout } from './signed-out';
 const environment = environmentFor(location.hostname);
 const relay = createRelay({ base: environment?.relay, fetch: (input, init) => fetch(input, init) });
 
+/** Whether this host has anything to sign in to; without one the shell offers no entry. */
+export const hasAuthEnvironment = environment !== undefined;
+
 // Only an insecure context lacks Web Locks, and no environment is keyed to one, so every call there
 // is refused before it is sent: no cookie is written, and there is nothing for a lock to order.
 const unlocked = { request: (_: string, call: () => unknown) => call() } as unknown as LockManager;

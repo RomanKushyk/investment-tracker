@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   CircleUser,
   LayoutGrid,
+  LogIn,
   LogOut,
   type LucideIcon,
   Monitor,
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
 import { Children, isValidElement, type ReactNode, useEffect, useRef } from 'react';
-import { matchPath, NavLink, useLocation } from 'react-router';
+import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import { useSessionAddress } from '../auth/app';
 import { useSignOut } from '../hooks/useSignOut';
@@ -400,9 +401,9 @@ function SidebarPanel({
 }
 
 /**
- * The account's place in a footer band, in both shells. HELD, invisible and inert, while the
- * session is unknown, and folded shut signed out with the nav group's fold; `accountRows` says
- * why. Keyed by that state, so what it holds fades in when it shows.
+ * The account's place in a footer band, in both shells. HELD, invisible and inert, until the
+ * relay answers, and closed only where there is no auth environment; `accountRows` says why.
+ * Keyed by that state, so what it holds fades in when it shows.
  */
 export function AccountFold({
   rows,
@@ -411,16 +412,14 @@ export function AccountFold({
   rows: ReturnType<typeof accountRows>;
   children: ReactNode;
 }) {
-  const shown = rows === 'shown';
+  const shown = rows === 'shown' || rows === 'entry';
   return (
     // The column spelled out for the panel's reason: an implicit `auto` one grows to the address.
     <div
-      className={`grid grid-cols-[minmax(0,1fr)] transition-[grid-template-rows] ease-soft ${
-        rows === 'closed' ? 'grid-rows-[0fr] duration-220' : 'grid-rows-[1fr] duration-300'
-      }`}
+      className={`grid grid-cols-[minmax(0,1fr)] ${rows === 'closed' ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}
     >
-      {/* Clipped only while it holds or folds: shown, a clip would cut a pill's focus ring and
-          its `TAP_44` overlay. */}
+      {/* Clipped only while it holds or is closed: shown, a clip would cut a pill's focus ring
+          and its `TAP_44` overlay. */}
       <div
         key={rows}
         inert={!shown || undefined}
@@ -432,10 +431,17 @@ export function AccountFold({
   );
 }
 
+// ONE GEOMETRY FOR BOTH ANSWERS: the held slot is the signed-in rows' height, so the signed-out
+// rows take the same row and pill, or Settings moves when the relay answers.
+const ACCOUNT_STEP = 'mt-[3px] max-md:mt-2';
+const ACCOUNT_ROW = `${ACCOUNT_STEP} flex h-[36px] items-center px-3.5 text-[11px] text-sb-item`;
+const ACCOUNT_PILL = `${ACCOUNT_STEP} ${pillClass('py-2', 'rounded-[9px]')({ isActive: false })}`;
+
 /**
  * THE ACCOUNT IS THE BAND'S LAST CONTROL, above the version: the address, then «Вийти» in
  * Settings' recipe. The address stands at a pill's geometry with no box of its own — information
- * until the profile page makes it a link.
+ * until the profile page makes it a link. Signed out, the status and «Увійти», a plain `Link`:
+ * `/sign-in/x` falls into the shell, where a `NavLink` would mark it current.
  */
 function AccountRows() {
   const t = useT();
@@ -444,25 +450,37 @@ function AccountRows() {
 
   return (
     <AccountFold rows={rows}>
-      <div
-        title={address}
-        className="mt-[3px] flex h-[36px] items-center px-3.5 text-[11px] text-sb-item max-md:mt-2"
-      >
-        {address !== undefined && <span className="sr-only">{t.auth.signedInAs(address)}</span>}
-        <div aria-hidden={address !== undefined || undefined} className="min-w-0 flex-1">
-          <NavItem Icon={CircleUser} label={address ?? t.auth.signedIn} isActive={false} />
-        </div>
-      </div>
-      {/* `aria-disabled` and never `disabled` while it runs: disabling drops the focus, and a
-          sign-out that fails leaves this button as the retry. */}
-      <button
-        type="button"
-        aria-disabled={leaving || undefined}
-        onClick={() => void leave()}
-        className={`mt-[3px] cursor-pointer aria-disabled:opacity-70 max-md:mt-2 ${pillClass('py-2', 'rounded-[9px]')({ isActive: false })}`}
-      >
-        <NavItem Icon={LogOut} label={t.auth.signOut} isActive={false} />
-      </button>
+      {rows === 'entry' ? (
+        <>
+          <div className={ACCOUNT_ROW}>
+            <div className="min-w-0 flex-1">
+              <NavItem Icon={CircleUser} label={t.auth.notSignedIn} isActive={false} />
+            </div>
+          </div>
+          <Link to="/sign-in" className={ACCOUNT_PILL}>
+            <NavItem Icon={LogIn} label={t.auth.signInEntry} isActive={false} />
+          </Link>
+        </>
+      ) : (
+        <>
+          <div title={address} className={ACCOUNT_ROW}>
+            {address !== undefined && <span className="sr-only">{t.auth.signedInAs(address)}</span>}
+            <div aria-hidden={address !== undefined || undefined} className="min-w-0 flex-1">
+              <NavItem Icon={CircleUser} label={address ?? t.auth.signedIn} isActive={false} />
+            </div>
+          </div>
+          {/* `aria-disabled` and never `disabled` while it runs: disabling drops the focus, and a
+              sign-out that fails leaves this button as the retry. */}
+          <button
+            type="button"
+            aria-disabled={leaving || undefined}
+            onClick={() => void leave()}
+            className={`${ACCOUNT_PILL} cursor-pointer aria-disabled:opacity-70`}
+          >
+            <NavItem Icon={LogOut} label={t.auth.signOut} isActive={false} />
+          </button>
+        </>
+      )}
     </AccountFold>
   );
 }

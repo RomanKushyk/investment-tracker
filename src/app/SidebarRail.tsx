@@ -1,5 +1,5 @@
-import { ArrowDownUp, CalendarDays, LogOut, type LucideIcon, Settings } from 'lucide-react';
-import { NavLink } from 'react-router';
+import { ArrowDownUp, CalendarDays, LogIn, LogOut, type LucideIcon, Settings } from 'lucide-react';
+import { Link, NavLink } from 'react-router';
 
 import { useSignOut } from '../hooks/useSignOut';
 import { AccountFold, ANALYTICS, Mark } from './Sidebar';
@@ -87,25 +87,38 @@ function RailBox({ Icon, isActive = false }: { Icon: LucideIcon; isActive?: bool
 
 /**
  * The foot band's LAST item, the panel's «Вийти» in the rail's recipe: an action and never a
- * route, so it takes no tint and no indicator. Held and folded as the panel's rows are. The
- * button carries the radius for the same reason the link does: the focus ring follows it.
+ * route, so it takes no tint and no indicator. Held as the panel's rows are. The button carries
+ * the radius for the same reason the link does: the focus ring follows it. Signed out, «Увійти»
+ * alone, a plain `Link` for the panel's reason, with hover only, as its neighbours.
  */
-function RailSignOut() {
+function RailAccount() {
   const t = useT();
   const { rows, leaving, leave } = useSignOut();
   return (
     <AccountFold rows={rows}>
-      <Tooltip label={t.auth.signOut}>
-        <button
-          type="button"
-          aria-label={t.auth.signOut}
-          aria-disabled={leaving || undefined}
-          onClick={() => void leave()}
-          className="mt-1.5 block w-full cursor-pointer rounded-[9px] transition aria-disabled:opacity-70"
-        >
-          <RailBox Icon={LogOut} />
-        </button>
-      </Tooltip>
+      {rows === 'entry' ? (
+        <Tooltip label={t.auth.signInEntry}>
+          <Link
+            to="/sign-in"
+            aria-label={t.auth.signInEntry}
+            className="mt-1.5 block rounded-[9px]"
+          >
+            <RailBox Icon={LogIn} />
+          </Link>
+        </Tooltip>
+      ) : (
+        <Tooltip label={t.auth.signOut}>
+          <button
+            type="button"
+            aria-label={t.auth.signOut}
+            aria-disabled={leaving || undefined}
+            onClick={() => void leave()}
+            className="mt-1.5 block w-full cursor-pointer rounded-[9px] transition aria-disabled:opacity-70"
+          >
+            <RailBox Icon={LogOut} />
+          </button>
+        </Tooltip>
+      )}
     </AccountFold>
   );
 }
@@ -178,7 +191,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             above them uses. */}
         <div className="mt-[14px] -mr-2 mb-[calc(-16px-env(safe-area-inset-bottom))] ml-[calc(-8px-env(safe-area-inset-left))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg pt-2 pr-2 pb-[calc(8px+env(safe-area-inset-bottom))] pl-[calc(8px+env(safe-area-inset-left))]">
           {/* THE PANEL'S ORDER: the currency above Settings, as its track sits above
-              Settings in the panel, and the sign-out last (`sign-out.dc.html`, T2).
+              Settings in the panel, and the account last (`sign-out.dc.html`, T2).
               `sr-only` and not `aria-label`: a bare div is `role=generic`, which
               ARIA-in-HTML forbids naming, so the label was dropped and the box
               announced as a bare glyph. The same idiom the expanded track uses,
@@ -190,7 +203,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
           <div className="mt-1.5">
             <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
           </div>
-          <RailSignOut />
+          <RailAccount />
         </div>
       </div>
     </TooltipProvider>
