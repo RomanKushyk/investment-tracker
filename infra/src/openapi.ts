@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { parseDocument } from 'yaml';
 
+import { PARAMETERS as LIST_PARAMETERS, RESPONSES as LIST_RESPONSES } from './admin-users';
 import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
@@ -71,7 +72,8 @@ type Template = {
  *  this map is the only thing that knows whose answers those are. */
 export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declared)[]>> = {
   'applications.handler': APPLICATION_RESPONSES,
-  'approve.handler': ADMIN_RESPONSES,
+  // The two rulings and the list they start from share one function.
+  'approve.handler': { ...ADMIN_RESPONSES, ...LIST_RESPONSES },
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
   // The write, the export, the staged import and the settings share one function.
@@ -119,6 +121,7 @@ type Operation = {
 
 /** A route's own request headers and query parameters, keyed like the bodies. */
 const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
+  ...LIST_PARAMETERS,
   ...RELAY_PARAMETERS,
   ...VIEW_PARAMETERS,
   ...MUTATIONS_PARAMETERS,

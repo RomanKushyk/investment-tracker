@@ -401,6 +401,9 @@ Resources:
         'POST /v1/applications':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'GET /admin/users':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         'POST /admin/users/{id}/approve':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -604,6 +607,15 @@ Resources:
                 - cognito-idp:AdminEnableUser
               Resource: !GetAtt UserPool.Arn
       Events:
+        # The list a ruling starts from, past the same gate the two rulings stand behind.
+        List:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /admin/users
+            Auth:
+              Authorizer: CognitoJwt
         Approve:
           Type: HttpApi
           Properties:

@@ -7,6 +7,9 @@
 // where the monthly active user is spent and the one invitation goes out, which is what makes
 // approval the verification step (*Auth model*). REJECT IS THE OPPOSITE SHAPE: a status, with a
 // Cognito call only as its consequence.
+//
+// The list a ruling starts from, `GET /admin/users`, is `admin-users.ts`'s, served from this
+// function past the same gate.
 import {
   AdminCreateUserCommand,
   AdminDisableUserCommand,
@@ -15,6 +18,7 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 
+import { LIST_ROUTE, listUsers } from './admin-users';
 import {
   FORBIDDEN,
   NO_APPLICATION,
@@ -92,7 +96,8 @@ export const RESPONSES: Record<string, readonly ApiResult[]> = {
   [REJECT_ROUTE]: [REJECTED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, ALREADY_DECIDED, INTERNAL],
 };
 
-const TARGET = `SELECT user_id, email, status, role, applied_at FROM app_user
+/** `applied_at` AS TEXT, because pg's Date keeps milliseconds and the stamp holds microseconds. */
+const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied_at FROM app_user
                 WHERE user_id = $1`;
 
 /** `AND status = 'pending'` is not decoration: two approvals racing resolve to the SAME `sub`, so
@@ -105,7 +110,7 @@ const REMOVE = `DELETE FROM app_user WHERE user_id = $1 AND status = 'pending'`;
  *  HALVES OF THE DECISION PAIR, because `app_user_decided_ck` reads "not both null". */
 const REPLACE = `INSERT INTO app_user (user_id, email, status, role, applied_at,
                                        decided_at, decided_by)
-                 VALUES ($1, $2, 'active', $3, $4, now(), $5)`;
+                 VALUES ($1, $2, 'active', $3, $4::timestamptz, now(), $5)`;
 
 /** GUARDED ON THE STATUS THAT WAS READ, for the reason `REMOVE` is: a reject racing an approve
  *  must not write over the row the approval just made. NO ROWS MEANS THE STATUS MOVED UNDER US, so
@@ -121,7 +126,7 @@ const ROW_NOW = `SELECT status FROM app_user WHERE email = $1`;
 const subOf = (attributes: UserAttribute[] | undefined): string | undefined =>
   attributes?.find((a) => a.Name === 'sub')?.Value;
 
-type Target = { user_id: string; email: string; status: string; role: string; applied_at: Date };
+type Target = { user_id: string; email: string; status: string; role: string; applied_at: string };
 
 /** `minted` IS WHAT THIS CALL MAY UNDO: an identity created here belongs to this approval and
  *  nothing refers to it yet, where an ADOPTED one is somebody else's and turning it off would
@@ -336,6 +341,7 @@ export async function approve(
     if ('refusal' in gate) return gate.refusal;
 
     const routeKey = event.routeKey;
+    if (routeKey === LIST_ROUTE) return await listUsers(client, event);
     if (routeKey !== APPROVE_ROUTE && routeKey !== REJECT_ROUTE) return INVALID;
 
     // FOLDED BEFORE IT IS COMPARED TO ANYTHING, and the guard below is why: a `uuid` column

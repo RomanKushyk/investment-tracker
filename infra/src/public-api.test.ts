@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
+import { LIST_ROUTE } from './admin-users';
 // The route key is matched by string equality in three places and nothing validates them against
 // each other. Renamed on one side alone, every suite here stays green and admin calls answer 400.
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
@@ -168,9 +169,11 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(declaredRoutes().map((r) => r.api)).toEqual(declaredRoutes().map(() => 'PublicApi'));
   });
 
-  it('puts approve and reject on this API, each naming the authorizer', () => {
+  it('puts the list, approve and reject on this API, each naming the authorizer', () => {
     const admin = declaredRoutes().filter((r) => r.fn === 'ApproveFunction');
-    expect(admin.map((r) => r.key).sort()).toEqual([APPROVE_ROUTE, REJECT_ROUTE].sort());
+    expect(admin.map((r) => r.key).sort()).toEqual(
+      [LIST_ROUTE, APPROVE_ROUTE, REJECT_ROUTE].sort(),
+    );
     for (const route of admin) {
       expect([route.key, route.api]).toEqual([route.key, 'PublicApi']);
       expect([route.key, route.authorizer]).toEqual([route.key, AUTHORIZER]);

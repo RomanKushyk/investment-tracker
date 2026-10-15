@@ -247,7 +247,7 @@ jobs:
             const client = (role) => ({
               query: async (text) => ({
                 rows: text.includes('applied_at')
-                  ? [{ user_id: DEMO, email: 'demo@quirenote.com', status: 'active', role: 'demo', applied_at: new Date() }]
+                  ? [{ user_id: DEMO, email: 'demo@quirenote.com', status: 'active', role: 'demo', applied_at: new Date(), decided_at: null }]
                   : [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }],
               }),
             });
@@ -256,14 +256,19 @@ jobs:
               pathParameters: { id: DEMO },
               requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: ADMIN, email: 'owner@quirenote.com' } } } },
             };
+            const listing = { ...event, routeKey: 'GET /admin/users', pathParameters: {} };
             Promise.all([
               a.approve(client('super_admin'), idp, event),
               a.approve(client('user'), idp, event),
-            ]).then(([demo, ordinary]) => {
+              a.approve(client('super_admin'), idp, listing),
+              a.approve(client('user'), idp, listing),
+            ]).then(([demo, ordinary, listed, refusedList]) => {
               if (demo.statusCode !== 409) throw new Error('approve bundle did not refuse a demo row: ' + demo.statusCode);
               if (ordinary.statusCode !== 403) throw new Error('approve bundle admitted an ordinary user: ' + ordinary.statusCode);
+              if (listed.statusCode !== 200 || JSON.stringify(Object.keys(JSON.parse(listed.body).users[0] || {})) !== JSON.stringify(['id', 'email', 'status', 'appliedAt', 'decidedAt'])) throw new Error('approve bundle did not list the applications, five fields each: ' + listed.statusCode);
+              if (refusedList.statusCode !== 403) throw new Error('approve bundle listed the applications to an ordinary user: ' + refusedList.statusCode);
               if (calls.length) throw new Error('approve bundle called Cognito on a refusal: ' + calls.join());
-              console.log('approve bundle loads and refuses a demo row and an ordinary caller, without calling Cognito');
+              console.log('approve bundle loads, lists the applications to the super-admin alone, and refuses a demo row and an ordinary caller, without calling Cognito');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # The relay holds the client secret and a stranger reaches it: both refusals land before

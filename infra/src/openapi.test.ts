@@ -16,6 +16,11 @@ import { ADDRESS, MAX_ADDRESS } from '@quirenote/core/address';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { SETTING_NAMES } from '@quirenote/core/settings';
 import {
+  LIST_ROUTE,
+  PARAMETERS as LIST_PARAMETERS,
+  RESPONSES as LIST_RESPONSES,
+} from './admin-users';
+import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
   ROUTE as APPLY_ROUTE,
@@ -236,6 +241,7 @@ describe('the document is regenerated, never typed', () => {
     // about why it does NOT go through `export-api`, and none of that reasoning is a dependency.
     const imports = [...generator.matchAll(/from '([^']+)';/g)].map((m) => m[1]);
     expect(imports.sort()).toEqual([
+      './admin-users',
       './applications',
       './approve',
       './auth-relay',
@@ -317,6 +323,7 @@ describe('every answer a handler can give is in the document', () => {
 const DECLARED = {
   ...APPLICATION_RESPONSES,
   ...ADMIN_RESPONSES,
+  ...LIST_RESPONSES,
   ...RELAY_RESPONSES,
   ...VIEW_RESPONSES,
   ...MUTATIONS_RESPONSES,
@@ -473,10 +480,11 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-three routes and no others', () => {
+  it('declares the twenty-four routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
+        LIST_ROUTE,
         APPROVE_ROUTE,
         REJECT_ROUTE,
         ...RELAY,
@@ -513,6 +521,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       expect([key, op(key).security]).toEqual([key, []]);
     }
     for (const key of [
+      LIST_ROUTE,
       APPROVE_ROUTE,
       REJECT_ROUTE,
       VIEW_ROUTE,
@@ -583,6 +592,29 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ['If-None-Match', 'header', false],
       ['If-Match', 'header', false],
     ]);
+  });
+
+  // THE LIST'S THREE ARE ALL OPTIONAL: no filter lists every application, no limit takes the
+  // default page, no cursor starts at the oldest.
+  it('publishes the list’s filter, page size and cursor, none required', () => {
+    const [method, path] = LIST_ROUTE.split(' ');
+    const params = spec.paths[path][method.toLowerCase()].parameters;
+    expect(params).toEqual(LIST_PARAMETERS[LIST_ROUTE]);
+    expect(params?.map((p) => [p.name, p.in, p.required])).toEqual([
+      ['status', 'query', false],
+      ['limit', 'query', false],
+      ['cursor', 'query', false],
+    ]);
+    expect(params?.find((p) => p.name === 'status')?.schema.enum).toEqual([
+      'pending',
+      'active',
+      'rejected',
+    ]);
+    expect(params?.find((p) => p.name === 'limit')?.schema).toMatchObject({
+      type: 'integer',
+      minimum: 1,
+      maximum: 100,
+    });
   });
 
   // THE WRITE NEEDS BOTH: a request without either is refused before anything is claimed.
