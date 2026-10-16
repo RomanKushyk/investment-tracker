@@ -101,7 +101,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage rate-ahead archive-reader-grant view mutations; do
+          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -120,7 +120,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -308,6 +308,20 @@ jobs:
               if (fresh.cluster !== target.cluster) throw new Error('the metric line carries no cluster dimension');
               if (!(none.value > fresh.value)) throw new Error('an empty vault did not read as older than a backed-up one: ' + none.value);
               console.log('backup-freshness bundle loads, filters by the cluster arn, and puts an empty vault at the bad end');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # A wake that failed must THROW, so Lambda retries it before the backup plan starts.
+          node -e "
+            const w = require('./backup-wake.js');
+            if (typeof w.handler !== 'function') throw new Error('handler missing from backup-wake bundle');
+            const sent = [];
+            const client = (failOn) => ({ query: async (text) => { sent.push(text); if (text === failOn) throw new Error('refused'); return { rows: [] }; } });
+            w.wake(client()).then(() => {
+              if (sent.join('|') !== 'START TRANSACTION READ ONLY|SELECT 1|ROLLBACK') throw new Error('the wake sent: ' + sent.join('|'));
+              return w.wake(client('SELECT 1')).then(() => 'answered', () => 'refused');
+            }).then((failed) => {
+              if (failed !== 'refused') throw new Error('a failed wake did not throw');
+              console.log('backup-wake bundle loads, sends one read-only transaction, and throws when the cluster does not answer');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # Here the REFUSAL is what matters: a pool answering without `EstimatedNumberOfUsers`

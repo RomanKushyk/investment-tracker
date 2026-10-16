@@ -61,6 +61,7 @@ type Resource = {
     AssumeRolePolicyDocument?: unknown;
     ScheduleExpression?: string;
     ScheduleExpressionTimezone?: string;
+    FlexibleTimeWindow?: { Mode?: string };
   };
 };
 
@@ -635,6 +636,7 @@ describe('the user stacks reach the archive through a read-only role the archive
     expect(admin.sort()).toEqual([
       'ApplicationsFunction',
       'ApproveFunction',
+      'BackupWakeFunction',
       'MigrateFunction',
       'MutationsFunction',
       'RateAheadFunction',
@@ -702,12 +704,13 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the relay, the view, the write, two watches and the rate job', () => {
+  it('holds the runner, the trigger, the application, the approval, the relay, the view, the write, two watches, the wake and the rate job', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
       'auth-relay.handler',
       'backup-freshness.handler',
+      'backup-wake.handler',
       'migrate.handler',
       'mutations.handler',
       'pool-usage.handler',
@@ -953,6 +956,92 @@ describe('the user stack watches its own cluster’s backups', () => {
     const check = /^cron\((\d+) (\d+)/.exec(String(schedule?.ScheduleExpression));
     expect(check).not.toBeNull();
     expect(Number(check![2]) * 60 + Number(check![1])).toBeGreaterThan(completesAt);
+  });
+
+  // AWS Backup refuses an Idle DSQL cluster, so the stack wakes prod's before each night's plan
+  // rather than counting on another job's connection. [*Alerting*]
+  const WAKE = [
+    'BackupWakeFunction',
+    'BackupWakeLogGroup',
+    'BackupWakeSchedule',
+    'BackupWakeSchedulerRole',
+  ];
+
+  it('wakes the cluster on prod only', () => {
+    for (const id of WAKE) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+    }
+  });
+
+  it('connects to the user cluster as admin and holds no other grant', () => {
+    const policies = JSON.stringify(user.Resources.BackupWakeFunction.Properties?.Policies);
+    expect(policies).not.toContain('backup:');
+    expect(policies).not.toContain('cognito-idp:');
+    expect(inlineStatements(user, 'BackupWakeFunction')).toHaveLength(1);
+    expect(
+      grantAt(
+        userDoc,
+        ['Resources', 'BackupWakeFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
+    expect(intrinsicAt(userDoc, ...envVars('BackupWakeFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+  });
+
+  it('lets its scheduler invoke the wake and nothing else', () => {
+    expect(
+      grantAt(
+        userDoc,
+        [
+          'Resources',
+          'BackupWakeSchedulerRole',
+          'Properties',
+          'Policies',
+          0,
+          'PolicyDocument',
+          'Statement',
+        ],
+        'lambda:InvokeFunction',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'BackupWakeFunction.Arn' });
+    expect(roleGrants(user, 'BackupWakeSchedulerRole')).toEqual({
+      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      managed: [],
+    });
+  });
+
+  // THE PLAN'S START IS READ FROM ITS SCRIPT, as the check above reads its end. The budget is the
+  // wake's own retries: Scheduler invokes asynchronously, and Lambda retries a failed invocation
+  // twice, a minute and then two minutes after, each attempt up to the function's timeout
+  // (lambda/latest/dg/invocation-async-error-handling.html). Both sides UTC, asserted, not assumed.
+  it('fires daily, with its retries spent, before the backup plan starts', () => {
+    const script = readFileSync(join(REPO, 'infra/scripts/bootstrap-backups.sh'), 'utf8');
+    expect(script).toContain('"ScheduleExpressionTimezone": "Etc/UTC"');
+    const plan = /"ScheduleExpression": "cron\((\d+) (\d+) \* \* \? \*\)"/.exec(script);
+    expect(plan).not.toBeNull();
+    const planAt = Number(plan![2]) * 60 + Number(plan![1]);
+
+    const schedule = user.Resources.BackupWakeSchedule.Properties;
+    expect(schedule?.ScheduleExpressionTimezone).toBe('Etc/UTC');
+    expect(schedule?.FlexibleTimeWindow).toEqual({ Mode: 'OFF' });
+    const wake = /^cron\((\d+) (\d+) \* \* \? \*\)$/.exec(String(schedule?.ScheduleExpression));
+    expect(wake).not.toBeNull();
+    const timeout = Number(user.Resources.BackupWakeFunction.Properties?.Timeout);
+    expect(timeout).toBeGreaterThan(0);
+    const RETRY_WAITS_MINUTES = 1 + 2;
+    const lastAttemptEndsBy =
+      Number(wake![2]) * 60 + Number(wake![1]) + RETRY_WAITS_MINUTES + (3 * timeout) / 60;
+    expect(lastAttemptEndsBy).toBeLessThan(planAt);
+  });
+
+  it('names the idle cluster and the wake in the backup alarm', () => {
+    const description = String(user.Resources.UserBackupAgeAlarm.Properties?.AlarmDescription);
+    expect(description).toContain('Idle');
+    expect(description).toContain('BackupWakeFunction');
   });
 
   it('leaves the archive’s own check reading the archive alone', () => {
@@ -1371,7 +1460,7 @@ describe('the capture pipeline exists exactly once across both templates', () =>
 
   // EACH TARGET AS THE INTRINSIC, and the capture's dead-letter queue with them: `toJS()` reads the
   // literal `CaptureFunction.Arn` as it reads the `!GetAtt`, and the literal is no function's ARN.
-  it('schedules the capture once, and the user stack schedules only its own watches and the rate job', () => {
+  it('schedules the capture once, and the user stack schedules only its own watches, the wake and the rate job', () => {
     const target = (doc: Document, id: string) => [
       id,
       intrinsicAt(doc, 'Resources', id, 'Properties', 'Target', 'Arn'),
@@ -1392,6 +1481,7 @@ describe('the capture pipeline exists exactly once across both templates', () =>
     ).toEqual({ tag: '!GetAtt', value: 'CaptureDlq.Arn' });
     expect(idsOfType(user, 'AWS::Scheduler::Schedule').map((id) => target(userDoc, id))).toEqual([
       ['BackupFreshnessSchedule', { tag: '!GetAtt', value: 'BackupFreshnessFunction.Arn' }],
+      ['BackupWakeSchedule', { tag: '!GetAtt', value: 'BackupWakeFunction.Arn' }],
       ['PoolUsageSchedule', { tag: '!GetAtt', value: 'PoolUsageFunction.Arn' }],
       ['RateAheadSchedule', { tag: '!GetAtt', value: 'RateAheadFunction.Arn' }],
     ]);
@@ -1498,6 +1588,7 @@ describe('what reaches a role besides its own policies', () => {
       'ViewFunction',
       'MutationsFunction',
       'BackupFreshnessFunction',
+      'BackupWakeFunction',
       'PoolUsageFunction',
       'RateAheadFunction',
     ]);

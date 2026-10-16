@@ -1026,6 +1026,85 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt BackupFreshnessFunction.Arn
 
+  # AWS BACKUP REFUSES AN IDLE DSQL CLUSTER, and DSQL idles one that nothing connects to; nothing
+  # else here promises prod's a connection before the plan, so this opens one read-only session.
+  # It publishes nothing: a missed wake that costs a backup shows as `UserBackupAgeAlarm`. [*Alerting*]
+  BackupWakeFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsProd
+    Properties:
+      CodeUri: dist/
+      Handler: backup-wake.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      # Generous: an Inactive cluster's time to restore depends on its size, and a timeout is
+      # retried like any error.
+      Timeout: 60
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+      Policies:
+        - Statement:
+            # The only database role this cluster has is `admin`; the handler bounds the reach.
+            - Sid: WakeThisClusterBeforeItsBackup
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+
+  BackupWakeLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${BackupWakeFunction}
+      RetentionInDays: 30
+
+  # ON THE PLAN'S OWN CLOCK, `Etc/UTC`, so daylight saving never moves one against the other, and
+  # early enough that Lambda's two retries end before the plan starts.
+  BackupWakeSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: IsProd
+    Properties:
+      Description: Wake prod's user cluster so the nightly backup plan finds it Active.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      ScheduleExpression: cron(30 22 * * ? *)
+      ScheduleExpressionTimezone: Etc/UTC
+      Target:
+        Arn: !GetAtt BackupWakeFunction.Arn
+        RoleArn: !GetAtt BackupWakeSchedulerRole.Arn
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+          MaximumEventAgeInSeconds: 3600
+
+  BackupWakeSchedulerRole:
+    Type: AWS::IAM::Role
+    Condition: IsProd
+    Properties:
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokeBackupWake
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt BackupWakeFunction.Arn
+
   # DIMENSIONED BY CLUSTER, WHICH IS WHAT LETS IT SHARE A NAME WITH THE ARCHIVE'S: CloudWatch
   # keys a custom metric on namespace, name AND dimension set, and rolls nothing up across them.
   # NO `DefaultValue`: CloudWatch Logs rejects a transformation carrying both that and
@@ -1057,7 +1136,9 @@ Resources:
         cluster still carries `app=quirenote`, then the quirenote-archive-daily plan
         and the quirenote-backups vault in AWS Backup (eu-north-1) — that plan is named
         for the archive but its selection matches the tag, so it is this cluster's plan
-        too. Both are outside this stack: infra/scripts/bootstrap-backups.sh.
+        too. Both are outside this stack: infra/scripts/bootstrap-backups.sh. Jobs FAILED
+        on a cluster in the Idle state mean BackupWakeFunction did not wake it before the
+        plan: read its log group, then connect once and start an on-demand backup.
       Namespace: Quirenote
       MetricName: BackupAgeHours
       Dimensions: [{ Name: cluster, Value: !GetAtt UserCluster.Identifier }]

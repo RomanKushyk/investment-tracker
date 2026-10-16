@@ -51,7 +51,7 @@ one deploying branch and user data two:
 |---|---|---|
 | `quirenote-backend` | the archive cluster (tagged `app=quirenote`), the capture Lambda, the schedule, the DLQ, the alarms | `dev` only |
 | `quirenote-backend-user-dev` | a DSQL cluster of user data, its migration runner, and the Cognito pool at `auth.dev.quirenote.com`. Tagged `app=quirenote-dev`, so it is the one cluster the backup plan does NOT take | `dev` |
-| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` — and because of that tag strictly more: two nightly Lambdas (recovery points, pool count against the free tier), each with log group, schedule and role, a metric filter, and three alarms. They hang off `IsProd`, so `dev` renders none | `main` |
+| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` — and because of that tag strictly more: two nightly Lambdas (recovery points, pool count against the free tier), each with log group, schedule and role, a metric filter, and three alarms, and a nightly wake before the backup with its own log group, schedule and role and no metric or alarm. They hang off `IsProd`, so `dev` renders none | `main` |
 
 The archive step is skipped off `main`, **so a `workflow_dispatch` on `main` cannot repair the archive**
 — the repair path is a dispatch on `dev`. **Every run reads the archive's `ClusterIdentifier` before it

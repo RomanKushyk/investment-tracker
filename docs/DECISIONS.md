@@ -886,7 +886,10 @@ its errors, then one alarm for each published number a threshold can be right fo
 sits outside that rule, its depth published by SQS rather than by any check here. A REQUEST PATH IS
 NO CHECK: no traffic is its normal state and a failure it catches is answered as a 500, so it adds
 the watched value alone — the view function's archive refusals, alarmed on a second in an hour, since
-the grant's revoke and re-grant refuses a connection landing between the two.
+the grant's revoke and re-grant refuses a connection landing between the two. A JOB THAT PUBLISHES
+NOTHING ADDS NOTHING when a watched value already sees it fail: AWS Backup refuses an Idle DSQL
+cluster, so prod's user cluster is woken by one read-only session before each night's plan, and a
+missed wake that costs a backup shows as that cluster's backup age.
 `infra/src/stack-split.test.ts` holds the names and the overshoot as a subtraction, after a
 thirteenth alarm passed every gate.
 **Why.** An alarm that cannot deliver is worse than none: it turns an unmonitored system into one
@@ -895,7 +898,9 @@ so its primary form is a value someone can look at.
 **Rejected.** An SNS topic with an email subscription: three subscriptions across two topics died
 within seconds of confirmation, invisibly — do not add the topic back. · AWS Backup's own
 `NumberOfRecoveryPointsCompleted` in place of a per-cluster check: it is dimensioned by VAULT, so
-one cluster's nightly job keeps the number up while another has silently left the selection.
+one cluster's nightly job keeps the number up while another has silently left the selection. · The
+rate job as the wake, a wake on a FAILED backup event, or a backup started outside the plan: a
+dedicated wake keeps the backup off another job's schedule and inside the plan's own.
 
 ## Cloud target
 **Decision.** Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the migration the
