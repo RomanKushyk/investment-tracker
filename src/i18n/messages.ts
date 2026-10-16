@@ -982,6 +982,7 @@ export const en = {
       loading: 'Fetching…',
       fetchedAt: (time: string) => `Fetched ${time}`,
       unlinked: 'No Inzhur-linked assets yet — link one on Portfolio.',
+      otherDay: 'Inzhur prices are today’s — set the date to today to fetch.',
       feedAsOf: (date: string) => `Inzhur as of ${date}`,
       feedAt: (time: string) => `Inzhur ${time}`,
     },
@@ -1959,6 +1960,7 @@ export const uk: Dict = {
       loading: 'Отримання…', // ✎
       fetchedAt: (time: string) => `Отримано ${time}`, // ✎
       unlinked: 'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Портфелі.',
+      otherDay: 'Ціни Inzhur — на сьогодні; щоб їх отримати, оберіть сьогоднішню дату.',
       feedAsOf: (date: string) => `Inzhur станом на ${date}`, // ✎
       feedAt: (time: string) => `Inzhur ${time}`,
     },

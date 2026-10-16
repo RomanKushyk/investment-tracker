@@ -24,8 +24,9 @@ export interface FeedFreshness {
   at: string;
 }
 
-/** The button machine; the error state is a toast, never a button style. */
-export type FetchButtonState = 'unlinked' | 'loading' | 'success' | 'idle';
+/** The button machine; the error state is a toast, never a button style. `otherDay` gates a
+ *  date other than today: the feed is struck for today and is no price of any other day's. */
+export type FetchButtonState = 'unlinked' | 'otherDay' | 'loading' | 'success' | 'idle';
 
 export interface DraftRow {
   raw: string | undefined;
@@ -154,13 +155,16 @@ export function payloadStillFresh(fetchedAt: string, now: Date, refreshHour: num
   return now.getTime() < at.getTime() + msUntilNextKyivHour(at, refreshHour);
 }
 
-/** Gating plus machine state. "Nothing to fetch" first. */
+/** Gating plus machine state. "Nothing to fetch" first, so a date moved off today while a
+ *  fetch is in flight reads gated, not busy. */
 export function fetchButtonState(opts: {
   linked: number;
+  otherDay: boolean;
   loading: boolean;
   flash: boolean;
 }): FetchButtonState {
   if (opts.linked === 0) return 'unlinked';
+  if (opts.otherDay) return 'otherDay';
   if (opts.loading) return 'loading';
   if (opts.flash) return 'success';
   return 'idle';

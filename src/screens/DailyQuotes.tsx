@@ -99,7 +99,7 @@ export function DailyQuotes() {
     [transactions, selectedDate],
   );
   // The fetch ritual only ever writes the draft store — "Save snapshot" stays the sole write path.
-  const fetch = useQuoteFetch(assets, ledger.units, ledger.incomplete);
+  const fetch = useQuoteFetch(assets, ledger.units, ledger.incomplete, today);
   // Pure local derivations, so nothing here waits on a fetch.
   const { autoQuoteSuggest, couponSuggest, dismissedReminders, dismissReminder, language } =
     useSettings();

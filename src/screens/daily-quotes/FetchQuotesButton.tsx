@@ -26,10 +26,15 @@ export function FetchQuotesButton({
 }) {
   const f = useFormat();
   const t = useT();
-  const gated = state === 'unlinked';
+  const gated = state === 'unlinked' || state === 'otherDay';
   const disabled = gated || state === 'loading';
   const success = state === 'success' && flashAt !== undefined;
-  const title = state === 'unlinked' ? t.dailyQuotes.fetch.unlinked : undefined;
+  const title =
+    state === 'unlinked'
+      ? t.dailyQuotes.fetch.unlinked
+      : state === 'otherDay'
+        ? t.dailyQuotes.fetch.otherDay
+        : undefined;
 
   const button = (
     <Button

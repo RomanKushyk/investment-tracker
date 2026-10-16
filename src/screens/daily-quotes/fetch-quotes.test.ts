@@ -238,10 +238,14 @@ describe('payloadStillFresh (S1 "re-serve, do not refetch")', () => {
 });
 
 describe('fetchButtonState (S1 machine)', () => {
-  const base = { linked: 2, loading: false, flash: false };
+  const base = { linked: 2, otherDay: false, loading: false, flash: false };
 
   it('resolves in the pinned precedence', () => {
-    expect(fetchButtonState({ ...base, linked: 0, loading: true })).toBe('unlinked');
+    expect(fetchButtonState({ ...base, linked: 0, otherDay: true, loading: true })).toBe(
+      'unlinked',
+    );
+    // Gated before in-flight: a date moved off today mid-fetch reads as "nothing to fetch".
+    expect(fetchButtonState({ ...base, otherDay: true, loading: true })).toBe('otherDay');
     expect(fetchButtonState({ ...base, loading: true, flash: true })).toBe('loading');
     expect(fetchButtonState({ ...base, flash: true })).toBe('success');
     expect(fetchButtonState(base)).toBe('idle');

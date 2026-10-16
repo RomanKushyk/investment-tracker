@@ -30,6 +30,11 @@ import { useSettings } from '../../state/settings';
 /** The success flash reverts to the idle label after this long. */
 const FLASH_MS = 2500;
 
+/** An empty draft date stands in for today (`selectedDate = date || today` on the screen). */
+const offToday = (date: string, today: string) => date !== '' && date !== today;
+
+const FETCH_FAILED_TOAST = 'fetch-failed';
+
 export interface QuoteOffer {
   value: number;
   /** The offered number came from the last-good cache, not a live fetch. */
@@ -65,15 +70,24 @@ export function useQuoteFetch(
    *  back to the link's hand-typed total, so the fetch reports a number that is old
    *  and, after a sale, too large — the only way that becomes visible. */
   incompleteLedgers: readonly string[],
+  /** The screen's day. The feed is struck for it, so on any other day nothing from it is filled
+   *  or offered: that day would store today's price as its own. */
+  today: string,
 ): QuoteFetch {
   const t = useT();
   const f = useFormat();
   const language = useSettings((s) => s.language);
   const { data, lastGood, isFetching, fetchAssets } = useInzhurAssets();
+  const date = useDraft((s) => s.date);
   const quotes = useDraft((s) => s.quotes);
   const origins = useDraft((s) => s.origins);
-  const [offers, setOffers] = useState<Record<string, QuoteOffer>>({});
+  // Stamped with the day they were made for, so another date's rows never see them.
+  const [offers, setOffers] = useState<{ day: string; byId: Record<string, QuoteOffer> }>({
+    day: '',
+    byId: {},
+  });
   const [flashAt, setFlashAt] = useState<string | undefined>(undefined);
+  const offersHere = offers.day === today && !offToday(date, today);
 
   useEffect(() => {
     if (flashAt === undefined) return;
@@ -81,11 +95,18 @@ export function useQuoteFetch(
     return () => clearTimeout(timer);
   }, [flashAt]);
 
-  // Reads the draft through getState(), so a second press reconciles against the screen.
+  // The failure toast's cache action would be refused on another day, so it goes with the day.
+  useEffect(() => {
+    if (offToday(date, today)) toast.dismiss(FETCH_FAILED_TOAST);
+  }, [date, today]);
+
+  // Reads the draft through getState(), so a second press reconciles against the screen, and a
+  // date moved off today since the press or the failure toast is refused.
   const apply = useCallback(
     (feed: InzhurFeed, source: QuoteSource) => {
-      const { linked } = matchAssets(assets, feed.feed, unitsHeld);
       const draft = useDraft.getState();
+      if (offToday(draft.date, today)) return;
+      const { linked } = matchAssets(assets, feed.feed, unitsHeld);
       const {
         fills,
         offers: pending,
@@ -96,14 +117,15 @@ export function useQuoteFetch(
         draft.fillQuote(fill.assetId, inputValue(fill.value, 2), { source, at: feed.fetchedAt });
       }
       // Wholesale: every resolve re-decides all rows, which un-hides a dismissed offer.
-      setOffers(
-        Object.fromEntries(
+      setOffers({
+        day: today,
+        byId: Object.fromEntries(
           pending.map((offer) => [
             offer.assetId,
             { value: offer.value, stale: source === 'cache', at: feed.fetchedAt },
           ]),
         ),
-      );
+      });
       // THE SUCCESS FLASH BELONGS TO A FETCH THAT SUCCEEDED; applying the CACHE after
       // a failure must not claim it.
       if (source === 'fetch') setFlashAt(feed.fetchedAt);
@@ -143,11 +165,13 @@ export function useQuoteFetch(
         });
       }
     },
-    [assets, unitsHeld, incompleteLedgers, language, t],
+    [assets, unitsHeld, incompleteLedgers, language, t, today],
   );
 
   const fetchQuotes = useCallback(() => {
     void (async () => {
+      // No roundtrip for a day that cannot use it; `apply` refuses on its own as well.
+      if (offToday(useDraft.getState().date, today)) return;
       // Still fresh on the same feed day: re-serve it, no second roundtrip.
       if (
         data !== undefined &&
@@ -161,8 +185,11 @@ export function useQuoteFetch(
         apply(feed, 'fetch');
         return;
       }
+      // A failure on a day the date has since left offers a cache that day would refuse.
+      if (offToday(useDraft.getState().date, today)) return;
       // Never silent, never a thrown boundary: the cache is offered, never applied.
       toast.error(t.dailyQuotes.fetchFailed, {
+        id: FETCH_FAILED_TOAST,
         ...(lastGood === undefined
           ? {}
           : {
@@ -175,7 +202,7 @@ export function useQuoteFetch(
             }),
       });
     })();
-  }, [apply, data, fetchAssets, lastGood, f, t]);
+  }, [apply, data, fetchAssets, lastGood, f, t, today]);
 
   const chipFor = useCallback(
     (asset: Asset) =>
@@ -188,25 +215,25 @@ export function useQuoteFetch(
 
   const offerFor = useCallback(
     (asset: Asset) => {
-      const offer = offers[asset.id];
+      const offer = offersHere ? offers.byId[asset.id] : undefined;
       if (offer === undefined) return undefined;
       const row = { raw: quotes[asset.id], origin: origins[asset.id] };
       return offerVisible(row, offer.value, language) ? offer : undefined;
     },
-    [language, offers, origins, quotes],
+    [language, offers, offersHere, origins, quotes],
   );
 
   const dismissOffer = useCallback((assetId: string) => {
     setOffers((current) => {
-      const next = { ...current };
-      delete next[assetId];
-      return next;
+      const byId = { ...current.byId };
+      delete byId[assetId];
+      return { ...current, byId };
     });
   }, []);
 
   const acceptOffer = useCallback(
     (assetId: string) => {
-      const offer = offers[assetId];
+      const offer = offersHere ? offers.byId[assetId] : undefined;
       if (offer === undefined) return;
       useDraft.getState().fillQuote(assetId, inputValue(offer.value, 2), {
         source: offer.stale ? 'cache' : 'fetch',
@@ -214,12 +241,13 @@ export function useQuoteFetch(
       });
       dismissOffer(assetId);
     },
-    [dismissOffer, offers],
+    [dismissOffer, offers, offersHere],
   );
 
   return {
     state: fetchButtonState({
       linked: linkedCount(assets),
+      otherDay: offToday(date, today),
       loading: isFetching,
       flash: flashAt !== undefined,
     }),
