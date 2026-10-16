@@ -1,6 +1,6 @@
 import { Ban, Clock, FileQuestionMark, Lock, type LucideIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import type { Answer } from '../../auth/access';
@@ -24,16 +24,35 @@ const GLYPH: Record<Answer, LucideIcon> = {
 export function AnswerScreen({ held }: { held: HeldAnswer }) {
   const t = useT();
   const navigate = useNavigate();
+  const { key: route } = useLocation();
   const [leaving, setLeaving] = useState<string>();
+  // The route the redirect to Cognito's logout set out from, while `leaving` holds for it.
+  const [leftFrom, setLeftFrom] = useState<string>();
   const copy = t.auth[held.answer];
   const Glyph = GLYPH[held.answer];
   // `forbidden` names nobody: its causes include an address the rule refused.
   const email = held.answer === 'forbidden' ? undefined : held.email;
 
+  // The route at the redirect, not the press's render, which a move mid-run makes stale. Set at
+  // commit: a passive effect can trail a transition's commit past the relay's answer.
+  const here = useRef(route);
+  useLayoutEffect(() => {
+    here.current = route;
+  }, [route]);
+
+  // A Stop while the logout loads leaves the page here, the session ended: the next route change
+  // drops the answer (`account-way-in-and-out.dc.html`, T4), before paint.
+  useLayoutEffect(() => {
+    if (leftFrom !== undefined && leftFrom !== route) showAnswer(undefined);
+  }, [leftFrom, route]);
+
   // Back from Cognito's logout can restore this page from the back/forward cache, `leaving` and all.
   useEffect(() => {
     const restored = (event: PageTransitionEvent) => {
-      if (event.persisted) setLeaving(undefined);
+      if (event.persisted) {
+        setLeftFrom(undefined);
+        setLeaving(undefined);
+      }
     };
     addEventListener('pageshow', restored);
     return () => removeEventListener('pageshow', restored);
@@ -49,8 +68,12 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
       setLeaving(undefined);
       return;
     }
-    // Through Cognito's logout while Google is on, landing on `to` itself; the page goes.
-    if (leaveThroughLogout(out.logout, to)) return;
+    // Through Cognito's logout while Google is on, landing on `to` itself; the page goes, or the
+    // next route change finds it still here.
+    if (leaveThroughLogout(out.logout, to)) {
+      setLeftFrom(here.current);
+      return;
+    }
     // The router commits in a transition and the store at once: cleared first, the route that asked
     // would render in the answer's place for a frame and run its effects signed out.
     await navigate(to, { flushSync: true, state });
