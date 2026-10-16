@@ -300,6 +300,7 @@ At 1280 and 360, in either theme:
 Interactions to verify:
 1. Signed in, "Sign out" → 70 % while it runs, one `POST …/auth/sign-out`, then `/sign-in`, signed out and the answer gone, saying "You’re signed out." (`/sign-in` interaction 8). "Sign out and apply" → the same, landing on `/apply`, which says nothing of it.
 2. A sign-out the relay could not complete leaves the answer on screen and the button pressable again.
+3. With Google on, either sign-out leaves through Cognito's logout; Back that restores the page from the back/forward cache shows the pressed button pressable again.
 
 ## Not found and failures
 

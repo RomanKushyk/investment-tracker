@@ -1,5 +1,5 @@
 import { Ban, Clock, FileQuestionMark, Lock, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
@@ -29,6 +29,15 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
   const Glyph = GLYPH[held.answer];
   // `forbidden` names nobody: its causes include an address the rule refused.
   const email = held.answer === 'forbidden' ? undefined : held.email;
+
+  // Back from Cognito's logout can restore this page from the back/forward cache, `leaving` and all.
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) setLeaving(undefined);
+    };
+    addEventListener('pageshow', restored);
+    return () => removeEventListener('pageshow', restored);
+  }, []);
 
   // Only the sign-out that lands on `/sign-in` hands it the fact; `/apply` is about applying.
   async function leave(to: '/sign-in' | '/apply', state?: typeof SIGNED_OUT) {
