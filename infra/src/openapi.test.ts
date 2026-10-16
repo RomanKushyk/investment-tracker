@@ -582,15 +582,16 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     expect(spec.paths['/v1/applications'].post.parameters).toBeUndefined();
   });
 
-  // THE READ'S CONDITIONAL HEADERS, ordinary header parameters: neither is required, and neither
-  // is the relay's custom header.
-  it('publishes the read’s two preconditions as optional headers', () => {
+  // THE READ'S CONDITIONAL HEADERS AND THE CODING IT ACCEPTS, ordinary header parameters: none is
+  // required, and none is the relay's custom header.
+  it('publishes the read’s two preconditions and Accept-Encoding as optional headers', () => {
     const [method, path] = VIEW_ROUTE.split(' ');
     const params = spec.paths[path][method.toLowerCase()].parameters;
     expect(params).toEqual(VIEW_PARAMETERS[VIEW_ROUTE]);
     expect(params?.map((p) => [p.name, p.in, p.required])).toEqual([
       ['If-None-Match', 'header', false],
       ['If-Match', 'header', false],
+      ['Accept-Encoding', 'header', false],
     ]);
   });
 

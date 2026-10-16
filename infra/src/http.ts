@@ -1,5 +1,7 @@
 // The shape every route on this API speaks, in one place, for the reason `address.ts` gives for
 // the address rule: a second `json()` would be a second answer to what this API returns.
+import { brotliCompressSync, constants as zlib, gzipSync } from 'node:zlib';
+
 import { MAX_BODY_BYTES } from '@quirenote/core/ops';
 
 /** EVERY FIELD IS OPTIONAL, because they arrive per route rather than per request: the
@@ -32,6 +34,8 @@ export type ApiResult = {
   /** Payload 2.0's own list, "each cookie becomes a set-cookie header". ABSENT when there is none. */
   cookies?: readonly string[];
   body: string;
+  /** Payload 2.0's flag for a body API Gateway decodes from base64 before sending: a coded one. */
+  isBase64Encoded?: true;
 };
 
 // FROZEN: these are singletons shared by every request a Lambda ever answers, so a route that
@@ -78,10 +82,13 @@ export type Declared = Derived | Bodiless;
 /** Fetch's null-body statuses that are final; 101 and 103 are interim responses, not answers. */
 const NULL_BODY = new Set([204, 205, 304]);
 
-/** The builder sets it from whether there is a body; declared, it could put one on a 304. */
-const refuseContentType = (name: string, headers: readonly string[]): void => {
-  if (headers.includes('content-type')) {
-    throw new Error(`${name}: content-type is set by the builder, never declared`);
+/** The builder sets each from the body — whether there is one, and how it is coded; declared,
+ *  either could put one on a 304. */
+const refuseBuilderHeaders = (name: string, headers: readonly string[]): void => {
+  for (const header of ['content-type', 'content-encoding']) {
+    if (headers.includes(header)) {
+      throw new Error(`${name}: ${header} is set by the builder, never declared`);
+    }
   }
 };
 
@@ -106,7 +113,7 @@ export const derived = <H extends Lowercase<string>>(declared: Derived<H>): Deri
       `${declared.statusCode} ${declared.name}: a null-body status cannot carry a body`,
     );
   }
-  refuseContentType(declared.name, declared.headers);
+  refuseBuilderHeaders(declared.name, declared.headers);
   const declaration: Derived<H> = Object.freeze({
     ...declared,
     headers: Object.freeze([...declared.headers]),
@@ -121,7 +128,7 @@ export const bodiless = <H extends Lowercase<string>>(declared: {
   name: string;
   headers: readonly H[];
 }): Bodiless<H> => {
-  refuseContentType(declared.name, declared.headers);
+  refuseBuilderHeaders(declared.name, declared.headers);
   const declaration: Bodiless<H> = Object.freeze({
     statusCode: declared.statusCode ?? 304,
     name: declared.name,
@@ -288,3 +295,49 @@ export const strongMatch = (tags: readonly string[], current: string): boolean =
   tags.some(
     (tag) => tag === '*' || (!tag.startsWith(WEAK) && !current.startsWith(WEAK) && tag === current),
   );
+
+export type Coding = 'br' | 'gzip';
+/** This API's order among what a request accepts: brotli's body is the smaller at a like cost. */
+const CODINGS: readonly Coding[] = ['br', 'gzip'];
+
+/** RFC 9110 §12.5.3: the coding to send, among those the request accepts — one at `q=0` is
+ *  refused, `*` stands for any it does not name — in this API's order, not the request's. None
+ *  when it accepts neither, which is also an absent header's case: the body goes plain. */
+export const codingOf = (event: ApiEvent): Coding | undefined => {
+  const weights = new Map<string, number>();
+  for (const element of headerValues(event, 'accept-encoding')) {
+    const [name, ...params] = element.split(';').map((part) => part.trim());
+    const q = params.find((part) => /^q=/i.test(part));
+    weights.set(name.toLowerCase(), q === undefined ? 1 : Number(q.slice(2)) || 0);
+  }
+  return CODINGS.find((coding) => (weights.get(coding) ?? weights.get('*') ?? 0) > 0);
+};
+
+/** A middle brotli quality, as an origin codes a dynamic answer (Cloudflare's 4), never Node's
+ *  default of 11, which spends far longer per answer; gzip at zlib's own default level. */
+const BROTLI = { [zlib.BROTLI_PARAM_QUALITY]: 4, [zlib.BROTLI_PARAM_MODE]: zlib.BROTLI_MODE_TEXT };
+const GZIP = { level: 6 };
+
+/** A built answer with its body coded: base64 under `isBase64Encoded`, which payload 2.0 decodes
+ *  on the way out, and `content-encoding` set by the builder as `content-type` is. A FRESH FROZEN
+ *  RESULT UNDER THE SAME DECLARATION, so the proof and the document name it as they name the plain
+ *  one; the tag is the caller's to keep, a weak one grouping the codings (RFC 9110 §8.8.1). */
+export const encoded = (result: ApiResult, coding: Coding): ApiResult => {
+  const declared = DECLARATIONS.get(result);
+  if (declared === undefined) throw new Error('only an answer respond() built is coded');
+  const bytes = Buffer.from(result.body, 'utf8');
+  const coded =
+    coding === 'br'
+      ? brotliCompressSync(bytes, {
+          params: { ...BROTLI, [zlib.BROTLI_PARAM_SIZE_HINT]: bytes.length },
+        })
+      : gzipSync(bytes, GZIP);
+  const sent: ApiResult = Object.freeze({
+    ...result,
+    headers: Object.freeze({ ...result.headers, 'content-encoding': coding }),
+    body: coded.toString('base64'),
+    isBase64Encoded: true,
+  });
+  DECLARATIONS.set(sent, declared);
+  return sent;
+};

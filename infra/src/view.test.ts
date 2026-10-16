@@ -2,6 +2,7 @@
 // the module the route uses, so every answer here is one the route really gives.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 
 import type { PGlite } from '@electric-sql/pglite';
 import { importParts } from '@quirenote/core/backup/parts';
@@ -204,6 +205,18 @@ const tagOf = async (d = deps(), e = event()) => {
   return res.headers.etag;
 };
 
+/** A 200's body as the browser reads it: decoded by the coding it names, plain when it names none. */
+const decoded = (res: ApiResult): unknown => {
+  const coding = res.headers['content-encoding'];
+  if (coding === undefined) {
+    expect(res).not.toHaveProperty('isBase64Encoded');
+    return JSON.parse(res.body);
+  }
+  expect(res).toHaveProperty('isBase64Encoded', true);
+  const bytes = Buffer.from(res.body, 'base64');
+  return JSON.parse((coding === 'br' ? brotliDecompressSync(bytes) : gunzipSync(bytes)).toString());
+};
+
 beforeEach(async () => {
   db = await freshDb();
   await applyUserSchema(db);
@@ -287,6 +300,12 @@ describe('a signed-in caller gets every figure in one answer', () => {
     expect(numbers(expected).every(Number.isFinite)).toBe(true);
     const res = (await view(deps(), event())) as ApiResult;
     expect(JSON.parse(res.body)).toEqual(JSON.parse(JSON.stringify(expected)));
+    // The same rows under each coding the route can send.
+    for (const accept of ['br', 'gzip']) {
+      const coded = (await view(deps(), event({ 'accept-encoding': accept }))) as ApiResult;
+      expect(coded.headers['content-encoding']).toBe(accept);
+      expect(decoded(coded)).toEqual(JSON.parse(JSON.stringify(expected)));
+    }
   });
 
   it('opens the archive for a linked ledger, and closes it', async () => {
@@ -655,9 +674,10 @@ describe('a repeated request', () => {
   it('is answered 304 with the validator and the cache policy, and nothing else', async () => {
     const etag = await tagOf();
     const res = (await view(deps(), event({ 'if-none-match': etag }))) as EmptyResult;
+    // RFC 9110 §15.4.5: a 304 carries the Vary a 200 to the same request would.
     expect(res).toEqual({
       statusCode: 304,
-      headers: { etag, 'cache-control': 'private, no-cache' },
+      headers: { etag, 'cache-control': 'private, no-cache', vary: 'accept-encoding' },
     });
     expect('body' in res).toBe(false);
     expect('content-type' in res.headers).toBe(false);
@@ -728,6 +748,57 @@ describe('what a browser may keep and read', () => {
 
   it('carries the identifier the build defined', () => {
     expect(derivationId()).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
+
+describe('the body’s coding follows Accept-Encoding', () => {
+  const asked = async (accept?: string) =>
+    (await view(
+      deps(),
+      event(accept === undefined ? {} : { 'accept-encoding': accept }),
+    )) as ApiResult;
+
+  // The wiring: a browser's header coded brotli, a refused brotli gzip. `http.test.ts` reads the
+  // header's grammar.
+  it.each([
+    ['gzip, deflate, br, zstd', 'br'],
+    ['gzip;q=1, br;q=0', 'gzip'],
+  ])(
+    'answers Accept-Encoding %s coded %s, and it decodes to the plain body',
+    async (accept, coding) => {
+      const plain = await asked();
+      const res = await asked(accept);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-encoding']).toBe(coding);
+      expect(decoded(res)).toEqual(JSON.parse(plain.body));
+    },
+  );
+
+  it.each([undefined, 'identity'])('answers Accept-Encoding %s plain', async (accept) => {
+    const res = await asked(accept);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers).not.toHaveProperty('content-encoding');
+    expect(res).not.toHaveProperty('isBase64Encoded');
+    expect(JSON.parse(res.body)).toHaveProperty('view');
+  });
+
+  // RFC 9110 §8.8.1: a weak tag may group the codings of one selected representation.
+  it('names Vary: accept-encoding and the same weak tag whatever the coding', async () => {
+    const plain = await asked();
+    for (const accept of ['br', 'gzip', 'identity']) {
+      const res = await asked(accept);
+      expect(res.headers.vary).toBe('accept-encoding');
+      expect(res.headers.etag).toBe(plain.headers.etag);
+      expect(res.headers['content-type']).toBe('application/json');
+      expect(res.headers['cache-control']).toBe(plain.headers['cache-control']);
+      expect(res.headers['derivation-id']).toBe(plain.headers['derivation-id']);
+    }
+  });
+
+  it('answers a coded body’s tag 304', async () => {
+    const etag = (await asked('br')).headers.etag;
+    const res = await view(deps(), event({ 'if-none-match': etag, 'accept-encoding': 'br' }));
+    expect(res.statusCode).toBe(304);
   });
 });
 
@@ -1114,6 +1185,24 @@ describe('each parameterized read tags its own representation', () => {
       statusCode: 304,
       headers: { etag, 'cache-control': 'private, no-cache' },
     });
+  });
+
+  // Only GET /view is coded (*Cloud target*): asked for a coding, the siblings answer plain and
+  // name no Vary.
+  it.each(SIBLINGS)('%s answers plain whatever the request accepts', async (route) => {
+    const res = (await view(
+      deps(),
+      on(route, undefined, { 'accept-encoding': 'br, gzip' }),
+    )) as ApiResult;
+    expect(res.statusCode).toBe(200);
+    expect(Object.keys(res.headers).sort()).toEqual([
+      'cache-control',
+      'content-type',
+      'derivation-id',
+      'etag',
+    ]);
+    expect(res).not.toHaveProperty('isBase64Encoded');
+    expect(JSON.parse(res.body)).toBeTypeOf('object');
   });
 
   it.each(SIBLINGS)('%s answers GET /view’s tag in full', async (route) => {

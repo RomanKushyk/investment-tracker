@@ -1776,6 +1776,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Accept-Encoding",
+            "in": "header",
+            "required": false,
+            "description": "br, else gzip, codes the 200; neither, or none sent, answers it plain.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "security": [
@@ -1798,6 +1807,11 @@
                 }
               },
               "derivation-id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "vary": {
                 "schema": {
                   "type": "string"
                 }
@@ -1866,6 +1880,11 @@
                 }
               },
               "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "vary": {
                 "schema": {
                   "type": "string"
                 }

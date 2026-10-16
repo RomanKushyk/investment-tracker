@@ -1,5 +1,7 @@
 // What a route reads off a request and what it answers with, for the answers that cannot be fixed
 // text: a body built from the request, or a 304 that carries headers and nothing else.
+import { brotliDecompressSync, gunzipSync } from 'node:zlib';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,7 +10,9 @@ import {
   type ApiEvent,
   type Derived,
   bodiless,
+  codingOf,
   derived,
+  encoded,
   headerValues,
   json,
   notModified,
@@ -251,12 +255,12 @@ describe('a declaration refuses what its response could not carry', () => {
     expect(() => derived({ statusCode, name: 'x', headers: [], example: {} })).toThrow(/null-body/);
   });
 
-  // The builder sets it from whether there is a body; declared, it could put one on a 304.
-  it('refuses a declared content-type', () => {
-    expect(() =>
-      derived({ statusCode: 200, name: 'x', headers: ['content-type'], example: {} }),
-    ).toThrow(/content-type/);
-    expect(() => bodiless({ name: 'x', headers: ['content-type'] })).toThrow(/content-type/);
+  // The builder sets them from the body; declared, either could put one on a 304.
+  it.each(['content-type', 'content-encoding'] as const)('refuses a declared %s', (header) => {
+    expect(() => derived({ statusCode: 200, name: 'x', headers: [header], example: {} })).toThrow(
+      header,
+    );
+    expect(() => bodiless({ name: 'x', headers: [header] })).toThrow(header);
   });
 
   // CHECKED WHERE IT IS USED: a literal, a spread copy and a cast all type as a declaration, and
@@ -270,5 +274,64 @@ describe('a declaration refuses what its response could not carry', () => {
     expect(() => respond(bodied, cache, '{}')).toThrow(/made by derived/);
     expect(() => respond(cast, cache, '{}')).toThrow(/made by derived/);
     expect(() => notModified({ ...UNCHANGED }, cache)).toThrow(/made by derived/);
+  });
+});
+
+describe('the coding a request accepts', () => {
+  const accepting = (value?: string): ApiEvent =>
+    value === undefined ? { headers: {} } : { headers: { 'accept-encoding': value } };
+
+  // RFC 9110 §12.5.3, in this API's order: brotli before gzip whatever the request's.
+  it.each([
+    ['br', 'br'],
+    ['gzip', 'gzip'],
+    ['gzip, br', 'br'],
+    ['gzip, deflate, br, zstd', 'br'],
+    ['gzip;q=1.0, br;q=0.5', 'br'],
+    ['gzip;q=1, br;q=0', 'gzip'],
+    ['br;q=0.000', 'undefined'],
+    ['br;Q=0', 'undefined'],
+    ['*', 'br'],
+    ['br;q=0, *', 'gzip'],
+    ['*;q=0', 'undefined'],
+    ['BR', 'br'],
+    ['identity', 'undefined'],
+    ['deflate, zstd', 'undefined'],
+    ['', 'undefined'],
+  ])('reads Accept-Encoding %s as %s', (value, coding) => {
+    expect(String(codingOf(accepting(value)))).toBe(coding);
+  });
+
+  it('reads an absent header as no coding', () => {
+    expect(codingOf(accepting())).toBeUndefined();
+    expect(codingOf({})).toBeUndefined();
+  });
+});
+
+describe('a coded answer', () => {
+  const cache = { etag: 'W/"1"', 'cache-control': 'private, no-cache' };
+  const body = JSON.stringify({ n: 'π'.repeat(2000) });
+
+  it.each(['br', 'gzip'] as const)(
+    'is %s in base64 under its declaration, the rest as built',
+    (coding) => {
+      const plain = respond(TAGGED, cache, body);
+      const coded = encoded(plain, coding);
+      expect(coded).toEqual({
+        statusCode: 200,
+        headers: { ...plain.headers, 'content-encoding': coding },
+        body: expect.stringMatching(/^[A-Za-z0-9+/]+=*$/),
+        isBase64Encoded: true,
+      });
+      const bytes = Buffer.from(coded.body, 'base64');
+      expect((coding === 'br' ? brotliDecompressSync : gunzipSync)(bytes).toString()).toBe(body);
+      expect(Object.isFrozen(coded) && Object.isFrozen(coded.headers)).toBe(true);
+      expect(plain).toEqual({ statusCode: 200, headers: plain.headers, body });
+    },
+  );
+
+  it('refuses an answer respond() did not build', () => {
+    expect(() => encoded({ ...respond(TAGGED, cache, body) }, 'br')).toThrow(/respond/);
+    expect(() => encoded(INVALID, 'gzip')).toThrow(/respond/);
   });
 });

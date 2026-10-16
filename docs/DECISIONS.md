@@ -960,9 +960,12 @@ day and the derivation identifier — and `/view`'s adds the caller's settings a
 carries them, while a write's precondition is the caller and `data_version` alone, as a strong tag. `If-None-Match`
 compares weakly and `*` matches;
 `If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
-`private, no-cache`, and its 304 carries the tag and that policy and nothing else. STALENESS IS A
-HEADER: the 200 names its derivation in `derivation-id`, which CORS exposes beside `etag`. The body
-ships uncompressed until a first-paint measurement says otherwise.
+`private, no-cache`. STALENESS IS A HEADER: the 200 names its derivation in `derivation-id`, which
+CORS exposes beside `etag`. `/view`'S BODY IS CODED IN THE HANDLER by the request's
+`Accept-Encoding` — brotli at a middle quality, else gzip, else plain — under `Vary:
+Accept-Encoding`, the weak tag the same whatever the coding (RFC 9110 §8.8.1), and its 304 carries
+the tag, the policy and that `Vary` and nothing else (§15.4.5); the mobile figures' paint measured
+past the budget the rule set (#368 holds them). The other three reads go plain and name no `Vary`.
 THE TWO WIDE FIGURES ARE READS OF THEIR OWN: one value per asset per date is too wide to send for six
 periods or for every row, so `GET /view/series?period` answers the yield curve of one period and
 `GET /view/balances?page` one page of the Balances table, each through `/view`'s gate and read, its
@@ -1162,7 +1165,10 @@ sends its deployment id as a header. A header takes no `X-` (RFC 6648). The date
 every nightly capture moves without changing the dates. The lookback only bounds
 the SQL window, wider than any gap between two of the archive's observations of one ref, since a
 cutoff on carrying a price is rejected (*Derived figures and the seed*). API Gateway's HTTP APIs do
-not compress. A cache keys a stored response by at least its method and target URI (RFC 9111 §2),
+not compress and nothing sits in front of this one, so the handler codes the body itself: brotli
+at a middle quality, as an origin codes a dynamic answer (Cloudflare's 4), and gzip at zlib's
+default level. Only `/view` is coded, the body every first paint waits for; the other reads are
+one screen's each, asked for once the figures are up. A cache keys a stored response by at least its method and target URI (RFC 9111 §2),
 but a client keeping one tag per route would be answered 304 for a period or a page it never
 stored, so the route and its parameter join the tag. The editors' rows ride the boot read because a
 form waiting for a read of its own would cost a request per screen: Microsoft's Chatty I/O
@@ -1271,7 +1277,11 @@ fixed list of table names: it ran before the capture had created a fresh archive
 newly added one, and failed the deploy. · Revoking each extra privilege by its source: a source the
 sweep does not name survives it, and there is always another to name. · One validator for the read
 and the write: a weak tag never satisfies `If-Match`. · A hash of the body as the read's tag: it
-rebuilds the body to answer a 304. · `must-revalidate`. · A deployment version in the body: AIP-185
+rebuilds the body to answer a 304. · `must-revalidate`. · Trimming `/view`'s repeats, an `assets`
+list in place of each embedded asset or the period-invariant fields hoisted out of the six blocks:
+the coding removes the repetition already, and they would change the composers' types, the golden
+master and the screens that read those fields. · Node's default brotli quality: it spends far
+longer per answer than a middle quality. · A deployment version in the body: AIP-185
 versions an API, and the data tag `/view`'s body carries is a precondition a client sends back, not
 the version of anything deployed. · Copying the model route's exact `If-None-Match` comparison: a
 tag sent without its `W/` must still match. · Clamping a page past the last to the last: one URL

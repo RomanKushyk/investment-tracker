@@ -29,7 +29,9 @@ import {
   type Declared,
   type EmptyResult,
   bodiless,
+  codingOf,
   derived,
+  encoded,
   headerValues,
   notModified,
   respond,
@@ -50,6 +52,9 @@ export const DAY_ROUTE = 'GET /view/day';
  *  only a stale response and lets a shared cache reuse one sent with `Authorization` (RFC 9111
  *  §5.2.2.2). */
 const CACHE_POLICY = 'private, no-cache';
+/** `/view`'s 200 is coded by the request's `Accept-Encoding`, so a cache keys on it (RFC 9110
+ *  §12.5.5). The siblings go plain and name no `Vary`. */
+const VARY = 'accept-encoding';
 
 /** What a script on another origin may read, the import's begin naming what it made: none is
  *  CORS-safelisted, and with credentials `*` names a header `*`. The template is held to this. */
@@ -58,7 +63,7 @@ export const EXPOSED = ['derivation-id', 'etag', 'location'] as const;
 const VIEWED = derived({
   statusCode: 200,
   name: 'view',
-  headers: ['etag', 'cache-control', 'derivation-id'],
+  headers: ['etag', 'cache-control', 'derivation-id', 'vary'],
   example: {
     view: '<buildView: every screen, the windowed ones for each of the six periods>',
     fx: { rate: 41.4983, date: '2026-10-06' },
@@ -111,8 +116,13 @@ const DAY = derived({
     savedAt: '2026-10-06T08:15:00',
   },
 });
-/** RFC 9110 §15.4.5: the validator and the cache policy a 200 would carry, and no body. */
+/** RFC 9110 §15.4.5: the validator, the cache policy and the `Vary` a 200 would carry, and no
+ *  body — the siblings' 200 names no `Vary`, so theirs is the first. */
 const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
+const UNCHANGED_VIEW = bodiless({
+  name: 'not_modified',
+  headers: ['etag', 'cache-control', 'vary'],
+});
 /** A `period` or `page` the route cannot read, by name: a stale tab's retired period is the known one. */
 const INVALID_QUERY = derived({
   statusCode: 400,
@@ -133,20 +143,12 @@ const INVALID_DATE = derived({
 
 /** What the route can answer, and the only list of it — `openapi.ts` builds the document from here,
  *  and `view.test.ts` proves it against what the route really answers. */
-const READ = [
-  UNCHANGED,
-  PENDING,
-  REJECTED,
-  NO_APPLICATION,
-  FORBIDDEN,
-  PRECONDITION_FAILED,
-  INTERNAL,
-] as const;
+const READ = [PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, PRECONDITION_FAILED, INTERNAL] as const;
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
-  [ROUTE]: [VIEWED, ...READ],
-  [SERIES_ROUTE]: [SERIES, INVALID_QUERY, ...READ],
-  [BALANCES_ROUTE]: [BALANCES, INVALID_QUERY, ...READ],
-  [DAY_ROUTE]: [DAY, INVALID_DATE, ...READ],
+  [ROUTE]: [VIEWED, UNCHANGED_VIEW, ...READ],
+  [SERIES_ROUTE]: [SERIES, UNCHANGED, INVALID_QUERY, ...READ],
+  [BALANCES_ROUTE]: [BALANCES, UNCHANGED, INVALID_QUERY, ...READ],
+  [DAY_ROUTE]: [DAY, UNCHANGED, INVALID_DATE, ...READ],
 };
 
 type Parameter = {
@@ -169,7 +171,16 @@ const PRECONDITIONS: Parameter[] = [
 ];
 /** What each route's request may carry, for the document. */
 export const PARAMETERS: Record<string, Parameter[]> = {
-  [ROUTE]: PRECONDITIONS,
+  [ROUTE]: [
+    ...PRECONDITIONS,
+    {
+      name: 'Accept-Encoding',
+      in: 'header',
+      required: false,
+      description: 'br, else gzip, codes the 200; neither, or none sent, answers it plain.',
+      schema: { type: 'string' },
+    },
+  ],
   [SERIES_ROUTE]: [
     {
       name: 'period',
@@ -276,10 +287,12 @@ const tagOf = (inputs: readonly unknown[]): string =>
   `W/"${createHash('sha256').update(JSON.stringify(inputs), 'utf8').digest('base64url')}"`;
 
 type Headers = { etag: string; 'cache-control': string; 'derivation-id': string };
-/** A route's part of the read: what joins the tag, so no period, page or day validates another, and
- *  its 200 from the rows read, the rate served and the write's strong tag. */
+/** A route's part of the read: what joins the tag, so no period, page or day validates another,
+ *  its 304 to a matching tag, and its 200 from the rows read, the rate served and the write's
+ *  strong tag. */
 type Route = {
   variant: readonly unknown[];
+  unchanged: (etag: string) => EmptyResult;
   answer: (
     rows: ServedRows,
     fx: StoredRate | undefined,
@@ -287,6 +300,7 @@ type Route = {
     headers: Headers,
   ) => ApiResult;
 };
+const unchanged = (etag: string) => notModified(UNCHANGED, { etag, 'cache-control': CACHE_POLICY });
 
 export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
   switch (event.routeKey) {
@@ -295,17 +309,23 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
         // The account's settings as served, so another device is answered in full after a change
         // and a write that serves the same ones moves nothing.
         variant: [settings],
-        answer: (rows, fx, writeTag, headers) =>
-          respond(
+        unchanged: (etag) =>
+          notModified(UNCHANGED_VIEW, { etag, 'cache-control': CACHE_POLICY, vary: VARY }),
+        answer: (rows, fx, writeTag, headers) => {
+          const plain = respond(
             VIEWED,
-            headers,
+            { ...headers, vary: VARY },
             // The strong tag a write sends back, beside this read's weak one (*Cloud target*).
             JSON.stringify({
               ...viewBody({ ...rows, fx }),
               settings,
               etag: writeTag,
             }),
-          ),
+          );
+          // Coded in the handler: the HTTP API compresses nothing, and no proxy sits in front.
+          const coding = codingOf(event);
+          return coding === undefined ? plain : encoded(plain, coding);
+        },
       }));
     case SERIES_ROUTE:
       return read(deps, event, () => {
@@ -314,6 +334,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
           ? period
           : {
               variant: [SERIES_ROUTE, period],
+              unchanged,
               answer: (rows, _fx, _version, headers) =>
                 respond(SERIES, headers, JSON.stringify(seriesBody(rows, period))),
             };
@@ -325,6 +346,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
           ? page
           : {
               variant: [BALANCES_ROUTE, page],
+              unchanged,
               answer: (rows, _fx, _version, headers) =>
                 respond(BALANCES, headers, JSON.stringify(balancesBody(rows, page))),
             };
@@ -336,6 +358,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
           ? date
           : {
               variant: [DAY_ROUTE, date],
+              unchanged,
               answer: (rows, _fx, _version, headers) =>
                 respond(DAY, headers, JSON.stringify(dayBody(rows, date))),
             };
@@ -396,9 +419,7 @@ async function read(
     // RFC 9110 §13.2.2's order, If-Match first, each only once the answer would otherwise be a 200.
     const ifMatch = headerValues(event, 'if-match');
     if (ifMatch.length > 0 && !strongMatch(ifMatch, etag)) return PRECONDITION_FAILED;
-    if (weakMatch(headerValues(event, 'if-none-match'), etag)) {
-      return notModified(UNCHANGED, { etag, 'cache-control': CACHE_POLICY });
-    }
+    if (weakMatch(headerValues(event, 'if-none-match'), etag)) return route.unchanged(etag);
 
     const rows: ServedRows = {
       assets: ledger.assets,
