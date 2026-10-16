@@ -213,7 +213,6 @@ Inline permission policy, **named `quirenote-frontend-deploy-<env>Policy`**, wit
       "Action": [
         "amplify:CreateDeployment",
         "amplify:StartDeployment",
-        "amplify:GetBranch",
         "amplify:GetJob"
       ],
       "Resource": [
