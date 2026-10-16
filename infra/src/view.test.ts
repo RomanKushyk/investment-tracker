@@ -1,8 +1,10 @@
 // `GET /view` over PGlite: the caller's rows and the archive's in one database, each read through
 // the module the route uses, so every answer here is one the route really gives.
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import type { PGlite } from '@electric-sql/pglite';
+import { importParts } from '@quirenote/core/backup/parts';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
@@ -33,8 +35,10 @@ import { handler as capture } from './capture';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult, EmptyResult } from './http';
+import { BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE, imports } from './imports';
 import { dataTag } from './ledger';
 import type { SqlClient } from './migrate';
+import { MUTATIONS_ROUTE, mutations } from './mutations';
 import type { StoredRate } from './official-rate';
 import { proveRouteContract, recorder } from './route-contract';
 import {
@@ -1222,6 +1226,109 @@ describe('a period, page or date the route cannot read is refused by name', () =
     expect(asked.length).toBeGreaterThan(0);
     expect(asked.filter((text) => /READ ONLY/i.test(text))).toEqual([]);
     expect([rated, opened]).toEqual([0, 0]);
+  });
+});
+
+// The store holds prices, never a day: a day no held position is priced on is no snapshot, so none
+// ends a window. A delete and a restore are the writes that could leave one.
+describe('a day that values nothing ends no window', () => {
+  const REIT = LEDGER.assets[SEED_ASSETS.findIndex((a) => a.id === 'reit')].id;
+  const writer = () => ({
+    user: db as unknown as SqlClient,
+    token: randomUUID,
+    sleep: async () => {},
+  });
+  const lastOf = (days: string[]) => [...days].sort().at(-1)!;
+  /** Each period's window end, and the strong tag a write's precondition names. */
+  const read = async () => {
+    const res = (await view(deps(), event())) as ApiResult;
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as ViewBody & { etag: string };
+    return {
+      ends: Object.fromEntries(PERIOD_OPTIONS.map((p) => [p, body.view.periods[p].window?.to])),
+      etag: body.etag,
+    };
+  };
+  const ending = (to: string) => Object.fromEntries(PERIOD_OPTIONS.map((p) => [p, to]));
+
+  it('ends every window on the last day a remaining asset is priced, once the only asset priced on the latest day is deleted', async () => {
+    // Unlinked, so no archive price lands on the latest day: the seed's 27.07 quotes reit alone.
+    await db.query('UPDATE asset SET provider_kind = NULL, provider_ref = NULL');
+    const latest = lastOf(LEDGER.userPrices.map((p) => p.asOf));
+    const remaining = lastOf(
+      LEDGER.userPrices.filter((p) => p.assetId !== REIT).map((p) => p.asOf),
+    );
+    expect(remaining < latest).toBe(true);
+    const before = await read();
+    expect(before.ends).toEqual(ending(latest));
+
+    const res = await mutations(writer(), {
+      routeKey: MUTATIONS_ROUTE,
+      headers: { 'idempotency-key': randomUUID(), 'if-match': before.etag },
+      body: JSON.stringify({ ops: [{ op: 'asset.delete', id: REIT }] }),
+      requestContext: event().requestContext,
+    });
+    expect(res.statusCode).toBe(200);
+
+    expect((await read()).ends).toEqual(ending(remaining));
+  });
+
+  // A part naming a `snapshots` table is refused (`imports.test.ts`), so a file carries a day only as
+  // prices. One of those that values nothing: a price of an asset the ledger holds none of.
+  it('leaves every window where it was when the restored file prices a day only for an asset it holds none of', async () => {
+    const latest = lastOf([...LEDGER.userPrices.map((p) => p.asOf), ...ARCHIVE.map(([d]) => d)]);
+    expect(latest < TODAY).toBe(true);
+    const before = await read();
+    expect(before.ends).toEqual(ending(latest));
+    const unheld = {
+      ...LEDGER.assets.find((a) => a.id === REIT)!,
+      id: randomUUID(),
+      name: 'Never bought',
+      firstPurchase: TODAY,
+    };
+    const plan = await importParts({
+      assets: [...LEDGER.assets, unheld],
+      transactions: LEDGER.transactions,
+      prices: [...LEDGER.userPrices, { assetId: unheld.id, asOf: TODAY, price: 10 }],
+    });
+    if (!plan.ok) throw new Error(JSON.stringify(plan.issues));
+
+    const requestContext = event().requestContext;
+    const begun = (await imports(writer(), {
+      routeKey: BEGIN_ROUTE,
+      headers: {},
+      body: JSON.stringify(plan.manifest),
+      requestContext,
+    })) as ApiResult;
+    expect(begun.statusCode).toBe(201);
+    const { id } = JSON.parse(begun.body) as { id: string };
+    for (const part of plan.parts) {
+      const staged = await imports(writer(), {
+        routeKey: PART_ROUTE,
+        pathParameters: { id, part: String(part.number) },
+        headers: { 'content-digest': `sha-256=:${part.digest}:` },
+        body: part.body,
+        requestContext,
+      });
+      expect(staged.statusCode).toBe(200);
+    }
+    const committed = await imports(writer(), {
+      routeKey: COMMIT_ROUTE,
+      pathParameters: { id },
+      headers: { 'if-match': before.etag },
+      requestContext,
+    });
+    expect(committed.statusCode).toBe(200);
+    const stored = await db.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM user_price p JOIN app_user u ON u.dataset_id = p.dataset_id
+        WHERE u.user_id = $1 AND p.as_of = $2`,
+      [SUB, TODAY],
+    );
+    expect(stored.rows[0].n).toBe(1);
+
+    const after = await read();
+    expect(after.etag).not.toBe(before.etag);
+    expect(after.ends).toEqual(before.ends);
   });
 });
 
