@@ -48,7 +48,8 @@ export function logoutFor(logout: string, site: string, to: string): string {
 }
 
 /** Where a sign-out leaves for through that logout, and whether this tab carries the fact: only on
- *  the site Cognito lands on, storage being the origin's. Nothing without a logout or a site. */
+ *  the site Cognito lands on, storage being the origin's. Nothing without a logout or a site, and
+ *  nothing through a logout that is no URL: the sign-out goes its own way to `to` instead. */
 export function throughLogout(
   logout: string | undefined,
   site: string | undefined,
@@ -56,7 +57,14 @@ export function throughLogout(
   to: string,
 ): { url: string; carry: boolean } | undefined {
   if (logout === undefined || site === undefined) return undefined;
-  return { url: logoutFor(logout, site, to), carry: to === '/sign-in' && origin === site };
+  // A throw, not `URL.canParse`, which the Safari 16 the build targets lacks.
+  let url: string;
+  try {
+    url = logoutFor(logout, site, to);
+  } catch {
+    return undefined;
+  }
+  return { url, carry: to === '/sign-in' && origin === site };
 }
 
 /** The same entry carrying nothing. Router state lives in `history.state`, which the browser hands

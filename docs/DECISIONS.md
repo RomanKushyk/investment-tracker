@@ -698,8 +698,10 @@ relay answers, after a load it never answered too, and closed from the first ren
 with no auth environment, which has nothing to sign in to. While a sign-out runs every «Вийти» in
 the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
 failure raises one toast. A sign-out that succeeded keeps the signed-in rows under the control that
-was pressed while the page leaves; where unsaved work holds the page, or Back restores it, the slot
-answers signed out.
+was pressed while the page leaves; where unsaved work holds the page, or Back restores it, or a
+route change finds it still here after the redirect to Cognito's logout set out, the slot answers
+signed out. A logout the relay names that is no URL is none: the sign-out goes its own way to
+`/sign-in`.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,

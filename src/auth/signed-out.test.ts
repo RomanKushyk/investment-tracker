@@ -146,6 +146,26 @@ describe('the fact carried across Cognito’s logout', () => {
     );
   });
 
+  // A logout that is no URL is none: the sign-out goes its own way, not a throw on a page already
+  // signed out (`account-way-in-and-out.dc.html`, T4).
+  it('leaves through no logout that is not a URL', () => {
+    expect(throughLogout('logout', SITE, SITE, '/sign-in')).toBeUndefined();
+  });
+
+  // THE BUILD TARGETS SAFARI 16, and `URL.canParse` arrives in 17 (MDN browser-compat-data).
+  it('tells a URL from none where the browser has no URL.canParse', () => {
+    const canParse = Object.getOwnPropertyDescriptor(URL, 'canParse');
+    Reflect.deleteProperty(URL, 'canParse');
+    try {
+      expect(throughLogout(LOGOUT, SITE, SITE, '/sign-in')?.url).toBe(
+        logoutFor(LOGOUT, SITE, '/sign-in'),
+      );
+      expect(throughLogout('logout', SITE, SITE, '/sign-in')).toBeUndefined();
+    } finally {
+      if (canParse) Object.defineProperty(URL, 'canParse', canParse);
+    }
+  });
+
   // STORAGE IS THE ORIGIN'S: a flag left on another host would wait there to be said falsely.
   it('carries the fact to `/sign-in` only from the site Cognito lands on', () => {
     expect(throughLogout(LOGOUT, SITE, SITE, '/sign-in')?.carry).toBe(true);

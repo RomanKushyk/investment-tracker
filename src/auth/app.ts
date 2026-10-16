@@ -81,7 +81,8 @@ export function tabStorage(): Storage | undefined {
 }
 
 /** A SIGN-OUT WHILE GOOGLE IS ON LEAVES THROUGH COGNITO'S LOGOUT, the only way its session cookie
- *  is cleared, to land on `to` on the listed site. False where there is no logout or no site. */
+ *  is cleared, to land on `to` on the listed site. False where there is no logout, no site, or a
+ *  logout that is no URL. */
 export function leaveThroughLogout(logout: string | undefined, to: '/sign-in' | '/apply'): boolean {
   const leaving = throughLogout(logout, environment?.site, location.origin, to);
   if (leaving === undefined) return false;

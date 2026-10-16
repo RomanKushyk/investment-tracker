@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionStatus } from '../auth/session';
+import { throughLogout } from '../auth/signed-out';
 
 vi.mock('sonner', () => ({
   Toaster: () => null,
@@ -14,13 +15,13 @@ vi.mock('sonner', () => ({
 }));
 
 // The session as the shell sees it: a status that a sign-out turns signed out, the host's
-// environment, and whether Cognito's logout takes the page away, all read at call time.
+// environment, and the logout the relay names with Google on, all read at call time.
 const auth = vi.hoisted(() => {
   const hearing = new Set<() => void>();
   const self = {
     status: 'signedIn' as SessionStatus,
     environment: true,
-    google: false,
+    logout: undefined as string | undefined,
     // The relay's answer, held back while a test looks at the run; `fail` makes it a refusal.
     answer: Promise.resolve(),
     fail: false,
@@ -37,7 +38,7 @@ const auth = vi.hoisted(() => {
         if (self.fail) return false;
         self.status = 'signedOut';
         self.tell();
-        return {};
+        return self.logout === undefined ? {} : { logout: self.logout };
       } finally {
         self.running = false;
         self.tell();
@@ -52,11 +53,16 @@ const hear = (listener: () => void) => {
   return () => void auth.hearing.delete(listener);
 };
 
+const LOGOUT = 'https://auth.test/logout?client_id=c';
+const SITE = 'https://dev.quirenote.com';
+
 vi.mock('../auth/app', () => ({
   get hasAuthEnvironment() {
     return auth.environment;
   },
-  leaveThroughLogout: () => auth.google,
+  // `app.ts`'s, on the listed site, minus the carry and the `location.assign` the page never makes.
+  leaveThroughLogout: (logout: string | undefined, to: '/sign-in' | '/apply') =>
+    throughLogout(logout, SITE, SITE, to) !== undefined,
   session: { signOut: auth.signOut, signingOut: () => auth.running },
   useSessionStatus: () => useSyncExternalStore(hear, () => auth.status),
   useSessionSigningOut: () => useSyncExternalStore(hear, () => auth.running),
@@ -114,7 +120,7 @@ function mount(at: string, into = seen) {
 beforeEach(() => {
   auth.status = 'signedIn';
   auth.environment = true;
-  auth.google = false;
+  auth.logout = undefined;
   auth.answer = Promise.resolve();
   auth.fail = false;
   auth.running = false;
@@ -238,12 +244,68 @@ describe("the shell's account slot", () => {
 
   // Back from Cognito's logout can restore this page from the back/forward cache, state and all.
   it("answers signed out when Back restores the page Cognito's logout left", async () => {
-    auth.google = true;
+    auth.logout = LOGOUT;
     mount('/allocation');
     await act(() => seen.leave());
     expect(seen.rows, 'the rows closed while the page left').toBe('shown');
     act(() => void dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
     expect(seen.rows).toBe('entry');
+  });
+
+  // The page on its way out through Cognito's logout: «Вийти» stays busy under the pointer that
+  // pressed it, whatever the store tells meanwhile, until the page has gone.
+  it("keeps the signed-in rows while the page leaves through Cognito's logout", async () => {
+    auth.logout = LOGOUT;
+    mount('/allocation');
+    await act(() => seen.leave());
+    act(() => auth.tell());
+    expect(seen.leaving).toBe(true);
+    expect(seen.drawn, '«Увійти» stood in for the pressed «Вийти»').not.toContain('entry');
+  });
+
+  // A Stop while the logout loads leaves the page here, latched: the next route change ends it
+  // (`account-way-in-and-out.dc.html`, T4), and Back to the route it set out from latches nothing.
+  it("answers signed out by the next route change when Cognito's logout left the page in place", async () => {
+    auth.logout = LOGOUT;
+    const router = mount('/allocation');
+    await act(() => seen.leave());
+    expect(seen.leaving).toBe(true);
+    await act(() => router.navigate('/overview'));
+    expect(seen.rows, 'the latch outlived the route change').toBe('entry');
+    expect(seen.leaving).toBe(false);
+    await act(() => router.navigate(-1));
+    expect(seen.rows, 'Back re-latched the route the sign-out set out from').toBe('entry');
+    expect(seen.leaving).toBe(false);
+  });
+
+  // A route change before the relay answers comes before the page sets out, so it is not the one
+  // that finds the page still here: the latch ends at the first route change after the redirect.
+  it('ends the latch only by a route change after the redirect set out', async () => {
+    let answer = () => {};
+    auth.answer = new Promise<void>((resolve) => (answer = resolve));
+    auth.logout = LOGOUT;
+    const router = mount('/allocation');
+    let leaving: Promise<void> = Promise.resolve();
+    act(() => void (leaving = seen.leave()));
+    await act(() => router.navigate('/overview'));
+    await act(async () => {
+      answer();
+      await leaving;
+    });
+    expect(seen.rows, 'the move mid-run ended the latch').toBe('shown');
+    expect(seen.leaving).toBe(true);
+    await act(() => router.navigate('/allocation'));
+    expect(seen.rows).toBe('entry');
+    expect(seen.leaving).toBe(false);
+  });
+
+  // A logout the relay names that is no URL is none: the sign-out goes its own way to `/sign-in`,
+  // as where there is no logout, and nothing rejects on a page already signed out (T4).
+  it('goes its own way to /sign-in when the logout the relay names is no URL', async () => {
+    auth.logout = 'logout';
+    const router = mount('/allocation');
+    await act(() => seen.leave());
+    expect(router.state.location.pathname).toBe('/sign-in');
   });
 
   it('answers signed out with the entry where the host has an auth environment', () => {
