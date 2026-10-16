@@ -1873,7 +1873,8 @@ but `main`, so it sits behind the dev site's basic auth and is absent from produ
 OIDC deploy roles deliberately cannot change the app: the SPA 200 rewrite stays console-managed.
 THE RESPONSE HEADERS SHIP WITH THE BUILD: `public/customHttp.yml`, which Amplify applies from the
 zip's root, sets the cache rules and the security headers, and the deploy's last step reads the
-headers of three pages back from the live host against that file. HSTS climbs hstspreload.org's ramp with
+headers of three pages back from the live host against that file, reaching dev through the
+`dev` environment's `DEV_BASIC_AUTH` secret. HSTS climbs hstspreload.org's ramp with
 `includeSubDomains` and no `preload`; the Permissions-Policy is OWASP's list with both publickey
 features at `(self)`; `/auth/callback` alone takes `no-referrer`. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
@@ -1918,6 +1919,8 @@ Secure Headers list is the base, and three of its entries break this app: `Clear
 `"storage"` deletes what the app keeps, `publickey-credentials-get=()` refuses passkey sign-in, and
 its HSTS value skips hstspreload.org's ramp. The callback's
 URL holds the OAuth code, and RFC 9700 §4.2.4 gives `no-referrer` as the example for that page.
+Dev's basic-auth pair is already standing configuration, an Amplify branch setting, so a second
+copy as a secret adds a place to re-set on rotation and nothing an operator types per run.
 The reference page is a build step rather than a flag because a flag is how
 this pattern fails: a disable switch that turns out to be dead code and ships the page anyway. A
 step that does not run cannot. OWASP's Logging Cheat Sheet counts an email address among the data
@@ -1949,7 +1952,9 @@ would have to keep that watermark, and a skipped deploy is worse than a wasted o
 certificate stops renewing. · The security headers in the console: CI has no `UpdateApp`, so
 nothing in the repo could restore them. · `Clear-Site-Data`: it deletes the app's storage. ·
 `X-XSS-Protection`: MDN warns it "can create XSS vulnerabilities in otherwise safe websites". ·
-HSTS `preload`: hstspreload.org advises against it, and leaving the list takes months. · A Web Analytics rule excluding `/auth/*` alone: it meets RFC 9700
+HSTS `preload`: hstspreload.org advises against it, and leaving the list takes months. · Dev's
+pair read from `amplify:GetBranch`: its `basicAuthCredentials` keeps the user but answers a
+transformed password, which dev refuses with `401`. · A Web Analytics rule excluding `/auth/*` alone: it meets RFC 9700
 but leaves a third-party script on every other page, which a hash-based CSP would have to admit
 by host. · An environment secret for the bootstrap's address: masked from the job's start, but an operator's input would become standing configuration in each environment. ·
 One deploy role trusting `environment:*`: it trusts any environment a workflow names. · One role

@@ -51,14 +51,19 @@ export function mismatches(want: Record<string, string>, got: Headers): string[]
   return out;
 }
 
+/** Dev's basic auth from `user:pass`, trimmed, since a secret pasted from a file keeps its
+ *  newline. Refuses anything else by name rather than letting dev answer an unexplained 401. */
+export function authorization(pair: string | undefined): Record<string, string> {
+  const value = pair?.trim();
+  if (!value) return {};
+  if (!value.includes(':')) throw new Error('BASIC_AUTH must be user:pass, not encoded');
+  return { authorization: `Basic ${Buffer.from(value).toString('base64')}` };
+}
+
 async function main() {
   const site = process.env.SITE;
   if (!site) throw new Error('SITE is required, e.g. https://dev.quirenote.com');
-  // `user:pass`, for dev's basic auth; never printed.
-  const auth = process.env.BASIC_AUTH;
-  const headers: Record<string, string> = auth
-    ? { authorization: `Basic ${Buffer.from(auth).toString('base64')}` }
-    : {};
+  const headers = authorization(process.env.BASIC_AUTH);
   const source = readFileSync(SOURCE, 'utf8');
   let failed = false;
   for (const path of PATHS) {

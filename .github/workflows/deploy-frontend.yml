@@ -77,24 +77,15 @@ jobs:
           AMPLIFY_BRANCH: ${{ github.ref_name }}
 
       # The headers live in public/customHttp.yml; this reads the live site back against it. Dev's
-      # basic-auth pair comes from the branch itself, so a rotation in the console never breaks it.
+      # basic-auth pair is a secret: GetBranch answers a transformed password that dev refuses.
       - name: Check the deployed security headers
         run: |
-          if [ "$AMPLIFY_BRANCH" != main ]; then
-            encoded=$(aws amplify get-branch --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" \
-              --query branch.basicAuthCredentials --output text)
-            # Basic auth switched off reads back as `None`, which would decode to garbage.
-            if [ -z "$encoded" ] || [ "$encoded" = None ]; then
-              echo "::error::branch $AMPLIFY_BRANCH answered no basic-auth pair"
-              exit 1
-            fi
-            echo "::add-mask::$encoded"
-            BASIC_AUTH=$(printf '%s' "$encoded" | base64 -d)
-            echo "::add-mask::$BASIC_AUTH"
-            export BASIC_AUTH
+          if [ "$AMPLIFY_BRANCH" != main ] && [ -z "$BASIC_AUTH" ]; then
+            echo "::error::the dev environment has no DEV_BASIC_AUTH secret (user:pass)"
+            exit 1
           fi
           node scripts/check-headers.ts
         env:
-          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
           AMPLIFY_BRANCH: ${{ github.ref_name }}
+          BASIC_AUTH: ${{ github.ref_name != 'main' && secrets.DEV_BASIC_AUTH || '' }}
           SITE: ${{ github.ref_name == 'main' && 'https://quirenote.com' || 'https://dev.quirenote.com' }}

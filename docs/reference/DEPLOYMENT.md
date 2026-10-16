@@ -46,9 +46,10 @@ answer marked `Cache-Control: no-transform`.
 indexed URL means allowing the crawl and serving `X-Robots-Tag: noindex`. **The zone's SSL mode must
 be Full (strict)** — `flexible` loops, since CloudFront answers plain HTTP with a 301-to-HTTPS.
 **`dev` is behind HTTP basic auth** (Amplify → branch `dev` → Access control), covering both its
-hostnames; the credentials live in the console, not here, and production carries none. Egress is
-watched by a $5 monthly AWS Budget (alerts at $1 and $3 actual, $5 forecast) and a daily Cost
-Anomaly Detection subscription, notification-only and held in no template. **A notification budget
+hostnames; the credentials live in the console and in the `dev` environment's `DEV_BASIC_AUTH`
+secret, not here, and production carries none. Egress is watched by a $5 monthly AWS Budget
+(alerts at $1 and $3 actual, $5 forecast) and a daily Cost Anomaly Detection subscription,
+notification-only and held in no template. **A notification budget
 costs nothing however many the account holds** (quota 20,000, raisable); what bills is an
 action-enabled budget or a budget report, and this account uses neither.
 
@@ -158,8 +159,9 @@ redeploys.
 **Every deploy reads the headers back.** The workflow's last step runs `scripts/check-headers.ts`
 against the host its branch serves. It fetches `/`, `/sign-in` and `/auth/callback`, derives what
 each must carry from the file itself, and fails on a missing, wrong or forbidden header. On `dev`
-it takes the basic-auth pair from `amplify:GetBranch`, which the deploy role already holds, masked
-in the log. Run by hand with `SITE=<origin>` and, for dev, `BASIC_AUTH=<user:pass>`.
+it reads the basic-auth pair from the `DEV_BASIC_AUTH` secret (§4), **not from `amplify:GetBranch`**,
+whose `basicAuthCredentials` keeps the user but answers a transformed password that dev refuses.
+Run by hand with `SITE=<origin>` and, for dev, `BASIC_AUTH=<user:pass>`.
 
 ### 3.3 GitHub OIDC provider, and the deploy roles
 
@@ -245,6 +247,7 @@ an empty value rather than an error that names it.
 | Secret | `API_CERTIFICATE_ARN` | the ACM certificate for both `api.` hosts, in `eu-north-1` | both |
 | Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: one alone fails the deploy, neither switches Google sign-in off |
 | Secret | `GOOGLE_CLIENT_SECRET` | that client's secret | both — as above |
+| Secret | `DEV_BASIC_AUTH` | dev's basic-auth pair as `user:pass`, for the header check (§3.2) | `dev` only — re-set it whenever the pair is changed in the console |
 
 **The migration needs no environment of its own, and a `migrate-prod` pair was built and deleted.** A
 required reviewer gates a whole environment, and `prod` also admits `deploy-frontend.yml` — put one there

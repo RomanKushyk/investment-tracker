@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO } from '../src/repo-root';
-import { FORBIDDEN, PATHS, expected, mismatches } from './check-headers.ts';
+import { FORBIDDEN, PATHS, authorization, expected, mismatches } from './check-headers.ts';
 
 const SOURCE = readFileSync(join(REPO, 'public/customHttp.yml'), 'utf8');
 
@@ -111,5 +111,28 @@ describe('the deploy reads the headers back', () => {
     expect(all[check].env?.SITE).toBe(
       "${{ github.ref_name == 'main' && 'https://quirenote.com' || 'https://dev.quirenote.com' }}",
     );
+  });
+
+  it("takes dev's pair from the environment secret, never from GetBranch", () => {
+    // GetBranch answers a transformed password that dev's basic auth refuses.
+    const check = steps().find((s) => s.run?.includes('scripts/check-headers.ts'));
+    // Dev's alone: `main` resolves `prod`, which holds no such secret and needs none.
+    expect(check?.env?.BASIC_AUTH).toBe(
+      "${{ github.ref_name != 'main' && secrets.DEV_BASIC_AUTH || '' }}",
+    );
+    expect(check?.run).not.toContain('get-branch');
+  });
+});
+
+describe("dev's pair becomes one Authorization header", () => {
+  it('sends none without a pair, and trims a pasted newline', () => {
+    expect(authorization(undefined)).toEqual({});
+    expect(authorization('u:p\r\n')).toEqual({
+      authorization: `Basic ${Buffer.from('u:p').toString('base64')}`,
+    });
+  });
+
+  it('refuses a value that is not user:pass, such as an encoded pair', () => {
+    expect(() => authorization(Buffer.from('u:p').toString('base64'))).toThrow(/user:pass/);
   });
 });
