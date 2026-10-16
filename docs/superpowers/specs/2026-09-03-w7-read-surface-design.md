@@ -40,7 +40,7 @@ another day is read on its own.
 | `GET /view` | **everything that collapses** — every KPI and every per-asset row set, for all 6 `PERIOD_OPTIONS` at once | none |
 | `GET /view/series` | the yield curve — snapshot-shaped, so one period at a time | `period` |
 | `GET /view/balances` | the Balances table — already paged client-side at 6 rows (`paginateSnapshots`) | `page` |
-| `GET /view/day` | a past day's recorded quotes — `/view` carries the caller's day alone | `date` |
+| `GET /view/day` | a past day's recorded quotes and each position's value before it — `/view` carries the caller's day alone | `date` |
 | `GET /state` | raw rows, **for export/import and nothing else** | none |
 | `POST /mutations` | **unchanged** | `If-Match` |
 

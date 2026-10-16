@@ -86,6 +86,9 @@ export function yesterdayQuote(previous: PreviousQuotes, assetId: string): numbe
 // day the picker is not sitting on today it measures against a snapshot LATER
 // than the one every row's own subline compares to.
 //
+// IT IS THE DAY'S UNITS AT THE LAST PRICE BEFORE IT (`dayQuotes`), so a trade since
+// that price is no change: on a day nothing is observed on yet, the save's capital move.
+//
 // A row can be FILLED without changing anything, so this counts rows whose value
 // DIFFERS from its baseline.
 //

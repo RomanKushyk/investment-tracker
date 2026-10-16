@@ -238,7 +238,7 @@ describe('the gate a screen waits behind', () => {
 });
 
 describe('a wide read that fails', () => {
-  const today = dayQuotes([], [], '2026-07-28');
+  const today = dayQuotes([], { user: [], archive: [] }, '2026-07-28');
   const reads: [string, Mock, () => unknown][] = [
     ['the curve of a period', vi.mocked(repo.readSeries), () => useSeries('3m')],
     ['a page of the table', vi.mocked(repo.readBalances), () => useBalancesPage(0)],
@@ -305,7 +305,8 @@ describe('a wide read that fails', () => {
     await client.prefetchQuery(queries.dayQuery(day));
     const caught = vi.fn();
 
-    const { result } = renderHook(() => useDayQuotes(day, dayQuotes([], [], day)), {
+    const empty = dayQuotes([], { user: [], archive: [] }, day);
+    const { result } = renderHook(() => useDayQuotes(day, empty), {
       wrapper: boundaryOf(client, caught),
     });
     await act(async () => {

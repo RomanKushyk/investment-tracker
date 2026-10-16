@@ -96,7 +96,7 @@ const emptyView = (): ViewBody =>
     today: todayIso(),
     fx: undefined,
   });
-const emptyDay = (date: string): DayQuotes => dayQuotes([], [], date);
+const emptyDay = (date: string): DayQuotes => dayQuotes([], { user: [], archive: [] }, date);
 
 function useViewRead<T>(select: (body: ViewBody) => T) {
   return useQuery({ ...viewQuery, select });
@@ -160,7 +160,7 @@ export function useBalancesPage(page: number): BalancesBody | undefined {
   return data;
 }
 
-/** What was recorded on `date` and before it. The view carries the caller's day, so that day costs
+/** What was recorded on `date`, and each position's value before it. The view carries the caller's day, so that day costs
  *  no read; another is read on its own, and is an empty day, and `pending`, until it lands, never
  *  the last one picked. */
 export function useDayQuotes(date: string, today: DayQuotes): { day: DayQuotes; pending: boolean } {

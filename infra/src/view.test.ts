@@ -275,7 +275,7 @@ describe('a signed-in caller gets every figure in one answer', () => {
       fx: RATE,
       assets,
       transactions,
-      today: dayQuotes(transactions, witnessed, TODAY),
+      today: dayQuotes(transactions, { user: witnessed, archive }, TODAY),
       deleteCounts: deleteCounts(assets, transactions, user),
       settings: SETTINGS_DEFAULTS,
       etag: dataTag(SUB, '0'),
@@ -565,8 +565,9 @@ describe('the rows and facts the editors read', () => {
     expect(today.date).toBe(TODAY);
     expect(today.quotes).toEqual({});
     expect(today.previous[REIT]).toEqual({ value: 68702.1, date: '2026-07-27' });
-    // Not the archive's 26th and 27th, nor today.
-    expect(today.previous[ENERGY]).toEqual({ value: 60086.09, date: '2026-07-25' });
+    // The baseline is priced as the capital prices the day: the archive's 27th at 6 000 units, not
+    // the user's 25th, and not today's.
+    expect(today.previous[ENERGY]).toEqual({ value: 62100, date: '2026-07-27' });
   });
 
   it('reports a quote the user recorded today, and the last before it', async () => {
@@ -945,8 +946,11 @@ describe('GET /view/day answers a day’s recorded quotes', () => {
     '%s: core’s facts for that day, over the caller’s rows',
     async (date) => {
       const witnessed = LEDGER.userPrices.map((p) => ({ ...p, observedAt: STAMP }));
+      const archive = ARCHIVE.map(([asOf, price]) => ({ assetId: ENERGY, asOf, price }));
       expect(await dayOf(date)).toEqual(
-        JSON.parse(JSON.stringify(dayQuotes(LEDGER.transactions, witnessed, date))),
+        JSON.parse(
+          JSON.stringify(dayQuotes(LEDGER.transactions, { user: witnessed, archive }, date)),
+        ),
       );
     },
   );
@@ -986,6 +990,36 @@ describe('GET /view/day answers a day’s recorded quotes', () => {
       previous: {},
       savedAt: null,
     });
+  });
+
+  it('values a position bought back at the day’s units and the last price before it', async () => {
+    await writeLedger(db, SUB, {
+      assets: [],
+      transactions: [
+        {
+          id: '00000000-0000-4000-8000-0000000000f2',
+          date: '2026-07-01',
+          type: 'sell',
+          assetId: BOND,
+          amount: 15800,
+          quantity: 15,
+        },
+        {
+          id: '00000000-0000-4000-8000-0000000000f3',
+          date: '2026-07-27',
+          type: 'buy',
+          assetId: BOND,
+          amount: 10500,
+          quantity: 10,
+        },
+      ],
+      userPrices: [],
+    });
+    const day = await dayOf(TODAY);
+    // 10 units at 25.07's 15 846,30 / 15; REIT as recorded; ENERGY at the archive's 27th.
+    expect(day.previous[BOND]).toEqual({ value: 10564.2, date: '2026-07-25' });
+    expect(day.previous[REIT]).toEqual({ value: 68702.1, date: '2026-07-27' });
+    expect(day.previous[ENERGY]).toEqual({ value: 62100, date: '2026-07-27' });
   });
 
   // 2026-07-26 is a grid day the archive prices the fund on, and the user recorded nothing.

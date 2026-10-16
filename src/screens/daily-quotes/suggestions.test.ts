@@ -22,8 +22,9 @@ type After<T extends unknown[]> = T extends [unknown, unknown, unknown, unknown,
   ? R
   : never;
 
-/** The suggestion over the quotes the device stored: the day's read answers the last quote before
- *  the day (`dayOf`), and that is what the suggestion carries forward from. */
+/** The suggestion over the quotes the device stored: the day's read answers each held position's
+ *  value before the day (`dayOf`, over the case's own ledger), and that is what the suggestion
+ *  carries forward from. */
 function suggestStored(
   asset: Asset,
   stored: Snapshot[],
@@ -31,7 +32,8 @@ function suggestStored(
   date: string,
   ...rest: After<Parameters<typeof accrualSuggestion>>
 ): number | null {
-  const { previous } = dayOf({ ...NO_TABLES, snapshots: stored }, date);
+  const tables = { ...NO_TABLES, snapshots: stored, transactions: [...rest[3]] };
+  const { previous } = dayOf(tables, date);
   return accrualSuggestion(asset, previous, investedAmount, date, ...rest);
 }
 

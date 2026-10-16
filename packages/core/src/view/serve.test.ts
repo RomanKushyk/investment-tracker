@@ -4,7 +4,7 @@ import { addDays } from '../dates';
 import { PERIOD_OPTIONS } from '../period';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
 import type { Asset, Transaction } from '../types';
-import { rebuildSnapshots, snapshotsOfPrices, type PriceRow } from '../valuation';
+import { rebuildSnapshots, snapshotsOfPrices, type PriceRow, type PriceRows } from '../valuation';
 import { buildBalanceRow, paginateSnapshots } from './balances';
 import { buildView, ledgerAsOf } from './build';
 import {
@@ -14,6 +14,7 @@ import {
   dayBody,
   dayQuotes,
   deleteCounts,
+  servedPrices,
   seriesBody,
   servedInput,
   viewBody,
@@ -62,6 +63,8 @@ const deposit = (id: string, date: string, amount: number): Transaction => ({
 });
 const buy = (id: string, assetId: string, date: string, amount: number, quantity: number) =>
   ({ id, date, type: 'buy', assetId, amount, quantity }) as const satisfies Transaction;
+/** The user's rows with nothing from the archive beside them. */
+const userOnly = (user: readonly PriceRow[]): PriceRows => ({ user: [...user], archive: [] });
 const observed = (ref: string, asOf: string, price: number): ArchiveRow => ({ ref, asOf, price });
 
 // Written out rather than borrowed from `serve.ts`: the order the SPA's repository reads in.
@@ -129,6 +132,30 @@ describe('viewBody — what GET /view answers, from rows', () => {
       view: buildView({ assets: SEED_ASSETS, transactions, snapshots, today: TODAY }),
       fx: FX,
     });
+  });
+
+  // One resolution of the sources: the series is rebuilt over the rows the day's baseline reads.
+  it('rebuilds the series over servedPrices, the archive’s refs resolved to assets', () => {
+    const rows = {
+      assets: [...SEED_ASSETS, fund('f', 'inzhur-reit', '2026-07-01T10:00:00')],
+      transactions: [...SEED_TRANSACTIONS, buy('b9', 'f', '2026-07-02', 1000, 100)],
+      userPrices: seedPrices,
+      archiveRows: [
+        observed('INZHUR-REIT', '2026-07-02', 10),
+        observed('inzhur-reit', '2026-07-10', 10.5),
+      ],
+      paymentDates: [],
+      today: TODAY,
+    };
+    const prices = servedPrices(rows);
+    expect(prices.archive).toEqual([
+      { assetId: 'f', asOf: '2026-07-02', price: 10 },
+      { assetId: 'f', asOf: '2026-07-10', price: 10.5 },
+    ]);
+    const served = servedInput(rows);
+    expect(served.snapshots).toEqual(
+      rebuildSnapshots(served.assets, served.transactions, prices, TODAY),
+    );
   });
 
   it('sends no rate as null, never as an absent key', () => {
@@ -588,13 +615,25 @@ describe('viewBody — the rows the editors read', () => {
     expect(body.today.previous).toEqual({ f: { value: 1100, date: '2026-09-20' } });
   });
 
+  // Both sources, as the capital reads them: the newer wins, the user's on a same-day tie.
+  it('takes the archive’s price for the baseline where it is the latest before the day', () => {
+    const priced = { ...factRows, archiveRows: [observed('inzhur-reit', '2026-09-25', 12)] };
+    expect(viewBody({ ...priced, fx: FX }).today.previous).toEqual({
+      f: { value: 1200, date: '2026-09-25' },
+    });
+    const tied = { ...factRows, archiveRows: [observed('inzhur-reit', '2026-09-20', 12)] };
+    expect(viewBody({ ...tied, fx: FX }).today.previous).toEqual({
+      f: { value: 1100, date: '2026-09-20' },
+    });
+  });
+
   it('counts what deleting each asset removes', () => {
     const body = viewBody({ ...factRows, transactions: ahead, fx: FX });
     expect(body.deleteCounts).toEqual({ f: { transactions: 2, quoteDays: 2 } });
   });
 });
 
-describe('dayQuotes — what the user recorded on a day and before it', () => {
+describe('dayQuotes — what the user recorded on a day, and each position’s value before it', () => {
   const txs = [
     deposit('d1', '2026-09-10', 3000),
     buy('b1', 'f', '2026-09-10', 1000, 100),
@@ -613,49 +652,79 @@ describe('dayQuotes — what the user recorded on a day and before it', () => {
   it('prices a recorded day as the stored snapshot is, in kopecks', () => {
     const held = [txs[0], txs[1]];
     const rows: PriceRow[] = [{ assetId: 'f', asOf: '2026-09-10', price: 10.45678 }];
-    const day = dayQuotes(held, rows, '2026-09-10');
+    const day = dayQuotes(held, userOnly(rows), '2026-09-10');
     expect(day.quotes).toEqual({ f: 1045.68 });
     expect(day.quotes).toEqual(snapshotsOfPrices(held, rows)[0].quotes);
   });
 
   it('names each asset’s latest recorded quote strictly before the day, with its date', () => {
-    expect(dayQuotes(txs, prices, '2026-09-20').previous).toEqual({
+    expect(dayQuotes(txs, userOnly(prices), '2026-09-20').previous).toEqual({
       f: { value: 1000, date: '2026-09-10' },
       g: { value: 2000, date: '2026-09-10' },
     });
-    expect(dayQuotes(txs, prices, '2026-09-21').previous).toEqual({
+    expect(dayQuotes(txs, userOnly(prices), '2026-09-21').previous).toEqual({
       f: { value: 1100, date: '2026-09-20' },
       g: { value: 2050, date: '2026-09-20' },
     });
     // Nothing is stored on the 21st, and the 20th's quotes are not carried onto it.
-    expect(dayQuotes(txs, prices, '2026-09-21').quotes).toEqual({});
+    expect(dayQuotes(txs, userOnly(prices), '2026-09-21').quotes).toEqual({});
   });
 
-  it('skips a day the position held none, though a price is stored that day', () => {
-    const day = dayQuotes(txs, prices, '2026-09-30');
+  it('leaves a position held none of on the day out of the baselines, and its price out of the quotes', () => {
+    const day = dayQuotes(txs, userOnly(prices), '2026-09-30');
     expect(day.quotes).toEqual({});
-    expect(day.previous.f).toEqual({ value: 1100, date: '2026-09-20' });
-    expect(dayQuotes(txs, prices, '2026-09-27').quotes).toEqual({});
+    expect(day.previous).toEqual({ g: { value: 2050, date: '2026-09-20' } });
+    expect(dayQuotes(txs, userOnly(prices), '2026-09-27').quotes).toEqual({});
+  });
+
+  // The baseline is the day's position at the latest price before it, as the capital carries the
+  // day (`rebuildSnapshots`): a trade since that price is no change.
+  it('values the units held on the day, not the units the price was recorded at', () => {
+    const topped = [...txs, buy('b3', 'g', '2026-09-22', 2050, 50)];
+    expect(dayQuotes(topped, userOnly(prices), '2026-09-23').previous.g).toEqual({
+      value: 4100,
+      date: '2026-09-20',
+    });
+    const assets = [fund('f', 'inzhur-reit'), fund('g', 'ref-g')];
+    const series = rebuildSnapshots(assets, topped, { user: prices, archive: [] }, '2026-09-23');
+    expect(series.at(-1)?.quotes.g).toBe(4100);
+  });
+
+  it('prices a position bought back off a row recorded while the ledger held none of it', () => {
+    const rebought = [...txs, buy('b4', 'f', '2026-09-28', 130, 10)];
+    expect(dayQuotes(rebought, userOnly(prices), '2026-09-29').previous.f).toEqual({
+      value: 120,
+      date: '2026-09-27',
+    });
+  });
+
+  it('has no baseline for units the ledger cannot count', () => {
+    const uncounted: Transaction[] = [
+      ...txs,
+      { id: 'b5', date: '2026-09-10', type: 'buy', assetId: 'h', amount: 500 },
+    ];
+    const priced = [...prices, { assetId: 'h', asOf: '2026-09-12', price: 5 }];
+    expect(dayQuotes(uncounted, userOnly(priced), '2026-09-20').previous.h).toBeUndefined();
   });
 
   it('names the latest witness time of any price, whatever the day asked for', () => {
-    expect(dayQuotes(txs, prices, '2026-09-10').savedAt).toBe('2026-09-27T11:00:00');
-    expect(dayQuotes(txs, prices, '2026-09-30').savedAt).toBe('2026-09-27T11:00:00');
+    expect(dayQuotes(txs, userOnly(prices), '2026-09-10').savedAt).toBe('2026-09-27T11:00:00');
+    expect(dayQuotes(txs, userOnly(prices), '2026-09-30').savedAt).toBe('2026-09-27T11:00:00');
   });
 
   it('names none where no price has a witness time', () => {
     const bare = prices.map(({ assetId, asOf, price }) => ({ assetId, asOf, price }));
-    expect(dayQuotes(txs, bare, '2026-09-30').savedAt).toBeNull();
+    expect(dayQuotes(txs, userOnly(bare), '2026-09-30').savedAt).toBeNull();
   });
 
   it('answers a day before the first row, and a ledger with no row, without a quote', () => {
-    expect(dayQuotes(txs, prices, '2026-01-01')).toEqual({
+    expect(dayQuotes(txs, userOnly(prices), '2026-01-01')).toEqual({
       date: '2026-01-01',
       quotes: {},
       previous: {},
       savedAt: '2026-09-27T11:00:00',
     });
-    expect(dayQuotes([], [], '2026-09-30')).toEqual({
+    expect(dayQuotes([], userOnly([]), '2026-09-30')).toEqual({
       date: '2026-09-30',
       quotes: {},
       previous: {},
@@ -665,7 +734,7 @@ describe('dayQuotes — what the user recorded on a day and before it', () => {
 
   it('answers one body whatever order the rows arrive in', () => {
     const answer = (t: Transaction[], p: PriceRow[]) =>
-      JSON.stringify(dayQuotes(t, p, '2026-09-21'));
+      JSON.stringify(dayQuotes(t, userOnly(p), '2026-09-21'));
     expect(answer([...txs].reverse(), [...prices].reverse())).toBe(answer(txs, prices));
   });
 });
@@ -705,6 +774,16 @@ describe('dayBody — what GET /view/day answers', () => {
       previous: { f: { value: 1100, date: '2026-09-20' } },
       savedAt: '2026-09-20T09:30:00',
     });
+  });
+
+  it('gives an asset the user never quoted the archive’s baseline', () => {
+    const linked = {
+      ...rows,
+      assets: [...factAssets, fund('g', 'ref-g')],
+      transactions: [...factTransactions, buy('b2', 'g', '2026-09-12', 500, 10)],
+      archiveRows: [observed('ref-g', '2026-09-24', 55)],
+    };
+    expect(dayBody(linked, '2026-09-26').previous.g).toEqual({ value: 550, date: '2026-09-24' });
   });
 
   // A form reads every row, and so does this: the day the figures are cut at bounds nothing here.

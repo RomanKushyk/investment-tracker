@@ -6,10 +6,12 @@ import { todayIso } from '@quirenote/core/dates';
 import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { PeriodOption } from '@quirenote/core/period';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
+import { pricesOfSnapshots } from '@quirenote/core/valuation';
 import { buildBalanceRow, paginateSnapshots } from '@quirenote/core/view/balances';
 import { buildView, ledgerAsOf } from '@quirenote/core/view/build';
 import type { ViewInput } from '@quirenote/core/view/input';
 import {
+  dayQuotes,
   servedInput,
   type BalancesBody,
   type DayQuotes,
@@ -42,22 +44,14 @@ function storedInput(tables: AllTables, today: string): ViewInput {
   return { ...served, snapshots: tables.snapshots };
 }
 
-/** What was stored on `date` and before it, quotes of a position held none of included: the
- *  form's prefill, each asset's last quote before the day, and the latest save time. */
-function storedDay(snapshots: readonly Snapshot[], date: string): DayQuotes {
-  const previous: DayQuotes['previous'] = {};
-  let savedAt: string | null = null;
-  for (const s of snapshots) {
-    if (s.savedAt !== undefined && (savedAt === null || s.savedAt > savedAt)) savedAt = s.savedAt;
-    if (s.date >= date) continue;
-    for (const [id, value] of Object.entries(s.quotes)) {
-      if (previous[id] === undefined || previous[id].date < s.date) {
-        previous[id] = { value, date: s.date };
-      }
-    }
-  }
-  return { date, quotes: snapshots.find((s) => s.date === date)?.quotes ?? {}, previous, savedAt };
-}
+/** The day's read as the server composes it, over the stored quotes as per-unit rows at each day's
+ *  own holding: the form's prefill, each held position's baseline, and the latest save time. */
+const storedDay = (tables: AllTables, date: string): DayQuotes =>
+  dayQuotes(
+    tables.transactions,
+    { user: pricesOfSnapshots(tables.transactions, tables.snapshots), archive: [] },
+    date,
+  );
 
 /** What deleting each asset removes: its transactions, and its key from every stored day. */
 function storedDeleteCounts(
@@ -83,7 +77,7 @@ export function viewOf(tables: AllTables, today = todayIso()): ViewBody {
     fx: null,
     assets: input.assets,
     transactions: input.transactions,
-    today: storedDay(tables.snapshots, today),
+    today: storedDay(tables, today),
     deleteCounts: storedDeleteCounts(input.assets, input.transactions, tables.snapshots),
   };
 }
@@ -109,5 +103,4 @@ export function balancesOf(tables: AllTables, page: number, today = todayIso()):
     next: cut.next,
   };
 }
-export const dayOf = (tables: AllTables, date: string): DayQuotes =>
-  storedDay(tables.snapshots, date);
+export const dayOf = (tables: AllTables, date: string): DayQuotes => storedDay(tables, date);

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { ledgerUnits } from '@quirenote/core/derive';
+import { headlineTotalAsOf, ledgerUnits, yieldSinceStart } from '@quirenote/core/derive';
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import type { Snapshot, Transaction } from '@quirenote/core/types';
-import { dayOf, NO_TABLES } from '../../__fixtures__/stored-view';
+import { pricesOfSnapshots, rebuildSnapshots, type PriceRow } from '@quirenote/core/valuation';
+import { dayQuotes } from '@quirenote/core/view/serve';
 import {
   bondAbbrev,
   collectQuotes,
@@ -20,9 +21,11 @@ const complete2507: Snapshot = {
 };
 const partial2707: Snapshot = { date: '2026-07-27', quotes: { reit: 68702.1 } };
 const snaps = [complete2507, partial2707];
-/** What the day's read answers as the last quote before `date`, over the quotes the device stored. */
-const previousOn = (stored: Snapshot[], date: string) =>
-  dayOf({ ...NO_TABLES, snapshots: stored }, date).previous;
+/** The day's read over the stored quotes, each a per-unit row at the seed's holding on its day (the
+ *  row was recorded then); `txs` is the ledger as it stands on `date`. */
+const previousOn = (stored: Snapshot[], date: string, txs: Transaction[] = SEED_TRANSACTIONS) =>
+  dayQuotes(txs, { user: pricesOfSnapshots(SEED_TRANSACTIONS, stored), archive: [] }, date)
+    .previous;
 // …8976's 15 units, sold out on 01.07.
 const sale: Transaction = {
   id: 's2',
@@ -184,6 +187,84 @@ describe("pendingChange — only the assets the day needs quoted count, over the
     expect(got.changed).toBe(4);
     expect(got.total).toBe(4);
     expect(got.sum).toBeCloseTo(171.39, 2);
+  });
+});
+
+describe('pendingChange — the baseline is the day’s units at the latest price before it', () => {
+  // A trade since the last price is no change: the block reads what the save moves the capital by.
+  const on = '2026-07-28';
+  const rows = pricesOfSnapshots(SEED_TRANSACTIONS, snaps);
+  const buyBack = (date: string): Transaction => ({
+    id: 'b9',
+    date,
+    type: 'buy',
+    assetId: 'ovdp8976',
+    amount: 10500,
+    quantity: 10,
+  });
+  const topUp: Transaction = {
+    id: 'b8',
+    date: on,
+    type: 'buy',
+    assetId: 'reit',
+    amount: 10950,
+    quantity: 1000,
+  };
+  /** The sidebar's capital over the series the API rebuilds, with whatever a save adds. */
+  const capital = (txs: Transaction[], saved: PriceRow[] = []) =>
+    headlineTotalAsOf(
+      rebuildSnapshots(SEED_ASSETS, txs, { user: [...rows, ...saved], archive: [] }, on),
+      txs,
+      on,
+    );
+  const saveMoves = (txs: Transaction[], assetId: string, value: number) =>
+    capital(txs, [{ assetId, asOf: on, price: value / ledgerUnits(txs, on).units[assetId] }]) -
+    capital(txs);
+
+  it.each(['2026-07-28', '2026-07-27'])(
+    'values 10 units bought back on %s at the 25.07 price, not at the 15 quoted then',
+    (date) => {
+      const txs = [...SEED_TRANSACTIONS, sale, buyBack(date)];
+      const previous = previousOn(snaps, on, txs);
+      // 10 × 15 846,30 / 15.
+      expect(previous.ovdp8976).toEqual({ value: 10564.2, date: '2026-07-25' });
+      const got = pendingChange(
+        SEED_ASSETS,
+        ledgerUnits(txs, on).units,
+        { ovdp8976: '10560' },
+        previous,
+        on,
+        'uk',
+      );
+      expect(got.changed).toBe(1);
+      expect(got.total).toBe(4);
+      expect(got.sum).toBeCloseTo(-4.2, 2);
+      expect(yieldSinceStart(10560, previous.ovdp8976.value)).toBeCloseTo(-0.0004, 4);
+      expect(got.sum).toBeCloseTo(saveMoves(txs, 'ovdp8976', 10560), 2);
+    },
+  );
+
+  it('leaves a top-up’s money out: 1 000 REIT bought on the day move nothing until their price does', () => {
+    const txs = [...SEED_TRANSACTIONS, topUp];
+    const previous = previousOn(snaps, on, txs);
+    // 7 269,0996 units at 27.07's 68 702,10 / 6 269,0996.
+    expect(previous.reit).toEqual({ value: 79660.95, date: '2026-07-27' });
+    const got = pendingChange(
+      SEED_ASSETS,
+      ledgerUnits(txs, on).units,
+      { reit: '79800' },
+      previous,
+      on,
+      'uk',
+    );
+    expect(got.changed).toBe(1);
+    expect(got.sum).toBeCloseTo(139.05, 2); // not 79 800 − 68 702,10
+    expect(got.sum).toBeCloseTo(saveMoves(txs, 'reit', 79800), 2);
+  });
+
+  it('has no baseline for a position held none of on the day, whatever was quoted while held', () => {
+    const soldAfter = [...SEED_TRANSACTIONS, { ...sale, date: '2026-07-26' }];
+    expect(previousOn(snaps, on, soldAfter).ovdp8976).toBeUndefined();
   });
 });
 

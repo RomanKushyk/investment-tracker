@@ -147,6 +147,28 @@ export function rebuildSnapshots(
   return valueDays(txs, series, { observed, forced });
 }
 
+/** Each position held on `date` at the latest observation strictly before it, from either source,
+ *  the user's on a tie: the day's value before anything is observed on it, as the capital carries
+ *  it, under the day that observation was made. A position held none of, or uncounted, has none. */
+export function carriedValuesOn(
+  txs: Transaction[],
+  prices: PriceRows,
+  date: string,
+): Record<string, { value: number; date: string }> {
+  const series = priceSeries(prices);
+  const units = ledgerUnits(txs, date).units;
+  const out: Record<string, { value: number; date: string }> = {};
+  // Sorted, so that the key order of what is answered is not the order the rows arrived in.
+  for (const assetId of [...series.keys()].sort()) {
+    const held = heldValueOf(units, assetId);
+    if (held === undefined || holdsNone(held)) continue;
+    const price = priceAtOrBefore(series.get(assetId)!, dayBefore(date));
+    if (price === undefined) continue;
+    out[assetId] = { value: round2(held * price.price), date: price.observedOn };
+  }
+  return out;
+}
+
 /** One asset's per-unit price, the shape a stored snapshot takes. */
 export interface UnitPrice {
   assetId: string;

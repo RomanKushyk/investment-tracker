@@ -388,7 +388,9 @@ per unit: a quote taken on a day the ledger held none values none of the units b
 wherever the latest snapshot falls, and a last valuation day that held none values the position at
 nothing, so units bought after it wait for their own quote; the rebuilt series carries prices, not
 values, so on it a late buy is valued from its own day, and these rules say what a stored ₴
-snapshot can say. A reader that asked for a quote of a
+snapshot can say. The quotes screen's baseline is priced as that series would price the day before
+anything is observed on it, the units held on the day at the latest price before it from either
+source, so a trade since that price is no change there. A reader that asked for a quote of a
 position no longer held would nag every day after a sell-out or a maturity, for a quote the total
 then leaves out; Portfolio Performance's held-securities price update asks only for the positions in
 that day's snapshot, which holds none with 0 shares. The NBU depository pays a coupon or a
@@ -962,9 +964,12 @@ in the order of its cells.
 A PAST DAY IS A READ OF ITS OWN: `GET /view/day?date` answers the facts `/view` carries for the
 caller's day, for the day it names, composed by the same core function and cut at no day, as a form
 reads every row. A day with nothing recorded, before the first row, after the last or between two,
-answers with no quote and the last recorded before it, if any. It goes through `/view`'s gate and
-read with `/view`'s cache policy, 304 and `derivation-id`, its tag the read's seven inputs and its
-route and date, so it reads the archive and the rate its body does not use. Once the gate admits the
+answers with no quote and each held position's value before it — the units held on the day at the
+latest price before it, the user's or the archive's, as the capital carries the day — if any, so the
+quotes screen's pending change is the price move alone and, on a day nothing is observed on yet,
+equals the capital's move on save. It goes
+through `/view`'s gate and read with `/view`'s cache policy, 304 and `derivation-id`, its tag the
+read's seven inputs and its route and date, so it reads the rate its body does not use. Once the gate admits the
 caller and before the ledger is read, a `date` that is no calendar date in yyyy-MM-dd, by the door a
 snapshot's day is written through, or none, is refused by name with a 400 `invalid_query`.
 THE WRITE IS `POST /mutations` AND THE EXPORT `GET /state`, one function behind the same gate. A

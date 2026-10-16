@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
+import { unitsByAsset } from '@quirenote/core/derive';
 import { computeReminders } from '@quirenote/core/reminders';
-import type { Snapshot } from '@quirenote/core/types';
+import type { Snapshot, Transaction } from '@quirenote/core/types';
 import { allocationView } from '@quirenote/core/view/allocation';
 import { attributesView, derivedYtmPct } from '@quirenote/core/view/attributes';
 import { balancesView, buildBalanceRow, paginateSnapshots } from '@quirenote/core/view/balances';
@@ -65,22 +66,41 @@ interface Day {
   savedAt: string | null;
 }
 
-/** The old reads of one day, over stored snapshots: the form's prefill, each row's last quote
- *  before it, and the latest save time. */
-function legacyDay(snapshots: Snapshot[], assetIds: string[], date: string): Day {
+/** The reads of one day over stored snapshots, written without core: the form's prefill less a
+ *  position held none of that day, each held position's baseline — the day's units at its last
+ *  per-unit price before it, a quote of a position held none of having no such price — and the
+ *  latest save time. */
+function storedDay(
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  assetIds: string[],
+  date: string,
+): Day {
+  const heldOn = (day: string) => unitsByAsset(transactions, day);
+  const units = heldOn(date);
   const previous: Day['previous'] = {};
   for (const id of assetIds) {
     let best: Snapshot | undefined;
     for (const s of snapshots) {
-      if (s.date < date && s.quotes[id] !== undefined && (!best || s.date > best.date)) best = s;
+      if (s.date >= date || !(s.quotes[id] > 0) || !((heldOn(s.date)[id] ?? 0) > 0)) continue;
+      if (!best || s.date > best.date) best = s;
     }
-    if (best) previous[id] = { value: best.quotes[id], date: best.date };
+    const held = units[id];
+    if (best && held !== undefined && held > 0) {
+      const price = best.quotes[id] / heldOn(best.date)[id];
+      previous[id] = { value: Math.round(held * price * 100) / 100, date: best.date };
+    }
   }
   let savedAt: string | null = null;
   for (const s of snapshots) {
     if (s.savedAt && (savedAt === null || s.savedAt > savedAt)) savedAt = s.savedAt;
   }
-  return { date, quotes: snapshots.find((s) => s.date === date)?.quotes ?? {}, previous, savedAt };
+  const quotes = Object.fromEntries(
+    Object.entries(snapshots.find((s) => s.date === date)?.quotes ?? {}).filter(
+      ([id]) => (units[id] ?? 0) > 0,
+    ),
+  );
+  return { date, quotes, previous, savedAt };
 }
 
 /** Plain objects and arrays all the way down: what TanStack's structural sharing can see through.
@@ -224,7 +244,7 @@ describe.each(LEDGERS.map((l) => [l.name, l.input] as const))('%s', (_, input) =
     const ids = tables.assets.map((a) => a.id);
 
     it.each(DATES)('%s: what the form prefills, its baselines and the save time', (date) => {
-      same(dayOf(tables, date), legacyDay(tables.snapshots, ids, date), 1e-9);
+      same(dayOf(tables, date), storedDay(tables.snapshots, tables.transactions, ids, date), 1e-9);
     });
 
     it.each(DATES)('%s: is the same whatever order the snapshots arrive in', (date) => {
@@ -233,7 +253,7 @@ describe.each(LEDGERS.map((l) => [l.name, l.input] as const))('%s', (_, input) =
     });
 
     it("is the view's own for the caller's day", () => {
-      same(body.today, legacyDay(tables.snapshots, ids, input.today), 1e-9);
+      same(body.today, storedDay(tables.snapshots, tables.transactions, ids, input.today), 1e-9);
     });
   });
 
@@ -282,7 +302,8 @@ describe('the seed, as navigation-map.md reads it', () => {
   });
 
   // …8976 is first bought on 05.02, so a quote saved for it on 04.02 is one its position is not
-  // held for: stored, shown, and removed with the asset.
+  // held for: stored and removed with the asset, never prefilled, as a day quotes no position it
+  // holds none of.
   describe('a quote saved for a day its position is not held', () => {
     const DAY = '2026-02-04';
     const withQuote = {
@@ -299,9 +320,9 @@ describe('the seed, as navigation-map.md reads it', () => {
       );
     });
 
-    it('prefills the form when the day is opened again, so saving the day keeps it', () => {
-      expect(dayOf(withQuote, DAY).quotes.ovdp8976).toBe(15390);
-      expect(viewOf(withQuote, DAY).today.quotes.ovdp8976).toBe(15390);
+    it('is no prefill when the day is opened again', () => {
+      expect(dayOf(withQuote, DAY).quotes).not.toHaveProperty('ovdp8976');
+      expect(viewOf(withQuote, DAY).today.quotes).not.toHaveProperty('ovdp8976');
     });
 
     it("counts in the delete dialog, as the delete removes the asset's key from the day", () => {

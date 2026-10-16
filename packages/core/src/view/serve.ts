@@ -4,7 +4,13 @@ import { addDays } from '../dates';
 import { normalizeRef } from '../inzhur/ref';
 import type { PeriodOption } from '../period';
 import type { Asset, Transaction } from '../types';
-import { rebuildSnapshots, snapshotsOfPrices, type PriceRow } from '../valuation';
+import {
+  carriedValuesOn,
+  rebuildSnapshots,
+  snapshotsOfPrices,
+  type PriceRow,
+  type PriceRows,
+} from '../valuation';
 import { buildBalanceRow, paginateSnapshots, type BalanceRow } from './balances';
 import { buildView, ledgerAsOf, type View } from './build';
 import type { ViewInput } from './input';
@@ -41,13 +47,14 @@ export interface Fx {
   date: string;
 }
 
-/** What the user recorded on one day and before it: the quotes screen's prefill, its subline and
- *  baseline, and its last-saved stamp. */
+/** What the user recorded on one day, and each position's value before it: the quotes screen's
+ *  prefill, its subline and baseline, and its last-saved stamp. */
 export interface DayQuotes {
   date: string;
   /** Each asset's recorded ₴ quote that day. A position held none of that day has none. */
   quotes: Record<string, number>;
-  /** Each asset's latest recorded quote strictly before the day, and the day it was recorded. */
+  /** Each position held on the day at the latest price strictly before it, either source, under
+   *  that price's day: the capital's value of the day until anything is observed on it. */
   previous: Record<string, { value: number; date: string }>;
   /** The latest witness time of any price the user recorded, on any day. */
   savedAt: string | null;
@@ -116,15 +123,14 @@ export function archiveSpan(
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** The composers' input over the rebuilt series. SORTED FIRST, as the SPA's repository reads: rows
- *  arrive in no order, and the composers break ties and sum floats in input order. */
-export function servedInput(input: ServedRows): ViewInput {
-  const assets = [...input.assets].sort(
-    (a, b) => compare(a.createdAt, b.createdAt) || compare(a.id, b.id),
-  );
-  const transactions = [...input.transactions].sort(
-    (a, b) => compare(a.date, b.date) || compare(a.id, b.id),
-  );
+const sortedAssets = (assets: Asset[]) =>
+  [...assets].sort((a, b) => compare(a.createdAt, b.createdAt) || compare(a.id, b.id));
+
+/** Both sources as `rebuildSnapshots` reads them: the user's rows, and the archive's resolved to
+ *  every asset linked to each ref. SORTED, as the SPA's repository reads: rows arrive in no order,
+ *  and the composers break ties and sum floats in input order. */
+export function servedPrices(input: ServedRows): PriceRows {
+  const assets = sortedAssets(input.assets);
   const order = new Map(assets.map((a, i) => [a.id, i]));
   const byAssetThenDay = (a: PriceRow, b: PriceRow) =>
     (order.get(a.assetId) ?? assets.length) - (order.get(b.assetId) ?? assets.length) ||
@@ -145,12 +151,16 @@ export function servedInput(input: ServedRows): ViewInput {
     )
     .sort((a, b) => byAssetThenDay(a, b) || a.price - b.price)
     .filter((r, i, rows) => i === 0 || byAssetThenDay(rows[i - 1], r) !== 0);
-  const snapshots = rebuildSnapshots(
-    assets,
-    transactions,
-    { user: [...input.userPrices].sort(byAssetThenDay), archive },
-    input.today,
+  return { user: [...input.userPrices].sort(byAssetThenDay), archive };
+}
+
+/** The composers' input over the rebuilt series, its rows sorted as `servedPrices` sorts. */
+export function servedInput(input: ServedRows): ViewInput {
+  const assets = sortedAssets(input.assets);
+  const transactions = [...input.transactions].sort(
+    (a, b) => compare(a.date, b.date) || compare(a.id, b.id),
   );
+  const snapshots = rebuildSnapshots(assets, transactions, servedPrices(input), input.today);
   // A bond's schedule, by the link's kind: a fund pays no coupon, whatever row names its ref.
   const served = new Map(input.paymentDates.map((r) => [normalizeRef(r.ref), r.dates]));
   const paymentDates = new Map<string, readonly string[]>();
@@ -161,34 +171,26 @@ export function servedInput(input: ServedRows): ViewInput {
   return { assets, transactions, snapshots, today: input.today, paymentDates };
 }
 
-/** What the user recorded on `date` and before it, read from their own price rows alone: the rebuilt
- *  series also quotes a carried grid day and an archive price, and neither was recorded. Priced as
- *  a stored day is (`snapshotsOfPrices`), so a position held none that day has no quote. Rows in
- *  any order give one answer. */
-export function dayQuotes(
-  transactions: Transaction[],
-  userPrices: readonly PriceRow[],
-  date: string,
-): DayQuotes {
+/** The quotes are the user's rows alone, a carried day or an archive price being no record; the
+ *  baseline reads both sources (`carriedValuesOn`), so a trade since its price is no change. */
+export function dayQuotes(transactions: Transaction[], prices: PriceRows, date: string): DayQuotes {
   // Sorted, so that the key order of what is answered is not the order the rows arrived in.
-  const sorted = [...userPrices].sort(
+  const sorted = [...prices.user].sort(
     (a, b) => compare(a.asOf, b.asOf) || compare(a.assetId, b.assetId),
   );
   const days = snapshotsOfPrices(transactions, sorted);
-  const previous: DayQuotes['previous'] = {};
-  for (const day of days) {
-    if (day.date >= date) break;
-    for (const [assetId, value] of Object.entries(day.quotes)) {
-      previous[assetId] = { value, date: day.date };
-    }
-  }
   // The stamp is when anything was saved, so it reads rows of every day.
   let savedAt: string | null = null;
-  for (const { observedAt } of userPrices) {
+  for (const { observedAt } of prices.user) {
     if (observedAt === undefined) continue;
     if (savedAt === null || observedAt > savedAt) savedAt = observedAt;
   }
-  return { date, quotes: days.find((d) => d.date === date)?.quotes ?? {}, previous, savedAt };
+  return {
+    date,
+    quotes: days.find((d) => d.date === date)?.quotes ?? {},
+    previous: carriedValuesOn(transactions, prices, date),
+    savedAt,
+  };
 }
 
 /** Each asset's counts, as `asset.delete` removes them: every transaction naming it and every price
@@ -218,7 +220,7 @@ export function viewBody(input: ServedRows & { fx: Fx | undefined }): ViewBody {
     fx: input.fx ?? null,
     assets: served.assets,
     transactions: served.transactions,
-    today: dayQuotes(served.transactions, input.userPrices, input.today),
+    today: dayQuotes(served.transactions, servedPrices(input), input.today),
     deleteCounts: deleteCounts(served.assets, served.transactions, input.userPrices),
   };
 }
@@ -246,5 +248,5 @@ export function balancesBody(rows: ServedRows, page: number): BalancesBody {
 /** `GET /view/day`: the facts `viewBody` carries for the caller's day, for any day. Cut at none, as
  *  a form reads every row. */
 export function dayBody(rows: ServedRows, date: string): DayQuotes {
-  return dayQuotes(rows.transactions, rows.userPrices, date);
+  return dayQuotes(rows.transactions, servedPrices(rows), date);
 }

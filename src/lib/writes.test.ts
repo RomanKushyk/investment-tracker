@@ -251,7 +251,7 @@ function fakeApi(
       HttpResponse.json(
         dayQuotes(
           store.transactions,
-          store.prices,
+          { user: store.prices, archive: [] },
           new URL(request.url).searchParams.get('date') ?? '',
         ),
       ),
