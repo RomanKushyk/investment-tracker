@@ -4,8 +4,9 @@ Quirenote is a static SPA on **AWS Amplify Hosting** as a **manual-deploy app**;
 the whole pipeline and Amplify never builds (*Deployment*). Region `eu-north-1`, app ID
 `d17m4jf400my6`, console app name `kubushka` — cosmetic, the old name. `main` serves `quirenote.com`
 and `www.`, `dev` serves `dev.quirenote.com`, and the `{main,dev}.d17m4jf400my6.amplifyapp.com` URLs
-answer too. **Hosting config stays console-managed**: CI has no `UpdateApp`, so the rewrite (§3.1)
-and the cache headers (§3.2) cannot be restored by a deploy.
+answer too. **The rewrite stays console-managed**: CI has no `UpdateApp`, so the rewrite (§3.1)
+cannot be restored by a deploy. The response headers are not console-managed: every deploy ships
+them in `public/customHttp.yml` (§3.2).
 
 ## 1. The custom domain — `quirenote.com`
 
@@ -125,30 +126,40 @@ path, so Amplify serves the file when there is one — and when there is none it
 normalising to the extensionless form (`301` → `/api-docs/`) which the rule then matches. That is
 production's answer, the page not being in it.
 
-### 3.2 Cache headers
+### 3.2 Response headers — from the repo, not the console
 
-**Hosting** → **Custom headers and cache**:
+**`public/customHttp.yml` is the source of truth.** Vite copies it to the root of `dist/`, and
+Amplify applies a `customHttp.yml` at the root of a manual deploy's zip; AWS's *Setting custom
+headers* page says it overrides the console's **Custom headers**, so the console needs no entry. It
+is not served: `/customHttp.yml` answers the SPA shell. A pattern is matched against the REQUEST
+path, not the rewrite's target: `/` takes `/index.html`'s rule, `/sign-in` does not. When two entries set one header, the later entry wins, which is why
+`/auth/callback` comes after `**`.
 
-```yaml
-customHeaders:
-  - pattern: '/index.html'
-    headers:
-      - key: 'Cache-Control'
-        value: 'no-cache'
-  - pattern: '/assets/**'
-    headers:
-      - key: 'Cache-Control'
-        value: 'public, max-age=31536000, immutable'
-  - pattern: '/api-docs.html'
-    headers:
-      - key: 'Cache-Control'
-        value: 'no-cache'
-```
+Every header the file sets, and why:
 
-Safe because Vite content-hashes every asset filename, which is also why the API reference needs no
-pattern for its chunks. **The third pattern is not optional:** `/api-docs.html` matches neither of
-the first two, so without it a cached copy keeps pointing at a hashed chunk the next deploy removed
-— a blank page that survives redeploys.
+| Header | Why |
+|---|---|
+| `Strict-Transport-Security` | `includeSubDomains`, with `max-age` on a step of hstspreload.org's ramp rather than OWASP's final value. No `preload`: hstspreload.org advises against it and undoing it takes months |
+| `X-Content-Type-Options` | |
+| `X-Frame-Options` | nothing frames the app |
+| `Cross-Origin-Opener-Policy` | `same-origin` is safe because Google sign-in is a full-page redirect, not a popup |
+| `Referrer-Policy` | the browser default everywhere but `/auth/callback`, whose URL holds the OAuth code and takes `no-referrer`, RFC 9700 §4.2.4's own example |
+| `Permissions-Policy` | OWASP's list, but OWASP's `publickey-credentials-get=()` refuses `navigator.credentials`, which is passkey sign-in. It is `(self)`, and `publickey-credentials-create`, which OWASP does not list, is pinned to `(self)` too |
+| `Cache-Control` | the file replaces the console's rules, so these travel with it |
+
+**Two headers are left out on purpose:** `Clear-Site-Data`, whose `"storage"` deletes what the app
+keeps, and `X-XSS-Protection`, which MDN warns "can create XSS vulnerabilities in otherwise safe
+websites", AWS's own example notwithstanding. The cache rule is safe because Vite content-hashes
+every asset filename, which is also why the API reference needs no pattern for its chunks. **The
+`/api-docs.html` rule is not optional:** it matches neither other cache pattern, so without it a
+cached copy keeps pointing at a hashed chunk the next deploy removed, a blank page that survives
+redeploys.
+
+**Every deploy reads the headers back.** The workflow's last step runs `scripts/check-headers.ts`
+against the host its branch serves. It fetches `/`, `/sign-in` and `/auth/callback`, derives what
+each must carry from the file itself, and fails on a missing, wrong or forbidden header. On `dev`
+it takes the basic-auth pair from `amplify:GetBranch`, which the deploy role already holds, masked
+in the log. Run by hand with `SITE=<origin>` and, for dev, `BASIC_AUTH=<user:pass>`.
 
 ### 3.3 GitHub OIDC provider, and the deploy roles
 

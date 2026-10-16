@@ -1870,8 +1870,12 @@ workflow: it needs Actions allowed to create pull requests, for a fix that is on
 deploys and polls the job to completion, taking its environment from the ref. ONE WORKFLOW, TWO
 ARTIFACTS: a SECOND Vite build appends the API reference page to the same `dist/` on every branch
 but `main`, so it sits behind the dev site's basic auth and is absent from production. The GitHub
-OIDC deploy roles deliberately cannot change the app: the SPA 200 rewrite and the cache headers stay
-console-managed. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
+OIDC deploy roles deliberately cannot change the app: the SPA 200 rewrite stays console-managed.
+THE RESPONSE HEADERS SHIP WITH THE BUILD: `public/customHttp.yml`, which Amplify applies from the
+zip's root, sets the cache rules and the security headers, and the deploy's last step reads the
+headers of three pages back from the live host against that file. HSTS climbs hstspreload.org's ramp with
+`includeSubDomains` and no `preload`; the Permissions-Policy is OWASP's list with both publickey
+features at `(self)`; `/auth/callback` alone takes `no-referrer`. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
 shared archive being `dev`'s. CloudFormation's execution role creates or changes no role without the
 permissions boundary, which allows exactly the actions the stack roles are granted. Both
@@ -1905,7 +1909,16 @@ proxied neighbour hides. Web Analytics' automatic setup, once on for a proxied s
 its script "on all pages (sub-domains) under the zone" unless rules narrow it, the OAuth callback
 page among them, where RFC 9700 §4.2.4 says the page "SHOULD NOT include third-party resources or
 links to external sites". The injected tag names a beacon version Cloudflare moves on its own, so
-a hash-based CSP cannot list it in advance. The reference page is a build step rather than a flag because a flag is how
+a hash-based CSP cannot list it in advance. The headers ship in the zip because AWS documents a
+manual deploy's `customHttp.yml` as overriding the console's, so a header lives in review and in
+`git log` rather than in a console no deploy can restore; the read-back catches a host that serves
+something else. The ID token the API accepts lives in JavaScript memory, so script injected into
+the app reaches it: RFC 10017 §6.2 names that as the token-mediating backend's residual risk. OWASP's
+Secure Headers list is the base, and three of its entries break this app: `Clear-Site-Data`'s
+`"storage"` deletes what the app keeps, `publickey-credentials-get=()` refuses passkey sign-in, and
+its HSTS value skips hstspreload.org's ramp. The callback's
+URL holds the OAuth code, and RFC 9700 §4.2.4 gives `no-referrer` as the example for that page.
+The reference page is a build step rather than a flag because a flag is how
 this pattern fails: a disable switch that turns out to be dead code and ships the page anyway. A
 step that does not run cannot. OWASP's Logging Cheat Sheet counts an email address among the data
 to remove, mask or hash before it is logged. GitHub's secure-use guidance masks a sensitive value
@@ -1933,7 +1946,10 @@ accumulate changes that are not getting deployed, so a retry must include "every
 last time we deployed successfully" — and reads that commit from the last successful run. A gate
 would have to keep that watermark, and a skipped deploy is worse than a wasted one.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
-certificate stops renewing. · A Web Analytics rule excluding `/auth/*` alone: it meets RFC 9700
+certificate stops renewing. · The security headers in the console: CI has no `UpdateApp`, so
+nothing in the repo could restore them. · `Clear-Site-Data`: it deletes the app's storage. ·
+`X-XSS-Protection`: MDN warns it "can create XSS vulnerabilities in otherwise safe websites". ·
+HSTS `preload`: hstspreload.org advises against it, and leaving the list takes months. · A Web Analytics rule excluding `/auth/*` alone: it meets RFC 9700
 but leaves a third-party script on every other page, which a hash-based CSP would have to admit
 by host. · An environment secret for the bootstrap's address: masked from the job's start, but an operator's input would become standing configuration in each environment. ·
 One deploy role trusting `environment:*`: it trusts any environment a workflow names. · One role

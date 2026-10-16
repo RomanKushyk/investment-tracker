@@ -1,0 +1,37 @@
+# Amplify reads this from the zip's root on every deploy, and it overrides the console's custom
+# headers wholesale, so the cache rules live here too. Why each header: *Deployment*.
+customHeaders:
+  - pattern: '**'
+    headers:
+      - key: 'Strict-Transport-Security'
+        value: 'max-age=604800; includeSubDomains'
+      - key: 'X-Content-Type-Options'
+        value: 'nosniff'
+      - key: 'X-Frame-Options'
+        value: 'DENY'
+      - key: 'Cross-Origin-Opener-Policy'
+        value: 'same-origin'
+      - key: 'Referrer-Policy'
+        value: 'strict-origin-when-cross-origin'
+      # OWASP's list, but passkeys are WebAuthn: publickey-credentials-get is (self), not (), and
+      # publickey-credentials-create, which OWASP does not list, is pinned to (self) as well.
+      - key: 'Permissions-Policy'
+        value: 'accelerometer=(), autoplay=(), camera=(), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-create=(self), publickey-credentials-get=(self), screen-wake-lock=(), sync-xhr=(self), usb=(), web-share=(), xr-spatial-tracking=(), clipboard-read=(), clipboard-write=(), gamepad=(), hid=(), idle-detection=(), interest-cohort=(), serial=(), unload=()'
+  - pattern: '/index.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache'
+  - pattern: '/assets/**'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=31536000, immutable'
+  # Matches neither rule above, and a cached copy would point at chunks the next deploy removed.
+  - pattern: '/api-docs.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache'
+  # After `**` on purpose: the later entry wins. The page holds the OAuth code in its URL.
+  - pattern: '/auth/callback'
+    headers:
+      - key: 'Referrer-Policy'
+        value: 'no-referrer'
