@@ -47,9 +47,12 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
   }, [leftFrom, route]);
 
   // Back from Cognito's logout can restore this page from the back/forward cache, `leaving` and all.
+  // A session signed out by then drops the answer: "Signed in as" would misstate it.
   useEffect(() => {
     const restored = (event: PageTransitionEvent) => {
-      if (event.persisted) {
+      if (!event.persisted) return;
+      if (session.status() === 'signedOut') showAnswer(undefined);
+      else {
         setLeftFrom(undefined);
         setLeaving(undefined);
       }

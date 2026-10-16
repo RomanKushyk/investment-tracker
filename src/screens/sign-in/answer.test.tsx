@@ -3,22 +3,25 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { type ReactNode, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Answer } from '../../auth/access';
 import type { HeldAnswer } from '../../auth/app';
 
 // Google on: the sign-out leaves through Cognito's logout, which here takes the page nowhere. The
-// held answer is `app.ts`'s store in miniature, so dropping it is seen as the route coming back.
+// held answer is `app.ts`'s store in miniature, so dropping it is seen as the route coming back,
+// and a sign-out the relay finished reads signed out before the page leaves, as `session.ts` does.
 const auth = vi.hoisted(() => {
   const hearing = new Set<() => void>();
   const self = {
     held: undefined as HeldAnswer | undefined,
     hearing,
+    status: 'signedIn' as 'signedIn' | 'signedOut',
     // The relay's answer, held back while a test looks at the run.
     answer: Promise.resolve(),
     signOut: vi.fn(async () => {
       await self.answer;
+      self.status = 'signedOut';
       return { logout: 'https://auth.test/logout?client_id=c' };
     }),
     leaveThroughLogout: vi.fn(() => true),
@@ -35,26 +38,36 @@ const hear = (listener: () => void) => {
 };
 vi.mock('../../auth/app', () => ({
   leaveThroughLogout: auth.leaveThroughLogout,
-  session: { signOut: auth.signOut },
+  session: { signOut: auth.signOut, status: () => auth.status },
   showAnswer: auth.showAnswer,
+  useAnswer: () => useSyncExternalStore(hear, () => auth.held),
 }));
 vi.mock('../../app/SignedOutShell', () => ({
   SignedOutShell: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-const { AnswerScreen } = await import('./Answer');
+// The theme hook `Root` runs reads the system scheme.
+vi.stubGlobal('matchMedia', (query: string) => ({
+  matches: false,
+  media: query,
+  addEventListener() {},
+  removeEventListener() {},
+  addListener() {},
+  removeListener() {},
+  dispatchEvent: () => false,
+  onchange: null,
+}));
+afterAll(() => vi.unstubAllGlobals());
 
-// `Root`'s shape: the answer in place of whatever route asked, the route back once it is dropped.
-function Asked() {
-  const held = useSyncExternalStore(hear, () => auth.held);
-  return held ? <AnswerScreen held={held} /> : <p>the route</p>;
-}
+const { Root } = await import('../../app/Root');
 
 function mount(answer: Answer) {
   auth.held = { answer, email: 'who@example.com' };
-  const router = createMemoryRouter([{ path: '*', element: <Asked /> }], {
-    initialEntries: ['/overview'],
-  });
+  // The answer in place of whatever route asked, the route back once it is dropped.
+  const router = createMemoryRouter(
+    [{ path: '/', element: <Root />, children: [{ path: '*', element: <p>the route</p> }] }],
+    { initialEntries: ['/overview'] },
+  );
   // `react-router/dom`'s provider, as `main.tsx` mounts it, is this one handed React DOM's
   // `flushSync`; without it a way out commits in a transition.
   render(<RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />);
@@ -67,6 +80,7 @@ const answerShown = () => screen.queryAllByRole('button').length > 0;
 
 beforeEach(() => {
   auth.answer = Promise.resolve();
+  auth.status = 'signedIn';
   auth.signOut.mockClear();
   auth.leaveThroughLogout.mockClear();
   auth.showAnswer.mockClear();
@@ -74,24 +88,41 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("an answer screen's sign-out", () => {
-  // Back from Cognito's logout can restore the page from the back/forward cache, `leaving` and all,
-  // and the screen offers no other way out.
+  // Back from Cognito's logout can restore the page from the back/forward cache, `leaving` and all.
+  // Signed out by then, the answer goes and the route that asked renders signed out in its place.
   it.each([
     ['pending', 'Вийти'],
     ['noApplication', 'Вийти й подати заявку'],
   ] as const)(
-    'offers the %s answer’s «%s» again when Back restores the page the logout left',
+    'drops the %s answer when Back restores the page the logout left, signed out (pressed «%s»)',
     async (answer, name) => {
       mount(answer);
       await act(() => button(name).click());
       expect(auth.leaveThroughLogout).toHaveBeenCalledTimes(1);
-      expect(button(name).disabled, 'the press left the button enabled').toBe(true);
+      expect(answerShown(), 'the answer went before the restore').toBe(true);
       pageshow(true);
+      expect(answerShown(), 'the restore kept the answer').toBe(false);
+      expect(screen.queryByText('who@example.com', { exact: false })).toBeNull();
+      expect(screen.getByText('the route')).toBeTruthy();
+    },
+  );
+
+  // A sign-out reads signed out before the page leaves, so a restore still signed in is one left by
+  // other means: the answer stays, with its way out.
+  it.each([
+    ['pending', 'Вийти'],
+    ['noApplication', 'Вийти й подати заявку'],
+  ] as const)(
+    'keeps the %s answer and its «%s» when Back restores the page still signed in',
+    async (answer, name) => {
+      mount(answer);
+      pageshow(true);
+      expect(auth.showAnswer, 'the restore dropped a signed-in answer').not.toHaveBeenCalled();
+      expect(screen.getByText('who@example.com', { exact: false })).toBeTruthy();
       expect(button(name).disabled).toBe(false);
-      // Enabled is not enough: a guard still latched would leave it drawn pressable and dead.
       await act(() => button(name).click());
-      expect(auth.signOut).toHaveBeenCalledTimes(2);
-      expect(auth.leaveThroughLogout).toHaveBeenCalledTimes(2);
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
+      expect(auth.leaveThroughLogout).toHaveBeenCalledTimes(1);
     },
   );
 
