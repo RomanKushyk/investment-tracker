@@ -11,11 +11,24 @@ Alerts and automated security fixes are on as a repository setting; there is no 
 | Manifest | Manager / lockfile | Fix |
 |---|---|---|
 | `package.json` (root), `infra/package.json`, `packages/core/package.json` | pnpm / `pnpm-lock.yaml` — one workspace, one lockfile | edit + `pnpm install`, or override |
-| `.github/workflows/*.yml` **and `.github/actions/*/action.yml`** | github-actions / none | hand-edit the `@vN` pin — `actions/upload-artifact` is pinned in the composite action ALONE, so a workflows-only grep misses it |
+| `.github/workflows/*.yml` **and `.github/actions/*/action.yml`** | github-actions / none — the pin is a full commit SHA, the release in a trailing `# vX.Y.Z` comment, and that comment is the manifest | hand-edit the SHA and its comment together (below, "SHA pins") — `actions/upload-artifact` is pinned in the composite action ALONE, so a workflows-only grep misses it |
 
 Overrides live in **`pnpm-workspace.yaml`**, never in `package.json`'s `pnpm` field — pnpm 11 no longer reads that field and only warns, so the fix looks applied and changes nothing.
 
 **Merge locally, with this sequence — never with GitHub's merge button:** it would land a `dependabot[bot]`-authored squash on `dev`, which cannot be rewritten.
+
+## SHA pins
+
+Every third-party action is `uses: <owner>/<action>@<40-hex SHA> # vX.Y.Z`, and `src/actions-pinned.test.ts` refuses a tag, a short SHA or a line without the comment (`aws-actions/setup-sam` ships floating major tags only, so its comment is `# v3`). **No Dependabot PR will ever arrive for one of these**: GitHub's docs say Dependabot "only creates alerts for vulnerable actions that use semantic versioning" and "will not create alerts for actions pinned to SHA values" ([using GitHub's security features to secure your use of GitHub Actions](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-githubs-security-features-to-secure-your-use-of-github-actions)), and security updates follow alerts. The Advisory Database does carry an `ACTIONS` ecosystem, queryable per action and version, so the pins are to be audited by `advisories.yml` the way the lockfile is — #463. Until it lands, on an advisory naming one of the pinned actions:
+
+```sh
+export GH_CONFIG_DIR="$HOME/.quirenote/gh-config"
+gh api repos/<owner>/<action>/git/ref/tags/<fixed tag> --jq '.object | "\(.type) \(.sha)"'
+# `commit <sha>` is the pin; `tag <sha>` is an annotated tag — dereference it:
+gh api repos/<owner>/<action>/git/tags/<sha> --jq .object.sha
+```
+
+Replace the SHA and the comment on every line that carries the action — `grep -rn '<owner>/<action>@' .github` finds them, the composite action included — then the gates and the merge sequence below.
 
 ## With a PR
 

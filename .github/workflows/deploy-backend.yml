@@ -67,9 +67,9 @@ jobs:
       # the dev role's trust, which names `refs/heads/dev`.
       name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
 
@@ -102,7 +102,7 @@ jobs:
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
           for entry in capture migrate pre-signup applications approve auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
-            npx --yes esbuild@0.28.2 "src/$entry.ts" \
+            pnpm exec esbuild "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
               --define:__DERIVATION_ID__="$id" \
@@ -515,11 +515,11 @@ jobs:
       # NO STEP HERE GATES THE DEPLOY ON WHAT THE PUSH CHANGED: a `changed` step is a rejected
       # design [*Deployment*].
 
-      - uses: aws-actions/setup-sam@v3
+      - uses: aws-actions/setup-sam@89ddb14d60e682855e3fea4be85b3c56485de310 # v3
         with:
           use-installer: true
 
-      - uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -720,7 +720,7 @@ jobs:
       # NO CHECKOUT: the SQL applied is the copy baked into the DEPLOYED bundle, not the ref. `$/`
       # is what keeps that true while still sharing one action — it resolves from this repository
       # at the commit the run is on, without a workspace.
-      - uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}

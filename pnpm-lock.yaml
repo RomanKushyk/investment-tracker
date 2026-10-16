@@ -208,6 +208,9 @@ importers:
       '@types/pg':
         specifier: ^8.21.0
         version: 8.23.1
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
 
   packages/core:
     dependencies:

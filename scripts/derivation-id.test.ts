@@ -146,7 +146,7 @@ describe('the derivation identifier', () => {
   });
 
   // RUN, NOT READ: the bundle step itself, under `bash -e` as the runner runs a step with no
-  // `shell:`, with npx, pnpm and esbuild printing each call on a line, so every esbuild call is checked.
+  // `shell:`, with pnpm and esbuild printing each call on a line, so every esbuild call is checked.
   it('is defined by the SPA build, every Lambda bundle and the test config from one function', () => {
     const id = derivationId(REPO);
     expect(id).toMatch(SHA);
@@ -158,7 +158,7 @@ describe('the derivation identifier', () => {
       s.run?.includes('esbuild'),
     );
     const stubs =
-      'call() { printf "%s\\n" "$*"; }; npx() { call npx "$@"; }; pnpm() { call pnpm "$@"; }; ' +
+      'call() { printf "%s\\n" "$*"; }; pnpm() { call pnpm "$@"; }; ' +
       'esbuild() { call esbuild "$@"; }; mkdir() { :; }; cp() { :; }; ls() { :; }\n';
     const calls = execFileSync(
       BASH,

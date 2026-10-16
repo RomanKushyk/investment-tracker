@@ -1839,7 +1839,12 @@ an override and never by `pnpm audit --fix`. `.github/workflows/advisories.yml` 
 `dev` daily and opens one issue for what it finds, naming each advisory, whether that update clears
 it, and the command; while that issue is open it opens no other. An advisory accepted as it stands
 goes in `auditConfig.ignoreGhsas`, with its reason; pnpm drops that GHSA on every version line it
-sits on. `reference/DEPENDABOT.md` carries the two ecosystems, their fixes and where overrides live.
+sits on. Every third-party action is pinned to a full commit SHA with its release in a trailing
+`# vX.Y.Z` comment, the manifest for the pins; no workflow step runs `npx`, and the Lambda bundler
+is the lockfile's esbuild. Dependabot creates no alert for a SHA-pinned action and no job audits the
+pins yet, so an advisory against one is a hand edit; #463 adds the audit to the same daily job,
+against the Advisory Database's `ACTIONS` ecosystem.
+`reference/DEPENDABOT.md` carries the two ecosystems, their fixes and where overrides live.
 **Why.** Every merge here costs a review, so version churn taxes the gate that protects the app and
 buys no security. GitHub's squash preserves the PR author, so the button would land a bot-authored
 commit on a branch that forbids the force-push it would take to undo. Dependabot opens no pull request

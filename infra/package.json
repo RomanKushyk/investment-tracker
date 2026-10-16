@@ -14,6 +14,7 @@
     "robots-parser": "3.0.1"
   },
   "devDependencies": {
-    "@types/pg": "^8.21.0"
+    "@types/pg": "^8.21.0",
+    "esbuild": "^0.28.1"
   }
 }
