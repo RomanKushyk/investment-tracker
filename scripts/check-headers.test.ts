@@ -95,20 +95,31 @@ describe('a response is compared header by header', () => {
 
 describe('the deploy reads the headers back', () => {
   type Step = { name?: string; run?: string; env?: Record<string, string> };
-  const steps = () =>
+  type Job = {
+    needs?: string;
+    permissions?: Record<string, string>;
+    environment?: { name?: string };
+    steps: Step[];
+  };
+  const jobs = () =>
     (
       parseDocument(
         readFileSync(join(REPO, '.github/workflows/deploy-frontend.yml'), 'utf8'),
-      ).toJS() as { jobs: { deploy: { steps: Step[] } } }
-    ).jobs.deploy.steps;
+      ).toJS() as { jobs: Record<string, Job> }
+    ).jobs;
+  const steps = () => jobs().verify.steps;
 
+  // IN A JOB OF ITS OWN, AFTER THE DEPLOY: the check runs node on a dependency, which the job
+  // holding the OIDC token must not, and it needs the site that job deployed (*Deployment*).
   it('after the deploy, against the host that branch serves', () => {
-    const all = steps();
-    const deploy = all.findIndex((s) => s.run?.includes('deploy-amplify.sh'));
-    const check = all.findIndex((s) => s.run?.includes('scripts/check-headers.ts'));
-    expect(deploy).toBeGreaterThanOrEqual(0);
-    expect(check).toBeGreaterThan(deploy);
-    expect(all[check].env?.SITE).toBe(
+    const { deploy, verify } = jobs();
+    expect(deploy.steps.some((s) => s.run?.includes('deploy-amplify.sh'))).toBe(true);
+    expect(verify.needs).toBe('deploy');
+    expect(verify.permissions?.['id-token']).toBeUndefined();
+    // Dev's pair is an environment secret, so the job resolves the environment the deploy did.
+    expect(verify.environment?.name).toBe(deploy.environment?.name);
+    const check = steps().find((s) => s.run?.includes('scripts/check-headers.ts'));
+    expect(check?.env?.SITE).toBe(
       "${{ github.ref_name == 'main' && 'https://quirenote.com' || 'https://dev.quirenote.com' }}",
     );
   });

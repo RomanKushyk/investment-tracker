@@ -70,7 +70,8 @@ type Workflow = {
 };
 
 const workflow = () => parseDocument(read(WORKFLOW)).toJS() as Workflow;
-const job = () => workflow().jobs.deploy ?? {};
+// The `build` job: both builds and the zip run where no OIDC token is granted (*Deployment*).
+const job = () => workflow().jobs.build ?? {};
 const steps = () => job().steps ?? [];
 
 /** `if: x` and `if: ${{ x }}` are one condition to GitHub; compare the condition. */

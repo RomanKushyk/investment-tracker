@@ -97,9 +97,10 @@ is edited. **Never `environment:*`**: it matches an environment a workflow merel
 creates, when it does not exist, with no protection rules.
 
 **What one role per environment buys.** Any step in a job holding `id-token: write` can mint the
-token, a dependency running under `pnpm test` included. So a job in `dev` can no longer, with its
-own credentials, deploy the production stack or invoke production's runner, whose `bootstrap` mode
-mints a super-admin.
+token — which is why the deploy workflows grant it only to jobs that run no dependency code, the suite
+running one job earlier without it. So a job in `dev` can no longer, with its own credentials,
+deploy the production stack or invoke production's runner, whose `bootstrap` mode mints a
+super-admin.
 
 **What it does not buy.** Both roles hand CloudFormation the same `quirenote-backend-cfn-exec`, so a
 template deployed to `quirenote-backend-user-dev` reaches production two ways:

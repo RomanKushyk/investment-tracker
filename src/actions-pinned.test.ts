@@ -50,6 +50,7 @@ describe('every third-party action is pinned to a commit', () => {
   it('finds the actions in the workflows and in the composite action', () => {
     const names = uses.map(({ file, ref }) => `${file} ${ref.split('@')[0]}`);
     expect(names).toContain('.github/workflows/deploy-backend.yml actions/checkout');
+    expect(names).toContain('.github/workflows/deploy-backend.yml actions/download-artifact');
     expect(names).toContain('.github/actions/invoke-migration/action.yml actions/upload-artifact');
   });
 

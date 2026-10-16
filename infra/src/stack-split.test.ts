@@ -1950,6 +1950,7 @@ type Workflow = {
     };
   };
   concurrency?: Concurrency;
+  permissions?: Record<string, string>;
   defaults?: { run?: { shell?: string } };
   jobs: Record<string, Job>;
 };
@@ -2004,6 +2005,8 @@ const selfCalls = (job?: Job) =>
 describe('deploy-backend.yml deploys one stack set per branch', () => {
   const wf = workflow('deploy-backend.yml');
   const steps = wf.jobs.deploy.steps ?? [];
+  // The bundle and its smoke test run in `build`, the job with no token; `deploy` ships them.
+  const built = wf.jobs.build.steps ?? [];
   const deploys = steps.filter((s) => s.run?.includes('sam deploy'));
 
   it('fires on both branches', () => {
@@ -2086,7 +2089,7 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
   });
 
   it('bundles an entry point for every handler the templates declare', () => {
-    const bundle = steps.find((s) => s.run?.includes('esbuild'));
+    const bundle = built.find((s) => s.run?.includes('esbuild'));
     const entries = [archive, user].flatMap(handlers).map((h) => h.replace(/\.handler$/, ''));
     expect(entries.length).toBeGreaterThan(0);
     for (const entry of entries)
@@ -2094,7 +2097,7 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
   });
 
   it('inlines the domain package rather than externalising it', () => {
-    const bundle = steps.find((s) => s.run?.includes('esbuild'));
+    const bundle = built.find((s) => s.run?.includes('esbuild'));
     expect(bundle?.run).toContain('--bundle');
     // `--packages=external` externalises anything that LOOKS like a package path, and the only
     // exceptions are subpath imports beginning `#` and tsconfig `paths` remappings. A package
@@ -2106,7 +2109,7 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
   });
 
   it('smoke-tests every handler the templates declare, and copies each one in', () => {
-    const smoke = steps.find((s) => s.run?.includes('bundle-check'));
+    const smoke = built.find((s) => s.run?.includes('bundle-check'));
     const entries = [archive, user].flatMap(handlers).map((h) => h.replace(/\.handler$/, ''));
     expect(smoke).toBeDefined();
     for (const entry of entries) {
@@ -2290,6 +2293,9 @@ describe('a deploy that did not land its description fails the run', () => {
   const deploys = steps.filter((s) => s.run?.includes('sam deploy'));
   // By the property it reads: the archive's identifier is read with `describe-stacks` as well.
   const check = steps.find((s) => s.run?.includes("--query 'Stacks[0].Description'"));
+  // The shipped side is computed in `build`, where `yaml` is installed, one file per template.
+  const built = wf.jobs.build.steps ?? [];
+  const written = built.find((s) => s.run?.includes('.toJS().Description'));
 
   it('reads each stack back after both deploys, and fails on one that did not land', () => {
     expect(check).toBeDefined();
@@ -2310,8 +2316,15 @@ describe('a deploy that did not land its description fails the run', () => {
     expect(check?.run).toContain('template.yaml');
     // THE PROPERTY ON BOTH SIDES, not merely the two calls: read any other scalar off the stack,
     // or take `.toJS().Metadata` off the template, and every other assertion here still passes.
+    // The shipped side crosses jobs as a file named after its template, the same `$2` the check
+    // takes, carried by the artifact the deploy downloads.
     expect(check?.run).toContain("--query 'Stacks[0].Description'");
-    expect(check?.run).toContain('.toJS().Description');
+    expect(written?.run).toContain('for t in template-user.yaml template.yaml');
+    expect(written?.run).toContain('> "shipped/$t.description"');
+    expect(check?.run).toContain('shipped=$(cat "shipped/$2.description")');
+    const upload = built.find((s) => s.uses?.startsWith('actions/upload-artifact'));
+    expect(upload?.with?.path).toContain('infra/shipped');
+    expect(upload?.with?.path).toContain('infra/dist');
     // AND THE MISMATCH MUST FAIL, not merely be printed: a step that read both strings and exited
     // 0 would satisfy every assertion above it.
     expect(check?.run).toMatch(/if \[ "\$shipped" != "\$deployed" \]/);
@@ -2557,7 +2570,7 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
     const notify = wf.jobs.notify;
     const step = notify?.steps?.[0];
 
-    // NOT `failure()`: GitHub documents it as true "if any ancestor job fails", and `deploy` runs
+    // NOT `failure()`: GitHub documents it as true "if any ancestor job fails", and `build` runs
     // the whole suite, so a failing unit test would open an issue. Three clauses, not a literal.
     it('fires on the state it is for, and not on any red run', () => {
       expect(notify?.needs).toEqual(['deploy', 'migrate']);
@@ -2912,7 +2925,7 @@ describe('the invoke is written once, and both workflows call it', () => {
     const keep = steps.find((s) => s.uses?.startsWith('actions/upload-artifact'));
     expect(keep?.if).toBe('always()');
     // THE MODE AND THE ATTEMPT BOTH, because one run calls this action up to three times and
-    // `upload-artifact@v4` refuses a name it has already uploaded. `run_attempt` is the one a
+    // `upload-artifact` refuses a name it has already uploaded. `run_attempt` is the one a
     // reader would prune as noise: `run_id` does not change on "Re-run failed jobs", so without
     // it an `if: always()` upload reddens a re-run whose apply had just succeeded.
     expect(keep?.with?.name).toContain('${{ inputs.mode }}');
@@ -2929,5 +2942,106 @@ describe('the invoke is written once, and both workflows call it', () => {
     // A rehearsal that applied cleanly and could not drop its schema still planned correctly, and
     // the count is what the next job is gated on: written after the exit, it would never be set.
     expect(counted).toBeLessThan(teardown);
+  });
+});
+
+// THE TOKEN IS MINTED FROM THE RUNNER'S ENVIRONMENT: GitHub hands every step of a job holding
+// `id-token: write` the request URL and the request token, so dependency code running in that job
+// — the suite, a lint plugin, the bundler, a smoke test's `require` — can assume the deploy role.
+// pnpm refuses install-time scripts and nothing else. So the token sits on the jobs that assume a
+// role, and those run no dependency code: what they deploy is built one job earlier and handed
+// over as an artifact kept one day. [*Deployment*]
+describe('the OIDC token is granted to jobs that run no dependency code', () => {
+  const files = readdirSync(join(REPO, '.github/workflows')).filter((f) => /\.ya?ml$/.test(f));
+  const jobs = files.flatMap((file) =>
+    Object.entries(workflow(file).jobs).map(([name, job]) => ({
+      where: `${file} ${name}`,
+      file,
+      job,
+    })),
+  );
+  const minting = jobs.filter(({ job }) => job.permissions?.['id-token'] === 'write');
+  const deploying = jobs.filter(({ job }) =>
+    resolvedSteps(job).some((s) => /\bsam deploy\b|deploy-amplify\.sh/.test(s.run ?? '')),
+  );
+
+  // Anchors: the assertions below are about absence, and an absence over an empty set passes.
+  it('finds the jobs that assume a role, and the two that deploy', () => {
+    expect(minting.map(({ where }) => where).sort()).toEqual([
+      'deploy-backend.yml deploy',
+      'deploy-backend.yml migrate',
+      'deploy-frontend.yml deploy',
+      'migrate.yml migrate',
+    ]);
+    expect(deploying.map(({ where }) => where).sort()).toEqual([
+      'deploy-backend.yml deploy',
+      'deploy-frontend.yml deploy',
+    ]);
+  });
+
+  // Read-only at the top level, write where a job needs it, which is Scorecard's Token-Permissions
+  // rule. PRESENT, not merely free of `write`: left out, the token takes the repository's default.
+  it.each(files)('%s grants nothing but reads at the top level', (file) => {
+    const top = workflow(file).permissions;
+    expect(top).toBeDefined();
+    expect(Object.values(top ?? {}).filter((v) => v !== 'read' && v !== 'none')).toEqual([]);
+  });
+
+  // The runtimes by name, in the job's own steps and in the `$/` actions it calls — a `node -e`
+  // moved into the composite action is the same token in the same job. Comment lines dropped, or
+  // a sentence naming the rule would read as a use.
+  it.each(minting)('$where runs no package manager and no node', ({ job }) => {
+    const steps = resolvedSteps(job);
+    expect(steps.filter((s) => s.uses?.startsWith('actions/setup-node'))).toEqual([]);
+    const commands = steps
+      .flatMap((s) => (s.run ?? '').split(/\r?\n/))
+      .filter((line) => !/^\s*#/.test(line));
+    expect(commands.filter((line) => /\b(pnpm|npx|npm|yarn|node|corepack)\b/.test(line))).toEqual(
+      [],
+    );
+  });
+
+  // The repository is public, so the bundle is readable by anyone while it is kept, and a day is
+  // enough to hand it between two jobs of one run.
+  it.each(deploying)(
+    '$where deploys what a job without the token built, kept one day',
+    ({ file, job }) => {
+      const needs = [job.needs ?? []].flat();
+      const builders = needs
+        .map((name) => workflow(file).jobs[name])
+        .filter((b) => b !== undefined && b.permissions?.['id-token'] !== 'write');
+      const uploads = builders.flatMap((b) =>
+        resolvedSteps(b).filter((s) => s.uses?.startsWith('actions/upload-artifact')),
+      );
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0].with?.['retention-days']).toBe(1);
+      const downloads = resolvedSteps(job).filter((s) =>
+        s.uses?.startsWith('actions/download-artifact'),
+      );
+      expect(downloads.map((s) => s.with?.name)).toEqual([uploads[0].with?.name]);
+    },
+  );
+
+  // Two paths upload from their common ancestor, so the backend's lands back under `infra/`,
+  // where every `CodeUri: dist/` and the description check read it.
+  it('restores the backend bundle where the templates and the check read it', () => {
+    const wf = workflow('deploy-backend.yml');
+    const upload = resolvedSteps(wf.jobs.build).find((s) =>
+      s.uses?.startsWith('actions/upload-artifact'),
+    );
+    const download = resolvedSteps(wf.jobs.deploy).find((s) =>
+      s.uses?.startsWith('actions/download-artifact'),
+    );
+    expect(upload?.with?.path?.split(/\r?\n/).filter(Boolean)).toEqual([
+      'infra/dist',
+      'infra/shipped',
+    ]);
+    expect(download?.with?.path).toBe('infra');
+  });
+
+  // The build job holds the branch's whole-run group too.
+  it('bounds the backend build well under the 360-minute default', () => {
+    const minutes = workflow('deploy-backend.yml').jobs.build['timeout-minutes'] ?? 0;
+    expect(minutes > 30 && minutes < 360).toBe(true);
   });
 });

@@ -41,31 +41,20 @@ concurrency:
   queue: max
   cancel-in-progress: false # never interrupt a CloudFormation update in flight
 
+# READ-ONLY HERE. `id-token: write` sits on the jobs that assume a role, and those run no dependency
+# code: any step of such a job can mint the token from the runner's environment, pnpm refuses
+# install-time scripts and nothing else, and the suite, the lint plugins, esbuild and the smoke
+# tests all run dependency code. So they run in `build`, which holds no token, and hand `deploy`
+# the bundle as an artifact kept one day. [*Deployment*]
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    # THIS JOB INVOKES THE RUNNER TOO, in its last step, and holds the workflow group while it
-    # does: the plan carries no client timeout either, so a hung invoke here would queue every
-    # later push on the branch behind it for the six-hour default. WELL CLEAR OF A SLOW STACK
-    # rather than tight — a managed-login domain change takes CloudFormation tens of minutes, and
-    # a timeout here kills `sam deploy` while CloudFormation carries on regardless.
-    timeout-minutes: 120
-    outputs:
-      # What the gated job below is conditioned on. Read from the runner AFTER the stack update, so
-      # it counts the statements in the bundle THIS run shipped.
-      pending: ${{ steps.plan.outputs.pending }}
-      # What `notify` says this run deployed, off the archive deploy's own outcome rather than a
-      # second copy of its `!= 'main'`, as the description check below reads it.
-      archive: ${{ steps.archive.outcome }}
-    environment:
-      # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG: a dispatch on `vX.Y.Z`
-      # asks for the DEV stacks from production's tree, and the branch policy refuses it, as does
-      # the dev role's trust, which names `refs/heads/dev`.
-      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    # The run holds the branch's group while this job works, so a hung test worker would queue every
+    # later push behind it for the six-hour default.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -512,6 +501,68 @@ jobs:
             })().catch((e) => { console.error(e); process.exit(1); });
           "
 
+      # THE SHIPPED DESCRIPTION IS COMPUTED HERE, where `yaml` is installed, and read back in
+      # `deploy`, which installs nothing. `process.stdout.write` adds no newline, so the file is
+      # the text, and `$(cat …)` there chomps exactly as `$( )` did when both sides were one step.
+      - name: Write the description each template ships
+        working-directory: infra
+        run: |
+          mkdir -p shipped
+          for t in template-user.yaml template.yaml; do
+            node -e 'const {parseDocument}=require("yaml"),fs=require("fs");process.stdout.write(String(parseDocument(fs.readFileSync(process.argv[1],"utf8")).toJS().Description??""))' "$t" > "shipped/$t.description"
+          done
+          ls -la shipped/
+
+      # ONE DAY: the repository is public, so the artifact is readable while it is kept — source
+      # maps of a public source and no secret, the parameters arriving at deploy time — and a day
+      # hands it between two jobs of one run.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-bundle
+          path: |
+            infra/dist
+            infra/shipped
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # THE ONE GRANT OF THE TOKEN TO A DEPLOYING JOB, and the job runs no dependency code: it checks
+    # out the templates, downloads what `build` made, and deploys. `contents: read` is restated
+    # because a job-level block replaces the workflow's.
+    permissions:
+      id-token: write
+      contents: read
+    # THIS JOB INVOKES THE RUNNER TOO, in its last step, and holds the workflow group while it
+    # does: the plan carries no client timeout either, so a hung invoke here would queue every
+    # later push on the branch behind it for the six-hour default. WELL CLEAR OF A SLOW STACK
+    # rather than tight — a managed-login domain change takes CloudFormation tens of minutes, and
+    # a timeout here kills `sam deploy` while CloudFormation carries on regardless.
+    timeout-minutes: 120
+    outputs:
+      # What the gated job below is conditioned on. Read from the runner AFTER the stack update, so
+      # it counts the statements in the bundle THIS run shipped.
+      pending: ${{ steps.plan.outputs.pending }}
+      # What `notify` says this run deployed, off the archive deploy's own outcome rather than a
+      # second copy of its `!= 'main'`, as the description check below reads it.
+      archive: ${{ steps.archive.outcome }}
+    environment:
+      # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG: a dispatch on `vX.Y.Z`
+      # asks for the DEV stacks from production's tree, and the branch policy refuses it, as does
+      # the dev role's trust, which names `refs/heads/dev`.
+      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    steps:
+      # The templates and nothing that runs: `actions/checkout` executes no dependency code.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # `dist/` and `shipped/` land back under `infra/`, where the templates' `CodeUri` and the
+      # description check expect them. The digest is verified on download by default.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: backend-bundle
+          path: infra
+
       # NO STEP HERE GATES THE DEPLOY ON WHAT THE PUSH CHANGED: a `changed` step is a rejected
       # design [*Deployment*].
 
@@ -649,9 +700,10 @@ jobs:
         working-directory: infra
         run: |
           check() {
-            # `$( )` DROPS THE TRAILING NEWLINE ON BOTH SIDES, the one a folded scalar carries and
-            # CloudFormation stores, so this compares the text rather than YAML's chomping.
-            shipped=$(node -e 'const {parseDocument}=require("yaml"),fs=require("fs");process.stdout.write(String(parseDocument(fs.readFileSync(process.argv[1],"utf8")).toJS().Description??""))' "$2")
+            # WRITTEN BY `build`, which has `yaml`; this job installs nothing. `$( )` DROPS A
+            # TRAILING NEWLINE ON BOTH SIDES, the one a folded scalar carries and CloudFormation
+            # stores, so this compares the text rather than YAML's chomping.
+            shipped=$(cat "shipped/$2.description")
             # NO `|| true`: under `bash -e` a read that fails takes the job down with the AWS
             # error, which beats comparing against an empty string and blaming the deploy.
             deployed=$(aws cloudformation describe-stacks --stack-name "$1" \
@@ -697,6 +749,10 @@ jobs:
   # untouched.
   migrate:
     needs: deploy
+    # The token again, for a job whose only steps are the action's `aws` and `jq` calls.
+    permissions:
+      id-token: write
+      contents: read
     # `!= '0'`, NOT A NUMERIC TEST, AND THE DIRECTION IS DELIBERATE: an output that failed to
     # resolve is the empty string, which this reads as "something might be pending" and runs. The
     # cost of being wrong that way is a rehearse and an apply that do nothing; the cost of the
@@ -744,7 +800,7 @@ jobs:
   # issue is durable and is this repository's only task list.
   #
   # THE CONDITION IS READ OFF THE RESULTS, NOT `failure()`, and that is not style. GitHub documents
-  # `failure()` as true "if any ancestor job fails" — `deploy` is an ancestor, and it runs the whole
+  # `failure()` as true "if any ancestor job fails" — `build` is an ancestor, and it runs the whole
   # suite, so a single failing unit test would open an issue saying the code was live against an
   # unmigrated schema when `sam deploy` had not run at all. The three clauses below say exactly
   # the state worth waking someone for: the stacks deployed, and the schema did not follow.
@@ -765,7 +821,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # REPLACES the workflow's grant for this job rather than adding to it: no `id-token`, no AWS,
-    # nothing to write but the issue.
+    # no checkout, nothing to write but the issue.
     permissions:
       issues: write
     steps:

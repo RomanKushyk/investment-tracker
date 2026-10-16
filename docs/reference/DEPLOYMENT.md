@@ -156,8 +156,9 @@ every asset filename, which is also why the API reference needs no pattern for i
 cached copy keeps pointing at a hashed chunk the next deploy removed, a blank page that survives
 redeploys.
 
-**Every deploy reads the headers back.** The workflow's last step runs `scripts/check-headers.ts`
-against the host its branch serves. It fetches `/`, `/sign-in` and `/auth/callback`, derives what
+**Every deploy reads the headers back.** The workflow's last job, `verify`, runs `scripts/check-headers.ts`
+against the host its branch serves — a job of its own, holding no OIDC token, because the script
+runs node on a dependency and the deploying job runs none. It fetches `/`, `/sign-in` and `/auth/callback`, derives what
 each must carry from the file itself, and fails on a missing, wrong or forbidden header. On `dev`
 it reads the basic-auth pair from the `DEV_BASIC_AUTH` secret (§4), **not from `amplify:GetBranch`**,
 whose `basicAuthCredentials` keeps the user but answers a transformed password that dev refuses.
@@ -198,8 +199,9 @@ Then add one **Custom trust policy** role per environment, `quirenote-frontend-d
 `ref` is a claim IAM reads on its own, so a job on another branch gets nothing even if §4's branch
 policy is edited. **Never `environment:*`**: GitHub creates an environment a workflow merely names,
 with no protection rules, and the wildcard would trust it. One role per environment means a job in
-`dev` cannot deploy the production branch, even when the code running in it is a dependency under
-test. Any step of a job holding `id-token: write` can mint the token.
+`dev` cannot deploy the production branch. Any step of a job holding `id-token: write` can mint the
+token, which is why the grant sits on the deploying job alone and that job runs no dependency code:
+the install, the suite and the build run one job earlier, with no token, and hand it an artifact.
 Inline permission policy, **named `quirenote-frontend-deploy-<env>Policy`**, with `<branch>` again
 `dev` or `main`:
 

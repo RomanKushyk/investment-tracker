@@ -276,9 +276,12 @@ describe('the advisories workflow', () => {
     expect(crons[0]).toMatch(/^\d+ \d+ \* \* \*$/);
   });
 
+  // Read-only at the top level, the write where the job needs it (*Deployment*).
   it('may read the code and write issues, and nothing else', () => {
-    expect(wf.permissions).toEqual({ contents: 'read', issues: 'write' });
-    for (const job of Object.values(wf.jobs)) expect(job.permissions).toBeUndefined();
+    expect(wf.permissions).toEqual({ contents: 'read' });
+    expect(Object.values(wf.jobs).map((job) => job.permissions)).toEqual([
+      { contents: 'read', issues: 'write' },
+    ]);
   });
 
   it('installs nothing and leaves no token in the checkout', () => {

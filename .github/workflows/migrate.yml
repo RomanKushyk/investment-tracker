@@ -48,13 +48,17 @@ concurrency:
   group: migrate-${{ inputs.target }}
   cancel-in-progress: false # never interrupt DDL in flight
 
+# Read-only at the top level; the token is the job's, whose only steps are the mask and the
+# action's `aws` and `jq` calls.
 permissions:
-  id-token: write
   contents: read
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     # Lambda's 900s is the only bound on an invoke the action deliberately gives no client
     # timeout; without this a hung one holds this group, and the cluster with it, for six hours.
     timeout-minutes: 45

@@ -11,7 +11,7 @@ Alerts and automated security fixes are on as a repository setting; there is no 
 | Manifest | Manager / lockfile | Fix |
 |---|---|---|
 | `package.json` (root), `infra/package.json`, `packages/core/package.json` | pnpm / `pnpm-lock.yaml` — one workspace, one lockfile | edit + `pnpm install`, or override |
-| `.github/workflows/*.yml` **and `.github/actions/*/action.yml`** | github-actions / none — the pin is a full commit SHA, the release in a trailing `# vX.Y.Z` comment, and that comment is the manifest | hand-edit the SHA and its comment together (below, "SHA pins") — `actions/upload-artifact` is pinned in the composite action ALONE, so a workflows-only grep misses it |
+| `.github/workflows/*.yml` **and `.github/actions/*/action.yml`** | github-actions / none — the pin is a full commit SHA, the release in a trailing `# vX.Y.Z` comment, and that comment is the manifest | hand-edit the SHA and its comment together (below, "SHA pins") — `actions/upload-artifact` is pinned in the composite action AS WELL AS in both deploy workflows, so a workflows-only grep leaves one behind |
 
 Overrides live in **`pnpm-workspace.yaml`**, never in `package.json`'s `pnpm` field — pnpm 11 no longer reads that field and only warns, so the fix looks applied and changes nothing.
 

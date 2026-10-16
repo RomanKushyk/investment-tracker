@@ -1877,9 +1877,15 @@ ARTIFACTS: a SECOND Vite build appends the API reference page to the same `dist/
 but `main`, so it sits behind the dev site's basic auth and is absent from production. The GitHub
 OIDC deploy roles deliberately cannot change the app: the SPA 200 rewrite stays console-managed.
 THE RESPONSE HEADERS SHIP WITH THE BUILD: `public/customHttp.yml`, which Amplify applies from the
-zip's root, sets the cache rules and the security headers, and the deploy's last step reads the
+zip's root, sets the cache rules and the security headers, and the workflow's last job reads the
 headers of three pages back from the live host against that file, reaching dev through the
-`dev` environment's `DEV_BASIC_AUTH` secret. HSTS climbs hstspreload.org's ramp with
+`dev` environment's `DEV_BASIC_AUTH` secret. THE OIDC TOKEN IS GRANTED TO JOBS THAT RUN NO
+DEPENDENCY CODE: every workflow is read-only at the top level, and `id-token: write` sits on the
+jobs that assume a role. Both deploy workflows install, test, lint and build in a `build` job
+with no token, upload what the deploy needs as an artifact kept one day, and deploy from a job
+that checks out, downloads, assumes the role and runs no dependency code; the
+frontend's header read-back is a third job, holding no token either. The split denies the token,
+not the payload: a compromised build step still ships its bundle. HSTS climbs hstspreload.org's ramp with
 `includeSubDomains` and no `preload`; the Permissions-Policy is OWASP's list with both publickey
 features at `(self)`; `/auth/callback` alone takes `no-referrer`. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
@@ -1935,7 +1941,16 @@ lines and never an uploaded file, so it guards the log alone, and the report dro
 outright. The Actions runner writes the whole job message to its diagnostic log before the first step
 runs, and GitHub adds that log to the run's archive when anyone who can run the workflow re-runs it
 with debug logging, or when `ACTIONS_RUNNER_DEBUG` is set to `true`. Any step of a job holding
-`id-token: write` can mint its OIDC token, a dependency under test included. GitHub creates an
+`id-token: write` can mint its OIDC token: GitHub's OIDC reference lists the request URL and the
+request token as environment variables on the runner, with a plain `curl` example, and pnpm's
+refusal of dependency lifecycle scripts stops install-time code alone — the suite, a lint plugin,
+the bundler and a smoke test's `require` all run dependency code on import. GitHub's workflow syntax
+takes `permissions` at the top level or per job, its secure-use guide wants read access by default,
+raised for individual jobs, and OpenSSF Scorecard's Token-Permissions check reads the same shape —
+while leaving `id-token` out of the permissions it flags, so a top-level grant of it passes
+Scorecard. `upload-artifact` and `download-artifact` are GitHub's way to share data between jobs, and
+an artifact's retention is settable down to one day. SLSA v1.0 puts "use compromised dependency" out
+of its scope, which is the payload the split leaves. GitHub creates an
 environment a workflow names but nobody made, with no protection rules. IAM reads a GitHub token's
 `ref` and `environment` claims as condition keys, "to implement environment-based access
 controls, such as separate permissions for development, staging, and production environments". AWS's

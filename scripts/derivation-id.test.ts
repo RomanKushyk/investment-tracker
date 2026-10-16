@@ -154,7 +154,7 @@ describe('the derivation identifier', () => {
     expect(spa).toBe(JSON.stringify(id));
     expect(vitestConfig.define?.__DERIVATION_ID__).toBe(spa);
 
-    const step = workflow('deploy-backend.yml').jobs.deploy.steps?.find((s) =>
+    const step = workflow('deploy-backend.yml').jobs.build.steps?.find((s) =>
       s.run?.includes('esbuild'),
     );
     const stubs =

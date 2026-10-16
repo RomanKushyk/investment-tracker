@@ -73,9 +73,10 @@ const workflow = (file: string) =>
     jobs: Record<string, { steps?: { name?: string; run?: string }[] }>;
   };
 
+// The `build` job of each: the suite runs where no OIDC token is granted (*Deployment*).
 const WORKFLOWS = [
-  ['deploy-frontend.yml', 'deploy'],
-  ['deploy-backend.yml', 'deploy'],
+  ['deploy-frontend.yml', 'build'],
+  ['deploy-backend.yml', 'build'],
 ] as const;
 
 describe('every workflow that runs the suite installs what the suite imports', () => {
