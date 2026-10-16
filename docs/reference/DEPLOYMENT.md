@@ -31,6 +31,15 @@ because the headline rule says the opposite of what it does:
 | `api`, `api.dev` | **dns-only** | an API Gateway custom domain has both of those properties too, so it takes the same treatment for the same reason |
 | DKIM / MX / SPF / DMARC | dns-only | mail is not HTTP |
 
+**Cloudflare Web Analytics injects nothing**: the zone setting `rum` is `off`, read and written at
+`/zones/<zone-id>/settings/rum`, which the zone token's Zone Settings Edit covers. Nothing in the
+repo adds or removes the beacon; the why is under *Deployment* in `docs/DECISIONS.md`. **The check
+reads the setting, then the pages:** the setting's `value` is `off`, and `curl -s -H 'Accept:
+text/html'` on `/` and `/auth/callback` of the apex, `www` and `dev` (with its basic-auth pair), and
+on `dev`'s `/api-docs.html`, returns HTML with no `cloudflareinsights` string. A clean page alone
+proves nothing: Cloudflare also skips injection for EU visitors in one of its modes, and for an
+answer marked `Cache-Control: no-transform`.
+
 `public/robots.txt` closes production to crawlers until sign-up ships. **Never pair `Disallow` with
 `noindex`** — they cancel, because a crawler forbidden to fetch never sees the header; removing an
 indexed URL means allowing the crawl and serving `X-Robots-Tag: noindex`. **The zone's SSL mode must

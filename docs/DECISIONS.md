@@ -1890,7 +1890,9 @@ and `infra/src/sell-observations.test.ts` pin the mappings.
 NO STEP GATES THE BACKEND DEPLOY ON WHAT THE PUSH CHANGED: every run the path filter admits
 deploys, once its checks pass, the stacks its branch owns.
 Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
-certificate-validation CNAME and the mail records never are. A PUBLIC RUN CARRIES NO EMAIL ADDRESS:
+certificate-validation CNAME and the mail records never are. CLOUDFLARE WEB ANALYTICS IS OFF: the
+zone's `rum` setting is `off`, so the proxy injects no beacon into an HTML answer, and nothing in
+the repo adds or removes one. A PUBLIC RUN CARRIES NO EMAIL ADDRESS:
 the repository is public, so a run's log and artifacts are readable by anyone while they are kept.
 `migrate.yml` masks the address its bootstrap is given in the job's first step, reading it from the
 event payload because a step prints its `env:` block before its script runs, and the migration
@@ -1899,7 +1901,11 @@ did has its logs deleted: the runner's diagnostic log carries the job's inputs f
 **Why.** A git-connected Amplify app has no build-status badge, and an Actions badge is real
 deployment status when the workflow performs the deploy. Proxying keeps repeat traffic off origin
 egress, the one cost line a flood can move — and a record left grey publishes the address its
-proxied neighbour hides. The reference page is a build step rather than a flag because a flag is how
+proxied neighbour hides. Web Analytics' automatic setup, once on for a proxied site, injects
+its script "on all pages (sub-domains) under the zone" unless rules narrow it, the OAuth callback
+page among them, where RFC 9700 §4.2.4 says the page "SHOULD NOT include third-party resources or
+links to external sites". The injected tag names a beacon version Cloudflare moves on its own, so
+a hash-based CSP cannot list it in advance. The reference page is a build step rather than a flag because a flag is how
 this pattern fails: a disable switch that turns out to be dead code and ships the page anyway. A
 step that does not run cannot. OWASP's Logging Cheat Sheet counts an email address among the data
 to remove, mask or hash before it is logged. GitHub's secure-use guidance masks a sensitive value
@@ -1927,8 +1933,9 @@ accumulate changes that are not getting deployed, so a retry must include "every
 last time we deployed successfully" — and reads that commit from the last successful run. A gate
 would have to keep that watermark, and a skipped deploy is worse than a wasted one.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
-certificate stops renewing. · An environment secret for the bootstrap's address: masked from the
-job's start, but an operator's input would become standing configuration in each environment. ·
+certificate stops renewing. · A Web Analytics rule excluding `/auth/*` alone: it meets RFC 9700
+but leaves a third-party script on every other page, which a hash-based CSP would have to admit
+by host. · An environment secret for the bootstrap's address: masked from the job's start, but an operator's input would become standing configuration in each environment. ·
 One deploy role trusting `environment:*`: it trusts any environment a workflow names. · One role
 for both environments with the workflow choosing the target: a `dev` job holds production's stack and
 its runner, whose `bootstrap` mode mints a super-admin. · A deploy id as the derivation
