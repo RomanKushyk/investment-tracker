@@ -27,7 +27,7 @@ export interface Session {
    *  a reader that saw a different count when it asked has an answer from before one. */
   signOuts(): number;
   /** True from when a sign-out begins until the relay answers it: the pair held meanwhile is the
-   *  account's that is leaving. */
+   *  account's that is leaving. Subscribers are told at both edges, a failed one's too. */
   signingOut(): boolean;
   /** How many times a signed-in answer has named another account than the one held, with no
    *  sign-out between: the cookie another tab replaced. Counted as the answer lands, so a reader that
@@ -81,6 +81,9 @@ export function createSession({
   // A signed-out status the relay never gave: the next reader asks again.
   let unanswered = false;
   const listeners = new Set<() => void>();
+  const tell = () => {
+    for (const listener of listeners) listener();
+  };
 
   // `answered` is set before anyone is told: a subscriber reads it along with the status.
   const set = (next: SessionStatus, tokens?: Tokens, answered = true) => {
@@ -94,7 +97,7 @@ export function createSession({
       if (account !== undefined && sub !== account) changes += 1;
       account = sub;
     }
-    for (const listener of listeners) listener();
+    tell();
   };
 
   const locked = async <T>(call: () => Promise<T>): Promise<T> => await locks.request(LOCK, call);
@@ -145,6 +148,7 @@ export function createSession({
         return answer;
       }),
     // Shared while one runs, as a refresh is: one sign-out, however many controls are pressed.
+    // Told at both edges: a control mounted mid-run reads the store, and a failure changes no status.
     signOut() {
       if (leaving === undefined) {
         begun += 1;
@@ -153,7 +157,11 @@ export function createSession({
           if (answer.kind !== 'signedOut') return false;
           set('signedOut');
           return answer.logout === undefined ? {} : { logout: answer.logout };
-        }).finally(() => (leaving = undefined));
+        }).finally(() => {
+          leaving = undefined;
+          tell();
+        });
+        tell();
       }
       return leaving;
     },

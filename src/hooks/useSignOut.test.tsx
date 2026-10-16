@@ -3,77 +3,105 @@ import { act, cleanup, render } from '@testing-library/react';
 import { useEffect, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { createMemoryRouter, RouterProvider, useBlocker } from 'react-router';
+import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionStatus } from '../auth/session';
+
+vi.mock('sonner', () => ({
+  Toaster: () => null,
+  toast: Object.assign(vi.fn(), { error: vi.fn(), dismiss: vi.fn() }),
+}));
 
 // The session as the shell sees it: a status that a sign-out turns signed out, the host's
 // environment, and whether Cognito's logout takes the page away, all read at call time.
 const auth = vi.hoisted(() => {
   const hearing = new Set<() => void>();
-  return {
+  const self = {
     status: 'signedIn' as SessionStatus,
     environment: true,
     google: false,
-    // The relay's answer, held back while a test looks at the run.
+    // The relay's answer, held back while a test looks at the run; `fail` makes it a refusal.
     answer: Promise.resolve(),
+    fail: false,
+    running: false,
     hearing,
     tell: () => hearing.forEach((listener) => listener()),
+    // The store's sign-out, which tells its subscribers when it begins and when the relay answers,
+    // as `session.ts` does. Counted: a press that joined a running one shows as a second call.
+    signOut: vi.fn(async (): Promise<false | object> => {
+      self.running = true;
+      self.tell();
+      try {
+        await self.answer;
+        if (self.fail) return false;
+        self.status = 'signedOut';
+        self.tell();
+        return {};
+      } finally {
+        self.running = false;
+        self.tell();
+      }
+    }),
   };
+  return self;
 });
+
+const hear = (listener: () => void) => {
+  auth.hearing.add(listener);
+  return () => void auth.hearing.delete(listener);
+};
 
 vi.mock('../auth/app', () => ({
   get hasAuthEnvironment() {
     return auth.environment;
   },
   leaveThroughLogout: () => auth.google,
-  session: {
-    signOut: async () => {
-      await auth.answer;
-      auth.status = 'signedOut';
-      auth.tell();
-      return {};
-    },
-  },
-  useSessionStatus: () =>
-    useSyncExternalStore(
-      (listener) => {
-        auth.hearing.add(listener);
-        return () => void auth.hearing.delete(listener);
-      },
-      () => auth.status,
-    ),
+  session: { signOut: auth.signOut, signingOut: () => auth.running },
+  useSessionStatus: () => useSyncExternalStore(hear, () => auth.status),
+  useSessionSigningOut: () => useSyncExternalStore(hear, () => auth.running),
   useSessionUnanswered: () => false,
 }));
 
 const { useSignOut } = await import('./useSignOut');
 
 let block = false;
-const seen = {} as {
+/** What one instance of the hook last published. */
+interface Seen {
   rows: string;
   leaving: boolean;
   leave: () => Promise<void>;
   blocker: ReturnType<typeof useBlocker>;
   drawn: string[];
-};
+}
+const seen = {} as Seen;
+// A second instance of the hook, mounted while the first's sign-out runs.
+const other = {} as Seen;
+// How many instances of the hook have mounted.
+let mounted = 0;
 
-function Probe() {
+function Probe({ into }: { into: Seen }) {
   // The edit screens' guard: unsaved work holds every navigation, the sign-out's too.
   const blocker = useBlocker(() => block);
   const { rows, leaving, leave } = useSignOut();
+  useEffect(() => {
+    mounted += 1;
+  }, []);
   // Published after each commit, which `act` flushes before the test reads it.
   useEffect(() => {
-    Object.assign(seen, { rows, leaving, leave, blocker });
-    seen.drawn.push(rows);
+    Object.assign(into, { rows, leaving, leave, blocker });
+    into.drawn.push(rows);
   });
   return null;
 }
 
-function mount(at: string) {
+function mount(at: string, into = seen) {
   const router = createMemoryRouter(
     [
       { path: '/sign-in', element: <p>signed out</p> },
-      { path: '*', element: <Probe /> },
+      // A route with no account slot: the drawer closed on a route change leaves none mounted.
+      { path: '/balances', element: <p>no slot</p> },
+      { path: '*', element: <Probe into={into} /> },
     ],
     { initialEntries: [at] },
   );
@@ -88,9 +116,16 @@ beforeEach(() => {
   auth.environment = true;
   auth.google = false;
   auth.answer = Promise.resolve();
+  auth.fail = false;
+  auth.running = false;
+  auth.signOut.mockClear();
+  vi.mocked(toast.error).mockClear();
   block = false;
-  for (const key of Object.keys(seen)) delete seen[key as keyof typeof seen];
-  seen.drawn = [];
+  mounted = 0;
+  for (const record of [seen, other]) {
+    for (const key of Object.keys(record)) delete record[key as keyof Seen];
+    record.drawn = [];
+  }
 });
 afterEach(cleanup);
 
@@ -150,6 +185,55 @@ describe("the shell's account slot", () => {
       answer();
       await leaving;
     });
+  });
+
+  // The drawer: a route change closes it and the next open mounts its «Вийти» afresh, while the
+  // sign-out pressed in the old one still runs. The new one is busy, joins nothing, and the one
+  // failure raises one toast, after which it is the retry.
+  it('shows a «Вийти» mounted mid-run busy, whose press joins nothing, and one toast on failure', async () => {
+    let answer = () => {};
+    auth.answer = new Promise<void>((resolve) => (answer = resolve));
+    auth.fail = true;
+    const router = mount('/allocation');
+    let leaving: Promise<void> = Promise.resolve();
+    act(() => void (leaving = seen.leave()));
+    await act(() => router.navigate('/balances'));
+    await act(() => router.navigate('/allocation'));
+    expect(mounted, 'the route change kept the instance').toBe(2);
+    expect(seen.leaving, 'a «Вийти» mounted mid-run reads idle').toBe(true);
+    act(() => void seen.leave());
+    expect(auth.signOut, 'the second press joined the sign-out').toHaveBeenCalledTimes(1);
+    await act(async () => {
+      answer();
+      await leaving;
+    });
+    expect(toast.error, 'one failure, one toast').toHaveBeenCalledTimes(1);
+    expect(seen.leaving, 'not the retry after the failure').toBe(false);
+  });
+
+  // Two instances under one sign-out: whichever is pressed, the other is busy, and after a failure
+  // either is the retry.
+  it('keeps every «Вийти» busy under one sign-out, and after a failure each is the retry', async () => {
+    let answer = () => {};
+    auth.answer = new Promise<void>((resolve) => (answer = resolve));
+    auth.fail = true;
+    mount('/allocation');
+    mount('/allocation', other);
+    let leaving: Promise<void> = Promise.resolve();
+    act(() => void (leaving = seen.leave()));
+    expect(other.leaving, 'the other control reads idle').toBe(true);
+    act(() => void other.leave());
+    expect(auth.signOut, 'the other press joined the sign-out').toHaveBeenCalledTimes(1);
+    await act(async () => {
+      answer();
+      await leaving;
+    });
+    expect(toast.error, 'one failure, one toast').toHaveBeenCalledTimes(1);
+    expect(seen.leaving).toBe(false);
+    expect(other.leaving, 'the other control is not the retry').toBe(false);
+    auth.answer = Promise.resolve();
+    await act(() => other.leave());
+    expect(auth.signOut, 'the retry began no sign-out').toHaveBeenCalledTimes(2);
   });
 
   // Back from Cognito's logout can restore this page from the back/forward cache, state and all.

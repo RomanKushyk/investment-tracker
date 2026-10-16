@@ -695,9 +695,11 @@ the rows are the address and «Вийти»; signed out «Ви не ввійшл
 with the counterpart of the sign-out's glyph, the rail showing «Увійти» alone. The entry is a plain
 link and never a nav link, since `/sign-in/x` falls into the shell. Their slot is HELD until the
 relay answers, after a load it never answered too, and closed from the first render only on a host
-with no auth environment, which has nothing to sign in to. A sign-out that succeeded keeps the
-signed-in rows while the page leaves; where unsaved work holds the page, or Back restores it, the
-slot answers signed out.
+with no auth environment, which has nothing to sign in to. While a sign-out runs every «Вийти» in
+the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
+failure raises one toast. A sign-out that succeeded keeps the signed-in rows under the control that
+was pressed while the page leaves; where unsaved work holds the page, or Back restores it, the slot
+answers signed out.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,

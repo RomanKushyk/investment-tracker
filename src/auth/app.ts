@@ -58,6 +58,11 @@ export function useSessionUnanswered() {
   return useSyncExternalStore(session.subscribe, session.unanswered);
 }
 
+/** Whether a sign-out is running, whichever control began it. */
+export function useSessionSigningOut() {
+  return useSyncExternalStore(session.subscribe, session.signingOut);
+}
+
 /** Whether Google is on, once a refresh has said; until then the card shows the form alone. */
 export function useGoogle() {
   return useSyncExternalStore(session.subscribe, session.google);

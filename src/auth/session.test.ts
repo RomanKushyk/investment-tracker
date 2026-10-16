@@ -505,6 +505,28 @@ describe('one tab', () => {
     expect(session.signingOut()).toBe(false);
   });
 
+  // A control mounted mid-run reads the store, so the store says when a sign-out begins, and when
+  // the relay answers it — a failed one too, which changes no status.
+  it('tells its subscribers when a sign-out begins and when the relay answers it', async () => {
+    let answer: (answered: RelayAnswer) => void = () => undefined;
+    const relay = vi.fn<RelayCall>((route) =>
+      route === 'sign-out'
+        ? new Promise<RelayAnswer>((resolve) => (answer = resolve))
+        : Promise.resolve(TOKENS('1')),
+    );
+    const session = createSession({ relay, locks: noLocks });
+    await session.restore();
+    const told: boolean[] = [];
+    session.subscribe(() => told.push(session.signingOut()));
+
+    const leaving = session.signOut();
+    expect(told, 'nobody was told the sign-out began').toEqual([true]);
+
+    answer(REFUSED('failed'));
+    await leaving;
+    expect(told.at(-1), 'nobody was told the failed sign-out ended').toBe(false);
+  });
+
   it('counts one sign-out however often it is asked while one runs, and a failed one too', async () => {
     const session = createSession({
       relay: scripted(TOKENS('1'), REFUSED('failed'), { kind: 'signedOut' }),

@@ -7,6 +7,7 @@ import {
   hasAuthEnvironment,
   leaveThroughLogout,
   session,
+  useSessionSigningOut,
   useSessionStatus,
   useSessionUnanswered,
 } from '../auth/app';
@@ -19,17 +20,18 @@ let failures = 0;
 const failedId = (n: number) => `sign-out-failed-${n}`;
 
 /**
- * One press signs out. A sign-out the relay could not complete keeps both cookies, so the user is
- * still signed in: a toast that stays says so, and the control is the retry. After a success the
- * control stays busy while the page leaves, as the answer screens' does. `rows` is what the
- * footer band draws for the account, the sign-in entry included.
+ * Busy is the session's while a sign-out runs, so a «Вийти» mounted meanwhile is busy too; a failure
+ * keeps the user signed in, so one toast says so and every control is the retry. After a success
+ * the pressed control stays busy while the page leaves. `rows` is what the footer band draws.
  */
 export function useSignOut() {
   const t = useT();
   const navigate = useNavigate();
   const status = useSessionStatus();
   const unanswered = useSessionUnanswered();
+  const running = useSessionSigningOut();
   const [leaving, setLeaving] = useState(false);
+  const busy = leaving || running;
 
   // Back from Cognito's logout can restore this page from the back/forward cache, `leaving` and all.
   useEffect(() => {
@@ -41,7 +43,8 @@ export function useSignOut() {
   }, []);
 
   async function leave() {
-    if (leaving) return;
+    // The store read now, not the last render's: a press never joins a running sign-out.
+    if (leaving || session.signingOut()) return;
     setLeaving(true);
     toast.dismiss(failedId(failures));
     const out = await session.signOut();
@@ -63,5 +66,5 @@ export function useSignOut() {
     setLeaving(false);
   }
 
-  return { rows: accountRows(status, leaving, unanswered, hasAuthEnvironment), leaving, leave };
+  return { rows: accountRows(status, busy, unanswered, hasAuthEnvironment), leaving: busy, leave };
 }
