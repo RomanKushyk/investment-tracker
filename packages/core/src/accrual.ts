@@ -100,15 +100,12 @@ export function couponPeriodDays(dates: string[], onIso: string): number | undef
 /**
  * The gap crossing MATTERS: a bond’s price DROPS by the coupon on payment day,
  * so a carry-forward that only added accrual would over-suggest by one coupon.
+ * Every coupon in the gap is sized at `perCoupon`, the drafted day's figure: the
+ * price path is per unit, and the baseline and the daily rate are at that count.
  */
 export function couponsInGap(
   asset: Asset,
-  /**
-   * A RESOLVER, NOT A NUMBER, because one figure cannot answer for two dates: the
-   * caller derives it from the units held on the DRAFTED date, and this multiplies
-   * it by every coupon in the gap, which the position was a different size for.
-   */
-  perCouponAt: (couponDate: string) => number | undefined,
+  perCoupon: number,
   fromExclusive: string,
   toInclusive: string,
   /** REQUIRED: behind a semiannual start on the maturity that no published date answers, the coupon
@@ -117,11 +114,24 @@ export function couponsInGap(
   transactions: readonly Transaction[],
   schedule?: readonly string[],
 ): number {
+  // NO PAIRING GUARD HERE: only `accrualSuggestion` sees `couponPerPayment` answer `undefined`,
+  // where the rate falls back to an estimate and the gap must drop nothing; a number cannot say so.
+  return (
+    perCoupon * gapCouponDates(asset, fromExclusive, toInclusive, transactions, schedule).length
+  );
+}
+
+/** The dates the gap counts, ascending. Exported because the dates are the decision and a sum hides
+ *  which were taken. */
+export function gapCouponDates(
+  asset: Asset,
+  fromExclusive: string,
+  toInclusive: string,
+  transactions: readonly Transaction[],
+  schedule?: readonly string[],
+): string[] {
   const anchor = asset.nextCoupon;
-  if (!anchor) return 0;
-  // NO PAIRING GUARD HERE, DELIBERATELY: the rule is real, but the daily rate was
-  // built from the drafted date’s holding, which the caller holds and this does
-  // not. It lives in `accrualSuggestion`.
+  if (!anchor) return [];
 
   // The provider’s own dates (OVDP-COUPON-STRUCTURE.md), deduped because the final coupon and the
   // principal share the maturity date and only one is a coupon.
@@ -138,7 +148,7 @@ export function couponsInGap(
       : undefined;
 
   if (start !== undefined && !noCalendarDate(start)) {
-    let total = 0;
+    const counted: string[] = [];
     // Forward through the roll, so the gap counts what the walk offers, the bridge to the first date
     // served included; with the dates, a date inside the dedupe window of the last is that payment.
     let named: string | undefined;
@@ -150,7 +160,7 @@ export function couponsInGap(
         named === undefined ||
         daysBetween(named, date) > COUPON_MATCH_WINDOW_DAYS
       ) {
-        if (date > fromExclusive) total += perCouponAt(date) ?? 0;
+        if (date > fromExclusive) counted.push(date);
         named = date;
       }
       const roll = rollNextCoupon(asset, date, dates);
@@ -173,31 +183,30 @@ export function couponsInGap(
       const hi = addDays(start, -COUPON_MATCH_WINDOW_DAYS);
       const recorded = recordedCouponIn(transactions, asset.id, lo, hi);
       if (recorded) {
-        if (recorded <= fromExclusive) return total;
-        if (recorded <= toInclusive) total += perCouponAt(recorded) ?? 0;
+        if (recorded <= fromExclusive) return counted;
+        if (recorded <= toInclusive) counted.push(recorded);
         after = recorded;
       }
     }
     for (let k = 0; k < MAX_GRID_STEPS; k++) {
       const before = publishedPrev(after, dates) ?? addDays(after, -OVDP_COUPON_PERIOD_DAYS);
       if (before <= fromExclusive) break;
-      if (before <= toInclusive) total += perCouponAt(before) ?? 0;
+      if (before <= toInclusive) counted.push(before);
       after = before;
     }
-    return total;
+    // Forward from the start, then back from it: sorted so the list reads as the calendar does.
+    return counted.sort();
   }
 
   // Where no walk is counted, the published dates stand as given.
   if (dates !== undefined) {
-    return dates
-      .filter((d) => d > fromExclusive && d <= toInclusive)
-      .reduce((sum, d) => sum + (perCouponAt(d) ?? 0), 0);
+    return dates.filter((d) => d > fromExclusive && d <= toInclusive).sort();
   }
-  if (asset.payoutSchedule === 'semiannual') return 0;
+  if (asset.payoutSchedule === 'semiannual') return [];
 
   const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
   if (months === undefined) {
-    return anchor > fromExclusive && anchor <= toInclusive ? (perCouponAt(anchor) ?? 0) : 0;
+    return anchor > fromExclusive && anchor <= toInclusive ? [anchor] : [];
   }
 
   // EVERY grid date is computed FROM ONE DATE, never by stepping a running date:
@@ -231,7 +240,7 @@ export function couponsInGap(
   const past = maturity !== undefined && anchor > maturity;
   const clamp = maturity !== undefined && !past;
 
-  let total = 0;
+  const counted: string[] = [];
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
     let date = addMonths(grid, (startIndex + i) * months);
     if (past && date > anchor) break;
@@ -242,10 +251,10 @@ export function couponsInGap(
     const last = clamp && daysBetween(date, maturity) <= COUPON_MATCH_WINDOW_DAYS;
     if (last) date = maturity;
     if (date > toInclusive) break;
-    if (date > fromExclusive) total += perCouponAt(date) ?? 0;
+    if (date > fromExclusive) counted.push(date);
     if (last) break;
   }
-  return total;
+  return counted;
 }
 
 export interface QuoteSuggestionInput {

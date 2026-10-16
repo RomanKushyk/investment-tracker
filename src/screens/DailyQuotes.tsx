@@ -196,19 +196,8 @@ export function DailyQuotes() {
       invested[assetId] ?? 0,
       selectedDate,
       fetch.feed,
-      // Units as of the DRAFTED date, which is the count the accrual must scale by.
+      // Units as of the DRAFTED date, which is the count the accrual and the gap's coupons scale by.
       ledger.units[assetId],
-      // …and the SIZE of a coupon that landed earlier in the gap is a different
-      // question: the holding on ITS date, not on the drafted one.
-      //
-      // A WALK PER COUPON DATE THE GAP ACTUALLY COUNTS, and that number is almost
-      // always ZERO — a row quoted yesterday has none.
-      //
-      // NOT MEMOIZED, and a cache cannot be: `suggestionFor` runs in the render body,
-      // so a Map filled from inside it mutates after render, which the React Compiler
-      // rejects. If a portfolio ever makes the walk bite, the fix is to lift
-      // `suggestionFor` into a memo keyed on the ledger, not to cache underneath it.
-      (couponDate) => unitsByAsset(transactions, dayBefore(couponDate))[assetId],
       transactions,
     );
     return value === null ? undefined : value;

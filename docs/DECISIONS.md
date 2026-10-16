@@ -390,11 +390,15 @@ nothing, so units bought after it wait for their own quote; the rebuilt series c
 values, so on it a late buy is valued from its own day, and these rules say what a stored ₴
 snapshot can say. The quotes screen's baseline is priced as that series would price the day before
 anything is observed on it, the units held on the day at the latest price before it from either
-source, so a trade since that price is no change there. A reader that asked for a quote of a
-position no longer held would nag every day after a sell-out or a maturity, for a quote the total
-then leaves out; Portfolio Performance's held-securities price update asks only for the positions in
-that day's snapshot, which holds none with 0 shares. The NBU depository pays a coupon or a
-redemption to the holders it fixes at the end of the operational day before the payment date
+source, so a trade since that price is no change there. The suggested quote carries that baseline
+forward at the same count: its daily accrual and every coupon it subtracts for the gap are the
+drafted day's units' coupon, whatever the position held on a coupon's own record date — a bond's
+dirty price climbs and drops per unit, and a position follows that path at one count. A reader that
+asked for a quote of a position no longer held would nag every day after a sell-out or a maturity,
+for a quote the total then leaves out; Portfolio Performance's held-securities price update asks
+only for the positions in that day's snapshot, which holds none with 0 shares. The NBU depository
+pays a coupon or a redemption to the holders it fixes at the end of the operational day before the
+payment date
 (`reference/OVDP-COUPON-STRUCTURE.md`), so a holder who sold by then is owed nothing, and a
 reminder would ask for a payout that never comes; the calendar day before differs from it only
 across a non-working day, when the depository settles nothing. Fractional quantities summed as floats
@@ -477,12 +481,12 @@ for a start on the maturity is the one exception. From a stored date no calendar
 clamped onto a maturity no calendar has, or a schedule other than semiannual, the gap counts the
 published dates as given. A step past the maturity, or one falling short of it by no more than twice
 the payout dedupe window, lands on the maturity, so the final period absorbs a short stub. Without
-the dates, a semiannual stored date inside the dedupe window before the maturity and the maturity are one
-coupon: the gap starts on the maturity, as once the confirm rolls onto it, so it counts the coupon
-there, sized on its record date, and the coupon before as for a start on the maturity. The walk, the
-reminders and `/`'s coupon card still offer the stored date, and the confirm records it and rolls
-from it onto the maturity. A Skip of it, as a payout on it, settles the maturity's coupon too, so the
-reminders and `/`'s coupon card then offer no coupon.
+the dates, a semiannual stored date inside the dedupe window before the maturity and the maturity
+are one coupon: the gap starts on the maturity, as once the confirm rolls onto it, so it counts the
+coupon there, and the coupon before as for a start on the maturity. The walk, the reminders and
+`/`'s coupon card still offer the stored date, and the confirm records it and rolls from it onto the
+maturity. A Skip of it, as a payout on it, settles the maturity's coupon too, so the reminders and
+`/`'s coupon card then offer no coupon.
 The schedule's months name each occurrence by the month of its place in the first year's cycle,
 and the final coupon, paid with the principal, by its own. Without the dates the gap counts back
 from its start in the same steps. Where the start is the maturity, folded or clamped onto, and
@@ -491,10 +495,10 @@ ledger, where one is, dated by its first entry. A monthly or
 quarterly coupon keeps the month grid, whose roll clamps to a shorter month's last day and onto the
 maturity. Without the dates, from a stored date not past the maturity, the grid's gap stops at the
 maturity. On a maturity the calendar has, it counts the final coupon there, and takes a grid date
-inside the dedupe window before the maturity and the maturity as one coupon, counted on the maturity
-and sized on its record date. On and past a maturity no calendar has it counts nothing, as the walk
-owes nothing there. The gap's grid keeps the stored date's day of the month, clamped only in a
-shorter month, while the roll steps on from the day it clamped to. After such a clamp the walk can
+inside the dedupe window before the maturity and the maturity as one coupon, counted on the
+maturity. On and past a maturity no calendar has it counts nothing, as the walk owes nothing there.
+The gap's grid keeps the stored date's day of the month, clamped only in a shorter month, while the
+roll steps on from the day it clamped to. After such a clamp the walk can
 offer an earlier day outside the window where the grid date is inside it, and name two payments
 where the gap counts one. Otherwise the walk, the reminders and `/`'s coupon card offer that grid
 date, and the confirm records it and rolls from it onto the maturity. From a stored date on the

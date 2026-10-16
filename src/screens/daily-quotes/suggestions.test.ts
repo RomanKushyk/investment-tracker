@@ -32,7 +32,7 @@ function suggestStored(
   date: string,
   ...rest: After<Parameters<typeof accrualSuggestion>>
 ): number | null {
-  const tables = { ...NO_TABLES, snapshots: stored, transactions: [...rest[3]] };
+  const tables = { ...NO_TABLES, snapshots: stored, transactions: [...rest[2]] };
   const { previous } = dayOf(tables, date);
   return accrualSuggestion(asset, previous, investedAmount, date, ...rest);
 }
@@ -47,7 +47,6 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBe(4376.49);
@@ -59,7 +58,6 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBe(15859.89);
@@ -75,7 +73,6 @@ describe('accrualSuggestion', () => {
         '2026-08-26',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBe(14823.72);
@@ -88,7 +85,6 @@ describe('accrualSuggestion', () => {
         '2026-08-26',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBe(16063.72);
@@ -111,7 +107,6 @@ describe('accrualSuggestion', () => {
         '2026-08-26',
         undefined,
         undefined,
-        () => undefined,
         [...SEED_TRANSACTIONS, paid],
       ),
     ).toBe(14823.72);
@@ -129,7 +124,6 @@ describe('accrualSuggestion', () => {
         '2027-03-01',
         undefined,
         15,
-        () => 15,
         SEED_TRANSACTIONS,
       ),
     ).toBe(13861.92);
@@ -152,7 +146,6 @@ describe('accrualSuggestion', () => {
         '2027-04-30',
         undefined,
         15,
-        () => 15,
         SEED_TRANSACTIONS,
       ),
     ).toBe(13685.26);
@@ -175,7 +168,6 @@ describe('accrualSuggestion', () => {
         '2027-06-30',
         undefined,
         15,
-        () => 15,
         SEED_TRANSACTIONS,
       ),
     ).toBe(14126.9);
@@ -202,7 +194,6 @@ describe('accrualSuggestion', () => {
         '2027-02-27',
         undefined,
         15,
-        () => 15,
         ledger,
       );
     expect(suggest('2027-02-25')).toBe(16223.01);
@@ -224,7 +215,7 @@ describe('accrualSuggestion', () => {
     };
     const quoted: Snapshot[] = [{ date: '2026-03-20', quotes: { ovdp8976: 15000 } }];
     const suggest = (feed: ParsedFeed | undefined) =>
-      suggestStored(linked, quoted, invested.ovdp8976, '2026-03-30', feed, 15, () => 15, [
+      suggestStored(linked, quoted, invested.ovdp8976, '2026-03-30', feed, 15, [
         ...SEED_TRANSACTIONS,
       ]);
     // Neither feed brackets the gap, so the daily rate is the same; the gap owes 25.03 both ways.
@@ -241,22 +232,12 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBeNull();
     const fresh: Asset = { ...seedAsset('ovdp6475'), id: 'new' };
     expect(
-      suggestStored(
-        fresh,
-        snapshots,
-        0,
-        '2026-07-27',
-        undefined,
-        undefined,
-        () => undefined,
-        SEED_TRANSACTIONS,
-      ),
+      suggestStored(fresh, snapshots, 0, '2026-07-27', undefined, undefined, SEED_TRANSACTIONS),
     ).toBeNull();
     // The first seed snapshot — nothing before it to carry forward.
     expect(
@@ -267,44 +248,40 @@ describe('accrualSuggestion', () => {
         '2026-02-05',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBeNull();
   });
 
-  it('SIZES A GAP COUPON ON ITS OWN DATE, through the resolver it is handed', () => {
-    // THE CALL-SITE WIRING, which had no coverage: every other case here passes
-    // `() => undefined`, so swapping `couponPerPayment(asset, unitsAt(d))` back for
-    // the drafted-date figure left the whole suite green. `accrual.test.ts` covers
-    // `couponsInGap`; this covers that `accrualSuggestion` reaches it with a PER-DATE
-    // answer rather than one constant.
+  it("sizes a gap coupon at the drafted day's units, not the units on its own date", () => {
+    // The baseline is the drafted day's units at the last per-unit price and the rate climbs at
+    // that count, so a coupon paid in the gap drops at the same count: ten units on the coupon's
+    // record date and twenty on the drafted day answer as a flat twenty does.
     const bond: Asset = { ...seedAsset('ovdp8976'), couponRatePct: 15.68 };
-    const held = (couponDate: string) => (couponDate === '2026-08-25' ? 10 : 20);
-    const perDate = suggestStored(
-      bond,
-      snapshots,
-      invested.ovdp8976,
-      '2026-08-27',
-      undefined,
-      20,
-      held,
-      SEED_TRANSACTIONS,
-    );
-    const flat = suggestStored(
-      bond,
-      snapshots,
-      invested.ovdp8976,
-      '2026-08-27',
-      undefined,
-      20,
-      () => 20,
-      SEED_TRANSACTIONS,
-    );
-    // The gap subtracts the smaller holding's coupon, so the per-date answer is higher by the difference.
-    expect(perDate).not.toBeNull();
+    // Ten units through the last quote (25.07) in both ledgers, so the per-unit price is one; the
+    // second ten arrive after the 25.08 coupon in one and before it in the other.
+    const buy = (id: string, date: string): Transaction => ({
+      id,
+      date,
+      type: 'buy',
+      assetId: 'ovdp8976',
+      amount: 10260,
+      quantity: 10,
+    });
+    const others = SEED_TRANSACTIONS.filter((t) => t.assetId !== 'ovdp8976');
+    const ghost = (asset: Asset, secondBuy: string) =>
+      suggestStored(asset, snapshots, invested.ovdp8976, '2026-08-27', undefined, 20, [
+        ...others,
+        buy('b3', '2026-02-05'),
+        buy('b5', secondBuy),
+      ]);
+    const tenOnCouponDate = ghost(bond, '2026-08-26');
+    const flat = ghost(bond, '2026-07-26');
     expect(flat).not.toBeNull();
-    expect((perDate ?? 0) - (flat ?? 0)).toBeCloseTo(784, 2);
+    expect(tenOnCouponDate).toBe(flat);
+    // The one coupon in the gap is a twenty-unit coupon: 15,68 % × 1 000 × 20 / 2.
+    const noCoupon = ghost({ ...bond, nextCoupon: '2026-09-25' }, '2026-08-26');
+    expect((noCoupon ?? 0) - (flat ?? 0)).toBeCloseTo(1568, 6);
   });
 
   it('suggests nothing for a CLOSED position, and does not fall back to the estimate', () => {
@@ -321,7 +298,6 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         0,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBeNull();
@@ -336,7 +312,6 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBe(15860.13);
@@ -349,10 +324,21 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).not.toBeNull();
+  });
+
+  it('subtracts no gap coupon from the estimate a bond with no stated coupon climbs by', () => {
+    // The pairing guard: the rate falls back to `expectedPct × invested`, so a coupon on 25.08 in the
+    // gap drops nothing the ghost never climbed toward.
+    const bare: Asset = { ...seedAsset('ovdp8976'), couponAmount: undefined };
+    const ghost = (asset: Asset) =>
+      suggestStored(asset, snapshots, invested.ovdp8976, '2026-08-26', undefined, undefined, [
+        ...SEED_TRANSACTIONS,
+      ]);
+    expect(ghost(bare)).not.toBeNull();
+    expect(ghost(bare)).toBe(ghost({ ...bare, nextCoupon: '2026-09-25' }));
   });
 
   it('uses the expectedPct fallback for a bond with no stated coupon', () => {
@@ -365,7 +351,6 @@ describe('accrualSuggestion', () => {
         '2026-07-27',
         undefined,
         undefined,
-        () => undefined,
         SEED_TRANSACTIONS,
       ),
     ).toBe(15860.13);

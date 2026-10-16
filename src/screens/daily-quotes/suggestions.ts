@@ -75,11 +75,6 @@ export function accrualSuggestion(
   /** Units held on `selectedDate`. REQUIRED, not optional: an explicit `undefined` says
    *  the ledger cannot answer, where an omitted argument would say it by accident. */
   unitsHeld: number | undefined,
-  /** Units held ON A GIVEN DATE, and A DIFFERENT QUESTION from `unitsHeld` rather than
-   *  an inconsistency: the rate climbs FORWARD to the next coupon, sized on the drafted
-   *  date, while the gap drops coupons already paid, each sized BACKWARD on its own.
-   *  Required for the same reason. */
-  unitsAt: (couponDate: string) => number | undefined,
   /** The ledger, REQUIRED for the same reason: behind a semiannual start on the maturity that no
    *  published date answers, the gap reads the coupon before off the payout recorded for it, where
    *  one is, and without the dates, behind a monthly or quarterly stored date on the maturity, the
@@ -93,7 +88,8 @@ export function accrualSuggestion(
   if (unitsHeld !== undefined && unitsHeld <= 0) return null;
   const last = lastQuoteBefore(previous, asset.id);
   if (last === undefined) return null; // never quoted → nothing to carry forward
-  // ONE BINDING FOR THE NEXT COUPON, used by the daily rate and handed to the gap.
+  // ONE BINDING, at the drafted day's units, for the rate and every gap coupon: the baseline is
+  // that count at the last per-unit price, whatever the position held on a coupon's own date.
   const perCoupon = couponPerPayment(asset, unitsHeld);
   return suggestedQuote({
     lastQuote: last.value,
@@ -115,7 +111,7 @@ export function accrualSuggestion(
         ? 0
         : couponsInGap(
             asset,
-            (couponDate) => couponPerPayment(asset, unitsAt(couponDate)),
+            perCoupon,
             last.date,
             selectedDate,
             transactions,
