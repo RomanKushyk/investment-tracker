@@ -385,8 +385,18 @@ Resources:
       FailOnWarnings: true
       # ONLY THE CUSTOM DOMAIN ANSWERS. The generated `execute-api` hostname is a second name nothing
       # calls, and the relay's `__Host-` cookies are never set on it. SAM writes this into the
-      # OpenAPI body it generates, where API Gateway reads it at the import.
+      # OpenAPI body as a `servers` entry, where API Gateway reads it at the import.
       DisableExecuteApiEndpoint: true
+      # A BODY OF OURS ONLY TO NAME THE SERVER: left to SAM, the entry above has no `url` and the
+      # import warns (aws/serverless-application-model#2424); a bare host sets no base path.
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: !Ref AWS::StackName
+          version: '1.0'
+        servers:
+          - url: !If [IsProd, https://api.quirenote.com, https://api.dev.quirenote.com]
+        paths: {}
       # AUTHENTICATION HERE, AUTHORIZATION IN THE HANDLER. This authorizer proves the token and
       # NOTHING ELSE: it cannot prove anything that has happened since the token was issued, so
       # `status` and `role` are read from `app_user` on every request, never `cognito:groups`.

@@ -169,6 +169,17 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(declaredRoutes().map((r) => r.api)).toEqual(declaredRoutes().map(() => 'PublicApi'));
   });
 
+  // THE API'S BODY IS OURS, SO SAM CHECKS NEITHER: a second event on a route overwrites the first's
+  // integration, and a function's `Condition` leaves its path in the body unconditionally.
+  it('declares each route once, from functions with no condition', () => {
+    const keys = declaredRoutes().map((r) => r.key);
+    expect(keys.filter((k, i) => keys.indexOf(k) !== i)).toEqual([]);
+    const conditional = [...new Set(declaredRoutes().map((r) => r.fn))].filter(
+      (fn) => 'Condition' in (user.Resources[fn] ?? {}),
+    );
+    expect(conditional).toEqual([]);
+  });
+
   it('puts the list, approve and reject on this API, each naming the authorizer', () => {
     const admin = declaredRoutes().filter((r) => r.fn === 'ApproveFunction');
     expect(admin.map((r) => r.key).sort()).toEqual(
@@ -406,9 +417,27 @@ describe('the custom domain takes a certificate from its own region', () => {
 
   // ONLY THE CUSTOM DOMAIN ANSWERS: the generated `execute-api` hostname is a second name nothing
   // calls, and the relay's `__Host-` cookies are never set on it. SAM writes the flag into the
-  // OpenAPI body it generates, so it lands with the import and no stage deploy is owed.
+  // OpenAPI body as a `servers` entry, so it lands with the import and no stage deploy is owed.
   it('disables the default execute-api endpoint', () => {
     expect(props('PublicApi').DisableExecuteApiEndpoint).toBe(true);
+  });
+
+  // THE FLAG NEEDS A SERVER URL BESIDE IT, or the import warns and `FailOnWarnings` rolls the stack
+  // back; the URL is the custom domain's own name, read from it, and the routes stay the events'.
+  it('writes an inline body naming each environment custom domain as its server', () => {
+    const body = props('PublicApi').DefinitionBody as {
+      openapi?: unknown;
+      info?: { title?: unknown; version?: unknown };
+      servers?: { url?: unknown }[];
+      paths?: unknown;
+    };
+    const [condition, prod, dev] = (props('PublicApi').Domain as { DomainName: string[] })
+      .DomainName;
+    expect(body?.openapi).toBe('3.0.1');
+    expect(body.info).toEqual({ title: 'AWS::StackName', version: '1.0' });
+    expect(body.servers).toHaveLength(1);
+    expect(body.servers?.[0]?.url).toEqual([condition, `https://${prod}`, `https://${dev}`]);
+    expect(body.paths).toEqual({});
   });
 
   it('takes the certificate as a parameter with no default', () => {

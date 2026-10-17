@@ -49,6 +49,7 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   [['Resources', 'UserPoolClient', 'Properties', 'LogoutURLs', 1], '!If'],
   [['Resources', 'UserPoolDomain', 'Properties', 'Domain'], '!If'],
   [[...envVars('PreSignUpFunction'), 'OPEN_REGISTRATION'], '!If'],
+  [['Resources', 'PublicApi', 'Properties', 'DefinitionBody', 'servers', 0, 'url'], '!If'],
   // The condition is on the WHOLE CORS block and both arms are complete, which is what stops SAM
   // dropping the methods and the headers.
   [['Resources', 'PublicApi', 'Properties', 'CorsConfiguration'], '!If'],
@@ -89,7 +90,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the twenty-four written here', () => {
+  it('carries exactly the twenty-five written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 
