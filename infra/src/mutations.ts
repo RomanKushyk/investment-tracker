@@ -51,6 +51,7 @@ import {
   transactionColumns,
   utc,
 } from './ledger';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { IMPORT_ROUTES, imports, type ImportDeps } from './imports';
 import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
@@ -303,7 +304,7 @@ async function claim(
         continue;
       }
       const { rows } = await client.query<KeyRow>(READ_KEY, [userId, key]).catch(async (e) => {
-        console.error('mutations claim conflict before a failed read', err);
+        console.error('mutations claim conflict before a failed read', loggable(err));
         await client.query(RELEASE, [userId, key, token]).catch(() => undefined);
         throw e;
       });
@@ -651,7 +652,7 @@ async function apply(
   const release = () =>
     client
       .query(RELEASE, [userId, key, token])
-      .catch((err: unknown) => console.error('mutations release failed', err));
+      .catch((err: unknown) => console.error('mutations release failed', loggable(err)));
   for (let attempt = 0; ; attempt += 1) {
     let index: number | undefined;
     try {
@@ -701,7 +702,7 @@ async function apply(
       if (retryable(err)) {
         // The commit may have landed under the error, the last attempt's too: the key row says.
         const { rows } = await client.query<KeyRow>(READ_KEY, [userId, key]).catch(async (e) => {
-          console.error('mutations commit conflict before a failed read', err);
+          console.error('mutations commit conflict before a failed read', loggable(err));
           await release();
           throw e;
         });
@@ -741,7 +742,7 @@ function readBody(event: ApiEvent): ApiResult | { ops: unknown[] } {
 async function sweep(client: SqlClient, userId: string) {
   await client
     .query(SWEEP, [userId, SWEEP_LIMIT])
-    .catch((err: unknown) => console.error('mutations sweep failed', err));
+    .catch((err: unknown) => console.error('mutations sweep failed', loggable(err)));
 }
 
 export async function mutations(deps: MutationDeps, event: ApiEvent): Promise<ApiResult> {
@@ -768,7 +769,7 @@ export async function mutations(deps: MutationDeps, event: ApiEvent): Promise<Ap
     }
     return answer;
   } catch (err) {
-    console.error('mutations failed', err);
+    console.error('mutations failed', loggable(err));
     return INTERNAL;
   }
 }
@@ -802,7 +803,7 @@ export async function state(
     };
     return respond(STATE, { etag, 'cache-control': NO_STORE }, JSON.stringify(body));
   } catch (err) {
-    console.error('state failed', err);
+    console.error('state failed', loggable(err));
     return INTERNAL;
   }
 }

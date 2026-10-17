@@ -11,6 +11,7 @@ import { format } from 'node:util';
 import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ADDRESS, asRuntimePrints, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
 import { DEMO_ACCOUNT_ID, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
@@ -29,8 +30,12 @@ import {
 
 // THE ONE PATH WITH A REAL BUDGET IS THE ONE PGlite CANNOT REACH: `handler` opens a
 // cluster connection before it forwards Lambda's context, so the forward is only
-// testable with the connection replaced. Nothing else in this file calls `handler`.
-vi.mock('./dsql', () => ({ connect: vi.fn() }));
+// testable with the connection replaced. The rest of the module stays real: `log.ts`
+// reads a SQLSTATE through it.
+vi.mock('./dsql', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./dsql')>()),
+  connect: vi.fn(),
+}));
 
 const read = (file: string) =>
   readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
@@ -915,6 +920,92 @@ describe('the invocation budget', () => {
     const raised = await handler({ mode: 'rehearse' }, left(0)).catch((err: unknown) => err);
     expect(raised).toBeInstanceOf(Error);
     expect((raised as Error).message).toContain(USER_SCHEMA);
+  });
+});
+
+// THE RUNTIME PRINTS WHAT A HANDLER THROWS, its own enumerable fields included: the Node runtime
+// client's `Errors.js` spreads them over the type and the message. `pg` puts the refused row in
+// `detail`, so a bootstrap whose insert collides on `app_user_email_uq` would name the address in
+// CloudWatch through the runtime alone. The handler logs the error by its code and lets a copy
+// without the fields out, so the run still fails on the key.
+describe('what the handler lets the runtime print', () => {
+  it('rethrows a cluster error without its detail, logged by its code', async () => {
+    const refused = Object.assign(
+      new Error('duplicate key value violates unique constraint "app_user_email_uq"'),
+      {
+        name: 'error',
+        severity: 'ERROR',
+        code: '23505',
+        constraint: 'app_user_email_uq',
+        detail: 'Key (email)=(owner@quirenote.com) already exists.',
+      },
+    );
+    vi.mocked(connect).mockResolvedValue({
+      query: async () => {
+        throw refused;
+      },
+      end: async () => {},
+    } as unknown as Awaited<ReturnType<typeof connect>>);
+    const watched = watchConsole();
+    try {
+      const raised = await handler({ mode: 'dry-run' }).catch((err: unknown) => err);
+      expect(raised).toBeInstanceOf(Error);
+      expect((raised as Error).message).toBe(refused.message);
+      const printed = asRuntimePrints(raised);
+      expect(printed).not.toMatch(/detail/);
+      expect(printed).not.toMatch(ADDRESS);
+      const lines = watched.lines();
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain('23505');
+      expect(lines[0]).toContain('app_user_email_uq');
+      expect(lines[0]).not.toMatch(/detail/);
+      expect(lines[0]).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
+  });
+
+  /** A handler whose first statement raises `thrown`, with every console level watched. */
+  const failingWith = async (thrown: Error) => {
+    vi.mocked(connect).mockResolvedValue({
+      query: async () => {
+        throw thrown;
+      },
+      end: async () => {},
+    } as unknown as Awaited<ReturnType<typeof connect>>);
+    const watched = watchConsole();
+    try {
+      const raised = await handler({ mode: 'dry-run' }).catch((err: unknown) => err);
+      return { raised, lines: watched.lines() };
+    } finally {
+      watched.restore();
+    }
+  };
+
+  // The runtime prints it, and a second line here would be the same failure twice.
+  it('leaves an error that is not a server error unlogged, for the runtime to print', async () => {
+    const plain = new Error('the cluster is unreachable');
+    const { raised, lines } = await failingWith(plain);
+    expect(raised).toBe(plain);
+    expect(lines).toEqual([]);
+  });
+
+  // The runtime never prints a `cause`, so a wrapped server error's code reaches CloudWatch here.
+  it('logs a wrapped server error by its code, the wrapper left as it is', async () => {
+    const cause = Object.assign(new Error('duplicate key value violates unique constraint'), {
+      name: 'error',
+      severity: 'ERROR',
+      code: '23505',
+      constraint: 'app_user_email_uq',
+      detail: 'Key (email)=(owner@quirenote.com) already exists.',
+    });
+    const wrapper = new Error('003_user_schema.sql: a statement failed', { cause });
+    const { raised, lines } = await failingWith(wrapper);
+    expect(raised).toBe(wrapper);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('23505');
+    expect(lines[0]).not.toMatch(/detail/);
+    expect(lines[0]).not.toMatch(ADDRESS);
   });
 });
 

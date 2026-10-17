@@ -39,6 +39,7 @@ import {
   weakMatch,
 } from './http';
 import { dataTag, readLedger } from './ledger';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { createOfficialRate, type StoredRate } from './official-rate';
 import { readPaymentDates, readSellObservations } from './sell-observations';
@@ -395,7 +396,7 @@ async function read(
     ]);
     if (rated.status === 'rejected') {
       if (archived.status === 'rejected') {
-        console.error('view archive read failed', archived.reason);
+        console.error('view archive read failed', loggable(archived.reason));
       }
       throw rated.reason;
     }
@@ -436,7 +437,7 @@ async function read(
     });
   } catch (err) {
     // LOGGED, NOT RETURNED. An archive refusal has logged its own metric line already.
-    console.error('view failed', err);
+    console.error('view failed', loggable(err));
     return INTERNAL;
   }
 }

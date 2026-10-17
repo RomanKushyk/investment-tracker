@@ -1,6 +1,7 @@
 // Dead generations — datasets of the caller that neither pointer names — removed a bounded batch
 // at a time by `POST /mutations` and the import's routes, never on a schedule (*User schema and deletes*).
 import { codeOf } from './dsql';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 
 /** AWS's DSQL guidance on batch size, well under the row ceiling. */
@@ -113,6 +114,6 @@ export async function collect(
       if (!(await batch(client, userId, rows))) return;
     } while (more());
   } catch (err) {
-    console.error('collection failed', err);
+    console.error('collection failed', loggable(err));
   }
 }

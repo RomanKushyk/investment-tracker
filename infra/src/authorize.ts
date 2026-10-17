@@ -8,6 +8,7 @@
 // super-admin group would change nothing until their token refreshed, and the row is read anyway.
 import { canonicalAddress } from '@quirenote/core/address';
 import { INTERNAL, type ApiEvent, type ApiResult, canonicalUuid, claim, json } from './http';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { provision } from './provision';
 
@@ -68,9 +69,10 @@ function answer(row: Row, sub: string): Gate {
   if (row.status === 'rejected') return { refusal: REJECTED };
 
   // An active row under another `sub` for this address should not exist. Logged loudly rather
-  // than absorbed, because the alternative is serving one person's portfolio to another.
+  // than absorbed, because the alternative is serving one person's portfolio to another. BY THE
+  // TWO IDS, which find both rows; the address stays out of CloudWatch (*Deployment*).
   if (row.user_id !== sub) {
-    console.error(`authorize: ${row.email} is active under ${row.user_id}, not ${sub}`);
+    console.error(`authorize: the address of ${sub} is active under ${row.user_id}`);
     return { refusal: FORBIDDEN };
   }
   return {
@@ -125,7 +127,7 @@ export async function authorize(client: SqlClient, event: ApiEvent): Promise<Gat
   } catch (err) {
     // Not swallowed and not returned: a concurrent request is the only way here, and the read
     // below settles it.
-    console.error('authorize: could not create the row for an open registration', err);
+    console.error('authorize: could not create the row for an open registration', loggable(err));
   }
 
   const created = await look(client, sub, email);

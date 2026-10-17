@@ -18,6 +18,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
 import {
   APPROVE_ROUTE,
@@ -586,6 +587,7 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     expect((await rows())[0].status).toBe('pending');
   });
 
+  // Logged by the row's id, never the address (*Deployment*).
   it('records the decision when the account vanishes between the read and the disable', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
     const idp = {
@@ -594,9 +596,18 @@ describe('rejecting is a status, and disabling is its consequence', () => {
         throw Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
       },
     };
-    const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
-    expect(res.statusCode).toBe(200);
-    expect((await rows())[0].status).toBe('rejected');
+    const watched = watchConsole();
+    try {
+      const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
+      expect(res.statusCode).toBe(200);
+      expect((await rows())[0].status).toBe('rejected');
+      const lines = watched.lines();
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain(SUB);
+      expect(lines[0]).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
   });
 
   it('leaves the row active when the disable fails, so a retry still repairs it', async () => {
@@ -691,13 +702,24 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     expect(enabled).toEqual([]);
   });
 
+  // The failed read-back is logged by the row's id and the cluster's answer, never the address
+  // it was looked up by (*Deployment*).
   it('puts the account back when it cannot tell whether the row was decided', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const { idp, enabled } = spy();
-    const res = await approve(blindTo('SELECT status FROM app_user'), idp, call(REJECT_ROUTE));
+    const watched = watchConsole();
+    try {
+      const res = await approve(blindTo('SELECT status FROM app_user'), idp, call(REJECT_ROUTE));
 
-    expect(res.statusCode).not.toBe(200);
-    expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+      expect(res.statusCode).not.toBe(200);
+      expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+      const lines = watched.lines();
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.some((line) => line.includes(PLACEHOLDER))).toBe(true);
+      for (const line of lines) expect(line).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
   });
 
   it('puts the account back when the decision is aborted rather than unmatched', async () => {

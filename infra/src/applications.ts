@@ -7,6 +7,7 @@
 import { ADDRESS, MAX_ADDRESS, canonicalAddress } from '@quirenote/core/address';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 
 // THREE ANSWERS, EVERY ONE FIXED TEXT: a body carrying the cluster's message would repeat a
@@ -101,7 +102,7 @@ async function apply(client: SqlClient, email: string): Promise<ApiResult> {
   } catch (err) {
     if (isDuplicateAddress(err)) return RECEIVED;
     // LOGGED, NOT RETURNED: whatever the cluster said belongs in CloudWatch.
-    console.error('application insert failed', err);
+    console.error('application insert failed', loggable(err));
     return INTERNAL;
   }
   return RECEIVED;

@@ -9,6 +9,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import ts from 'typescript';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
 import {
   ROUTE,
@@ -185,15 +186,36 @@ describe('an address the cluster would refuse never reaches it', () => {
   // this route stands outside the authorizer — the three surfaces that do are in *Auth model*.
   it('returns a fixed error when the cluster refuses, naming no constraint', async () => {
     const refusal = Object.assign(
-      new Error('new row violates check constraint "app_user_email_lower_ck"'),
-      { code: '23514', constraint: 'app_user_email_lower_ck' },
+      new Error(
+        'new row for relation "app_user" violates check constraint "app_user_email_lower_ck"',
+      ),
+      {
+        severity: 'ERROR',
+        code: '23514',
+        constraint: 'app_user_email_lower_ck',
+        detail:
+          'Failing row contains (9f1e2d3c-0000-4000-8000-0000000000c3, New@quirenote.com, pending, user).',
+      },
     );
     const { client } = spy(refusal);
-    const res = await applications(client, submit('new@quirenote.com'));
-    expect(res.statusCode).toBe(500);
-    const answered = JSON.stringify(res);
-    expect(answered).not.toContain('app_user');
-    expect(answered).not.toContain('constraint');
+    const watched = watchConsole();
+    try {
+      const res = await applications(client, submit('new@quirenote.com'));
+      expect(res.statusCode).toBe(500);
+      const answered = JSON.stringify(res);
+      expect(answered).not.toContain('app_user');
+      expect(answered).not.toContain('constraint');
+      // LOGGED BY ITS CODE AND CONSTRAINT, never its `detail`: the cluster quotes the refused row
+      // there, address included.
+      const lines = watched.lines();
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain('23514');
+      expect(lines[0]).toContain('app_user_email_lower_ck');
+      expect(lines[0]).not.toMatch(/detail|Failing row/);
+      expect(lines[0]).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
   });
 });
 

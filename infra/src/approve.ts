@@ -29,6 +29,7 @@ import {
 } from './authorize';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, canonicalUuid, json } from './http';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { ACCOUNT, giveDataset } from './provision';
 
@@ -177,12 +178,13 @@ async function identify(
  *  since an open window lets an enabled orphan self-provision one. A READ THAT FAILS ANSWERS
  *  WANTED — the direction that leaves an account ON, because rejecting again retries a disable
  *  where an account wrongly turned off has no path back through this API. */
-async function wanted(client: SqlClient, email: string): Promise<boolean> {
+async function wanted(client: SqlClient, row: Target): Promise<boolean> {
   return client
-    .query<{ status: string }>(ROW_NOW, [email])
+    .query<{ status: string }>(ROW_NOW, [row.email])
     .then(({ rows }) => rows[0]?.status === 'active' || rows[0]?.status === 'pending')
     .catch((e: unknown) => {
-      console.error(`approve: could not read back what ${email} holds: ${e}`);
+      // The row's id, never the address it was looked up by (*Deployment*).
+      console.error(`approve: could not read back what row ${row.user_id} holds`, loggable(e));
       return true;
     });
 }
@@ -191,12 +193,12 @@ async function withdraw(
   client: SqlClient,
   idp: IdentityClient,
   UserPoolId: string,
-  email: string,
+  row: Target,
 ): Promise<void> {
-  if (await wanted(client, email)) return;
+  if (await wanted(client, row)) return;
   // Best effort: the caller must hear about the failure that actually sent us here.
-  await idp.adminDisableUser({ UserPoolId, Username: email }).catch((e: unknown) => {
-    console.error(`approve: could not disable the identity minted for ${email}: ${e}`);
+  await idp.adminDisableUser({ UserPoolId, Username: row.email }).catch((e: unknown) => {
+    console.error(`approve: could not disable the identity minted for row ${row.user_id}: ${e}`);
   });
 }
 
@@ -210,13 +212,15 @@ async function restore(
   client: SqlClient,
   idp: IdentityClient,
   UserPoolId: string,
-  email: string,
+  row: Target,
 ): Promise<void> {
-  if (!(await wanted(client, email))) return;
-  await idp.adminEnableUser({ UserPoolId, Username: email }).catch((e: unknown) => {
+  if (!(await wanted(client, row))) return;
+  await idp.adminEnableUser({ UserPoolId, Username: row.email }).catch((e: unknown) => {
     // The ordinary applicant has no identity at all, so this is a no-op, not an error.
     if ((e as { name?: string })?.name === 'UserNotFoundException') return;
-    console.error(`approve: could not re-enable ${email} after losing the decision: ${e}`);
+    console.error(
+      `approve: could not re-enable row ${row.user_id} after losing the decision: ${e}`,
+    );
   });
 }
 
@@ -235,7 +239,7 @@ async function approveRow(
   if (!sub) {
     console.error(`approve: the pool returned no sub for ${row.user_id}`);
     // Untouched, so `withdraw` finds it `pending`: approving again is what recovers this.
-    if (minted) await withdraw(client, idp, UserPoolId, row.email);
+    if (minted) await withdraw(client, idp, UserPoolId, row);
     return INTERNAL;
   }
 
@@ -262,7 +266,7 @@ async function approveRow(
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK').catch(() => undefined);
-    if (minted) await withdraw(client, idp, UserPoolId, row.email);
+    if (minted) await withdraw(client, idp, UserPoolId, row);
     throw err;
   }
   return APPROVED;
@@ -301,7 +305,7 @@ async function rejectRow(
   if (live) {
     await idp.adminDisableUser({ UserPoolId, Username: row.email }).catch((err: unknown) => {
       if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
-      console.log(`approve: ${row.email} went between being read and being disabled`);
+      console.log(`approve: row ${row.user_id} went between being read and being disabled`);
     });
   }
 
@@ -316,12 +320,12 @@ async function rejectRow(
   const { rows } = await client
     .query<{ user_id: string }>(DECIDE, [row.user_id, decidedBy, row.status])
     .catch(async (err: unknown) => {
-      if (live) await restore(client, idp, UserPoolId, row.email);
+      if (live) await restore(client, idp, UserPoolId, row);
       throw err;
     });
   if (rows.length === 0) {
     console.error(`approve: reject matched no row for ${row.user_id}; it was decided elsewhere`);
-    if (live) await restore(client, idp, UserPoolId, row.email);
+    if (live) await restore(client, idp, UserPoolId, row);
     return ALREADY_DECIDED;
   }
   return REJECTED;
@@ -369,7 +373,7 @@ export async function approve(
       : await rejectRow(client, idp, UserPoolId, row, gate.caller.userId);
   } catch (err) {
     // LOGGED, NOT RETURNED: the caller gets no constraint name.
-    console.error('approve failed', err);
+    console.error('approve failed', loggable(err));
     return INTERNAL;
   }
 }

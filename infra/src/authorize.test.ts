@@ -9,6 +9,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
 import { type Gate, authorize, superAdminOnly } from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
@@ -267,11 +268,23 @@ describe('three refusals, and they are three', () => {
   });
 
   // An active row holding this address under another id would hand one portfolio to another.
-  it('refuses an active row that holds this address under another id', async () => {
+  // LOGGED BY BOTH IDS, which is everything an operator needs to find the two rows, and never by
+  // the address (*Deployment*).
+  it('refuses an active row that holds this address under another id, logging both ids', async () => {
     await db.exec(row(OTHER, EMAIL, 'active'));
-    const gate = await authorize(db, token());
-    expect(gate).toEqual({ refusal: expect.objectContaining({ statusCode: 403 }) });
-    expect((gate as { refusal: { body: string } }).refusal.body).not.toContain('pending');
+    const watched = watchConsole();
+    try {
+      const gate = await authorize(db, token());
+      expect(gate).toEqual({ refusal: expect.objectContaining({ statusCode: 403 }) });
+      expect((gate as { refusal: { body: string } }).refusal.body).not.toContain('pending');
+      const lines = watched.lines();
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain(SUB);
+      expect(lines[0]).toContain(OTHER);
+      expect(lines[0]).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
   });
 
   it('refuses the demo identity, which is not an application at all', async () => {

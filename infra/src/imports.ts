@@ -38,6 +38,7 @@ import {
   strongMatch,
 } from './http';
 import { assetColumns, dataTag, transactionColumns, utc } from './ledger';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { RETRY_DELAYS_MS, retryable } from './provision';
 
@@ -683,7 +684,7 @@ export async function imports(deps: ImportDeps, event: ApiEvent): Promise<ApiRes
     await collect(deps.user, userId, more, deps.batchRows);
     return answer;
   } catch (err) {
-    console.error('import failed', err);
+    console.error('import failed', loggable(err));
     return INTERNAL;
   }
 }

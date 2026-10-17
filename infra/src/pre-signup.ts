@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import {
   AdminLinkProviderForUserCommand,
   CognitoIdentityProviderClient,
@@ -55,6 +57,10 @@ export const REFUSAL =
 // text and `Boolean('false')` is `true`. Read per call, not at module load.
 const registrationIsOpen = () => process.env.OPEN_REGISTRATION === 'true';
 
+// What a log line calls the sign-up: the username is the person's id at Google and no sub exists
+// yet, so a hash prefix stands for it (*Deployment*).
+const tag = (userName: string) => createHash('sha256').update(userName).digest('hex').slice(0, 12);
+
 // A FAILURE THROWN IN `admit` REFUSES IN REFUSAL'S WORDS: AWS passes the message on, into the
 // callback URL on Google's flow, where a denial would name the role and the account. It is logged.
 export async function preSignUp(
@@ -84,13 +90,15 @@ async function admit(event: PreSignUpEvent, idp: IdentityClient): Promise<PreSig
   }
 
   const { email, email_verified: verified } = event.request.userAttributes;
+  // Bound here, once: the username itself never reaches a console call.
+  const who = tag(event.userName);
 
   // THE APPROVAL TEST RUNS FIRST: behind a linking check that returns the event, Cognito would mint
   // a standalone profile for an address with no application. NO CHECK BELOW MAY MOVE ABOVE IT.
 
   if (!email) {
     // Its own message: the likeliest cause is a dropped `email` mapping on the provider.
-    console.warn(`pre-signup: no address on the event (${event.userName})`);
+    console.warn(`pre-signup: no address on the event (user ${who})`);
     if (!registrationIsOpen()) throw new Error(REFUSAL);
     return event;
   }
@@ -98,7 +106,7 @@ async function admit(event: PreSignUpEvent, idp: IdentityClient): Promise<PreSig
   // Cognito's filter grammar has no `or`, so a quote cannot broaden the match — it malforms the
   // filter and the thrown error fails the sign-up. Unaskable is unapproved, never waved through.
   if (/["\\]/.test(email)) {
-    console.warn(`pre-signup: address is not expressible as a filter (${event.userName})`);
+    console.warn(`pre-signup: address is not expressible as a filter (user ${who})`);
     if (!registrationIsOpen()) throw new Error(REFUSAL);
     return event;
   }
@@ -125,7 +133,7 @@ async function admit(event: PreSignUpEvent, idp: IdentityClient): Promise<PreSig
     // branch runs in. Refused rather than passed through: a passthrough leaves a standalone
     // profile that reads nothing but is still an identity and a monthly active user.
     if (!registrationIsOpen()) throw new Error(REFUSAL);
-    console.warn(`pre-signup: not linking, address has no local account (${event.userName})`);
+    console.warn(`pre-signup: not linking, address has no local account (user ${who})`);
     return event;
   }
 
@@ -136,7 +144,7 @@ async function admit(event: PreSignUpEvent, idp: IdentityClient): Promise<PreSig
   // link hands over their portfolio. Google does assert the claim; this reads it anyway, because a
   // second provider is where that assumption becomes a takeover.
   if (verified !== 'true') {
-    console.warn(`pre-signup: not linking, address not asserted verified (${event.userName})`);
+    console.warn(`pre-signup: not linking, address not asserted verified (user ${who})`);
     return event;
   }
 
@@ -145,22 +153,20 @@ async function admit(event: PreSignUpEvent, idp: IdentityClient): Promise<PreSig
   // `slice(0, -1)` is everything but the last character, so `Googlex` would match as `Google`.
   const separator = event.userName.indexOf('_');
   if (separator < 1) {
-    console.warn(
-      `pre-signup: not linking, username carries no provider prefix (${event.userName})`,
-    );
+    console.warn(`pre-signup: not linking, username carries no provider prefix (user ${who})`);
     return event;
   }
   const prefix = event.userName.slice(0, separator);
   const provider = PROVIDERS.find((p) => p.toLowerCase() === prefix.toLowerCase());
   if (!provider) {
-    console.warn(`pre-signup: not linking, unrecognised provider prefix (${event.userName})`);
+    console.warn(`pre-signup: not linking, unrecognised provider prefix (user ${who})`);
     return event;
   }
   // AND THE SUBJECT HAS TO BE THERE: `Google_` parses as a valid prefix and an empty subject, and
   // since every error from the link call is allowed out, that would FAIL the sign-up.
   const providerSubject = event.userName.slice(separator + 1);
   if (!providerSubject) {
-    console.warn(`pre-signup: not linking, username carries no subject (${event.userName})`);
+    console.warn(`pre-signup: not linking, username carries no subject (user ${who})`);
     return event;
   }
 

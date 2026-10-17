@@ -55,6 +55,10 @@ relay for the session: asked once on every portfolio load, and to sign in and ou
   checked twice and a browser-only type in it fails here alone. `pnpm exec` because `typescript`
   resolves from the root tree; the dependencies `capture.ts` imports come from the ordinary
   `pnpm install`, this folder being a workspace member.
+- **A log line names an account by its sub, never its address, and a query's error never by its
+  `detail`.** `src/log.ts` reduces a query's error for a `console` call and for a rethrow the runtime
+  will print; `src/log-identifiers.test.ts` reads every console call in `src/` for a name that holds
+  an address or a federated username.
 - **Never add a VPC.** DSQL is a public IAM-authenticated endpoint and Lambda has internet egress by
   default; a NAT Gateway would cost roughly 1600× the rest of the stack.
 - **Never enable provisioned concurrency or SnapStart.** Both void Lambda's always-free tier for

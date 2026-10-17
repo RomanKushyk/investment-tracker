@@ -1917,6 +1917,13 @@ the repository is public, so a run's log and artifacts are readable by anyone wh
 event payload because a step prints its `env:` block before its script runs, and the migration
 runner neither returns nor logs one. A bootstrap must never run with debug logging, and a run that
 did has its logs deleted: the runner's diagnostic log carries the job's inputs from before any step.
+A LAMBDA LOG LINE NAMES NO ADDRESS EITHER: a handler names an account by its sub, the pre-sign-up
+trigger names a federated sign-up by a SHA-256 prefix of its username, and a query's error is logged
+through `infra/src/log.ts` by its name, SQLSTATE, constraint and, outside class 22, its message, never
+its `detail`; the migration runner rethrows one as a copy without the server's fields. The archive
+grant's role DDL and a connection's close log their errors whole, neither holding a row.
+`infra/src/log-identifiers.test.ts` reads every console call in `infra/src` for a name that holds an
+address or a username.
 **Why.** A git-connected Amplify app has no build-status badge, and an Actions badge is real
 deployment status when the workflow performs the deploy. Proxying keeps repeat traffic off origin
 egress, the one cost line a flood can move — and a record left grey publishes the address its
@@ -1941,7 +1948,11 @@ step that does not run cannot. OWASP's Logging Cheat Sheet counts an email addre
 to remove, mask or hash before it is logged. GitHub's secure-use guidance masks a sensitive value
 that is not a secret with `::add-mask::` and calls redaction not guaranteed; a mask rewrites log
 lines and never an uploaded file, so it guards the log alone, and the report drops the address
-outright. The Actions runner writes the whole job message to its diagnostic log before the first step
+outright. `pg` quotes the refused row in a `detail` field and a `22P02`'s refused value in the
+message, and the Node runtime client's `Errors.js` spreads an uncaught error's own enumerable fields
+over the line it prints. An address is guessable by dictionary, so none is hashed; a Google subject
+is an id Google assigns, so its hash is a pseudonym an operator recomputes from a username and
+nobody inverts. The Actions runner writes the whole job message to its diagnostic log before the first step
 runs, and GitHub adds that log to the run's archive when anyone who can run the workflow re-runs it
 with debug logging, or when `ACTIONS_RUNNER_DEBUG` is set to `true`. Any step of a job holding
 `id-token: write` can mint its OIDC token: GitHub's OIDC reference lists the request URL and the

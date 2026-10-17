@@ -23,6 +23,7 @@ import {
 
 import { canonicalAddress } from '@quirenote/core/address';
 import { connect } from './dsql';
+import { loggable, rethrowable } from './log';
 import { type Provisioned, provision } from './provision';
 
 /** IN ORDER, AND NOT A GLOB. `001`, `002` and `004` are the ARCHIVE's and stay with `ensureSchema`
@@ -790,7 +791,7 @@ export async function migrate(
     await client.query('SET search_path TO public');
   } catch (cleanup) {
     restoreFailure = cleanup;
-    console.error('search_path could not be restored', cleanup);
+    console.error('search_path could not be restored', loggable(cleanup));
   }
   // The statement's failure outranks the cleanup's: it is the one the rehearsal was run to find.
   if (thrown !== undefined) throw orphaned(thrown, teardown);
@@ -816,6 +817,12 @@ export async function handler(
   const client = await connect();
   try {
     return await migrate(client, event, sdkIdentity, context);
+  } catch (err) {
+    // The runtime prints what leaves here, own fields included, and never a `cause`: a server
+    // error, or one wrapped, is logged reduced; the rest is printed once, by it (*Deployment*).
+    const reduced = loggable(err);
+    if (reduced !== err) console.error('migrate failed', reduced);
+    throw rethrowable(err);
   } finally {
     await client.end();
   }

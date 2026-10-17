@@ -28,6 +28,7 @@ import {
   readJson,
   respond,
 } from './http';
+import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { RETRY_DELAYS_MS, retryable } from './provision';
 
@@ -180,7 +181,7 @@ export async function settings(deps: SettingsDeps, event: ApiEvent): Promise<Api
         .settings;
     }
   } catch (err) {
-    console.error('settings failed', err);
+    console.error('settings failed', loggable(err));
     return INTERNAL;
   }
 }

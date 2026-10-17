@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { type IdentityClient, type PreSignUpEvent, REFUSAL, preSignUp } from './pre-signup';
 
 // The trigger that keeps "one account per email" true across a provider boundary. The pool's own
@@ -317,4 +320,58 @@ describe('open registration turns both refusals off', () => {
 
   // "The refusal needs no database" is asserted on the TEMPLATE rather than here: a source scan
   // for import spellings passes for every spelling it did not think of.
+});
+
+// THE USERNAME IS `Google_<subject>`, the person's id at Google, and no sub exists yet to stand for
+// them. A line that tells sign-ups apart carries a SHA-256 prefix of the username instead
+// (*Deployment*).
+describe('what the trigger logs names a hash of the username, never the username', () => {
+  const tag = (userName: string) =>
+    createHash('sha256').update(userName).digest('hex').slice(0, 12);
+
+  const unverified = () => {
+    const ev = event();
+    delete ev.request.userAttributes.email_verified;
+    return ev;
+  };
+  const silent = () => {
+    const ev = event();
+    delete ev.request.userAttributes.email;
+    return ev;
+  };
+  const quoted = () => {
+    const ev = event();
+    ev.request.userAttributes.email = 'a"b@quirenote.com';
+    return ev;
+  };
+
+  // Every path that warns: the event, the pool, and whether registration is open.
+  const paths: [string, () => PreSignUpEvent, Parameters<typeof spy>[0], boolean][] = [
+    [
+      'a username with a prefix and no subject',
+      () => event({ userName: 'Google_' }),
+      native,
+      false,
+    ],
+    ['a username with no prefix', () => event({ userName: 'Googlex' }), native, false],
+    ['a provider the pool does not carry', () => event({ userName: 'Facebook_9' }), native, false],
+    ['an address the provider did not assert verified', unverified, native, false],
+    ['an event with no address', silent, native, false],
+    ['an address the filter cannot express', quoted, native, false],
+    ['no local account while registration is open', event, [], true],
+  ];
+
+  it.each(paths)('%s', async (_name, make, users, open) => {
+    if (open) vi.stubEnv('OPEN_REGISTRATION', 'true');
+    const ev = make();
+    const { idp } = spy(users);
+    const watched = watchConsole();
+    await preSignUp(ev, idp).catch(() => undefined);
+    const lines = watched.lines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(tag(ev.userName));
+    expect(lines[0]).not.toContain(ev.userName);
+    expect(lines[0]).not.toMatch(/Google_|Facebook_/i);
+    expect(lines[0]).not.toMatch(ADDRESS);
+  });
 });
