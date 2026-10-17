@@ -61,8 +61,8 @@
 --    A fund has no terms; an empty-schedule row is indistinguishable from a
 --    real zero-coupon instrument, and this table is the only surviving copy
 --    after delisting. Writing nothing stays recoverable from the raw payload —
---    writing a false row does not, because the archive role holds
---    SELECT + INSERT and no DELETE.
+--    a false row stays until someone deletes it by hand as admin, since no
+--    code deletes an archive row.
 
 CREATE TABLE IF NOT EXISTS bond_terms (
   as_of            DATE        NOT NULL,

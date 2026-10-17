@@ -65,9 +65,13 @@ the record carries no source of funds at all (*Forms and layout*).
 
 ## Price archive
 
-Global, unscoped, cron-owned. Written by a DB role granted `SELECT, INSERT` and **not** `UPDATE,
-DELETE` — DSQL has no triggers, so the grant is the only enforcement of append-only, and it also keeps
-the cron out of user tables entirely, making the suggest-only rule a permission not a convention.
+Global, unscoped, cron-owned. Written by the capture, which connects as `admin`, and read by
+`archive_reader`, which holds `SELECT` alone. No grant limits the capture's writes. An
+observation or a schedule is inserted with `ON CONFLICT DO NOTHING`, an instrument is upserted, the
+one `UPDATE` fills `source` on capture rows written before that column, and no code deletes an
+archive row. The cron reaches no
+user table because its function may connect to the archive's cluster alone (`ConnectToDsqlAsAdmin`
+in `infra/template.yaml`).
 
 **Scale is settled and is a non-event** at ~35 instruments, so no partitioning, hot/cold split,
 downsampling, materialized aggregate or S3 origin is justified this decade — and **archive

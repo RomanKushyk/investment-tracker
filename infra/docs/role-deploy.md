@@ -34,12 +34,9 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
     {
       "Sid": "DriveTheStack",
       "Effect": "Allow",
-      "Action": ["cloudformation:CreateStack", "cloudformation:UpdateStack",
-                 "cloudformation:DescribeStacks", "cloudformation:DescribeStackEvents",
-                 "cloudformation:DescribeStackResources", "cloudformation:GetTemplateSummary",
-                 "cloudformation:CreateChangeSet", "cloudformation:DescribeChangeSet",
-                 "cloudformation:ExecuteChangeSet", "cloudformation:DeleteChangeSet",
-                 "cloudformation:ListStackResources"],
+      "Action": ["cloudformation:DescribeStacks", "cloudformation:DescribeStackEvents",
+                 "cloudformation:GetTemplateSummary", "cloudformation:CreateChangeSet",
+                 "cloudformation:DescribeChangeSet", "cloudformation:ExecuteChangeSet"],
       "Resource": ["arn:aws:cloudformation:eu-north-1:<account-id>:stack/quirenote-backend/*",
                    "arn:aws:cloudformation:eu-north-1:<account-id>:stack/quirenote-backend-user-dev/*",
                    "arn:aws:cloudformation:eu-north-1:aws:transform/Serverless-2016-10-31"]
@@ -56,12 +53,6 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
       "Effect": "Allow",
       "Action": ["s3:PutObject", "s3:GetObject"],
       "Resource": "arn:aws:s3:::quirenote-sam-artifacts-<account-id>/dev/*"
-    },
-    {
-      "Sid": "SamArtifactsBucket",
-      "Effect": "Allow",
-      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
-      "Resource": "arn:aws:s3:::quirenote-sam-artifacts-<account-id>"
     },
     {
       "Sid": "RunMigrations",
@@ -89,6 +80,17 @@ production deploy still READS the archive, for the identifier it passes as `Arch
 
 A statement of its own rather than a line in `DriveTheStack`, which would let a `main` run update
 the archive. The dev role reads it through `DriveTheStack` already.
+
+**Each action is a call a workflow makes.** `DriveTheStack` is what `sam deploy` sends, read in the
+SAM CLI's `samcli/lib/deploy/deployer.py`; the workflow's own `describe-stacks` steps need nothing
+more. `sam deploy` reads the stack, takes the template summary, then creates, waits on and
+executes a change set while it reads the stack events. It never calls
+`CreateStack` or `UpdateStack`; those belong to `sam sync`. The `update-stack` that
+`deploy-backend.yml` prints as a repair is run by hand. `SamArtifacts` is the upload:
+`s3_uploader.py` heads each key and puts it when the head fails. It reads any refusal as "not
+there", so the role holds no `s3:ListBucket`. A key that exists is still found, and a missing one
+is put, exactly as with a 404. `HandOffToCloudFormationOnly` is `--role-arn`, and `RunMigrations`
+is the invoke below.
 
 **The trust names the environment AND the branch, and each closes a gap the other leaves.** The `sub`
 a job in an environment carries is `…:environment:<env>`, never `ref:refs/heads/…`. `ref` is a claim

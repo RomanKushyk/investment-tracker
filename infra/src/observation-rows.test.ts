@@ -63,8 +63,8 @@ describe('inzhurObservationRows', () => {
   // *The price archive* measured it: `nav` is "exactly `0` for `ocean-plaza` and `zhytniy`, two
   // of the four funds" — 0 is the provider's not-published marker, not a price.
   // The fixture shows every BOND carrying `"nav": 0` for the same reason. The
-  // archive has no DELETE grant, so writing these would mean thousands of rows
-  // permanently asserting a NAV of zero.
+  // archive's code deletes no row, so writing these would leave thousands of rows
+  // asserting a NAV of zero until someone deleted them by hand.
   it('never writes a nav row for the provider zero, which means not published', () => {
     const rows = inzhurObservationRows(bond({ navUAH: 0 }));
     expect(rows.map((r) => r.basis)).toEqual(['sell', 'buy']);

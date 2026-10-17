@@ -1890,7 +1890,9 @@ not the payload: a compromised build step still ships its bundle. HSTS climbs hs
 features at `(self)`; `/auth/callback` alone takes `no-referrer`. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
 shared archive being `dev`'s. CloudFormation's execution role creates or changes no role without the
-permissions boundary, which allows exactly the actions the stack roles are granted. Both
+permissions boundary, which allows exactly the actions the stack roles are granted. A test holds
+the execution role's statements to the services the declared resource types' handlers use, and
+three others to one action each while a template still needs it. Both
 environments share that execution role, so a template deployed to `dev` can reach production
 through the role's own grants and through the roles it creates; only an execution role, or an
 account, per environment would close that.

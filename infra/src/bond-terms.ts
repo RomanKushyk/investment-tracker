@@ -19,7 +19,8 @@ export interface BondTermsRow {
  *
  * TWO REFUSALS, both `null` rather than a row. A fund has no terms. A bond whose schedule is
  * empty is worse: it is indistinguishable from a real zero-coupon instrument, and writing nothing
- * stays recoverable from the raw payload where a false row does not — there is no DELETE grant.
+ * stays recoverable from the raw payload, while a false row stays until someone deletes it by hand
+ * as admin: no code deletes an archive row.
  */
 export function bondTermsRow(quote: InzhurQuote): BondTermsRow | null {
   if (quote.kind !== 'bond') return null;

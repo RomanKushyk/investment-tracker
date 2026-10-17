@@ -69,6 +69,7 @@ type Template = {
   Description?: string;
   Parameters?: Record<string, { Type: string; AllowedValues?: string[] }>;
   Conditions?: Record<string, unknown>;
+  Transform?: string | string[];
   Globals?: { Function?: Record<string, unknown> };
   Resources: Record<string, Resource>;
   Outputs?: Record<string, unknown>;
@@ -1862,6 +1863,169 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
   // The repository is public: the account id belongs in the policy IAM holds, never in this file.
   it('carries no account id', () => {
     expect(readFileSync(BOUNDARY_FILE, 'utf8')).not.toMatch(/\d{12}/);
+  });
+});
+
+// `cfn-exec` is hand-made and no deploy reads its doc, so a grant can outlive what used it.
+describe('the execution role grants only services the declared resource types use', () => {
+  type Statement = {
+    Sid?: string;
+    Effect?: string;
+    Principal?: unknown;
+    Action?: string | string[];
+    NotAction?: unknown;
+  };
+
+  /** Per resource type, the IAM services its CloudFormation schema names in its handlers and its
+   *  `tagging.permissions`: all that deploying it may call. Transcribed from
+   *  https://schema.cloudformation.eu-north-1.amazonaws.com/CloudformationSchema.zip */
+  const HANDLER_SERVICES: Record<string, string[]> = {
+    'AWS::ApiGatewayV2::Api': ['apigateway', 's3'],
+    'AWS::ApiGatewayV2::ApiMapping': ['apigateway'],
+    'AWS::ApiGatewayV2::DomainName': ['apigateway', 's3'],
+    'AWS::ApiGatewayV2::Stage': ['apigateway'],
+    'AWS::CloudWatch::Alarm': ['cloudwatch'],
+    'AWS::Cognito::ManagedLoginBranding': ['cognito-idp'],
+    'AWS::Cognito::UserPool': ['cognito-idp', 'iam', 'kms'],
+    'AWS::Cognito::UserPoolClient': ['cognito-idp', 'iam'],
+    'AWS::Cognito::UserPoolDomain': ['cloudfront', 'cognito-idp', 'kms'],
+    'AWS::Cognito::UserPoolIdentityProvider': ['cognito-idp'],
+    'AWS::DSQL::Cluster': ['dsql', 'iam', 'kms'],
+    'AWS::IAM::Policy': ['iam'],
+    'AWS::IAM::Role': ['iam'],
+    'AWS::Lambda::EventInvokeConfig': ['lambda'],
+    'AWS::Lambda::Function': ['ec2', 'elasticfilesystem', 'iam', 'kms', 'lambda', 's3', 's3files'],
+    'AWS::Lambda::Permission': ['lambda'],
+    'AWS::Logs::LogGroup': ['firehose', 'logs', 's3'],
+    'AWS::Logs::MetricFilter': ['logs'],
+    'AWS::SQS::Queue': ['sqs'],
+    'AWS::Scheduler::Schedule': ['iam', 'scheduler'],
+  };
+
+  // What the SAM transform turns its two types into here, read off `samtranslator`'s output.
+  const SAM_EXPANDS: Record<string, string[]> = {
+    'AWS::Serverless::Function': [
+      'AWS::Lambda::Function',
+      'AWS::IAM::Role',
+      'AWS::Lambda::Permission',
+      'AWS::Lambda::EventInvokeConfig',
+    ],
+    'AWS::Serverless::HttpApi': [
+      'AWS::ApiGatewayV2::Api',
+      'AWS::ApiGatewayV2::Stage',
+      'AWS::ApiGatewayV2::DomainName',
+      'AWS::ApiGatewayV2::ApiMapping',
+    ],
+  };
+
+  // THE THREE STATEMENTS NO DECLARED TYPE ACCOUNTS FOR, each held to its one action and to a
+  // template that still needs it. Their resources and conditions are the doc's, not read here.
+  const NEEDS: Record<string, { action: string; needed: () => boolean }> = {
+    // CloudFormation invokes the custom resource's function as this role.
+    InvokeTheGrantProvider: {
+      action: 'lambda:InvokeFunction',
+      needed: () =>
+        stackDocs.some(([doc, t]) =>
+          resources(t).some(
+            ([id, r]) =>
+              r.Type.startsWith('Custom::') &&
+              intrinsicAt(doc, 'Resources', id, 'Properties', 'ServiceToken').value ===
+                'ArchiveReaderGrantFunction.Arn',
+          ),
+        ),
+    },
+    // The SAM transform runs as this role.
+    ApplyTheSamTransform: {
+      action: 'cloudformation:CreateChangeSet',
+      needed: () =>
+        [archive, user].some((t) => [t.Transform].flat().includes('AWS::Serverless-2016-10-31')),
+    },
+    // A regional custom domain makes API Gateway create its service-linked role.
+    ApiGatewayServiceLinkedRole: {
+      action: 'iam:CreateServiceLinkedRole',
+      // SAM makes every HttpApi domain regional.
+      needed: () =>
+        [archive, user].some(
+          (t) =>
+            (t.Globals as { HttpApi?: { Domain?: unknown } } | undefined)?.HttpApi?.Domain !==
+              undefined ||
+            resources(t).some(
+              ([, r]) =>
+                r.Type === 'AWS::ApiGatewayV2::DomainName' ||
+                (r.Type === 'AWS::Serverless::HttpApi' &&
+                  (r.Properties as Record<string, unknown> | undefined)?.Domain !== undefined),
+            ),
+        ),
+    },
+  };
+
+  const declared = () =>
+    [archive, user].flatMap((t) =>
+      resources(t).flatMap(([, r]) =>
+        r.Type.startsWith('Custom::') ? [] : (SAM_EXPANDS[r.Type] ?? [r.Type]),
+      ),
+    );
+
+  const used = () =>
+    new Set(
+      declared().flatMap((type) => {
+        const services = HANDLER_SERVICES[type];
+        if (services === undefined) throw new Error(`${type}: no handler services transcribed`);
+        return services;
+      }),
+    );
+
+  /** Every JSON block in the doc is a whole policy, or this throws: a block of any other shape
+   *  could grant outside what is read here. A trust policy names a `Principal` in every statement;
+   *  the one other block is the permission policy. */
+  const policy = () => {
+    const blocks = readFileSync(join(REPO, 'infra/docs/role-cfn-exec.md'), 'utf8')
+      .split(/^```/m)
+      .filter((b, i) => i % 2 === 1 && b.startsWith('json'))
+      .map((b) => {
+        const p = JSON.parse(b.slice('json'.length)) as { Statement?: unknown };
+        if (!Array.isArray(p.Statement)) throw new Error('a JSON block that is not a policy');
+        return p.Statement as Statement[];
+      })
+      .filter((statements) => !statements.every((s) => s.Principal !== undefined));
+    if (blocks.length !== 1) throw new Error(`${blocks.length} permission policies in the doc`);
+    return blocks[0];
+  };
+
+  const allowed = () =>
+    policy()
+      .filter((s) => s.Effect !== 'Deny')
+      .flatMap((s) => {
+        if (s.Effect !== 'Allow' || s.NotAction !== undefined || s.Action === undefined)
+          throw new Error(`${s.Sid}: a statement other than an Allow or a Deny of named actions`);
+        return [s.Action].flat().map((action) => ({ sid: s.Sid, action }));
+      });
+
+  it('is actually looking: the policy parses and holds the statements it is known by', () => {
+    const sids = policy().map((s) => s.Sid);
+    expect(sids).toEqual(
+      expect.arrayContaining([
+        'Database',
+        'Function',
+        'NoResourceLevelSupport',
+        ...Object.keys(NEEDS),
+      ]),
+    );
+    expect(declared()).toEqual(
+      expect.arrayContaining(['AWS::DSQL::Cluster', 'AWS::Lambda::Function']),
+    );
+  });
+
+  it('grants no service that neither a declared type nor a named need uses', () => {
+    const services = used();
+    const offenders = allowed().flatMap(({ sid, action }) => {
+      const need = sid === undefined ? undefined : NEEDS[sid];
+      if (need === undefined)
+        return services.has(action.split(':')[0]) ? [] : [`${sid}: ${action}`];
+      if (action !== need.action) return [`${sid}: ${action} is not its need`];
+      return need.needed() ? [] : [`${sid}: nothing declared needs it`];
+    });
+    expect([...new Set(offenders)]).toEqual([]);
   });
 });
 

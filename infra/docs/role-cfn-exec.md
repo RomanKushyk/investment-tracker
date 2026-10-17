@@ -73,8 +73,8 @@ Inline permission policy:
       "Sid": "Function",
       "Effect": "Allow",
       "Action": ["lambda:CreateFunction", "lambda:DeleteFunction", "lambda:GetFunction",
-                 "lambda:GetFunctionConfiguration", "lambda:UpdateFunctionCode",
-                 "lambda:UpdateFunctionConfiguration", "lambda:AddPermission",
+                 "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
+                 "lambda:AddPermission",
                  "lambda:RemovePermission", "lambda:GetPolicy",
                  "lambda:PutFunctionConcurrency", "lambda:DeleteFunctionConcurrency",
                  "lambda:TagResource", "lambda:UntagResource", "lambda:ListTags"],
@@ -148,15 +148,6 @@ Inline permission policy:
       "Resource": "arn:aws:sqs:eu-north-1:<account-id>:quirenote-backend-*"
     },
     {
-      "Sid": "AlertTopic",
-      "Effect": "Allow",
-      "Action": ["sns:CreateTopic", "sns:DeleteTopic", "sns:GetTopicAttributes",
-                 "sns:SetTopicAttributes", "sns:Subscribe", "sns:Unsubscribe",
-                 "sns:ListSubscriptionsByTopic", "sns:TagResource",
-                 "sns:UntagResource", "sns:ListTagsForResource"],
-      "Resource": "arn:aws:sns:eu-north-1:<account-id>:quirenote-backend-*"
-    },
-    {
       "Sid": "Alarms",
       "Effect": "Allow",
       "Action": ["cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms",
@@ -168,9 +159,7 @@ Inline permission policy:
       "Sid": "Schedule",
       "Effect": "Allow",
       "Action": ["scheduler:CreateSchedule", "scheduler:GetSchedule",
-                 "scheduler:UpdateSchedule", "scheduler:DeleteSchedule",
-                 "scheduler:TagResource", "scheduler:UntagResource",
-                 "scheduler:ListTagsForResource"],
+                 "scheduler:UpdateSchedule", "scheduler:DeleteSchedule"],
       "Resource": "arn:aws:scheduler:eu-north-1:<account-id>:schedule/default/quirenote-backend-*"
     },
     {
@@ -322,6 +311,13 @@ resource at production's migration runner. **`ConfigureTheGrantProvidersInvocati
 function's `EventInvokeConfig` takes**, the four actions the `AWS::Lambda::EventInvokeConfig` type's
 create, read, update and delete handlers name: the invocation is asynchronous, and capping an
 event's age is what keeps a late one from running after CloudFormation has stopped waiting.
+
+**A grant is for a call a declared resource type's schema handlers name, or it is one of three
+statements:** `InvokeTheGrantProvider` for the custom resource, `ApplyTheSamTransform` for the
+transform and `ApiGatewayServiceLinkedRole` for the regional domain. `src/stack-split.test.ts`
+holds every other statement's services to what those handlers name, and each of the three to its
+one action while a template still needs it. It reads services and actions, never a resource or a
+condition.
 
 **Edit from a readback.** Write every change from an `aws iam get-role-policy` readback rather than
 a fresh document, because `put-role-policy` REPLACES the whole inline document.

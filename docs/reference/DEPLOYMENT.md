@@ -227,7 +227,8 @@ Inline permission policy, **named `quirenote-frontend-deploy-<env>Policy`**, wit
 ```
 
 **Both resource lines are needed** — the actions authorize against sub-resources (`…/deployments/*`,
-`…/jobs/*`) as well as the branch itself. `amplify:UpdateApp` is deliberately absent. **Add a
+`…/jobs/*`) as well as the branch itself. Each action is one call `scripts/deploy-amplify.sh` makes:
+it creates the deployment, starts it and polls its job. `amplify:UpdateApp` is deliberately absent. **Add a
 secret, never rename one:** a renamed secret is broken until the workflow catches up.
 
 ## 4. GitHub repository configuration
