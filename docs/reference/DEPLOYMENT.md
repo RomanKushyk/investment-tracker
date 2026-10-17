@@ -4,7 +4,7 @@ Quirenote is a static SPA on **AWS Amplify Hosting** as a **manual-deploy app**;
 the whole pipeline and Amplify never builds (*Deployment*). Region `eu-north-1`, app ID
 `d17m4jf400my6`, console app name `kubushka` — cosmetic, the old name. `main` serves `quirenote.com`
 and `www.`, `dev` serves `dev.quirenote.com`, and the `{main,dev}.d17m4jf400my6.amplifyapp.com` URLs
-answer too. **The rewrite stays console-managed**: CI has no `UpdateApp`, so the rewrite (§3.1)
+answer too, with a shell that maps no environment: the API names no Amplify origin. **The rewrite stays console-managed**: CI has no `UpdateApp`, so the rewrite (§3.1)
 cannot be restored by a deploy. The response headers are not console-managed: every deploy ships
 them in `public/customHttp.yml` (§3.2).
 
@@ -94,8 +94,11 @@ green. Their certificates differ in Region — the pool's distribution is global
 `AUTH_CERTIFICATE_ARN` must be in **us-east-1** whatever region the pool is in, while an HTTP API
 custom domain is **REGIONAL** and ACM requires `API_CERTIFICATE_ARN` in `eu-north-1`. Each covers
 both of its hosts, so one ARN per pair serves both environments. The API's generated
-`execute-api` hostname is left enabled, and published as the `ApiEndpoint` output, which is what
-a route is verified against before the record exists. **An app client
+`execute-api` hostname is disabled, so before the record exists a route is reached through the
+stack's `ApiDomainRegionalTarget` output with the custom host kept as the name — `curl --connect-to
+<api host>:443:<ApiDomainRegionalTarget>:443 https://<api host>/view`, the target read from the
+same environment's stack. The answer is the authorizer's `Unauthorized` under the host's own
+certificate, which is the proof: the name reaches this API. **An app client
 with no managed login BRANDING STYLE serves nonfunctional pages**, branding version 2 not falling
 back to the classic UI — same shape again, which is why the style is declared in the template rather
 than clicked into the branding editor. **And a new user cluster is EMPTY until the deploy that made it

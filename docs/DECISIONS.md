@@ -1423,8 +1423,10 @@ is offered only once the relay says someone is signed in. The account's address 
 verifies every token it is sent.
 The relay reads the secret from Cognito with `DescribeUserPoolClient` and caches it per execution
 environment, so there is no second copy to drift and no store to pay for; its routes refuse a
-request without the custom header or from another site before anything else. THE REFRESH TOKEN IS
-BOUNDED AND ROTATES, which answers the three refresh requirements the browser BCP singles out and no
+request without the custom header or from another site before anything else. THE API ANSWERS ON
+ITS OWN HOST ALONE: CORS names the deployed hosts the app maps — the apex, `www` and `dev` — and no
+other origin, and the generated `execute-api` endpoint is disabled, so every call arrives at the
+host the relay's `__Host-` cookies are set on. THE REFRESH TOKEN IS BOUNDED AND ROTATES, which answers the three refresh requirements the browser BCP singles out and no
 more: that section incorporates RFC 9700, whose replay rule Cognito meets only in part — past the
 grace window it refuses a rotated-out token and revokes nothing, and inside the window a replay
 succeeds and forks the family, so the app refreshes once at a time across tabs. THE RELAY KEEPS THE

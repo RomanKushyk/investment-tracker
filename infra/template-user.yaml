@@ -383,6 +383,10 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       FailOnWarnings: true
+      # ONLY THE CUSTOM DOMAIN ANSWERS. The generated `execute-api` hostname is a second name nothing
+      # calls, and the relay's `__Host-` cookies are never set on it. SAM writes this into the
+      # OpenAPI body it generates, where API Gateway reads it at the import.
+      DisableExecuteApiEndpoint: true
       # AUTHENTICATION HERE, AUTHORIZATION IN THE HANDLER. This authorizer proves the token and
       # NOTHING ELSE: it cannot prove anything that has happened since the token was issued, so
       # `status` and `role` are read from `app_user` on every request, never `cognito:groups`.
@@ -479,21 +483,17 @@ Resources:
         'PATCH /settings':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
-      # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
+      # THE ORIGINS ARE THE DEPLOYED HOSTS `src/auth/environment.ts` MAPS: a host it does not map
+      # sends nothing to the API, and `localhost` reaches the relay same-origin through the dev
+      # server's proxy. THE `!If` IS ON THE
       # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
       # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
       # emitting a bare list where an object belongs. One level up it renames the keys inside both
       # arms instead. The cost is five shared lines twice; `public-api.test.ts` holds both.
-      # CREDENTIALS FOR THE RELAY'S COOKIE, which crosses origins but not sites. An Amplify host is
-      # another site, so the relay refuses it by `Sec-Fetch-Site` and the cookie never reaches it.
+      # CREDENTIALS FOR THE RELAY'S COOKIE, which crosses origins but not sites.
       CorsConfiguration: !If
         - IsProd
-        - AllowOrigins:
-            [
-              https://quirenote.com,
-              https://www.quirenote.com,
-              https://main.d17m4jf400my6.amplifyapp.com,
-            ]
+        - AllowOrigins: [https://quirenote.com, https://www.quirenote.com]
           AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
           AllowHeaders:
             [
@@ -508,7 +508,7 @@ Resources:
           ExposeHeaders: [derivation-id, etag, location]
           AllowCredentials: true
           MaxAge: 600
-        - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
+        - AllowOrigins: [https://dev.quirenote.com]
           AllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
           AllowHeaders:
             [
@@ -1533,5 +1533,3 @@ Outputs:
   # hashed id AWS documents as changeable, so `PublicApi.DomainName` is the only stable way in.
   ApiDomainRegionalTarget:
     Value: !GetAtt PublicApi.DomainName.RegionalDomainName
-  ApiEndpoint:
-    Value: !Sub https://${PublicApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}

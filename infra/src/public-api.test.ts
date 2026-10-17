@@ -336,15 +336,13 @@ describe('the browser origins are named per environment', () => {
   };
   const [condition, prod, dev] = props('PublicApi').CorsConfiguration as [string, Cors, Cors];
 
-  // A CORS list naming only the custom domain leaves the Amplify URL failing at the preflight.
-  it('allows the custom host and the Amplify host, and nothing from the other environment', () => {
+  // EXACT LISTS, NOT `toContain`: the origins are the deployed hosts `src/auth/environment.ts`
+  // maps, held as literals because an assertion comparing two lists passes for any pair that agrees.
+  // A host it does not map sends nothing to the API, so a credentialed origin for it is unused.
+  it('allows the custom hosts alone', () => {
     expect(condition).toBe('IsProd');
-    expect(prod.AllowOrigins).toContain('https://quirenote.com');
-    expect(prod.AllowOrigins).toContain('https://main.d17m4jf400my6.amplifyapp.com');
-    expect(dev.AllowOrigins).toContain('https://dev.quirenote.com');
-    expect(dev.AllowOrigins).toContain('https://dev.d17m4jf400my6.amplifyapp.com');
-    expect(prod.AllowOrigins.join()).not.toContain('dev.');
-    expect(dev.AllowOrigins.every((o) => o.includes('dev'))).toBe(true);
+    expect(prod.AllowOrigins).toEqual(['https://quirenote.com', 'https://www.quirenote.com']);
+    expect(dev.AllowOrigins).toEqual(['https://dev.quirenote.com']);
   });
 
   // THE CONDITION IS ON THE WHOLE BLOCK AND BOTH ARMS ARE COMPLETE, which is not a style choice:
@@ -406,6 +404,13 @@ describe('the custom domain takes a certificate from its own region', () => {
     expect(props('PublicApi').Domain).not.toHaveProperty('Route53');
   });
 
+  // ONLY THE CUSTOM DOMAIN ANSWERS: the generated `execute-api` hostname is a second name nothing
+  // calls, and the relay's `__Host-` cookies are never set on it. SAM writes the flag into the
+  // OpenAPI body it generates, so it lands with the import and no stage deploy is owed.
+  it('disables the default execute-api endpoint', () => {
+    expect(props('PublicApi').DisableExecuteApiEndpoint).toBe(true);
+  });
+
   it('takes the certificate as a parameter with no default', () => {
     expect(user.Parameters?.ApiCertificateArn?.Type).toBe('String');
     expect(user.Parameters?.ApiCertificateArn).not.toHaveProperty('Default');
@@ -435,13 +440,16 @@ describe('the stack publishes what nobody outside it can construct', () => {
   // SAM's referenceable property, never the generated logical id: AWS generates
   // `AWS::ApiGatewayV2::DomainName` under a hashed id whose hash may change, so
   // `PublicApi.DomainName` is the only stable way to reach it.
-  it('outputs the domain, its regional target and the endpoint that works before DNS', () => {
+  // NO `ApiEndpoint`: with the default endpoint disabled that URL refuses every call, so an output
+  // naming it is a door that reads open. Before the record exists a route is reached through the
+  // regional target instead, `curl --connect-to` with the custom host (`reference/DEPLOYMENT.md`).
+  it('outputs the domain and its regional target, and no execute-api URL', () => {
     expect(user.Outputs?.ApiDomain?.Value).toEqual(['IsProd', PROD_API, DEV_API]);
     expect(intrinsicAt(doc, 'Outputs', 'ApiDomainRegionalTarget', 'Value')).toEqual({
       tag: '!GetAtt',
       value: 'PublicApi.DomainName.RegionalDomainName',
     });
-    expect(user.Outputs?.ApiEndpoint).toBeDefined();
+    expect(user.Outputs).not.toHaveProperty('ApiEndpoint');
   });
 });
 
