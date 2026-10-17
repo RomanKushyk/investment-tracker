@@ -625,7 +625,7 @@ jobs:
             --region "$AWS_REGION" \
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
             --s3-prefix "${ENVIRONMENT}" \
-            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
+            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec-${ENVIRONMENT}" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
@@ -655,7 +655,7 @@ jobs:
             --region "$AWS_REGION" \
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
             --s3-prefix "${ENVIRONMENT}" \
-            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
+            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec-${ENVIRONMENT}" \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset

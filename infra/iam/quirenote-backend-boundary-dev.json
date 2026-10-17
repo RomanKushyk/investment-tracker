@@ -26,7 +26,12 @@
       "Sid": "ConnectToDsql",
       "Effect": "Allow",
       "Action": ["dsql:DbConnectAdmin", "dsql:DbConnect"],
-      "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*"
+      "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/env": ["dev", "archive"]
+        }
+      }
     },
     {
       "Sid": "AssumeTheArchiveReader",
@@ -56,10 +61,14 @@
         "cognito-idp:AdminEnableUser",
         "cognito-idp:ListUsers",
         "cognito-idp:AdminLinkProviderForUser",
-        "cognito-idp:DescribeUserPoolClient",
-        "cognito-idp:DescribeUserPool"
+        "cognito-idp:DescribeUserPoolClient"
       ],
-      "Resource": "arn:aws:cognito-idp:eu-north-1:*:userpool/*"
+      "Resource": "arn:aws:cognito-idp:eu-north-1:*:userpool/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/env": "dev"
+        }
+      }
     },
     {
       "Sid": "InvokeScheduledFunctions",
@@ -72,6 +81,17 @@
       "Effect": "Allow",
       "Action": "sqs:SendMessage",
       "Resource": "arn:aws:sqs:eu-north-1:*:quirenote-backend-*"
+    },
+    {
+      "Sid": "NotProductionsNames",
+      "Effect": "Deny",
+      "Action": ["lambda:*", "logs:*", "sqs:*"],
+      "Resource": [
+        "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-user-p*",
+        "arn:aws:logs:eu-north-1:*:log-group:/aws/lambda/quirenote-backend-user-p*",
+        "arn:aws:logs:eu-north-1:*:log-group:/aws/lambda/quirenote-backend-user-p*:log-stream:*",
+        "arn:aws:sqs:eu-north-1:*:quirenote-backend-user-p*"
+      ]
     }
   ]
 }

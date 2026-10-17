@@ -140,11 +140,45 @@ const idFromArn = (doc: Document, ...path: (string | number)[]) => {
 
 const CLUSTER = 'AWS::DSQL::Cluster';
 
-/** The permissions boundary every role these stacks create carries, and `cfn-exec` requires. A
- *  `!Sub` of the pseudo parameters, the account id staying out of a public repository; the policy
- *  it names is made by hand from `infra/iam/quirenote-backend-boundary.json`. */
-const BOUNDARY = 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary';
-const BOUNDARY_FILE = join(REPO, 'infra/iam/quirenote-backend-boundary.json');
+type Env = 'dev' | 'prod';
+const ENVS: Env[] = ['dev', 'prod'];
+
+/** The permissions boundary every role a stack creates carries, and that environment's execution
+ *  role requires: ONE PER ENVIRONMENT, the archive being dev's to deploy. A `!Sub` of the pseudo
+ *  parameters, the account id staying out of a public repository; each policy is made by hand
+ *  from its file under `infra/iam/`, as is each execution role. */
+const BOUNDARY = {
+  archive: 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-dev',
+  user: 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}',
+};
+const boundaryFile = (env: Env) => join(REPO, `infra/iam/quirenote-backend-boundary-${env}.json`);
+const execRoleFile = (env: Env) => join(REPO, `infra/iam/quirenote-backend-cfn-exec-${env}.json`);
+
+/** The templates an environment's execution role deploys. */
+const deployed = (env: Env): ['archive' | 'user', Document, Template][] =>
+  env === 'dev'
+    ? [
+        ['archive', archiveDoc, archive],
+        ['user', userDoc, user],
+      ]
+    : [['user', userDoc, user]];
+
+/** Whether a resource renders in an environment. THROWS on a condition it does not know: a new one
+ *  would otherwise count for both, or for neither, silently. */
+const inEnv = (env: Env, where: string, r: Resource) => {
+  if (r.Condition === undefined) return true;
+  if (r.Condition === 'IsProd') return env === 'prod';
+  if (r.Condition === 'HasGoogle' || r.Condition === 'IsRegistrationOpen') return true;
+  throw new Error(`${where}: a condition this test cannot place: ${r.Condition}`);
+};
+
+/** Every resource an environment gets, each with its document. */
+const resourcesIn = (env: Env) =>
+  deployed(env).flatMap(([name, doc, t]) =>
+    resources(t)
+      .filter(([id, r]) => inEnv(env, `${name} ${id}`, r))
+      .map(([id, r]) => ({ name, doc, t, id, r })),
+  );
 
 /** `capture.ts` is read through this, so a commented-out copy of the DDL cannot stand in for a
  *  deleted table.
@@ -438,7 +472,7 @@ describe('the user stacks reach the archive through a read-only role the archive
     });
     expect(
       intrinsicAt(archiveDoc, 'Resources', READER_ROLE, 'Properties', 'PermissionsBoundary'),
-    ).toEqual({ tag: '!Sub', value: BOUNDARY });
+    ).toEqual({ tag: '!Sub', value: BOUNDARY.archive });
   });
 
   // CloudFormation sends an Update only when a property changes: a renamed role, or a change to
@@ -761,9 +795,10 @@ describe('the user stack holds user data and nothing else', () => {
   // the PARSED intrinsic, which is the only place the tag survives.
   it('tags prod into the backup selection and dev out of it', () => {
     expect(user.Conditions?.IsProd).toEqual(['Environment', 'prod']);
-    expect(user.Resources.UserCluster.Properties?.Tags).toEqual([
-      { Key: 'app', Value: ['IsProd', 'quirenote', 'quirenote-dev'] },
-    ]);
+    expect(user.Resources.UserCluster.Properties?.Tags).toContainEqual({
+      Key: 'app',
+      Value: ['IsProd', 'quirenote', 'quirenote-dev'],
+    });
   });
 
   // NO DEFAULT, and the tag above is what makes it matter: a deploy that forgot
@@ -1665,23 +1700,65 @@ describe('what reaches a role besides its own policies', () => {
   // fails the deploy. SAM's generated role takes it from the function or `Globals`, a declared role
   // from its own properties.
   it('bounds every role either stack creates', () => {
-    const bounded = stackDocs.flatMap(([doc, t]) => [
-      ...idsOfType(t, 'AWS::Serverless::Function').map((id) => {
-        const own = (t.Resources[id].Properties ?? {}) as Record<string, unknown>;
-        const at =
-          'PermissionsBoundary' in own
-            ? ['Resources', id, 'Properties', 'PermissionsBoundary']
-            : ['Globals', 'Function', 'PermissionsBoundary'];
-        return [id, intrinsicAt(doc, ...at)] as const;
-      }),
-      ...idsOfType(t, 'AWS::IAM::Role').map(
-        (id) =>
-          [id, intrinsicAt(doc, 'Resources', id, 'Properties', 'PermissionsBoundary')] as const,
-      ),
-    ]);
-    expect(bounded.length).toBeGreaterThan(0);
-    for (const [id, boundary] of bounded)
-      expect([id, boundary]).toEqual([id, { tag: '!Sub', value: BOUNDARY }]);
+    for (const [name, doc, t] of deployed('dev')) {
+      const bounded = [
+        ...idsOfType(t, 'AWS::Serverless::Function').map((id) => {
+          const own = (t.Resources[id].Properties ?? {}) as Record<string, unknown>;
+          const at =
+            'PermissionsBoundary' in own
+              ? ['Resources', id, 'Properties', 'PermissionsBoundary']
+              : ['Globals', 'Function', 'PermissionsBoundary'];
+          return [id, intrinsicAt(doc, ...at)] as const;
+        }),
+        ...idsOfType(t, 'AWS::IAM::Role').map(
+          (id) =>
+            [id, intrinsicAt(doc, 'Resources', id, 'Properties', 'PermissionsBoundary')] as const,
+        ),
+      ];
+      expect(bounded.length).toBeGreaterThan(0);
+      for (const [id, boundary] of bounded)
+        expect([id, boundary]).toEqual([id, { tag: '!Sub', value: BOUNDARY[name] }]);
+    }
+  });
+});
+
+// THE TAG IS WHAT THE EXECUTION ROLES AND THE BOUNDARIES SCOPE A CLUSTER OR A POOL BY: their ids
+// are generated, so a name pattern cannot tell production's from dev's, and `app` cannot be the
+// key because production and the archive share it for the backup selection.
+describe('every cluster and pool carries its environment tag', () => {
+  it('tags the archive cluster as the archive', () => {
+    expect(archive.Resources.PriceCluster.Properties?.Tags).toContainEqual({
+      Key: 'env',
+      Value: 'archive',
+    });
+  });
+
+  it("tags the user cluster with the stack's environment, beside the backup tag", () => {
+    const tags = user.Resources.UserCluster.Properties?.Tags ?? [];
+    const at = tags.findIndex((t) => t.Key === 'env');
+    expect(at).toBeGreaterThan(-1);
+    expect(
+      intrinsicAt(userDoc, 'Resources', 'UserCluster', 'Properties', 'Tags', at, 'Value'),
+    ).toEqual({ tag: '!Ref', value: 'Environment' });
+    expect(tags.map((t) => t.Key).sort()).toEqual(['app', 'env']);
+  });
+
+  it("tags the pool with the stack's environment", () => {
+    expect(
+      intrinsicAt(userDoc, 'Resources', 'UserPool', 'Properties', 'UserPoolTags', 'env'),
+    ).toEqual({ tag: '!Ref', value: 'Environment' });
+  });
+
+  it('gives every cluster and pool exactly one env tag', () => {
+    for (const { name, id, r } of [...resourcesIn('dev'), ...resourcesIn('prod')]) {
+      if (r.Type !== CLUSTER && r.Type !== 'AWS::Cognito::UserPool') continue;
+      const p = (r.Properties ?? {}) as { Tags?: { Key: string }[]; UserPoolTags?: object };
+      const keys =
+        r.Type === CLUSTER
+          ? (p.Tags ?? []).map((t) => t.Key).filter((k) => k === 'env')
+          : Object.keys(p.UserPoolTags ?? {}).filter((k) => k === 'env');
+      expect([name, id, keys]).toEqual([name, id, ['env']]);
+    }
   });
 });
 
@@ -1716,98 +1793,118 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
       return [s.Action].flat();
     });
 
-  const granted = () =>
-    Object.entries({ archive, user }).flatMap(([name, t]) =>
-      resources(t).flatMap(([id, r]) => {
-        const where = `${name} ${id}`;
-        const p = (r.Properties ?? {}) as Record<string, unknown>;
-        if (r.Type === 'AWS::Serverless::Function') {
-          const statements = ((p.Policies ?? []) as unknown[]).flatMap((policy) => {
-            if (typeof policy !== 'object' || policy === null || !('Statement' in policy))
-              throw new Error(`${where}: a policy that is not an inline statement list`);
-            return policy.Statement as Statement[];
-          });
-          const tracing = p.Tracing ?? t.Globals?.Function?.Tracing;
-          return [
-            ...actionsOf(where, statements),
-            ...BASIC_EXECUTION,
-            ...(tracing === 'Active' ? XRAY_WRITE_ONLY : []),
-            ...((p.DeadLetterQueue as { Type?: string } | undefined)?.Type === 'SQS'
-              ? ['sqs:SendMessage']
-              : []),
-          ];
-        }
-        if (r.Type === 'AWS::IAM::Role') {
-          if (p.ManagedPolicyArns !== undefined) throw new Error(`${where}: a managed policy`);
-          const policies = (p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[];
-          return actionsOf(
-            where,
-            policies.flatMap((x) => x.PolicyDocument.Statement),
-          );
-        }
-        if (r.Type === 'AWS::IAM::Policy')
-          return actionsOf(where, (p.PolicyDocument as { Statement: Statement[] }).Statement);
-        return [];
-      }),
-    );
+  /** The actions the roles of ONE ENVIRONMENT are granted: the archive is dev's, and a resource
+   *  hanging off `IsProd` is production's alone. */
+  const granted = (env: Env) =>
+    resourcesIn(env).flatMap(({ name, t, id, r }) => {
+      const where = `${name} ${id}`;
+      const p = (r.Properties ?? {}) as Record<string, unknown>;
+      if (r.Type === 'AWS::Serverless::Function') {
+        const statements = ((p.Policies ?? []) as unknown[]).flatMap((policy) => {
+          if (typeof policy !== 'object' || policy === null || !('Statement' in policy))
+            throw new Error(`${where}: a policy that is not an inline statement list`);
+          return policy.Statement as Statement[];
+        });
+        const tracing = p.Tracing ?? t.Globals?.Function?.Tracing;
+        return [
+          ...actionsOf(where, statements),
+          ...BASIC_EXECUTION,
+          ...(tracing === 'Active' ? XRAY_WRITE_ONLY : []),
+          ...((p.DeadLetterQueue as { Type?: string } | undefined)?.Type === 'SQS'
+            ? ['sqs:SendMessage']
+            : []),
+        ];
+      }
+      if (r.Type === 'AWS::IAM::Role') {
+        if (p.ManagedPolicyArns !== undefined) throw new Error(`${where}: a managed policy`);
+        const policies = (p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[];
+        return actionsOf(
+          where,
+          policies.flatMap((x) => x.PolicyDocument.Statement),
+        );
+      }
+      if (r.Type === 'AWS::IAM::Policy')
+        return actionsOf(where, (p.PolicyDocument as { Statement: Statement[] }).Statement);
+      return [];
+    });
 
   // IAM matches an action name case-blind.
   const set = (actions: string[]) => [...new Set(actions.map((a) => a.toLowerCase()))].sort();
 
-  it('names the actions the templates grant, and no other', () => {
-    const boundary = JSON.parse(readFileSync(BOUNDARY_FILE, 'utf8')) as {
+  const boundary = (env: Env) => {
+    const policy = JSON.parse(readFileSync(boundaryFile(env), 'utf8')) as {
       Version?: string;
       Statement: Statement[];
     };
-    expect(boundary.Version).toBe('2012-10-17');
-    expect(set(actionsOf('the boundary', boundary.Statement))).toEqual(set(granted()));
+    expect(policy.Version).toBe('2012-10-17');
+    return {
+      allows: policy.Statement.filter((s) => s.Effect !== 'Deny'),
+      denies: policy.Statement.filter((s) => s.Effect === 'Deny'),
+    };
+  };
+
+  it.each(ENVS)('%s: names the actions the templates grant, and no other', (env) => {
+    expect(set(actionsOf('the boundary', boundary(env).allows))).toEqual(set(granted(env)));
+  });
+
+  // DEV'S NAMES ARE THE ACCOUNT'S MINUS PRODUCTION'S: the archive's generated names carry no prefix
+  // of their own, so dev's wildcard is `quirenote-backend-*` and one Deny takes production's names
+  // back out. Production's wildcard names only its own, so it carries no Deny.
+  it.each(ENVS)('%s: denies only production’s names, and only on dev’s side', (env) => {
+    const denies = boundary(env).denies;
+    if (env === 'prod') {
+      expect(denies).toEqual([]);
+      return;
+    }
+    expect(denies.map((s) => (s as { Sid?: string }).Sid)).toEqual(['NotProductionsNames']);
+    const named = denies.flatMap((s) => [s.Resource].flat().map(String));
+    expect(named.length).toBeGreaterThan(0);
+    for (const r of named) expect(r).toMatch(/quirenote-backend-user-p\*/);
   });
 
   /** The statements a template writes itself, each resource as its DOCUMENT node: `toJS()` drops
    *  the tag, and a `!Ref` or a `!Sub` of a parameter would read as a plain name. */
-  const written = () =>
-    stackDocs.flatMap(([doc, t]) =>
-      resources(t).flatMap(([id, r]) => {
-        const p = (r.Properties ?? {}) as Record<string, unknown>;
-        const at = ['Resources', id, 'Properties'];
-        const lists: [(string | number)[], Statement[]][] =
-          r.Type === 'AWS::Serverless::Function'
-            ? ((p.Policies ?? []) as { Statement: Statement[] }[]).map((x, i) => [
-                [...at, 'Policies', i, 'Statement'],
-                x.Statement,
-              ])
-            : r.Type === 'AWS::IAM::Role'
-              ? ((p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[]).map(
-                  (x, i) => [
-                    [...at, 'Policies', i, 'PolicyDocument', 'Statement'],
-                    x.PolicyDocument.Statement,
+  const written = (env: Env) =>
+    resourcesIn(env).flatMap(({ doc, id, r }) => {
+      const p = (r.Properties ?? {}) as Record<string, unknown>;
+      const at = ['Resources', id, 'Properties'];
+      const lists: [(string | number)[], Statement[]][] =
+        r.Type === 'AWS::Serverless::Function'
+          ? ((p.Policies ?? []) as { Statement: Statement[] }[]).map((x, i) => [
+              [...at, 'Policies', i, 'Statement'],
+              x.Statement,
+            ])
+          : r.Type === 'AWS::IAM::Role'
+            ? ((p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[]).map(
+                (x, i) => [
+                  [...at, 'Policies', i, 'PolicyDocument', 'Statement'],
+                  x.PolicyDocument.Statement,
+                ],
+              )
+            : r.Type === 'AWS::IAM::Policy'
+              ? [
+                  [
+                    [...at, 'PolicyDocument', 'Statement'],
+                    (p.PolicyDocument as { Statement: Statement[] }).Statement,
                   ],
-                )
-              : r.Type === 'AWS::IAM::Policy'
-                ? [
-                    [
-                      [...at, 'PolicyDocument', 'Statement'],
-                      (p.PolicyDocument as { Statement: Statement[] }).Statement,
-                    ],
-                  ]
-                : [];
-        return lists.flatMap(([path, statements]) =>
-          statements.map((s, j) => ({
-            where: id,
-            actions: actionsOf(id, [s]),
-            resources: Array.isArray(s.Resource)
-              ? s.Resource.map((_, k) => doc.getIn([...path, j, 'Resource', k], true))
-              : [doc.getIn([...path, j, 'Resource'], true)],
-          })),
-        );
-      }),
-    );
+                ]
+              : [];
+      return lists.flatMap(([path, statements]) =>
+        statements.map((s, j) => ({
+          where: id,
+          actions: actionsOf(id, [s]),
+          resources: Array.isArray(s.Resource)
+            ? s.Resource.map((_, k) => doc.getIn([...path, j, 'Resource', k], true))
+            : [doc.getIn([...path, j, 'Resource'], true)],
+        })),
+      );
+    });
 
   // A NAME WRITTEN OUT, the vault's say, is the boundary's to cover as well: renamed in a template
   // alone, it deploys green and is refused at the first call. A resource read off another one
   // (`!GetAtt`) is named at deploy time, so it is the boundary's wildcard that has to hold it.
-  it('covers each resource a template names outright', () => {
-    const boundary = JSON.parse(readFileSync(BOUNDARY_FILE, 'utf8')) as { Statement: Statement[] };
+  it.each(ENVS)('%s: covers each resource a template names outright', (env) => {
+    const allows = boundary(env).allows;
     const glob = (pattern: string) =>
       new RegExp(
         `^${pattern
@@ -1838,15 +1935,17 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
         throw new Error(`${where}: a resource naming more than the account`);
       return named;
     };
-    const checked = written().flatMap(({ where, actions, resources: named }) =>
+    const checked = written(env).flatMap(({ where, actions, resources: named }) =>
       named
         .map((r) => outright(where, r))
         .filter((r): r is string => r !== undefined)
         .flatMap((r) =>
           actions.map((action) => {
-            const patterns = boundary.Statement.filter((s) =>
-              [s.Action].flat().some((a) => String(a).toLowerCase() === action.toLowerCase()),
-            ).flatMap((s) => [s.Resource].flat().map(String));
+            const patterns = allows
+              .filter((s) =>
+                [s.Action].flat().some((a) => String(a).toLowerCase() === action.toLowerCase()),
+              )
+              .flatMap((s) => [s.Resource].flat().map(String));
             return [where, action, r, patterns.some((p) => glob(p).test(r))];
           }),
         ),
@@ -1856,24 +1955,36 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
       expect(covered, `${where}: ${action} on ${r}`).toBe(true);
   });
 
-  it('is the policy the templates name', () => {
-    expect(BOUNDARY.endsWith(`:policy/${basename(BOUNDARY_FILE, '.json')}`)).toBe(true);
+  it('is the policy the templates name, per environment', () => {
+    expect(BOUNDARY.archive.endsWith(`:policy/${basename(boundaryFile('dev'), '.json')}`)).toBe(
+      true,
+    );
+    for (const env of ENVS)
+      expect(
+        BOUNDARY.user
+          .replace('${Environment}', env)
+          .endsWith(`:policy/${basename(boundaryFile(env), '.json')}`),
+      ).toBe(true);
   });
 
-  // The repository is public: the account id belongs in the policy IAM holds, never in this file.
-  it('carries no account id', () => {
-    expect(readFileSync(BOUNDARY_FILE, 'utf8')).not.toMatch(/\d{12}/);
+  // The repository is public: the account id belongs in the policy IAM holds, never in a file here.
+  it.each(ENVS)('%s: carries no account id', (env) => {
+    expect(readFileSync(boundaryFile(env), 'utf8')).not.toMatch(/\d{12}/);
+    expect(readFileSync(execRoleFile(env), 'utf8')).not.toMatch(/\d{12}/);
   });
 });
 
-// `cfn-exec` is hand-made and no deploy reads its doc, so a grant can outlive what used it.
-describe('the execution role grants only services the declared resource types use', () => {
+// The execution roles are hand-made and no deploy reads their files, so a grant can outlive what
+// used it. ONE PER ENVIRONMENT, each reaching its own environment's resources by tag and by name.
+describe('each execution role grants only services the resource types it deploys use', () => {
   type Statement = {
     Sid?: string;
     Effect?: string;
     Principal?: unknown;
     Action?: string | string[];
     NotAction?: unknown;
+    Resource?: unknown;
+    Condition?: Record<string, Record<string, unknown>>;
   };
 
   /** Per resource type, the IAM services its CloudFormation schema names in its handlers and its
@@ -1919,34 +2030,35 @@ describe('the execution role grants only services the declared resource types us
   };
 
   // THE THREE STATEMENTS NO DECLARED TYPE ACCOUNTS FOR, each held to its one action and to a
-  // template that still needs it. Their resources and conditions are the doc's, not read here.
-  const NEEDS: Record<string, { action: string; needed: () => boolean }> = {
+  // template the environment deploys that still needs it. Their resources and conditions are the
+  // file's, not read here.
+  const NEEDS: Record<string, { action: string; needed: (env: Env) => boolean }> = {
     // CloudFormation invokes the custom resource's function as this role.
     InvokeTheGrantProvider: {
       action: 'lambda:InvokeFunction',
-      needed: () =>
-        stackDocs.some(([doc, t]) =>
-          resources(t).some(
-            ([id, r]) =>
-              r.Type.startsWith('Custom::') &&
-              intrinsicAt(doc, 'Resources', id, 'Properties', 'ServiceToken').value ===
-                'ArchiveReaderGrantFunction.Arn',
-          ),
+      needed: (env) =>
+        resourcesIn(env).some(
+          ({ doc, id, r }) =>
+            r.Type.startsWith('Custom::') &&
+            intrinsicAt(doc, 'Resources', id, 'Properties', 'ServiceToken').value ===
+              'ArchiveReaderGrantFunction.Arn',
         ),
     },
     // The SAM transform runs as this role.
     ApplyTheSamTransform: {
       action: 'cloudformation:CreateChangeSet',
-      needed: () =>
-        [archive, user].some((t) => [t.Transform].flat().includes('AWS::Serverless-2016-10-31')),
+      needed: (env) =>
+        deployed(env).some(([, , t]) =>
+          [t.Transform].flat().includes('AWS::Serverless-2016-10-31'),
+        ),
     },
     // A regional custom domain makes API Gateway create its service-linked role.
     ApiGatewayServiceLinkedRole: {
       action: 'iam:CreateServiceLinkedRole',
       // SAM makes every HttpApi domain regional.
-      needed: () =>
-        [archive, user].some(
-          (t) =>
+      needed: (env) =>
+        deployed(env).some(
+          ([, , t]) =>
             (t.Globals as { HttpApi?: { Domain?: unknown } } | undefined)?.HttpApi?.Domain !==
               undefined ||
             resources(t).some(
@@ -1959,41 +2071,32 @@ describe('the execution role grants only services the declared resource types us
     },
   };
 
-  const declared = () =>
-    [archive, user].flatMap((t) =>
-      resources(t).flatMap(([, r]) =>
-        r.Type.startsWith('Custom::') ? [] : (SAM_EXPANDS[r.Type] ?? [r.Type]),
-      ),
+  const declared = (env: Env) =>
+    resourcesIn(env).flatMap(({ r }) =>
+      r.Type.startsWith('Custom::') ? [] : (SAM_EXPANDS[r.Type] ?? [r.Type]),
     );
 
-  const used = () =>
+  const used = (env: Env) =>
     new Set(
-      declared().flatMap((type) => {
+      declared(env).flatMap((type) => {
         const services = HANDLER_SERVICES[type];
         if (services === undefined) throw new Error(`${type}: no handler services transcribed`);
         return services;
       }),
     );
 
-  /** Every JSON block in the doc is a whole policy, or this throws: a block of any other shape
-   *  could grant outside what is read here. A trust policy names a `Principal` in every statement;
-   *  the one other block is the permission policy. */
-  const policy = () => {
-    const blocks = readFileSync(join(REPO, 'infra/docs/role-cfn-exec.md'), 'utf8')
-      .split(/^```/m)
-      .filter((b, i) => i % 2 === 1 && b.startsWith('json'))
-      .map((b) => {
-        const p = JSON.parse(b.slice('json'.length)) as { Statement?: unknown };
-        if (!Array.isArray(p.Statement)) throw new Error('a JSON block that is not a policy');
-        return p.Statement as Statement[];
-      })
-      .filter((statements) => !statements.every((s) => s.Principal !== undefined));
-    if (blocks.length !== 1) throw new Error(`${blocks.length} permission policies in the doc`);
-    return blocks[0];
+  const policy = (env: Env) => {
+    const p = JSON.parse(readFileSync(execRoleFile(env), 'utf8')) as {
+      Version?: string;
+      Statement?: unknown;
+    };
+    if (p.Version !== '2012-10-17' || !Array.isArray(p.Statement))
+      throw new Error(`${env}: a file that is not a policy`);
+    return p.Statement as Statement[];
   };
 
-  const allowed = () =>
-    policy()
+  const allowed = (env: Env) =>
+    policy(env)
       .filter((s) => s.Effect !== 'Deny')
       .flatMap((s) => {
         if (s.Effect !== 'Allow' || s.NotAction !== undefined || s.Action === undefined)
@@ -2001,31 +2104,225 @@ describe('the execution role grants only services the declared resource types us
         return [s.Action].flat().map((action) => ({ sid: s.Sid, action }));
       });
 
-  it('is actually looking: the policy parses and holds the statements it is known by', () => {
-    const sids = policy().map((s) => s.Sid);
-    expect(sids).toEqual(
-      expect.arrayContaining([
-        'Database',
-        'Function',
-        'NoResourceLevelSupport',
-        ...Object.keys(NEEDS),
-      ]),
+  it.each(ENVS)(
+    '%s: is actually looking: the policy parses and holds the statements it is known by',
+    (env) => {
+      const sids = policy(env).map((s) => s.Sid);
+      expect(sids).toEqual(
+        expect.arrayContaining([
+          'Database',
+          'Function',
+          'NoResourceLevelSupport',
+          'ApplyTheSamTransform',
+          'ApiGatewayServiceLinkedRole',
+        ]),
+      );
+      expect(declared(env)).toEqual(
+        expect.arrayContaining(['AWS::DSQL::Cluster', 'AWS::Lambda::Function']),
+      );
+    },
+  );
+
+  it.each(ENVS)(
+    '%s: grants no service that neither a deployed type nor a named need uses',
+    (env) => {
+      const services = used(env);
+      const offenders = allowed(env).flatMap(({ sid, action }) => {
+        const need = sid === undefined ? undefined : NEEDS[sid];
+        if (need === undefined)
+          return services.has(action.split(':')[0]) ? [] : [`${sid}: ${action}`];
+        if (action !== need.action) return [`${sid}: ${action} is not its need`];
+        return need.needed(env) ? [] : [`${sid}: nothing deployed needs it`];
+      });
+      expect([...new Set(offenders)]).toEqual([]);
+    },
+  );
+
+  // The custom resource lives in the archive, which production never deploys.
+  it('grants the custom resource’s invoke to dev alone', () => {
+    const invokes = (env: Env) =>
+      policy(env)
+        .map((s) => s.Sid)
+        .filter(
+          (sid) =>
+            sid === 'InvokeTheGrantProvider' || sid === 'ConfigureTheGrantProvidersInvocation',
+        );
+    expect(invokes('dev').sort()).toEqual([
+      'ConfigureTheGrantProvidersInvocation',
+      'InvokeTheGrantProvider',
+    ]);
+    expect(invokes('prod')).toEqual([]);
+  });
+
+  // THE DENIES ARE A CLOSED LIST: the roles that deploy, the other environment's API and domain,
+  // another environment's tag value, and, on dev's side alone, production's names.
+  it.each(ENVS)('%s: denies what the file is known to deny, and nothing else', (env) => {
+    const denies = policy(env).filter((s) => s.Effect === 'Deny');
+    expect(denies.map((s) => s.Sid).sort()).toEqual(
+      [
+        'KeepTheClusterTag',
+        'KeepThePoolTag',
+        'KeepTheEnvironmentTagKey',
+        'NotTheOtherApi',
+        'NotTheRolesThatDeploy',
+        ...(env === 'dev' ? ['NotProductionsNames'] : []),
+      ].sort(),
     );
-    expect(declared()).toEqual(
-      expect.arrayContaining(['AWS::DSQL::Cluster', 'AWS::Lambda::Function']),
+    const named = (sid: string) => [denies.find((s) => s.Sid === sid)?.Resource].flat().map(String);
+    // No hyphen after `cfn-exec`: the shared role that preceded the split matches too.
+    expect(named('NotTheRolesThatDeploy')).toEqual([
+      'arn:aws:iam::*:role/quirenote-backend-cfn-exec*',
+      'arn:aws:iam::*:role/quirenote-backend-deploy-*',
+    ]);
+    if (env === 'dev')
+      for (const r of named('NotProductionsNames')) expect(r).toMatch(/quirenote-backend-user-p\*/);
+  });
+
+  // A Deny keyed on a request tag fires only when the request carries one: under `IfExists` it would
+  // also refuse every update that sends no tag at all.
+  it.each(ENVS)('%s: refuses another environment’s tag value, never an untagged request', (env) => {
+    for (const sid of ['KeepTheClusterTag', 'KeepThePoolTag']) {
+      const c = policy(env).find((s) => s.Sid === sid)?.Condition;
+      expect([sid, Object.keys(c ?? {}).sort()]).toEqual([sid, ['Null', 'StringNotEquals']]);
+      expect([sid, c?.Null?.['aws:RequestTag/env']]).toEqual([sid, 'false']);
+    }
+  });
+
+  // EVERY SCOPE IS THE CONTRACT: each file's tag values and name patterns, read back statement by
+  // statement, so a value moved into the other environment's set fails here.
+  const SCOPE = {
+    dev: {
+      clusters: ['dev', 'archive'],
+      pool: 'dev',
+      names: 'quirenote-backend-*',
+      otherApi: 'oqc0gthoh3',
+      domain: 'api.dev.quirenote.com',
+      otherDomain: 'api.quirenote.com',
+    },
+    prod: {
+      clusters: ['prod'],
+      pool: 'prod',
+      names: 'quirenote-backend-user-p*',
+      otherApi: 'a0lld5l0ye',
+      domain: 'api.quirenote.com',
+      otherDomain: 'api.dev.quirenote.com',
+    },
+  };
+  it.each(ENVS)('%s: scopes clusters, pools, names and the API to its own environment', (env) => {
+    const want = SCOPE[env];
+    const sid = (id: string) => {
+      const s = policy(env).find((x) => x.Sid === id);
+      if (s === undefined) throw new Error(`${env}: no ${id}`);
+      return s;
+    };
+    expect(sid('Database').Condition).toEqual({
+      StringEquals: { 'aws:ResourceTag/env': want.clusters },
+    });
+    expect(sid('CreateOwnCluster').Condition).toEqual({
+      StringEquals: { 'aws:RequestTag/env': want.clusters },
+    });
+    // CREATE-TIME ONLY: a resource that carries no `env` yet. Without the `Null` key it retags the
+    // other environment's cluster into this one. Its own statement, so the create keeps no such key.
+    expect([sid('TagANewCluster').Action, sid('TagANewCluster').Condition]).toEqual([
+      'dsql:TagResource',
+      {
+        StringEquals: { 'aws:RequestTag/env': want.clusters },
+        Null: { 'aws:ResourceTag/env': 'true' },
+      },
+    ]);
+    expect(sid('KeepTheClusterTag').Condition?.StringNotEquals).toEqual({
+      'aws:RequestTag/env': want.clusters,
+    });
+    expect(sid('Identity').Condition).toEqual({
+      StringEquals: { 'aws:ResourceTag/env': want.pool },
+    });
+    expect([sid('CreateOwnPool').Action, sid('CreateOwnPool').Condition]).toEqual([
+      'cognito-idp:CreateUserPool',
+      { StringEquals: { 'aws:RequestTag/env': want.pool } },
+    ]);
+    expect([sid('TagANewPool').Action, sid('TagANewPool').Condition]).toEqual([
+      'cognito-idp:TagResource',
+      {
+        StringEquals: { 'aws:RequestTag/env': want.pool },
+        Null: { 'aws:ResourceTag/env': 'true' },
+      },
+    ]);
+    expect(sid('KeepThePoolTag').Condition?.StringNotEquals).toEqual({
+      'aws:RequestTag/env': want.pool,
+    });
+    for (const id of [
+      'Function',
+      'RolesTheStackOwns',
+      'ReadTagAndPassStackRoles',
+      'Logs',
+      'Alarms',
+      'Schedule',
+    ]) {
+      // EVERY element: a `*` listed beside the pattern would otherwise pass unseen.
+      for (const r of [sid(id).Resource].flat().map(String))
+        expect([id, r, r.endsWith(`:${want.names}`) || r.endsWith(`/${want.names}`)]).toEqual([
+          id,
+          r,
+          true,
+        ]);
+    }
+    const other = [sid('NotTheOtherApi').Resource].flat().map(String).join(' ');
+    expect(other).toContain(`/apis/${want.otherApi}`);
+    expect(other).toContain(`/domainnames/${want.otherDomain}`);
+    expect(other).not.toContain(`/apis/${SCOPE[env === 'dev' ? 'prod' : 'dev'].otherApi}`);
+    const own = [sid('HttpApi').Resource]
+      .flat()
+      .map(String)
+      .filter((r) => r.includes('/domainnames/'));
+    for (const r of own) expect(r).toContain(want.domain);
+  });
+
+  it.each(ENVS)('%s: holds each boundary to its environment’s tag values and names', (env) => {
+    const want = SCOPE[env];
+    const statements = (
+      JSON.parse(readFileSync(boundaryFile(env), 'utf8')) as {
+        Statement: { Sid: string; Resource: unknown; Condition?: unknown }[];
+      }
+    ).Statement;
+    const sid = (id: string) => statements.find((s) => s.Sid === id);
+    expect(sid('ConnectToDsql')?.Condition).toEqual({
+      StringEquals: { 'aws:ResourceTag/env': want.clusters },
+    });
+    expect(sid('UserPool')?.Condition).toEqual({
+      StringEquals: { 'aws:ResourceTag/env': want.pool },
+    });
+    for (const id of ['WriteOwnLogs', 'InvokeScheduledFunctions'])
+      for (const r of [sid(id)?.Resource].flat().map(String))
+        expect([id, r.includes(want.names)]).toEqual([id, true]);
+  });
+
+  // The role creates or changes no role that lacks ITS OWN environment's boundary.
+  it.each(ENVS)('%s: requires its own boundary on every role it creates or changes', (env) => {
+    const owns = policy(env).find((s) => s.Sid === 'RolesTheStackOwns');
+    expect(owns?.Condition?.ArnLike?.['iam:PermissionsBoundary']).toBe(
+      `arn:aws:iam::*:policy/${basename(boundaryFile(env), '.json')}`,
     );
   });
 
-  it('grants no service that neither a declared type nor a named need uses', () => {
-    const services = used();
-    const offenders = allowed().flatMap(({ sid, action }) => {
-      const need = sid === undefined ? undefined : NEEDS[sid];
-      if (need === undefined)
-        return services.has(action.split(':')[0]) ? [] : [`${sid}: ${action}`];
-      if (action !== need.action) return [`${sid}: ${action} is not its need`];
-      return need.needed() ? [] : [`${sid}: nothing declared needs it`];
-    });
-    expect([...new Set(offenders)]).toEqual([]);
+  // Written twice, so a statement they share is held to the same actions in both: the resources
+  // and the conditions are where the two differ, by design.
+  it('grants the same actions in every statement the two files share', () => {
+    const byId = (env: Env) =>
+      new Map(policy(env).map((s) => [s.Sid, [s.Action].flat().map(String).sort()]));
+    const dev = byId('dev');
+    const prod = byId('prod');
+    const shared = [...prod.keys()].filter((sid) => dev.has(sid));
+    expect(shared.length).toBeGreaterThan(5);
+    for (const sid of shared) expect([sid, dev.get(sid)]).toEqual([sid, prod.get(sid)]);
+    expect([...prod.keys()].filter((sid) => !dev.has(sid))).toEqual([]);
+  });
+
+  // The doc explains; the files are what IAM holds. A policy in the doc would be a third copy.
+  it('is held in the files the doc points at, and in no JSON block of the doc', () => {
+    const doc = readFileSync(join(REPO, 'infra/docs/role-cfn-exec.md'), 'utf8');
+    for (const env of ENVS) expect(doc).toContain(`infra/iam/${basename(execRoleFile(env))}`);
+    const blocks = doc.split(/^```/m).filter((b, i) => i % 2 === 1 && b.startsWith('json'));
+    for (const b of blocks) expect(b).not.toContain('"Sid"');
   });
 });
 
@@ -2250,6 +2547,19 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
       ]);
       expect([step.name, step.env?.ENVIRONMENT]).toEqual([step.name, REF_TO_ENV]);
     }
+  });
+
+  // ONE EXECUTION ROLE PER ENVIRONMENT, picked by the same rule as the prefix and the deploy role:
+  // a literal name would hand both branches the same role, which is what `infra/iam/` splits.
+  it("hands CloudFormation its own environment's execution role", () => {
+    expect(deploys).toHaveLength(2);
+    for (const step of deploys)
+      expect([
+        step.name,
+        step.run?.match(
+          /--role-arn "arn:aws:iam::\$\{AWS_ACCOUNT_ID\}:role\/quirenote-backend-cfn-exec-\$\{ENVIRONMENT\}"/g,
+        )?.length,
+      ]).toEqual([step.name, 1]);
   });
 
   it('bundles an entry point for every handler the templates declare', () => {

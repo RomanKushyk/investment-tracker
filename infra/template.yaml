@@ -15,9 +15,9 @@ Globals:
     # high one is free — and at 300 two sources retrying can be killed mid-retry, no row written.
     Timeout: 600
     Tracing: Active
-    # THE CAP `cfn-exec` REQUIRES on every role it creates or changes: made by hand from
-    # `infra/iam/quirenote-backend-boundary.json`, so no stack can widen it.
-    PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+    # THE CAP `cfn-exec-dev` REQUIRES on every role it creates or changes, made by hand so no stack
+    # can widen it — dev's, the archive deploying from `dev` alone (`infra/docs/role-cfn-exec.md`).
+    PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-dev'
 
 Resources:
   # NO VPC anywhere in this stack, the single most important cost decision in the file: DSQL is
@@ -33,6 +33,10 @@ Resources:
       Tags:
         - Key: app
           Value: quirenote
+        # The tag the execution roles and boundaries scope a cluster by; `app` cannot be it, being
+        # the backup selection production shares.
+        - Key: env
+          Value: archive
 
   CaptureFunction:
     Type: AWS::Serverless::Function
@@ -103,7 +107,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: quirenote-backend-archive-reader
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-dev'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -210,7 +214,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       # A declared role takes no `Globals`: the same cap, written out.
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-dev'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:

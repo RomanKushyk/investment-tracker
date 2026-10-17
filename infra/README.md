@@ -146,9 +146,10 @@ Region **`eu-north-1`**, the same as Amplify; Aurora DSQL is available there and
 compatible. Deployed by GitHub Actions, never from a developer machine — there are no AWS
 credentials locally and there should not be (`docs/reference/DEPLOYMENT.md`). The backend uses its
 **own** OIDC roles, one per environment and separate from the frontend's, so the frontend deploy
-roles stay unable to touch hosting config. Every role a stack creates carries the permissions
-boundary in [`iam/quirenote-backend-boundary.json`](iam/quirenote-backend-boundary.json), applied
-by hand (`docs/role-cfn-exec.md`).
+roles stay unable to touch hosting config. CloudFormation runs each environment's stacks as that
+environment's own execution role, and every role a stack creates carries that environment's
+permissions boundary; the four policies are the files under [`iam/`](iam/), applied by hand
+(`docs/role-cfn-exec.md`).
 
 ## infra/docs/
 
@@ -157,4 +158,4 @@ by hand (`docs/role-cfn-exec.md`).
 | [`docs/dsql-constraints.md`](docs/dsql-constraints.md) | Every DDL statement DSQL accepts or refuses, and the `ALTER TABLE` create-time-only matrix |
 | [`docs/console-setup.md`](docs/console-setup.md) | One-time console setup, SES, the artifacts bucket |
 | [`docs/role-deploy.md`](docs/role-deploy.md) | Roles 1 — `quirenote-backend-deploy-dev` and `-prod` |
-| [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec`, the boundary it requires, and the traps — one of them is why the user stacks are named as they are |
+| [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec-dev` and `-prod`, the boundary each requires, what separates the environments, and the traps — one of them is why the user stacks are named as they are |

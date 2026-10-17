@@ -1,0 +1,333 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Database",
+      "Effect": "Allow",
+      "Action": [
+        "dsql:GetCluster",
+        "dsql:UpdateCluster",
+        "dsql:DeleteCluster",
+        "dsql:TagResource",
+        "dsql:UntagResource",
+        "dsql:ListTagsForResource",
+        "dsql:PutMultiRegionProperties",
+        "dsql:GetClusterPolicy",
+        "dsql:PutClusterPolicy",
+        "dsql:DeleteClusterPolicy",
+        "dsql:GetVpcEndpointServiceName"
+      ],
+      "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/env": ["prod"]
+        }
+      }
+    },
+    {
+      "Sid": "CreateOwnCluster",
+      "Effect": "Allow",
+      "Action": "dsql:CreateCluster",
+      "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/env": ["prod"]
+        }
+      }
+    },
+    {
+      "Sid": "TagANewCluster",
+      "Effect": "Allow",
+      "Action": "dsql:TagResource",
+      "Resource": "arn:aws:dsql:eu-north-1:*:cluster/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/env": ["prod"]
+        },
+        "Null": {
+          "aws:ResourceTag/env": "true"
+        }
+      }
+    },
+    {
+      "Sid": "Identity",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPool",
+        "cognito-idp:UpdateUserPool",
+        "cognito-idp:SetUserPoolMfaConfig",
+        "cognito-idp:GetUserPoolMfaConfig",
+        "cognito-idp:CreateUserPoolClient",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:UpdateUserPoolClient",
+        "cognito-idp:DeleteUserPoolClient",
+        "cognito-idp:ListUserPoolClients",
+        "cognito-idp:CreateUserPoolDomain",
+        "cognito-idp:UpdateUserPoolDomain",
+        "cognito-idp:DeleteUserPoolDomain",
+        "cognito-idp:CreateIdentityProvider",
+        "cognito-idp:DescribeIdentityProvider",
+        "cognito-idp:UpdateIdentityProvider",
+        "cognito-idp:DeleteIdentityProvider",
+        "cognito-idp:ListIdentityProviders",
+        "cognito-idp:CreateManagedLoginBranding",
+        "cognito-idp:DescribeManagedLoginBranding",
+        "cognito-idp:DescribeManagedLoginBrandingByClient",
+        "cognito-idp:UpdateManagedLoginBranding",
+        "cognito-idp:DeleteManagedLoginBranding",
+        "cognito-idp:TagResource",
+        "cognito-idp:UntagResource",
+        "cognito-idp:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:cognito-idp:eu-north-1:*:userpool/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/env": "prod"
+        }
+      }
+    },
+    {
+      "Sid": "CreateOwnPool",
+      "Effect": "Allow",
+      "Action": "cognito-idp:CreateUserPool",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/env": "prod"
+        }
+      }
+    },
+    {
+      "Sid": "TagANewPool",
+      "Effect": "Allow",
+      "Action": "cognito-idp:TagResource",
+      "Resource": "arn:aws:cognito-idp:eu-north-1:*:userpool/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/env": "prod"
+        },
+        "Null": {
+          "aws:ResourceTag/env": "true"
+        }
+      }
+    },
+    {
+      "Sid": "KeepTheClusterTag",
+      "Effect": "Deny",
+      "Action": ["dsql:CreateCluster", "dsql:TagResource"],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "aws:RequestTag/env": "false"
+        },
+        "StringNotEquals": {
+          "aws:RequestTag/env": ["prod"]
+        }
+      }
+    },
+    {
+      "Sid": "KeepThePoolTag",
+      "Effect": "Deny",
+      "Action": [
+        "cognito-idp:CreateUserPool",
+        "cognito-idp:UpdateUserPool",
+        "cognito-idp:TagResource"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "aws:RequestTag/env": "false"
+        },
+        "StringNotEquals": {
+          "aws:RequestTag/env": "prod"
+        }
+      }
+    },
+    {
+      "Sid": "KeepTheEnvironmentTagKey",
+      "Effect": "Deny",
+      "Action": ["dsql:UntagResource", "cognito-idp:UntagResource"],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "aws:TagKeys": "env"
+        }
+      }
+    },
+    {
+      "Sid": "HttpApi",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PATCH",
+        "apigateway:PUT",
+        "apigateway:DELETE",
+        "apigateway:AddCertificateToDomain",
+        "apigateway:RemoveCertificateFromDomain",
+        "apigateway:TagResource",
+        "apigateway:UntagResource"
+      ],
+      "Resource": [
+        "arn:aws:apigateway:eu-north-1::/apis",
+        "arn:aws:apigateway:eu-north-1::/apis/*",
+        "arn:aws:apigateway:eu-north-1::/domainnames",
+        "arn:aws:apigateway:eu-north-1::/domainnames/api.quirenote.com",
+        "arn:aws:apigateway:eu-north-1::/domainnames/api.quirenote.com/*",
+        "arn:aws:apigateway:eu-north-1::/tags/*"
+      ]
+    },
+    {
+      "Sid": "NotTheOtherApi",
+      "Effect": "Deny",
+      "Action": "apigateway:*",
+      "Resource": [
+        "arn:aws:apigateway:eu-north-1::/apis/a0lld5l0ye",
+        "arn:aws:apigateway:eu-north-1::/apis/a0lld5l0ye/*",
+        "arn:aws:apigateway:eu-north-1::/tags/*a0lld5l0ye*",
+        "arn:aws:apigateway:eu-north-1::/domainnames/api.dev.quirenote.com",
+        "arn:aws:apigateway:eu-north-1::/domainnames/api.dev.quirenote.com/*",
+        "arn:aws:apigateway:eu-north-1::/tags/*api.dev.quirenote.com*"
+      ]
+    },
+    {
+      "Sid": "Function",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:GetPolicy",
+        "lambda:PutFunctionConcurrency",
+        "lambda:DeleteFunctionConcurrency",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:ListTags"
+      ],
+      "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-user-p*"
+    },
+    {
+      "Sid": "RolesTheStackOwns",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:PutRolePermissionsBoundary"
+      ],
+      "Resource": "arn:aws:iam::*:role/quirenote-backend-user-p*",
+      "Condition": {
+        "ArnLike": {
+          "iam:PermissionsBoundary": "arn:aws:iam::*:policy/quirenote-backend-boundary-prod"
+        }
+      }
+    },
+    {
+      "Sid": "ReadTagAndPassStackRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/quirenote-backend-user-p*"
+    },
+    {
+      "Sid": "NotTheRolesThatDeploy",
+      "Effect": "Deny",
+      "Action": "iam:*",
+      "Resource": [
+        "arn:aws:iam::*:role/quirenote-backend-cfn-exec*",
+        "arn:aws:iam::*:role/quirenote-backend-deploy-*"
+      ]
+    },
+    {
+      "Sid": "ApiGatewayServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/ops.apigateway.amazonaws.com/AWSServiceRoleForAPIGateway",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": "ops.apigateway.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "Logs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource",
+        "logs:ListTagsForResource",
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "logs:DescribeMetricFilters"
+      ],
+      "Resource": "arn:aws:logs:eu-north-1:*:log-group:/aws/lambda/quirenote-backend-user-p*"
+    },
+    {
+      "Sid": "Alarms",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:cloudwatch:eu-north-1:*:alarm:quirenote-backend-user-p*"
+    },
+    {
+      "Sid": "Schedule",
+      "Effect": "Allow",
+      "Action": [
+        "scheduler:CreateSchedule",
+        "scheduler:GetSchedule",
+        "scheduler:UpdateSchedule",
+        "scheduler:DeleteSchedule"
+      ],
+      "Resource": "arn:aws:scheduler:eu-north-1:*:schedule/default/quirenote-backend-user-p*"
+    },
+    {
+      "Sid": "ReadTemplateAndArtifacts",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": "arn:aws:s3:::quirenote-sam-artifacts-*/prod/*"
+    },
+    {
+      "Sid": "ApplyTheSamTransform",
+      "Effect": "Allow",
+      "Action": "cloudformation:CreateChangeSet",
+      "Resource": "arn:aws:cloudformation:eu-north-1:aws:transform/Serverless-2016-10-31"
+    },
+    {
+      "Sid": "NoResourceLevelSupport",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DescribeAlarms",
+        "logs:DescribeLogGroups",
+        "scheduler:ListSchedules",
+        "dsql:ListClusters",
+        "cognito-idp:DescribeUserPoolDomain",
+        "cloudfront:UpdateDistribution"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -102,6 +102,10 @@ Resources:
           # else, into a LOCKED vault a recovery point cannot leave early. Dev's cluster is files and a
           # dispatch; production user data cannot be re-derived from anything.
           Value: !If [IsProd, quirenote, quirenote-dev]
+        # The tag the execution roles and boundaries scope a cluster by; `app` cannot be it, being
+        # the backup selection production shares with the archive.
+        - Key: env
+          Value: !Ref Environment
 
   # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE, and what separates them is blast radius: a
   # mode would give the function that runs unattended on a schedule, with a DLQ that retries it,
@@ -117,9 +121,9 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # THE CAP `cfn-exec` REQUIRES on every role it creates or changes, made by hand from
-      # `infra/iam/quirenote-backend-boundary.json`. On each function: this template takes no Globals.
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      # THE CAP `cfn-exec-<env>` REQUIRES on every role it creates or changes, made by hand from
+      # `infra/iam/quirenote-backend-boundary-<env>.json`. On each function: no Globals here.
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # 900, the Lambda maximum: `CREATE INDEX ASYNC` returns a job the runner waits on, so the
       # ceiling is an index BUILD, and a wait killed there leaves a ledger row open over it.
       Timeout: 900
@@ -191,6 +195,10 @@ Resources:
           Mutable: true
       UserPoolTier: ESSENTIALS
       DeletionProtection: ACTIVE
+      # The tag the execution roles and boundaries scope a pool by, its id being generated. No
+      # `app`: that is the backup selection, which cannot take a pool.
+      UserPoolTags:
+        env: !Ref Environment
       AutoVerifiedAttributes: [email]
       MfaConfiguration: 'OFF'
       Policies:
@@ -318,7 +326,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       Timeout: 5
       Environment:
         Variables:
@@ -530,7 +538,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # TIMEOUT × RATE IS A CONCURRENCY BUDGET, and on this account it binds before API Gateway
       # does: the unreserved pool is about ten, and EVERY function in both stacks shares it.
       Timeout: 5
@@ -573,7 +581,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # LONGER THAN THE APPLICATION'S 5 for the extra round trip, not extra work: `AdminCreateUser`
       # sends an email before it answers. What bounds the concurrency is the ROUTES' throttles, not
       # the role check — that runs HERE, after the connection, so a `pending` applicant reaches this
@@ -650,7 +658,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       Timeout: 5
       Environment:
         Variables:
@@ -746,7 +754,7 @@ Resources:
       # composer six times over.
       MemorySize: 512
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # A missing rate is fetched from NBU on this path, cut short at ten seconds.
       Timeout: 15
       Environment:
@@ -857,7 +865,7 @@ Resources:
       # A snapshot op reads the whole ledger to count the units it divides by.
       MemorySize: 512
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # A claim older than this and five seconds is taken over (`CLAIM_WINDOW_SECONDS`).
       Timeout: 15
       Environment:
@@ -956,7 +964,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       Timeout: 10
       Environment:
         Variables:
@@ -1007,7 +1015,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: IsProd
     Properties:
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -1039,7 +1047,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # Generous: an Inactive cluster's time to restore depends on its size, and a timeout is
       # retried like any error.
       Timeout: 60
@@ -1086,7 +1094,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: IsProd
     Properties:
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -1211,7 +1219,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       Timeout: 10
       Environment:
         Variables:
@@ -1254,7 +1262,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: IsProd
     Properties:
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -1362,7 +1370,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       # Two NBU fetches of up to ten seconds each, today's and tomorrow's, then the age read.
       Timeout: 30
       Environment:
@@ -1407,7 +1415,7 @@ Resources:
   RateAheadSchedulerRole:
     Type: AWS::IAM::Role
     Properties:
-      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary'
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:

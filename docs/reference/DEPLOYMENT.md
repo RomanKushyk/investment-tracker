@@ -68,21 +68,25 @@ The archive step is skipped off `main`, **so a `workflow_dispatch` on `main` can
 — the repair path is a dispatch on `dev`. **Every run reads the archive's `ClusterIdentifier` before it
 deploys anything**, for the user stack's `ArchiveClusterId`, so in a fresh account the archive is
 deployed by hand first, from `infra/` with the bundle built: `sam deploy --stack-name quirenote-backend
---role-arn arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec --capabilities CAPABILITY_NAMED_IAM`
+--role-arn arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec-dev --capabilities CAPABILITY_NAMED_IAM`
 plus the bucket and prefix the workflow passes. A `prod` migration is refused from any branch but `main` by the
 `prod` environment's deployment branch policy, before any credential exists, on both paths — the deploy's
 apply job and a hand dispatch resolve the same environment. **No reviewer stands in front of either**; what
 carries a failed apply is the `notify` job, which opens an issue.
 
-**Each environment deploys through its own roles, and every role a stack creates carries the
-permissions boundary `quirenote-backend-boundary`.** A `dev` job's own credentials reach neither the
-production stack nor its runner. A template it deploys still can, through the execution role both
-environments share (`infra/docs/role-deploy.md`). CloudFormation's execution role creates or
-changes no role without the boundary, so a template cannot mint a role holding an action no stack
-role is granted. The boundary is `infra/iam/quirenote-backend-boundary.json`, applied by hand. **A
-grant added to a template needs it widened and applied BEFORE the deploy**, or the deploy reads green
-while the function is refused at its first call (`infra/docs/role-cfn-exec.md`). Artifacts upload
-under `dev/` or `prod/`, each deploy role writing its own prefix alone.
+**Each environment deploys through its own roles — a deploy role AND an execution role — and every
+role a stack creates carries its environment's permissions boundary, `quirenote-backend-boundary-dev`
+or `-prod`.** A `dev` job's own credentials reach neither the production stack nor its runner, and
+neither does a template it deploys: `quirenote-backend-cfn-exec-dev` reaches clusters tagged
+`env=dev` or `env=archive`, the pool tagged `env=dev`, and names matching `quirenote-backend-*` minus production's, and
+`-prod` reaches `env=prod` and `quirenote-backend-user-p*` (`infra/docs/role-cfn-exec.md`). Each
+execution role creates or changes no role without its environment's boundary, so a template cannot
+mint a role holding an action no stack role of that environment is granted. The boundaries and the
+execution roles' policies are the four files under `infra/iam/`, applied by hand. **A grant added to
+a template needs the boundary widened and applied BEFORE the deploy**, or the deploy reads green
+while the function is refused at its first call, and **a new cluster or pool needs its `env` tag
+in the template**, or neither role can touch it. Artifacts upload under `dev/` or `prod/`, each
+deploy role writing and each execution role reading its own prefix alone.
 
 **A new POOL resolves nowhere, and a new API does not either**: the `auth` and `api` records are
 Cloudflare's and manual, so until they exist the hostnames answer nothing while every stack reads
@@ -301,8 +305,8 @@ assets are content-hashed and `index.html` is `no-cache`, so it takes effect on 
 ## 7. Watched by hand
 
 Amplify bills only storage and transfer ($0.15/GB), builds running in GitHub Actions, so cost is
-effectively $0/mo solo. The two guardrails below are console artefacts, `quirenote-backend-cfn-exec`
-granting neither `budgets:*` nor `cloudwatch:PutDashboard`. **Nothing re-creates either one.
+effectively $0/mo solo. The two guardrails below are console artefacts, neither execution role
+granting `budgets:*` or `cloudwatch:PutDashboard`. **Nothing re-creates either one.
 Deleted, they are a repair by hand, and this section is the whole of the instructions.**
 
 **1. The Cognito usage budget.** It exists, a **usage** budget and not a cost budget. How its usage

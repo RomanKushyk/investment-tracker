@@ -1889,13 +1889,14 @@ not the payload: a compromised build step still ships its bundle. HSTS climbs hs
 `includeSubDomains` and no `preload`; the Permissions-Policy is OWASP's list with both publickey
 features at `(self)`; `/auth/callback` alone takes `no-referrer`. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
-shared archive being `dev`'s. CloudFormation's execution role creates or changes no role without the
-permissions boundary, which allows exactly the actions the stack roles are granted. A test holds
-the execution role's statements to the services the declared resource types' handlers use, and
-three others to one action each while a template still needs it. Both
-environments share that execution role, so a template deployed to `dev` can reach production
-through the role's own grants and through the roles it creates; only an execution role, or an
-account, per environment would close that.
+shared archive being `dev`'s. ONE EXECUTION ROLE AND ONE PERMISSIONS BOUNDARY PER ENVIRONMENT, in
+this account: each deploy role passes CloudFormation its own environment's execution role, which
+reaches clusters and pools by an `env` tag every one carries and generated names by a pattern cut
+where the two stack names first differ, and creates or changes no role without its environment's
+boundary, which allows exactly the actions that environment's stack roles are granted. The four
+policies are files under `infra/iam/`; a test holds each execution role's statements to the services
+the resource types it deploys use, three to one action each while a template still needs it, each
+boundary to its environment's grants, and the Deny statements to a closed list.
 ONE DERIVATION IDENTIFIER FOR BOTH BUILDS: the git tree hash of `HEAD:packages/core/src`, which
 `scripts/derivation-id.ts` computes and the SPA build, the Lambda bundle step and the test config
 each define as `__DERIVATION_ID__`. A change to the derivation code moves it with no change to
@@ -1958,7 +1959,13 @@ environment a workflow names but nobody made, with no protection rules. IAM read
 controls, such as separate permissions for development, staging, and production environments". AWS's
 least-privilege guidance for CloudFormation: "An IAM principal with permissions to create a role and
 attach any policy can escalate their own permissions". CDK's bootstrap example boundary likewise
-refuses a role created without it. The identifier is that tree because every change under it,
+refuses a role created without it. The CDK guide on two execution roles in one account: "Unless you
+can very precisely scope down the IAM permissions given to the CloudFormation execution role, there
+are no permission isolation benefits", so the split is worth what its scoping is worth — the Service
+Authorization Reference lists `aws:ResourceTag` on every cluster and pool action the roles grant,
+and `iam:PassRole` takes no `iam:PermissionsBoundary` key, which is why production's roles are
+denied by name. CloudFormation truncates a stack name inside a generated name, so the pattern is
+cut at the first character the two stack names differ in. The identifier is that tree because every change under it,
 or to the script that hashes it, runs both deploy workflows, which a test holds against both
 path filters. The two sides still disagree while either deploys, and for as long as one fails
 or is cancelled, so a reader of the identifier takes a mismatch as normal. And it is read from
@@ -1981,7 +1988,11 @@ but leaves a third-party script on every other page, which a hash-based CSP woul
 by host. · An environment secret for the bootstrap's address: masked from the job's start, but an operator's input would become standing configuration in each environment. ·
 One deploy role trusting `environment:*`: it trusts any environment a workflow names. · One role
 for both environments with the workflow choosing the target: a `dev` job holds production's stack and
-its runner, whose `bootstrap` mode mints a super-admin. · A deploy id as the derivation
+its runner, whose `bootstrap` mode mints a super-admin. · One execution role for both environments:
+a template deployed to `dev` reached production through the roles it created, the role's own grants
+and `iam:PassRole`. · An account per environment: strongly recommended by the Well-Architected
+security pillar and still open; it adds the account's limits and the `*` grants to the split, and
+only dev would move, so nothing about it gets harder after the release. · A deploy id as the derivation
 identifier: the two builds' always differ. · A commit SHA: the two builds' differ whenever one
 side last deployed without the other. · A hash of each bundle: a Vite output and an esbuild
 output never agree. · A `changed` step gating the backend deploy on the push's diff: correct only

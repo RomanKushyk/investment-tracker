@@ -536,10 +536,10 @@ describe('the stack still takes its environment the way it did', () => {
     expect(props('UserPool').AutoVerifiedAttributes).toEqual(['email']);
   });
 
-  // No `app` tag on the pool, deliberately: that tag is the backup selection, and a Cognito pool is
-  // not a selectable type, so tagging it would say something true of nothing.
+  // No `app` tag: that is the backup selection, which cannot take a pool. `env` is its one tag, the
+  // key the execution roles and the boundaries scope a pool by.
   it('leaves the backup tag to the resource backups can take', () => {
-    expect(props('UserPool').UserPoolTags).toBeUndefined();
+    expect(Object.keys(props('UserPool').UserPoolTags ?? {})).toEqual(['env']);
     expect(props('UserPool').Tags).toBeUndefined();
   });
 });

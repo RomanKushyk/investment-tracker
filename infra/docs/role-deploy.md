@@ -45,7 +45,7 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
       "Sid": "HandOffToCloudFormationOnly",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec",
+      "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec-dev",
       "Condition": { "StringEquals": { "iam:PassedToService": "cloudformation.amazonaws.com" } }
     },
     {
@@ -64,9 +64,10 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
 }
 ```
 
-For `prod`, the same with three substitutions: `stack/quirenote-backend-user-prod/*` replaces the
-two dev stacks, because the archive deploys from `dev` alone; the object prefix is `prod/*`; and the
-runner is `quirenote-backend-user-prod-MigrateFunction-*`. And one statement more, because the
+For `prod`, the same with four substitutions: `stack/quirenote-backend-user-prod/*` replaces the
+two dev stacks, because the archive deploys from `dev` alone; the role passed is
+`quirenote-backend-cfn-exec-prod`; the object prefix is `prod/*`; and the runner is
+`quirenote-backend-user-prod-MigrateFunction-*`. And one statement more, because the
 production deploy still READS the archive, for the identifier it passes as `ArchiveClusterId`:
 
 ```json
@@ -104,23 +105,23 @@ running one job earlier without it. So a job in `dev` can no longer, with its ow
 deploy the production stack or invoke production's runner, whose `bootstrap` mode mints a
 super-admin.
 
-**What it does not buy.** Both roles hand CloudFormation the same `quirenote-backend-cfn-exec`, so a
-template deployed to `quirenote-backend-user-dev` reaches production two ways:
-- **Through a role it creates.** Bounded, that role may still connect to any cluster, administer
-  users in any pool, and invoke any `quirenote-backend-*` function in the account, production's
-  runner included.
-- **Through the execution role's own grants.** These take no boundary: an `AWS::Lambda::Permission`
-  can open production's runner to another account, and an app client or identity provider can be
-  added to production's pool.
-
-Both are accepted. An execution role and boundary per environment, or an account per environment,
-is what would close them.
+**What the execution role per environment buys.** Each deploy role passes CloudFormation only its
+own environment's execution role, and that role reaches only its environment's clusters and pools
+by tag and its generated names by pattern (`role-cfn-exec.md`). So a template deployed to
+`quirenote-backend-user-dev` reaches production through none of the three doors one shared role
+left open: a role it creates carries dev's boundary, which connects to no production cluster and
+administers no production pool; the role's own grants put no `AWS::Lambda::Permission` on
+production's runner and add no client to production's pool; and `iam:PassRole` is denied on
+production's roles by name. `iam:PassRole` takes no `iam:PermissionsBoundary` key, which is why that
+last one is a name Deny and not a condition. The archive is dev's, so a role a user-dev template
+creates still reaches the archive cluster as dev's boundary allows. An account per environment
+would add the account's limits and the `*` grants to the split; it is not what closes the doors above.
 
 **The artifacts are split by prefix, not just by stack.** `sam deploy` skips an upload whose
 md5-named key already exists, and `main` ships the very bundles `dev` shipped. In one shared
 namespace a `dev` job could plant the object a production deploy then reuses. Each role writes under
 its own prefix alone, and the workflow passes `--s3-prefix` from the same ref rule that picks the
-role. `cfn-exec` still reads the whole bucket.
+role. Each execution role reads its own prefix alone.
 
 **`RunMigrations` is the one statement here that is not about deploying.** Both
 [`deploy-backend.yml`](../../.github/workflows/deploy-backend.yml) and
