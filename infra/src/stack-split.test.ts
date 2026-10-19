@@ -1927,12 +1927,15 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
         throw new Error(
           `${where}: a resource this test cannot read: ${node.tag ?? ''} ${String(r)}`,
         );
+      // `Environment` is the one parameter resolved, to the environment under test: each stack is
+      // deployed with it set so, and the name compared is the one that environment's role reads.
       const named = r
         .replaceAll('${AWS::Partition}', 'aws')
         .replaceAll('${AWS::Region}', 'eu-north-1')
-        .replaceAll('${AWS::AccountId}', '123456789012');
+        .replaceAll('${AWS::AccountId}', '123456789012')
+        .replaceAll('${Environment}', env);
       if (named.includes('${'))
-        throw new Error(`${where}: a resource naming more than the account`);
+        throw new Error(`${where}: a resource naming more than the account and environment`);
       return named;
     };
     const checked = written(env).flatMap(({ where, actions, resources: named }) =>

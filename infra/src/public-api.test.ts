@@ -21,6 +21,7 @@ import {
   SIGN_OUT_ROUTE,
   START_ROUTE,
 } from './auth-relay';
+import { ANSWER_MS, SECRET_MS } from './bot-check';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
@@ -485,14 +486,35 @@ describe('the stack publishes what nobody outside it can construct', () => {
 describe('the handler is wired to the user cluster and logs like its neighbours', () => {
   // The grant, not only the endpoint variable: a copy-paste leaving the archive's cluster here
   // would pass every other test in this repository.
-  it('may connect to the user cluster and to nothing else', () => {
+  it('may connect to the user cluster, read and decrypt its own bot-check secret, and nothing else', () => {
     const policies = props('ApplicationsFunction').Policies as [
-      { Statement: [Record<string, unknown>] },
+      { Statement: Record<string, unknown>[] },
     ];
     expect(policies).toHaveLength(1);
-    expect(policies[0].Statement).toHaveLength(1);
-    const [statement] = policies[0].Statement;
-    expect(statement.Action).toBe('dsql:DbConnectAdmin');
+    expect(policies[0].Statement.map((s) => s.Action)).toEqual([
+      'dsql:DbConnectAdmin',
+      'ssm:GetParameter',
+      'kms:Decrypt',
+    ]);
+    // A KEY USED THROUGH SSM ALONE, which is how the parameter's is.
+    const decrypt = policies[0].Statement[2] as { Condition?: unknown };
+    expect(JSON.stringify(decrypt.Condition)).toContain('kms:ViaService');
+    // ONE PARAMETER, the name the function is handed, never the `quirenote/*` tree.
+    expect(
+      grantAt(
+        doc,
+        ['Resources', 'ApplicationsFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'ssm:GetParameter',
+      ),
+    ).toEqual({
+      tag: '!Sub',
+      value:
+        'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/quirenote/${Environment}/turnstile-secret',
+    });
+    expect(intrinsicAt(doc, ...envVars('ApplicationsFunction'), 'BOT_CHECK_PARAMETER')).toEqual({
+      tag: '!Sub',
+      value: '/quirenote/${Environment}/turnstile-secret',
+    });
     expect(
       grantAt(
         doc,
@@ -501,6 +523,49 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
       ),
     ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
   });
+
+  // THE GATES' DEADLINES FIT THE FUNCTION'S, reserving 1500 ms of it for the connection and the
+  // insert, which carry no deadline of their own: past `Timeout`, API Gateway answers for it.
+  it('gives the secret and siteverify less than its timeout, leaving the cluster its time', () => {
+    const CLUSTER_MS = 1500;
+    expect(SECRET_MS + ANSWER_MS + CLUSTER_MS).toBeLessThanOrEqual(
+      Number(props('ApplicationsFunction').Timeout) * 1000,
+    );
+  });
+
+  // The boundary caps the grant, so both name SSM in eu-north-1, where every stack deploys: a
+  // boundary scoped otherwise deploys green and refuses the first decrypt.
+  it.each(['dev', 'prod'])(
+    '%s: lets the boundary decrypt through SSM exactly as the grant does',
+    (env) => {
+      const boundary = JSON.parse(
+        readFileSync(
+          new URL(`../iam/quirenote-backend-boundary-${env}.json`, import.meta.url),
+          'utf8',
+        ),
+      ) as { Statement: { Sid?: string; Condition?: unknown }[] };
+      const capped = boundary.Statement.find((s) => s.Sid === 'DecryptTheBotCheckSecret');
+      expect(capped?.Condition).toEqual({
+        StringEquals: { 'kms:ViaService': 'ssm.eu-north-1.amazonaws.com' },
+      });
+      const node = doc.getIn(
+        [
+          'Resources',
+          'ApplicationsFunction',
+          'Properties',
+          'Policies',
+          0,
+          'Statement',
+          2,
+          'Condition',
+          'StringEquals',
+          'kms:ViaService',
+        ],
+        true,
+      ) as { tag?: string; value?: string };
+      expect([node.tag, node.value]).toEqual(['!Sub', 'ssm.${AWS::Region}.amazonaws.com']);
+    },
+  );
 
   it('reads the USER cluster endpoint, as a !GetAtt', () => {
     const vars = (

@@ -272,18 +272,21 @@ Interactions to verify, on `dev.quirenote.com` with Google on:
 
 ## `/apply` — Apply for access
 
-`/sign-in`'s shell and card, at the same top edge. Reached from the sign-in address step, by an answer's "Sign out and apply", or by its URL; it asks for no session and sends nothing until submitted, then posts the address to `POST /v1/applications` on the same `api.` host (through `/relay` locally) with no cookie. A production build logs the self-XSS warning to the console once per page load, the first time an auth page shows (*Auth model*).
+`/sign-in`'s shell and card, at the same top edge. Reached from the sign-in address step, by an answer's "Sign out and apply", or by its URL; it asks for no session and sends nothing until submitted, then posts the address and a Turnstile token to `POST /v1/applications` on the same `api.` host (through `/relay` locally) with no cookie. The widget's script loads from `challenges.cloudflare.com` on arrival; localhost renders dev's widget. A production build logs the self-XSS warning to the console once per page load, the first time an auth page shows (*Auth model*).
 
 At 1280, in either theme:
-- Title "Apply for access", lead "Quirenote is by application. If yours is approved, the invitation goes to this address." (13px `muted`), label "Email", the 36-tall field (`type="email"`, `autocomplete="email"`, spellcheck off) with its reserved line, then "Apply" — primary, 40 tall at radius 10, full width. Then, 22 below it, "Already have access? Sign in" → `/sign-in`.
+- Title "Apply for access", lead "Quirenote is by application. If yours is approved, the invitation goes to this address." (13px `muted`), label "Email", the 36-tall field (`type="email"`, `autocomplete="email"`, spellcheck off) with its reserved line, the Turnstile widget in a 65-tall block slot at the field's 384 width, in the app's theme and language, then 8 below it "Apply" — primary, 40 tall at radius 10, full width. Then, 22 below it, "Already have access? Sign in" → `/sign-in`.
 
-At 360: as `/sign-in` — the card 336 wide, padding 22, 16 below the bar; the button 44 tall at radius 11; field text 16px.
+At 360: as `/sign-in` — the card 336 wide, padding 22, 16 below the bar; the button 44 tall at radius 11; field text 16px. The widget is 300 wide, its minimum, 4 past each side of the field.
 
 Interactions to verify:
 1. "Apply" on an empty field → "Enter your email address."; `оксана@пошта.укр` → "Use Latin letters, like name@example.com." Each sits on the field's line, one line at 360, turns its edge `neg` and focuses the field; the button does not move and nothing is sent.
 2. A valid address → "Sending…" at 70 % with the field read-only, then the form gives way to "Application recorded", which takes focus: "If it's approved, the invitation will go to <the address, lower-cased>. No other email is sent." and an outline "Back to sign in" → `/sign-in`. No link under it. Every address gets this view, a new one or one already applied: the endpoint's 202 is one constant.
 3. Submitting into the route's throttle (drain it with parallel requests from the console) → "Too many requests right now. Try again in a moment." below "Apply", announced, the address kept, the button unmoved; a second one is announced again. A 500 → "The application couldn't be sent. Try again."; no network → "Couldn't connect. Check your connection and try again."
-4. Switching the language keeps what is typed.
+4. Switching the language keeps what is typed, and the widget renders again in the new language.
+5. **The bot check.** The widget shows «Перевірка…» / "Verifying…", then «Успіх!» / "Success!" on most visits; the button's top is the same before and after. "Apply" before the token → "Sending…" busy, and the request goes when the token comes. Every answer resets the widget, so the next press carries a fresh token.
+6. A token the route refuses (an `initScript` stub of `fetch` that sends the first press's token again on the second) → "The security check didn't finish. Try again." below "Apply", announced, and it stays through the reset widget's next "Success!". The widget's own failure says the same, and its next "Success!" clears that one.
+7. With `challenges.cloudflare.com` blocked (DevTools request blocking) → the slot stays 65 tall and empty; "Apply" → "The security check couldn't load. Check your connection or ad blocker, then reload the page.", and nothing is sent.
 
 ## The four answers — a refused caller
 

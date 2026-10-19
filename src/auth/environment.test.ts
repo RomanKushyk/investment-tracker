@@ -17,6 +17,10 @@ const [, prodCors, devCors] = api.CorsConfiguration as [string, Cors, Cors];
 const [, prodDomain, devDomain] = (api.Domain as { DomainName: Arms }).DomainName;
 const [, prodRp, devRp] = template.Resources.UserPool?.Properties?.WebAuthnRelyingPartyID as Arms;
 const client = template.Resources.UserPoolClient?.Properties ?? {};
+const applications = template.Resources.ApplicationsFunction?.Properties ?? {};
+const [, prodBotHosts, devBotHosts] = (
+  applications.Environment as { Variables: { BOT_CHECK_HOSTNAMES: Arms } }
+).Variables.BOT_CHECK_HOSTNAMES;
 const [[, prodCallback, devCallback]] = client.CallbackURLs as Arms[];
 const logouts = client.LogoutURLs as Arms[];
 const [prodLogouts, devLogouts] = [logouts.map((arms) => arms[1]), logouts.map((arms) => arms[2])];
@@ -33,6 +37,7 @@ describe.each([
     rp: devRp,
     callback: devCallback,
     signedOut: devLogouts,
+    botHosts: devBotHosts,
   },
   {
     env: 'prod',
@@ -41,11 +46,24 @@ describe.each([
     rp: prodRp,
     callback: prodCallback,
     signedOut: prodLogouts,
+    botHosts: prodBotHosts,
   },
-])('the $env hosts', ({ cors, domain, rp, callback, signedOut }) => {
+])('the $env hosts', ({ cors, domain, rp, callback, signedOut, botHosts }) => {
   const hosts = Object.keys(ENVIRONMENTS).filter(
     (host) => host !== 'localhost' && ENVIRONMENTS[host]?.relay === `https://${domain}`,
   );
+
+  // A PASS NAMES THE HOST IT WAS SOLVED ON, and the function admits only the hosts it is handed:
+  // every host rendering this environment's widget, the dev server's included, and no other.
+  it('share one bot-check widget, whose hosts are the ones the function admits', () => {
+    const sitekeys = new Set(hosts.map((host) => ENVIRONMENTS[host]?.botCheckSitekey));
+    expect(sitekeys.size).toBe(1);
+    const [sitekey] = sitekeys;
+    const rendering = Object.keys(ENVIRONMENTS).filter(
+      (host) => ENVIRONMENTS[host]?.botCheckSitekey === sitekey,
+    );
+    expect(botHosts.split(',').sort()).toEqual(rendering.sort());
+  });
 
   it('are all ones the relay answers with credentials', () => {
     expect(hosts.length).toBeGreaterThan(0);

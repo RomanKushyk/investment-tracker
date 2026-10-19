@@ -5,12 +5,13 @@
 // would already have cost a monthly active user, approved or not. Minting the identity belongs to
 // APPROVAL, which is also what makes approval the verification step (*Auth model*).
 import { ADDRESS, MAX_ADDRESS, canonicalAddress } from '@quirenote/core/address';
+import { BOT_CHECK_FAILED, MAX_TOKEN, type Verify, fromEnvironment, verifyWith } from './bot-check';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
 
-// THREE ANSWERS, EVERY ONE FIXED TEXT: a body carrying the cluster's message would repeat a
+// EVERY ANSWER IS FIXED TEXT: a body carrying the cluster's message would repeat a
 // constraint name to a stranger, and one varying with the row would be a directory of applicants.
 const RECEIVED = json(202, '{"status":"received"}');
 
@@ -23,7 +24,8 @@ export const REQUEST_BODY = {
     'application/json': {
       schema: {
         type: 'object',
-        required: ['email'],
+        required: ['email', 'botCheck'],
+        additionalProperties: false,
         // THE RULE ITSELF, not a description of it: `format` is annotation-only, so a client
         // generated from one sends `user@localhost` and is refused. Both bounds are `address.ts`'s.
         properties: {
@@ -33,6 +35,8 @@ export const REQUEST_BODY = {
             maxLength: MAX_ADDRESS,
             pattern: ADDRESS.source,
           },
+          /** The Turnstile widget's token, verified with siteverify before the cluster is asked. */
+          botCheck: { type: 'string', minLength: 1, maxLength: MAX_TOKEN },
         },
       },
     },
@@ -40,11 +44,16 @@ export const REQUEST_BODY = {
 } as const;
 
 export const RESPONSES: Record<string, readonly ApiResult[]> = {
-  [ROUTE]: [RECEIVED, INVALID, INTERNAL],
+  [ROUTE]: [RECEIVED, INVALID, BOT_CHECK_FAILED, INTERNAL],
 };
 
-/** The address a request carries, already folded — or nothing, which is the 400. */
-function addressOf(event: ApiEvent): string | undefined {
+const KEYS = new Set(['email', 'botCheck']);
+
+type Application = { email: string; botCheck: string };
+
+/** The address a request carries, already folded, and its token — or nothing, which is the 400.
+ *  A token that is absent or not text reads as empty, which the bot check refuses as a 403. */
+function applicationOf(event: ApiEvent): Application | undefined {
   if (typeof event.body !== 'string') return undefined;
   const text = event.isBase64Encoded
     ? Buffer.from(event.body, 'base64').toString('utf8')
@@ -59,11 +68,15 @@ function addressOf(event: ApiEvent): string | undefined {
   // An array is an object to `typeof`, and `[].email` is `undefined` rather than an error, so both
   // have to be turned away by name.
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
+  // EXACT-KEY, as the published schema says: a key nothing reads is a client misreading the route.
+  if (Object.keys(parsed).some((key) => !KEYS.has(key))) return undefined;
 
-  const supplied = (parsed as { email?: unknown }).email;
+  const { email: supplied, botCheck } = parsed as { email?: unknown; botCheck?: unknown };
   if (typeof supplied !== 'string') return undefined;
+  const email = canonicalAddress(supplied);
+  if (email === undefined) return undefined;
 
-  return canonicalAddress(supplied);
+  return { email, botCheck: typeof botCheck === 'string' ? botCheck : '' };
 }
 
 /**
@@ -108,32 +121,48 @@ async function apply(client: SqlClient, email: string): Promise<ApiResult> {
   return RECEIVED;
 }
 
+/** The cluster's half alone, which the bundle's smoke test drives; the token is the handler's. */
 export async function applications(client: SqlClient, event: ApiEvent): Promise<ApiResult> {
-  const email = addressOf(event);
-  return email === undefined ? INVALID : apply(client, email);
+  const application = applicationOf(event);
+  return application === undefined ? INVALID : apply(client, application.email);
 }
 
-export async function handler(event: ApiEvent): Promise<ApiResult> {
-  // THE GATE IS BEFORE THE CONNECTION: `connect()` completes a TLS handshake and a database
-  // startup, so a malformed body checked on the far side would cost that and a concurrency slot,
-  // and this is the route a stranger reaches. Read once rather than parsed again, because API
-  // Gateway accepts several megabytes and only the ADDRESS inside is bounded.
-  const email = addressOf(event);
-  if (email === undefined) return INVALID;
+type Connection = SqlClient & { end: () => Promise<void> };
 
-  // A connection failure answers rather than throws: an uncaught throw reaches the caller as API
-  // Gateway's own 502, a second shape for the same class of event.
-  const client = await connect().catch((err: unknown) => {
-    console.error('application connect failed', err);
-    return undefined;
-  });
-  if (client === undefined) return INTERNAL;
+export const createHandler =
+  ({ verify, connect }: { verify: Verify; connect: () => Promise<Connection> }) =>
+  async (event: ApiEvent): Promise<ApiResult> => {
+    // THE GATES ARE BEFORE THE CONNECTION, which costs a handshake and a concurrency slot: the
+    // address first, spending no token, then the token, so a flood costs one siteverify call.
+    const application = applicationOf(event);
+    if (application === undefined) return INVALID;
 
-  try {
-    return await apply(client, email);
-  } finally {
-    // BELT, NOT COVERAGE: `pg`'s `end()` does not reject today, but the answer is already in
-    // hand and a rejection escaping a `finally` would REPLACE it with API Gateway's 502.
-    await client.end().catch((err: unknown) => console.error('application disconnect failed', err));
-  }
-}
+    const verdict = await verify(application.botCheck, event.requestContext?.http?.sourceIp);
+    if (verdict === 'refused') return BOT_CHECK_FAILED;
+    // FAIL CLOSED: a check that could not run admits nobody.
+    if (verdict !== 'passed') return INTERNAL;
+    const { email } = application;
+
+    // A connection failure answers rather than throws: an uncaught throw reaches the caller as API
+    // Gateway's own 502, a second shape for the same class of event.
+    const client = await connect().catch((err: unknown) => {
+      console.error('application connect failed', err);
+      return undefined;
+    });
+    if (client === undefined) return INTERNAL;
+
+    try {
+      return await apply(client, email);
+    } finally {
+      // BELT, NOT COVERAGE: `pg`'s `end()` does not reject today, but the answer is already in
+      // hand and a rejection escaping a `finally` would REPLACE it with API Gateway's 502.
+      await client
+        .end()
+        .catch((err: unknown) => console.error('application disconnect failed', err));
+    }
+  };
+
+export const handler = createHandler({
+  verify: verifyWith((url, init) => fetch(url, init), fromEnvironment(), 'apply'),
+  connect,
+});

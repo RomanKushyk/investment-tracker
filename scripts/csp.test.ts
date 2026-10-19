@@ -74,4 +74,20 @@ describe('the Content-Security-Policy in customHttp.yml', () => {
       expect(policy(path)).toBe(policy());
     }
   });
+  // TURNSTILE, WALKED BESIDE IT: its challenge frame, and the feedback beacon api.js sends from the
+  // page with `sendBeacon`, which `connect-src` governs. Nothing else differs.
+  it('walks Turnstile beside it: its frame and its beacon, and nothing else', () => {
+    const TURNSTILE = 'https://challenges.cloudflare.com';
+    for (const path of ['/', '/sign-in', '/auth/callback', '/api-docs.html']) {
+      const walked = expected(SOURCE, path)['content-security-policy-report-only'];
+      if (!walked) throw new Error(`${path} carries no Report-Only policy`);
+      const enforced = parsePolicy(policy(path));
+      const beside = parsePolicy(walked);
+      expect([...beside.keys()].sort()).toEqual([...enforced.keys(), 'frame-src'].sort());
+      expect(beside.get('frame-src')).toEqual([TURNSTILE]);
+      expect(beside.get('connect-src')).toEqual([...enforced.get('connect-src')!, TURNSTILE]);
+      for (const [name, sources] of enforced)
+        if (name !== 'connect-src') expect([name, beside.get(name)]).toEqual([name, sources]);
+    }
+  });
 });

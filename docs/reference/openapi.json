@@ -32,14 +32,21 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "email"
+                  "email",
+                  "botCheck"
                 ],
+                "additionalProperties": false,
                 "properties": {
                   "email": {
                     "type": "string",
                     "format": "email",
                     "maxLength": 254,
                     "pattern": "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,}$"
+                  },
+                  "botCheck": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
                   }
                 }
               }
@@ -70,6 +77,20 @@
                   "invalid_request": {
                     "value": {
                       "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "bot_check_failed": {
+                    "value": {
+                      "error": "bot_check_failed"
                     }
                   }
                 }

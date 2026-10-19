@@ -1423,7 +1423,14 @@ is offered only once the relay says someone is signed in. The account's address 
 verifies every token it is sent.
 The relay reads the secret from Cognito with `DescribeUserPoolClient` and caches it per execution
 environment, so there is no second copy to drift and no store to pay for; its routes refuse a
-request without the custom header or from another site before anything else. THE API ANSWERS ON
+request without the custom header or from another site before anything else. THE TURNSTILE SECRET
+HAS NO SUCH READER, so it is an SSM SecureString named for its environment, which the deploy writes
+from that environment's GitHub secret on every run and the function reads once per execution
+environment, again after a failed read, dropping a value siteverify calls invalid. OWASP: "It is even better when the consumer
+of the secret retrieves the secret"; Parameter Store's standard tier costs nothing and is meant for
+"secrets for low-risk environments", and the secret mints no token. The three stores refused for
+the Cognito secret fall away for this one: written by the deploy, the parameter is no hand copy; it
+carries no monthly charge; and it is not held in the function's configuration. THE API ANSWERS ON
 ITS OWN HOST ALONE: CORS names the deployed hosts the app maps — the apex, `www` and `dev` — and no
 other origin, and the generated `execute-api` endpoint is disabled, so every call arrives at the
 host the relay's `__Host-` cookies are set on. THE REFRESH TOKEN IS BOUNDED AND ROTATES, which answers the three refresh requirements the browser BCP singles out and no
@@ -1468,7 +1475,11 @@ has a session there. The button is Google's: its colours per theme and its
 face, Google Sans Medium, as the branding guidelines fix them for "the app verification process", and
 the bundle's own G cropped to its box.
 Registration is an APPLICATION,
-not an open door — threat protection is a paid tier, so a public door has only quotas: sign-up
+not an open door, and THE DOOR CARRIES A BOT CHECK OF ITS OWN, Cognito's threat protection being a
+paid tier: `/apply` holds a Cloudflare Turnstile widget in Managed mode, and the route verifies its
+token with siteverify, the caller's IP address as `remoteip`, before the cluster is asked. A missing,
+refused or replayed token, or a pass solved for another form or host, answers one 403; a siteverify
+that cannot answer admits nobody. Sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
 Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. AN IDENTITY IS DELETED BY
 HAND OR NOT AT ALL: no handler holds `AdminDeleteUser`, and `DeleteUser` takes an access token no
@@ -1570,6 +1581,9 @@ account's shared Lambda concurrency, and a refusal that must land before any Lam
 only land inside one. · The secret in an SSM SecureString, which CloudFormation cannot create, so a
 hand copy per environment; in Secrets Manager under a key of its own, a fixed monthly charge on the
 standing "no" list; or in an environment variable, where AWS points to Secrets Manager instead. ·
+The Turnstile secret in the function's environment, through a NoEcho parameter as Google's travels:
+it reads back in plain text to anyone who may describe the function, where AWS and OWASP point to a
+store the function reads; or in Secrets Manager, the same monthly charge. ·
 Managed login as the sign-in surface, the redirect RFC 10017 §7.3 asks for: the owner ruled for the
 in-app screen. · Amplify JS: it never computes a `SECRET_HASH`, so it cannot talk to a confidential
 client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no `sideEffects: false`, and

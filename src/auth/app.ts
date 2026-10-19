@@ -97,6 +97,9 @@ export const apply = createApply({
   fetch: (input, init) => fetch(input, init),
 });
 
+/** This host's Turnstile widget, or none where no environment is keyed. */
+export const botCheckSitekey = environment?.botCheckSitekey;
+
 /** One of the four refusals `answerOf` reads, and the address the caller signed in with. */
 export interface HeldAnswer {
   answer: Answer;

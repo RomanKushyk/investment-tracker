@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PGlite } from '@electric-sql/pglite';
 import ts from 'typescript';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
@@ -15,8 +15,11 @@ import {
   ROUTE,
   RESPONSES,
   applications as applicationsRoute,
+  createHandler,
   handler as rawHandler,
 } from './applications';
+import { type Verify, verifyWith } from './bot-check';
+import { connect } from './dsql';
 import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
@@ -32,6 +35,12 @@ const DML = [
 const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
+// THE REAL `connect`, never called: a test that reached it would mint a token against no cluster.
+vi.mock('./dsql', async (actual) => ({
+  ...(await actual<typeof import('./dsql')>()),
+  connect: vi.fn(),
+}));
+
 const { observed, record } = recorder(ROUTE);
 
 const applications = async (
@@ -41,8 +50,10 @@ const applications = async (
 const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeof rawHandler> =>
   record(args[0], await rawHandler(...args));
 
+const TOKEN = 'XXXX.DUMMY.TOKEN.XXXX';
 const raw = (body?: string): ApiEvent => ({ body, isBase64Encoded: false });
-const submit = (email: unknown): ApiEvent => raw(JSON.stringify({ email }));
+const submit = (email: unknown, botCheck: unknown = TOKEN): ApiEvent =>
+  raw(JSON.stringify({ email, botCheck }));
 
 /** Records what the handler asked the cluster for, and answers nothing back. */
 const spy = (thrown?: Error) => {
@@ -171,6 +182,11 @@ describe('an address the cluster would refuse never reaches it', () => {
     ['a JSON string', '"new@quirenote.com"'],
     ['an object with no email', '{"address":"new@quirenote.com"}'],
     ['an email that is not a string', '{"email":42}'],
+    // EXACT-KEY, as the published schema's `additionalProperties: false` says.
+    [
+      'a key the route does not read',
+      `{"email":"new@quirenote.com","botCheck":"${TOKEN}","role":"admin"}`,
+    ],
   ];
 
   for (const [what, body] of malformed) {
@@ -273,11 +289,21 @@ describe('a submission costs one parameterised statement and no mail', () => {
     expect(asked[0].text.toLowerCase()).not.toContain('quirenote.com');
   });
 
-  // The gate is in `handler`, and this is the test that can tell: `connect()` cannot succeed
-  // here, so a 400 proves the connection was never attempted and a malformed body costs no
-  // token mint on the one route a stranger can reach.
+  // The gate is in `handler`: a malformed body costs no token mint on the one route a stranger
+  // can reach.
   it('refuses a malformed body without reaching for a connection', async () => {
+    vi.mocked(connect).mockClear();
     await expect(handler(raw('not json at all'))).resolves.toMatchObject({ statusCode: 400 });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  // THE DEPLOYED WIRING, not a composed double: a body with no token is refused before the
+  // secret, siteverify or the cluster is reached, whatever the environment holds.
+  it('refuses an application with no token without reaching for a connection', async () => {
+    vi.mocked(connect).mockClear();
+    const res = await handler(raw('{"email":"new@quirenote.com"}'));
+    expect([res.statusCode, res.body]).toEqual([403, '{"error":"bot_check_failed"}']);
+    expect(connect).not.toHaveBeenCalled();
   });
 
   // Mailing on submission would let anyone type a stranger's address and have this domain
@@ -290,6 +316,88 @@ describe('a submission costs one parameterised statement and no mail', () => {
     );
     const forbidden = ['client-ses', 'SESClient', 'SendEmail', 'sendMail', 'nodemailer'];
     for (const name of forbidden) expect([name, source.includes(name)]).toEqual([name, false]);
+  });
+});
+
+describe('the bot check stands before the cluster', () => {
+  /** A connection that records it was opened, and the statements asked of it. */
+  const opened = () => {
+    const { client, asked } = spy();
+    const connect = vi.fn(async () => ({ ...client, end: async () => {} }));
+    return { connect, asked };
+  };
+  const gated = (verify: Verify, connect: ReturnType<typeof opened>['connect']) => {
+    const route = createHandler({ verify, connect });
+    return async (event: ApiEvent) => record(event, await route(event));
+  };
+  const verdict = (v: Awaited<ReturnType<Verify>>) => vi.fn<Verify>(async () => v);
+
+  // The accepting twin first: every refusal below is green against a gate refusing everything.
+  it('records an application whose token passes, as before', async () => {
+    const { connect, asked } = opened();
+    const res = await gated(verdict('passed'), connect)(submit('New@quirenote.com'));
+    expect([res.statusCode, res.body]).toEqual([202, '{"status":"received"}']);
+    expect(asked).toHaveLength(1);
+    expect(asked[0].values).toEqual(['new@quirenote.com']);
+  });
+
+  it('refuses a token the check refuses, and opens no connection', async () => {
+    const { connect } = opened();
+    const res = await gated(verdict('refused'), connect)(submit('new@quirenote.com'));
+    expect([res.statusCode, res.body]).toEqual([403, '{"error":"bot_check_failed"}']);
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  // FAIL CLOSED: an outage is no reason to admit what nothing checked (OWASP, "Fail securely").
+  it('answers a check that could not run with the fixed 500, and opens no connection', async () => {
+    const { connect } = opened();
+    const res = await gated(verdict('unavailable'), connect)(submit('new@quirenote.com'));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  for (const [what, body] of [
+    ['no token', '{"email":"new@quirenote.com"}'],
+    ['a token that is not text', '{"email":"new@quirenote.com","botCheck":42}'],
+    ['an empty token', '{"email":"new@quirenote.com","botCheck":""}'],
+  ] as const) {
+    it(`hands the check an empty token for ${what}`, async () => {
+      const verify = verdict('refused');
+      await gated(verify, opened().connect)(raw(body));
+      expect(verify).toHaveBeenCalledWith('', undefined);
+    });
+  }
+
+  // The field is checked first, as the form checks it: a bad address spends no token.
+  it('refuses a bad address before asking the check anything', async () => {
+    const verify = verdict('passed');
+    const { connect } = opened();
+    const res = await gated(verify, connect)(submit('no-at-sign'));
+    expect(res.statusCode).toBe(400);
+    expect(verify).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  // THE CALLER'S OWN ADDRESS, as API Gateway saw the connection: the `api.` hosts are DNS-only and
+  // regional, so nothing in front of them sets a forwarding header worth believing.
+  it("hands siteverify the caller's sourceIp as remoteip", async () => {
+    const sent: unknown[] = [];
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)));
+      return Response.json({ success: true, action: 'apply', hostname: 'localhost' });
+    });
+    const verify = verifyWith(
+      fetch,
+      () => ({ secret: async () => 's', forget: () => {}, hostnames: ['localhost'] }),
+      'apply',
+    );
+    const event: ApiEvent = {
+      ...submit('new@quirenote.com'),
+      requestContext: { http: { sourceIp: '203.0.113.9' } },
+    };
+    const res = await gated(verify, opened().connect)(event);
+    expect(res.statusCode).toBe(202);
+    expect(sent).toEqual([{ secret: 's', response: TOKEN, remoteip: '203.0.113.9' }]);
   });
 });
 

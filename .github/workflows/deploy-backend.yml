@@ -199,7 +199,7 @@ jobs:
             if (typeof a.handler !== 'function') throw new Error('handler missing from applications bundle');
             const asked = [];
             const client = { query: async (text, values) => { asked.push({ text, values }); return { rows: [] }; } };
-            const submit = (email) => ({ body: JSON.stringify({ email }), isBase64Encoded: false });
+            const submit = (email) => ({ body: JSON.stringify({ email, botCheck: 'XXXX.DUMMY.TOKEN.XXXX' }), isBase64Encoded: false });
             Promise.all([
               a.applications(client, submit('New@Quirenote.com')),
               // Escaped rather than typed, because the character is the point — a capital I
@@ -207,16 +207,20 @@ jobs:
               // and a non-ASCII byte inside a shell string inside YAML has too many places to
               // be re-encoded on the way to node.
               a.applications(client, submit(String.fromCharCode(304) + 'REN@quirenote.com')),
-            ]).then(([ok, bad]) => {
+              // THE DEPLOYED HANDLER, with no token: refused before the secret, siteverify or the
+              // cluster, so it needs none of them here.
+              a.handler({ body: JSON.stringify({ email: 'new@quirenote.com' }), isBase64Encoded: false }),
+            ]).then(([ok, bad, untoken]) => {
               if (ok.statusCode !== 202) throw new Error('valid address not accepted: ' + ok.statusCode);
               if (bad.statusCode !== 400) throw new Error('bad address not refused: ' + bad.statusCode);
+              if (untoken.statusCode !== 403) throw new Error('no token not refused: ' + untoken.statusCode);
               // One statement for two submissions: the refusal never reached the cluster, and
               // the acceptance was bound rather than interpolated.
               if (asked.length !== 1) throw new Error('cluster asked ' + asked.length + ' times, wanted 1');
               if (asked[0].values[0] !== 'new@quirenote.com') {
                 throw new Error('address not folded: ' + asked[0].values[0]);
               }
-              console.log('applications bundle loads, accepts one address and refuses the other');
+              console.log('applications bundle loads, accepts one address, refuses the other and refuses no token');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # Both refusals land BEFORE any Cognito call — which would spend a monthly active user
@@ -587,6 +591,27 @@ jobs:
             exit 1
           fi
           echo "cluster-id=$id" >> "$GITHUB_OUTPUT"
+
+      # THE BOT CHECK'S SECRET, where the function reads it: CloudFormation cannot create a SecureString
+      # (*Auth model*). Every deploy writes it, so a rotated GitHub secret lands on the next one.
+      - name: Write the bot-check secret
+        run: |
+          if [ -z "$TURNSTILE_SECRET" ]; then
+            echo "::error::TURNSTILE_SECRET is not set in this environment, and /v1/applications would refuse everyone"
+            exit 1
+          fi
+          # NEVER ON A COMMAND LINE, which any process on the runner can read: jq takes it from the
+          # environment into a file only this user reads, and the CLI takes the file.
+          umask 077
+          request="$RUNNER_TEMP/turnstile-secret.json"
+          trap 'rm -f "$request"' EXIT
+          jq -n --arg name "/quirenote/${ENVIRONMENT}/turnstile-secret" \
+            '{Name: $name, Type: "SecureString", Value: env.TURNSTILE_SECRET, Overwrite: true}' > "$request"
+          aws ssm put-parameter --cli-input-json "file://$request" --region "$AWS_REGION" > /dev/null
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
 
       # USER STACK FIRST, ARCHIVE SECOND, in two steps: the archive deploy DELETES the old
       # migration function, so running it first leaves the plan step below — and any later

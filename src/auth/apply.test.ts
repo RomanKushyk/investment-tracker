@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createApply } from './apply';
+import { addressRefusal, createApply } from './apply';
+
+const TOKEN = 'XXXX.DUMMY.TOKEN.XXXX';
 
 const answer = (status: number, body: unknown) =>
   vi.fn(async () => new Response(JSON.stringify(body), { status }));
@@ -8,19 +10,19 @@ const answer = (status: number, body: unknown) =>
 describe('an application', () => {
   it('posts the canonical address as JSON, and no cookie', async () => {
     const fetch = answer(202, { status: 'received' });
-    await createApply({ base: 'https://api.test', fetch })('  Oksana.Melnyk@Example.com ');
+    await createApply({ base: 'https://api.test', fetch })('  Oksana.Melnyk@Example.com ', TOKEN);
     expect(fetch).toHaveBeenCalledWith('https://api.test/v1/applications', {
       method: 'POST',
       credentials: 'omit',
       headers: { 'content-type': 'application/json' },
-      body: '{"email":"oksana.melnyk@example.com"}',
+      body: `{"email":"oksana.melnyk@example.com","botCheck":"${TOKEN}"}`,
       signal: expect.any(AbortSignal),
     });
   });
 
   it('is recorded under the address the endpoint was sent', async () => {
     const apply = createApply({ base: '', fetch: answer(202, { status: 'received' }) });
-    expect(await apply('Oksana.Melnyk@Example.com')).toEqual({
+    expect(await apply('Oksana.Melnyk@Example.com', TOKEN)).toEqual({
       kind: 'recorded',
       email: 'oksana.melnyk@example.com',
     });
@@ -32,18 +34,20 @@ describe('an application', () => {
     [500, { error: 'internal' }, 'failed'],
     [503, { message: 'Service Unavailable' }, 'failed'],
     [403, { error: 'forbidden' }, 'failed'],
+    // The bot check's own refusal, by its code: the widget is reset and asked again.
+    [403, { error: 'bot_check_failed' }, 'botCheck'],
     // Only the endpoint's own constant is a record: anything else was not written by it.
     [200, { status: 'received' }, 'failed'],
     [202, { status: 'queued' }, 'failed'],
     [202, 'received', 'failed'],
   ])('reads %i %j as %s', async (status, body, reason) => {
     const apply = createApply({ base: '', fetch: answer(status, body) });
-    expect(await apply('a@b.cd')).toEqual({ kind: 'refused', reason });
+    expect(await apply('a@b.cd', TOKEN)).toEqual({ kind: 'refused', reason });
   });
 
   it('reads an answer that is not JSON as failed', async () => {
     const fetch = vi.fn(async () => new Response('<html>', { status: 202 }));
-    expect(await createApply({ base: '', fetch })('a@b.cd')).toEqual({
+    expect(await createApply({ base: '', fetch })('a@b.cd', TOKEN)).toEqual({
       kind: 'refused',
       reason: 'failed',
     });
@@ -57,8 +61,17 @@ describe('an application', () => {
     [`${'a'.repeat(243)}@example.com`, 'emailInvalid'],
   ])('refuses %j as %s without a request', async (typed, reason) => {
     const fetch = vi.fn();
-    expect(await createApply({ base: '', fetch })(typed)).toEqual({ kind: 'refused', reason });
+    expect(await createApply({ base: '', fetch })(typed, TOKEN)).toEqual({
+      kind: 'refused',
+      reason,
+    });
     expect(fetch).not.toHaveBeenCalled();
+    // The same check the form runs before it waits for any token.
+    expect(addressRefusal(typed)).toBe(reason);
+  });
+
+  it('finds nothing to refuse in a valid address', () => {
+    expect(addressRefusal('  Oksana.Melnyk@Example.com ')).toBeUndefined();
   });
 
   it('gives up on an answer that has not come in 30 seconds, as offline', async () => {
@@ -73,7 +86,7 @@ describe('an application', () => {
           ),
       );
       let settled: unknown;
-      void createApply({ base: '', fetch })('a@b.cd').then((a) => (settled = a));
+      void createApply({ base: '', fetch })('a@b.cd', TOKEN).then((a) => (settled = a));
       await vi.advanceTimersByTimeAsync(29_999);
       expect(settled).toBeUndefined();
       await vi.advanceTimersByTimeAsync(1);
@@ -87,7 +100,7 @@ describe('an application', () => {
     const fetch = vi.fn(async () => {
       throw new TypeError('Failed to fetch');
     });
-    expect(await createApply({ base: '', fetch })('a@b.cd')).toEqual({
+    expect(await createApply({ base: '', fetch })('a@b.cd', TOKEN)).toEqual({
       kind: 'refused',
       reason: 'offline',
     });
@@ -95,7 +108,7 @@ describe('an application', () => {
 
   it('refuses without a request where the host has no API', async () => {
     const fetch = vi.fn();
-    expect(await createApply({ base: undefined, fetch })('a@b.cd')).toEqual({
+    expect(await createApply({ base: undefined, fetch })('a@b.cd', TOKEN)).toEqual({
       kind: 'refused',
       reason: 'failed',
     });

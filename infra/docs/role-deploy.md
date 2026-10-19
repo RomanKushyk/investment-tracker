@@ -59,15 +59,21 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
       "Effect": "Allow",
       "Action": "lambda:InvokeFunction",
       "Resource": "arn:aws:lambda:eu-north-1:<account-id>:function:quirenote-backend-user-dev-MigrateFunction-*"
+    },
+    {
+      "Sid": "WriteTheBotCheckSecret",
+      "Effect": "Allow",
+      "Action": "ssm:PutParameter",
+      "Resource": "arn:aws:ssm:eu-north-1:<account-id>:parameter/quirenote/dev/turnstile-secret"
     }
   ]
 }
 ```
 
-For `prod`, the same with four substitutions: `stack/quirenote-backend-user-prod/*` replaces the
+For `prod`, the same with five substitutions: `stack/quirenote-backend-user-prod/*` replaces the
 two dev stacks, because the archive deploys from `dev` alone; the role passed is
-`quirenote-backend-cfn-exec-prod`; the object prefix is `prod/*`; and the runner is
-`quirenote-backend-user-prod-MigrateFunction-*`. And one statement more, because the
+`quirenote-backend-cfn-exec-prod`; the object prefix is `prod/*`; the runner is
+`quirenote-backend-user-prod-MigrateFunction-*`; and the parameter is `quirenote/prod/turnstile-secret`. And one statement more, because the
 production deploy still READS the archive, for the identifier it passes as `ArchiveClusterId`:
 
 ```json
@@ -91,7 +97,8 @@ executes a change set while it reads the stack events. It never calls
 `s3_uploader.py` heads each key and puts it when the head fails. It reads any refusal as "not
 there", so the role holds no `s3:ListBucket`. A key that exists is still found, and a missing one
 is put, exactly as with a 404. `HandOffToCloudFormationOnly` is `--role-arn`, and `RunMigrations`
-is the invoke below.
+is the invoke below. `WriteTheBotCheckSecret` is the deploy's `ssm put-parameter`, the one place the
+environment's Turnstile secret reaches AWS; CloudFormation cannot create a SecureString.
 
 **The trust names the environment AND the branch, and each closes a gap the other leaves.** The `sub`
 a job in an environment carries is `…:environment:<env>`, never `ref:refs/heads/…`. `ref` is a claim

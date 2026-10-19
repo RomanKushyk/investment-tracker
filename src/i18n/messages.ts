@@ -844,6 +844,14 @@ export const en = {
         `If it’s approved, the invitation will go to ${email}. No other email is sent.`,
       back: 'Back to sign in',
     },
+    /** The Turnstile check under a form's button (`bot-check.dc.html` T5). */
+    botCheck: {
+      /** The widget failed, or the route refused its token. */
+      failed: 'The security check didn’t finish. Try again.',
+      /** No widget on the page: the script never ran, or Turnstile refused this page or browser. */
+      unavailable:
+        'The security check couldn’t load. Check your connection or ad blocker, then reload the page.',
+    },
     signedInAs: (email: string) => `Signed in as ${email}`,
     /** The account row when the ID token names no address. */
     signedIn: 'Signed in',
@@ -1858,6 +1866,11 @@ export const uk: Dict = {
       recordedLead: (email: string) =>
         `Якщо її схвалять, запрошення прийде на ${email}. Інших листів не буде.`,
       back: 'Повернутися до входу',
+    },
+    botCheck: {
+      failed: 'Перевірку безпеки не завершено. Спробуйте ще раз.',
+      unavailable:
+        'Не вдалося завантажити перевірку безпеки. Перевірте мережу чи блокувальник реклами й оновіть сторінку.',
     },
     signedInAs: (email: string) => `Ви увійшли як ${email}`,
     signedIn: 'Ви увійшли',

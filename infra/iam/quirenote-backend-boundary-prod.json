@@ -46,6 +46,23 @@
       "Resource": "arn:aws:backup:eu-north-1:*:backup-vault:quirenote-backups"
     },
     {
+      "Sid": "ReadTheBotCheckSecret",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
+      "Resource": "arn:aws:ssm:eu-north-1:*:parameter/quirenote/prod/turnstile-secret"
+    },
+    {
+      "Sid": "DecryptTheBotCheckSecret",
+      "Effect": "Allow",
+      "Action": "kms:Decrypt",
+      "Resource": "arn:aws:kms:eu-north-1:*:key/*",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": "ssm.eu-north-1.amazonaws.com"
+        }
+      }
+    },
+    {
       "Sid": "UserPool",
       "Effect": "Allow",
       "Action": [

@@ -557,6 +557,12 @@ Resources:
           DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
+          # THE NAME, NEVER THE SECRET: the deploy writes the SecureString from the environment's
+          # GitHub secret, and the handler reads it on first use (*Auth model*).
+          BOT_CHECK_PARAMETER: !Sub '/quirenote/${Environment}/turnstile-secret'
+          # The hosts each environment's widget serves, which a pass from siteverify must name.
+          BOT_CHECK_HOSTNAMES:
+            !If [IsProd, 'quirenote.com,www.quirenote.com', 'dev.quirenote.com,localhost']
       Policies:
         - Statement:
             # THE SAME ADMIN GRANT THE RUNNER HOLDS, and the widest thing about this endpoint: the
@@ -565,6 +571,19 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
+            - Sid: ReadTheBotCheckSecret
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/quirenote/${Environment}/turnstile-secret'
+            # A SECURESTRING IS DECRYPTED UNDER THE CALLER: "kms:Decrypt – Required if you are
+            # retrieving SecureString parameters". Through SSM alone, which is where the key is used.
+            - Sid: DecryptTheBotCheckSecret
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*'
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub 'ssm.${AWS::Region}.amazonaws.com'
       Events:
         Submit:
           Type: HttpApi

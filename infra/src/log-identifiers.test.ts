@@ -73,6 +73,11 @@ const FORBIDDEN = new Set([
   'Username',
   'userAttributes',
   'claims',
+  // The bot check's inputs: a token, the caller's address and the secret that verifies them.
+  'token',
+  'remoteip',
+  'sourceIp',
+  'secret',
 ]);
 
 type Call = { file: string; line: number; names: string[] };
@@ -124,7 +129,7 @@ describe('no log line in infra/src names an address or a federated username', ()
   it('finds exactly the console calls it guards, in the modules that hold them', () => {
     // EXACT, not a floor: a scanner gone blind makes the count go DOWN. Update it in the commit
     // that adds or removes a call; a new module joins the set by name.
-    expect(calls).toHaveLength(90);
+    expect(calls).toHaveLength(98);
     expect(new Set(calls.map((c) => c.file))).toEqual(
       new Set([
         'admin-users.ts',
@@ -134,6 +139,7 @@ describe('no log line in infra/src names an address or a federated username', ()
         'auth-relay.ts',
         'authorize.ts',
         'backup-freshness.ts',
+        'bot-check.ts',
         'backup-wake.ts',
         'capture.ts',
         'collect.ts',

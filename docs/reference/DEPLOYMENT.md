@@ -263,6 +263,7 @@ an empty value rather than an error that names it.
 | Secret | `API_CERTIFICATE_ARN` | the ACM certificate for both `api.` hosts, in `eu-north-1` | both |
 | Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: one alone fails the deploy, neither switches Google sign-in off |
 | Secret | `GOOGLE_CLIENT_SECRET` | that client's secret | both — as above |
+| Secret | `TURNSTILE_SECRET` | the environment's Turnstile widget secret, which every backend deploy writes to the SecureString `/quirenote/<env>/turnstile-secret` | both, each its own widget — unset fails the deploy |
 | Secret | `DEV_BASIC_AUTH` | dev's basic-auth pair as `user:pass`, for the header check (§3.2) | `dev` only — re-set it whenever the pair is changed in the console |
 
 **The migration needs no environment of its own, and a `migrate-prod` pair was built and deleted.** A

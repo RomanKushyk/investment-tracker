@@ -225,6 +225,21 @@ describe('the reused temporary password', () => {
   });
 });
 
+describe('the bot check', () => {
+  // Word for word as `bot-check.dc.html` T5 writes them: a step that did not finish, and a
+  // connection, the house's two failure shapes.
+  it('says the check did not finish, and that it could not load', () => {
+    expect(en.auth.botCheck.failed).toBe('The security check didn’t finish. Try again.');
+    expect(uk.auth.botCheck.failed).toBe('Перевірку безпеки не завершено. Спробуйте ще раз.');
+    expect(en.auth.botCheck.unavailable).toBe(
+      'The security check couldn’t load. Check your connection or ad blocker, then reload the page.',
+    );
+    expect(uk.auth.botCheck.unavailable).toBe(
+      'Не вдалося завантажити перевірку безпеки. Перевірте мережу чи блокувальник реклами й оновіть сторінку.',
+    );
+  });
+});
+
 describe('the account slot signed out', () => {
   // The status is the negative of the row's own fallback, and the entry says what `/apply`'s link
   // to `/sign-in` says (*Two shells, one breakpoint*; `sign-in-entry.dc.html`).

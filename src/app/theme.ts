@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useSettings, type Theme } from '../state/settings';
 
@@ -23,6 +23,19 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 export function resolveTheme(pref: Theme): ResolvedTheme {
   if (pref !== 'system') return pref;
   return matchMedia(DARK_QUERY).matches ? 'dark' : 'light';
+}
+
+const hearScheme = (listener: () => void) => {
+  const mq = matchMedia(DARK_QUERY);
+  mq.addEventListener('change', listener);
+  return () => mq.removeEventListener('change', listener);
+};
+
+/** The theme the page wears, live under `system`, for what cannot read the CSS: a third-party
+ *  frame takes it as an option. */
+export function useResolvedTheme(): ResolvedTheme {
+  const theme = useSettings((s) => s.theme);
+  return useSyncExternalStore(hearScheme, () => resolveTheme(theme));
 }
 
 /**

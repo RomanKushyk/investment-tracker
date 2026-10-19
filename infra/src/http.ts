@@ -25,6 +25,9 @@ export type ApiEvent = {
     /** What the NATIVE JWT authorizer passes through: AWS validates signature, issuer, audience
      *  and expiry. A claim is text or a list of it, and nothing trusts one to be anything else. */
     authorizer?: { jwt?: { claims?: Record<string, string | string[]> } };
+    /** "The source IP address of the immediate TCP connection making the request to API Gateway
+     *  endpoint", which on these DNS-only regional hosts is the caller's own. */
+    http?: { sourceIp?: string };
   };
 };
 
