@@ -12,6 +12,7 @@ import {
   inlineScriptHashes,
   mismatches,
   parsePolicy,
+  scriptMismatches,
 } from './check-headers.ts';
 
 const SOURCE = readFileSync(join(REPO, 'public/customHttp.yml'), 'utf8');
@@ -234,6 +235,28 @@ describe("the page's inline scripts are held to the policy's hashes", () => {
     expect(() => hashMismatches(`object-src 'none'`, page('<script>a()</script>'))).toThrow(
       /script-src/,
     );
+  });
+});
+
+describe('every policy a page carries is held to its scripts', () => {
+  const A = 'sha256-qVpDBgj7bpq5hMAcGp3AOc79J3Y1Z4HvySTwKrWDoy4=';
+  const B = 'sha256-cf242PFc/kb7xD0Qzhsmd9vvRkc+cWFmbi+k+YvtdKc=';
+  const html = '<html><head><script>a()</script></head></html>';
+  const want = {
+    'content-security-policy': `script-src '${A}'`,
+    'content-security-policy-report-only': `script-src '${B}'`,
+  };
+
+  it('reads the enforced policy and a Report-Only one walked beside it, each by its key', () => {
+    const got = new Headers(want);
+    expect(scriptMismatches(want, got, html)).toEqual([
+      `content-security-policy-report-only: inline script not admitted: '${A}'`,
+      `content-security-policy-report-only: hash admits no script on the page: '${B}'`,
+    ]);
+  });
+
+  it('checks no script against a policy the file does not set', () => {
+    expect(scriptMismatches({}, new Headers(want), html)).toEqual([]);
   });
 });
 

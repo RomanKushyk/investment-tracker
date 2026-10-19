@@ -1911,8 +1911,9 @@ trust to the modules the loader imports; `object-src`, `base-uri` and `frame-anc
 `connect-src` names both API hosts and the Inzhur host, never Cognito, which the relay
 calls, styles keep
 `'unsafe-inline'`, fonts ship as files, zod runs `jitless`, and the read-back hashes each page's
-inline scripts against the policy both ways and refuses any external one. It ships with no
-reporting endpoint. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
+inline scripts against the policy both ways and refuses any external one. It is enforced, with
+no reporting endpoint, and a change to it is walked on dev as a Report-Only policy beside it.
+ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
 shared archive being `dev`'s. ONE EXECUTION ROLE AND ONE PERMISSIONS BOUNDARY PER ENVIRONMENT, in
 this account: each deploy role passes CloudFormation its own environment's execution role, which

@@ -18,8 +18,8 @@ customHeaders:
       - key: 'Permissions-Policy'
         value: 'accelerometer=(), autoplay=(), camera=(), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-create=(self), publickey-credentials-get=(self), screen-wake-lock=(), sync-xhr=(self), usb=(), web-share=(), xr-spatial-tracking=(), clipboard-read=(), clipboard-write=(), gamepad=(), hid=(), idle-detection=(), interest-cohort=(), serial=(), unload=()'
       # The hashes are index.html's theme boot and the build's entry loader; csp.test.ts recomputes
-      # them. Report-Only while dev is walked under it (*Deployment*).
-      - key: 'Content-Security-Policy-Report-Only'
+      # them (*Deployment*).
+      - key: 'Content-Security-Policy'
         value: "script-src 'sha256-dfCdDa75K5KIV9VyHCm5e5DX+tyGtJaJXhAiufGMWUw=' 'sha256-8MjXT1a1qGa2JO5dY7fprYetiwI2jDqkrmt9HNDeOS4=' 'strict-dynamic'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; connect-src 'self' https://api.quirenote.com https://api.dev.quirenote.com https://www.inzhur.reit; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'"
   - pattern: '/index.html'
     headers:

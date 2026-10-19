@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REPO } from '../src/repo-root';
-import { CSP_KEYS, expected, parsePolicy } from './check-headers.ts';
+import { expected, parsePolicy } from './check-headers.ts';
 import { LOADER } from './entry-loader.ts';
 
 // The parser hands a script over with LF endings, which is the text a CSP hash is taken of.
@@ -20,12 +20,11 @@ function bootScript(): string {
 
 const SOURCE = readFileSync(join(REPO, 'public/customHttp.yml'), 'utf8');
 
-/** The one policy every page carries, under either key. */
-function policy(): string {
-  const want = expected(SOURCE, '/sign-in');
-  const keys = CSP_KEYS.filter((k) => k in want);
-  expect(keys).toHaveLength(1);
-  return want[keys[0]];
+/** The enforced policy every page carries. A change to it is walked beside it, Report-Only. */
+function policy(path = '/sign-in'): string {
+  const value = expected(SOURCE, path)['content-security-policy'];
+  if (!value) throw new Error(`${path} carries no enforced Content-Security-Policy`);
+  return value;
 }
 
 describe('the Content-Security-Policy in customHttp.yml', () => {
@@ -72,9 +71,7 @@ describe('the Content-Security-Policy in customHttp.yml', () => {
 
   it('is the same policy on every page, the API reference included', () => {
     for (const path of ['/', '/auth/callback', '/api-docs.html']) {
-      const want = expected(SOURCE, path);
-      const key = CSP_KEYS.find((k) => k in want);
-      expect(key && want[key]).toBe(policy());
+      expect(policy(path)).toBe(policy());
     }
   });
 });

@@ -13,7 +13,7 @@ const SOURCE = resolve(dirname(HERE), '../public/customHttp.yml');
 export const PATHS = ['/', '/sign-in', '/auth/callback'];
 /** `storage` would delete what the app keeps, and the XSS auditor's header creates holes (MDN). */
 export const FORBIDDEN = ['clear-site-data', 'x-xss-protection'];
-/** The policy's key, Report-Only while a change is walked, enforced otherwise. */
+/** The enforced policy's key, and the one a change to it is walked under beside it. */
 export const CSP_KEYS = ['content-security-policy', 'content-security-policy-report-only'];
 
 type Entry = { pattern: string; headers: { key: string; value: string }[] };
@@ -118,6 +118,19 @@ export function hashMismatches(policy: string, html: string): string[] {
   ];
 }
 
+/** `hashMismatches` for each policy the file sets, the enforced one and any walked beside it
+ *  Report-Only, each line named by its key; a missing header is `mismatches`' to report. */
+export function scriptMismatches(
+  want: Record<string, string>,
+  got: Headers,
+  html: string,
+): string[] {
+  return CSP_KEYS.filter((k) => k in want).flatMap((key) => {
+    const policy = got.get(key);
+    return policy ? hashMismatches(policy, html).map((line) => `${key}: ${line}`) : [];
+  });
+}
+
 /** Dev's basic auth from `user:pass`, trimmed, since a secret pasted from a file keeps its
  *  newline. Refuses anything else by name rather than letting dev answer an unexplained 401. */
 export function authorization(pair: string | undefined): Record<string, string> {
@@ -139,9 +152,8 @@ async function main() {
     if (res.status === 200) {
       const want = expected(source, path);
       bad.push(...mismatches(want, res.headers));
-      const key = CSP_KEYS.find((k) => k in want);
-      const policy = key && res.headers.get(key);
-      if (policy) bad.push(...hashMismatches(policy, await res.text()));
+      if (CSP_KEYS.some((k) => k in want))
+        bad.push(...scriptMismatches(want, res.headers, await res.text()));
       else await res.body?.cancel();
     } else {
       await res.body?.cancel();
