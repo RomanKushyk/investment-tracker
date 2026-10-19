@@ -1770,19 +1770,27 @@ release; work is picked from the lowest open one, so milestone order is work ord
 before. Inside that milestone the order of its cards on the Project board is the pick order when
 the owner names no issue, its topmost `Ready` card with no open blocker the pick; the
 `order-milestone` skill rewrites it, putting every `bug` with no open blocker on top, after a
-triage, a planned epic and a version cut, and before every pick the owner does not name. Delete,
-never archive; a figure lives in a test or not at all; `CLAUDE.md` is rules.
+triage, a planned epic and a version cut, and before every pick the owner does not name. An issue
+is read, explored and planned in plan mode, every plan item tied to a criterion and naming its
+check, and the plan is approved before the first write for it — the board move, the branch —
+however small the diff; the rewrite before an unnamed pick is the board's housekeeping, not the
+issue's write, and precedes plan mode. Delete, never archive; a figure lives in a test or not at
+all; `CLAUDE.md` is rules.
 **Why.** A task list in two places disagrees with itself. An issue with no milestone has no place in
 that order, and the sort decays one triage at a time; an observation waits for its day, not its
 turn. Bug-first is a rule of the order alone, so once the order is rewritten the pick is the
 board's topmost `Ready` card with no open blocker, where a pass by label could take one from below
 it; the rewrite comes before an unnamed pick because anything since the last one, a close, an
-edited relation, a relabel or a drag, can leave an unblocked bug below the top. A figure written
-into prose goes stale in silence and passes every gate; a test fails.
+edited relation, a relabel or a drag, can leave an unblocked bug below the top. A triaged issue is
+criteria, not a diff, and the gap between the two is cheaper to close in a ten-line plan than in a
+finished change, and nothing claimed or branched before that plan has to be undone. A figure
+written into prose goes stale in silence and passes every gate; a test fails.
 **Rejected.** Jira or ticket keys: one person, no board. · A `Backlog` milestone: it holds exactly
 the issues nobody has ordered. · A pick-order file in the repository: a closed issue stays in it
 until the next rewrite, where a closed card leaves its column by itself. · Documentation ratchets:
-a guard bumped on every routine edit is a rehearsal for bumping it unread.
+a guard bumped on every routine edit is a rehearsal for bumping it unread. · Skipping the plan for
+a diff that fits one sentence: "too small to plan" drifts to the size of whatever the author is
+holding, the way "too small to review" did.
 
 ## Review, gates, tests
 **Decision.** `/code-review` runs on the whole branch diff before every squash-merge, documentation
