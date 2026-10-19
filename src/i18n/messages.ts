@@ -854,6 +854,12 @@ export const en = {
     signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
     // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival.
     signedOut: 'You’re signed out.',
+    // Logged to the console by the auth pages in a production build; the body alone carries the
+    // meaning, since the headline's styling reaches no screen reader.
+    selfXss: {
+      headline: 'Stop!',
+      body: 'This console is a browser tool for developers. If someone told you to copy and paste something here, it is a scam called Self-XSS that would hand them your Quirenote account. Do not enter or paste code that you do not understand.',
+    },
     pending: {
       title: 'Your application is being reviewed',
       lead: 'Access opens once it’s approved. There’s nothing else to do.',
@@ -1860,6 +1866,10 @@ export const uk: Dict = {
     signInEntry: 'Увійти',
     signOutFailed: 'Не вдалося вийти — ви досі в системі. Спробуйте ще раз.',
     signedOut: 'Ви вийшли з системи.',
+    selfXss: {
+      headline: 'Стоп!',
+      body: 'Ця консоль — інструмент браузера для розробників. Якщо хтось попросив вас скопіювати й вставити сюди щось, це шахрайство під назвою Self-XSS, яке віддасть їм ваш обліковий запис Quirenote. Не вводьте й не вставляйте код, якого не розумієте.',
+    },
     pending: {
       title: 'Заявка на розгляді',
       lead: 'Доступ відкриється, щойно її схвалять. Більше нічого робити не потрібно.',

@@ -40,6 +40,7 @@ import {
   Title,
 } from './parts';
 import { ON_THE_FIELD, ON_THE_RULE, type Reason } from './refusals';
+import { useSelfXssWarning } from './useSelfXssWarning';
 
 type Step =
   | { name: 'address' }
@@ -145,7 +146,9 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     step.name === 'offer' ||
     step.name === 'created' ||
     (busy && (step.name === 'password' || step.name === 'newPassword'));
-  if (status === 'signedIn' && !holds) return <Navigate to="/" replace />;
+  const leaves = status === 'signedIn' && !holds;
+  useSelfXssWarning(!leaves);
+  if (leaves) return <Navigate to="/" replace />;
 
   const say = (reason: Reason) => setSaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
 

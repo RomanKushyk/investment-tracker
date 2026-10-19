@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 import { EmailInput, Field, FocusedTitle, Foot, StepAlert, Title } from './parts';
+import { useSelfXssWarning } from './useSelfXssWarning';
 
 /** A refusal, and a count that re-inserts its alert so a repeat is announced again. */
 type Said = { reason: ApplyRefusal; n: number };
@@ -30,6 +31,7 @@ const STEP = 'flex animate-in flex-col duration-300 ease-soft fade-in slide-in-f
  *  promises no status and no email but the invitation. */
 export function Apply() {
   const t = useT();
+  useSelfXssWarning(true);
   const navigate = useNavigate();
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);

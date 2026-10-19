@@ -231,7 +231,7 @@ Interactions to verify:
 
 ## `/sign-in` — Sign in
 
-Outside the portfolio shell: no sidebar, no platform bar, no capital strip (*Two shells, one breakpoint*). Reached by its URL, from `/apply`, or by a sign-out — the shell's "Sign out" or an answer's; a signed-in visitor is sent on to `/`, except on the passkey offer a sign-in here has just reached. The local dev server signs into the DEV pool through its `/relay` proxy; `dev.quirenote.com` and `quirenote.com` call their own `api.` host.
+Outside the portfolio shell: no sidebar, no platform bar, no capital strip (*Two shells, one breakpoint*). Reached by its URL, from `/apply`, or by a sign-out — the shell's "Sign out" or an answer's; a signed-in visitor is sent on to `/`, except on the passkey offer a sign-in here has just reached. The local dev server signs into the DEV pool through its `/relay` proxy; `dev.quirenote.com` and `quirenote.com` call their own `api.` host. A production build logs the self-XSS warning to the console once per page load, the first time an auth page shows (*Auth model*).
 
 Signed out, at 1280, in either theme (every colour a token):
 - **Top bar** 57 tall — 56 plus a 1px `hairline` bottom edge — on `page`, padding 36: the lockup on the left (22px mark, `quirenote` at 15px semibold), the language `radiogroup` on the right at its own **206 × 38** (radius 12, `ink` track, `card` thumb sliding 300 ms). No theme control; the stored theme applies.
@@ -262,7 +262,7 @@ Interactions to verify:
 
 ## `/auth/callback` — Back from Google
 
-Where Cognito sends Google's answer (`CallbackURLs`), outside the portfolio shell: `/sign-in`'s card, its address step, with "Continue with Google" at 70 % while `POST …/auth/google/complete` redeems the code — the page replaces its own entry either way, so the code leaves the history. Reached by Cognito's redirect only.
+Where Cognito sends Google's answer (`CallbackURLs`), outside the portfolio shell: `/sign-in`'s card, its address step, with "Continue with Google" at 70 % while `POST …/auth/google/complete` redeems the code — the page replaces its own entry either way, so the code leaves the history. Reached by Cognito's redirect only. A production build logs the self-XSS warning to the console once per page load, the first time an auth page shows (*Auth model*).
 
 Interactions to verify, on `dev.quirenote.com` with Google on:
 1. An approved account → the card, then `/` signed in; the refresh token is the relay host's `__Host-Http-refresh` and `__Host-Http-origin`, HttpOnly, and `localStorage`, `sessionStorage` and `document.cookie` hold no token. At 1280 and at 360.
@@ -272,7 +272,7 @@ Interactions to verify, on `dev.quirenote.com` with Google on:
 
 ## `/apply` — Apply for access
 
-`/sign-in`'s shell and card, at the same top edge. Reached from the sign-in address step, by an answer's "Sign out and apply", or by its URL; it asks for no session and sends nothing until submitted, then posts the address to `POST /v1/applications` on the same `api.` host (through `/relay` locally) with no cookie.
+`/sign-in`'s shell and card, at the same top edge. Reached from the sign-in address step, by an answer's "Sign out and apply", or by its URL; it asks for no session and sends nothing until submitted, then posts the address to `POST /v1/applications` on the same `api.` host (through `/relay` locally) with no cookie. A production build logs the self-XSS warning to the console once per page load, the first time an auth page shows (*Auth model*).
 
 At 1280, in either theme:
 - Title "Apply for access", lead "Quirenote is by application. If yours is approved, the invitation goes to this address." (13px `muted`), label "Email", the 36-tall field (`type="email"`, `autocomplete="email"`, spellcheck off) with its reserved line, then "Apply" — primary, 40 tall at radius 10, full width. Then, 22 below it, "Already have access? Sign in" → `/sign-in`.

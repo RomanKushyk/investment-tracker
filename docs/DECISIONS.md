@@ -1522,7 +1522,9 @@ portfolio and no placeholder. A SIGN-OUT THAT LANDS ON `/sign-in` SAYS SO THERE,
 as router state, and the page replaces its own history entry the moment it arrives, a status line
 above the title that submit empties and holds. Through Cognito's logout the page arrives by a load
 from another origin, which router state cannot cross, so this tab's session storage carries the fact
-and the page forgets it once read.
+and the page forgets it once read. THE AUTH PAGES WARN AGAINST SELF-XSS IN THE CONSOLE, in a
+production build only, once per page load and in the page's language: a styled headline, then the
+whole warning in plain text.
 **Why.** Nothing decided at token-issue time can revoke anything, at any lifetime, so authorization
 belongs to the API, read from that row on every request. A refresh token script can read outlives
 the page that stole it; one in an HttpOnly cookie, exchangeable only with a secret the browser never
@@ -1546,6 +1548,11 @@ sending it again unchanged cannot change. AWS's backoff study shows exponential 
 leaves clusters of calls and jitter spreads them, and says most AWS SDKs support both in their
 standard retry mode; its Builders' Library calls a retry "selfish", hence a bound. The window starts at
 the half second in which the API's two requests per second refill one token.
+Self-XSS "tricks you into executing malicious code in your web browser" (Chrome); Google's account
+pages, Facebook and Discord have answered it with a console warning, which Facebook and Discord
+keep out of development builds. Chrome's and Firefox's own guard is a gate on the first paste into
+DevTools, and Chrome's lifts once the console history holds five entries. Styling with `%c` (MDN)
+reaches no screen reader, so the plain line carries the meaning.
 **Rejected.** A portfolio kept in the browser as a cache keyed by the account's `sub`: nothing
 client-side is confidential (OWASP), so a shared browser would hold the last account's figures
 until something cleared them, and what is not kept needs no clearing. · As the relying party, a Cognito prefix domain — a later move to the custom one strips
