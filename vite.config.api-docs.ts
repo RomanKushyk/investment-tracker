@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { entryLoader } from './scripts/entry-loader.ts';
 
 // The API reference, built separately so that "not in production" needs no flag: `pnpm
 // build` is the app and nothing else, and deploy-frontend.yml runs this one on every
@@ -12,6 +13,8 @@ import { defineConfig } from 'vite';
 // config would also need a flag to suppress the entry on production, which is the shape
 // this design exists to avoid.
 export default defineConfig({
+  // The same loader as the app's, so the one policy admits this page's entry too.
+  plugins: [entryLoader()],
   build: {
     // The app's build ran first and emptied dist/. This one adds to it.
     emptyOutDir: false,

@@ -26,3 +26,8 @@
 # A captured page keeps the LF line endings it was served with, which a Windows
 # checkout would turn CRLF. Scoped to fixtures: `design/` holds immutable drawings.
 packages/core/src/**/__fixtures__/*.html text eol=lf
+
+# The build serves these bytes as they are checked out, and their inline scripts are hashed into
+# the policy; one line ending keeps a local build byte-equal to CI's.
+index.html text eol=lf
+api-docs.html text eol=lf

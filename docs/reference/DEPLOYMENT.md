@@ -39,7 +39,10 @@ reads the setting, then the pages:** the setting's `value` is `off`, and `curl -
 text/html'` on `/` and `/auth/callback` of the apex, `www` and `dev` (with its basic-auth pair), and
 on `dev`'s `/api-docs.html`, returns HTML with no `cloudflareinsights` string. A clean page alone
 proves nothing: Cloudflare also skips injection for EU visitors in one of its modes, and for an
-answer marked `Cache-Control: no-transform`.
+answer marked `Cache-Control: no-transform`. **Email Address Obfuscation stays on:** it rewrites an
+HTML answer that holds an address and adds a script the policy (§3.2) refuses, the shell holds no
+address, and the read-back fails on any external script and on any inline one the policy does not
+name, so an injected script fails the deploy rather than the page.
 
 `public/robots.txt` closes production to crawlers until sign-up ships. **Never pair `Disallow` with
 `noindex`** — they cancel, because a crawler forbidden to fetch never sees the header; removing an
@@ -153,6 +156,7 @@ Every header the file sets, and why:
 | `Cross-Origin-Opener-Policy` | `same-origin` is safe because Google sign-in is a full-page redirect, not a popup |
 | `Referrer-Policy` | the browser default everywhere but `/auth/callback`, whose URL holds the OAuth code and takes `no-referrer`, RFC 9700 §4.2.4's own example |
 | `Permissions-Policy` | OWASP's list, but OWASP's `publickey-credentials-get=()` refuses `navigator.credentials`, which is passkey sign-in. It is `(self)`, and `publickey-credentials-create`, which OWASP does not list, is pinned to `(self)` too |
+| `Content-Security-Policy-Report-Only` | web.dev's strict CSP, hash-based: `script-src` names two inline scripts by SHA-256, `index.html`'s theme boot and the loader `scripts/entry-loader.ts` writes in place of the build's entry tag, with `'strict-dynamic'` passing that trust to every module the loader imports. `'strict-dynamic'` ignores host sources, `'self'` included, which is why the build's content-hashed entry tag is replaced rather than named. `object-src`, `base-uri` and `frame-ancestors` are `'none'`; `connect-src` names both API hosts, since one file serves both branches, and `www.inzhur.reit`, Cognito being the relay's to call; `style-src` keeps `'unsafe-inline'` because Sonner and Radix write `<style>` elements; fonts are files, never `data:` (`assetsInlineLimit: 0`), and zod runs `jitless` so it never probes `new Function`. Report-Only while dev is walked under it, then the key loses its suffix. An edit to the boot script moves its hash: `scripts/csp.test.ts` fails and prints the new one, which goes into the file |
 | `Cache-Control` | the file replaces the console's rules, so these travel with it |
 
 **Two headers are left out on purpose:** `Clear-Site-Data`, whose `"storage"` deletes what the app
@@ -166,7 +170,10 @@ redeploys.
 **Every deploy reads the headers back.** The workflow's last job, `verify`, runs `scripts/check-headers.ts`
 against the host its branch serves — a job of its own, holding no OIDC token, because the script
 runs node on a dependency and the deploying job runs none. It fetches `/`, `/sign-in` and `/auth/callback`, derives what
-each must carry from the file itself, and fails on a missing, wrong or forbidden header. On `dev`
+each must carry from the file itself, and fails on a missing, wrong or forbidden header. It also
+reads each page's scripts against the policy: any external script, an inline script the policy's
+`'sha256-…'` sources do not admit, or a hash no script carries fails the deploy, so a stale hash and
+a page the proxy rewrote fail alike. On `dev`
 it reads the basic-auth pair from the `DEV_BASIC_AUTH` secret (§4), **not from `amplify:GetBranch`**,
 whose `basicAuthCredentials` keeps the user but answers a transformed password that dev refuses.
 Run by hand with `SITE=<origin>` and, for dev, `BASIC_AUTH=<user:pass>`.

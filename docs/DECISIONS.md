@@ -1904,7 +1904,15 @@ that checks out, downloads, assumes the role and runs no dependency code; the
 frontend's header read-back is a third job, holding no token either. The split denies the token,
 not the payload: a compromised build step still ships its bundle. HSTS climbs hstspreload.org's ramp with
 `includeSubDomains` and no `preload`; the Permissions-Policy is OWASP's list with both publickey
-features at `(self)`; `/auth/callback` alone takes `no-referrer`. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
+features at `(self)`; `/auth/callback` alone takes `no-referrer`. THE CONTENT-SECURITY-POLICY IS
+STRICT AND HASH-BASED: `script-src` admits two inline scripts by SHA-256, `index.html`'s theme boot
+and the loader the build writes in place of its entry tag, with `'strict-dynamic'` carrying that
+trust to the modules the loader imports; `object-src`, `base-uri` and `frame-ancestors` are `'none'`,
+`connect-src` names both API hosts and the Inzhur host, never Cognito, which the relay
+calls, styles keep
+`'unsafe-inline'`, fonts ship as files, zod runs `jitless`, and the read-back hashes each page's
+inline scripts against the policy both ways and refuses any external one. It ships with no
+reporting endpoint. ONE DEPLOY ROLE PER ENVIRONMENT, frontend and backend alike, each trusting that
 environment's `sub` and its branch's `ref` and reaching only what that environment deploys, the
 shared archive being `dev`'s. ONE EXECUTION ROLE AND ONE PERMISSIONS BOUNDARY PER ENVIRONMENT, in
 this account: each deploy role passes CloudFormation its own environment's execution role, which
@@ -1952,7 +1960,14 @@ a hash-based CSP cannot list it in advance. The headers ship in the zip because 
 manual deploy's `customHttp.yml` as overriding the console's, so a header lives in review and in
 `git log` rather than in a console no deploy can restore; the read-back catches a host that serves
 something else. The ID token the API accepts lives in JavaScript memory, so script injected into
-the app reaches it: RFC 10017 §6.2 names that as the token-mediating backend's residual risk. OWASP's
+the app reaches it: RFC 10017 §6.2 names that as the token-mediating backend's residual risk. web.dev's
+strict CSP is a nonce or a hash with `'strict-dynamic'`, which ignores host sources, and a static
+host has no per-request nonce; the entry tag's name changes with every build while the loader's text
+does not, so the loader is what the header can name, and a module it imports needs no hash. Zod probes
+`new Function` when a schema is built, and a strict policy reports the caught throw. Sonner and Radix
+write `<style>` elements with no nonce. Vite inlines a small font as `data:`, which `font-src 'self'`
+refuses. A violation report keeps the query string, so a report from the callback would carry
+the OAuth code. OWASP's
 Secure Headers list is the base, and three of its entries break this app: `Clear-Site-Data`'s
 `"storage"` deletes what the app keeps, `publickey-credentials-get=()` refuses passkey sign-in, and
 its HSTS value skips hstspreload.org's ramp. The callback's
@@ -2009,7 +2024,15 @@ would have to keep that watermark, and a skipped deploy is worse than a wasted o
 certificate stops renewing. · The security headers in the console: CI has no `UpdateApp`, so
 nothing in the repo could restore them. · `Clear-Site-Data`: it deletes the app's storage. ·
 `X-XSS-Protection`: MDN warns it "can create XSS vulnerabilities in otherwise safe websites". ·
-HSTS `preload`: hstspreload.org advises against it, and leaving the list takes months. · Dev's
+HSTS `preload`: hstspreload.org advises against it, and leaving the list takes months. · `integrity`
+on the entry tag in place of the loader: its hash moves with every build, so the header would have
+to be generated, and WebKit refused the pair under `'strict-dynamic'` (its bug 270784). · A CSP
+nonce: a static host has no per-request value. · `data:` in `font-src`: every inlined subset then
+ships inside the CSS whether a page uses it or not. · `default-src`: web.dev's and OWASP's strict
+templates omit it, and each fetch directive the app needs is named. · Cognito's endpoint in
+`connect-src`: the relay makes every Cognito call, and an allowed host is a place injected script
+can send a token. · A CSP reporting endpoint: the report
+carries the callback's query string. · Dev's
 pair read from `amplify:GetBranch`: its `basicAuthCredentials` keeps the user but answers a
 transformed password, which dev refuses with `401`. · A Web Analytics rule excluding `/auth/*` alone: it meets RFC 9700
 but leaves a third-party script on every other page, which a hash-based CSP would have to admit

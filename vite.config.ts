@@ -4,9 +4,17 @@ import tailwindcss from '@tailwindcss/vite';
 
 import pkg from './package.json';
 import { derivationId } from './scripts/derivation-id.ts';
+import { entryLoader } from './scripts/entry-loader.ts';
 
 export default defineConfig({
-  plugins: [react({ babel: { plugins: ['babel-plugin-react-compiler'] } }), tailwindcss()],
+  plugins: [
+    react({ babel: { plugins: ['babel-plugin-react-compiler'] } }),
+    tailwindcss(),
+    entryLoader(),
+  ],
+  // An inlined font subset ships inside the CSS as `data:`, which the policy's `font-src 'self'`
+  // refuses; as files, each loads only when its unicode-range is used.
+  build: { assetsInlineLimit: 0 },
   // Strict on purpose: a refusal to boot names a port conflict at once, where
   // Vite's default walk to the next free port is found by measuring the wrong
   // instance. `preview` inherits it. Second checkout: `pnpm dev --port N`.

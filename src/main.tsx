@@ -1,3 +1,5 @@
+import './zod-jitless';
+
 // Cyrillic-capable, which is the first thing asked of either face: Ukrainian is
 // the default language, so a face without it drops the whole app into a system
 // fallback (*Language, numbers, fonts*). Each stylesheet below is the aggregate

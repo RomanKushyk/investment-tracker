@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,8 @@ const SOURCE = resolve(dirname(HERE), '../public/customHttp.yml');
 export const PATHS = ['/', '/sign-in', '/auth/callback'];
 /** `storage` would delete what the app keeps, and the XSS auditor's header creates holes (MDN). */
 export const FORBIDDEN = ['clear-site-data', 'x-xss-protection'];
+/** The policy's key, Report-Only while a change is walked, enforced otherwise. */
+export const CSP_KEYS = ['content-security-policy', 'content-security-policy-report-only'];
 
 type Entry = { pattern: string; headers: { key: string; value: string }[] };
 
@@ -51,6 +54,70 @@ export function mismatches(want: Record<string, string>, got: Headers): string[]
   return out;
 }
 
+/** A policy as directives, each its list of sources. Names fold case and the first occurrence
+ *  wins, as CSP3's parser has it. */
+export function parsePolicy(policy: string): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const part of policy.split(';')) {
+    const [name, ...sources] = part.trim().split(/\s+/);
+    if (name && !out.has(name.toLowerCase())) out.set(name.toLowerCase(), sources);
+  }
+  return out;
+}
+
+/** Every script element outside a comment, as `[attributes, text]`, tag names in any case. */
+const scripts = (html: string) =>
+  [
+    ...html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi),
+  ].map((m) => [m[1], m[2]] as const);
+
+/** An attribute's value, double-, single- or un-quoted; undefined when it is absent. */
+const attr = (attrs: string, name: string) => {
+  const m = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]*))`, 'i').exec(
+    attrs,
+  );
+  return m ? (m[1] ?? m[2] ?? m[3]) : undefined;
+};
+
+/** A classic or module script, the only kinds CSP checks; a data block or an import map is not.
+ *  The types are HTML's JavaScript MIME type essences. */
+const runs = (attrs: string) => {
+  const type = (attr(attrs, 'type') ?? '').trim().toLowerCase();
+  return (
+    type === '' ||
+    type === 'module' ||
+    /^(application|text)\/(x-)?(java|ecma)script$|^text\/(javascript1\.[0-5]|jscript|livescript)$/.test(
+      type,
+    )
+  );
+};
+
+/** The CSP hash of every script that runs, has text and no `src`, in page order, its text LF as
+ *  the parser hands it over. The loader's `data-src` is not `src`. */
+export function inlineScriptHashes(html: string): string[] {
+  return scripts(html)
+    .filter(([attrs, text]) => attr(attrs, 'src') === undefined && runs(attrs) && text !== '')
+    .map(([, text]) => text.replace(/\r\n?/g, '\n'))
+    .map((text) => `sha256-${createHash('sha256').update(text, 'utf8').digest('base64')}`);
+}
+
+/** One line per external script, which a hash-only `'strict-dynamic'` policy refuses, per inline
+ *  script it does not admit and per hash that admits none: a stale hash fails as a rewrite does. */
+export function hashMismatches(policy: string, html: string): string[] {
+  const sources = parsePolicy(policy).get('script-src');
+  if (!sources) throw new Error('the policy has no script-src');
+  const admitted = sources.filter((s) => s.startsWith("'sha256-")).map((s) => s.slice(1, -1));
+  const onPage = inlineScriptHashes(html);
+  const external = scripts(html).flatMap(([attrs]) => attr(attrs, 'src') ?? []);
+  return [
+    ...external.map((src) => `external script the policy refuses: ${src}`),
+    ...onPage.filter((h) => !admitted.includes(h)).map((h) => `inline script not admitted: '${h}'`),
+    ...admitted
+      .filter((h) => !onPage.includes(h))
+      .map((h) => `hash admits no script on the page: '${h}'`),
+  ];
+}
+
 /** Dev's basic auth from `user:pass`, trimmed, since a secret pasted from a file keeps its
  *  newline. Refuses anything else by name rather than letting dev answer an unexplained 401. */
 export function authorization(pair: string | undefined): Record<string, string> {
@@ -68,9 +135,18 @@ async function main() {
   let failed = false;
   for (const path of PATHS) {
     const res = await fetch(new URL(path, site), { headers, redirect: 'manual' });
-    await res.body?.cancel();
-    const bad = res.status === 200 ? mismatches(expected(source, path), res.headers) : [];
-    if (res.status !== 200) bad.push(`status ${res.status}`);
+    const bad: string[] = [];
+    if (res.status === 200) {
+      const want = expected(source, path);
+      bad.push(...mismatches(want, res.headers));
+      const key = CSP_KEYS.find((k) => k in want);
+      const policy = key && res.headers.get(key);
+      if (policy) bad.push(...hashMismatches(policy, await res.text()));
+      else await res.body?.cancel();
+    } else {
+      await res.body?.cancel();
+      bad.push(`status ${res.status}`);
+    }
     failed ||= bad.length > 0;
     console.log(bad.length ? `FAIL ${path}\n  ${bad.join('\n  ')}` : `ok   ${path}`);
   }
