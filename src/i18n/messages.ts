@@ -811,6 +811,8 @@ export const en = {
       // The pool's own policy, as `template-user.yaml` writes it out.
       rule: 'At least 8 characters, with an upper-case and a lower-case letter, a number and a symbol.',
       reused: 'That’s the temporary password. Choose your own.',
+      /** Back on the password step: the session the temporary password opened lives three minutes. */
+      expired: 'The time to set your password ran out. Enter the temporary password again.',
       submit: 'Save and continue',
       busy: 'Saving…',
     },
@@ -846,6 +848,8 @@ export const en = {
     },
     /** The Turnstile check under a form's button (`bot-check.dc.html` T5). */
     botCheck: {
+      /** A press before the token where the start cannot wait: the passkey sheet opens only after it. */
+      pending: 'The security check is still running. Try again in a moment.',
       /** The widget failed, or the route refused its token. */
       failed: 'The security check didn’t finish. Try again.',
       /** No widget on the page: the script never ran, or Turnstile refused this page or browser. */
@@ -1835,6 +1839,7 @@ export const uk: Dict = {
       label: 'Новий пароль',
       rule: 'Щонайменше 8 символів: велика й мала літери, цифра та символ.',
       reused: 'Це тимчасовий пароль. Придумайте власний.',
+      expired: 'Час на встановлення пароля минув. Введіть тимчасовий пароль ще раз.',
       submit: 'Зберегти й продовжити',
       busy: 'Зберігаємо…',
     },
@@ -1868,6 +1873,7 @@ export const uk: Dict = {
       back: 'Повернутися до входу',
     },
     botCheck: {
+      pending: 'Перевірка безпеки ще триває. Спробуйте ще раз за мить.',
       failed: 'Перевірку безпеки не завершено. Спробуйте ще раз.',
       unavailable:
         'Не вдалося завантажити перевірку безпеки. Перевірте мережу чи блокувальник реклами й оновіть сторінку.',

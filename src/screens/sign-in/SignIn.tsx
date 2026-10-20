@@ -13,9 +13,15 @@ import {
   useGoogle,
   useSessionStatus,
 } from '../../auth/app';
+import { addressRefusal } from '../../auth/apply';
 import { arrivedGoogleFailed, belowTheForm } from '../../auth/google';
 import { addPasskey } from '../../auth/passkey';
-import { setNewPassword, signInWithAddress, signInWithPassword } from '../../auth/sign-in';
+import {
+  type HeldChallenge,
+  setNewPassword,
+  signInWithAddress,
+  signInWithPassword,
+} from '../../auth/sign-in';
 import {
   arrivedSignedOut,
   forgetSignedOut,
@@ -25,6 +31,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
+import { BotCheck } from './BotCheck';
 import { OrGoogle } from './GoogleButton';
 import {
   EmailInput,
@@ -40,14 +47,15 @@ import {
   Title,
 } from './parts';
 import { ON_THE_FIELD, ON_THE_RULE, type Reason } from './refusals';
+import { type BotCheckOf, afterPass, useBotCheck } from './useBotCheck';
 import { useSelfXssWarning } from './useSelfXssWarning';
 
 type Step =
   | { name: 'address' }
   | { name: 'passkey'; email: string }
   | { name: 'password'; email: string }
-  // The temporary password, in memory for this step alone: each submit proves it afresh.
-  | { name: 'newPassword'; email: string; temporary: string }
+  // The challenge the temporary password opened, which the new password answers.
+  | { name: 'newPassword'; email: string; held: HeldChallenge }
   | { name: 'offer' }
   | { name: 'created' };
 
@@ -63,6 +71,11 @@ function sentence(t: Dict, reason: Reason): string {
     notFinished: t.auth.passkey.notFinished,
     rule: t.auth.setPassword.rule,
     reused: t.auth.setPassword.reused,
+    expired: t.auth.setPassword.expired,
+    pending: t.auth.botCheck.pending,
+    botCheck: t.auth.botCheck.failed,
+    botCheckFailed: t.auth.botCheck.failed,
+    botCheckUnavailable: t.auth.botCheck.unavailable,
     tooMany: t.auth.tooMany,
     offline: t.auth.offline,
     failed: t.auth.failed,
@@ -82,6 +95,10 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<Said>();
+  // The passkey retry's own check, said under its link (`bot-check-steps.dc.html` T2).
+  const [retrySaid, setRetrySaid] = useState<Said>();
+  // The new password an expired session sent back, filled in when its step returns (WCAG 2.2.5).
+  const kept = useRef('');
   const addressRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [changed, setChanged] = useState(false);
@@ -140,6 +157,25 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     }
   }, [said]);
 
+  const say = (reason: Reason) => setSaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
+  const sayRetry = (reason: Reason) =>
+    setRetrySaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
+  // EACH START TAKES A FRESH TOKEN from the widget of the step that sends it.
+  const stepCheck = {
+    saying: said?.reason,
+    say,
+    passed: () => setSaid(afterPass),
+    released: () => setBusy(false),
+  };
+  const addressCheck = useBotCheck(stepCheck);
+  const passwordCheck = useBotCheck(stepCheck);
+  const retryCheck = useBotCheck({
+    saying: retrySaid?.reason,
+    say: sayRetry,
+    passed: () => setRetrySaid(afterPass),
+    released: () => {},
+  });
+
   // A completed sign-in leaves, but not for the offer or its outcome: a password's tokens land
   // before its outcome says whether the offer follows, so the page holds while that submit runs.
   const holds =
@@ -150,11 +186,10 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   useSelfXssWarning(!leaves);
   if (leaves) return <Navigate to="/" replace />;
 
-  const say = (reason: Reason) => setSaid((before) => ({ reason, n: (before?.n ?? 0) + 1 }));
-
   function begin() {
     const mine = ++run.current;
     setSaid(undefined);
+    setRetrySaid(undefined);
     setGoogleSaid(undefined);
     return () => mine === run.current;
   }
@@ -162,28 +197,38 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   function go(next: Step) {
     run.current++;
     cancelPasskey();
+    for (const check of [addressCheck, passwordCheck, retryCheck]) check.forget();
     setBusy(false);
     setSaid(undefined);
+    setRetrySaid(undefined);
     setGoogleSaid(undefined);
     setNote(undefined);
     setPassword('');
     setStep(next);
   }
 
-  async function passkeyFirst(typed: string) {
+  /** THE START IS THE PRESS'S FIRST WAIT, its token already in hand: Safari before 17.4 opens the
+   *  passkey sheet only after one fetch and no other wait. */
+  async function passkeyFirst(
+    typed: string,
+    token: string,
+    check: BotCheckOf,
+    refusedAs: (reason: Reason) => void,
+  ) {
     const current = begin();
-    const outcome = await signInWithAddress(typed, signInDeps, (email) => {
+    const outcome = await signInWithAddress(typed, token, signInDeps, (email) => {
       if (!current()) return false;
       setBusy(false);
       setStep({ name: 'passkey', email });
     });
     if (!current()) return;
+    check.spent();
     setBusy(false);
     if (outcome.kind === 'password') {
       setPassword('');
       setStep({ name: 'password', email: outcome.email });
     } else if (outcome.kind === 'refused') {
-      say(outcome.reason);
+      refusedAs(outcome.reason);
     }
   }
 
@@ -191,37 +236,88 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     event.preventDefault();
     if (busy) return;
     setNote((before) => before && 'held');
-    setBusy(true);
-    void passkeyFirst(address);
+    // THE FIELD FIRST: a refused address waits for no token.
+    const wrong = addressRefusal(address);
+    if (wrong) {
+      begin();
+      return say(wrong);
+    }
+    const pressed = addressCheck.press('refuse', (token) => {
+      setBusy(true);
+      void passkeyFirst(address, token, addressCheck, say);
+    });
+    if (pressed === 'pending' || pressed === 'unavailable') {
+      begin();
+      say(pressed === 'pending' ? 'pending' : 'botCheckUnavailable');
+    }
   }
 
-  async function submitPassword(event: FormEvent, email: string) {
-    event.preventDefault();
-    if (busy) return;
+  function retryPasskey(email: string) {
+    const pressed = retryCheck.press('refuse', (token) => {
+      // The check's own refusal stays with the check, under the link.
+      void passkeyFirst(email, token, retryCheck, (reason) =>
+        reason === 'botCheck' ? sayRetry(reason) : say(reason),
+      );
+    });
+    if (pressed === 'pending') sayRetry('pending');
+    else if (pressed === 'unavailable') sayRetry('botCheckUnavailable');
+  }
+
+  async function signInWith(email: string, typed: string, token: string) {
     const current = begin();
     setBusy(true);
-    const outcome = await signInWithPassword(email, password, signInDeps);
+    const outcome = await signInWithPassword(email, typed, token, signInDeps);
     if (!current()) return;
+    passwordCheck.spent();
     setBusy(false);
     if (outcome.kind === 'refused') {
       say(outcome.reason);
     } else if (outcome.kind === 'newPassword') {
-      go({ name: 'newPassword', email, temporary: password });
+      go({ name: 'newPassword', email, held: outcome.held });
+      if (kept.current) setPassword(kept.current);
     } else if (outcome.kind === 'signedIn' && outcome.offerPasskey) {
       go({ name: 'offer' });
     }
   }
 
-  async function submitNewPassword(event: FormEvent, email: string, temporary: string) {
+  function submitPassword(event: FormEvent, email: string) {
+    event.preventDefault();
+    if (busy) return;
+    // THE FIELD FIRST: an empty password waits for no token.
+    if (!password) {
+      begin();
+      return say('passwordMissing');
+    }
+    const typed = password;
+    const pressed = passwordCheck.press('wait', (token) => void signInWith(email, typed, token));
+    if (pressed === 'unavailable') {
+      begin();
+      return say('botCheckUnavailable');
+    }
+    if (pressed === 'interactive') return;
+    setSaid(undefined);
+    setBusy(true);
+  }
+
+  async function submitNewPassword(event: FormEvent, email: string, held: HeldChallenge) {
     event.preventDefault();
     if (busy) return;
     const current = begin();
     setBusy(true);
-    const outcome = await setNewPassword(email, temporary, password, signInDeps);
+    const typed = password;
+    const outcome = await setNewPassword(held, typed, signInDeps);
     if (!current()) return;
     setBusy(false);
-    if (outcome.kind === 'refused') say(outcome.reason);
-    else if (outcome.kind === 'signedIn') go({ name: 'offer' });
+    if (outcome.kind === 'refused' && outcome.reason === 'expired') {
+      // THE SESSION RAN OUT: back to the temporary password, the new one kept for the way back.
+      go({ name: 'password', email });
+      kept.current = typed;
+      say('expired');
+    } else if (outcome.kind === 'refused') {
+      say(outcome.reason);
+    } else if (outcome.kind === 'signedIn') {
+      go({ name: 'offer' });
+    }
   }
 
   // THE PAGE LEAVES FOR GOOGLE and stays busy until it has gone; the relay keeps the flow's pair.
@@ -257,6 +353,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   };
 
   const change = () => {
+    kept.current = '';
     go({ name: 'address' });
     setChanged(true);
   };
@@ -296,6 +393,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
                   />
                 )}
               </Field>
+              {addressCheck.props && <BotCheck {...addressCheck.props} action="sign-in" />}
               <Button type="submit" className="mt-2 w-full" disabled={busy} disabledTone="busy">
                 {busy ? t.auth.signIn.checking : t.auth.signIn.continue}
               </Button>
@@ -337,18 +435,26 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
             >
               {t.auth.passkey.usePassword}
             </Button>
-            {stepError && (
+            {/* The retry's widget enters with the sentence, and all three leave at a press that
+                sends (`bot-check-steps.dc.html` T1, T2). */}
+            {(stepError || retrySaid) && (
               <>
-                <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>
-                <p className="mt-2 text-[13px] leading-[19.5px]">
-                  <button
-                    type="button"
-                    className={LINK}
-                    onClick={() => void passkeyFirst(step.email)}
-                  >
+                {stepError && (
+                  <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>
+                )}
+                {retryCheck.props && (
+                  <div className="mt-3">
+                    <BotCheck {...retryCheck.props} action="sign-in" />
+                  </div>
+                )}
+                <p className="mt-4 text-[13px] leading-[19.5px]">
+                  <button type="button" className={LINK} onClick={() => retryPasskey(step.email)}>
                     {t.auth.retry}
                   </button>
                 </p>
+                {retrySaid && (
+                  <StepAlert n={retrySaid.n}>{sentence(t, retrySaid.reason)}</StepAlert>
+                )}
               </>
             )}
           </>
@@ -390,6 +496,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
                   />
                 )}
               </Field>
+              {passwordCheck.props && <BotCheck {...passwordCheck.props} action="sign-in" />}
               <Button type="submit" className="mt-2 w-full" disabled={busy} disabledTone="busy">
                 {busy ? t.auth.password.busy : t.auth.password.submit}
               </Button>
@@ -406,7 +513,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
             </p>
             <form
               noValidate
-              onSubmit={(event) => void submitNewPassword(event, step.email, step.temporary)}
+              onSubmit={(event) => void submitNewPassword(event, step.email, step.held)}
               className="flex flex-col"
             >
               {/* The account a password manager saves the new password against. */}

@@ -1,8 +1,15 @@
 import type { SignInRefusal } from '../../auth/sign-in';
 
-/** What a step can be told: a sign-in's refusals, the passkey offer's two of its own, and a Google
- *  flow that came back without a sign-in. */
-export type Reason = SignInRefusal | 'notCreated' | 'passkeyFailed' | 'googleFailed';
+/** What a step can be told: a sign-in's refusals, the passkey offer's two of its own, a Google flow
+ *  that came back without a sign-in, and the bot check's three. */
+export type Reason =
+  | SignInRefusal
+  | 'notCreated'
+  | 'passkeyFailed'
+  | 'googleFailed'
+  | 'pending'
+  | 'botCheckFailed'
+  | 'botCheckUnavailable';
 
 /** Said on the new password's line, in the rule's place (`password-reuse.dc.html`). */
 export const ON_THE_RULE: readonly Reason[] = ['rule', 'reused'];

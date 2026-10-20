@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
-import { apply, botCheckSitekey } from '../../auth/app';
+import { apply } from '../../auth/app';
 import { type ApplyRefusal, addressRefusal } from '../../auth/apply';
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 import { BotCheck } from './BotCheck';
 import { EmailInput, Field, FocusedTitle, Foot, StepAlert, Title } from './parts';
+import { afterPass, useBotCheck } from './useBotCheck';
 import { useSelfXssWarning } from './useSelfXssWarning';
 
 /** The page's own two: `botCheckFailed` is the widget's failure, which its next pass clears, where
@@ -49,16 +50,6 @@ export function Apply() {
   const [recorded, setRecorded] = useState<string>();
   const addressRef = useRef<HTMLInputElement>(null);
   const refusals = useRef(0);
-  const [unavailable, setUnavailable] = useState(false);
-  const [reset, setReset] = useState(0);
-  const token = useRef<string>(undefined);
-  /** A press that came before the token, sent when the token comes. */
-  const waiting = useRef(false);
-  /** Managed shows its checkbox: the press asked for is the checkbox's. */
-  const interactive = useRef(false);
-  /** The widget's last word was a failure, after which it may never call again. An expiry renews
-   *  itself (`refresh-expired: auto`). */
-  const resting = useRef(false);
 
   // After the commit, so the field already carries `aria-invalid` and its sentence when focused.
   useEffect(() => {
@@ -67,94 +58,35 @@ export function Apply() {
 
   const say = (reason: Reason) => setSaid({ reason, n: ++refusals.current });
 
-  /** Ends a press still waiting for a token the widget will not give. */
-  const giveUp = () => {
-    if (!waiting.current) return false;
-    waiting.current = false;
-    setBusy(false);
-    return true;
-  };
+  const check = useBotCheck({
+    saying: said?.reason,
+    say,
+    passed: () => setSaid(afterPass),
+    released: () => setBusy(false),
+  });
 
-  async function send() {
-    const botCheck = token.current ?? '';
-    token.current = undefined;
-    interactive.current = false;
-    resting.current = false;
+  async function send(botCheck: string) {
     const outcome = await apply(address, botCheck);
-    // EVERY ANSWER SPENDS THE TOKEN, a refusal's as much as a record's.
-    setReset((n) => n + 1);
+    check.spent();
     setBusy(false);
     if (outcome.kind === 'recorded') setRecorded(outcome.email);
     else say(outcome.reason);
   }
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
     // THE FIELD FIRST: a refused address waits for no token.
     const wrong = addressRefusal(address);
     if (wrong) return say(wrong);
-    if (botCheckSitekey !== undefined) {
-      if (unavailable) return say('botCheckUnavailable');
-      if (token.current === undefined) {
-        if (interactive.current) return;
-        setSaid(undefined);
-        setBusy(true);
-        waiting.current = true;
-        // A RESTING WIDGET IS ASKED AGAIN, so the wait always has an answer coming.
-        if (resting.current) {
-          resting.current = false;
-          setReset((n) => n + 1);
-        }
-        return;
-      }
-    }
-    setBusy(true);
+    const pressed = check.press('wait', (token) => void send(token));
+    if (pressed === 'unavailable') return say('botCheckUnavailable');
+    if (pressed === 'interactive') return;
     setSaid(undefined);
-    await send();
+    setBusy(true);
   }
 
-  const botCheck = botCheckSitekey !== undefined && (
-    <BotCheck
-      sitekey={botCheckSitekey}
-      action="apply"
-      reset={reset}
-      onToken={(value) => {
-        token.current = value;
-        interactive.current = false;
-        resting.current = false;
-        // The widget's next pass clears its own failure, never the route's refusal.
-        setSaid((s) => (s?.reason === 'botCheckFailed' ? undefined : s));
-        if (waiting.current) {
-          waiting.current = false;
-          void send();
-        }
-      }}
-      onExpired={() => {
-        token.current = undefined;
-        interactive.current = false;
-      }}
-      onFailed={() => {
-        token.current = undefined;
-        interactive.current = false;
-        resting.current = true;
-        // EVERY FAILURE ENDS A WAIT; the sentence is said once across the widget's retries.
-        const waited = giveUp();
-        if (waited || said?.reason !== 'botCheckFailed') say('botCheckFailed');
-      }}
-      onInteractive={() => {
-        token.current = undefined;
-        interactive.current = true;
-        resting.current = false;
-        giveUp();
-      }}
-      onUnavailable={() => {
-        token.current = undefined;
-        setUnavailable(true);
-        if (giveUp()) say('botCheckUnavailable');
-      }}
-    />
-  );
+  const botCheck = check.props && <BotCheck {...check.props} action="apply" />;
 
   const fieldError = said && ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const stepError = said && !ON_THE_FIELD.includes(said.reason) ? said : undefined;
@@ -165,7 +97,7 @@ export function Apply() {
         <div key="form" className={STEP}>
           <Title>{t.auth.apply.title}</Title>
           <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">{t.auth.apply.lead}</p>
-          <form noValidate onSubmit={(event) => void submit(event)} className="flex flex-col">
+          <form noValidate onSubmit={submit} className="flex flex-col">
             <Field label={t.auth.email} error={fieldError && sentence(t, fieldError.reason)}>
               {(id, describedBy) => (
                 <EmailInput

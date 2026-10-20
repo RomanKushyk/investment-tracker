@@ -1372,10 +1372,13 @@ username — so the address goes first with `WEB_AUTHN` preferred, an account wi
 OS sheet at once, and every other answer leads to the password, proved over SRP so it never leaves
 the page. The password step starts afresh rather than answering the address step's session, which
 lives three minutes and, once expired, is refused like a wrong password. THE FIRST SIGN-IN SETS THE
-ACCOUNT'S OWN PASSWORD: the invitation's temporary one answers `NEW_PASSWORD_REQUIRED`, each submit
-proves the temporary password afresh for the same reason, and the pool's rule is on screen before
-any refusal. The new password travels in the body, as that challenge takes it — Cognito has no SRP
-form for setting one. THE TEMPORARY PASSWORD NEVER BECOMES THE ACCOUNT'S OWN: it sits in an
+ACCOUNT'S OWN PASSWORD: the invitation's temporary one answers `NEW_PASSWORD_REQUIRED`, and the new
+password answers that same challenge, under the name the proof signed in as — no second start, so no
+second token, and the temporary password is not kept. A refused new password leaves the session
+usable; it lives three minutes too, and an expired one returns to the password step, the typed new
+password kept for the way back (WCAG 2.2.5). The pool's rule is on screen before any refusal. The new
+password travels in the body, as that challenge takes it — Cognito has no SRP form for setting
+one. THE TEMPORARY PASSWORD NEVER BECOMES THE ACCOUNT'S OWN: it sits in an
 invitation mail, and OWASP ASVS 5.0 6.4.1 says initial secrets "must not be permitted to become the
 long term password". So the pool keeps a password history of 1, which refuses it at the first
 sign-in. One is the current password alone: Microsoft Entra's rule on a change ("The last password
@@ -1425,8 +1428,9 @@ The relay reads the secret from Cognito with `DescribeUserPoolClient` and caches
 environment, so there is no second copy to drift and no store to pay for; its routes refuse a
 request without the custom header or from another site before anything else. THE TURNSTILE SECRET
 HAS NO SUCH READER, so it is an SSM SecureString named for its environment, which the deploy writes
-from that environment's GitHub secret on every run and the function reads once per execution
-environment, again after a failed read, dropping a value siteverify calls invalid. OWASP: "It is even better when the consumer
+from that environment's GitHub secret on every run and each function that checks a token reads once per
+execution environment, again after a failed read, dropping a value siteverify calls invalid; the SDK
+that reads it loads on that first read, which the relay's other routes never make. OWASP: "It is even better when the consumer
 of the secret retrieves the secret"; Parameter Store's standard tier costs nothing and is meant for
 "secrets for low-risk environments", and the secret mints no token. The three stores refused for
 the Cognito secret fall away for this one: written by the deploy, the parameter is no hand copy; it
@@ -1479,7 +1483,17 @@ not an open door, and THE DOOR CARRIES A BOT CHECK OF ITS OWN, Cognito's threat 
 paid tier: `/apply` holds a Cloudflare Turnstile widget in Managed mode, and the route verifies its
 token with siteverify, the caller's IP address as `remoteip`, before the cluster is asked. A missing,
 refused or replayed token, or a pass solved for another form or host, answers one 403; a siteverify
-that cannot answer admits nobody. Sign-up
+that cannot answer admits nobody. SIGN-IN CARRIES ONE TOO, because Cognito's lockout is per account
+and credential stuffing tries many accounts once each, which it never sees; NIST SP 800-63B-4
+§3.2.2 lists a bot challenge before authentication among the ways to avoid malicious lockout. Every
+`/auth/start` carries a token from the widget of the step that sends it — the address step, the
+password step and the passkey retry, which takes its widget with its sentence — checked the same way
+under the action `sign-in` once the body, the configuration and the client secret have been read, so
+no failure of ours spends the single-use token. A press before the token waits on the password step;
+on the address step and the retry it is refused with a sentence, because their start opens the
+passkey sheet, and WebKit keeps a click's gesture across a fetch for ten seconds and no other wait.
+The route still admits a start that carries no token, so a page deployed before it keeps signing
+in; refusing one is the last step of the change. Sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
 Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. AN IDENTITY IS DELETED BY
 HAND OR NOT AT ALL: no handler holds `AdminDeleteUser`, and `DeleteUser` takes an access token no

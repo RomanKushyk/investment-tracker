@@ -12,6 +12,8 @@ import { type Locks, createSession } from './session';
 import { type SignInDeps, setNewPassword, signInWithAddress, signInWithPassword } from './sign-in';
 
 const EMAIL = 'someone@example.com';
+/** The widget's token, which every start carries. */
+const TOKEN = 'the-turnstile-token';
 const PASSWORD = 'Correct-Horse-9!';
 const v = vectors[0]!;
 
@@ -92,11 +94,11 @@ function world(
 describe('the address step', () => {
   it('refuses an empty or malformed address before any request', async () => {
     const { deps, calls } = world({});
-    expect(await signInWithAddress('  ', deps, vi.fn())).toEqual({
+    expect(await signInWithAddress('  ', TOKEN, deps, vi.fn())).toEqual({
       kind: 'refused',
       reason: 'emailMissing',
     });
-    expect(await signInWithAddress('імʼя@пошта.укр', deps, vi.fn())).toEqual({
+    expect(await signInWithAddress('імʼя@пошта.укр', TOKEN, deps, vi.fn())).toEqual({
       kind: 'refused',
       reason: 'emailInvalid',
     });
@@ -107,8 +109,12 @@ describe('the address step', () => {
     const { deps, calls } = world({
       start: [challenge('SELECT_CHALLENGE', {}, ['PASSWORD_SRP', 'PASSWORD'])],
     });
-    await signInWithAddress(' Someone@Example.com ', deps, vi.fn());
-    expect(calls[0]?.body).toEqual({ USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' });
+    await signInWithAddress(' Someone@Example.com ', TOKEN, deps, vi.fn());
+    expect(calls[0]?.body).toEqual({
+      USERNAME: EMAIL,
+      PREFERRED_CHALLENGE: 'WEB_AUTHN',
+      botCheck: TOKEN,
+    });
   });
 
   it('goes straight to the password step on a SELECT_CHALLENGE without WEB_AUTHN', async () => {
@@ -118,7 +124,7 @@ describe('the address step', () => {
       { start: [challenge('SELECT_CHALLENGE', {}, ['PASSWORD_SRP', 'PASSWORD'])] },
       authenticate,
     );
-    expect(await signInWithAddress(EMAIL, deps, onPasskey)).toEqual({
+    expect(await signInWithAddress(EMAIL, TOKEN, deps, onPasskey)).toEqual({
       kind: 'password',
       email: EMAIL,
     });
@@ -134,9 +140,10 @@ describe('the address step', () => {
     ['offline', 'offline'],
     ['failed', 'failed'],
     ['notAuthorized', 'failed'],
+    ['botCheck', 'botCheck'],
   ] as const)('reads a %s start as %s', async (reason, expected) => {
     const { deps } = world({ start: [refused(reason)] });
-    expect(await signInWithAddress(EMAIL, deps, vi.fn())).toEqual({
+    expect(await signInWithAddress(EMAIL, TOKEN, deps, vi.fn())).toEqual({
       kind: 'refused',
       reason: expected,
     });
@@ -157,7 +164,7 @@ describe('the passkey step', () => {
     });
     const { deps, calls } = world({ start: [PASSKEY], respond: [TOKENS] }, authenticate);
 
-    const outcome = await signInWithAddress(EMAIL, deps, () => {
+    const outcome = await signInWithAddress(EMAIL, TOKEN, deps, () => {
       order.push('step');
     });
 
@@ -181,7 +188,7 @@ describe('the passkey step', () => {
       });
     });
     const { deps, calls } = world({ start: [PASSKEY] }, authenticate);
-    expect(await signInWithAddress(EMAIL, deps, vi.fn())).toEqual({
+    expect(await signInWithAddress(EMAIL, TOKEN, deps, vi.fn())).toEqual({
       kind: 'refused',
       reason: 'notFinished',
     });
@@ -194,7 +201,7 @@ describe('the passkey step', () => {
     const broken = challenge('WEB_AUTHN', { CREDENTIAL_REQUEST_OPTIONS: '{not json' });
     const { deps } = world({ start: [broken, challenge('WEB_AUTHN')] }, authenticate);
     for (let i = 0; i < 2; i++) {
-      expect(await signInWithAddress(EMAIL, deps, onPasskey)).toEqual({
+      expect(await signInWithAddress(EMAIL, TOKEN, deps, onPasskey)).toEqual({
         kind: 'refused',
         reason: 'failed',
       });
@@ -209,7 +216,7 @@ describe('the passkey step', () => {
       CREDENTIAL_REQUEST_OPTIONS: '{"challenge":"abc"}',
     });
     const { deps, calls } = world({ start: [named], respond: [TOKENS] });
-    await signInWithAddress(EMAIL, deps, vi.fn());
+    await signInWithAddress(EMAIL, TOKEN, deps, vi.fn());
     expect((calls[1]?.body as { responses: { USERNAME: string } }).responses.USERNAME).toBe(
       v.userId,
     );
@@ -218,7 +225,7 @@ describe('the passkey step', () => {
   it('opens no sheet for a step the user has already left', async () => {
     const authenticate = vi.fn();
     const { deps, calls } = world({ start: [PASSKEY] }, authenticate);
-    expect(await signInWithAddress(EMAIL, deps, () => false)).toEqual({
+    expect(await signInWithAddress(EMAIL, TOKEN, deps, () => false)).toEqual({
       kind: 'refused',
       reason: 'notFinished',
     });
@@ -228,7 +235,7 @@ describe('the passkey step', () => {
 
   it('reads a refused credential as not finished too', async () => {
     const { deps } = world({ start: [PASSKEY], respond: [refused('notAuthorized')] });
-    expect(await signInWithAddress(EMAIL, deps, vi.fn())).toEqual({
+    expect(await signInWithAddress(EMAIL, TOKEN, deps, vi.fn())).toEqual({
       kind: 'refused',
       reason: 'notFinished',
     });
@@ -239,13 +246,17 @@ describe('the password step', () => {
   it('starts afresh over SRP and answers the verifier as USER_ID_FOR_SRP', async () => {
     const { deps, calls } = world({ start: [VERIFIER], respond: [TOKENS] });
 
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
       kind: 'signedIn',
       offerPasskey: false,
     });
 
     const [start, respond] = calls;
-    expect(start?.body).toMatchObject({ USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP' });
+    expect(start?.body).toMatchObject({
+      USERNAME: EMAIL,
+      PREFERRED_CHALLENGE: 'PASSWORD_SRP',
+      botCheck: TOKEN,
+    });
     expect((start?.body as { SRP_A: string }).SRP_A).toMatch(/^[0-9a-f]+$/);
     expect(respond?.body).toMatchObject({
       challenge: 'PASSWORD_VERIFIER',
@@ -261,7 +272,7 @@ describe('the password step', () => {
 
   it('runs only the calls that write the cookies inside the lock', async () => {
     const { deps, calls } = world({ start: [VERIFIER], respond: [TOKENS] });
-    await signInWithPassword(EMAIL, PASSWORD, deps);
+    await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps);
     expect(calls.map(({ route, locked }) => [route, locked])).toEqual([
       ['start', false],
       ['respond', true],
@@ -292,7 +303,7 @@ describe('the password step', () => {
       hasPasskey: vi.fn(async () => true),
     };
 
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
       kind: 'signedIn',
       offerPasskey: false,
     });
@@ -312,7 +323,7 @@ describe('the password step', () => {
 
   it('refuses an empty password before any request', async () => {
     const { deps, calls } = world({});
-    expect(await signInWithPassword(EMAIL, '', deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, '', TOKEN, deps)).toEqual({
       kind: 'refused',
       reason: 'passwordMissing',
     });
@@ -327,7 +338,7 @@ describe('the password step', () => {
     ['a refused start', { start: [refused('notAuthorized')] }],
   ])('gives %s the same sentence', async (_, answers) => {
     const { deps } = world(answers);
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
       kind: 'refused',
       reason: 'wrong',
     });
@@ -342,26 +353,37 @@ describe('the password step', () => {
     ['reusedPassword', 'failed'],
   ] as const)('reads a %s verifier answer as %s', async (reason, expected) => {
     const { deps } = world({ start: [VERIFIER], respond: [refused(reason)] });
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
       kind: 'refused',
       reason: expected,
     });
   });
 
   // Cognito's lockout refuses the password step's START, before any password is checked.
+  it('reads a refused token as the bot check’s refusal', async () => {
+    const { deps } = world({ start: [refused('botCheck')] });
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
+      kind: 'refused',
+      reason: 'botCheck',
+    });
+  });
+
   it('reads a locked-out start as too many attempts', async () => {
     const { deps } = world({ start: [refused('throttled')] });
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
       kind: 'refused',
       reason: 'tooMany',
     });
   });
 
-  it('hands a temporary password on to the first sign-in, signing nobody in', async () => {
+  // THE CHALLENGE IS HELD, under the name the proof signed in as: the new password answers it, and
+  // the temporary password is not kept.
+  it('hands the held challenge on to the first sign-in, signing nobody in', async () => {
     const { deps } = world({ start: [VERIFIER], respond: [NEW_PASSWORD] });
-    expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+    expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
       kind: 'newPassword',
       email: EMAIL,
+      held: { session: 'session-NEW_PASSWORD_REQUIRED', userId: v.userId },
     });
     expect(deps.session.status()).toBe('unknown');
     expect(deps.hasPasskey).not.toHaveBeenCalled();
@@ -380,7 +402,7 @@ describe('the password step', () => {
         return listed;
       });
       const { deps } = world({ start: [VERIFIER], respond: [TOKENS] }, undefined, hasPasskey);
-      expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+      expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
         kind: 'signedIn',
         offerPasskey,
       });
@@ -396,7 +418,7 @@ describe('the password step', () => {
       vi.fn(async () => false),
     );
     for (let i = 0; i < 2; i++) {
-      expect(await signInWithPassword(EMAIL, PASSWORD, deps)).toEqual({
+      expect(await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps)).toEqual({
         kind: 'signedIn',
         offerPasskey: true,
       });
@@ -405,13 +427,15 @@ describe('the password step', () => {
 
   it('asks nothing about passkeys after a refused password', async () => {
     const { deps } = world({ start: [VERIFIER], respond: [refused('notAuthorized')] });
-    await signInWithPassword(EMAIL, PASSWORD, deps);
+    await signInWithPassword(EMAIL, PASSWORD, TOKEN, deps);
     expect(deps.hasPasskey).not.toHaveBeenCalled();
   });
 
   it('refuses without a request where the host has no pool', async () => {
     const { deps, calls } = world({});
-    expect(await signInWithPassword(EMAIL, PASSWORD, { ...deps, poolName: undefined })).toEqual({
+    expect(
+      await signInWithPassword(EMAIL, PASSWORD, TOKEN, { ...deps, poolName: undefined }),
+    ).toEqual({
       kind: 'refused',
       reason: 'failed',
     });
@@ -420,59 +444,34 @@ describe('the password step', () => {
 });
 
 describe('the first sign-in', () => {
-  const TEMPORARY = 'Tmp-Invite-7x!';
+  const HELD = { session: 'session-NEW_PASSWORD_REQUIRED', userId: v.userId };
   const CHOSEN = 'My-Own-Pass-8!';
 
   it('refuses an empty new password against the rule, before any request', async () => {
     const { deps, calls } = world({});
-    expect(await setNewPassword(EMAIL, TEMPORARY, '', deps)).toEqual({
-      kind: 'refused',
-      reason: 'rule',
-    });
+    expect(await setNewPassword(HELD, '', deps)).toEqual({ kind: 'refused', reason: 'rule' });
     expect(calls).toEqual([]);
   });
 
-  // The challenge's session lives three minutes, as the address step's does, so each submit proves
-  // the temporary password again over SRP and answers the session that proof returns.
-  it('starts afresh with the temporary password and answers NEW_PASSWORD_REQUIRED', async () => {
-    const { deps, calls } = world({ start: [VERIFIER], respond: [NEW_PASSWORD, TOKENS] });
+  // THE PASSWORD STEP'S CHALLENGE, answered as it stands: no start, so no token is spent, and a
+  // refused answer leaves the session usable for the next.
+  it('answers the held NEW_PASSWORD_REQUIRED, starting nothing', async () => {
+    const { deps, calls } = world({ respond: [TOKENS] });
 
-    expect(await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps)).toEqual({
+    expect(await setNewPassword(HELD, CHOSEN, deps)).toEqual({
       kind: 'signedIn',
       offerPasskey: true,
     });
 
-    expect(calls.map(({ route, locked }) => [route, locked])).toEqual([
-      ['start', false],
-      ['respond', true],
-      ['respond', true],
-    ]);
-    expect(calls[0]?.body).toMatchObject({ USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP' });
-    expect(calls[2]?.body).toEqual({
+    expect(calls.map(({ route, locked }) => [route, locked])).toEqual([['respond', true]]);
+    expect(calls[0]?.body).toEqual({
       challenge: 'NEW_PASSWORD_REQUIRED',
-      session: 'session-NEW_PASSWORD_REQUIRED',
+      session: HELD.session,
       responses: { USERNAME: v.userId, NEW_PASSWORD: CHOSEN },
     });
     expect(deps.session.status()).toBe('signedIn');
     // An account minted by approval has never held an access token, so it cannot hold a passkey.
     expect(deps.hasPasskey).not.toHaveBeenCalled();
-  });
-
-  it('never sends the temporary password, in any encoding', async () => {
-    const { deps, calls } = world({ start: [VERIFIER], respond: [NEW_PASSWORD, TOKENS] });
-    await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps);
-    const sent = JSON.stringify(calls);
-    const bytes = new TextEncoder().encode(TEMPORARY);
-    const base64 = btoa(String.fromCharCode(...bytes));
-    for (const form of [
-      TEMPORARY,
-      encodeURIComponent(TEMPORARY),
-      Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(''),
-      base64,
-      base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
-    ]) {
-      expect(sent).not.toContain(form);
-    }
   });
 
   it.each([
@@ -481,28 +480,13 @@ describe('the first sign-in', () => {
     ['reusedPassword', 'reused'],
     ['throttled', 'tooMany'],
     ['offline', 'offline'],
-    ['notAuthorized', 'wrong'],
+    // The password was proven already, so a refusal here is the session's three minutes running out.
+    ['notAuthorized', 'expired'],
     ['invalid', 'failed'],
     ['failed', 'failed'],
   ] as const)('reads a %s answer to the new password as %s', async (reason, expected) => {
-    const { deps } = world({ start: [VERIFIER], respond: [NEW_PASSWORD, refused(reason)] });
-    expect(await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps)).toEqual({
-      kind: 'refused',
-      reason: expected,
-    });
+    const { deps } = world({ respond: [refused(reason)] });
+    expect(await setNewPassword(HELD, CHOSEN, deps)).toEqual({ kind: 'refused', reason: expected });
     expect(deps.session.status()).toBe('unknown');
-  });
-
-  it.each([
-    ['a refused start', { start: [refused('throttled')] }, 'tooMany'],
-    ['a refused proof', { start: [VERIFIER], respond: [refused('notAuthorized')] }, 'wrong'],
-    ['a proof answering another challenge', { start: [VERIFIER], respond: [VERIFIER] }, 'failed'],
-  ])('reads %s as its sentence, and sends no new password', async (_, answers, expected) => {
-    const { deps, calls } = world(answers);
-    expect(await setNewPassword(EMAIL, TEMPORARY, CHOSEN, deps)).toEqual({
-      kind: 'refused',
-      reason: expected,
-    });
-    expect(JSON.stringify(calls)).not.toContain(CHOSEN);
   });
 });

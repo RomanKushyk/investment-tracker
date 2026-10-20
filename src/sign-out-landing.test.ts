@@ -99,7 +99,7 @@ describe('`/sign-in` reads it once and uses it up', () => {
   });
 
   it('holds the line on submit, and a new step has none', () => {
-    expect(slice(signIn, 'function submitAddress', 'passkeyFirst(address)')).toMatch(
+    expect(slice(signIn, 'function submitAddress', 'passkeyFirst(address,')).toMatch(
       /setNote\(\(before\) => before && 'held'\)/,
     );
     expect(slice(signIn, 'function go(', 'setStep(next)')).toMatch(/setNote\(undefined\)/);

@@ -24,10 +24,11 @@ export interface Challenge {
   availableChallenges?: string[];
 }
 
-/** 400s: `invalid`, and a new password refused by the pool's rule (`invalidPassword`) or history
- *  (`reusedPassword`); `throttled` is a 429, API Gateway's or the lockout's; `failed` all else. */
+/** 400s: `invalid`, or a new password the pool's rule or history refuses; `botCheck`, the start's
+ *  403 for its token; `throttled`, any 429; `failed`, all else. */
 export type Refusal =
   | 'notAuthorized'
+  | 'botCheck'
   | 'invalid'
   | 'invalidPassword'
   | 'reusedPassword'
@@ -56,6 +57,12 @@ const NAMED = new Map<unknown, Refusal>([
   ['invalid_password', 'invalidPassword'],
   ['reused_password', 'reusedPassword'],
 ]);
+
+/** The `error` a refusal's body names, or nothing. */
+const errorOf = async (response: Response): Promise<unknown> => {
+  const body: unknown = await response.json().catch(() => undefined);
+  return (body as { error?: unknown } | null | undefined)?.error;
+};
 
 // API Gateway's ceiling for an HTTP API's answer: past it none can come, and the cross-tab lock is
 // held until one does.
@@ -129,14 +136,16 @@ export function createRelay({
     try {
       const response = await fetch(`${base}/auth/${route}`, { ...init, signal: controller.signal });
       if (response.status === 400) {
-        const body: unknown = await response.json().catch(() => undefined);
-        const named = (body as { error?: unknown } | null | undefined)?.error;
-        return { kind: 'refused', reason: NAMED.get(named) ?? 'invalid' };
+        return { kind: 'refused', reason: NAMED.get(await errorOf(response)) ?? 'invalid' };
       }
       // A refresh's refusal is what a signed-out page reads whether Google is on from.
       if (response.status === 401) {
         const body: unknown = await response.json().catch(() => undefined);
         return { kind: 'refused', reason: 'notAuthorized', ...googleIn(body) };
+      }
+      if (response.status === 403) {
+        const named = await errorOf(response);
+        return { kind: 'refused', reason: named === 'bot_check_failed' ? 'botCheck' : 'failed' };
       }
       if (response.status !== 200) {
         return { kind: 'refused', reason: REFUSED[response.status] ?? 'failed' };
