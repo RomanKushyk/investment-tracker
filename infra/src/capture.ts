@@ -30,6 +30,12 @@ import {
   fundHistoryRows,
   priceFileLink,
 } from './fund-history';
+import {
+  DERIVED_SELL_PARSER_VERSION,
+  DERIVED_SELL_RUNS,
+  derivedSellPlan,
+  type ArchiveSell,
+} from './derived-sell';
 import { BASIS_NAV, inzhurObservationRows } from './observation-rows';
 import { observeProgress, observeWindowEnd } from './observe-window';
 import { readXlsx } from './xlsx';
@@ -899,6 +905,59 @@ async function importFundHistory(client: Client, req: ImportFundHistoryRequest) 
   };
 }
 
+interface ImportDerivedSellRequest {
+  /** The owner's tracker, base64: handed over for the run, never committed (#209). Invoked
+   *  synchronously only: an async invocation's retries park the event in `CaptureDlq`. */
+  workbook: string;
+}
+
+/** Manual and network-free. The plan reads this import's earlier rows only to refuse a day it would
+ *  price otherwise or no longer writes, so a re-run of the same workbook writes nothing. Every ref
+ *  goes in one transaction or none does. */
+async function importDerivedSell(client: Client, req: ImportDerivedSellRequest) {
+  const workbook = readXlsx(Buffer.from(req.workbook, 'base64'));
+  const today = kyivDateIso(new Date());
+  const archive = new Map<string, ArchiveSell[]>();
+  for (const run of DERIVED_SELL_RUNS) {
+    // No lower bound: a captured row before `start` is what refuses a start inside the captured era.
+    const res = await client.query<ArchiveSell>(
+      `SELECT to_char(as_of, 'YYYY-MM-DD') AS "asOf", price::text AS price,
+              parser_version AS "parserVersion"
+         FROM price_observation
+        WHERE instrument_ref = $1 AND basis = 'sell' AND source = $2 AND as_of <= $3`,
+      [run.ref, SOURCE.inzhur, today],
+    );
+    archive.set(run.ref, res.rows);
+  }
+  const { rows, reports } = derivedSellPlan(workbook, archive, INZHUR_ARCHIVE_START);
+
+  const observedAt = new Date().toISOString();
+  const written = new Map<string, number>();
+  await client.query('BEGIN');
+  try {
+    for (const row of rows) {
+      const ins = await client.query(
+        `INSERT INTO price_observation
+           (as_of, instrument_ref, basis, source, price, observed_at, parser_version)
+         VALUES ($1, $2, 'sell', $3, $4, $5, $6)
+         ON CONFLICT (as_of, instrument_ref, basis, source) DO NOTHING`,
+        [row.asOf, row.ref, SOURCE.inzhur, row.price, observedAt, DERIVED_SELL_PARSER_VERSION],
+      );
+      written.set(row.ref, (written.get(row.ref) ?? 0) + (ins.rowCount ?? 0));
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  }
+  return {
+    mode: 'importDerivedSell' as const,
+    observedAt,
+    parserVersion: DERIVED_SELL_PARSER_VERSION,
+    refs: reports.map((r) => ({ ...r, written: written.get(r.ref) ?? 0 })),
+  };
+}
+
 /** A week, so a missed night repairs itself rather than leaving a permanent hole. */
 const OBSERVE_WINDOW_DAYS = 7;
 
@@ -1068,6 +1127,8 @@ export interface HandlerEvent {
   observe?: ObserveRequest;
   /** Manual, and network-bound. */
   importFundHistory?: ImportFundHistoryRequest;
+  /** Manual, and network-free. */
+  importDerivedSell?: ImportDerivedSellRequest;
 }
 
 export async function handler(event: HandlerEvent = {}) {
@@ -1080,6 +1141,10 @@ export async function handler(event: HandlerEvent = {}) {
 
     if (event.importFundHistory !== undefined) {
       return await importFundHistory(client, event.importFundHistory);
+    }
+
+    if (event.importDerivedSell !== undefined) {
+      return await importDerivedSell(client, event.importDerivedSell);
     }
 
     if (event.observe !== undefined) {

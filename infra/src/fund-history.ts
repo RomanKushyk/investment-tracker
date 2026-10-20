@@ -110,7 +110,7 @@ export function parseUkrainianDecimal(text: string, at?: string): number {
 const DATE_CAPTION = 'Дата';
 const PRICE_CAPTIONS = new Set(['Вартість ВЧА 1 ЦП, грн', 'Вартість 1 ЦП, грн']);
 
-function caption(cell: XlsxCell | undefined): string | undefined {
+export function caption(cell: XlsxCell | undefined): string | undefined {
   return cell?.s?.replace(/\s+/g, ' ').trim();
 }
 

@@ -800,12 +800,24 @@ publishes further, and the funds' seam is not expected to, the provider having m
 into its app. Until then the seam is ABSENT in the archive: no other source, basis or derivation
 stands in for its NAV. A reader meets it as a real gap — between `listed_from` and `last_seen_on`
 the fund existed, so a day there with no row is unobserved, never delisted — and `diagnose` counts a
-seam's days and lists the latest of them by date.
+seam's days and lists the latest of them by date. A `sell` day before the first capture can also be
+DERIVED: the owner's position value divided by the units held, for a holding whose divisor a
+captured `sell` reproduces on the overlap (`infra/src/derived-sell.ts`). That is a third provenance
+beside captured and imported, an imputation and never a measurement, told apart by its own
+`parser_version`. It never displaces a captured row, never stands in for `nav`, and is never
+evidence for another derivation: not the `sell / nav` factor, not another divisor, and not its own
+re-run, which checks the divisor against captured rows alone and refuses a day it already derived
+otherwise or no longer writes. It widens no instrument's `listed_from`. A date the tracker repeats
+with an equal value is read once, where the fund-history import refuses every repeat.
 **Why.** Writing every day keeps a zero delta distinct from an unknown one — a row missing on a
 quiet day is byte-identical to a capture that never ran. Premises are kept forever, conclusions
 never. A NAV the archive never received can only be concluded, not observed: statistical exchange
 flags such a fill as a receiver's imputation (SDMX observation status I), apart from data that
-existed and was not collected (L).
+existed and was not collected (L). A derived `sell` is that imputation, and it is only as good as
+the units it divides by, so it is tied to a holding a measured quote confirms, as GnuCash and
+Beancount, deriving a price from a transaction, divide by that transaction's own units. A repeat
+is refused where `ON CONFLICT DO NOTHING` would keep one of two different values unseen; an equal
+repeat hides nothing.
 **Rejected.** Alarming on a price that did not move: maintenance, a weekend and a holiday all trip
 it, so every capture check is structural and none reads a price. · Archiving the price file beside
 its rows: the rows are the premise, the packaging is not. · Filling the seam's NAV from the owner's
