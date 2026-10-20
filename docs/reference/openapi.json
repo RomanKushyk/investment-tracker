@@ -540,7 +540,8 @@
                     "additionalProperties": false,
                     "required": [
                       "USERNAME",
-                      "PREFERRED_CHALLENGE"
+                      "PREFERRED_CHALLENGE",
+                      "botCheck"
                     ],
                     "properties": {
                       "USERNAME": {
@@ -566,7 +567,8 @@
                     "required": [
                       "USERNAME",
                       "PREFERRED_CHALLENGE",
-                      "SRP_A"
+                      "SRP_A",
+                      "botCheck"
                     ],
                     "properties": {
                       "USERNAME": {

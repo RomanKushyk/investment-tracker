@@ -1492,8 +1492,7 @@ under the action `sign-in` once the body, the configuration and the client secre
 no failure of ours spends the single-use token. A press before the token waits on the password step;
 on the address step and the retry it is refused with a sentence, because their start opens the
 passkey sheet, and WebKit keeps a click's gesture across a fetch for ten seconds and no other wait.
-The route still admits a start that carries no token, so a page deployed before it keeps signing
-in; refusing one is the last step of the change. Sign-up
+A start that carries no token is refused as a refused one is. Sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
 Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. AN IDENTITY IS DELETED BY
 HAND OR NOT AT ALL: no handler holds `AdminDeleteUser`, and `DeleteUser` takes an access token no

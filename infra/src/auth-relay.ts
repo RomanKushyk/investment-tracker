@@ -198,13 +198,12 @@ export const START_BODY = {
   content: {
     'application/json': {
       schema: {
-        oneOf: Object.entries(START_KEYS).map(([preference, keys]) => {
-          const schema = exactObject(keys, {
+        oneOf: Object.entries(START_KEYS).map(([preference, keys]) =>
+          exactObject([...keys, 'botCheck'], {
             PREFERRED_CHALLENGE: { type: 'string', enum: [preference] },
-          });
-          // The widget's token, optional until the page sends one on every start.
-          return { ...schema, properties: { ...schema.properties, botCheck: TOKEN } };
-        }),
+            botCheck: TOKEN,
+          }),
+        ),
       },
     },
   },
@@ -546,7 +545,7 @@ const startOf = (event: ApiEvent) => {
   if (typeof preference !== 'string' || !Object.hasOwn(START_KEYS, preference)) return undefined;
   const parameters = exactly(rest, START_KEYS[preference as keyof typeof START_KEYS]);
   if (parameters === undefined) return undefined;
-  return { parameters, botCheck: botCheck === undefined ? undefined : tokenOf(botCheck) };
+  return { parameters, botCheck: tokenOf(botCheck) };
 };
 
 const respondOf = (event: ApiEvent) => {
@@ -800,17 +799,15 @@ export const createRelay = (idp: IdentityClient, verify: Verify, now: () => numb
   const start = async (event: ApiEvent): Promise<ApiResult> => {
     const asked = startOf(event);
     // THE BODY, THE CONFIGURATION AND THE CLIENT SECRET FIRST, so no failure of ours spends a
-    // single-use token; THEN THE TOKEN, so a start carrying one costs siteverify before Cognito's.
+    // single-use token; THEN THE TOKEN, a missing one refused as empty, before Cognito is asked.
     if (asked === undefined) return INVALID;
     const ids = idsOf();
     if (ids === undefined) return INTERNAL;
     const { parameters, botCheck } = asked;
     try {
       await cached(ids);
-      if (botCheck !== undefined) {
-        const refused = refusalOf(await verify(botCheck, event.requestContext?.http?.sourceIp));
-        if (refused) return refused;
-      }
+      const refused = refusalOf(await verify(botCheck, event.requestContext?.http?.sourceIp));
+      if (refused) return refused;
       const answer = await withSecret(ids, 'NotAuthorizedException', (s) =>
         idp.initiateAuth({
           AuthFlow: 'USER_AUTH',

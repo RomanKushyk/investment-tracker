@@ -15,6 +15,7 @@ import {
   RESPOND_ROUTE,
   RESPONSES,
   SIGN_OUT_ROUTE,
+  START_BODY,
   START_ROUTE,
   type IdentityClient,
   createRelay,
@@ -227,8 +228,9 @@ const seen = (event: ApiEvent, result: ApiResult) => {
   return record(event, result);
 };
 
-/** A bot check that passes every token, where a test is about something else. */
-const PASSES: Verify = async () => 'passed';
+/** A bot check that passes every token, where a test is about something else, and no missing one. */
+const PASSES: Verify = async (token) => (token ? 'passed' : 'refused');
+const BOT_CHECK = 'a-turnstile-token';
 
 /** One execution environment: a relay whose secret cache survives between the calls it answers. */
 const environment = (idp: IdentityClient, now?: () => number, verify: Verify = PASSES) => {
@@ -279,7 +281,7 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
   it('starts a passkey sign-in with the hash of the secret, and hands back the challenge', async () => {
     const { idp, of } = cognito();
     const res = await environment(idp)(
-      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' }),
+      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN', botCheck: BOT_CHECK }),
     );
     expect(res.statusCode).toBe(200);
     expect(res.headers['cache-control']).toBe('no-store');
@@ -345,7 +347,12 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
     });
     const relay = environment(idp);
     const started = await relay(
-      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' }),
+      post(START_ROUTE, {
+        USERNAME: EMAIL,
+        PREFERRED_CHALLENGE: 'PASSWORD_SRP',
+        SRP_A: 'a',
+        botCheck: BOT_CHECK,
+      }),
     );
     expect(bodyOf(started)).toEqual({
       challenge: 'PASSWORD_VERIFIER',
@@ -403,7 +410,7 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
     });
     const relay = environment(idp);
     const offered = await relay(
-      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' }),
+      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN', botCheck: BOT_CHECK }),
     );
     expect(bodyOf(offered).availableChallenges).toEqual(['PASSWORD_SRP', 'PASSWORD']);
     const chosen = await relay(
@@ -423,7 +430,7 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
   });
 });
 
-// A START CARRYING A TOKEN COSTS ONE SITEVERIFY CALL before Cognito starts anything: credential
+// EVERY START COSTS ONE BOT CHECK before Cognito starts anything: credential
 // stuffing tries many accounts once each, which Cognito's per-account lockout never sees.
 describe('a start is verified by the bot check before Cognito is asked', () => {
   const TOKEN = 'the-turnstile-token';
@@ -504,8 +511,9 @@ describe('a start is verified by the bot check before Cognito is asked', () => {
     expect(of('initiateAuth')).toEqual([]);
   });
 
-  it('hands the check an empty token for one that is empty or not text', async () => {
-    for (const botCheck of ['', 7, null]) {
+  // A MISSING TOKEN IS A REFUSED ONE, as on `/apply`: the check reads it as empty.
+  it('hands the check an empty token for one that is missing, empty or not text', async () => {
+    for (const botCheck of [undefined, '', 7, null]) {
       const { idp, of } = cognito();
       const { verify, asked } = checking((token) => (token ? 'passed' : 'refused'));
       const res = await checked(idp, verify)(from({ ...START, botCheck }));
@@ -547,14 +555,11 @@ describe('a start is verified by the bot check before Cognito is asked', () => {
     expect(of('initiateAuth')).toEqual([]);
   });
 
-  // UNTIL THE PAGE SENDS ONE ON EVERY START, when the token becomes required.
-  it('starts with no token as before, asking the check nothing', async () => {
-    const { idp, of } = cognito();
-    const { verify, asked } = checking(() => 'refused');
-    const res = await checked(idp, verify)(from(START));
-    expect(res.statusCode).toBe(200);
-    expect(asked).toEqual([]);
-    expect(of('initiateAuth')).toHaveLength(1);
+  it('publishes the token as required on every start', () => {
+    const { oneOf } = START_BODY.content['application/json'].schema;
+    expect(oneOf.map((schema) => schema.required.includes('botCheck'))).toEqual(
+      oneOf.map(() => true),
+    );
   });
 });
 
@@ -759,7 +764,9 @@ describe('the access token is sealed into a cookie only the relay can open', () 
     const access = await holding(environment(cognito({}, [ROTATED_SECRET]).idp));
     const { idp, of } = cognito({}, [SECRET, ROTATED_SECRET]);
     const relay = environment(idp);
-    await relay(post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' }));
+    await relay(
+      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN', botCheck: BOT_CHECK }),
+    );
     const res = await relay(asking(PASSKEY_LIST_ROUTE, { access }));
     expect(res.statusCode).toBe(200);
     expect(of('describeUserPoolClient')).toHaveLength(2);
@@ -951,7 +958,11 @@ describe('only the listed challenges pass, and never a plain password', () => {
 });
 
 describe('the secret is read from Cognito, once per environment', () => {
-  const start = post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' });
+  const start = post(START_ROUTE, {
+    USERNAME: EMAIL,
+    PREFERRED_CHALLENGE: 'WEB_AUTHN',
+    botCheck: BOT_CHECK,
+  });
 
   it('reads it with DescribeUserPoolClient on this pool and client, and keeps it', async () => {
     const { idp, of } = cognito();
@@ -1167,7 +1178,12 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
         throw refusal('NotAuthorizedException', message);
       };
       const started = await environment(cognito({ initiateAuth: refused }).idp)(
-        post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' }),
+        post(START_ROUTE, {
+          USERNAME: EMAIL,
+          PREFERRED_CHALLENGE: 'PASSWORD_SRP',
+          SRP_A: 'a',
+          botCheck: BOT_CHECK,
+        }),
       );
       const verified = await environment(cognito({ respondToAuthChallenge: refused }).idp)(
         post(RESPOND_ROUTE, {
@@ -1196,8 +1212,8 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
         },
       });
       for (const body of [
-        { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' },
-        { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' },
+        { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN', botCheck: BOT_CHECK },
+        { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a', botCheck: BOT_CHECK },
       ]) {
         const res = await environment(idp)(post(START_ROUTE, body));
         expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
@@ -1210,7 +1226,7 @@ describe('Cognito’s refusals, as the app can tell them apart', () => {
   it('refuses tokens at the start, where no preference it admits can produce them', async () => {
     const { idp } = cognito({ initiateAuth: async () => SIGNED_IN });
     const res = await environment(idp)(
-      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' }),
+      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN', botCheck: BOT_CHECK }),
     );
     expect([res.statusCode, res.cookies]).toEqual([500, undefined]);
     expect(res.body).not.toContain(REFRESH);
@@ -2201,7 +2217,10 @@ describe('the passkey calls, made with the token the relay holds', () => {
 
 describe('a request the relay does not answer at all', () => {
   const ROUTES: [string, ApiEvent][] = [
-    [START_ROUTE, post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' })],
+    [
+      START_ROUTE,
+      post(START_ROUTE, { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN', botCheck: BOT_CHECK }),
+    ],
     [
       RESPOND_ROUTE,
       post(RESPOND_ROUTE, {
