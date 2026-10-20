@@ -39,6 +39,16 @@ import {
 import { BASIS_NAV, inzhurObservationRows } from './observation-rows';
 import { observeProgress, observeWindowEnd } from './observe-window';
 import { readXlsx } from './xlsx';
+import { parseNuxtOfferPage } from '@quirenote/core/inzhur/nuxt-page';
+import {
+  snapshotDay,
+  snapshotUrl,
+  WAYBACK_PARSER_VERSION,
+  WAYBACK_SNAPSHOTS,
+  waybackPlan,
+  type ArchivedRow,
+  type DecodedSnapshot,
+} from './wayback';
 import { tallyQuotes, type QuoteTally } from './quotes';
 import { forgetRobots, REFUSED, RobotsRefusal, robotsFetch } from './robots';
 import { parseNbuFairValue } from '@quirenote/core/nbu/fair-value';
@@ -958,6 +968,103 @@ async function importDerivedSell(client: Client, req: ImportDerivedSellRequest) 
   };
 }
 
+/** A snapshot is a whole archived page, served slower than the provider's own. */
+const WAYBACK_TIMEOUT_MS = 30_000;
+
+/** Manual, and network-bound like `importFundHistory`. Every snapshot is read and checked before
+ *  anything is written, and every row goes in one transaction or none does. */
+async function importWaybackQuotes(client: Client) {
+  const decoded: DecodedSnapshot[] = [];
+  for (const snapshot of WAYBACK_SNAPSHOTS) {
+    const url = snapshotUrl(snapshot);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WAYBACK_TIMEOUT_MS);
+    // A timeout, a refusal or a stalled body names its snapshot, or the operator cannot tell which
+    // to recheck.
+    const named = (why: unknown) =>
+      new Error(
+        `wayback refused:\n${snapshot.timestamp}: ${why instanceof Error ? why.message : String(why)}`,
+        { cause: why },
+      );
+    try {
+      const response = await robotsFetch(url, controller.signal).catch((err: unknown) => {
+        throw named(err);
+      });
+      const memento = response.headers.get('memento-datetime');
+      if (response.status !== 200 || memento === null) {
+        await response.body?.cancel().catch(() => undefined);
+        throw named(`HTTP ${response.status}, no snapshot`);
+      }
+      const body = await response.text().catch((err: unknown) => {
+        throw named(err);
+      });
+      decoded.push({ snapshot, memento, feed: parseNuxtOfferPage(body) });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // The plan's own dating, so the read covers exactly the days it writes. An unreadable header is
+  // left to the plan, which refuses it by name.
+  const days = [
+    ...new Set(decoded.map((d) => snapshotDay(d.memento)).filter((d) => d !== undefined)),
+  ];
+  const refs = [...new Set(decoded.flatMap((d) => d.feed.entries.map((e) => e.ref)))];
+  const existing = await client.query<ArchivedRow>(
+    `SELECT to_char(as_of, 'YYYY-MM-DD') AS "asOf", instrument_ref AS ref, basis,
+            price::text AS price, parser_version AS "parserVersion"
+       FROM price_observation
+      WHERE source = $1 AND as_of = ANY($2::date[]) AND instrument_ref = ANY($3::text[])`,
+    [SOURCE.inzhur, days, refs],
+  );
+  const { rows, instruments, report } = waybackPlan(decoded, existing.rows);
+
+  const written = new Map<string, number>();
+  await client.query('BEGIN');
+  try {
+    for (const row of rows) {
+      const ins = await client.query(
+        `INSERT INTO price_observation
+           (as_of, instrument_ref, basis, source, price, observed_at,
+            parser_version, return_rate_buy, return_rate_sell, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (as_of, instrument_ref, basis, source) DO NOTHING`,
+        [
+          row.asOf,
+          row.ref,
+          row.basis,
+          SOURCE.inzhur,
+          row.price,
+          row.observedAt,
+          WAYBACK_PARSER_VERSION,
+          row.returnRateBuy,
+          row.returnRateSell,
+          row.status,
+        ],
+      );
+      // The plan read this key as free, so a conflict is a row written since, never compared.
+      if ((ins.rowCount ?? 0) === 0) {
+        throw new Error(
+          `wayback refused:\n${row.asOf} ${row.ref} ${row.basis}: written since the plan read the archive`,
+        );
+      }
+      written.set(row.ref, (written.get(row.ref) ?? 0) + 1);
+    }
+    // A snapshot is a sighting, as a capture is, so it widens both of the instrument's bounds.
+    for (const i of instruments) await upsertInstrument(client, i.ref, i);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  }
+  return {
+    mode: 'importWaybackQuotes' as const,
+    parserVersion: WAYBACK_PARSER_VERSION,
+    ...report,
+    written: Object.fromEntries([...written].sort(([a], [b]) => (a < b ? -1 : 1))),
+  };
+}
+
 /** A week, so a missed night repairs itself rather than leaving a permanent hole. */
 const OBSERVE_WINDOW_DAYS = 7;
 
@@ -1129,6 +1236,8 @@ export interface HandlerEvent {
   importFundHistory?: ImportFundHistoryRequest;
   /** Manual, and network-free. */
   importDerivedSell?: ImportDerivedSellRequest;
+  /** Manual, and network-bound. */
+  importWaybackQuotes?: Record<string, never>;
 }
 
 export async function handler(event: HandlerEvent = {}) {
@@ -1146,6 +1255,8 @@ export async function handler(event: HandlerEvent = {}) {
     if (event.importDerivedSell !== undefined) {
       return await importDerivedSell(client, event.importDerivedSell);
     }
+
+    if (event.importWaybackQuotes !== undefined) return await importWaybackQuotes(client);
 
     if (event.observe !== undefined) {
       // NBU STAYS THE DEFAULT: `{observe:{}}` has always meant "derive the NBU archive", and

@@ -129,7 +129,7 @@ function columnsOf(sheet: XlsxSheet, captions: string[]): string[] {
 }
 
 /** A price as an integer count of `SCALE`, from its text and never through a float. */
-function scaled(text: string): number | undefined {
+export function scaled(text: string): number | undefined {
   const match = /^(\d+)(?:\.(\d+))?$/.exec(text);
   const fraction = (match?.[2] ?? '').replace(/0+$/, '');
   if (!match || fraction.length > 4) return undefined;

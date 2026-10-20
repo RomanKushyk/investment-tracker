@@ -795,18 +795,24 @@ The observation key is `(as_of, instrument_ref, basis, source)` and immutable: a
 DROP/CREATE of a live archive. `as_of` is per source, the observer writes every day, an imported
 file is not archived but its rows are, and the provider's FX rate is stored nowhere at all. Where an
 imported history stops short of a source's first capture in this archive, the days between are a
-SEAM: prices that existed and that the archive does not hold. It closes only if the provider
-publishes further, and the funds' seam is not expected to, the provider having moved that history
-into its app. Until then the seam is ABSENT in the archive: no other source, basis or derivation
-stands in for its NAV. A reader meets it as a real gap — between `listed_from` and `last_seen_on`
-the fund existed, so a day there with no row is unobserved, never delisted — and `diagnose` counts a
-seam's days and lists the latest of them by date. A `sell` day before the first capture can also be
-DERIVED: the owner's position value divided by the units held, for a holding whose divisor a
-captured `sell` reproduces on the overlap (`infra/src/derived-sell.ts`). That is a third provenance
-beside captured and imported, an imputation and never a measurement, told apart by its own
+SEAM: prices that existed and that the archive does not hold. It closes on a day where the
+provider's own publication is found, a copy of its page included, and nowhere else, the provider
+having moved that history into its app. Elsewhere the seam is ABSENT in the archive: no other
+source, basis or derivation stands in for its NAV. A reader meets it as a real gap — between
+`listed_from` and `last_seen_on` the fund existed, so a day there with no row is unobserved, never
+delisted — and `diagnose` counts a seam's days and lists the latest of them by date. A day before
+the first capture can be OBSERVED from a snapshot of the provider's offer page the Wayback Machine
+holds (`infra/src/wayback.ts`): every basis the page served, dated by the Kyiv day of the snapshot's
+`Memento-Datetime` as a capture is dated, under its own `parser_version`. That is the provider's
+quote imported from a third party's copy, an observation and not an imputation. It never displaces
+a row already held, which must agree with it, and like a capture it widens the instrument's bounds.
+A `sell` day before the first capture can also be DERIVED: the owner's position value divided by
+the units held, for a holding whose divisor a captured `sell` reproduces on the overlap
+(`infra/src/derived-sell.ts`). That is a provenance of its own beside the captured, the imported
+and the copied rows, an imputation and never a measurement, told apart by its own
 `parser_version`. It never displaces a captured row, never stands in for `nav`, and is never
 evidence for another derivation: not the `sell / nav` factor, not another divisor, and not its own
-re-run, which checks the divisor against captured rows alone and refuses a day it already derived
+re-run, which checks the divisor against rows it did not derive and refuses a day it already derived
 otherwise or no longer writes. It widens no instrument's `listed_from`. A date the tracker repeats
 with an equal value is read once, where the fund-history import refuses every repeat.
 **Why.** Writing every day keeps a zero delta distinct from an unknown one — a row missing on a

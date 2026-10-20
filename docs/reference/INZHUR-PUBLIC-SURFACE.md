@@ -119,3 +119,26 @@ follow it ([`DECISIONS.md`](../DECISIONS.md), *External sources*).
 The capture reads `/offer/ovdp` in its place. The API host the pages name, `api.inzhur.reit`,
 publishes no `robots.txt`, but none of the conventional OpenAPI or versioned paths under its `/core`
 answers; its `/cms` is read only for the document lists above.
+
+## Before the first capture: the Wayback Machine's copies
+
+Nothing the provider still serves prices a day between its last price file and this archive's first
+capture. The Wayback Machine holds copies of the offer pages from inside that span, listed by its
+CDX index ([wayback-cdx-server](https://github.com/internetarchive/wayback/blob/master/wayback-cdx-server/README.md)):
+
+```
+GET https://web.archive.org/cdx/search/cdx?url=www.inzhur.reit/offer/&matchType=prefix&filter=statuscode:200
+GET https://web.archive.org/web/<timestamp>id_/<original url>     → the page as captured
+```
+
+`id_` serves the page without Wayback's rewriting, and a served snapshot carries `Memento-Datetime`,
+the moment of the copy ([RFC 7089 §2.1.1](https://www.rfc-editor.org/rfc/rfc7089#section-2.1.1)).
+`web.archive.org` answers `404` for `robots.txt`.
+
+**The copies predate the current site: they are a Nuxt app's**, with no `it-astro-state`. The state is
+`<script id="__NUXT_DATA__">`, devalue-flattened, with Nuxt's own reducers (`ShallowReactive`,
+`Reactive`, `Ref`, …) read as the values they wrap. Under its `data`, one key that `useAsyncData`
+hashed holds the old asset feed's own list, funds by `slug` and bonds by `assetDetails.isin`. One
+departure from the feed: a fund may carry `isin: null` where the feed omits the key, and both read
+as no ISIN (`packages/core/src/inzhur/nuxt-page.test.ts`). `parseNuxtOfferPage` (`packages/core/src/inzhur/nuxt-page.ts`) hands the list to
+the feed's parser, and the snapshots read are `WAYBACK_SNAPSHOTS` in `infra/src/wayback.ts`.
