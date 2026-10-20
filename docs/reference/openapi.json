@@ -552,6 +552,11 @@
                         "enum": [
                           "WEB_AUTHN"
                         ]
+                      },
+                      "botCheck": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
                       }
                     }
                   },
@@ -577,6 +582,11 @@
                       "SRP_A": {
                         "type": "string",
                         "minLength": 1
+                      },
+                      "botCheck": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
                       }
                     }
                   }
@@ -651,6 +661,11 @@
                   "csrf": {
                     "value": {
                       "error": "csrf"
+                    }
+                  },
+                  "bot_check_failed": {
+                    "value": {
+                      "error": "bot_check_failed"
                     }
                   }
                 }

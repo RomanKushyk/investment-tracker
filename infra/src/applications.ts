@@ -5,7 +5,15 @@
 // would already have cost a monthly active user, approved or not. Minting the identity belongs to
 // APPROVAL, which is also what makes approval the verification step (*Auth model*).
 import { ADDRESS, MAX_ADDRESS, canonicalAddress } from '@quirenote/core/address';
-import { BOT_CHECK_FAILED, MAX_TOKEN, type Verify, fromEnvironment, verifyWith } from './bot-check';
+import {
+  BOT_CHECK_FAILED,
+  TOKEN,
+  type Verify,
+  fromEnvironment,
+  refusalOf,
+  tokenOf,
+  verifyWith,
+} from './bot-check';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
 import { loggable } from './log';
@@ -36,7 +44,7 @@ export const REQUEST_BODY = {
             pattern: ADDRESS.source,
           },
           /** The Turnstile widget's token, verified with siteverify before the cluster is asked. */
-          botCheck: { type: 'string', minLength: 1, maxLength: MAX_TOKEN },
+          botCheck: TOKEN,
         },
       },
     },
@@ -76,7 +84,7 @@ function applicationOf(event: ApiEvent): Application | undefined {
   const email = canonicalAddress(supplied);
   if (email === undefined) return undefined;
 
-  return { email, botCheck: typeof botCheck === 'string' ? botCheck : '' };
+  return { email, botCheck: tokenOf(botCheck) };
 }
 
 /**
@@ -137,10 +145,10 @@ export const createHandler =
     const application = applicationOf(event);
     if (application === undefined) return INVALID;
 
-    const verdict = await verify(application.botCheck, event.requestContext?.http?.sourceIp);
-    if (verdict === 'refused') return BOT_CHECK_FAILED;
-    // FAIL CLOSED: a check that could not run admits nobody.
-    if (verdict !== 'passed') return INTERNAL;
+    const refused = refusalOf(
+      await verify(application.botCheck, event.requestContext?.http?.sourceIp),
+    );
+    if (refused) return refused;
     const { email } = application;
 
     // A connection failure answers rather than throws: an uncaught throw reaches the caller as API

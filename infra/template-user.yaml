@@ -699,6 +699,10 @@ Resources:
           # WHERE GOOGLE'S REDIRECT, ITS CODE EXCHANGE AND THE LOGOUT GO: the managed-login domain,
           # whose `Ref` is the host itself.
           AUTH_DOMAIN: !Ref UserPoolDomain
+          # `/auth/start`'s bot check, the parameter and hosts `ApplicationsFunction` is handed.
+          BOT_CHECK_PARAMETER: !Sub '/quirenote/${Environment}/turnstile-secret'
+          BOT_CHECK_HOSTNAMES:
+            !If [IsProd, 'quirenote.com,www.quirenote.com', 'dev.quirenote.com,localhost']
       Policies:
         - Statement:
             # ONE READ, AND IT IS POOL-WIDE — any client in the pool can be described, the accepted
@@ -708,6 +712,18 @@ Resources:
               Effect: Allow
               Action: cognito-idp:DescribeUserPoolClient
               Resource: !GetAtt UserPool.Arn
+            - Sid: ReadTheBotCheckSecret
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/quirenote/${Environment}/turnstile-secret'
+            # Decrypted under the caller, through SSM alone, as `ApplicationsFunction` decrypts it.
+            - Sid: DecryptTheBotCheckSecret
+              Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*'
+              Condition:
+                StringEquals:
+                  kms:ViaService: !Sub 'ssm.${AWS::Region}.amazonaws.com'
       Events:
         Start:
           Type: HttpApi

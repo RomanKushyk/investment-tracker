@@ -57,6 +57,7 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   // The hosts a bot-check pass must name, each environment's widget's own.
   [[...envVars('ApplicationsFunction'), 'BOT_CHECK_HOSTNAMES'], '!If'],
   [[...envVars('ApproveFunction'), 'OPEN_REGISTRATION'], '!If'],
+  [[...envVars('AuthRelayFunction'), 'BOT_CHECK_HOSTNAMES'], '!If'],
   [[...envVars('ViewFunction'), 'OPEN_REGISTRATION'], '!If'],
   [[...envVars('MutationsFunction'), 'OPEN_REGISTRATION'], '!If'],
   [['Outputs', 'AuthDomain', 'Value'], '!If'],
@@ -92,7 +93,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the twenty-six written here', () => {
+  it('carries exactly the twenty-seven written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 

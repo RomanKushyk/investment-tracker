@@ -21,6 +21,7 @@ import {
   handler as rawHandler,
   redeemWith,
 } from './auth-relay';
+import type { Verify, Verdict } from './bot-check';
 import type { ApiEvent, ApiResult } from './http';
 import { proveRouteContract, recorder } from './route-contract';
 
@@ -226,9 +227,12 @@ const seen = (event: ApiEvent, result: ApiResult) => {
   return record(event, result);
 };
 
+/** A bot check that passes every token, where a test is about something else. */
+const PASSES: Verify = async () => 'passed';
+
 /** One execution environment: a relay whose secret cache survives between the calls it answers. */
-const environment = (idp: IdentityClient, now?: () => number) => {
-  const relay = createRelay(idp, now);
+const environment = (idp: IdentityClient, now?: () => number, verify: Verify = PASSES) => {
+  const relay = createRelay(idp, verify, now);
   return async (event: ApiEvent): Promise<ApiResult> => seen(event, await relay(event));
 };
 
@@ -416,6 +420,141 @@ describe('a sign-in leaves the refresh token in the cookie and nowhere else', ()
       SRP_A: 'a',
       SECRET_HASH: hashOf(SECRET, EMAIL),
     });
+  });
+});
+
+// A START CARRYING A TOKEN COSTS ONE SITEVERIFY CALL before Cognito starts anything: credential
+// stuffing tries many accounts once each, which Cognito's per-account lockout never sees.
+describe('a start is verified by the bot check before Cognito is asked', () => {
+  const TOKEN = 'the-turnstile-token';
+  const CALLER = '203.0.113.7';
+  const START = { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'WEB_AUTHN' };
+  const BOT_CHECK_FAILED = [403, '{"error":"bot_check_failed"}'];
+
+  /** A check that answers `verdict`, and remembers what it was asked. */
+  const checking = (verdict: (token: string) => Verdict) => {
+    const asked: [string, string | undefined][] = [];
+    const verify: Verify = async (token, remoteip) => {
+      asked.push([token, remoteip]);
+      return verdict(token);
+    };
+    return { verify, asked };
+  };
+  /** One environment whose bot check is `verify`. */
+  const checked = (idp: IdentityClient, verify: Verify) => environment(idp, undefined, verify);
+  const from = (body: unknown): ApiEvent => ({
+    ...post(START_ROUTE, body),
+    requestContext: { http: { sourceIp: CALLER } },
+  });
+
+  it('checks the token with the caller’s address, then starts without it', async () => {
+    const { idp, of } = cognito();
+    const { verify, asked } = checking(() => 'passed');
+    const res = await checked(idp, verify)(from({ ...START, botCheck: TOKEN }));
+    expect(res.statusCode).toBe(200);
+    expect(asked).toEqual([[TOKEN, CALLER]]);
+    expect(of('initiateAuth')[0].AuthParameters).toEqual({
+      ...START,
+      SECRET_HASH: hashOf(SECRET, EMAIL),
+    });
+  });
+
+  it('starts an SRP sign-in the same way', async () => {
+    const { idp, of } = cognito({ initiateAuth: async () => VERIFIER_CHALLENGE });
+    const { verify, asked } = checking(() => 'passed');
+    const srp = { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD_SRP', SRP_A: 'a' };
+    const res = await checked(idp, verify)(from({ ...srp, botCheck: TOKEN }));
+    expect(res.statusCode).toBe(200);
+    expect(asked).toEqual([[TOKEN, CALLER]]);
+    expect(of('initiateAuth')[0].AuthParameters).toEqual({
+      ...srp,
+      SECRET_HASH: hashOf(SECRET, EMAIL),
+    });
+  });
+
+  it('refuses a token the check refuses, starting nothing at Cognito', async () => {
+    const { idp, of } = cognito();
+    const { verify } = checking(() => 'refused');
+    const res = await checked(idp, verify)(from({ ...START, botCheck: TOKEN }));
+    expect([res.statusCode, res.body]).toEqual(BOT_CHECK_FAILED);
+    expect(of('initiateAuth')).toEqual([]);
+  });
+
+  it('refuses a token used before, as siteverify refuses a replay', async () => {
+    const { idp, of } = cognito();
+    const spent = new Set<string>();
+    const { verify } = checking((token) => {
+      if (spent.has(token)) return 'refused';
+      spent.add(token);
+      return 'passed';
+    });
+    const relay = checked(idp, verify);
+    const first = await relay(from({ ...START, botCheck: TOKEN }));
+    const again = await relay(from({ ...START, botCheck: TOKEN }));
+    expect(first.statusCode).toBe(200);
+    expect([again.statusCode, again.body]).toEqual(BOT_CHECK_FAILED);
+    expect(of('initiateAuth')).toHaveLength(1);
+  });
+
+  it('admits nobody when the check cannot run', async () => {
+    const { idp, of } = cognito();
+    const { verify } = checking(() => 'unavailable');
+    const res = await checked(idp, verify)(from({ ...START, botCheck: TOKEN }));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+    expect(of('initiateAuth')).toEqual([]);
+  });
+
+  it('hands the check an empty token for one that is empty or not text', async () => {
+    for (const botCheck of ['', 7, null]) {
+      const { idp, of } = cognito();
+      const { verify, asked } = checking((token) => (token ? 'passed' : 'refused'));
+      const res = await checked(idp, verify)(from({ ...START, botCheck }));
+      expect([res.statusCode, res.body]).toEqual(BOT_CHECK_FAILED);
+      expect(asked).toEqual([['', CALLER]]);
+      expect(of('initiateAuth')).toEqual([]);
+    }
+  });
+
+  // THE BODY FIRST: a 400 spends no single-use token.
+  it('refuses a malformed start before the token is checked', async () => {
+    const { idp, calls } = cognito();
+    const { verify, asked } = checking(() => 'passed');
+    const password = { USERNAME: EMAIL, PREFERRED_CHALLENGE: 'PASSWORD', PASSWORD: 'p' };
+    const res = await checked(idp, verify)(from({ ...password, botCheck: TOKEN }));
+    expect(res.statusCode).toBe(400);
+    expect(asked).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  // A FUNCTION MISSING ITS POOL cannot start anything, so the visitor's token is kept for a retry.
+  it('spends no token when the function is missing its pool', async () => {
+    vi.stubEnv('USER_POOL_ID', '');
+    const { idp, calls } = cognito();
+    const { verify, asked } = checking(() => 'passed');
+    const res = await checked(idp, verify)(from({ ...START, botCheck: TOKEN }));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+    expect(asked).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  // NOR ONE WHOSE CLIENT SECRET CANNOT BE READ: the token waits for a start Cognito can answer.
+  it('spends no token when the client secret cannot be read', async () => {
+    const { idp, of } = cognito({}, [refusal('TooManyRequestsException')]);
+    const { verify, asked } = checking(() => 'passed');
+    const res = await checked(idp, verify)(from({ ...START, botCheck: TOKEN }));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+    expect(asked).toEqual([]);
+    expect(of('initiateAuth')).toEqual([]);
+  });
+
+  // UNTIL THE PAGE SENDS ONE ON EVERY START, when the token becomes required.
+  it('starts with no token as before, asking the check nothing', async () => {
+    const { idp, of } = cognito();
+    const { verify, asked } = checking(() => 'refused');
+    const res = await checked(idp, verify)(from(START));
+    expect(res.statusCode).toBe(200);
+    expect(asked).toEqual([]);
+    expect(of('initiateAuth')).toHaveLength(1);
   });
 });
 

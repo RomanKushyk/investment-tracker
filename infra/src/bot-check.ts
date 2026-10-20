@@ -1,14 +1,16 @@
 // Cloudflare Turnstile, verified server-side: "The client-side widget alone does not protect your
 // forms." Siteverify decides; anything this module cannot read as a pass is not one (*Auth model*).
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
-
-import { json } from './http';
+import { INTERNAL, type ApiResult, json } from './http';
 
 export const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 /** Siteverify's own bound on a token. */
 export const MAX_TOKEN = 2048;
-/** THE FUNCTION HAS 5 S for the secret's first read, siteverify, the connection and the insert: past
- *  it, API Gateway answers with a shape of its own. */
+/** The token as each route's body publishes it; one outside it is refused as the 403, not a 400. */
+export const TOKEN = { type: 'string', minLength: 1, maxLength: MAX_TOKEN } as const;
+/** A token that is not text reads as empty, which the check refuses. */
+export const tokenOf = (value: unknown): string => (typeof value === 'string' ? value : '');
+/** THE CALLER'S TIMEOUT holds the secret's first read, siteverify and its own work: past it, API
+ *  Gateway answers with a shape of its own. */
 export const ANSWER_MS = 2500;
 export const SECRET_MS = 1000;
 
@@ -18,6 +20,11 @@ export const BOT_CHECK_FAILED = json(403, '{"error":"bot_check_failed"}');
 
 /** `unavailable` is ours or Cloudflare's failure, never the caller's, and admits nobody. */
 export type Verdict = 'passed' | 'refused' | 'unavailable';
+
+/** What a route answers for a verdict, or nothing for a pass. FAIL CLOSED: a check that could not
+ *  run admits nobody. */
+export const refusalOf = (verdict: Verdict): ApiResult | undefined =>
+  verdict === 'passed' ? undefined : verdict === 'refused' ? BOT_CHECK_FAILED : INTERNAL;
 export type Verify = (token: string, remoteip: string | undefined) => Promise<Verdict>;
 
 export type BotCheckConfig = {
@@ -125,26 +132,42 @@ export const cachedSecret = (read: () => Promise<string>) => {
 
 /** Two tries inside the read's deadline, not the SDK's default of three with backoff. */
 export const SSM_CONFIG = { maxAttempts: 2 };
-const ssm = new SSMClient(SSM_CONFIG);
 
 type Send = (
-  command: GetParameterCommand,
+  input: { Name: string; WithDecryption: true },
   options: { abortSignal: AbortSignal },
 ) => Promise<{ Parameter?: { Value?: string } }>;
 
 /** THE DEPLOY WRITES THE PARAMETER from the environment's GitHub secret; CloudFormation cannot
- *  create a SecureString, and the function reads it here rather than holding it in its config. */
+ *  create a SecureString. The deadline starts once the client is in hand: its load is not the read. */
 export const readParameterWith =
-  (send: Send) =>
+  (connect: () => Promise<Send>) =>
   async (name: string): Promise<string> => {
+    const send = await connect();
     const { Parameter } = await send(
-      new GetParameterCommand({ Name: name, WithDecryption: true }),
+      { Name: name, WithDecryption: true },
       { abortSignal: AbortSignal.timeout(SECRET_MS) },
     );
     if (!Parameter?.Value) throw new Error('the parameter holds no value');
     return Parameter.Value;
   };
-const readParameter = readParameterWith((command, options) => ssm.send(command, options));
+
+/** THE SDK RUNS ON THE FIRST READ, which the relay's other routes never make: the bundle carries it,
+ *  but only its evaluation waits. A failed load is not kept, as a failed read is not. */
+let ssm: Promise<Send> | undefined;
+const connect = (): Promise<Send> => {
+  if (ssm) return ssm;
+  const loading = import('@aws-sdk/client-ssm').then(({ SSMClient, GetParameterCommand }): Send => {
+    const client = new SSMClient(SSM_CONFIG);
+    return (input, options) => client.send(new GetParameterCommand(input), options);
+  });
+  ssm = loading;
+  loading.catch(() => {
+    if (ssm === loading) ssm = undefined;
+  });
+  return loading;
+};
+const readParameter = readParameterWith(connect);
 
 /** This environment's configuration, read on the first token that needs it. */
 export const fromEnvironment = (): (() => BotCheckConfig | undefined) => {

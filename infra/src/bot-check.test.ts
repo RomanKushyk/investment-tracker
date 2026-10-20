@@ -1,8 +1,6 @@
 // Siteverify decides; this module only asks it, and every answer it cannot read as a pass is not a
 // pass. Fetch and the secret are injected, so each case is the exact request and the exact verdict.
-import { describe, expect, it, vi } from 'vitest';
-
-import { SSMClient } from '@aws-sdk/client-ssm';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { watchConsole } from './__fixtures__/console';
 import {
@@ -16,13 +14,19 @@ import {
   verifyWith,
 } from './bot-check';
 
-// THE REAL CLIENT, its construction recorded: the module builds it once, at import.
+// The client's construction and what it is sent, recorded; nothing reaches AWS.
+const ssmSent = vi.hoisted(() => [] as { input: unknown; options: { abortSignal?: unknown } }[]);
 vi.mock('@aws-sdk/client-ssm', async (actual) => {
   const real = await actual<typeof import('@aws-sdk/client-ssm')>();
   return {
     ...real,
-    SSMClient: vi.fn(function (config: object) {
-      return new real.SSMClient(config);
+    SSMClient: vi.fn(function () {
+      return {
+        send: async (command: { input: unknown }, options: { abortSignal?: unknown }) => {
+          ssmSent.push({ input: command.input, options });
+          return { Parameter: { Value: 'test-secret-value' } };
+        },
+      };
     }),
   };
 });
@@ -266,11 +270,11 @@ describe('the secret is read from SSM inside its own deadline', () => {
   it('asks for the one parameter, decrypted, with a deadline on the call', async () => {
     const send = vi.fn(async () => ({ Parameter: { Value: SECRET } }));
     const timeout = vi.spyOn(AbortSignal, 'timeout');
-    await expect(readParameterWith(send)('/quirenote/dev/turnstile-secret')).resolves.toBe(SECRET);
-    const [[command, options]] = send.mock.calls as unknown as [
-      [{ input: unknown }, { abortSignal?: unknown }],
-    ];
-    expect(command.input).toEqual({
+    await expect(
+      readParameterWith(async () => send)('/quirenote/dev/turnstile-secret'),
+    ).resolves.toBe(SECRET);
+    const [[input, options]] = send.mock.calls as unknown as [[unknown, { abortSignal?: unknown }]];
+    expect(input).toEqual({
       Name: '/quirenote/dev/turnstile-secret',
       WithDecryption: true,
     });
@@ -282,12 +286,67 @@ describe('the secret is read from SSM inside its own deadline', () => {
 
   it('refuses a parameter that holds no value', async () => {
     const send = vi.fn(async () => ({ Parameter: {} }));
-    await expect(readParameterWith(send)('/p')).rejects.toThrow();
+    await expect(readParameterWith(async () => send)('/p')).rejects.toThrow();
   });
 
-  // Inside the deadline, not the SDK's default of three with backoff.
-  it('tries twice at most, as the client it reads through is built', () => {
+  // THE SDK LOADS ON THE FIRST READ, so its load is not the read's: the deadline starts once the
+  // client is in hand.
+  it('starts the deadline once the client is in hand', async () => {
+    let connected: (send: () => Promise<{ Parameter: { Value: string } }>) => void = () => {};
+    const connecting = new Promise<() => Promise<{ Parameter: { Value: string } }>>((resolve) => {
+      connected = resolve;
+    });
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const reading = readParameterWith(() => connecting)('/p');
+    await Promise.resolve();
+    expect(timeout).not.toHaveBeenCalled();
+    connected(async () => ({ Parameter: { Value: SECRET } }));
+    await expect(reading).resolves.toBe(SECRET);
+    expect(timeout).toHaveBeenCalledWith(SECRET_MS);
+    timeout.mockRestore();
+  });
+
+  /** This module afresh, with the SDK's mock and its records cleared. */
+  const fresh = async () => {
+    vi.resetModules();
+    ssmSent.length = 0;
+    const sdk = await import('@aws-sdk/client-ssm');
+    vi.mocked(sdk.SSMClient).mockClear();
+    vi.stubEnv('BOT_CHECK_PARAMETER', '/quirenote/dev/turnstile-secret');
+    vi.stubEnv('BOT_CHECK_HOSTNAMES', 'localhost');
+    const module = await import('./bot-check');
+    return { held: module.fromEnvironment()(), built: vi.mocked(sdk.SSMClient) };
+  };
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  // THE CLIENT IS BUILT ON THE FIRST READ, never at import: the relay's other routes never read it.
+  // Twice at most, not the SDK's default of three with backoff.
+  it('builds its client on the first read, once, trying twice at most', async () => {
+    const { held, built } = await fresh();
+    expect(built).not.toHaveBeenCalled();
+    await expect(held?.secret()).resolves.toBe(SECRET);
+    held?.forget();
+    await expect(held?.secret()).resolves.toBe(SECRET);
     expect(SSM_CONFIG.maxAttempts).toBe(2);
-    expect(vi.mocked(SSMClient)).toHaveBeenCalledWith(SSM_CONFIG);
+    expect(built.mock.calls).toEqual([[SSM_CONFIG]]);
+    expect(ssmSent.map((sent) => sent.input)).toEqual([
+      { Name: '/quirenote/dev/turnstile-secret', WithDecryption: true },
+      { Name: '/quirenote/dev/turnstile-secret', WithDecryption: true },
+    ]);
+    for (const sent of ssmSent) expect(sent.options.abortSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  // A FAILED LOAD IS NOT KEPT, as a failed read is not.
+  it('builds the client again after its construction failed', async () => {
+    const { held, built } = await fresh();
+    built.mockImplementationOnce(function () {
+      throw new Error('the client could not be built');
+    });
+    await expect(held?.secret()).rejects.toThrow('the client could not be built');
+    await expect(held?.secret()).resolves.toBe(SECRET);
+    expect(built).toHaveBeenCalledTimes(2);
   });
 });

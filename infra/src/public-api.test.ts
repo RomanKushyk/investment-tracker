@@ -255,7 +255,7 @@ describe('the route is throttled below the stage it sits in', () => {
   });
 });
 
-describe('the relay: nine POSTs outside the authorizer, holding one grant', () => {
+describe('the relay: nine POSTs outside the authorizer, reading its two secrets', () => {
   const relay = ['Resources', 'AuthRelayFunction', 'Properties', 'Policies', 0, 'Statement'];
 
   // OUTSIDE THE AUTHORIZER BECAUSE THEY ARE HOW A TOKEN IS OBTAINED OR SPENT: a caller reaching them
@@ -295,29 +295,58 @@ describe('the relay: nine POSTs outside the authorizer, holding one grant', () =
     }
   });
 
-  // ONE ACTION ON ONE POOL, pool-wide by the accepted cost of storing the secret nowhere; the passkey
-  // calls take the user's access token, and Cognito evaluates no IAM for them.
-  it('may read the client secret in this pool, and do nothing else', () => {
-    const policies = props('AuthRelayFunction').Policies as { Statement: unknown[] }[];
+  // ONE ACTION ON ONE POOL, pool-wide by the accepted cost of storing the secret nowhere, and the one
+  // bot-check parameter; the passkey calls take the user's access token, which Cognito checks alone.
+  it('may read the client secret in this pool and its bot-check secret, and do nothing else', () => {
+    const policies = props('AuthRelayFunction').Policies as {
+      Statement: Record<string, unknown>[];
+    }[];
     expect(policies).toHaveLength(1);
-    expect(policies[0].Statement).toHaveLength(1);
+    expect(policies[0].Statement.map((s) => s.Action)).toEqual([
+      'cognito-idp:DescribeUserPoolClient',
+      'ssm:GetParameter',
+      'kms:Decrypt',
+    ]);
     expect(grantAt(doc, relay, 'cognito-idp:DescribeUserPoolClient')).toEqual({
       tag: '!GetAtt',
       value: 'UserPool.Arn',
     });
+    expect(grantAt(doc, relay, 'ssm:GetParameter')).toEqual({
+      tag: '!Sub',
+      value:
+        'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/quirenote/${Environment}/turnstile-secret',
+    });
+    const decrypt = policies[0].Statement[2] as { Condition?: unknown };
+    expect(JSON.stringify(decrypt.Condition)).toContain('kms:ViaService');
   });
 
-  // NO SECRET IN ITS CONFIGURATION: the pool, the client and the managed-login domain Google's
-  // redirect and code exchange go through are named, and the secret is read.
-  it('is told the pool, the client and the auth domain, and nothing else', () => {
+  // THE START'S GATES FIT THE FUNCTION'S DEADLINE, reserving time for the SSM SDK's first load and for
+  // the client secret's first read and `InitiateAuth`, none of which carries a deadline of its own.
+  it('gives the bot-check secret and siteverify less than its timeout, leaving Cognito its time', () => {
+    const SDK_LOAD_MS = 200;
+    const COGNITO_MS = 1300;
+    expect(SDK_LOAD_MS + SECRET_MS + ANSWER_MS + COGNITO_MS).toBeLessThanOrEqual(
+      Number(props('AuthRelayFunction').Timeout) * 1000,
+    );
+  });
+
+  // NO SECRET IN ITS CONFIGURATION: the pool, the client, the managed-login domain and the bot-check
+  // parameter are named, and both secrets are read.
+  it('is told the pool, the client, the auth domain and the bot check, and nothing else', () => {
     const vars = (props('AuthRelayFunction').Environment as { Variables?: Record<string, unknown> })
       ?.Variables;
     expect(Object.keys(vars ?? {}).sort()).toEqual([
       'AUTH_DOMAIN',
+      'BOT_CHECK_HOSTNAMES',
+      'BOT_CHECK_PARAMETER',
       'NODE_OPTIONS',
       'USER_POOL_CLIENT_ID',
       'USER_POOL_ID',
     ]);
+    expect(intrinsicAt(doc, ...envVars('AuthRelayFunction'), 'BOT_CHECK_PARAMETER')).toEqual({
+      tag: '!Sub',
+      value: '/quirenote/${Environment}/turnstile-secret',
+    });
     expect(intrinsicAt(doc, ...envVars('AuthRelayFunction'), 'AUTH_DOMAIN')).toEqual({
       tag: '!Ref',
       value: 'UserPoolDomain',
@@ -533,39 +562,49 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
     );
   });
 
-  // The boundary caps the grant, so both name SSM in eu-north-1, where every stack deploys: a
+  // The boundary caps each grant, so both name SSM in eu-north-1, where every stack deploys: a
   // boundary scoped otherwise deploys green and refuses the first decrypt.
-  it.each(['dev', 'prod'])(
-    '%s: lets the boundary decrypt through SSM exactly as the grant does',
-    (env) => {
-      const boundary = JSON.parse(
-        readFileSync(
-          new URL(`../iam/quirenote-backend-boundary-${env}.json`, import.meta.url),
-          'utf8',
-        ),
-      ) as { Statement: { Sid?: string; Condition?: unknown }[] };
-      const capped = boundary.Statement.find((s) => s.Sid === 'DecryptTheBotCheckSecret');
-      expect(capped?.Condition).toEqual({
-        StringEquals: { 'kms:ViaService': 'ssm.eu-north-1.amazonaws.com' },
-      });
-      const node = doc.getIn(
-        [
-          'Resources',
-          'ApplicationsFunction',
-          'Properties',
-          'Policies',
-          0,
-          'Statement',
-          2,
-          'Condition',
-          'StringEquals',
-          'kms:ViaService',
-        ],
-        true,
-      ) as { tag?: string; value?: string };
-      expect([node.tag, node.value]).toEqual(['!Sub', 'ssm.${AWS::Region}.amazonaws.com']);
-    },
-  );
+  it.each([
+    ['dev', 'ApplicationsFunction'],
+    ['prod', 'ApplicationsFunction'],
+    ['dev', 'AuthRelayFunction'],
+    ['prod', 'AuthRelayFunction'],
+  ])('%s: lets the boundary decrypt through SSM exactly as %s’s grant does', (env, fn) => {
+    const boundary = JSON.parse(
+      readFileSync(
+        new URL(`../iam/quirenote-backend-boundary-${env}.json`, import.meta.url),
+        'utf8',
+      ),
+    ) as { Statement: { Sid?: string; Condition?: unknown }[] };
+    const capped = boundary.Statement.find((s) => s.Sid === 'DecryptTheBotCheckSecret');
+    expect(capped?.Condition).toEqual({
+      StringEquals: { 'kms:ViaService': 'ssm.eu-north-1.amazonaws.com' },
+    });
+    const node = doc.getIn(
+      [
+        'Resources',
+        fn,
+        'Properties',
+        'Policies',
+        0,
+        'Statement',
+        2,
+        'Condition',
+        'StringEquals',
+        'kms:ViaService',
+      ],
+      true,
+    ) as { tag?: string; value?: string };
+    expect([node.tag, node.value]).toEqual(['!Sub', 'ssm.${AWS::Region}.amazonaws.com']);
+    const key = doc.getIn(
+      ['Resources', fn, 'Properties', 'Policies', 0, 'Statement', 2, 'Resource'],
+      true,
+    ) as { tag?: string; value?: string };
+    expect([key.tag, key.value]).toEqual([
+      '!Sub',
+      'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*',
+    ]);
+  });
 
   it('reads the USER cluster endpoint, as a !GetAtt', () => {
     const vars = (

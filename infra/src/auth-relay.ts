@@ -27,6 +27,15 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 
 import {
+  BOT_CHECK_FAILED,
+  TOKEN,
+  type Verify,
+  fromEnvironment,
+  refusalOf,
+  tokenOf,
+  verifyWith,
+} from './bot-check';
+import {
   INTERNAL,
   INVALID,
   type ApiEvent,
@@ -189,9 +198,13 @@ export const START_BODY = {
   content: {
     'application/json': {
       schema: {
-        oneOf: Object.entries(START_KEYS).map(([preference, keys]) =>
-          exactObject(keys, { PREFERRED_CHALLENGE: { type: 'string', enum: [preference] } }),
-        ),
+        oneOf: Object.entries(START_KEYS).map(([preference, keys]) => {
+          const schema = exactObject(keys, {
+            PREFERRED_CHALLENGE: { type: 'string', enum: [preference] },
+          });
+          // The widget's token, optional until the page sends one on every start.
+          return { ...schema, properties: { ...schema.properties, botCheck: TOKEN } };
+        }),
       },
     },
   },
@@ -340,7 +353,7 @@ const GOOGLE_DISABLED = json(404, '{"error":"google_disabled"}');
 /** What each route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `auth-relay.test.ts` proves it against what the routes really answer. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
-  [START_ROUTE]: [CHALLENGE, NOT_AUTHORIZED, TOO_MANY, INVALID, CSRF, INTERNAL],
+  [START_ROUTE]: [CHALLENGE, NOT_AUTHORIZED, TOO_MANY, INVALID, CSRF, BOT_CHECK_FAILED, INTERNAL],
   [RESPOND_ROUTE]: [
     TOKENS,
     CHALLENGE,
@@ -524,12 +537,16 @@ const exactly = (value: unknown, keys: readonly string[]): Record<string, string
   return fits ? (value as Record<string, string>) : undefined;
 };
 
+/** Cognito's parameters, and the token apart from them, which Cognito never sees. */
 const startOf = (event: ApiEvent) => {
   const body = parsed(event);
-  const preference = (body as { PREFERRED_CHALLENGE?: unknown } | null | undefined)
-    ?.PREFERRED_CHALLENGE;
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return undefined;
+  const { botCheck, ...rest } = body as Record<string, unknown>;
+  const preference = rest.PREFERRED_CHALLENGE;
   if (typeof preference !== 'string' || !Object.hasOwn(START_KEYS, preference)) return undefined;
-  return exactly(body, START_KEYS[preference as keyof typeof START_KEYS]);
+  const parameters = exactly(rest, START_KEYS[preference as keyof typeof START_KEYS]);
+  if (parameters === undefined) return undefined;
+  return { parameters, botCheck: botCheck === undefined ? undefined : tokenOf(botCheck) };
 };
 
 const respondOf = (event: ApiEvent) => {
@@ -686,7 +703,7 @@ const tokensOf = (answered: CodeTokens): Tokens => ({
 type Client = { secret: string; google: boolean; callback: string | undefined };
 
 /** One relay per execution environment, which is what its client is cached across. */
-export const createRelay = (idp: IdentityClient, now: () => number = Date.now) => {
+export const createRelay = (idp: IdentityClient, verify: Verify, now: () => number = Date.now) => {
   let client: { value: Promise<Client>; at: number } | undefined;
   let rereadAt = -Infinity;
 
@@ -781,11 +798,19 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
   };
 
   const start = async (event: ApiEvent): Promise<ApiResult> => {
-    const parameters = startOf(event);
-    if (parameters === undefined) return INVALID;
+    const asked = startOf(event);
+    // THE BODY, THE CONFIGURATION AND THE CLIENT SECRET FIRST, so no failure of ours spends a
+    // single-use token; THEN THE TOKEN, so a start carrying one costs siteverify before Cognito's.
+    if (asked === undefined) return INVALID;
     const ids = idsOf();
     if (ids === undefined) return INTERNAL;
+    const { parameters, botCheck } = asked;
     try {
+      await cached(ids);
+      if (botCheck !== undefined) {
+        const refused = refusalOf(await verify(botCheck, event.requestContext?.http?.sourceIp));
+        if (refused) return refused;
+      }
       const answer = await withSecret(ids, 'NotAuthorizedException', (s) =>
         idp.initiateAuth({
           AuthFlow: 'USER_AUTH',
@@ -1153,4 +1178,7 @@ const sdk: IdentityClient = {
     ),
 };
 
-export const handler = createRelay(sdk);
+export const handler = createRelay(
+  sdk,
+  verifyWith((url, init) => fetch(url, init), fromEnvironment(), 'sign-in'),
+);
