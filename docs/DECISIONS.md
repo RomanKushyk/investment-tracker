@@ -1922,8 +1922,9 @@ features at `(self)`; `/auth/callback` alone takes `no-referrer`. THE CONTENT-SE
 STRICT AND HASH-BASED: `script-src` admits two inline scripts by SHA-256, `index.html`'s theme boot
 and the loader the build writes in place of its entry tag, with `'strict-dynamic'` carrying that
 trust to the modules the loader imports; `object-src`, `base-uri` and `frame-ancestors` are `'none'`,
-`connect-src` names both API hosts and the Inzhur host, never Cognito, which the relay
-calls, styles keep
+`connect-src` names both API hosts, the Inzhur host and Turnstile's, for the feedback beacon its
+api.js sends from the page, and never Cognito, which the relay calls; `frame-src` admits
+Turnstile's origin alone; styles keep
 `'unsafe-inline'`, fonts ship as files, zod runs `jitless`, and the read-back hashes each page's
 inline scripts against the policy both ways and refuses any external one. It is enforced, with
 no reporting endpoint, and a change to it is walked on dev as a Report-Only policy beside it.
