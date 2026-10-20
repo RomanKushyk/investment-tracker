@@ -929,7 +929,7 @@ async function importDerivedSell(client: Client, req: ImportDerivedSellRequest) 
   const today = kyivDateIso(new Date());
   const archive = new Map<string, ArchiveSell[]>();
   for (const run of DERIVED_SELL_RUNS) {
-    // No lower bound: a captured row before `start` is what refuses a start inside the captured era.
+    // No lower bound: the plan picks its evidence by holding, copied before the capture start or captured on.
     const res = await client.query<ArchiveSell>(
       `SELECT to_char(as_of, 'YYYY-MM-DD') AS "asOf", price::text AS price,
               parser_version AS "parserVersion"

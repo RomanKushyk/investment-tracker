@@ -3,7 +3,7 @@
 // half in `capture.ts`. A row here is the provider's own quote, an observation (*The price archive*).
 import type { ParsedFeed } from '@quirenote/core/inzhur/parse';
 import { inzhurAsOf } from './dates';
-import { DERIVED_SELL_RUNS, isDerivedSell, scaled } from './derived-sell';
+import { divisorOn, isDerivedSell, scaled } from './derived-sell';
 import { FUND_HISTORY_PARSER_VERSION } from './fund-history';
 import { inzhurObservationRows, type ObservationRow } from './observation-rows';
 
@@ -107,7 +107,7 @@ function agrees(existing: ArchivedRow, price: number): boolean {
   const delta = Math.abs(held - served);
   if (existing.parserVersion === FUND_HISTORY_PARSER_VERSION) return delta === 0;
   if (isDerivedSell(existing.parserVersion)) {
-    const divisor = DERIVED_SELL_RUNS.find((r) => r.ref === existing.ref)?.divisor;
+    const divisor = divisorOn(existing.ref, existing.asOf);
     if (divisor !== undefined) return 2 * delta * divisor <= 100 + divisor;
   }
   return delta === 0;

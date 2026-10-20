@@ -4,6 +4,7 @@ import { addDays } from '@quirenote/core/dates';
 import {
   DERIVED_SELL_RUNS,
   derivedSellPlan as planFrom,
+  divisorOn,
   type ArchiveSell,
   type DerivedSellRun,
 } from './derived-sell';
@@ -58,8 +59,7 @@ const BOND: DerivedSellRun = {
   ref: 'UA4000236475',
   asset: 'ОВДП UA4000236475',
   kind: 'bond',
-  divisor: 4,
-  start: '2026-08-08',
+  holdings: [{ from: '2026-08-08', divisor: 4 }],
   exclude: [],
 };
 
@@ -67,8 +67,7 @@ const FUND: DerivedSellRun = {
   ref: 'inzhur-energy',
   asset: 'Inzhur Energy',
   kind: 'fund',
-  divisor: 9,
-  start: '2026-08-08',
+  holdings: [{ from: '2026-08-08', divisor: 9 }],
   exclude: [],
 };
 
@@ -133,7 +132,7 @@ describe('derivedSellPlan, the overlap check', () => {
     const archive = captured(FUND.ref, [['2026-08-11', '5837.0050']]);
     const at = (value: number) =>
       tracker([
-        [FUND.start, FUND.asset, 52000],
+        ['2026-08-08', FUND.asset, 52000],
         ['2026-08-11', FUND.asset, value],
       ]);
     expect(() => derivedSellPlan(at(52533.04), archive, [FUND])).not.toThrow();
@@ -147,13 +146,13 @@ describe('derivedSellPlan, the overlap check', () => {
     const quotes = bondDays().map(([d, a, v]): Quote => [d, a, d === '2026-08-12' ? v + 0.01 : v]);
     const run = { ...BOND, exclude: ['2026-08-12'] };
     const { reports } = derivedSellPlan(tracker(quotes), bondArchive(), [run]);
-    expect(reports[0]).toMatchObject({ checked: 3, exclude: ['2026-08-12'] });
+    expect(reports[0]).toMatchObject({ exclude: ['2026-08-12'], holdings: [{ checked: 3 }] });
   });
 
   it('refuses a ref no overlap day checks', () => {
     const quotes = bondDays('2026-08-10');
     expect(refusal(() => derivedSellPlan(tracker(quotes), bondArchive(), [BOND]))).toMatch(
-      /UA4000236475 ÷4: no overlap day checks the divisor/,
+      /UA4000236475 from 2026-08-08 ÷4: no observed sell checks it/,
     );
   });
 
@@ -170,7 +169,7 @@ describe('derivedSellPlan, the holding a divisor names', () => {
       const ops: Operation[] = [['2026-08-09', BOND.asset, type]];
       expect(
         refusal(() => derivedSellPlan(tracker(bondDays(), ops), bondArchive(), [BOND])),
-      ).toMatch(/start 2026-08-08 is before the position change on 2026-08-09/);
+      ).toMatch(/from 2026-08-08 ÷4: position change on 2026-08-09 inside it/);
     }
   });
 
@@ -188,7 +187,11 @@ describe('derivedSellPlan, the holding a divisor names', () => {
     ]);
     const ops: Operation[] = [BOUGHT[0], ['2026-08-13', BOND.asset, 'Купівля']];
     const { reports } = derivedSellPlan(tracker(quotes, ops), bondArchive(), [BOND]);
-    expect(reports[0]).toMatchObject({ checked: 2, from: '2026-08-08', to: '2026-08-10' });
+    expect(reports[0]).toMatchObject({
+      from: '2026-08-08',
+      to: '2026-08-10',
+      holdings: [{ checked: 2 }],
+    });
   });
 
   it('reads cash-only operations as no position change, and refuses any other type by address', () => {
@@ -217,22 +220,27 @@ describe('derivedSellPlan, the rows', () => {
       { ref: BOND.ref, asOf: '2026-08-09', price: '1050.10' },
       { ref: BOND.ref, asOf: '2026-08-10', price: '1050.20' },
     ]);
-    expect(reports[0]).toMatchObject({ from: '2026-08-08', to: '2026-08-10', rows: 3, checked: 4 });
+    expect(reports[0]).toMatchObject({
+      from: '2026-08-08',
+      to: '2026-08-10',
+      rows: 3,
+      holdings: [{ checked: 4 }],
+    });
   });
 
   it('refuses a start on or after the first capture, which leaves it nothing to write', () => {
-    const run = { ...BOND, start: '2026-08-11' };
+    const run = { ...BOND, holdings: [{ from: '2026-08-11', divisor: 4 }] };
     expect(refusal(() => derivedSellPlan(tracker(bondDays()), bondArchive(), [run]))).toBe(
       'derived-sell refused:\n' +
-        'UA4000236475 ÷4: start 2026-08-11 is not before the first capture\n' +
-        'UA4000236475 ÷4: nothing to write from 2026-08-11 to 2026-08-10',
+        'UA4000236475: start 2026-08-11 is not before the capture start 2026-08-11\n' +
+        'UA4000236475: nothing to write from 2026-08-11 to 2026-08-10',
     );
   });
 
   it('refuses a bond day whose quotient does not end at two decimals, by date', () => {
     const quotes = bondDays().map(([d, a, v]): Quote => [d, a, d === '2026-08-09' ? v + 0.01 : v]);
     expect(refusal(() => derivedSellPlan(tracker(quotes), bondArchive(), [BOND]))).toMatch(
-      /UA4000236475 ÷4: not a two-decimal quote on 2026-08-09$/,
+      /UA4000236475: not a two-decimal quote on 2026-08-09$/,
     );
   });
 
@@ -246,7 +254,7 @@ describe('derivedSellPlan, the rows', () => {
 
   it('stores a fund quotient at four decimals, half away from zero', () => {
     // ÷8 is the one divisor here with a four-decimal tie: 100.01 ÷ 8 = 12.50125.
-    const run: DerivedSellRun = { ...FUND, divisor: 8, start: '2026-08-09' };
+    const run: DerivedSellRun = { ...FUND, holdings: [{ from: '2026-08-09', divisor: 8 }] };
     const quotes: Quote[] = [
       ['2026-08-09', FUND.asset, 100.01],
       ['2026-08-10', FUND.asset, 1000.06],
@@ -272,8 +280,8 @@ describe('derivedSellPlan, the rows', () => {
       }
       const archive = captured(FUND.ref, [[d, '1000.0000']]);
       quotes.push([d, FUND.asset, divisor * 1000]);
-      const run = { ...FUND, divisor, start: '2020-01-01' };
-      const bought: Operation[] = [[run.start, FUND.asset, 'Купівля']];
+      const run = { ...FUND, holdings: [{ from: '2020-01-01', divisor }] };
+      const bought: Operation[] = [['2020-01-01', FUND.asset, 'Купівля']];
       // The sweep's archive starts capturing on its own day.
       const { rows } = planFrom(tracker(quotes, bought), archive, d, [run]);
       expect(rows).toHaveLength(quotes.length - 1);
@@ -302,7 +310,7 @@ describe('derivedSellPlan, the rows', () => {
     const quotes = [...bondDays(), ['2026-08-09', FUND.asset, 1] as Quote];
     const archive = new Map([...bondArchive(), ...captured(FUND.ref, [])]);
     expect(refusal(() => derivedSellPlan(tracker(quotes), archive, [BOND, FUND]))).toMatch(
-      /^derived-sell refused:\ninzhur-energy ÷9: no captured sell/,
+      /^derived-sell refused:\ninzhur-energy: no captured sell/,
     );
   });
 });
@@ -310,7 +318,7 @@ describe('derivedSellPlan, the rows', () => {
 describe('derivedSellPlan, what it reads', () => {
   it('refuses a holding with no purchase or reinvestment recorded', () => {
     expect(refusal(() => derivedSellPlan(tracker(bondDays(), []), bondArchive(), [BOND]))).toMatch(
-      /UA4000236475 ÷4: no purchase or reinvestment on or before 2026-08-10/,
+      /UA4000236475: no purchase or reinvestment on or before 2026-08-08/,
     );
   });
 
@@ -319,7 +327,7 @@ describe('derivedSellPlan, what it reads', () => {
     const quotes = bondDays().map(([d, , v]): Quote => [d, spaced, v]);
     const ops: Operation[] = [['2026-08-09', spaced, 'Купівля']];
     expect(refusal(() => derivedSellPlan(tracker(quotes, ops), bondArchive(), [BOND]))).toMatch(
-      /before the position change on 2026-08-09/,
+      /position change on 2026-08-09 inside it/,
     );
   });
 
@@ -350,7 +358,7 @@ describe('derivedSellPlan, what it reads', () => {
     const archive = bondArchive();
     archive.get(BOND.ref)![1].price = '1050.123456';
     const message = refusal(() => derivedSellPlan(tracker(bondDays()), archive, [BOND]));
-    expect(message).toMatch(/unreadable captured sell on 2026-08-12/);
+    expect(message).toMatch(/unreadable sell on 2026-08-12/);
     expect(message).not.toMatch(/1050/);
   });
 
@@ -375,9 +383,9 @@ describe('derivedSellPlan, what it reads', () => {
       ]);
     const { rows, reports } = derivedSellPlan(tracker(bondDays()), derived('1050.10'), [BOND]);
     expect(rows).toHaveLength(3);
-    expect(reports[0]).toMatchObject({ to: '2026-08-10', checked: 4 });
+    expect(reports[0]).toMatchObject({ to: '2026-08-10', holdings: [{ checked: 4 }] });
     expect(refusal(() => derivedSellPlan(tracker(bondDays()), derived('1050.11'), [BOND]))).toMatch(
-      /UA4000236475 ÷4: already derived at another price on 2026-08-09$/,
+      /UA4000236475: already derived at another price on 2026-08-09$/,
     );
   });
 
@@ -393,7 +401,7 @@ describe('derivedSellPlan, what it reads', () => {
     ]);
     const run = { ...BOND, exclude: ['2026-08-09'] };
     expect(refusal(() => derivedSellPlan(tracker(bondDays()), archive, [run]))).toMatch(
-      /UA4000236475 ÷4: already derived on 2026-08-09, which this run does not write$/,
+      /UA4000236475: already derived on 2026-08-09, which this run does not write$/,
     );
   });
 
@@ -408,35 +416,193 @@ describe('derivedSellPlan, what it reads', () => {
       ],
     ]);
     expect(refusal(() => derivedSellPlan(tracker(bondDays()), archive, [BOND]))).toMatch(
-      /UA4000236475 ÷4: first captured sell on 2026-08-12 is after the capture start 2026-08-11/,
+      /UA4000236475: first captured sell on 2026-08-12 is after the capture start 2026-08-11/,
     );
   });
 
   it('refuses an excluded day the tracker does not hold, so a mistyped one cannot pass', () => {
     const run = { ...BOND, exclude: ['2026-8-09'] };
     expect(refusal(() => derivedSellPlan(tracker(bondDays()), bondArchive(), [run]))).toMatch(
-      /UA4000236475 ÷4: excludes days the tracker does not hold: 2026-8-09$/,
+      /UA4000236475: excludes days the tracker does not hold: 2026-8-09$/,
     );
   });
 });
 
-describe('DERIVED_SELL_RUNS', () => {
-  it('holds each ref from its last position change, by its divisor, with its exclusions', () => {
+describe('derivedSellPlan, a ref held in several holdings', () => {
+  // Units 4 from 08-01, 5 from the 08-05 purchase; the captured era starts 08-11.
+  const RUN = {
+    ref: 'inzhur-energy',
+    asset: 'Inzhur Energy',
+    kind: 'fund',
+    holdings: [
+      { from: '2026-08-01', divisor: 4 },
+      { from: '2026-08-05', divisor: 5 },
+    ],
+    exclude: [],
+  } as DerivedSellRun;
+  const OPS: Operation[] = [
+    ['2026-08-01', 'Inzhur Energy', 'Купівля'],
+    ['2026-08-05', 'Inzhur Energy', 'Купівля'],
+  ];
+  const days = (): Quote[] => {
+    const out: Quote[] = [];
+    for (let d = '2026-08-01'; d <= '2026-08-12'; d = addDays(d, 1)) {
+      out.push([d, 'Inzhur Energy', d < '2026-08-05' ? 4000 : 5000.5]);
+    }
+    return out;
+  };
+  const archive = (observed: string) =>
+    new Map([
+      [
+        'inzhur-energy',
+        [
+          ...captured('inzhur-energy', [['2026-08-03', observed]], 'wayback-1').get(
+            'inzhur-energy',
+          )!,
+          ...captured('inzhur-energy', [['2026-08-07', '1000.1000']], 'wayback-1').get(
+            'inzhur-energy',
+          )!,
+          ...captured('inzhur-energy', [
+            ['2026-08-11', '1000.1000'],
+            ['2026-08-12', '1000.1000'],
+          ]).get('inzhur-energy')!,
+        ],
+      ],
+    ]);
+
+  it('writes each day at its own holding’s divisor, never an observed day, and checks each holding', () => {
+    const { rows } = derivedSellPlan(tracker(days(), OPS), archive('1000.0000'), [RUN]);
+    expect(rows.find((r) => r.asOf === '2026-08-02')?.price).toBe('1000.0000');
+    expect(rows.find((r) => r.asOf === '2026-08-06')?.price).toBe('1000.1000');
+    expect(rows.map((r) => r.asOf)).not.toContain('2026-08-03');
+    expect(rows.map((r) => r.asOf)).not.toContain('2026-08-07');
+    expect(rows.at(-1)?.asOf).toBe('2026-08-10');
+  });
+
+  it('refuses a holding whose divisor misses the observed sell inside it, naming the day', () => {
     expect(
-      DERIVED_SELL_RUNS.map(({ ref, kind, divisor, start, exclude }) => [
-        ref,
-        kind,
-        divisor,
-        start,
-        exclude,
-      ]),
+      refusal(() => derivedSellPlan(tracker(days(), OPS), archive('1000.0100'), [RUN])),
+    ).toMatch(
+      /inzhur-energy from 2026-08-01 ÷4: does not reproduce the observed sell on 2026-08-03/,
+    );
+  });
+
+  it('refuses a holding no quote checks, unless the run marks it unchecked, and reports the mark', () => {
+    // No observation on 08-03: the ÷4 holding has nothing inside it.
+    const noFirst = new Map([
+      [
+        'inzhur-energy',
+        archive('1000.0000')
+          .get('inzhur-energy')!
+          .filter((r) => r.asOf !== '2026-08-03'),
+      ],
+    ]);
+    expect(refusal(() => derivedSellPlan(tracker(days(), OPS), noFirst, [RUN]))).toMatch(
+      /inzhur-energy from 2026-08-01 ÷4: no observed sell checks it/,
+    );
+    const marked = {
+      ...RUN,
+      holdings: [{ ...RUN.holdings[0], unchecked: true as const }, RUN.holdings[1]],
+    };
+    const { reports } = derivedSellPlan(tracker(days(), OPS), noFirst, [marked]);
+    expect(reports[0].holdings).toEqual([
+      { from: '2026-08-01', to: '2026-08-04', divisor: 4, rows: 4, checked: 0, unchecked: true },
+      { from: '2026-08-05', to: '2026-08-10', divisor: 5, rows: 5, checked: 3, unchecked: false },
+    ]);
+  });
+
+  it('refuses a later holding no position change opens, and a change inside a holding', () => {
+    const lateBuy: Operation[] = [OPS[0], ['2026-08-06', 'Inzhur Energy', 'Купівля']];
+    const message = refusal(() =>
+      derivedSellPlan(tracker(days(), lateBuy), archive('1000.0000'), [RUN]),
+    );
+    expect(message).toMatch(/inzhur-energy from 2026-08-05 ÷5: no position change opens it/);
+    expect(message).toMatch(
+      /inzhur-energy from 2026-08-05 ÷5: position change on 2026-08-06 inside it/,
+    );
+  });
+
+  it('checks the first holding from the change that opened it, before its own first day', () => {
+    // Bought 08-01, but the first holding is stated from 08-02: 08-01's quote is still its evidence.
+    const late = { ...RUN, holdings: [{ from: '2026-08-02', divisor: 4 }, RUN.holdings[1]] };
+    const at = (price: string) => () =>
+      derivedSellPlan(
+        tracker(days(), OPS),
+        new Map([
+          [
+            'inzhur-energy',
+            [
+              ...archive('1000.0000').get('inzhur-energy')!,
+              ...captured('inzhur-energy', [['2026-08-01', price]], 'wayback-1').get(
+                'inzhur-energy',
+              )!,
+            ],
+          ],
+        ]),
+        [late],
+      );
+    expect(at('1000.0000')().reports[0].holdings[0]).toMatchObject({
+      from: '2026-08-02',
+      checked: 2,
+    });
+    expect(refusal(at('1234.0000'))).toMatch(
+      /inzhur-energy from 2026-08-02 ÷4: does not reproduce the observed sell on 2026-08-01/,
+    );
+  });
+
+  it('refuses a holding that opens on or after the capture start', () => {
+    const past = {
+      ...RUN,
+      holdings: [...RUN.holdings, { from: '2026-08-12', divisor: 6, unchecked: true as const }],
+    };
+    const ops: Operation[] = [...OPS, ['2026-08-12', 'Inzhur Energy', 'Купівля']];
+    expect(
+      refusal(() => derivedSellPlan(tracker(days(), ops), archive('1000.0000'), [past])),
+    ).toMatch(/inzhur-energy from 2026-08-12 ÷6: opens on or after the capture start 2026-08-11/);
+  });
+
+  it('refuses an unchecked mark on a holding an archived observed sell does check', () => {
+    const stale = {
+      ...RUN,
+      holdings: [RUN.holdings[0], { ...RUN.holdings[1], unchecked: true as const }],
+    };
+    expect(
+      refusal(() => derivedSellPlan(tracker(days(), OPS), archive('1000.0000'), [stale])),
+    ).toMatch(
+      /inzhur-energy from 2026-08-05 ÷5: is marked unchecked but an observed sell checks it/,
+    );
+  });
+
+  it('refuses holdings out of date order', () => {
+    const swapped = { ...RUN, holdings: [RUN.holdings[1], RUN.holdings[0]] };
+    expect(
+      refusal(() => derivedSellPlan(tracker(days(), OPS), archive('1000.0000'), [swapped])),
+    ).toMatch(/inzhur-energy: holdings are not in date order/);
+  });
+});
+
+describe('divisorOn', () => {
+  it('names the divisor of the holding that covers a day, and none outside every run', () => {
+    expect(divisorOn('inzhur-reit', '2026-05-07')).toBe(4404);
+    expect(divisorOn('inzhur-reit', '2026-05-08')).toBe(5164);
+    expect(divisorOn('inzhur-reit', '2026-07-28')).toBe(6164);
+    expect(divisorOn('inzhur-energy', '2026-06-01')).toBe(9);
+    expect(divisorOn('inzhur-reit', '2026-04-22')).toBeUndefined();
+    expect(divisorOn('inzhur-miltech', '2026-06-01')).toBeUndefined();
+  });
+});
+
+describe('DERIVED_SELL_RUNS', () => {
+  it('holds each ref in its holdings, each opened by a position change, with its exclusions', () => {
+    const one = (from: string, divisor: number) => [{ from, divisor }];
+    expect(
+      DERIVED_SELL_RUNS.map(({ ref, kind, holdings, exclude }) => [ref, kind, holdings, exclude]),
     ).toEqual([
-      ['inzhur-energy', 'fund', 9, '2026-05-08', ['2026-06-27', '2026-10-08']],
+      ['inzhur-energy', 'fund', one('2026-05-08', 9), ['2026-06-27', '2026-10-08']],
       [
         'UA4000238976',
         'bond',
-        15,
-        '2026-05-21',
+        one('2026-05-21', 15),
         [
           '2026-05-23',
           '2026-08-06',
@@ -450,15 +616,33 @@ describe('DERIVED_SELL_RUNS', () => {
       [
         'UA4000236475',
         'bond',
-        4,
-        '2026-04-23',
+        one('2026-04-23', 4),
         ['2026-05-23', '2026-09-26', '2026-10-18', '2026-10-19'],
+      ],
+      [
+        'inzhur-reit',
+        'fund',
+        [
+          { from: '2026-04-23', divisor: 4404, unchecked: true },
+          { from: '2026-05-08', divisor: 5164 },
+          { from: '2026-05-11', divisor: 5194 },
+          { from: '2026-07-02', divisor: 6128, unchecked: true },
+          { from: '2026-07-13', divisor: 6164 },
+          { from: '2026-08-10', divisor: 6207 },
+        ],
+        ['2026-08-10', '2026-08-20', '2026-09-02'],
       ],
     ]);
   });
 
   it('is echoed by the report', () => {
     const { reports } = derivedSellPlan(tracker(bondDays()), bondArchive(), [BOND]);
-    expect(reports[0]).toMatchObject({ ref: BOND.ref, divisor: 4, start: BOND.start, exclude: [] });
+    expect(reports[0]).toMatchObject({
+      ref: BOND.ref,
+      exclude: [],
+      holdings: [
+        { from: '2026-08-08', to: '2026-08-10', divisor: 4, rows: 3, checked: 4, unchecked: false },
+      ],
+    });
   });
 });
