@@ -1784,18 +1784,17 @@ release; work is picked from the lowest open one, so milestone order is work ord
 before. Inside that milestone the order of its cards on the Project board is the pick order when
 the owner names no issue, its topmost `Ready` card with no open blocker the pick; the
 `order-milestone` skill rewrites it, putting every `bug` with no open blocker on top, after a
-triage, a planned epic and a version cut, and before every pick the owner does not name. An issue
+triage, a planned epic and a version cut, and an unnamed pick takes the board as it stands. An issue
 is read, explored and planned in plan mode, every plan item tied to a criterion and naming its
 check, and the plan is approved before the first write for it — the board move, the branch —
-however small the diff; the rewrite before an unnamed pick is the board's housekeeping, not the
-issue's write, and precedes plan mode. Delete, never archive; a figure lives in a test or not at
+however small the diff. Delete, never archive; a figure lives in a test or not at
 all; `CLAUDE.md` is rules.
 **Why.** A task list in two places disagrees with itself. An issue with no milestone has no place in
 that order, and the sort decays one triage at a time; an observation waits for its day, not its
 turn. Bug-first is a rule of the order alone, so once the order is rewritten the pick is the
 board's topmost `Ready` card with no open blocker, where a pass by label could take one from below
-it; the rewrite comes before an unnamed pick because anything since the last one, a close, an
-edited relation, a relabel or a drag, can leave an unblocked bug below the top. A triaged issue is
+it; the rewrites after the events that change the order keep it current, and a drag between them
+is the owner's choice, which a rewrite before every pick would undo. A triaged issue is
 criteria, not a diff, and the gap between the two is cheaper to close in a ten-line plan than in a
 finished change, and nothing claimed or branched before that plan has to be undone. A figure
 written into prose goes stale in silence and passes every gate; a test fails.

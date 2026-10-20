@@ -2,7 +2,6 @@
 name: work-issue
 description: 'Use when the owner wants a Ready GitHub issue worked, however tersely: "work on #3", "fix #1", "take the next issue", "resume #N", a pasted issue URL, or a bare #N. Always before any code tied to an issue: the claim and the branch come after an approved plan. Not for triage (triage-issue), a multi-part ask (plan-epic) or re-sorting the board on its own (order-milestone).'
 argument-hint: '[#N | issue URL]'
-model: fable
 ---
 
 # Work an issue
@@ -29,11 +28,11 @@ Three things run through every step.
 
 **The criteria are the contract.** Every plan item ties to an acceptance criterion and names its check. An item with no criterion is scope creep or a missing criterion; the plan says which.
 
-`GH_CONFIG_DIR="$HOME/.quirenote/gh-config"` on every `gh` call. `set_status` comes from the helper block in `triage-issue/SKILL.md`, `facts` and `order_board` from `order-milestone/SKILL.md`; shell state does not survive between tool calls, so source what a call needs.
+`GH_CONFIG_DIR="$HOME/.quirenote/gh-config"` on every `gh` call. `set_status` comes from the helper block in `triage-issue/SKILL.md`, `facts` from `order-milestone/SKILL.md`; shell state does not survive between tool calls, so source what a call needs.
 
 ## Inputs
 
-- **An issue**: `#N` or a URL. None named: the `order-milestone` skill runs first and must end with `board matches` — the board's rewrite, not the issue's, before any pick the owner does not name, because anything since its last run (a close, an edited relation, a relabel, a drag) can leave an unblocked bug below the top; then Step 1 picks from the board. A title fragment ("the backfill one") is resolved with `gh issue list --search` and confirmed with the owner before Step 1 goes on, never guessed.
+- **An issue**: `#N` or a URL. None named: Step 1 picks from the board as it stands; the `order-milestone` skill is not run first. A title fragment ("the backfill one") is resolved with `gh issue list --search` and confirmed with the owner before Step 1 goes on, never guessed.
 - Anything else in the request is a constraint on the work or a step to run after it. The plan says which.
 
 ## Step 1: Enter plan mode, pick
