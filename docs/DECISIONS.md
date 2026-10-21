@@ -748,7 +748,10 @@ screens catches every other path, `/sign-in/x` too, inside the shell. Each state
 block — a muted glyph, the title, the lead, one button — and in the shell its card sits where the
 signed-out card does. The two failures share their words and one reload; not found sends to `/`.
 NO STATE SHOWS THE ERROR, a status code or a stack: the router and React log what a boundary
-catches. A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
+catches. THE ONE EXCEPTION IS THE SUPER-ADMIN'S ARCHIVE PANEL (`archive-admin.dc.html`), whose
+reads do not throw: a failure there names the route's error key, or the HTTP status where the route
+has none, and reads again, because its one operator decides what to run next from that answer.
+A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
 that failed, and so does one of the wide figures (a curve, a page of the table, a day other than
 the caller's), and the failed-screen state is what shows, the sidebar kept; an answer already in
 hand stays on screen when a later read of it fails. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
