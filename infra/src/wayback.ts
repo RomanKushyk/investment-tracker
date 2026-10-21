@@ -3,8 +3,7 @@
 // half in `capture.ts`. A row here is the provider's own quote, an observation (*The price archive*).
 import type { ParsedFeed } from '@quirenote/core/inzhur/parse';
 import { inzhurAsOf } from './dates';
-import { divisorOn, isDerivedSell, scaled } from './derived-sell';
-import { FUND_HISTORY_PARSER_VERSION } from './fund-history';
+import { agrees, type ArchivedRow } from './derived-sell';
 import { inzhurObservationRows, type ObservationRow } from './observation-rows';
 
 /** Stored per row, so a reader tells a snapshot's quote from a capture's, the history file's and an
@@ -57,15 +56,6 @@ export interface DecodedSnapshot {
   feed: ParsedFeed;
 }
 
-/** An archive row on a key a snapshot also quotes, its price as the numeric prints it. */
-export interface ArchivedRow {
-  asOf: string;
-  ref: string;
-  basis: string;
-  price: string;
-  parserVersion: string;
-}
-
 export interface WaybackRow {
   asOf: string;
   ref: string;
@@ -96,21 +86,6 @@ export interface WaybackReport {
 export function snapshotDay(memento: string): string | undefined {
   const ms = Date.parse(memento);
   return Number.isNaN(ms) ? undefined : inzhurAsOf(new Date(ms));
-}
-
-/** A derived row is a kopeck value over its divisor, rounded again: it agrees within half a kopeck
- *  over the divisor plus half a ten-thousandth. Any other row agrees to the stored digit. */
-function agrees(existing: ArchivedRow, price: number): boolean {
-  const held = scaled(existing.price);
-  const served = scaled(String(price));
-  if (held === undefined || served === undefined) return false;
-  const delta = Math.abs(held - served);
-  if (existing.parserVersion === FUND_HISTORY_PARSER_VERSION) return delta === 0;
-  if (isDerivedSell(existing.parserVersion)) {
-    const divisor = divisorOn(existing.ref, existing.asOf);
-    if (divisor !== undefined) return 2 * delta * divisor <= 100 + divisor;
-  }
-  return delta === 0;
 }
 
 /** Every snapshot's rows as `observeInzhur` writes a capture's, or every refusal in one throw. A

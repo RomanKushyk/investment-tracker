@@ -1,0 +1,4963 @@
+{
+  "assetId": 13,
+  "period": "all",
+  "priceChange": { "amount": 0.1051, "percentage": 10.51 },
+  "dataPoints": [
+    {
+      "date": "2024-11-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-11-14",
+      "tradingVolume": 8672687852,
+      "dividendPerSecurity": null,
+      "marketPrice": 6034.19,
+      "nav": 6034.19
+    },
+    {
+      "date": "2024-11-15",
+      "tradingVolume": 5518744513,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-11-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6022.42,
+      "nav": 6022.42
+    },
+    {
+      "date": "2024-11-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-11-18",
+      "tradingVolume": 1787500739,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-11-19",
+      "tradingVolume": 798685637,
+      "dividendPerSecurity": null,
+      "marketPrice": 6028.91,
+      "nav": 6028.91
+    },
+    {
+      "date": "2024-11-20",
+      "tradingVolume": 404188228,
+      "dividendPerSecurity": null,
+      "marketPrice": 6038.09,
+      "nav": 6038.09
+    },
+    {
+      "date": "2024-11-21",
+      "tradingVolume": 360983417,
+      "dividendPerSecurity": null,
+      "marketPrice": 6036.91,
+      "nav": 6036.91
+    },
+    {
+      "date": "2024-11-22",
+      "tradingVolume": 301117579,
+      "dividendPerSecurity": null,
+      "marketPrice": 6031.86,
+      "nav": 6031.86
+    },
+    {
+      "date": "2024-11-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6035.47,
+      "nav": 6035.47
+    },
+    {
+      "date": "2024-11-24",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-11-25",
+      "tradingVolume": 331260670,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-11-26",
+      "tradingVolume": 142495111,
+      "dividendPerSecurity": null,
+      "marketPrice": 6041.03,
+      "nav": 6041.03
+    },
+    {
+      "date": "2024-11-27",
+      "tradingVolume": 1063540839,
+      "dividendPerSecurity": null,
+      "marketPrice": 6049.98,
+      "nav": 6049.98
+    },
+    {
+      "date": "2024-11-28",
+      "tradingVolume": 116846396,
+      "dividendPerSecurity": null,
+      "marketPrice": 6057.92,
+      "nav": 6057.92
+    },
+    {
+      "date": "2024-11-29",
+      "tradingVolume": 144897330,
+      "dividendPerSecurity": null,
+      "marketPrice": 6065.82,
+      "nav": 6065.82
+    },
+    {
+      "date": "2024-11-30",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6060.9,
+      "nav": 6060.9
+    },
+    {
+      "date": "2024-12-02",
+      "tradingVolume": 1091242804,
+      "dividendPerSecurity": null,
+      "marketPrice": 6062.48,
+      "nav": 6062.48
+    },
+    {
+      "date": "2024-12-03",
+      "tradingVolume": 304389612,
+      "dividendPerSecurity": null,
+      "marketPrice": 6064.62,
+      "nav": 6064.62
+    },
+    {
+      "date": "2024-12-04",
+      "tradingVolume": 74652808,
+      "dividendPerSecurity": null,
+      "marketPrice": 6072.44,
+      "nav": 6072.44
+    },
+    {
+      "date": "2024-12-05",
+      "tradingVolume": 92325333,
+      "dividendPerSecurity": null,
+      "marketPrice": 6077.01,
+      "nav": 6077.01
+    },
+    {
+      "date": "2024-12-06",
+      "tradingVolume": 207815510,
+      "dividendPerSecurity": null,
+      "marketPrice": 6076.15,
+      "nav": 6076.15
+    },
+    {
+      "date": "2024-12-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-09",
+      "tradingVolume": 378455102,
+      "dividendPerSecurity": null,
+      "marketPrice": 6072.41,
+      "nav": 6072.41
+    },
+    {
+      "date": "2024-12-10",
+      "tradingVolume": 82515097,
+      "dividendPerSecurity": null,
+      "marketPrice": 6060.6,
+      "nav": 6060.6
+    },
+    {
+      "date": "2024-12-11",
+      "tradingVolume": 100127648,
+      "dividendPerSecurity": null,
+      "marketPrice": 6070.89,
+      "nav": 6070.89
+    },
+    {
+      "date": "2024-12-12",
+      "tradingVolume": 126392331,
+      "dividendPerSecurity": null,
+      "marketPrice": 6080.96,
+      "nav": 6080.96
+    },
+    {
+      "date": "2024-12-13",
+      "tradingVolume": 181651410,
+      "dividendPerSecurity": null,
+      "marketPrice": 6089.21,
+      "nav": 6089.21
+    },
+    {
+      "date": "2024-12-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6086.93,
+      "nav": 6086.93
+    },
+    {
+      "date": "2024-12-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-16",
+      "tradingVolume": 127833510,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-17",
+      "tradingVolume": 52950810,
+      "dividendPerSecurity": null,
+      "marketPrice": 6085.04,
+      "nav": 6085.04
+    },
+    {
+      "date": "2024-12-18",
+      "tradingVolume": 136520656,
+      "dividendPerSecurity": null,
+      "marketPrice": 6096.95,
+      "nav": 6096.95
+    },
+    {
+      "date": "2024-12-19",
+      "tradingVolume": 201378936,
+      "dividendPerSecurity": null,
+      "marketPrice": 6105.5,
+      "nav": 6105.5
+    },
+    {
+      "date": "2024-12-20",
+      "tradingVolume": 131983605,
+      "dividendPerSecurity": null,
+      "marketPrice": 6113.15,
+      "nav": 6113.15
+    },
+    {
+      "date": "2024-12-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6115.82,
+      "nav": 6115.82
+    },
+    {
+      "date": "2024-12-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-23",
+      "tradingVolume": 219535430,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-24",
+      "tradingVolume": 140028630,
+      "dividendPerSecurity": null,
+      "marketPrice": 6112.92,
+      "nav": 6112.92
+    },
+    {
+      "date": "2024-12-25",
+      "tradingVolume": 121786758,
+      "dividendPerSecurity": null,
+      "marketPrice": 6122.42,
+      "nav": 6122.42
+    },
+    {
+      "date": "2024-12-26",
+      "tradingVolume": 48976814,
+      "dividendPerSecurity": null,
+      "marketPrice": 6122.82,
+      "nav": 6122.82
+    },
+    {
+      "date": "2024-12-27",
+      "tradingVolume": 114978132,
+      "dividendPerSecurity": null,
+      "marketPrice": 6111.58,
+      "nav": 6111.58
+    },
+    {
+      "date": "2024-12-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6110.65,
+      "nav": 6110.65
+    },
+    {
+      "date": "2024-12-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-30",
+      "tradingVolume": 1602808886,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2024-12-31",
+      "tradingVolume": 109472651,
+      "dividendPerSecurity": null,
+      "marketPrice": 6122.01,
+      "nav": 6122.01
+    },
+    {
+      "date": "2025-01-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6116.94,
+      "nav": 6116.94
+    },
+    {
+      "date": "2025-01-02",
+      "tradingVolume": 262967124,
+      "dividendPerSecurity": null,
+      "marketPrice": 6131.9,
+      "nav": 6131.9
+    },
+    {
+      "date": "2025-01-03",
+      "tradingVolume": 191755168,
+      "dividendPerSecurity": null,
+      "marketPrice": 6128.15,
+      "nav": 6128.15
+    },
+    {
+      "date": "2025-01-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6134.85,
+      "nav": 6134.85
+    },
+    {
+      "date": "2025-01-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-06",
+      "tradingVolume": 286402596,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-07",
+      "tradingVolume": 176790829,
+      "dividendPerSecurity": null,
+      "marketPrice": 6141.53,
+      "nav": 6141.53
+    },
+    {
+      "date": "2025-01-08",
+      "tradingVolume": 171860744,
+      "dividendPerSecurity": null,
+      "marketPrice": 6135.05,
+      "nav": 6135.05
+    },
+    {
+      "date": "2025-01-09",
+      "tradingVolume": 142943807,
+      "dividendPerSecurity": null,
+      "marketPrice": 6136.67,
+      "nav": 6136.67
+    },
+    {
+      "date": "2025-01-10",
+      "tradingVolume": 254087532,
+      "dividendPerSecurity": null,
+      "marketPrice": 6138.09,
+      "nav": 6138.09
+    },
+    {
+      "date": "2025-01-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6142.65,
+      "nav": 6142.65
+    },
+    {
+      "date": "2025-01-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-13",
+      "tradingVolume": 209366578,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-14",
+      "tradingVolume": 335438113,
+      "dividendPerSecurity": null,
+      "marketPrice": 6143.91,
+      "nav": 6143.91
+    },
+    {
+      "date": "2025-01-15",
+      "tradingVolume": 49150548,
+      "dividendPerSecurity": null,
+      "marketPrice": 6143.79,
+      "nav": 6143.79
+    },
+    {
+      "date": "2025-01-16",
+      "tradingVolume": 1250327026,
+      "dividendPerSecurity": null,
+      "marketPrice": 6144.58,
+      "nav": 6144.58
+    },
+    {
+      "date": "2025-01-17",
+      "tradingVolume": 600276880,
+      "dividendPerSecurity": null,
+      "marketPrice": 6144.34,
+      "nav": 6144.34
+    },
+    {
+      "date": "2025-01-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6136.83,
+      "nav": 6136.83
+    },
+    {
+      "date": "2025-01-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-20",
+      "tradingVolume": 1506579032,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-21",
+      "tradingVolume": 1201262103,
+      "dividendPerSecurity": null,
+      "marketPrice": 6134.16,
+      "nav": 6134.16
+    },
+    {
+      "date": "2025-01-22",
+      "tradingVolume": 1453891807,
+      "dividendPerSecurity": null,
+      "marketPrice": 6137.12,
+      "nav": 6137.12
+    },
+    {
+      "date": "2025-01-23",
+      "tradingVolume": 151177693,
+      "dividendPerSecurity": null,
+      "marketPrice": 6138.18,
+      "nav": 6138.18
+    },
+    {
+      "date": "2025-01-24",
+      "tradingVolume": 3676998,
+      "dividendPerSecurity": null,
+      "marketPrice": 6128.33,
+      "nav": 6128.33
+    },
+    {
+      "date": "2025-01-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6124.32,
+      "nav": 6124.32
+    },
+    {
+      "date": "2025-01-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-27",
+      "tradingVolume": 2445800,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-01-28",
+      "tradingVolume": 2585500,
+      "dividendPerSecurity": null,
+      "marketPrice": 6121.63,
+      "nav": 6121.63
+    },
+    {
+      "date": "2025-01-29",
+      "tradingVolume": 2521770,
+      "dividendPerSecurity": null,
+      "marketPrice": 6123.85,
+      "nav": 6123.85
+    },
+    {
+      "date": "2025-01-30",
+      "tradingVolume": 14094830,
+      "dividendPerSecurity": null,
+      "marketPrice": 6129.66,
+      "nav": 6129.66
+    },
+    {
+      "date": "2025-01-31",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6123.17,
+      "nav": 6123.17
+    },
+    {
+      "date": "2025-02-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6125.25,
+      "nav": 6125.25
+    },
+    {
+      "date": "2025-02-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6125.01,
+      "nav": 6125.01
+    },
+    {
+      "date": "2025-02-03",
+      "tradingVolume": 2623750,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-04",
+      "tradingVolume": 2085000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6113.05,
+      "nav": 6113.05
+    },
+    {
+      "date": "2025-02-05",
+      "tradingVolume": 656400,
+      "dividendPerSecurity": null,
+      "marketPrice": 6126.06,
+      "nav": 6126.06
+    },
+    {
+      "date": "2025-02-06",
+      "tradingVolume": 4898200,
+      "dividendPerSecurity": null,
+      "marketPrice": 6122.75,
+      "nav": 6122.75
+    },
+    {
+      "date": "2025-02-07",
+      "tradingVolume": 611567,
+      "dividendPerSecurity": null,
+      "marketPrice": 6115.67,
+      "nav": 6115.67
+    },
+    {
+      "date": "2025-02-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6103.18,
+      "nav": 6103.18
+    },
+    {
+      "date": "2025-02-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-10",
+      "tradingVolume": 1964900,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-11",
+      "tradingVolume": 610229,
+      "dividendPerSecurity": null,
+      "marketPrice": 6102.29,
+      "nav": 6102.29
+    },
+    {
+      "date": "2025-02-12",
+      "tradingVolume": 611161,
+      "dividendPerSecurity": null,
+      "marketPrice": 6111.61,
+      "nav": 6111.61
+    },
+    {
+      "date": "2025-02-13",
+      "tradingVolume": 1924882,
+      "dividendPerSecurity": null,
+      "marketPrice": 6118,
+      "nav": 6118
+    },
+    {
+      "date": "2025-02-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6128.14,
+      "nav": 6128.14
+    },
+    {
+      "date": "2025-02-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6127.55,
+      "nav": 6127.55
+    },
+    {
+      "date": "2025-02-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-17",
+      "tradingVolume": 9993060,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-18",
+      "tradingVolume": 3950000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6115.06,
+      "nav": 6115.06
+    },
+    {
+      "date": "2025-02-19",
+      "tradingVolume": 2568418,
+      "dividendPerSecurity": null,
+      "marketPrice": 6109.18,
+      "nav": 6109.18
+    },
+    {
+      "date": "2025-02-20",
+      "tradingVolume": 1300000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6110.73,
+      "nav": 6110.73
+    },
+    {
+      "date": "2025-02-21",
+      "tradingVolume": 4481991,
+      "dividendPerSecurity": null,
+      "marketPrice": 6119.91,
+      "nav": 6119.91
+    },
+    {
+      "date": "2025-02-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6124.25,
+      "nav": 6124.25
+    },
+    {
+      "date": "2025-02-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-24",
+      "tradingVolume": 53813500,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-02-25",
+      "tradingVolume": 1867832,
+      "dividendPerSecurity": null,
+      "marketPrice": 6114.16,
+      "nav": 6114.16
+    },
+    {
+      "date": "2025-02-26",
+      "tradingVolume": 607089,
+      "dividendPerSecurity": null,
+      "marketPrice": 6123.09,
+      "nav": 6123.09
+    },
+    {
+      "date": "2025-02-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6126.17,
+      "nav": 6126.17
+    },
+    {
+      "date": "2025-02-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6118.81,
+      "nav": 6118.81
+    },
+    {
+      "date": "2025-03-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6119.32,
+      "nav": 6119.32
+    },
+    {
+      "date": "2025-03-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6119.02,
+      "nav": 6119.02
+    },
+    {
+      "date": "2025-03-03",
+      "tradingVolume": 20995000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6109.2,
+      "nav": 6109.2
+    },
+    {
+      "date": "2025-03-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6104.12,
+      "nav": 6104.12
+    },
+    {
+      "date": "2025-03-05",
+      "tradingVolume": 7920000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6126.99,
+      "nav": 6126.99
+    },
+    {
+      "date": "2025-03-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6126.28,
+      "nav": 6126.28
+    },
+    {
+      "date": "2025-03-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6109.87,
+      "nav": 6109.87
+    },
+    {
+      "date": "2025-03-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6102.72,
+      "nav": 6102.72
+    },
+    {
+      "date": "2025-03-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-10",
+      "tradingVolume": 2560000,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-11",
+      "tradingVolume": 69479274,
+      "dividendPerSecurity": null,
+      "marketPrice": 6098.79,
+      "nav": 6098.79
+    },
+    {
+      "date": "2025-03-12",
+      "tradingVolume": 9767200,
+      "dividendPerSecurity": null,
+      "marketPrice": 6104.5,
+      "nav": 6104.5
+    },
+    {
+      "date": "2025-03-13",
+      "tradingVolume": 5320000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6114.81,
+      "nav": 6114.81
+    },
+    {
+      "date": "2025-03-14",
+      "tradingVolume": 3219482,
+      "dividendPerSecurity": null,
+      "marketPrice": 6122.41,
+      "nav": 6122.41
+    },
+    {
+      "date": "2025-03-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6125.69,
+      "nav": 6125.69
+    },
+    {
+      "date": "2025-03-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-17",
+      "tradingVolume": 5655414,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-18",
+      "tradingVolume": 1837596,
+      "dividendPerSecurity": null,
+      "marketPrice": 6125.32,
+      "nav": 6125.32
+    },
+    {
+      "date": "2025-03-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6119.33,
+      "nav": 6119.33
+    },
+    {
+      "date": "2025-03-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6129.72,
+      "nav": 6129.72
+    },
+    {
+      "date": "2025-03-21",
+      "tradingVolume": 19711890,
+      "dividendPerSecurity": null,
+      "marketPrice": 6130.63,
+      "nav": 6130.63
+    },
+    {
+      "date": "2025-03-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6128.42,
+      "nav": 6128.42
+    },
+    {
+      "date": "2025-03-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-24",
+      "tradingVolume": 12869682,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-25",
+      "tradingVolume": 11031066,
+      "dividendPerSecurity": null,
+      "marketPrice": 6128.37,
+      "nav": 6128.37
+    },
+    {
+      "date": "2025-03-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6137.21,
+      "nav": 6137.21
+    },
+    {
+      "date": "2025-03-27",
+      "tradingVolume": 18720000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6141.56,
+      "nav": 6141.56
+    },
+    {
+      "date": "2025-03-28",
+      "tradingVolume": 101899000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6129.91,
+      "nav": 6129.91
+    },
+    {
+      "date": "2025-03-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6124.3,
+      "nav": 6124.3
+    },
+    {
+      "date": "2025-03-30",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-03-31",
+      "tradingVolume": 16821450,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-01",
+      "tradingVolume": 9675000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6131.11,
+      "nav": 6131.11
+    },
+    {
+      "date": "2025-04-02",
+      "tradingVolume": 1923198,
+      "dividendPerSecurity": null,
+      "marketPrice": 6131.67,
+      "nav": 6131.67
+    },
+    {
+      "date": "2025-04-03",
+      "tradingVolume": 2620000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6132.61,
+      "nav": 6132.61
+    },
+    {
+      "date": "2025-04-04",
+      "tradingVolume": 28136496,
+      "dividendPerSecurity": null,
+      "marketPrice": 6132.48,
+      "nav": 6132.48
+    },
+    {
+      "date": "2025-04-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6132.88,
+      "nav": 6132.88
+    },
+    {
+      "date": "2025-04-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-07",
+      "tradingVolume": 15332200,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-08",
+      "tradingVolume": 3938410,
+      "dividendPerSecurity": null,
+      "marketPrice": 6134.1,
+      "nav": 6134.1
+    },
+    {
+      "date": "2025-04-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6133.5,
+      "nav": 6133.5
+    },
+    {
+      "date": "2025-04-10",
+      "tradingVolume": 14935000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6133.88,
+      "nav": 6133.88
+    },
+    {
+      "date": "2025-04-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6134.26,
+      "nav": 6134.26
+    },
+    {
+      "date": "2025-04-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6134.64,
+      "nav": 6134.64
+    },
+    {
+      "date": "2025-04-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-14",
+      "tradingVolume": 9629464,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-15",
+      "tradingVolume": 7740000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6135.78,
+      "nav": 6135.78
+    },
+    {
+      "date": "2025-04-16",
+      "tradingVolume": 6136160,
+      "dividendPerSecurity": null,
+      "marketPrice": 6136.16,
+      "nav": 6136.16
+    },
+    {
+      "date": "2025-04-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6136.51,
+      "nav": 6136.51
+    },
+    {
+      "date": "2025-04-18",
+      "tradingVolume": 21635580,
+      "dividendPerSecurity": null,
+      "marketPrice": 6136.86,
+      "nav": 6136.86
+    },
+    {
+      "date": "2025-04-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6133.11,
+      "nav": 6133.11
+    },
+    {
+      "date": "2025-04-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-21",
+      "tradingVolume": 7359732,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-22",
+      "tradingVolume": 49290000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6126.32,
+      "nav": 6126.32
+    },
+    {
+      "date": "2025-04-23",
+      "tradingVolume": 42857549,
+      "dividendPerSecurity": null,
+      "marketPrice": 6125.49,
+      "nav": 6125.49
+    },
+    {
+      "date": "2025-04-24",
+      "tradingVolume": 15999000,
+      "dividendPerSecurity": null,
+      "marketPrice": 6141.25,
+      "nav": 6141.25
+    },
+    {
+      "date": "2025-04-25",
+      "tradingVolume": 19245112,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.38,
+      "nav": 6158.38
+    },
+    {
+      "date": "2025-04-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6160.72,
+      "nav": 6160.72
+    },
+    {
+      "date": "2025-04-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-28",
+      "tradingVolume": 42895000,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-04-29",
+      "tradingVolume": 61104800,
+      "dividendPerSecurity": null,
+      "marketPrice": 6168.58,
+      "nav": 6168.58
+    },
+    {
+      "date": "2025-04-30",
+      "tradingVolume": 187352796,
+      "dividendPerSecurity": null,
+      "marketPrice": 6168,
+      "nav": 6168
+    },
+    {
+      "date": "2025-05-01",
+      "tradingVolume": 14141021,
+      "dividendPerSecurity": null,
+      "marketPrice": 6147.44,
+      "nav": 6147.44
+    },
+    {
+      "date": "2025-05-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6137.38,
+      "nav": 6137.38
+    },
+    {
+      "date": "2025-05-03",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6152.63,
+      "nav": 6152.63
+    },
+    {
+      "date": "2025-05-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-05",
+      "tradingVolume": 28111312,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-06",
+      "tradingVolume": 9890005,
+      "dividendPerSecurity": null,
+      "marketPrice": 6166.67,
+      "nav": 6166.67
+    },
+    {
+      "date": "2025-05-07",
+      "tradingVolume": 10820603,
+      "dividendPerSecurity": null,
+      "marketPrice": 6156.03,
+      "nav": 6156.03
+    },
+    {
+      "date": "2025-05-08",
+      "tradingVolume": 38066388,
+      "dividendPerSecurity": null,
+      "marketPrice": 6139.74,
+      "nav": 6139.74
+    },
+    {
+      "date": "2025-05-09",
+      "tradingVolume": 217930937,
+      "dividendPerSecurity": null,
+      "marketPrice": 6138.39,
+      "nav": 6138.39
+    },
+    {
+      "date": "2025-05-10",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.88,
+      "nav": 6146.88
+    },
+    {
+      "date": "2025-05-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-12",
+      "tradingVolume": 1144575540,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-13",
+      "tradingVolume": 180141316,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.98,
+      "nav": 6150.98
+    },
+    {
+      "date": "2025-05-14",
+      "tradingVolume": 314285741,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.39,
+      "nav": 6150.39
+    },
+    {
+      "date": "2025-05-15",
+      "tradingVolume": 351046178,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.5,
+      "nav": 6146.5
+    },
+    {
+      "date": "2025-05-16",
+      "tradingVolume": 310551831,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.53,
+      "nav": 6150.53
+    },
+    {
+      "date": "2025-05-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6142.47,
+      "nav": 6142.47
+    },
+    {
+      "date": "2025-05-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-19",
+      "tradingVolume": 639495284,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-20",
+      "tradingVolume": 269124438,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.04,
+      "nav": 6146.04
+    },
+    {
+      "date": "2025-05-21",
+      "tradingVolume": 231931751,
+      "dividendPerSecurity": null,
+      "marketPrice": 6155.43,
+      "nav": 6155.43
+    },
+    {
+      "date": "2025-05-22",
+      "tradingVolume": 172192545,
+      "dividendPerSecurity": null,
+      "marketPrice": 6144.58,
+      "nav": 6144.58
+    },
+    {
+      "date": "2025-05-23",
+      "tradingVolume": 3484091773,
+      "dividendPerSecurity": null,
+      "marketPrice": 6136.81,
+      "nav": 6136.81
+    },
+    {
+      "date": "2025-05-24",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6145.35,
+      "nav": 6145.35
+    },
+    {
+      "date": "2025-05-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-26",
+      "tradingVolume": 579876143,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-05-27",
+      "tradingVolume": 556822057,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.65,
+      "nav": 6146.65
+    },
+    {
+      "date": "2025-05-28",
+      "tradingVolume": 297467971,
+      "dividendPerSecurity": null,
+      "marketPrice": 6155.09,
+      "nav": 6155.09
+    },
+    {
+      "date": "2025-05-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6169.36,
+      "nav": 6169.36
+    },
+    {
+      "date": "2025-05-30",
+      "tradingVolume": 4305511,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.73,
+      "nav": 6150.73
+    },
+    {
+      "date": "2025-05-31",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6141.59,
+      "nav": 6141.59
+    },
+    {
+      "date": "2025-06-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.83,
+      "nav": 6146.83
+    },
+    {
+      "date": "2025-06-02",
+      "tradingVolume": 3685460,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.58,
+      "nav": 6146.58
+    },
+    {
+      "date": "2025-06-03",
+      "tradingVolume": 14137939,
+      "dividendPerSecurity": null,
+      "marketPrice": 6146.93,
+      "nav": 6146.93
+    },
+    {
+      "date": "2025-06-04",
+      "tradingVolume": 304265468,
+      "dividendPerSecurity": null,
+      "marketPrice": 6159.22,
+      "nav": 6159.22
+    },
+    {
+      "date": "2025-06-05",
+      "tradingVolume": 1848507,
+      "dividendPerSecurity": null,
+      "marketPrice": 6161.69,
+      "nav": 6161.69
+    },
+    {
+      "date": "2025-06-06",
+      "tradingVolume": 3069735,
+      "dividendPerSecurity": null,
+      "marketPrice": 6139.47,
+      "nav": 6139.47
+    },
+    {
+      "date": "2025-06-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6137.33,
+      "nav": 6137.33
+    },
+    {
+      "date": "2025-06-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-09",
+      "tradingVolume": 613733,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-10",
+      "tradingVolume": 100368522,
+      "dividendPerSecurity": null,
+      "marketPrice": 6126.48,
+      "nav": 6126.48
+    },
+    {
+      "date": "2025-06-11",
+      "tradingVolume": 1355596521,
+      "dividendPerSecurity": null,
+      "marketPrice": 6200.95,
+      "nav": 6139.55
+    },
+    {
+      "date": "2025-06-12",
+      "tradingVolume": 387152842,
+      "dividendPerSecurity": null,
+      "marketPrice": 6209.95,
+      "nav": 6148.47
+    },
+    {
+      "date": "2025-06-13",
+      "tradingVolume": 325263509,
+      "dividendPerSecurity": null,
+      "marketPrice": 6203.35,
+      "nav": 6141.93
+    },
+    {
+      "date": "2025-06-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6199.83,
+      "nav": 6138.45
+    },
+    {
+      "date": "2025-06-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-16",
+      "tradingVolume": 357300625,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-17",
+      "tradingVolume": 124508869,
+      "dividendPerSecurity": null,
+      "marketPrice": 6193.21,
+      "nav": 6131.89
+    },
+    {
+      "date": "2025-06-18",
+      "tradingVolume": 234378657,
+      "dividendPerSecurity": null,
+      "marketPrice": 6205.18,
+      "nav": 6143.74
+    },
+    {
+      "date": "2025-06-19",
+      "tradingVolume": 219513578,
+      "dividendPerSecurity": null,
+      "marketPrice": 6204.23,
+      "nav": 6142.8
+    },
+    {
+      "date": "2025-06-20",
+      "tradingVolume": 185759878,
+      "dividendPerSecurity": null,
+      "marketPrice": 6220.11,
+      "nav": 6158.52
+    },
+    {
+      "date": "2025-06-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6228.11,
+      "nav": 6166.45
+    },
+    {
+      "date": "2025-06-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-23",
+      "tradingVolume": 196551696,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-24",
+      "tradingVolume": 100421384,
+      "dividendPerSecurity": null,
+      "marketPrice": 6249.12,
+      "nav": 6187.25
+    },
+    {
+      "date": "2025-06-25",
+      "tradingVolume": 154991404,
+      "dividendPerSecurity": null,
+      "marketPrice": 6254.27,
+      "nav": 6192.35
+    },
+    {
+      "date": "2025-06-26",
+      "tradingVolume": 257396530,
+      "dividendPerSecurity": null,
+      "marketPrice": 6242.76,
+      "nav": 6180.95
+    },
+    {
+      "date": "2025-06-27",
+      "tradingVolume": 132485668,
+      "dividendPerSecurity": null,
+      "marketPrice": 6223.25,
+      "nav": 6161.63
+    },
+    {
+      "date": "2025-06-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6211.7,
+      "nav": 6150.2
+    },
+    {
+      "date": "2025-06-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-06-30",
+      "tradingVolume": 309351379,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-01",
+      "tradingVolume": 130486045,
+      "dividendPerSecurity": null,
+      "marketPrice": 6219.25,
+      "nav": 6157.08
+    },
+    {
+      "date": "2025-07-02",
+      "tradingVolume": 163278962,
+      "dividendPerSecurity": null,
+      "marketPrice": 6238.8407,
+      "nav": 6177.07
+    },
+    {
+      "date": "2025-07-03",
+      "tradingVolume": 1391304842,
+      "dividendPerSecurity": null,
+      "marketPrice": 6244.93,
+      "nav": 6183.1
+    },
+    {
+      "date": "2025-07-04",
+      "tradingVolume": 230357875,
+      "dividendPerSecurity": null,
+      "marketPrice": 6244.1,
+      "nav": 6182.28
+    },
+    {
+      "date": "2025-07-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6230.89,
+      "nav": 6169.2
+    },
+    {
+      "date": "2025-07-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-07",
+      "tradingVolume": 525872386,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-08",
+      "tradingVolume": 196290084,
+      "dividendPerSecurity": null,
+      "marketPrice": 6231.96,
+      "nav": 6170.26
+    },
+    {
+      "date": "2025-07-09",
+      "tradingVolume": 179511624,
+      "dividendPerSecurity": null,
+      "marketPrice": 6241.12,
+      "nav": 6179.33
+    },
+    {
+      "date": "2025-07-10",
+      "tradingVolume": 237331932,
+      "dividendPerSecurity": null,
+      "marketPrice": 6248.18,
+      "nav": 6186.32
+    },
+    {
+      "date": "2025-07-11",
+      "tradingVolume": 407440478,
+      "dividendPerSecurity": null,
+      "marketPrice": 6237.23,
+      "nav": 6175.48
+    },
+    {
+      "date": "2025-07-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6244.3,
+      "nav": 6182.48
+    },
+    {
+      "date": "2025-07-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-14",
+      "tradingVolume": 2640743527,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-15",
+      "tradingVolume": 120387748,
+      "dividendPerSecurity": null,
+      "marketPrice": 6239.29,
+      "nav": 6177.51
+    },
+    {
+      "date": "2025-07-16",
+      "tradingVolume": 167779709,
+      "dividendPerSecurity": null,
+      "marketPrice": 6246.47,
+      "nav": 6184.62
+    },
+    {
+      "date": "2025-07-17",
+      "tradingVolume": 349444435,
+      "dividendPerSecurity": null,
+      "marketPrice": 6244.16,
+      "nav": 6182.34
+    },
+    {
+      "date": "2025-07-18",
+      "tradingVolume": 165265581,
+      "dividendPerSecurity": null,
+      "marketPrice": 6242.89,
+      "nav": 6181.08
+    },
+    {
+      "date": "2025-07-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6250.65,
+      "nav": 6188.76
+    },
+    {
+      "date": "2025-07-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-21",
+      "tradingVolume": 254218638,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-22",
+      "tradingVolume": 253030641,
+      "dividendPerSecurity": null,
+      "marketPrice": 6233.24,
+      "nav": 6171.52
+    },
+    {
+      "date": "2025-07-23",
+      "tradingVolume": 112915456,
+      "dividendPerSecurity": null,
+      "marketPrice": 6243.01,
+      "nav": 6181.2
+    },
+    {
+      "date": "2025-07-24",
+      "tradingVolume": 156560816,
+      "dividendPerSecurity": null,
+      "marketPrice": 6234.96,
+      "nav": 6173.23
+    },
+    {
+      "date": "2025-07-25",
+      "tradingVolume": 451978700,
+      "dividendPerSecurity": null,
+      "marketPrice": 6234.78,
+      "nav": 6173.05
+    },
+    {
+      "date": "2025-07-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6235.84,
+      "nav": 6174.1
+    },
+    {
+      "date": "2025-07-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-28",
+      "tradingVolume": 441415513,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-07-29",
+      "tradingVolume": 315496256,
+      "dividendPerSecurity": null,
+      "marketPrice": 6236.82,
+      "nav": 6175.07
+    },
+    {
+      "date": "2025-07-30",
+      "tradingVolume": 172764462,
+      "dividendPerSecurity": null,
+      "marketPrice": 6239.2,
+      "nav": 6177.43
+    },
+    {
+      "date": "2025-07-31",
+      "tradingVolume": 218672200,
+      "dividendPerSecurity": null,
+      "marketPrice": 6237.49,
+      "nav": 6175.73
+    },
+    {
+      "date": "2025-08-01",
+      "tradingVolume": 476847783,
+      "dividendPerSecurity": null,
+      "marketPrice": 6234.3,
+      "nav": 6172.57
+    },
+    {
+      "date": "2025-08-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6226.6096,
+      "nav": 6164.96
+    },
+    {
+      "date": "2025-08-03",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-08-04",
+      "tradingVolume": 943498927,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-08-05",
+      "tradingVolume": 374280751,
+      "dividendPerSecurity": null,
+      "marketPrice": 6233.68,
+      "nav": 6171.96
+    },
+    {
+      "date": "2025-08-06",
+      "tradingVolume": 190137098,
+      "dividendPerSecurity": null,
+      "marketPrice": 6237.22,
+      "nav": 6175.47
+    },
+    {
+      "date": "2025-08-07",
+      "tradingVolume": 269176199,
+      "dividendPerSecurity": null,
+      "marketPrice": 6221.99,
+      "nav": 6160.39
+    },
+    {
+      "date": "2025-08-08",
+      "tradingVolume": 191891497,
+      "dividendPerSecurity": null,
+      "marketPrice": 6211.42,
+      "nav": 6149.92
+    },
+    {
+      "date": "2025-08-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6188.74,
+      "nav": 6127.47
+    },
+    {
+      "date": "2025-08-10",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-08-11",
+      "tradingVolume": 380686125,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-08-12",
+      "tradingVolume": 221882367,
+      "dividendPerSecurity": null,
+      "marketPrice": 6178.72,
+      "nav": 6117.54
+    },
+    {
+      "date": "2025-08-13",
+      "tradingVolume": 245882100,
+      "dividendPerSecurity": null,
+      "marketPrice": 6187.22,
+      "nav": 6125.96
+    },
+    {
+      "date": "2025-08-14",
+      "tradingVolume": 168190556,
+      "dividendPerSecurity": null,
+      "marketPrice": 6183.88,
+      "nav": 6122.65
+    },
+    {
+      "date": "2025-08-15",
+      "tradingVolume": 210322375,
+      "dividendPerSecurity": null,
+      "marketPrice": 6196.42,
+      "nav": 6135.07
+    },
+    {
+      "date": "2025-08-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6186.97,
+      "nav": 6125.71
+    },
+    {
+      "date": "2025-08-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-08-18",
+      "tradingVolume": 172533368,
+      "dividendPerSecurity": null,
+      "marketPrice": null,
+      "nav": null
+    },
+    {
+      "date": "2025-08-19",
+      "tradingVolume": 217466125,
+      "dividendPerSecurity": null,
+      "marketPrice": 6170.68,
+      "nav": 6109.58
+    },
+    {
+      "date": "2025-08-20",
+      "tradingVolume": 119826775,
+      "dividendPerSecurity": null,
+      "marketPrice": 6159,
+      "nav": 6098.02
+    },
+    {
+      "date": "2025-08-21",
+      "tradingVolume": 186075912,
+      "dividendPerSecurity": null,
+      "marketPrice": 6173.06,
+      "nav": 6111.94
+    },
+    {
+      "date": "2025-08-22",
+      "tradingVolume": 119162900,
+      "dividendPerSecurity": null,
+      "marketPrice": 6176.2,
+      "nav": 6115.05
+    },
+    {
+      "date": "2025-08-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6152.64,
+      "nav": 6091.72
+    },
+    {
+      "date": "2025-08-24",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6152.64,
+      "nav": 6091.72
+    },
+    {
+      "date": "2025-08-25",
+      "tradingVolume": 247337404,
+      "dividendPerSecurity": null,
+      "marketPrice": 6152.64,
+      "nav": 6091.72
+    },
+    {
+      "date": "2025-08-26",
+      "tradingVolume": 98482169,
+      "dividendPerSecurity": null,
+      "marketPrice": 6161.67,
+      "nav": 6100.66
+    },
+    {
+      "date": "2025-08-27",
+      "tradingVolume": 354593729,
+      "dividendPerSecurity": null,
+      "marketPrice": 6182.8,
+      "nav": 6121.58
+    },
+    {
+      "date": "2025-08-28",
+      "tradingVolume": 181062608,
+      "dividendPerSecurity": null,
+      "marketPrice": 6178.93,
+      "nav": 6117.75
+    },
+    {
+      "date": "2025-08-29",
+      "tradingVolume": 347219057,
+      "dividendPerSecurity": null,
+      "marketPrice": 6166.85,
+      "nav": 6105.79
+    },
+    {
+      "date": "2025-08-30",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6157.5,
+      "nav": 6096.53
+    },
+    {
+      "date": "2025-08-31",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6157.5,
+      "nav": 6096.53
+    },
+    {
+      "date": "2025-09-01",
+      "tradingVolume": 568476039,
+      "dividendPerSecurity": null,
+      "marketPrice": 6157.5,
+      "nav": 6095.9
+    },
+    {
+      "date": "2025-09-02",
+      "tradingVolume": 368985546,
+      "dividendPerSecurity": null,
+      "marketPrice": 6170.32,
+      "nav": 6109.23
+    },
+    {
+      "date": "2025-09-03",
+      "tradingVolume": 178537667,
+      "dividendPerSecurity": null,
+      "marketPrice": 6178.03,
+      "nav": 6116.86
+    },
+    {
+      "date": "2025-09-04",
+      "tradingVolume": 160688380,
+      "dividendPerSecurity": null,
+      "marketPrice": 6176.74,
+      "nav": 6115.58
+    },
+    {
+      "date": "2025-09-05",
+      "tradingVolume": 143238392,
+      "dividendPerSecurity": null,
+      "marketPrice": 6178.02,
+      "nav": 6116.85
+    },
+    {
+      "date": "2025-09-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6174.75,
+      "nav": 6113.61
+    },
+    {
+      "date": "2025-09-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6174.75,
+      "nav": 6113.61
+    },
+    {
+      "date": "2025-09-08",
+      "tradingVolume": 175887874,
+      "dividendPerSecurity": null,
+      "marketPrice": 6174.75,
+      "nav": 6113.61
+    },
+    {
+      "date": "2025-09-09",
+      "tradingVolume": 326582180,
+      "dividendPerSecurity": null,
+      "marketPrice": 6155.74,
+      "nav": 6094.79
+    },
+    {
+      "date": "2025-09-10",
+      "tradingVolume": 198276976,
+      "dividendPerSecurity": null,
+      "marketPrice": 6160.24,
+      "nav": 6099.25
+    },
+    {
+      "date": "2025-09-11",
+      "tradingVolume": 214325033,
+      "dividendPerSecurity": null,
+      "marketPrice": 6141.71,
+      "nav": 6080.9
+    },
+    {
+      "date": "2025-09-12",
+      "tradingVolume": 100764243,
+      "dividendPerSecurity": null,
+      "marketPrice": 6155.05,
+      "nav": 6094.11
+    },
+    {
+      "date": "2025-09-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6169.67,
+      "nav": 6108.58
+    },
+    {
+      "date": "2025-09-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6169.67,
+      "nav": 6108.58
+    },
+    {
+      "date": "2025-09-15",
+      "tradingVolume": 184826253,
+      "dividendPerSecurity": null,
+      "marketPrice": 6169.67,
+      "nav": 6108.58
+    },
+    {
+      "date": "2025-09-16",
+      "tradingVolume": 128182573,
+      "dividendPerSecurity": null,
+      "marketPrice": 6164.27,
+      "nav": 6103.24
+    },
+    {
+      "date": "2025-09-17",
+      "tradingVolume": 128078981,
+      "dividendPerSecurity": null,
+      "marketPrice": 6156.33,
+      "nav": 6095.38
+    },
+    {
+      "date": "2025-09-18",
+      "tradingVolume": 44274537,
+      "dividendPerSecurity": null,
+      "marketPrice": 6147.72,
+      "nav": 6086.85
+    },
+    {
+      "date": "2025-09-19",
+      "tradingVolume": 137681853,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.2146,
+      "nav": 6089.3214
+    },
+    {
+      "date": "2025-09-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.0349,
+      "nav": 6097.0643
+    },
+    {
+      "date": "2025-09-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.0349,
+      "nav": 6097.0643
+    },
+    {
+      "date": "2025-09-22",
+      "tradingVolume": 273906745,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.0349,
+      "nav": 6097.0643
+    },
+    {
+      "date": "2025-09-23",
+      "tradingVolume": 125534413,
+      "dividendPerSecurity": null,
+      "marketPrice": 6157.4751,
+      "nav": 6096.507
+    },
+    {
+      "date": "2025-09-24",
+      "tradingVolume": 151147366,
+      "dividendPerSecurity": null,
+      "marketPrice": 6176.4856,
+      "nav": 6115.3323
+    },
+    {
+      "date": "2025-09-25",
+      "tradingVolume": 448598440,
+      "dividendPerSecurity": null,
+      "marketPrice": 6175.8102,
+      "nav": 6114.6636
+    },
+    {
+      "date": "2025-09-26",
+      "tradingVolume": 207927451,
+      "dividendPerSecurity": null,
+      "marketPrice": 6180.316,
+      "nav": 6119.1248
+    },
+    {
+      "date": "2025-09-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6192.3302,
+      "nav": 6131.0231
+    },
+    {
+      "date": "2025-09-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6192.3302,
+      "nav": 6131.02
+    },
+    {
+      "date": "2025-09-29",
+      "tradingVolume": 2074212566,
+      "dividendPerSecurity": null,
+      "marketPrice": 6192.3302,
+      "nav": 6131.02
+    },
+    {
+      "date": "2025-09-30",
+      "tradingVolume": 139007529,
+      "dividendPerSecurity": null,
+      "marketPrice": 6189.2675,
+      "nav": 6127.9876
+    },
+    {
+      "date": "2025-10-01",
+      "tradingVolume": 169619288,
+      "dividendPerSecurity": null,
+      "marketPrice": 6165.1288,
+      "nav": 6104.0814
+    },
+    {
+      "date": "2025-10-02",
+      "tradingVolume": 207853295,
+      "dividendPerSecurity": null,
+      "marketPrice": 6138.9817,
+      "nav": 6078.1997
+    },
+    {
+      "date": "2025-10-03",
+      "tradingVolume": 268617490,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.5579,
+      "nav": 6090.3441
+    },
+    {
+      "date": "2025-10-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.4969,
+      "nav": 6097.5217
+    },
+    {
+      "date": "2025-10-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.4969,
+      "nav": 6097.5217
+    },
+    {
+      "date": "2025-10-06",
+      "tradingVolume": 169910480,
+      "dividendPerSecurity": null,
+      "marketPrice": 6158.4969,
+      "nav": 6097.5217
+    },
+    {
+      "date": "2025-10-07",
+      "tradingVolume": 226295125,
+      "dividendPerSecurity": null,
+      "marketPrice": 6150.8958,
+      "nav": 6089.9958
+    },
+    {
+      "date": "2025-10-08",
+      "tradingVolume": 136615983,
+      "dividendPerSecurity": null,
+      "marketPrice": 6167.3214,
+      "nav": 6106.2588
+    },
+    {
+      "date": "2025-10-09",
+      "tradingVolume": 60353842,
+      "dividendPerSecurity": null,
+      "marketPrice": 6163.501,
+      "nav": 6102.4762
+    },
+    {
+      "date": "2025-10-10",
+      "tradingVolume": 161330684,
+      "dividendPerSecurity": null,
+      "marketPrice": 6176.1019,
+      "nav": 6114.9524
+    },
+    {
+      "date": "2025-10-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6191.2596,
+      "nav": 6129.9573
+    },
+    {
+      "date": "2025-10-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6191.2596,
+      "nav": 6129.9573
+    },
+    {
+      "date": "2025-10-13",
+      "tradingVolume": 150947947,
+      "dividendPerSecurity": null,
+      "marketPrice": 6191.2596,
+      "nav": 6129.9573
+    },
+    {
+      "date": "2025-10-14",
+      "tradingVolume": 87235753,
+      "dividendPerSecurity": null,
+      "marketPrice": 6204.9552,
+      "nav": 6143.5169
+    },
+    {
+      "date": "2025-10-15",
+      "tradingVolume": 174960078,
+      "dividendPerSecurity": null,
+      "marketPrice": 6205.8799,
+      "nav": 6144.4355
+    },
+    {
+      "date": "2025-10-16",
+      "tradingVolume": 440192217,
+      "dividendPerSecurity": null,
+      "marketPrice": 6226.5789,
+      "nav": 6164.9296
+    },
+    {
+      "date": "2025-10-17",
+      "tradingVolume": 198601140,
+      "dividendPerSecurity": null,
+      "marketPrice": 6227.8016,
+      "nav": 6166.1402
+    },
+    {
+      "date": "2025-10-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6209.2664,
+      "nav": 6147.7885
+    },
+    {
+      "date": "2025-10-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6209.2664,
+      "nav": 6147.7885
+    },
+    {
+      "date": "2025-10-20",
+      "tradingVolume": 357835584,
+      "dividendPerSecurity": null,
+      "marketPrice": 6209.2664,
+      "nav": 6147.7885
+    },
+    {
+      "date": "2025-10-21",
+      "tradingVolume": 609287145,
+      "dividendPerSecurity": null,
+      "marketPrice": 6222.7445,
+      "nav": 6161.1332
+    },
+    {
+      "date": "2025-10-22",
+      "tradingVolume": 79011499,
+      "dividendPerSecurity": null,
+      "marketPrice": 6226.4169,
+      "nav": 6164.7692
+    },
+    {
+      "date": "2025-10-23",
+      "tradingVolume": 304221852,
+      "dividendPerSecurity": null,
+      "marketPrice": 6224.447,
+      "nav": 6162.8188
+    },
+    {
+      "date": "2025-10-24",
+      "tradingVolume": 82792193,
+      "dividendPerSecurity": null,
+      "marketPrice": 6225.9606,
+      "nav": 6164.3174
+    },
+    {
+      "date": "2025-10-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6225.9606,
+      "nav": 6164.3174
+    },
+    {
+      "date": "2025-10-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6246.3882,
+      "nav": 6184.5428
+    },
+    {
+      "date": "2025-10-27",
+      "tradingVolume": 242002042,
+      "dividendPerSecurity": null,
+      "marketPrice": 6246.3882,
+      "nav": 6184.5428
+    },
+    {
+      "date": "2025-10-28",
+      "tradingVolume": 182567322,
+      "dividendPerSecurity": null,
+      "marketPrice": 6260.8781,
+      "nav": 6198.8892
+    },
+    {
+      "date": "2025-10-29",
+      "tradingVolume": 133458171,
+      "dividendPerSecurity": null,
+      "marketPrice": 6271.494,
+      "nav": 6209.401
+    },
+    {
+      "date": "2025-10-30",
+      "tradingVolume": 99683734,
+      "dividendPerSecurity": null,
+      "marketPrice": 6273.2124,
+      "nav": 6211.1014
+    },
+    {
+      "date": "2025-10-31",
+      "tradingVolume": 102124672,
+      "dividendPerSecurity": null,
+      "marketPrice": 6262.5066,
+      "nav": 6200.5016
+    },
+    {
+      "date": "2025-11-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6259.5171,
+      "nav": 6197.5417
+    },
+    {
+      "date": "2025-11-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6259.5171,
+      "nav": 6197.5417
+    },
+    {
+      "date": "2025-11-03",
+      "tradingVolume": 438496796,
+      "dividendPerSecurity": null,
+      "marketPrice": 6259.5171,
+      "nav": 6197.5417
+    },
+    {
+      "date": "2025-11-04",
+      "tradingVolume": 451147298,
+      "dividendPerSecurity": null,
+      "marketPrice": 6247.9331,
+      "nav": 6186.0724
+    },
+    {
+      "date": "2025-11-05",
+      "tradingVolume": 454222238,
+      "dividendPerSecurity": null,
+      "marketPrice": 6269.8191,
+      "nav": 6207.7417
+    },
+    {
+      "date": "2025-11-06",
+      "tradingVolume": 405478676,
+      "dividendPerSecurity": null,
+      "marketPrice": 6274.3886,
+      "nav": 6212.2659
+    },
+    {
+      "date": "2025-11-07",
+      "tradingVolume": 143630056,
+      "dividendPerSecurity": null,
+      "marketPrice": 6273.5881,
+      "nav": 6211.4734
+    },
+    {
+      "date": "2025-11-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6275.9693,
+      "nav": 6213.831
+    },
+    {
+      "date": "2025-11-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6275.9693,
+      "nav": 6213.831
+    },
+    {
+      "date": "2025-11-10",
+      "tradingVolume": 358306989,
+      "dividendPerSecurity": null,
+      "marketPrice": 6275.9693,
+      "nav": 6213.831
+    },
+    {
+      "date": "2025-11-11",
+      "tradingVolume": 340325850,
+      "dividendPerSecurity": null,
+      "marketPrice": 6260.5638,
+      "nav": 6198.578
+    },
+    {
+      "date": "2025-11-12",
+      "tradingVolume": 312900280,
+      "dividendPerSecurity": null,
+      "marketPrice": 6257.4222,
+      "nav": 6195.4675
+    },
+    {
+      "date": "2025-11-13",
+      "tradingVolume": 256814197,
+      "dividendPerSecurity": null,
+      "marketPrice": 6265.8377,
+      "nav": 6203.7997
+    },
+    {
+      "date": "2025-11-14",
+      "tradingVolume": 191589614,
+      "dividendPerSecurity": null,
+      "marketPrice": 6269.2385,
+      "nav": 6207.1668
+    },
+    {
+      "date": "2025-11-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6273.0116,
+      "nav": 6210.9026
+    },
+    {
+      "date": "2025-11-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6273.0116,
+      "nav": 6210.9026
+    },
+    {
+      "date": "2025-11-17",
+      "tradingVolume": 447459616,
+      "dividendPerSecurity": null,
+      "marketPrice": 6273.0116,
+      "nav": 6210.9026
+    },
+    {
+      "date": "2025-11-18",
+      "tradingVolume": 288164022,
+      "dividendPerSecurity": null,
+      "marketPrice": 6269.8258,
+      "nav": 6207.7483
+    },
+    {
+      "date": "2025-11-19",
+      "tradingVolume": 465055509,
+      "dividendPerSecurity": null,
+      "marketPrice": 6273.3968,
+      "nav": 6211.284
+    },
+    {
+      "date": "2025-11-20",
+      "tradingVolume": 106966703,
+      "dividendPerSecurity": null,
+      "marketPrice": 6277.0975,
+      "nav": 6214.948
+    },
+    {
+      "date": "2025-11-21",
+      "tradingVolume": 203863276,
+      "dividendPerSecurity": null,
+      "marketPrice": 6277.3978,
+      "nav": 6215.2453
+    },
+    {
+      "date": "2025-11-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6286.1079,
+      "nav": 6223.8692
+    },
+    {
+      "date": "2025-11-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6286.1079,
+      "nav": 6223.8692
+    },
+    {
+      "date": "2025-11-24",
+      "tradingVolume": 544626467,
+      "dividendPerSecurity": null,
+      "marketPrice": 6286.1079,
+      "nav": 6223.8692
+    },
+    {
+      "date": "2025-11-25",
+      "tradingVolume": 90579311,
+      "dividendPerSecurity": null,
+      "marketPrice": 6302.2264,
+      "nav": 6239.8281
+    },
+    {
+      "date": "2025-11-26",
+      "tradingVolume": 133831563,
+      "dividendPerSecurity": null,
+      "marketPrice": 6317.1742,
+      "nav": 6254.6279
+    },
+    {
+      "date": "2025-11-27",
+      "tradingVolume": 97283537,
+      "dividendPerSecurity": null,
+      "marketPrice": 6321.4814,
+      "nav": 6258.8925
+    },
+    {
+      "date": "2025-11-28",
+      "tradingVolume": 798593868,
+      "dividendPerSecurity": null,
+      "marketPrice": 6244.1489,
+      "nav": 6244.1489
+    },
+    {
+      "date": "2025-11-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6229.1575,
+      "nav": 6229.1575
+    },
+    {
+      "date": "2025-11-30",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6229.1575,
+      "nav": 6229.1575
+    },
+    {
+      "date": "2025-12-01",
+      "tradingVolume": 822108435,
+      "dividendPerSecurity": null,
+      "marketPrice": 6231.5924,
+      "nav": 6231.5924
+    },
+    {
+      "date": "2025-12-02",
+      "tradingVolume": 544117907,
+      "dividendPerSecurity": null,
+      "marketPrice": 6302.2146,
+      "nav": 6239.8164
+    },
+    {
+      "date": "2025-12-03",
+      "tradingVolume": 411964707,
+      "dividendPerSecurity": null,
+      "marketPrice": 6315.3614,
+      "nav": 6252.8331
+    },
+    {
+      "date": "2025-12-04",
+      "tradingVolume": 232129840,
+      "dividendPerSecurity": null,
+      "marketPrice": 6314.3503,
+      "nav": 6251.832
+    },
+    {
+      "date": "2025-12-05",
+      "tradingVolume": 172082091,
+      "dividendPerSecurity": null,
+      "marketPrice": 6295.6336,
+      "nav": 6233.3006
+    },
+    {
+      "date": "2025-12-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6292.8152,
+      "nav": 6230.5101
+    },
+    {
+      "date": "2025-12-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6292.8152,
+      "nav": 6230.5101
+    },
+    {
+      "date": "2025-12-08",
+      "tradingVolume": 177940557,
+      "dividendPerSecurity": null,
+      "marketPrice": 6292.8152,
+      "nav": 6230.5101
+    },
+    {
+      "date": "2025-12-09",
+      "tradingVolume": 210807478,
+      "dividendPerSecurity": null,
+      "marketPrice": 6274.6091,
+      "nav": 6212.4843
+    },
+    {
+      "date": "2025-12-10",
+      "tradingVolume": 216673246,
+      "dividendPerSecurity": null,
+      "marketPrice": 6276.4877,
+      "nav": 6214.3443
+    },
+    {
+      "date": "2025-12-11",
+      "tradingVolume": 153521281,
+      "dividendPerSecurity": null,
+      "marketPrice": 6292.7716,
+      "nav": 6230.4669
+    },
+    {
+      "date": "2025-12-12",
+      "tradingVolume": 88632588,
+      "dividendPerSecurity": null,
+      "marketPrice": 6306.7006,
+      "nav": 6244.258
+    },
+    {
+      "date": "2025-12-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6305.4296,
+      "nav": 6242.9996
+    },
+    {
+      "date": "2025-12-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6305.4296,
+      "nav": 6242.9996
+    },
+    {
+      "date": "2025-12-15",
+      "tradingVolume": 225819906,
+      "dividendPerSecurity": null,
+      "marketPrice": 6305.4296,
+      "nav": 6242.9996
+    },
+    {
+      "date": "2025-12-16",
+      "tradingVolume": 521581681,
+      "dividendPerSecurity": null,
+      "marketPrice": 6294.0799,
+      "nav": 6231.7623
+    },
+    {
+      "date": "2025-12-17",
+      "tradingVolume": 58448664,
+      "dividendPerSecurity": null,
+      "marketPrice": 6301.466,
+      "nav": 6239.0752
+    },
+    {
+      "date": "2025-12-18",
+      "tradingVolume": 120346541,
+      "dividendPerSecurity": null,
+      "marketPrice": 6292.774,
+      "nav": 6230.4693
+    },
+    {
+      "date": "2025-12-19",
+      "tradingVolume": 105642190,
+      "dividendPerSecurity": null,
+      "marketPrice": 6314.8431,
+      "nav": 6252.3199
+    },
+    {
+      "date": "2025-12-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6314.7699,
+      "nav": 6252.2474
+    },
+    {
+      "date": "2025-12-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6314.7699,
+      "nav": 6252.2474
+    },
+    {
+      "date": "2025-12-22",
+      "tradingVolume": 468221966,
+      "dividendPerSecurity": null,
+      "marketPrice": 6314.7699,
+      "nav": 6252.2474
+    },
+    {
+      "date": "2025-12-23",
+      "tradingVolume": 262351013,
+      "dividendPerSecurity": null,
+      "marketPrice": 6301.8139,
+      "nav": 6239.4197
+    },
+    {
+      "date": "2025-12-24",
+      "tradingVolume": 392466606,
+      "dividendPerSecurity": null,
+      "marketPrice": 6287.3676,
+      "nav": 6225.1164
+    },
+    {
+      "date": "2025-12-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6279.9483,
+      "nav": 6217.7706
+    },
+    {
+      "date": "2025-12-26",
+      "tradingVolume": 306988119,
+      "dividendPerSecurity": null,
+      "marketPrice": 6279.9483,
+      "nav": 6217.7706
+    },
+    {
+      "date": "2025-12-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6255.2181,
+      "nav": 6193.2852
+    },
+    {
+      "date": "2025-12-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6255.2181,
+      "nav": 6193.2852
+    },
+    {
+      "date": "2025-12-29",
+      "tradingVolume": 210059271,
+      "dividendPerSecurity": null,
+      "marketPrice": 6255.2181,
+      "nav": 6193.2852
+    },
+    {
+      "date": "2025-12-30",
+      "tradingVolume": 121727480,
+      "dividendPerSecurity": null,
+      "marketPrice": 6274.4428,
+      "nav": 6212.3196
+    },
+    {
+      "date": "2025-12-31",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6297.1726,
+      "nav": 6234.8244
+    },
+    {
+      "date": "2026-01-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6261.0608,
+      "nav": 6261.0608
+    },
+    {
+      "date": "2026-01-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6256.0021,
+      "nav": 6256.0021
+    },
+    {
+      "date": "2026-01-03",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6297.1726,
+      "nav": 6234.8244
+    },
+    {
+      "date": "2026-01-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6297.1726,
+      "nav": 6234.8244
+    },
+    {
+      "date": "2026-01-05",
+      "tradingVolume": 625348245,
+      "dividendPerSecurity": null,
+      "marketPrice": 6297.1726,
+      "nav": 6234.8244
+    },
+    {
+      "date": "2026-01-06",
+      "tradingVolume": 343866750,
+      "dividendPerSecurity": null,
+      "marketPrice": 6309.8312,
+      "nav": 6247.3576
+    },
+    {
+      "date": "2026-01-07",
+      "tradingVolume": 346282904,
+      "dividendPerSecurity": null,
+      "marketPrice": 6343.5298,
+      "nav": 6280.7226
+    },
+    {
+      "date": "2026-01-08",
+      "tradingVolume": 196163594,
+      "dividendPerSecurity": null,
+      "marketPrice": 6349.5747,
+      "nav": 6286.7076
+    },
+    {
+      "date": "2026-01-09",
+      "tradingVolume": 244390887,
+      "dividendPerSecurity": null,
+      "marketPrice": 6371.9632,
+      "nav": 6308.8745
+    },
+    {
+      "date": "2026-01-10",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6412.6769,
+      "nav": 6349.185
+    },
+    {
+      "date": "2026-01-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6412.6769,
+      "nav": 6349.185
+    },
+    {
+      "date": "2026-01-12",
+      "tradingVolume": 215984955,
+      "dividendPerSecurity": null,
+      "marketPrice": 6412.6769,
+      "nav": 6349.185
+    },
+    {
+      "date": "2026-01-13",
+      "tradingVolume": 243691256,
+      "dividendPerSecurity": null,
+      "marketPrice": 6425.2825,
+      "nav": 6361.6658
+    },
+    {
+      "date": "2026-01-14",
+      "tradingVolume": 226197850,
+      "dividendPerSecurity": null,
+      "marketPrice": 6451.8087,
+      "nav": 6387.9294
+    },
+    {
+      "date": "2026-01-15",
+      "tradingVolume": 151944296,
+      "dividendPerSecurity": null,
+      "marketPrice": 6440.1342,
+      "nav": 6376.3705
+    },
+    {
+      "date": "2026-01-16",
+      "tradingVolume": 114697102,
+      "dividendPerSecurity": null,
+      "marketPrice": 6432.361,
+      "nav": 6368.6743
+    },
+    {
+      "date": "2026-01-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6472.1283,
+      "nav": 6408.0478
+    },
+    {
+      "date": "2026-01-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6472.1283,
+      "nav": 6408.0478
+    },
+    {
+      "date": "2026-01-19",
+      "tradingVolume": 251168337,
+      "dividendPerSecurity": null,
+      "marketPrice": 6472.1283,
+      "nav": 6408.0478
+    },
+    {
+      "date": "2026-01-20",
+      "tradingVolume": 183118410,
+      "dividendPerSecurity": null,
+      "marketPrice": 6475.1283,
+      "nav": 6411.0181
+    },
+    {
+      "date": "2026-01-21",
+      "tradingVolume": 219134846,
+      "dividendPerSecurity": null,
+      "marketPrice": 6453.6707,
+      "nav": 6389.773
+    },
+    {
+      "date": "2026-01-22",
+      "tradingVolume": 84269108,
+      "dividendPerSecurity": null,
+      "marketPrice": 6451.3653,
+      "nav": 6387.4904
+    },
+    {
+      "date": "2026-01-23",
+      "tradingVolume": 103316400,
+      "dividendPerSecurity": null,
+      "marketPrice": 6440.0898,
+      "nav": 6376.3265
+    },
+    {
+      "date": "2026-01-24",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6438.7177,
+      "nav": 6374.968
+    },
+    {
+      "date": "2026-01-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6438.7177,
+      "nav": 6374.968
+    },
+    {
+      "date": "2026-01-26",
+      "tradingVolume": 255145276,
+      "dividendPerSecurity": null,
+      "marketPrice": 6438.7177,
+      "nav": 6374.968
+    },
+    {
+      "date": "2026-01-27",
+      "tradingVolume": 57214910,
+      "dividendPerSecurity": null,
+      "marketPrice": 6434.639,
+      "nav": 6370.9297
+    },
+    {
+      "date": "2026-01-28",
+      "tradingVolume": 96138451,
+      "dividendPerSecurity": null,
+      "marketPrice": 6432.5996,
+      "nav": 6368.9105
+    },
+    {
+      "date": "2026-01-29",
+      "tradingVolume": 98041430,
+      "dividendPerSecurity": null,
+      "marketPrice": 6407.625,
+      "nav": 6344.1832
+    },
+    {
+      "date": "2026-01-30",
+      "tradingVolume": 148471082,
+      "dividendPerSecurity": null,
+      "marketPrice": 6379.9312,
+      "nav": 6316.7636
+    },
+    {
+      "date": "2026-01-31",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6391.714,
+      "nav": 6385.3856
+    },
+    {
+      "date": "2026-02-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6391.7112,
+      "nav": 6328.4269
+    },
+    {
+      "date": "2026-02-02",
+      "tradingVolume": 293228684,
+      "dividendPerSecurity": null,
+      "marketPrice": 6391.714,
+      "nav": 6328.4297
+    },
+    {
+      "date": "2026-02-03",
+      "tradingVolume": 186444122,
+      "dividendPerSecurity": null,
+      "marketPrice": 6386.2569,
+      "nav": 6323.0266
+    },
+    {
+      "date": "2026-02-04",
+      "tradingVolume": 149067112,
+      "dividendPerSecurity": null,
+      "marketPrice": 6409.6269,
+      "nav": 6346.1652
+    },
+    {
+      "date": "2026-02-05",
+      "tradingVolume": 117617077,
+      "dividendPerSecurity": null,
+      "marketPrice": 6442.4281,
+      "nav": 6378.6417
+    },
+    {
+      "date": "2026-02-06",
+      "tradingVolume": 283887580,
+      "dividendPerSecurity": null,
+      "marketPrice": 6439.0025,
+      "nav": 6375.25
+    },
+    {
+      "date": "2026-02-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6434.7835,
+      "nav": 6371.0728
+    },
+    {
+      "date": "2026-02-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6434.7835,
+      "nav": 6371.0728
+    },
+    {
+      "date": "2026-02-09",
+      "tradingVolume": 239953942,
+      "dividendPerSecurity": null,
+      "marketPrice": 6434.7835,
+      "nav": 6371.0728
+    },
+    {
+      "date": "2026-02-10",
+      "tradingVolume": 322401285,
+      "dividendPerSecurity": null,
+      "marketPrice": 6421.3644,
+      "nav": 6357.7865
+    },
+    {
+      "date": "2026-02-11",
+      "tradingVolume": 173267815,
+      "dividendPerSecurity": null,
+      "marketPrice": 6418.2676,
+      "nav": 6354.7204
+    },
+    {
+      "date": "2026-02-12",
+      "tradingVolume": 164893784,
+      "dividendPerSecurity": null,
+      "marketPrice": 6427.6151,
+      "nav": 6363.9753
+    },
+    {
+      "date": "2026-02-13",
+      "tradingVolume": 226418603,
+      "dividendPerSecurity": null,
+      "marketPrice": 6419.0712,
+      "nav": 6355.516
+    },
+    {
+      "date": "2026-02-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6413.45,
+      "nav": 6349.9505
+    },
+    {
+      "date": "2026-02-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6413.45,
+      "nav": 6349.9505
+    },
+    {
+      "date": "2026-02-16",
+      "tradingVolume": 218675676,
+      "dividendPerSecurity": null,
+      "marketPrice": 6413.45,
+      "nav": 6349.9505
+    },
+    {
+      "date": "2026-02-17",
+      "tradingVolume": 132282752,
+      "dividendPerSecurity": null,
+      "marketPrice": 6429.3733,
+      "nav": 6365.7161
+    },
+    {
+      "date": "2026-02-18",
+      "tradingVolume": 138320622,
+      "dividendPerSecurity": null,
+      "marketPrice": 6439.3494,
+      "nav": 6375.5935
+    },
+    {
+      "date": "2026-02-19",
+      "tradingVolume": 118612080,
+      "dividendPerSecurity": null,
+      "marketPrice": 6452.049,
+      "nav": 6388.1673
+    },
+    {
+      "date": "2026-02-20",
+      "tradingVolume": 229668289,
+      "dividendPerSecurity": null,
+      "marketPrice": 6457.0443,
+      "nav": 6393.1132
+    },
+    {
+      "date": "2026-02-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6453.3598,
+      "nav": 6389.4651
+    },
+    {
+      "date": "2026-02-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6453.3598,
+      "nav": 6389.4651
+    },
+    {
+      "date": "2026-02-23",
+      "tradingVolume": 515435493,
+      "dividendPerSecurity": null,
+      "marketPrice": 6453.3598,
+      "nav": 6389.4651
+    },
+    {
+      "date": "2026-02-24",
+      "tradingVolume": 142563069,
+      "dividendPerSecurity": null,
+      "marketPrice": 6454.5249,
+      "nav": 6390.6187
+    },
+    {
+      "date": "2026-02-25",
+      "tradingVolume": 84537931,
+      "dividendPerSecurity": null,
+      "marketPrice": 6457.9474,
+      "nav": 6394.0073
+    },
+    {
+      "date": "2026-02-26",
+      "tradingVolume": 137457400,
+      "dividendPerSecurity": null,
+      "marketPrice": 6453.083,
+      "nav": 6389.1911
+    },
+    {
+      "date": "2026-02-27",
+      "tradingVolume": 198000614,
+      "dividendPerSecurity": null,
+      "marketPrice": 6449.6605,
+      "nav": 6385.8025
+    },
+    {
+      "date": "2026-02-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6444.8247,
+      "nav": 6381.0146
+    },
+    {
+      "date": "2026-03-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6444.8247,
+      "nav": 6381.0146
+    },
+    {
+      "date": "2026-03-02",
+      "tradingVolume": 255197979,
+      "dividendPerSecurity": null,
+      "marketPrice": 6444.8247,
+      "nav": 6381.0146
+    },
+    {
+      "date": "2026-03-03",
+      "tradingVolume": 162107119,
+      "dividendPerSecurity": null,
+      "marketPrice": 6429.0172,
+      "nav": 6365.3636
+    },
+    {
+      "date": "2026-03-04",
+      "tradingVolume": 155197459,
+      "dividendPerSecurity": null,
+      "marketPrice": 6448.6347,
+      "nav": 6384.7868
+    },
+    {
+      "date": "2026-03-05",
+      "tradingVolume": 240816194,
+      "dividendPerSecurity": null,
+      "marketPrice": 6481.4395,
+      "nav": 6417.2668
+    },
+    {
+      "date": "2026-03-06",
+      "tradingVolume": 261767457,
+      "dividendPerSecurity": null,
+      "marketPrice": 6519.5273,
+      "nav": 6454.9775
+    },
+    {
+      "date": "2026-03-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6532.4781,
+      "nav": 6467.8001
+    },
+    {
+      "date": "2026-03-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6532.4781,
+      "nav": 6467.8001
+    },
+    {
+      "date": "2026-03-09",
+      "tradingVolume": 343868563,
+      "dividendPerSecurity": null,
+      "marketPrice": 6532.4781,
+      "nav": 6467.8001
+    },
+    {
+      "date": "2026-03-10",
+      "tradingVolume": 246529472,
+      "dividendPerSecurity": null,
+      "marketPrice": 6521.3479,
+      "nav": 6456.7801
+    },
+    {
+      "date": "2026-03-11",
+      "tradingVolume": 245219314,
+      "dividendPerSecurity": null,
+      "marketPrice": 6545.502,
+      "nav": 6480.695
+    },
+    {
+      "date": "2026-03-12",
+      "tradingVolume": 166131168,
+      "dividendPerSecurity": null,
+      "marketPrice": 6540.716,
+      "nav": 6475.9564
+    },
+    {
+      "date": "2026-03-13",
+      "tradingVolume": 171016358,
+      "dividendPerSecurity": null,
+      "marketPrice": 6557.2568,
+      "nav": 6492.3335
+    },
+    {
+      "date": "2026-03-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6583.9838,
+      "nav": 6518.7958
+    },
+    {
+      "date": "2026-03-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6583.9838,
+      "nav": 6518.7958
+    },
+    {
+      "date": "2026-03-16",
+      "tradingVolume": 417482471,
+      "dividendPerSecurity": null,
+      "marketPrice": 6583.9838,
+      "nav": 6518.7958
+    },
+    {
+      "date": "2026-03-17",
+      "tradingVolume": 196056845,
+      "dividendPerSecurity": null,
+      "marketPrice": 6580.2363,
+      "nav": 6515.0854
+    },
+    {
+      "date": "2026-03-18",
+      "tradingVolume": 120267226,
+      "dividendPerSecurity": null,
+      "marketPrice": 6571.9418,
+      "nav": 6506.8731
+    },
+    {
+      "date": "2026-03-19",
+      "tradingVolume": 533616900,
+      "dividendPerSecurity": null,
+      "marketPrice": 6553.2006,
+      "nav": 6488.3174
+    },
+    {
+      "date": "2026-03-20",
+      "tradingVolume": 468820390,
+      "dividendPerSecurity": null,
+      "marketPrice": 6545.6502,
+      "nav": 6480.8418
+    },
+    {
+      "date": "2026-03-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6554.998,
+      "nav": 6490.097
+    },
+    {
+      "date": "2026-03-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6554.998,
+      "nav": 6490.097
+    },
+    {
+      "date": "2026-03-23",
+      "tradingVolume": 540514918,
+      "dividendPerSecurity": null,
+      "marketPrice": 6554.998,
+      "nav": 6490.097
+    },
+    {
+      "date": "2026-03-24",
+      "tradingVolume": 249170073,
+      "dividendPerSecurity": null,
+      "marketPrice": 6534.8823,
+      "nav": 6470.1805
+    },
+    {
+      "date": "2026-03-25",
+      "tradingVolume": 171883779,
+      "dividendPerSecurity": null,
+      "marketPrice": 6536.1426,
+      "nav": 6471.4283
+    },
+    {
+      "date": "2026-03-26",
+      "tradingVolume": 150543130,
+      "dividendPerSecurity": null,
+      "marketPrice": 6549.1019,
+      "nav": 6484.2593
+    },
+    {
+      "date": "2026-03-27",
+      "tradingVolume": 270172187,
+      "dividendPerSecurity": null,
+      "marketPrice": 6542.271,
+      "nav": 6477.496
+    },
+    {
+      "date": "2026-03-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6544.0662,
+      "nav": 6479.2735
+    },
+    {
+      "date": "2026-03-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6544.0662,
+      "nav": 6479.2735
+    },
+    {
+      "date": "2026-03-30",
+      "tradingVolume": 235495315,
+      "dividendPerSecurity": null,
+      "marketPrice": 6544.0662,
+      "nav": 6479.2735
+    },
+    {
+      "date": "2026-03-31",
+      "tradingVolume": 220943907,
+      "dividendPerSecurity": null,
+      "marketPrice": 6537.7273,
+      "nav": 6472.9973
+    },
+    {
+      "date": "2026-04-01",
+      "tradingVolume": 243584721,
+      "dividendPerSecurity": null,
+      "marketPrice": 6529.1715,
+      "nav": 6464.5262
+    },
+    {
+      "date": "2026-04-02",
+      "tradingVolume": 239325942,
+      "dividendPerSecurity": null,
+      "marketPrice": 6548.6365,
+      "nav": 6483.7985
+    },
+    {
+      "date": "2026-04-03",
+      "tradingVolume": 69915469,
+      "dividendPerSecurity": null,
+      "marketPrice": 6527.1252,
+      "nav": 6462.5002
+    },
+    {
+      "date": "2026-04-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6531.8508,
+      "nav": 6467.179
+    },
+    {
+      "date": "2026-04-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6531.8508,
+      "nav": 6467.179
+    },
+    {
+      "date": "2026-04-06",
+      "tradingVolume": 244846584,
+      "dividendPerSecurity": null,
+      "marketPrice": 6531.8508,
+      "nav": 6467.179
+    },
+    {
+      "date": "2026-04-07",
+      "tradingVolume": 132345337,
+      "dividendPerSecurity": null,
+      "marketPrice": 6509.4597,
+      "nav": 6445.0096
+    },
+    {
+      "date": "2026-04-08",
+      "tradingVolume": 119644460,
+      "dividendPerSecurity": null,
+      "marketPrice": 6499.3777,
+      "nav": 6435.0274
+    },
+    {
+      "date": "2026-04-09",
+      "tradingVolume": 198493877,
+      "dividendPerSecurity": null,
+      "marketPrice": 6486.9665,
+      "nav": 6422.7391
+    },
+    {
+      "date": "2026-04-10",
+      "tradingVolume": 243345488,
+      "dividendPerSecurity": null,
+      "marketPrice": 6470.7256,
+      "nav": 6406.659
+    },
+    {
+      "date": "2026-04-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6482.8178,
+      "nav": 6418.6315
+    },
+    {
+      "date": "2026-04-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6482.8178,
+      "nav": 6418.6315
+    },
+    {
+      "date": "2026-04-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6482.8178,
+      "nav": 6418.6315
+    },
+    {
+      "date": "2026-04-14",
+      "tradingVolume": 410760900,
+      "dividendPerSecurity": null,
+      "marketPrice": 6482.8178,
+      "nav": 6418.6315
+    },
+    {
+      "date": "2026-04-15",
+      "tradingVolume": 98471782,
+      "dividendPerSecurity": null,
+      "marketPrice": 6478.8494,
+      "nav": 6414.7024
+    },
+    {
+      "date": "2026-04-16",
+      "tradingVolume": 149110235,
+      "dividendPerSecurity": null,
+      "marketPrice": 6487.6036,
+      "nav": 6423.3699
+    },
+    {
+      "date": "2026-04-17",
+      "tradingVolume": 202439505,
+      "dividendPerSecurity": null,
+      "marketPrice": 6489.7746,
+      "nav": 6425.5194
+    },
+    {
+      "date": "2026-04-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6506.7659,
+      "nav": 6442.3425
+    },
+    {
+      "date": "2026-04-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6506.7659,
+      "nav": 6442.3425
+    },
+    {
+      "date": "2026-04-20",
+      "tradingVolume": 311575276,
+      "dividendPerSecurity": null,
+      "marketPrice": 6506.7659,
+      "nav": 6442.3425
+    },
+    {
+      "date": "2026-04-21",
+      "tradingVolume": 134333978,
+      "dividendPerSecurity": null,
+      "marketPrice": 6542.6947,
+      "nav": 6477.9155
+    },
+    {
+      "date": "2026-04-22",
+      "tradingVolume": 132996130,
+      "dividendPerSecurity": null,
+      "marketPrice": 6571.4083,
+      "nav": 6506.3449
+    },
+    {
+      "date": "2026-04-23",
+      "tradingVolume": 180002927,
+      "dividendPerSecurity": null,
+      "marketPrice": 6573.5389,
+      "nav": 6508.4544
+    },
+    {
+      "date": "2026-04-24",
+      "tradingVolume": 209537161,
+      "dividendPerSecurity": null,
+      "marketPrice": 6541.687,
+      "nav": 6476.9178
+    },
+    {
+      "date": "2026-04-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6549.1939,
+      "nav": 6484.3504
+    },
+    {
+      "date": "2026-04-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6549.1939,
+      "nav": 6484.3504
+    },
+    {
+      "date": "2026-04-27",
+      "tradingVolume": 351510449,
+      "dividendPerSecurity": null,
+      "marketPrice": 6549.1939,
+      "nav": 6484.3504
+    },
+    {
+      "date": "2026-04-28",
+      "tradingVolume": 62906238,
+      "dividendPerSecurity": null,
+      "marketPrice": 6557.9422,
+      "nav": 6493.0121
+    },
+    {
+      "date": "2026-04-29",
+      "tradingVolume": 150326665,
+      "dividendPerSecurity": null,
+      "marketPrice": 6569.838,
+      "nav": 6504.7901
+    },
+    {
+      "date": "2026-04-30",
+      "tradingVolume": 158267679,
+      "dividendPerSecurity": null,
+      "marketPrice": 6567.625,
+      "nav": 6502.599
+    },
+    {
+      "date": "2026-05-01",
+      "tradingVolume": 210816805,
+      "dividendPerSecurity": null,
+      "marketPrice": 6572.4498,
+      "nav": 6507.376
+    },
+    {
+      "date": "2026-05-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.9079,
+      "nav": 6490.9979
+    },
+    {
+      "date": "2026-05-03",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.9079,
+      "nav": 6490.9979
+    },
+    {
+      "date": "2026-05-04",
+      "tradingVolume": 386072006,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.9079,
+      "nav": 6490.9979
+    },
+    {
+      "date": "2026-05-05",
+      "tradingVolume": 125108505,
+      "dividendPerSecurity": null,
+      "marketPrice": 6548.7527,
+      "nav": 6483.9136
+    },
+    {
+      "date": "2026-05-06",
+      "tradingVolume": 89153551,
+      "dividendPerSecurity": null,
+      "marketPrice": 6560.9383,
+      "nav": 6495.9785
+    },
+    {
+      "date": "2026-05-07",
+      "tradingVolume": 152730652,
+      "dividendPerSecurity": null,
+      "marketPrice": 6556.7167,
+      "nav": 6491.7987
+    },
+    {
+      "date": "2026-05-08",
+      "tradingVolume": 192329263,
+      "dividendPerSecurity": null,
+      "marketPrice": 6540.3632,
+      "nav": 6475.6071
+    },
+    {
+      "date": "2026-05-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6533.4559,
+      "nav": 6468.7682
+    },
+    {
+      "date": "2026-05-10",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6533.4559,
+      "nav": 6468.7682
+    },
+    {
+      "date": "2026-05-11",
+      "tradingVolume": 404311914,
+      "dividendPerSecurity": null,
+      "marketPrice": 6533.4559,
+      "nav": 6468.7682
+    },
+    {
+      "date": "2026-05-12",
+      "tradingVolume": 150941456,
+      "dividendPerSecurity": null,
+      "marketPrice": 6540.705,
+      "nav": 6475.9455
+    },
+    {
+      "date": "2026-05-13",
+      "tradingVolume": 116508701,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.1266,
+      "nav": 6490.2244
+    },
+    {
+      "date": "2026-05-14",
+      "tradingVolume": 298976240,
+      "dividendPerSecurity": null,
+      "marketPrice": 6557.5936,
+      "nav": 6492.6669
+    },
+    {
+      "date": "2026-05-15",
+      "tradingVolume": 83923662,
+      "dividendPerSecurity": null,
+      "marketPrice": 6557.351,
+      "nav": 6492.4267
+    },
+    {
+      "date": "2026-05-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.5329,
+      "nav": 6490.6266
+    },
+    {
+      "date": "2026-05-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.5329,
+      "nav": 6490.6266
+    },
+    {
+      "date": "2026-05-18",
+      "tradingVolume": 282492601,
+      "dividendPerSecurity": null,
+      "marketPrice": 6555.5329,
+      "nav": 6490.6266
+    },
+    {
+      "date": "2026-05-19",
+      "tradingVolume": 143794127,
+      "dividendPerSecurity": null,
+      "marketPrice": 6572.3059,
+      "nav": 6507.2336
+    },
+    {
+      "date": "2026-05-20",
+      "tradingVolume": 55865724,
+      "dividendPerSecurity": null,
+      "marketPrice": 6584.888,
+      "nav": 6519.6911
+    },
+    {
+      "date": "2026-05-21",
+      "tradingVolume": 35519119,
+      "dividendPerSecurity": null,
+      "marketPrice": 6584.0024,
+      "nav": 6518.8143
+    },
+    {
+      "date": "2026-05-22",
+      "tradingVolume": 69804071,
+      "dividendPerSecurity": null,
+      "marketPrice": 6594.7588,
+      "nav": 6529.4642
+    },
+    {
+      "date": "2026-05-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6595.775,
+      "nav": 6530.4703
+    },
+    {
+      "date": "2026-05-24",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6595.775,
+      "nav": 6530.4703
+    },
+    {
+      "date": "2026-05-25",
+      "tradingVolume": 113993727,
+      "dividendPerSecurity": null,
+      "marketPrice": 6595.775,
+      "nav": 6530.4703
+    },
+    {
+      "date": "2026-05-26",
+      "tradingVolume": 108089815,
+      "dividendPerSecurity": null,
+      "marketPrice": 6599.8105,
+      "nav": 6534.4658
+    },
+    {
+      "date": "2026-05-27",
+      "tradingVolume": 129179321,
+      "dividendPerSecurity": null,
+      "marketPrice": 6597.3137,
+      "nav": 6531.9938
+    },
+    {
+      "date": "2026-05-28",
+      "tradingVolume": 10549902,
+      "dividendPerSecurity": null,
+      "marketPrice": 6601.9708,
+      "nav": 6536.6048
+    },
+    {
+      "date": "2026-05-29",
+      "tradingVolume": 65317106,
+      "dividendPerSecurity": null,
+      "marketPrice": 6605.3036,
+      "nav": 6539.9046
+    },
+    {
+      "date": "2026-05-30",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6600.3117,
+      "nav": 6534.9621
+    },
+    {
+      "date": "2026-05-31",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6600.3117,
+      "nav": 6534.9621
+    },
+    {
+      "date": "2026-06-01",
+      "tradingVolume": 140481357,
+      "dividendPerSecurity": null,
+      "marketPrice": 6602.417,
+      "nav": 6537.0465
+    },
+    {
+      "date": "2026-06-02",
+      "tradingVolume": 91683981,
+      "dividendPerSecurity": null,
+      "marketPrice": 6602.8128,
+      "nav": 6537.4384
+    },
+    {
+      "date": "2026-06-03",
+      "tradingVolume": 322788850,
+      "dividendPerSecurity": null,
+      "marketPrice": 6607.8174,
+      "nav": 6542.3935
+    },
+    {
+      "date": "2026-06-04",
+      "tradingVolume": 20476569,
+      "dividendPerSecurity": null,
+      "marketPrice": 6613.3068,
+      "nav": 6547.8285
+    },
+    {
+      "date": "2026-06-05",
+      "tradingVolume": 17842005,
+      "dividendPerSecurity": null,
+      "marketPrice": 6614.6991,
+      "nav": 6549.207
+    },
+    {
+      "date": "2026-06-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6619.081,
+      "nav": 6553.5455
+    },
+    {
+      "date": "2026-06-07",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6619.081,
+      "nav": 6553.5455
+    },
+    {
+      "date": "2026-06-08",
+      "tradingVolume": 93234449,
+      "dividendPerSecurity": null,
+      "marketPrice": 6619.081,
+      "nav": 6553.5455
+    },
+    {
+      "date": "2026-06-09",
+      "tradingVolume": 10575739,
+      "dividendPerSecurity": null,
+      "marketPrice": 6616.0034,
+      "nav": 6550.4984
+    },
+    {
+      "date": "2026-06-10",
+      "tradingVolume": 32485913,
+      "dividendPerSecurity": null,
+      "marketPrice": 6638.6604,
+      "nav": 6572.9311
+    },
+    {
+      "date": "2026-06-11",
+      "tradingVolume": 18632808,
+      "dividendPerSecurity": null,
+      "marketPrice": 6687.1401,
+      "nav": 6620.9308
+    },
+    {
+      "date": "2026-06-12",
+      "tradingVolume": 4018217,
+      "dividendPerSecurity": null,
+      "marketPrice": 6706.9687,
+      "nav": 6640.5631
+    },
+    {
+      "date": "2026-06-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6699.1427,
+      "nav": 6632.8146
+    },
+    {
+      "date": "2026-06-14",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6699.1427,
+      "nav": 6632.8146
+    },
+    {
+      "date": "2026-06-15",
+      "tradingVolume": 97041699,
+      "dividendPerSecurity": null,
+      "marketPrice": 6699.1427,
+      "nav": 6632.8146
+    },
+    {
+      "date": "2026-06-16",
+      "tradingVolume": 54742952,
+      "dividendPerSecurity": null,
+      "marketPrice": 6682.8461,
+      "nav": 6616.6793
+    },
+    {
+      "date": "2026-06-17",
+      "tradingVolume": 46069026,
+      "dividendPerSecurity": null,
+      "marketPrice": 6683.3297,
+      "nav": 6617.1581
+    },
+    {
+      "date": "2026-06-18",
+      "tradingVolume": 10012713,
+      "dividendPerSecurity": null,
+      "marketPrice": 6678.215,
+      "nav": 6612.0941
+    },
+    {
+      "date": "2026-06-19",
+      "tradingVolume": 31370010,
+      "dividendPerSecurity": null,
+      "marketPrice": 6681.6737,
+      "nav": 6615.5185
+    },
+    {
+      "date": "2026-06-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6697.2229,
+      "nav": 6630.9138
+    },
+    {
+      "date": "2026-06-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6697.2229,
+      "nav": 6630.9138
+    },
+    {
+      "date": "2026-06-22",
+      "tradingVolume": 94934949,
+      "dividendPerSecurity": null,
+      "marketPrice": 6697.2229,
+      "nav": 6630.9138
+    },
+    {
+      "date": "2026-06-23",
+      "tradingVolume": 60215074,
+      "dividendPerSecurity": null,
+      "marketPrice": 6696.3729,
+      "nav": 6630.0722
+    },
+    {
+      "date": "2026-06-24",
+      "tradingVolume": 47499458,
+      "dividendPerSecurity": null,
+      "marketPrice": 6696.754,
+      "nav": 6630.4495
+    },
+    {
+      "date": "2026-06-25",
+      "tradingVolume": 47489446,
+      "dividendPerSecurity": null,
+      "marketPrice": 6692.7384,
+      "nav": 6626.4737
+    },
+    {
+      "date": "2026-06-26",
+      "tradingVolume": 18047793,
+      "dividendPerSecurity": null,
+      "marketPrice": 6690.7746,
+      "nav": 6624.5293
+    },
+    {
+      "date": "2026-06-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6698.747,
+      "nav": 6632.4228
+    },
+    {
+      "date": "2026-06-28",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6698.747,
+      "nav": 6632.4228
+    },
+    {
+      "date": "2026-06-29",
+      "tradingVolume": 307166890,
+      "dividendPerSecurity": null,
+      "marketPrice": 6698.747,
+      "nav": 6632.4228
+    },
+    {
+      "date": "2026-06-30",
+      "tradingVolume": 139053263,
+      "dividendPerSecurity": null,
+      "marketPrice": 6689.4703,
+      "nav": 6623.2379
+    },
+    {
+      "date": "2026-07-01",
+      "tradingVolume": 48105258,
+      "dividendPerSecurity": null,
+      "marketPrice": 6688.4209,
+      "nav": 6622.1989
+    },
+    {
+      "date": "2026-07-02",
+      "tradingVolume": 6012246,
+      "dividendPerSecurity": null,
+      "marketPrice": 6680.1336,
+      "nav": 6613.9937
+    },
+    {
+      "date": "2026-07-03",
+      "tradingVolume": 1429088878,
+      "dividendPerSecurity": null,
+      "marketPrice": 6676.736,
+      "nav": 6610.6297
+    },
+    {
+      "date": "2026-07-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6681.5847,
+      "nav": 6615.4304
+    },
+    {
+      "date": "2026-07-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6681.5847,
+      "nav": 6615.4304
+    },
+    {
+      "date": "2026-07-06",
+      "tradingVolume": 417234531,
+      "dividendPerSecurity": null,
+      "marketPrice": 6681.5847,
+      "nav": 6615.4304
+    },
+    {
+      "date": "2026-07-07",
+      "tradingVolume": 7999715,
+      "dividendPerSecurity": null,
+      "marketPrice": 6647.393,
+      "nav": 6581.5772
+    },
+    {
+      "date": "2026-07-08",
+      "tradingVolume": 7968704,
+      "dividendPerSecurity": null,
+      "marketPrice": 6647.1237,
+      "nav": 6581.3106
+    },
+    {
+      "date": "2026-07-09",
+      "tradingVolume": 79594513,
+      "dividendPerSecurity": null,
+      "marketPrice": 6639.3196,
+      "nav": 6573.5838
+    },
+    {
+      "date": "2026-07-10",
+      "tradingVolume": 108037068,
+      "dividendPerSecurity": null,
+      "marketPrice": 6634.5215,
+      "nav": 6568.8332
+    },
+    {
+      "date": "2026-07-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6640.1434,
+      "nav": 6574.3994
+    },
+    {
+      "date": "2026-07-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6640.1434,
+      "nav": 6574.3994
+    },
+    {
+      "date": "2026-07-13",
+      "tradingVolume": 106132052,
+      "dividendPerSecurity": null,
+      "marketPrice": 6640.1434,
+      "nav": 6574.3994
+    },
+    {
+      "date": "2026-07-14",
+      "tradingVolume": 116047798,
+      "dividendPerSecurity": null,
+      "marketPrice": 6637.1808,
+      "nav": 6571.4661
+    },
+    {
+      "date": "2026-07-15",
+      "tradingVolume": 78914624,
+      "dividendPerSecurity": null,
+      "marketPrice": 6663.1365,
+      "nav": 6597.1649
+    },
+    {
+      "date": "2026-07-16",
+      "tradingVolume": 32623070,
+      "dividendPerSecurity": null,
+      "marketPrice": 6693.298,
+      "nav": 6627.0277
+    },
+    {
+      "date": "2026-07-17",
+      "tradingVolume": 27335260,
+      "dividendPerSecurity": null,
+      "marketPrice": 6673.7444,
+      "nav": 6607.6677
+    },
+    {
+      "date": "2026-07-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6654.8556,
+      "nav": 6588.9659
+    },
+    {
+      "date": "2026-07-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6654.8556,
+      "nav": 6588.9659
+    },
+    {
+      "date": "2026-07-20",
+      "tradingVolume": 23277558,
+      "dividendPerSecurity": null,
+      "marketPrice": 6654.8556,
+      "nav": 6588.9659
+    },
+    {
+      "date": "2026-07-21",
+      "tradingVolume": 89176826,
+      "dividendPerSecurity": null,
+      "marketPrice": 6662.1249,
+      "nav": 6596.1633
+    },
+    {
+      "date": "2026-07-22",
+      "tradingVolume": 67897177,
+      "dividendPerSecurity": null,
+      "marketPrice": 6667.241,
+      "nav": 6601.2287
+    },
+    {
+      "date": "2026-07-23",
+      "tradingVolume": 8664978,
+      "dividendPerSecurity": null,
+      "marketPrice": 6674.0768,
+      "nav": 6607.9968
+    },
+    {
+      "date": "2026-07-24",
+      "tradingVolume": 9335357,
+      "dividendPerSecurity": null,
+      "marketPrice": 6677.0828,
+      "nav": 6610.9731
+    },
+    {
+      "date": "2026-07-25",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6682.8491,
+      "nav": 6616.6823
+    },
+    {
+      "date": "2026-07-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6682.8491,
+      "nav": 6616.6823
+    },
+    {
+      "date": "2026-07-27",
+      "tradingVolume": 112156986,
+      "dividendPerSecurity": null,
+      "marketPrice": 6682.8491,
+      "nav": 6616.6823
+    },
+    {
+      "date": "2026-07-28",
+      "tradingVolume": 409908746,
+      "dividendPerSecurity": null,
+      "marketPrice": 6682.5012,
+      "nav": 6616.3378
+    },
+    {
+      "date": "2026-07-29",
+      "tradingVolume": 41426789,
+      "dividendPerSecurity": null,
+      "marketPrice": 6689.4892,
+      "nav": 6623.2566
+    },
+    {
+      "date": "2026-07-30",
+      "tradingVolume": 30114999,
+      "dividendPerSecurity": null,
+      "marketPrice": 6699.7681,
+      "nav": 6633.4338
+    },
+    {
+      "date": "2026-07-31",
+      "tradingVolume": 20738114,
+      "dividendPerSecurity": null,
+      "marketPrice": 6692.6932,
+      "nav": 6626.4289
+    },
+    {
+      "date": "2026-08-01",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6669.8496,
+      "nav": 6603.8115
+    },
+    {
+      "date": "2026-08-02",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6665.3718,
+      "nav": 6599.378
+    },
+    {
+      "date": "2026-08-03",
+      "tradingVolume": 24640186,
+      "dividendPerSecurity": null,
+      "marketPrice": 6665.3718,
+      "nav": 6599.378
+    },
+    {
+      "date": "2026-08-04",
+      "tradingVolume": 36586645,
+      "dividendPerSecurity": null,
+      "marketPrice": 6658.7101,
+      "nav": 6592.7823
+    },
+    {
+      "date": "2026-08-05",
+      "tradingVolume": 73969018,
+      "dividendPerSecurity": null,
+      "marketPrice": 6680.4843,
+      "nav": 6614.3409
+    },
+    {
+      "date": "2026-08-06",
+      "tradingVolume": 123447219,
+      "dividendPerSecurity": null,
+      "marketPrice": 6674.7798,
+      "nav": 6608.6929
+    },
+    {
+      "date": "2026-08-07",
+      "tradingVolume": 22646012,
+      "dividendPerSecurity": null,
+      "marketPrice": 6666.0613,
+      "nav": 6600.0607
+    },
+    {
+      "date": "2026-08-08",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6676.8087,
+      "nav": 6610.7017
+    },
+    {
+      "date": "2026-08-09",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6676.8087,
+      "nav": 6610.7017
+    },
+    {
+      "date": "2026-08-10",
+      "tradingVolume": 174091097,
+      "dividendPerSecurity": null,
+      "marketPrice": 6676.8087,
+      "nav": 6610.7017
+    },
+    {
+      "date": "2026-08-11",
+      "tradingVolume": 210103783,
+      "dividendPerSecurity": null,
+      "marketPrice": 6676.1178,
+      "nav": 6610.0176
+    },
+    {
+      "date": "2026-08-12",
+      "tradingVolume": 94186145,
+      "dividendPerSecurity": null,
+      "marketPrice": 6686.7917,
+      "nav": 6620.5858
+    },
+    {
+      "date": "2026-08-13",
+      "tradingVolume": 575570270,
+      "dividendPerSecurity": null,
+      "marketPrice": 6692.0082,
+      "nav": 6625.7507
+    },
+    {
+      "date": "2026-08-14",
+      "tradingVolume": 138702674,
+      "dividendPerSecurity": null,
+      "marketPrice": 6669.4841,
+      "nav": 6603.4496
+    },
+    {
+      "date": "2026-08-15",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6667.4012,
+      "nav": 6601.3873
+    },
+    {
+      "date": "2026-08-16",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6667.4012,
+      "nav": 6601.3873
+    },
+    {
+      "date": "2026-08-17",
+      "tradingVolume": 127222943,
+      "dividendPerSecurity": null,
+      "marketPrice": 6667.4012,
+      "nav": 6601.3873
+    },
+    {
+      "date": "2026-08-18",
+      "tradingVolume": 96588882,
+      "dividendPerSecurity": null,
+      "marketPrice": 6668.4736,
+      "nav": 6602.4491
+    },
+    {
+      "date": "2026-08-19",
+      "tradingVolume": 41966693,
+      "dividendPerSecurity": null,
+      "marketPrice": 6666.653,
+      "nav": 6600.6465
+    },
+    {
+      "date": "2026-08-20",
+      "tradingVolume": 37360404,
+      "dividendPerSecurity": null,
+      "marketPrice": 6678.7611,
+      "nav": 6612.6348
+    },
+    {
+      "date": "2026-08-21",
+      "tradingVolume": 75980426,
+      "dividendPerSecurity": null,
+      "marketPrice": 6667.6594,
+      "nav": 6601.643
+    },
+    {
+      "date": "2026-08-22",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6654.8999,
+      "nav": 6589.0098
+    },
+    {
+      "date": "2026-08-23",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6654.8999,
+      "nav": 6589.0098
+    },
+    {
+      "date": "2026-08-24",
+      "tradingVolume": 80448387,
+      "dividendPerSecurity": null,
+      "marketPrice": 6654.8999,
+      "nav": 6589.0098
+    },
+    {
+      "date": "2026-08-25",
+      "tradingVolume": 129705281,
+      "dividendPerSecurity": null,
+      "marketPrice": 6664.9446,
+      "nav": 6598.955
+    },
+    {
+      "date": "2026-08-26",
+      "tradingVolume": 47976834,
+      "dividendPerSecurity": null,
+      "marketPrice": 6672.0184,
+      "nav": 6605.9588
+    },
+    {
+      "date": "2026-08-27",
+      "tradingVolume": 27311068,
+      "dividendPerSecurity": null,
+      "marketPrice": 6666.825,
+      "nav": 6600.8168
+    },
+    {
+      "date": "2026-08-28",
+      "tradingVolume": 11963083,
+      "dividendPerSecurity": null,
+      "marketPrice": 6651.9163,
+      "nav": 6586.0557
+    },
+    {
+      "date": "2026-08-29",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6647.857,
+      "nav": 6582.0366
+    },
+    {
+      "date": "2026-08-30",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6647.857,
+      "nav": 6582.0366
+    },
+    {
+      "date": "2026-08-31",
+      "tradingVolume": 213863239,
+      "dividendPerSecurity": null,
+      "marketPrice": 6647.857,
+      "nav": 6582.0366
+    },
+    {
+      "date": "2026-09-01",
+      "tradingVolume": 99432395,
+      "dividendPerSecurity": null,
+      "marketPrice": 6599.5212,
+      "nav": 6583.0635
+    },
+    {
+      "date": "2026-09-02",
+      "tradingVolume": 132247914,
+      "dividendPerSecurity": null,
+      "marketPrice": 6595.7291,
+      "nav": 6579.2809
+    },
+    {
+      "date": "2026-09-03",
+      "tradingVolume": 69000176,
+      "dividendPerSecurity": null,
+      "marketPrice": 6585.4194,
+      "nav": 6568.9969
+    },
+    {
+      "date": "2026-09-04",
+      "tradingVolume": 46060346,
+      "dividendPerSecurity": null,
+      "marketPrice": 6608.2312,
+      "nav": 6591.7518
+    },
+    {
+      "date": "2026-09-05",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6625.7103,
+      "nav": 6609.1873
+    },
+    {
+      "date": "2026-09-06",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6625.7103,
+      "nav": 6609.1873
+    },
+    {
+      "date": "2026-09-07",
+      "tradingVolume": 76659598,
+      "dividendPerSecurity": null,
+      "marketPrice": 6625.7103,
+      "nav": 6609.1873
+    },
+    {
+      "date": "2026-09-08",
+      "tradingVolume": 98467096,
+      "dividendPerSecurity": null,
+      "marketPrice": 6601.1655,
+      "nav": 6584.7037
+    },
+    {
+      "date": "2026-09-09",
+      "tradingVolume": 57193105,
+      "dividendPerSecurity": null,
+      "marketPrice": 6586.9154,
+      "nav": 6570.4892
+    },
+    {
+      "date": "2026-09-10",
+      "tradingVolume": 83450471,
+      "dividendPerSecurity": null,
+      "marketPrice": 6587.508,
+      "nav": 6571.0803
+    },
+    {
+      "date": "2026-09-11",
+      "tradingVolume": 86358062,
+      "dividendPerSecurity": null,
+      "marketPrice": 6613.6971,
+      "nav": 6597.2041
+    },
+    {
+      "date": "2026-09-12",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6599.8322,
+      "nav": 6583.3738
+    },
+    {
+      "date": "2026-09-13",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6599.8322,
+      "nav": 6583.3738
+    },
+    {
+      "date": "2026-09-14",
+      "tradingVolume": 108632581,
+      "dividendPerSecurity": null,
+      "marketPrice": 6599.8322,
+      "nav": 6583.3738
+    },
+    {
+      "date": "2026-09-15",
+      "tradingVolume": 96108617,
+      "dividendPerSecurity": null,
+      "marketPrice": 6599.1953,
+      "nav": 6582.7385
+    },
+    {
+      "date": "2026-09-16",
+      "tradingVolume": 32925022,
+      "dividendPerSecurity": null,
+      "marketPrice": 6609.5199,
+      "nav": 6593.0373
+    },
+    {
+      "date": "2026-09-17",
+      "tradingVolume": 43533594,
+      "dividendPerSecurity": null,
+      "marketPrice": 6612.6306,
+      "nav": 6596.1402
+    },
+    {
+      "date": "2026-09-18",
+      "tradingVolume": 107462563,
+      "dividendPerSecurity": null,
+      "marketPrice": 6607.1646,
+      "nav": 6590.6879
+    },
+    {
+      "date": "2026-09-19",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6616.4523,
+      "nav": 6599.9524
+    },
+    {
+      "date": "2026-09-20",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6616.4523,
+      "nav": 6599.9524
+    },
+    {
+      "date": "2026-09-21",
+      "tradingVolume": 28377013,
+      "dividendPerSecurity": null,
+      "marketPrice": 6616.4523,
+      "nav": 6599.9524
+    },
+    {
+      "date": "2026-09-22",
+      "tradingVolume": 29043440,
+      "dividendPerSecurity": null,
+      "marketPrice": 6617.8595,
+      "nav": 6601.3561
+    },
+    {
+      "date": "2026-09-23",
+      "tradingVolume": 33685820,
+      "dividendPerSecurity": null,
+      "marketPrice": 6622.7181,
+      "nav": 6606.2026
+    },
+    {
+      "date": "2026-09-24",
+      "tradingVolume": 228977177,
+      "dividendPerSecurity": null,
+      "marketPrice": 6634.4499,
+      "nav": 6617.9051
+    },
+    {
+      "date": "2026-09-25",
+      "tradingVolume": 13252552,
+      "dividendPerSecurity": null,
+      "marketPrice": 6644.9374,
+      "nav": 6628.3665
+    },
+    {
+      "date": "2026-09-26",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6662.0907,
+      "nav": 6645.477
+    },
+    {
+      "date": "2026-09-27",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6662.0907,
+      "nav": 6645.477
+    },
+    {
+      "date": "2026-09-28",
+      "tradingVolume": 124890483,
+      "dividendPerSecurity": null,
+      "marketPrice": 6662.0907,
+      "nav": 6645.477
+    },
+    {
+      "date": "2026-09-29",
+      "tradingVolume": 11946395,
+      "dividendPerSecurity": null,
+      "marketPrice": 6642.7128,
+      "nav": 6626.1474
+    },
+    {
+      "date": "2026-09-30",
+      "tradingVolume": 123836852,
+      "dividendPerSecurity": null,
+      "marketPrice": 6637.8613,
+      "nav": 6621.308
+    },
+    {
+      "date": "2026-10-01",
+      "tradingVolume": 1102648228,
+      "dividendPerSecurity": null,
+      "marketPrice": 6655.9284,
+      "nav": 6639.3301
+    },
+    {
+      "date": "2026-10-02",
+      "tradingVolume": 775351986,
+      "dividendPerSecurity": null,
+      "marketPrice": 6628.8976,
+      "nav": 6612.3667
+    },
+    {
+      "date": "2026-10-03",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6632.9101,
+      "nav": 6616.3692
+    },
+    {
+      "date": "2026-10-04",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6632.9101,
+      "nav": 6616.3692
+    },
+    {
+      "date": "2026-10-05",
+      "tradingVolume": 1273482908,
+      "dividendPerSecurity": null,
+      "marketPrice": 6632.9101,
+      "nav": 6616.3692
+    },
+    {
+      "date": "2026-10-06",
+      "tradingVolume": 566433487,
+      "dividendPerSecurity": null,
+      "marketPrice": 6671.999,
+      "nav": 6655.3606
+    },
+    {
+      "date": "2026-10-07",
+      "tradingVolume": 348496744,
+      "dividendPerSecurity": null,
+      "marketPrice": 6681.8798,
+      "nav": 6665.2168
+    },
+    {
+      "date": "2026-10-08",
+      "tradingVolume": 352235895,
+      "dividendPerSecurity": null,
+      "marketPrice": 6665.0755,
+      "nav": 6648.4544
+    },
+    {
+      "date": "2026-10-09",
+      "tradingVolume": 274836102,
+      "dividendPerSecurity": null,
+      "marketPrice": 6652.7291,
+      "nav": 6636.1388
+    },
+    {
+      "date": "2026-10-10",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6650.6854,
+      "nav": 6634.1001
+    },
+    {
+      "date": "2026-10-11",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6650.6854,
+      "nav": 6634.1001
+    },
+    {
+      "date": "2026-10-12",
+      "tradingVolume": 903606087,
+      "dividendPerSecurity": null,
+      "marketPrice": 6650.6854,
+      "nav": 6634.1001
+    },
+    {
+      "date": "2026-10-13",
+      "tradingVolume": 350553869,
+      "dividendPerSecurity": null,
+      "marketPrice": 6655.0003,
+      "nav": 6638.4043
+    },
+    {
+      "date": "2026-10-14",
+      "tradingVolume": 413238067,
+      "dividendPerSecurity": null,
+      "marketPrice": 6664.5297,
+      "nav": 6647.9099
+    },
+    {
+      "date": "2026-10-15",
+      "tradingVolume": 503160190,
+      "dividendPerSecurity": null,
+      "marketPrice": 6682.4037,
+      "nav": 6665.7394
+    },
+    {
+      "date": "2026-10-16",
+      "tradingVolume": 354873980,
+      "dividendPerSecurity": null,
+      "marketPrice": 6667.244,
+      "nav": 6650.6175
+    },
+    {
+      "date": "2026-10-17",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6653.1301,
+      "nav": 6636.5388
+    },
+    {
+      "date": "2026-10-18",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6653.1301,
+      "nav": 6636.5388
+    },
+    {
+      "date": "2026-10-19",
+      "tradingVolume": 484287678,
+      "dividendPerSecurity": null,
+      "marketPrice": 6653.1301,
+      "nav": 6636.5388
+    },
+    {
+      "date": "2026-10-20",
+      "tradingVolume": 209990798,
+      "dividendPerSecurity": null,
+      "marketPrice": 6648.4009,
+      "nav": 6631.8213
+    },
+    {
+      "date": "2026-10-21",
+      "tradingVolume": null,
+      "dividendPerSecurity": null,
+      "marketPrice": 6668.5177,
+      "nav": 6651.888
+    }
+  ]
+}

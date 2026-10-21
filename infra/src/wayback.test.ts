@@ -8,9 +8,9 @@ import {
   WAYBACK_PARSER_VERSION,
   WAYBACK_SNAPSHOTS,
   waybackPlan,
-  type ArchivedRow,
   type DecodedSnapshot,
 } from './wayback';
+import type { ArchivedRow } from './derived-sell';
 
 const REIT: InzhurQuote = {
   kind: 'fund',

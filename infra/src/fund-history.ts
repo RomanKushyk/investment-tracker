@@ -35,7 +35,7 @@ export interface FundHistoryRow {
   price: number;
 }
 
-const field = (value: unknown, key: string): unknown =>
+export const field = (value: unknown, key: string): unknown =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined;
 
 /** Every file URL the category lists, down Strapi 4's nesting. An entry with no file is skipped;

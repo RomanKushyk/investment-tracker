@@ -34,6 +34,7 @@ import {
   DERIVED_SELL_PARSER_VERSION,
   DERIVED_SELL_RUNS,
   derivedSellPlan,
+  type ArchivedRow,
   type ArchiveSell,
 } from './derived-sell';
 import { BASIS_NAV, inzhurObservationRows } from './observation-rows';
@@ -46,9 +47,17 @@ import {
   WAYBACK_PARSER_VERSION,
   WAYBACK_SNAPSHOTS,
   waybackPlan,
-  type ArchivedRow,
   type DecodedSnapshot,
 } from './wayback';
+import {
+  CHART_ASSETS,
+  CHART_BASES,
+  CHART_PARSER_VERSION,
+  chartPlan,
+  chartUrl,
+  parseChart,
+  type ChartPoint,
+} from './chart-history';
 import { tallyQuotes, type QuoteTally } from './quotes';
 import { forgetRobots, REFUSED, RobotsRefusal, robotsFetch } from './robots';
 import { parseNbuFairValue } from '@quirenote/core/nbu/fair-value';
@@ -1065,6 +1074,85 @@ async function importWaybackQuotes(client: Client) {
   };
 }
 
+/** Manual, and network-bound like `importWaybackQuotes`. Each open fund's chart is the provider's
+ *  own history, copied for the days the archive lacks (*The price archive*): every chart is read
+ *  and checked before anything is written, and every row goes in one transaction or none does. */
+async function importChartHistory(client: Client) {
+  const now = new Date();
+  const observedAt = now.toISOString();
+  const charts: { ref: string; points: ChartPoint[] }[] = [];
+  for (const [ref, id] of Object.entries(CHART_ASSETS)) {
+    const got = await fetchFeed(chartUrl(id));
+    // A 200 and nothing else: another 2xx is not the chart.
+    if (!got.ok || got.httpStatus !== 200 || got.body === undefined) {
+      throw new Error(`chart refused:\n${ref}: ${got.error ?? `HTTP ${got.httpStatus}`}`);
+    }
+    charts.push({ ref, points: parseChart(got.body, ref, id) });
+  }
+
+  // The charts' own days, so the read covers exactly the keys the plan writes or checks.
+  const days = [...new Set(charts.flatMap((c) => c.points.map((p) => p.date)))];
+  const existing = await client.query<ArchivedRow>(
+    `SELECT to_char(as_of, 'YYYY-MM-DD') AS "asOf", instrument_ref AS ref, basis,
+            price::text AS price, parser_version AS "parserVersion"
+       FROM price_observation
+      WHERE source = $1 AND instrument_ref = ANY($2::text[]) AND basis = ANY($3::text[])
+        AND as_of = ANY($4::date[])`,
+    [SOURCE.inzhur, charts.map((c) => c.ref), CHART_BASES, days],
+  );
+  // A captured day's rows come from its payload, so the chart may not write one there first. The
+  // observer also reads past the errors `READ_PAST_LIKE` names, so those days are captured too.
+  const captured = await client.query<{ day: string }>(
+    `SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS day FROM price_capture
+      WHERE source = $1 AND (ok = true OR error LIKE ANY ($3::text[])) AND as_of = ANY($2::date[])`,
+    [SOURCE.inzhur, days, READ_PAST_LIKE],
+  );
+  const { rows, instruments, report } = chartPlan(
+    charts,
+    existing.rows,
+    inzhurAsOf(now),
+    new Set(captured.rows.map((r) => r.day)),
+  );
+
+  await client.query('BEGIN');
+  try {
+    for (const row of rows) {
+      const ins = await client.query(
+        `INSERT INTO price_observation
+           (as_of, instrument_ref, basis, source, price, observed_at, parser_version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (as_of, instrument_ref, basis, source) DO NOTHING`,
+        [row.asOf, row.ref, row.basis, SOURCE.inzhur, row.price, observedAt, CHART_PARSER_VERSION],
+      );
+      // The plan read this key as free, so a conflict is a row written since, never compared.
+      if ((ins.rowCount ?? 0) === 0) {
+        throw new Error(
+          `chart refused:\n${row.asOf} ${row.ref} ${row.basis}: written since the plan read the archive`,
+        );
+      }
+    }
+    // The chart's first priced day is where the fund was listed; it widens `listed_from` only.
+    for (const i of instruments) {
+      await upsertInstrument(client, i.ref, {
+        kind: 'fund',
+        maturity: null,
+        first: i.first,
+        last: null,
+      });
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  }
+  return {
+    mode: 'importChartHistory' as const,
+    observedAt,
+    parserVersion: CHART_PARSER_VERSION,
+    refs: report,
+  };
+}
+
 /** A week, so a missed night repairs itself rather than leaving a permanent hole. */
 const OBSERVE_WINDOW_DAYS = 7;
 
@@ -1238,6 +1326,8 @@ export interface HandlerEvent {
   importDerivedSell?: ImportDerivedSellRequest;
   /** Manual, and network-bound. */
   importWaybackQuotes?: Record<string, never>;
+  /** Manual, and network-bound. */
+  importChartHistory?: Record<string, never>;
 }
 
 export async function handler(event: HandlerEvent = {}) {
@@ -1257,6 +1347,8 @@ export async function handler(event: HandlerEvent = {}) {
     }
 
     if (event.importWaybackQuotes !== undefined) return await importWaybackQuotes(client);
+
+    if (event.importChartHistory !== undefined) return await importChartHistory(client);
 
     if (event.observe !== undefined) {
       // NBU STAYS THE DEFAULT: `{observe:{}}` has always meant "derive the NBU archive", and

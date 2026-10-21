@@ -1,7 +1,7 @@
 // `sell` for days before the first capture, divided out of the owner's tracker: an imputation,
 // never a measurement (*The price archive*). Pure; the DB half is in `capture.ts`.
 import { addDays } from '@quirenote/core/dates';
-import { caption, excelSerialToIso } from './fund-history';
+import { caption, excelSerialToIso, FUND_HISTORY_PARSER_VERSION } from './fund-history';
 import type { XlsxCell, XlsxSheet, XlsxWorkbook } from './xlsx';
 
 /** Stored per row, so a reader tells this import apart from `1`, `2` and `fund-history-1`. A
@@ -179,6 +179,30 @@ export function scaled(text: string): number | undefined {
   const fraction = (match?.[2] ?? '').replace(/0+$/, '');
   if (!match || fraction.length > 4) return undefined;
   return Number(match[1]) * SCALE + Number(fraction.padEnd(4, '0'));
+}
+
+/** An archive row on a key an import also quotes, its price as the numeric prints it. */
+export interface ArchivedRow {
+  asOf: string;
+  ref: string;
+  basis: string;
+  price: string;
+  parserVersion: string;
+}
+
+/** A derived row is a kopeck value over its divisor, rounded again: it agrees within half a kopeck
+ *  over the divisor plus half a ten-thousandth. Any other row agrees to the stored digit. */
+export function agrees(existing: ArchivedRow, price: number): boolean {
+  const held = scaled(existing.price);
+  const served = scaled(String(price));
+  if (held === undefined || served === undefined) return false;
+  const delta = Math.abs(held - served);
+  if (existing.parserVersion === FUND_HISTORY_PARSER_VERSION) return delta === 0;
+  if (isDerivedSell(existing.parserVersion)) {
+    const divisor = divisorOn(existing.ref, existing.asOf);
+    if (divisor !== undefined) return 2 * delta * divisor <= 100 + divisor;
+  }
+  return delta === 0;
 }
 
 const fixed = (units: number, decimals: number) => {

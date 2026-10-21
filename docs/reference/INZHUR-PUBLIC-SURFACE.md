@@ -118,13 +118,36 @@ The asset feed the capture read, `GET /_api/assets`, answers `302 Found` with
 follow it ([`DECISIONS.md`](../DECISIONS.md), *External sources*).
 The capture reads `/offer/ovdp` in its place. The API host the pages name, `api.inzhur.reit`,
 publishes no `robots.txt`, but none of the conventional OpenAPI or versioned paths under its `/core`
-answers; its `/cms` is read only for the document lists above.
+answers; its `/cms` is read only for the document lists above, and its `/core` only for the app's
+chart below.
+
+## The app's chart
+
+The provider's Android app (`app.inzhur`, Flutter) draws each open fund's price chart from one
+request under `/core`, read from the strings of its compiled code (`/graph`, `AssetPriceChartBloc`,
+`kAssetGraphPeriodFromQueryMap`); the web cabinet has no chart and never sends it:
+
+```
+GET https://api.inzhur.reit/core/api/v1/assets/<id>/graph?period=all
+```
+
+It answers without authentication. `period` is one of `1month`, `3month`, `6month`, `1year` or
+`all`; any other value is a `400` that lists them. The body is `{assetId, period, priceChange,
+dataPoints}`, each point `{date, marketPrice, nav, dividendPerSecurity, tradingVolume}`, one per
+calendar day with no date missing and a price `null` where the fund was not priced, which the import
+also reads a `0` as. `marketPrice` is
+the dealer's `buy` and `nav` the NAV; **there is no `sell`**. `<id>` is the fund's core id, the one
+the offer page keys it with (`FUND_SLUGS`): `13` is `inzhur-energy`, `21` `inzhur-reit`. Bonds and
+closed funds answer `404`. The last point is dated the day of the request, with `tradingVolume`
+null: the day still being struck. `importChartHistory` (`infra/src/capture.ts`, the plan in
+`infra/src/chart-history.ts`) copies the two funds' `buy` and `nav` onto the keys the archive lacks
+and leaves the run's own day to the capture.
 
 ## Before the first capture: the Wayback Machine's copies
 
-Nothing the provider still serves prices a day between its last price file and this archive's first
-capture. The Wayback Machine holds copies of the offer pages from inside that span, listed by its
-CDX index ([wayback-cdx-server](https://github.com/internetarchive/wayback/blob/master/wayback-cdx-server/README.md)):
+The chart carries no `sell`, so a dealer's `sell` from before the first capture is held nowhere the
+provider still serves. The Wayback Machine holds copies of the offer pages from inside the span
+between the last price file and this archive's first capture, listed by its CDX index ([wayback-cdx-server](https://github.com/internetarchive/wayback/blob/master/wayback-cdx-server/README.md)):
 
 ```
 GET https://web.archive.org/cdx/search/cdx?url=www.inzhur.reit/offer/&matchType=prefix&filter=statuscode:200

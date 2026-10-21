@@ -796,9 +796,15 @@ DROP/CREATE of a live archive. `as_of` is per source, the observer writes every 
 file is not archived but its rows are, and the provider's FX rate is stored nowhere at all. Where an
 imported history stops short of a source's first capture in this archive, the days between are a
 SEAM: prices that existed and that the archive does not hold. It closes on a day where the
-provider's own publication is found, a copy of its page included, and nowhere else, the provider
-having moved that history into its app. Elsewhere the seam is ABSENT in the archive: no other
-source, basis or derivation stands in for its NAV. A reader meets it as a real gap — between
+provider's own publication is found, a copy of its page included, and nowhere else. The provider
+moved that history into its app, whose chart (`infra/src/chart-history.ts`) prices each open fund's
+`buy` and `nav` on every calendar day: a one-off import copies a chart point onto each key the
+archive lacks, under its own `parser_version`, a copied observation and not an imputation. It never
+displaces a held row, which must agree with it to the digit unless the run's committed exclusions
+name that key; a listed key that agrees, or that holds nothing on a day the capture never read,
+refuses, and the run's own day is
+left to that night's capture. Like the file, it widens `listed_from` only. Elsewhere the seam is
+ABSENT in the archive: no other source, basis or derivation stands in for its NAV. A reader meets it as a real gap — between
 `listed_from` and `last_seen_on` the fund existed, so a day there with no row is unobserved, never
 delisted — and `diagnose` counts a seam's days and lists the latest of them by date. A day before
 the first capture can be OBSERVED from a snapshot of the provider's offer page the Wayback Machine
@@ -829,7 +835,9 @@ the units it divides by, so it is tied to a holding a measured quote confirms, a
 Beancount, deriving a price from a transaction, divide by that transaction's own units; where no
 quote reaches a holding, the run's own parameters say so, so a reader can tell the two. A repeat
 is refused where `ON CONFLICT DO NOTHING` would keep one of two different values unseen; an equal
-repeat hides nothing.
+repeat hides nothing. A chart point is the provider's present telling of a past day where a capture
+is what it served then, so where the two differ the held row stays and the difference is named, as
+a statistical archive keeps each release beside its revision.
 **Rejected.** Alarming on a price that did not move: maintenance, a weekend and a holiday all trip
 it, so every capture check is structural and none reads a price. · Archiving the price file beside
 its rows: the rows are the premise, the packaging is not. · Filling the seam's NAV from the owner's
@@ -842,7 +850,8 @@ archive lacks.
 ## External sources
 **Decision.** The list is closed: the provider's asset feed, which the app fetches only on the
 user's click, its bond offer page, which the capture reads, its price files and the CMS document
-list that names them, and the National Bank — daily fair-value files and the official rate. The
+list that names them, its app's fund charts, and the National Bank — daily fair-value files and
+the official rate. The
 offer page carries the dealer quote: the catalogue in the page's serialized state, decoded with
 `devalue`, the site's own serializer, and the bonds' schedules in one island's props, the state
 carrying them empty. The page names a fund by its core id alone, so a fund is keyed through the
@@ -851,7 +860,10 @@ are listed in the provider's CMS, `api.inzhur.reit/cms`, one document category p
 fund's offer page requests to render its documents. The import sends the page's own request for a
 category id it holds fixed, so an id the CMS no longer answers throws rather than yielding a guessed
 link; each upload's URL carries a random suffix, so the link is re-read from that list on every run
-and no file URL is polled. SMIDA's open-data API is alive and is never fetched by our code,
+and no file URL is polled. The chart is the one request the provider's own app sends for a fund's
+price history, `api.inzhur.reit/core/api/v1/assets/<id>/graph`, read from the app's compiled code;
+the import asks it once for the two open funds, by the ids the offer page keys them with, and
+refuses an answer for any other asset. SMIDA's open-data API is alive and is never fetched by our code,
 categorically; `stockmarket.gov.ua` is dead. Every request the capture makes to a source, each
 redirect hop included, is first checked against its host's `robots.txt` — a file RFC 9309 always
 allows, read per that RFC under the product token `quirenote-price-capture`. A disallowed hop fails
@@ -891,7 +903,10 @@ and not to use an external link icon.
 · Checking the first URL only: a redirect would then carry a fetch past the rules unseen. · Any
 other path on the provider's API host: it publishes no robots.txt, but none of the conventional
 OpenAPI or versioned paths answers, and guessing at an undocumented API is not a source anyone
-published — the document list is read because the provider's own page sends that request. · A
+published — the document list and the chart are read because the provider's own page, and its own
+app, send those requests. · The chart as a nightly source, or the archive rebuilt from it: it
+carries no `sell`, the one basis `/view` reads, prices two instruments where the page prices every
+listed bond and fund, and restates past days the capture observed. · A
 hand-written decoder for the page's state: the site's serializer reads it exactly. · The rate in
 the archive: a user stack cannot write it, and the archive keeps the provider's conversion out on
 purpose. · A rate fetched live per request and cached in memory: the next concurrent request runs
