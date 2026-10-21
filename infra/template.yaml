@@ -202,6 +202,9 @@ Resources:
       Target:
         Arn: !GetAtt CaptureFunction.Arn
         RoleArn: !GetAtt SchedulerRole.Arn
+        # What tells a firing from a hand invocation: with no input Scheduler sends `{}`, which a
+        # hand capture sends too. The handler writes the two lines the health alarms read on it.
+        Input: '{"scheduled":true}'
         # The OTHER retry: the firings above cover a provider being down, this a delivery
         # failing. Cut hard because Scheduler's default would land it tomorrow, on a wrong as_of.
         RetryPolicy:
@@ -241,13 +244,37 @@ Resources:
   # changes to EventBridge for every alarm regardless, so an alarm with no action still alerts.
   # Where `notBreaching` guards a value the capture publishes, absence means the capture
   # stopped — which SilenceAlarm already says, and the second alarm for one fault gets muted.
+  #
+  # THE SCHEDULED RUN'S OWN LINES, NOT THE FUNCTION'S METRICS: every manual mode invokes this
+  # function, so `Invocations` counted a diagnosis read as the capture having run, and `Errors` a
+  # failed import as a failed capture. A timeout writes no failed line: one that fails every
+  # attempt Lambda makes lands in the DLQ, which DlqAlarm watches.
+  ScheduledRunMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "scheduledRun" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: ScheduledRuns
+          MetricValue: $.value
+
+  ScheduledRunFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "scheduledRunFailed" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: ScheduledRunFailures
+          MetricValue: $.value
+
   ErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: The capture function threw.
-      Namespace: AWS/Lambda
-      MetricName: Errors
-      Dimensions: [{ Name: FunctionName, Value: !Ref CaptureFunction }]
+      AlarmDescription: The scheduled capture failed.
+      Namespace: Quirenote
+      MetricName: ScheduledRunFailures
       Statistic: Sum
       Period: 86400
       EvaluationPeriods: 1
@@ -261,10 +288,9 @@ Resources:
   SilenceAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: The capture function did not run in 24h.
-      Namespace: AWS/Lambda
-      MetricName: Invocations
-      Dimensions: [{ Name: FunctionName, Value: !Ref CaptureFunction }]
+      AlarmDescription: The scheduled capture did not run in 24h.
+      Namespace: Quirenote
+      MetricName: ScheduledRuns
       Statistic: Sum
       Period: 86400
       EvaluationPeriods: 1

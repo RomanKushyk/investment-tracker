@@ -1328,9 +1328,24 @@ export interface HandlerEvent {
   importWaybackQuotes?: Record<string, never>;
   /** Manual, and network-bound. */
   importChartHistory?: Record<string, never>;
+  /** Set by the schedule's own input alone: a hand `{}` runs the same capture. */
+  scheduled?: boolean;
 }
 
+/** The scheduled run's two lines, read by `SilenceAlarm` and `ErrorAlarm` through metric filters:
+ *  the function's own `Invocations` and `Errors` count every manual mode too. [*Alerting*] */
 export async function handler(event: HandlerEvent = {}) {
+  if (event.scheduled !== true) return await run(event);
+  console.log(JSON.stringify({ metric: 'scheduledRun', value: 1 }));
+  try {
+    return await run(event);
+  } catch (err) {
+    console.log(JSON.stringify({ metric: 'scheduledRunFailed', value: 1 }));
+    throw err;
+  }
+}
+
+async function run(event: HandlerEvent) {
   forgetRobots();
   const client = await connect();
   try {

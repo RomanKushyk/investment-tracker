@@ -57,9 +57,10 @@ Manager $0.40/mo. The budget watching for them uses **absolute** thresholds, bec
 baseline a percentage alert fires on noise.
 
 **A missed cron day is permanently unrecoverable** — the provider publishes no price history — so
-monitoring must detect *silence*: an alarm on `Invocations < 1` over 24 h with
+monitoring must detect *silence*: an alarm on fewer than one scheduled run over 24 h with
 **`treatMissingData: BREACHING`**, the default parking a dead job in INSUFFICIENT_DATA where it
-never alerts.
+never alerts. The run is counted from a line the scheduled path logs, not from `Invocations`, which
+every manual mode adds to.
 
 ## Rejected
 

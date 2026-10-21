@@ -1582,6 +1582,57 @@ describe('the capture pipeline exists exactly once across both templates', () =>
   });
 });
 
+// THE SCHEDULED RUN'S OWN SIGNAL, not the function's: `Invocations` and `Errors` count every manual
+// mode as well, so a diagnosis read kept a stopped schedule quiet. [*Alerting*]
+describe('the capture’s two health alarms read the scheduled run alone', () => {
+  const properties = (id: string) => archive.Resources[id].Properties as Record<string, unknown>;
+
+  it('marks the schedule’s event, which no hand invocation carries', () => {
+    const input = intrinsicAt(
+      archiveDoc,
+      'Resources',
+      'CaptureSchedule',
+      'Properties',
+      'Target',
+      'Input',
+    );
+    expect(input.tag).toBeUndefined();
+    expect(JSON.parse(String(input.value))).toEqual({ scheduled: true });
+  });
+
+  it.each([
+    ['ScheduledRunMetricFilter', 'scheduledRun', 'ScheduledRuns'],
+    ['ScheduledRunFailedMetricFilter', 'scheduledRunFailed', 'ScheduledRunFailures'],
+  ])('%s counts the %s line on the capture’s log group', (id, line, metric) => {
+    expect(archive.Resources[id]?.Type).toBe('AWS::Logs::MetricFilter');
+    expect(intrinsicAt(archiveDoc, 'Resources', id, 'Properties', 'LogGroupName')).toEqual({
+      tag: '!Ref',
+      value: 'CaptureLogGroup',
+    });
+    expect(properties(id).FilterPattern).toBe(`{ $.metric = "${line}" }`);
+    expect(properties(id).MetricTransformations).toEqual([
+      { MetricNamespace: 'Quirenote', MetricName: metric, MetricValue: '$.value' },
+    ]);
+  });
+
+  it.each([
+    ['SilenceAlarm', 'ScheduledRuns', 'LessThanThreshold', 'breaching'],
+    ['ErrorAlarm', 'ScheduledRunFailures', 'GreaterThanOrEqualToThreshold', 'notBreaching'],
+  ])('%s reads %s, on the period, threshold and missing data it had', (id, metric, op, missing) => {
+    expect(properties(id)).toEqual({
+      AlarmDescription: expect.stringContaining('scheduled capture'),
+      Namespace: 'Quirenote',
+      MetricName: metric,
+      Statistic: 'Sum',
+      Period: 86400,
+      EvaluationPeriods: 1,
+      Threshold: 1,
+      ComparisonOperator: op,
+      TreatMissingData: missing,
+    });
+  });
+});
+
 // A ROLE'S OWN POLICIES ARE READ BESIDE EACH GRANT. These read what else reaches a role in the
 // source: a policy resource, the keys SAM builds a function's role from, and who may assume one.
 describe('what reaches a role besides its own policies', () => {

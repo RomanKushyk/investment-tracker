@@ -929,7 +929,13 @@ Notifications → the Console Mobile App, and an alarm with no action still aler
 measures itself: the capture emits its channel count on every run, healthy or not, readable with no
 delivery at all. Backup freshness, the free tier on monthly actives and the age of the official
 rate served take the same shape, each watched by the stack that owns it. A count that could not be read THROWS rather than publishing
-zero, which on a `GreaterThan` alarm is the healthy side. The set overshoots the always-free tier
+zero, which on a `GreaterThan` alarm is the healthy side. THE CAPTURE'S OWN SILENCE AND ERROR
+ALARMS COUNT ITS SCHEDULED RUN ALONE: the schedule's input marks the event, the handler logs a line
+that it ran and, when it throws, one that it failed, and a metric filter reads each. The function's
+`Invocations` and `Errors` count every manual mode as well, so a diagnosis read passed for the day's
+capture and a failed import for a failed one. A timeout or crash the handler cannot catch logs no
+failure: one that fails every attempt Lambda makes lands in the dead-letter queue, which `DlqAlarm`
+watches, and one a retry recovers is seen by nothing. The set overshoots the always-free tier
 knowingly; THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE PER WATCHED VALUE — a check's silence and
 its errors, then one alarm for each published number a threshold can be right for — and `DlqAlarm`
 sits outside that rule, its depth published by SQS rather than by any check here. A REQUEST PATH IS
@@ -949,7 +955,10 @@ within seconds of confirmation, invisibly — do not add the topic back. · AWS 
 `NumberOfRecoveryPointsCompleted` in place of a per-cluster check: it is dimensioned by VAULT, so
 one cluster's nightly job keeps the number up while another has silently left the selection. · The
 rate job as the wake, a wake on a FAILED backup event, or a backup started outside the plan: a
-dedicated wake keeps the backup off another job's schedule and inside the plan's own.
+dedicated wake keeps the backup off another job's schedule and inside the plan's own. · Scheduler's
+`InvocationAttemptCount` for the capture's silence: it watches the trigger, not the run. · A second
+function for the manual modes: it would move the diagnosis route's invoke grant, the boundaries and
+`CaptureFunctionName`.
 
 ## Cloud target
 **Decision.** Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the migration the
