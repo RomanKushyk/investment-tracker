@@ -53,12 +53,13 @@ const DATASET_CATCH_UP = '013_dataset_catch_up.sql';
 const MUTATION_KEY = '014_mutation_key.sql';
 const IMPORT_STAGING = '015_import_staging.sql';
 const APP_USER_SETTINGS = '016_app_user_settings.sql';
+const ARCHIVE_OPERATION = '017_archive_operation.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset, its backfill, its keys, its catch-up, the mutation keys, the import’s staging and the account’s settings column, in that order, and nothing else', () => {
+  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset, its backfill, its keys, its catch-up, the mutation keys, the import’s staging, the account’s settings column and the archive’s operations, in that order, and nothing else', () => {
     expect(MIGRATIONS).toEqual([
       USER_SCHEMA,
       DEMO_ROW,
@@ -73,6 +74,7 @@ describe('the file list', () => {
       MUTATION_KEY,
       IMPORT_STAGING,
       APP_USER_SETTINGS,
+      ARCHIVE_OPERATION,
     ]);
   });
 });
@@ -126,6 +128,10 @@ describe('statementsOf', () => {
 
   it('splits the account’s settings into their one column', () => {
     expect(statementsOf(read(APP_USER_SETTINGS))).toHaveLength(1);
+  });
+
+  it('splits the archive’s operations into their one table', () => {
+    expect(statementsOf(read(ARCHIVE_OPERATION))).toHaveLength(1);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -670,6 +676,7 @@ describe('migrate', () => {
         { file: MUTATION_KEY, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: IMPORT_STAGING, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
         { file: APP_USER_SETTINGS, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: ARCHIVE_OPERATION, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
       ],
     });
   });
@@ -690,6 +697,7 @@ describe('migrate', () => {
     await applyFile(db, MUTATION_KEY, statementsOf(read(MUTATION_KEY)));
     await applyFile(db, IMPORT_STAGING, statementsOf(read(IMPORT_STAGING)));
     await applyFile(db, APP_USER_SETTINGS, statementsOf(read(APP_USER_SETTINGS)));
+    await applyFile(db, ARCHIVE_OPERATION, statementsOf(read(ARCHIVE_OPERATION)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -708,6 +716,7 @@ describe('migrate', () => {
         { file: MUTATION_KEY, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: IMPORT_STAGING, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
         { file: APP_USER_SETTINGS, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: ARCHIVE_OPERATION, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -794,6 +803,7 @@ describe('migrate', () => {
         { file: MUTATION_KEY, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: IMPORT_STAGING, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: APP_USER_SETTINGS, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: ARCHIVE_OPERATION, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -889,7 +899,7 @@ describe('the invocation budget', () => {
       undefined,
       left(TEARDOWN_RESERVE_MS + 1),
     );
-    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1, 1]);
 
     // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
     const below = await freshDb();
@@ -905,8 +915,8 @@ describe('the invocation budget', () => {
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
-    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1]);
-    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.

@@ -45,6 +45,7 @@ export const MIGRATIONS = [
   '014_mutation_key.sql',
   '015_import_staging.sql',
   '016_app_user_settings.sql',
+  '017_archive_operation.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */

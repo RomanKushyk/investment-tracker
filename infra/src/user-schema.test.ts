@@ -118,7 +118,7 @@ describe('the draft applies as Postgres', () => {
     expect(applied).toBeGreaterThan(0);
   });
 
-  it('creates exactly the ten tables the spec, the official rate, the dataset, the mutation keys and the import staging name', async () => {
+  it('creates exactly the eleven tables the spec, the official rate, the dataset, the mutation keys, the import staging and the archive’s operations name', async () => {
     const { rows } = await db.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' ORDER BY table_name`,
@@ -126,6 +126,7 @@ describe('the draft applies as Postgres', () => {
     expect(rows.map((r) => r.table_name)).toEqual([
       'account',
       'app_user',
+      'archive_operation',
       'asset',
       'dataset',
       'import_manifest',
@@ -161,10 +162,12 @@ describe('the draft applies as Postgres', () => {
         ORDER BY c.table_name`,
     );
     const leading = Object.fromEntries(rows.map((r) => [r.table_name, r.column_name]));
-    // `official_rate` is the one table no user owns: NBU's rate is every viewer's, keyed by its day.
+    // Two tables no user owns: NBU's rate is every viewer's, keyed by its day, and an archive
+    // operation is the archive's, keyed by a random id as `price_capture` is.
     expect(leading).toEqual({
       account: 'user_id',
       app_user: 'user_id',
+      archive_operation: 'id',
       asset: 'dataset_id',
       dataset: 'user_id',
       import_manifest: 'dataset_id',
@@ -931,6 +934,84 @@ describe('app_user.settings', () => {
     expect(await settingsOf(id)).toBe(text);
     await accepts(`UPDATE app_user SET settings = NULL WHERE user_id = ${id};`);
     expect(await settingsOf(id)).toBeNull();
+  });
+});
+
+describe('archive_operation', () => {
+  const FINISHED = `now() + interval '5 seconds'`;
+  /** A run still going; `over` replaces a column's SQL value. */
+  const operation = (over: Record<string, string> = {}) => {
+    const row: Record<string, string> = {
+      id: nextId(),
+      started_by: USER,
+      started_at: 'now()',
+      deadline_at: `now() + interval '21 minutes'`,
+      mode: `'observe'`,
+      parameters: `'{"source":"nbu_fv","from":"2026-01-01","to":"2026-01-31"}'`,
+      state: `'running'`,
+      finished_at: 'NULL',
+      result: 'NULL',
+      error_reason: 'NULL',
+      error_message: 'NULL',
+      ...over,
+    };
+    return `INSERT INTO archive_operation (${Object.keys(row).join(', ')})
+            VALUES (${Object.values(row).join(', ')});`;
+  };
+  const succeeded = { state: `'succeeded'`, finished_at: FINISHED, result: `'{"written":0}'` };
+  const failed = { state: `'failed'`, finished_at: FINISHED, error_reason: `'capture_failed'` };
+
+  it('accepts a running run, a succeeded one with its result, and a failed one with or without a message', async () => {
+    await accepts(operation());
+    await accepts(
+      operation({ mode: `'importFundHistory'`, parameters: `'{"refs":["inzhur-reit"]}'` }),
+    );
+    await accepts(operation(succeeded));
+    await accepts(operation({ ...failed, error_message: `'unknown fund ref: x'` }));
+    await accepts(operation(failed));
+    await accepts(operation({ ...failed, error_reason: `'start_failed'` }));
+  });
+
+  // Both order rules are inclusive: a start that fails in the insert's own transaction finishes at
+  // its start, and a finish stamped at the deadline is not past it.
+  it('accepts a finish at the start and a finish at the deadline', async () => {
+    await accepts(operation({ ...failed, error_reason: `'start_failed'`, finished_at: 'now()' }));
+    await accepts(operation({ ...succeeded, finished_at: `now() + interval '21 minutes'` }));
+  });
+
+  it.each(['id', 'started_by', 'started_at', 'deadline_at', 'mode', 'parameters', 'state'])(
+    'refuses a NULL %s, which DSQL could never require later',
+    async (column) => {
+      await refuses(operation({ [column]: 'NULL' }));
+    },
+  );
+
+  it.each([
+    ['a mode the API does not start', { mode: `'backfill'` }],
+    // Finished, so the finish rule passes and only the state rule can refuse it.
+    [
+      'a state outside running | succeeded | failed',
+      { state: `'timed_out'`, finished_at: FINISHED },
+    ],
+    [
+      'a stored deadline reason, which a read derives',
+      { ...failed, error_reason: `'deadline_exceeded'` },
+    ],
+    ['a deadline not after the start', { deadline_at: 'now()' }],
+    ['a finish before the start', { ...succeeded, finished_at: `now() - interval '1 second'` }],
+    // A read has answered it `deadline_exceeded` by then, and a finished run stays as it read.
+    ['a finish past the deadline', { ...succeeded, finished_at: `now() + interval '22 minutes'` }],
+    ['a running run with a reason', { error_reason: `'start_failed'` }],
+    ['a running run with a finish', { finished_at: FINISHED }],
+    ['a finished run with no finish', { ...succeeded, finished_at: 'NULL' }],
+    ['a running run with a result', { result: `'{}'` }],
+    ['a succeeded run with no result', { ...succeeded, result: 'NULL' }],
+    ['a failed run with a result', { ...failed, result: `'{}'` }],
+    ['a failed run with no reason', { ...failed, error_reason: 'NULL' }],
+    ['a succeeded run with a reason', { ...succeeded, error_reason: `'capture_failed'` }],
+    ['a message with no reason', { ...succeeded, error_message: `'x'` }],
+  ])('refuses %s', async (_, over) => {
+    await refuses(operation(over));
   });
 });
 
