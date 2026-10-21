@@ -20,6 +20,9 @@ import type { SqlClient } from './migrate';
 // Re-exported so the deploy's bundle smoke test can reach them.
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
+// Re-exported for the tests that name it here.
+export { SOURCE } from './capture-source';
+import { SOURCE } from './capture-source';
 import { parseAssetsFeed, type ParsedFeed } from '@quirenote/core/inzhur/parse';
 import { parseOfferPage } from '@quirenote/core/inzhur/offer-page';
 import { bondTermsRow } from './bond-terms';
@@ -76,14 +79,6 @@ function parseInzhurPayload(body: string, parserVersion: string): ParsedFeed {
   if (parserVersion === PARSER_VERSION) return parseAssetsFeed(JSON.parse(body));
   throw new Error(`unknown inzhur parser_version: ${parserVersion}`);
 }
-
-/** `inzhur` is the provider's own DEALER QUOTE; `nbu_fv` is the National Bank's MODEL valuation.
- *  They are NOT substitutes and are never merged, so storing them without distinguishing the
- *  source would silently present one as the other. */
-export const SOURCE = {
-  inzhur: 'inzhur',
-  nbuFairValue: 'nbu_fv',
-} as const;
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;

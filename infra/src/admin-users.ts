@@ -17,8 +17,8 @@ import type { SqlClient } from './migrate';
 export const LIST_ROUTE = 'GET /admin/users';
 
 const STATUSES = ['pending', 'active', 'rejected'] as const;
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
+export const DEFAULT_LIMIT = 50;
+export const MAX_LIMIT = 100;
 
 /** Five fields, named: `decided_by` is an audit note, and the rest of the row is the account's. */
 const LISTED = derived({
@@ -106,13 +106,13 @@ type Row = {
 
 /** The shape `LIST` writes. Year 0000 is refused here: the calendar check below takes it and the
  *  cluster does not. */
-const STAMPED = /^(?!0000)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+export const STAMPED = /^(?!0000)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
 /** One spelling per page size — digits, no sign, no leading zero — so one page has one URL. */
-const LIMIT = /^[1-9][0-9]*$/;
+export const LIMIT = /^[1-9][0-9]*$/;
 
 /** A real instant: a Date rolls `02-30` into March and `24:00` into the next day, so it is compared
  *  back to what was sent, to the millisecond it can hold. */
-const instant = (stamp: string): boolean => {
+export const instant = (stamp: string): boolean => {
   const date = new Date(`${stamp.slice(0, 23)}Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString() === `${stamp.slice(0, 23)}Z`;
 };

@@ -22,6 +22,14 @@ import {
 } from './admin-users';
 import { DIAGNOSIS_ROUTE, RESPONSES as ARCHIVE_RESPONSES } from './archive-admin';
 import {
+  OPERATIONS_ROUTE,
+  OPERATION_ROUTE,
+  PARAMETERS as OPERATION_PARAMETERS,
+  RESPONSES as OPERATION_RESPONSES,
+  START_BODY as OPERATION_START_BODY,
+  START_ROUTE as OPERATION_START_ROUTE,
+} from './archive-operations';
+import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
   ROUTE as APPLY_ROUTE,
@@ -246,6 +254,7 @@ describe('the document is regenerated, never typed', () => {
       './applications',
       './approve',
       './archive-admin',
+      './archive-operations',
       './auth-relay',
       './http',
       './imports',
@@ -327,6 +336,7 @@ const DECLARED = {
   ...ADMIN_RESPONSES,
   ...LIST_RESPONSES,
   ...ARCHIVE_RESPONSES,
+  ...OPERATION_RESPONSES,
   ...RELAY_RESPONSES,
   ...VIEW_RESPONSES,
   ...MUTATIONS_RESPONSES,
@@ -397,6 +407,7 @@ describe('each operation publishes its own route’s answers', () => {
       .filter((o) => o.body !== undefined);
     expect(withBody.map((o) => [o.route, o.body])).toEqual([
       [APPLY_ROUTE, REQUEST_BODY],
+      [OPERATION_START_ROUTE, OPERATION_START_BODY],
       [START_ROUTE, START_BODY],
       [RESPOND_ROUTE, RESPOND_BODY],
       [GOOGLE_COMPLETE_ROUTE, GOOGLE_COMPLETE_BODY],
@@ -483,7 +494,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-five routes and no others', () => {
+  it('declares the twenty-eight routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -491,6 +502,9 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         APPROVE_ROUTE,
         REJECT_ROUTE,
         DIAGNOSIS_ROUTE,
+        OPERATION_START_ROUTE,
+        OPERATIONS_ROUTE,
+        OPERATION_ROUTE,
         ...RELAY,
         VIEW_ROUTE,
         SERIES_ROUTE,
@@ -529,6 +543,9 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       APPROVE_ROUTE,
       REJECT_ROUTE,
       DIAGNOSIS_ROUTE,
+      OPERATION_START_ROUTE,
+      OPERATIONS_ROUTE,
+      OPERATION_ROUTE,
       VIEW_ROUTE,
       SERIES_ROUTE,
       BALANCES_ROUTE,
@@ -744,6 +761,21 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     const params = spec.paths[path].post.parameters ?? [];
     expect(params).toEqual([
       { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    ]);
+    const [, operation] = OPERATION_ROUTE.split(' ');
+    expect(spec.paths[operation].get.parameters).toEqual([
+      { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    ]);
+  });
+
+  // The operations list pages as the users list does, newest first; neither is required.
+  it('publishes the operations list’s page size and cursor, none required', () => {
+    const [method, path] = OPERATIONS_ROUTE.split(' ');
+    const params = spec.paths[path][method.toLowerCase()].parameters;
+    expect(params).toEqual(OPERATION_PARAMETERS[OPERATIONS_ROUTE]);
+    expect(params?.map((p) => [p.name, p.in, p.required])).toEqual([
+      ['limit', 'query', false],
+      ['cursor', 'query', false],
     ]);
   });
 });

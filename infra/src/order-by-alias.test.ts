@@ -171,10 +171,11 @@ describe('no output alias shadows a sorted column', () => {
     // EXACT, not a floor: a floor cannot catch the scanner going blind, because
     // the count then goes DOWN. Update it deliberately, in the commit that adds
     // or removes a query. The file set is named rather than counted alone.
-    expect(queries.length).toBe(76);
+    expect(queries.length).toBe(77);
     expect(new Set(queries.map((q) => q.file))).toEqual(
       new Set([
         'admin-users.ts',
+        'archive-operations.ts',
         'archive-reader-grant.ts',
         'capture.ts',
         'diagnose-reconciliation.ts',

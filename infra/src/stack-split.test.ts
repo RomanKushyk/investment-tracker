@@ -7,6 +7,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { isScalar, parseDocument, visit, type Document, type Node } from 'yaml';
 import { REPO } from '../../src/repo-root';
+import { DEADLINE_SECONDS, RUN_TIMEOUT_SECONDS } from './archive-operations';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { NBU_RATE_SET_BY } from './dates';
 import { CLAIM_WINDOW_SECONDS } from './mutations';
@@ -627,7 +628,7 @@ describe('the user stacks reach the archive through a read-only role the archive
     for (const [id, r] of resources(user)) {
       const p = (r.Properties ?? {}) as Record<string, unknown>;
       const lists: [(string | number)[], { Action?: unknown }[]][] =
-        r.Type === 'AWS::Serverless::Function'
+        r.Type === 'AWS::Serverless::Function' || r.Type === 'AWS::Serverless::StateMachine'
           ? ((p.Policies ?? []) as { Statement?: { Action?: unknown }[] }[]).map((x, i) => {
               if (!Array.isArray(x.Statement))
                 throw new Error(`${id}: a policy that is not a statement list`);
@@ -675,6 +676,8 @@ describe('the user stacks reach the archive through a read-only role the archive
       'ApplicationsFunction',
       'ApproveFunction',
       'ArchiveAdminFunction',
+      'ArchiveOperationsFunction',
+      'ArchiveRecorderFunction',
       'BackupWakeFunction',
       'MigrateFunction',
       'MutationsFunction',
@@ -754,6 +757,7 @@ describe('the user stack holds user data and nothing else', () => {
       'AWS::Scheduler::Schedule',
       'AWS::Logs::MetricFilter',
       'AWS::CloudWatch::Alarm',
+      'AWS::Serverless::StateMachine',
     ]);
     for (const [id, r] of resources(user)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
   });
@@ -762,11 +766,13 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the archive read, the relay, the view, the write, two watches, the wake and the rate job', () => {
+  it('holds the runner, the trigger, the application, the approval, the archive read, its operations and their recorder, the relay, the view, the write, two watches, the wake and the rate job', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
       'archive-admin.handler',
+      'archive-operations.handler',
+      'archive-recorder.handler',
       'auth-relay.handler',
       'backup-freshness.handler',
       'backup-wake.handler',
@@ -1510,6 +1516,222 @@ describe('the user stack serves the derived read', () => {
   });
 });
 
+// THE RUNNER IS PRODUCTION'S ALONE (*Cloud target*): dev keeps the routes, and its start refuses.
+describe('the user stack runs the archive operations in production alone', () => {
+  const MACHINE = 'ArchiveOperationsStateMachine';
+  const RECORDER = 'ArchiveRecorderFunction';
+  const START = 'ArchiveOperationsStartPolicy';
+  const PROD_ONLY = [MACHINE, RECORDER, 'ArchiveRecorderLogGroup', START];
+  const CAPTURE_ARN =
+    'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptureFunctionName}';
+  const machine = user.Resources[MACHINE];
+  const props = (machine?.Properties ?? {}) as Record<string, unknown>;
+  type State = Record<string, unknown>;
+  const definition = (props.Definition ?? {}) as {
+    QueryLanguage?: string;
+    TimeoutSeconds?: number;
+    StartAt?: string;
+    States?: Record<string, State>;
+  };
+  const states = definition.States ?? {};
+  const SERVICE_ERRORS = [
+    'Lambda.ClientExecutionTimeoutException',
+    'Lambda.ServiceException',
+    'Lambda.AWSLambdaException',
+    'Lambda.SdkClientException',
+    'Lambda.TooManyRequestsException',
+  ];
+  const RETRY = [
+    {
+      ErrorEquals: SERVICE_ERRORS,
+      IntervalSeconds: 2,
+      MaxAttempts: 6,
+      BackoffRate: 2,
+      JitterStrategy: 'FULL',
+    },
+  ];
+
+  it('deploys the state machine, the recorder and the start grant in production, and none in dev', () => {
+    for (const id of PROD_ONLY) expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+    const ids = (env: Env) => resourcesIn(env).map(({ id }) => id);
+    for (const id of PROD_ONLY) {
+      expect([id, ids('prod').includes(id)]).toEqual([id, true]);
+      expect([id, ids('dev').includes(id)]).toEqual([id, false]);
+    }
+  });
+
+  it('is a Standard workflow under the stack’s own name and boundary, built from keys this test reads', () => {
+    expect(machine?.Type).toBe('AWS::Serverless::StateMachine');
+    expect(Object.keys(props).sort()).toEqual(
+      [
+        'Definition',
+        'DefinitionSubstitutions',
+        'Name',
+        'PermissionsBoundary',
+        'Policies',
+        'Type',
+      ].sort(),
+    );
+    expect(props.Type).toBe('STANDARD');
+    const name = intrinsicAt(userDoc, 'Resources', MACHINE, 'Properties', 'Name');
+    expect(name).toEqual({
+      tag: '!Sub',
+      value: 'quirenote-backend-user-${Environment}-archive-operations',
+    });
+    // Under production's names, which the boundary's start and the execution role scope it by.
+    expect(String(name.value).replace('${Environment}', 'prod')).toMatch(
+      /^quirenote-backend-user-p/,
+    );
+    expect(intrinsicAt(userDoc, 'Resources', MACHINE, 'Properties', 'PermissionsBoundary')).toEqual(
+      { tag: '!Sub', value: BOUNDARY.user },
+    );
+  });
+
+  it('may invoke the capture and the recorder, and nothing else', () => {
+    const statements = ['Resources', MACHINE, 'Properties', 'Policies', 0, 'Statement'];
+    expect(props.Policies).toHaveLength(1);
+    expect((props.Policies as { Statement: unknown[] }[])[0].Statement).toHaveLength(1);
+    expect((props.Policies as { Statement: Record<string, unknown>[] }[])[0].Statement[0]).toEqual({
+      Sid: 'InvokeTheCaptureAndTheRecorder',
+      Effect: 'Allow',
+      Action: 'lambda:InvokeFunction',
+      Resource: [CAPTURE_ARN, 'ArchiveRecorderFunction.Arn'],
+    });
+    expect(intrinsicAt(userDoc, ...statements, 0, 'Resource', 0)).toEqual({
+      tag: '!Sub',
+      value: CAPTURE_ARN,
+    });
+    expect(intrinsicAt(userDoc, ...statements, 0, 'Resource', 1)).toEqual({
+      tag: '!GetAtt',
+      value: 'ArchiveRecorderFunction.Arn',
+    });
+    const subs = ['Resources', MACHINE, 'Properties', 'DefinitionSubstitutions'];
+    expect(Object.keys(props.DefinitionSubstitutions ?? {}).sort()).toEqual([
+      'CaptureFunctionArn',
+      'RecorderFunctionArn',
+    ]);
+    expect(intrinsicAt(userDoc, ...subs, 'CaptureFunctionArn')).toEqual({
+      tag: '!Sub',
+      value: CAPTURE_ARN,
+    });
+    expect(intrinsicAt(userDoc, ...subs, 'RecorderFunctionArn')).toEqual({
+      tag: '!GetAtt',
+      value: 'ArchiveRecorderFunction.Arn',
+    });
+  });
+
+  // The read's deadline sits past the run's own; the recorder stamps no finish past it.
+  it('times the whole run out before the deadline a read applies', () => {
+    expect(definition.QueryLanguage).toBe('JSONata');
+    expect(definition.TimeoutSeconds).toBe(RUN_TIMEOUT_SECONDS);
+    expect(DEADLINE_SECONDS).toBeGreaterThan(RUN_TIMEOUT_SECONDS);
+    expect(definition.StartAt).toBe('Capture');
+    expect(Object.keys(states).sort()).toEqual(['Capture', 'Record', 'RecordFailure']);
+  });
+
+  it('invokes the capture with the event it was started with, past the capture’s own timeout', () => {
+    const capture = states.Capture;
+    expect(capture).toEqual({
+      Type: 'Task',
+      Resource: 'arn:aws:states:::lambda:invoke',
+      Arguments: { FunctionName: '${CaptureFunctionArn}', Payload: '{% $states.input.event %}' },
+      TimeoutSeconds: 660,
+      Retry: RETRY,
+      Catch: [
+        {
+          ErrorEquals: ['States.ALL'],
+          Output: {
+            operationId: '{% $states.input.operationId %}',
+            error: '{% $states.errorOutput %}',
+          },
+          Next: 'RecordFailure',
+        },
+      ],
+      Output: {
+        operationId: '{% $states.input.operationId %}',
+        result: '{% $states.result.Payload %}',
+      },
+      Next: 'Record',
+    });
+    const captureTimeout = (archive.Globals?.Function as { Timeout?: number } | undefined)?.Timeout;
+    expect(capture.TimeoutSeconds).toBeGreaterThan(captureTimeout ?? Infinity);
+  });
+
+  // `States.TaskFailed` matches no timeout, so only `States.ALL` takes every capture error to the
+  // recorder; and a capture's own error is recorded, never retried. The recorder's are retried:
+  // it finishes only a run still going, so a second attempt changes nothing the first wrote.
+  it('retries a Lambda service error on every task, and a function error on the recorder’s alone', () => {
+    const named = (name: string) =>
+      (states[name].Retry as { ErrorEquals: string[] }[])
+        .flatMap((r) => r.ErrorEquals)
+        .filter((e) => e.startsWith('States.'));
+    expect(named('Capture')).toEqual([]);
+    for (const name of ['Record', 'RecordFailure'])
+      expect([name, named(name)]).toEqual([name, ['States.TaskFailed']]);
+  });
+
+  it('hands the recorder what the capture ended with, past the recorder’s own timeout', () => {
+    for (const name of ['Record', 'RecordFailure'])
+      expect([name, states[name]]).toEqual([
+        name,
+        {
+          Type: 'Task',
+          Resource: 'arn:aws:states:::lambda:invoke',
+          Arguments: { FunctionName: '${RecorderFunctionArn}', Payload: '{% $states.input %}' },
+          TimeoutSeconds: 60,
+          Retry: [
+            ...RETRY,
+            {
+              ErrorEquals: ['States.TaskFailed'],
+              IntervalSeconds: 2,
+              MaxAttempts: 3,
+              BackoffRate: 2,
+              JitterStrategy: 'FULL',
+            },
+          ],
+          End: true,
+        },
+      ]);
+    const recorderTimeout = (user.Resources[RECORDER]?.Properties as { Timeout?: number }).Timeout;
+    expect(recorderTimeout).toBeLessThan(60);
+  });
+
+  it('lets the recorder connect to this stack’s cluster and hold no other grant, and serve no route', () => {
+    const p = (user.Resources[RECORDER]?.Properties ?? {}) as Record<string, unknown>;
+    expect(p.Handler).toBe('archive-recorder.handler');
+    expect(p).not.toHaveProperty('Events');
+    const policies = p.Policies as { Statement: unknown[] }[];
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(1);
+    expect(
+      grantAt(
+        userDoc,
+        ['Resources', RECORDER, 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
+    expect(intrinsicAt(userDoc, ...envVars(RECORDER), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+  });
+
+  it('grants the operations role the start of this state machine and nothing else', () => {
+    const p = (user.Resources[START]?.Properties ?? {}) as Record<string, unknown>;
+    expect(p.Roles).toHaveLength(1);
+    expect(intrinsicAt(userDoc, 'Resources', START, 'Properties', 'Roles', 0)).toEqual({
+      tag: '!Ref',
+      value: 'ArchiveOperationsFunctionRole',
+    });
+    const statements = ['Resources', START, 'Properties', 'PolicyDocument', 'Statement'];
+    expect((p.PolicyDocument as { Statement: unknown[] }).Statement).toHaveLength(1);
+    expect(grantAt(userDoc, statements, 'states:StartExecution')).toEqual({
+      tag: '!GetAtt',
+      value: `${MACHINE}.Arn`,
+    });
+  });
+});
+
 describe('the capture pipeline exists exactly once across both templates', () => {
   const both = [archive, user];
 
@@ -1638,7 +1860,7 @@ describe('the capture’s two health alarms read the scheduled run alone', () =>
 describe('what reaches a role besides its own policies', () => {
   // AN INVENTORY, NOT A SEARCH FOR A ROLE'S NAME, which `!Ref`, `!Sub` and a join each spell. The
   // trigger's stands apart for the cycle its template gives; a connector generates a policy too.
-  it('attaches a standalone policy to the trigger role and to no other', () => {
+  it('attaches a standalone policy to the trigger role and the operations role, and to no other', () => {
     const attaching = [
       'AWS::IAM::Policy',
       'AWS::IAM::ManagedPolicy',
@@ -1646,7 +1868,10 @@ describe('what reaches a role besides its own policies', () => {
       'AWS::Serverless::Connector',
     ];
     expect(attaching.flatMap((type) => idsOfType(archive, type))).toEqual([]);
-    expect(attaching.flatMap((type) => idsOfType(user, type))).toEqual(['PreSignUpPolicy']);
+    expect(attaching.flatMap((type) => idsOfType(user, type))).toEqual([
+      'PreSignUpPolicy',
+      'ArchiveOperationsStartPolicy',
+    ]);
     // The embedded form, a resource attribute SAM turns into a connector resource.
     for (const [id, r] of [...resources(archive), ...resources(user)])
       expect([id, 'Connectors' in r]).toEqual([id, false]);
@@ -1696,6 +1921,8 @@ describe('what reaches a role besides its own policies', () => {
       'ApplicationsFunction',
       'ApproveFunction',
       'ArchiveAdminFunction',
+      'ArchiveOperationsFunction',
+      'ArchiveRecorderFunction',
       'AuthRelayFunction',
       'ViewFunction',
       'MutationsFunction',
@@ -1786,7 +2013,10 @@ describe('what reaches a role besides its own policies', () => {
               : ['Globals', 'Function', 'PermissionsBoundary'];
           return [id, intrinsicAt(doc, ...at)] as const;
         }),
-        ...idsOfType(t, 'AWS::IAM::Role').map(
+        ...[
+          ...idsOfType(t, 'AWS::IAM::Role'),
+          ...idsOfType(t, 'AWS::Serverless::StateMachine'),
+        ].map(
           (id) =>
             [id, intrinsicAt(doc, 'Resources', id, 'Properties', 'PermissionsBoundary')] as const,
         ),
@@ -1891,6 +2121,16 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
             : []),
         ];
       }
+      // SAM builds its role from `Policies` alone, and attaches a managed policy only for tracing;
+      // logging would need log-delivery grants this test would then have to count.
+      if (r.Type === 'AWS::Serverless::StateMachine') {
+        if (p.Tracing !== undefined || p.Logging !== undefined)
+          throw new Error(`${where}: a state machine SAM would attach a managed policy to`);
+        return actionsOf(
+          where,
+          ((p.Policies ?? []) as { Statement: Statement[] }[]).flatMap((x) => x.Statement),
+        );
+      }
       if (r.Type === 'AWS::IAM::Role') {
         if (p.ManagedPolicyArns !== undefined) throw new Error(`${where}: a managed policy`);
         const policies = (p.Policies ?? []) as { PolicyDocument: { Statement: Statement[] } }[];
@@ -1945,7 +2185,7 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
       const p = (r.Properties ?? {}) as Record<string, unknown>;
       const at = ['Resources', id, 'Properties'];
       const lists: [(string | number)[], Statement[]][] =
-        r.Type === 'AWS::Serverless::Function'
+        r.Type === 'AWS::Serverless::Function' || r.Type === 'AWS::Serverless::StateMachine'
           ? ((p.Policies ?? []) as { Statement: Statement[] }[]).map((x, i) => [
               [...at, 'Policies', i, 'Statement'],
               x.Statement,
@@ -2092,6 +2332,7 @@ describe('each execution role grants only services the resource types it deploys
     'AWS::Logs::MetricFilter': ['logs'],
     'AWS::SQS::Queue': ['sqs'],
     'AWS::Scheduler::Schedule': ['iam', 'scheduler'],
+    'AWS::StepFunctions::StateMachine': ['iam', 'kms', 's3', 'states'],
   };
 
   // What the SAM transform turns its two types into here, read off `samtranslator`'s output.
@@ -2108,6 +2349,7 @@ describe('each execution role grants only services the resource types it deploys
       'AWS::ApiGatewayV2::DomainName',
       'AWS::ApiGatewayV2::ApiMapping',
     ],
+    'AWS::Serverless::StateMachine': ['AWS::StepFunctions::StateMachine', 'AWS::IAM::Role'],
   };
 
   // THE THREE STATEMENTS NO DECLARED TYPE ACCOUNTS FOR, each held to its one action and to a
@@ -2379,6 +2621,13 @@ describe('each execution role grants only services the resource types it deploys
     expect(sid('InvokeArchiveCapture')?.Resource).toBe(
       'arn:aws:lambda:eu-north-1:*:function:quirenote-backend-CaptureFunction-*',
     );
+    // A start names the state machine by a `!GetAtt`, which the coverage test steps past: the
+    // boundary is held here to production's names, and dev starts nothing.
+    expect(sid('StartArchiveOperations')?.Resource).toBe(
+      env === 'prod'
+        ? 'arn:aws:states:eu-north-1:*:stateMachine:quirenote-backend-user-p*'
+        : undefined,
+    );
   });
 
   // The role creates or changes no role that lacks ITS OWN environment's boundary.
@@ -2390,7 +2639,8 @@ describe('each execution role grants only services the resource types it deploys
   });
 
   // Written twice, so a statement they share is held to the same actions in both: the resources
-  // and the conditions are where the two differ, by design.
+  // and the conditions are where the two differ, by design. Production may carry a statement dev
+  // lacks only for a service no type dev deploys uses, which the test above refuses dev.
   it('grants the same actions in every statement the two files share', () => {
     const byId = (env: Env) =>
       new Map(policy(env).map((s) => [s.Sid, [s.Action].flat().map(String).sort()]));
@@ -2399,7 +2649,32 @@ describe('each execution role grants only services the resource types it deploys
     const shared = [...prod.keys()].filter((sid) => dev.has(sid));
     expect(shared.length).toBeGreaterThan(5);
     for (const sid of shared) expect([sid, dev.get(sid)]).toEqual([sid, prod.get(sid)]);
-    expect([...prod.keys()].filter((sid) => !dev.has(sid))).toEqual([]);
+    const devServices = used('dev');
+    const prodOnly = [...prod.keys()].filter((sid) => !dev.has(sid));
+    expect(prodOnly).toEqual(['StateMachine']);
+    for (const sid of prodOnly)
+      for (const action of prod.get(sid) ?? [])
+        expect([sid, action, devServices.has(action.split(':')[0])]).toEqual([sid, action, false]);
+  });
+
+  // Production's one state machine, by the name the template gives it and by no wider pattern.
+  it('lets production deploy its state machine, and dev none', () => {
+    const machine = (env: Env) => policy(env).find((s) => s.Sid === 'StateMachine');
+    expect(machine('dev')).toBeUndefined();
+    expect(machine('prod')).toEqual({
+      Sid: 'StateMachine',
+      Effect: 'Allow',
+      Action: [
+        'states:CreateStateMachine',
+        'states:DescribeStateMachine',
+        'states:UpdateStateMachine',
+        'states:DeleteStateMachine',
+        'states:TagResource',
+        'states:UntagResource',
+        'states:ListTagsForResource',
+      ],
+      Resource: 'arn:aws:states:eu-north-1:*:stateMachine:quirenote-backend-user-p*',
+    });
   });
 
   // The doc explains; the files are what IAM holds. A policy in the doc would be a third copy.

@@ -90,7 +90,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve archive-admin auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
+          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
             pnpm exec esbuild "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -109,7 +109,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -286,6 +286,41 @@ jobs:
               if (JSON.stringify(sent) !== JSON.stringify([{ FunctionName: 'quirenote-backend-CaptureFunction-EXAMPLE', Payload: '{\"diagnose\":true}' }])) throw new Error('archive-admin bundle sent another event: ' + JSON.stringify(sent));
               console.log('archive-admin bundle loads, sends the diagnose event alone, and invokes nothing for an ordinary caller');
             }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # A start is recorded and handed on only for the super-admin, and only where a state
+          # machine exists: elsewhere it is 405.
+          node -e "
+            const o = require('./archive-operations.js');
+            if (typeof o.handler !== 'function') throw new Error('handler missing from archive-operations bundle');
+            const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
+            const started = [];
+            const sfn = { start: async (input) => { started.push(input); } };
+            const client = (role) => ({ query: async () => ({ rows: [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }] }) });
+            const event = {
+              routeKey: 'POST /admin/archive/operations',
+              body: JSON.stringify({ mode: 'importFundHistory', refs: ['inzhur-reit'] }),
+              requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: ADMIN, email: 'owner@quirenote.com' } } } },
+            };
+            delete process.env.STATE_MACHINE_ARN;
+            o.operations(client('user'), sfn, event).then((refused) => {
+              if (refused.statusCode !== 403 || started.length) throw new Error('archive-operations bundle started a run for an ordinary user: ' + refused.statusCode);
+              return o.operations(client('super_admin'), sfn, event);
+            }).then((dev) => {
+              if (dev.statusCode !== 405 || dev.headers.allow !== 'GET' || started.length) throw new Error('archive-operations bundle started a run with no state machine: ' + dev.statusCode);
+              console.log('archive-operations bundle loads, and starts nothing for an ordinary caller or with no state machine');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The recorder refuses an outcome the state machine never sends before it reads anything.
+          node -e "
+            const r = require('./archive-recorder.js');
+            if (typeof r.handler !== 'function') throw new Error('handler missing from archive-recorder bundle');
+            r.record({ query: async () => { throw new Error('the recorder read before refusing'); } }, { result: {} }).then(
+              () => { throw new Error('archive-recorder bundle recorded an outcome with no operation'); },
+              (e) => {
+                if (!/never sends/.test(e.message)) throw e;
+                console.log('archive-recorder bundle loads, and refuses an outcome with no operation');
+              },
+            ).catch((e) => { console.error(e); process.exit(1); });
           "
           # The relay holds the client secret and a stranger reaches it: both refusals land before
           # the environment is read or Cognito is called.

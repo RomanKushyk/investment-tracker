@@ -444,6 +444,16 @@ Resources:
         'GET /admin/archive/diagnosis':
           ThrottlingRateLimit: 1
           ThrottlingBurstLimit: 1
+        # ONE START A SECOND, a rate and no more: nothing refuses a start while another runs.
+        'POST /admin/archive/operations':
+          ThrottlingRateLimit: 1
+          ThrottlingBurstLimit: 1
+        'GET /admin/archive/operations':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'GET /admin/archive/operations/{id}':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         # The relay's nine. A ceiling per route bounds its requests, not the concurrency they share.
         'POST /auth/start':
           ThrottlingRateLimit: 2
@@ -737,6 +747,232 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${ArchiveAdminFunction}
       RetentionInDays: 30
+
+  # The archive's operations for the super-admin: `observe` and `importFundHistory` started as
+  # 202 operations, recorded here and run by the state machine below. The routes serve in every
+  # environment, and a start answers 405 where no state machine exists. [*Cloud target*]
+  ArchiveOperationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: archive-operations.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      # UNDER THE HTTP API'S FIXED 30 s: a start records, then asks Step Functions to begin, and
+      # answers before the run does anything.
+      Timeout: 29
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          # The gate writes a row for somebody who got in while the door was open, as approve's does.
+          OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+          # Production's alone: dev starts nothing, and its start route says so.
+          STATE_MACHINE_ARN:
+            !If [IsProd, !GetAtt ArchiveOperationsStateMachine.Arn, !Ref AWS::NoValue]
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+      Events:
+        Start:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /admin/archive/operations
+            Auth:
+              Authorizer: CognitoJwt
+        List:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /admin/archive/operations
+            Auth:
+              Authorizer: CognitoJwt
+        Read:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /admin/archive/operations/{id}
+            Auth:
+              Authorizer: CognitoJwt
+
+  ArchiveOperationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ArchiveOperationsFunction}
+      RetentionInDays: 30
+
+  # THE START GRANT STANDS APART, under production's condition, so the function's own policies stay
+  # unconditional and hold the cluster alone, as the boundary tests read them.
+  ArchiveOperationsStartPolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsProd
+    Properties:
+      PolicyName: StartArchiveOperations
+      Roles: [!Ref ArchiveOperationsFunctionRole]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: states:StartExecution
+            Resource: !GetAtt ArchiveOperationsStateMachine.Arn
+
+  # Writes how a run ended, and is invoked by the state machine alone.
+  ArchiveRecorderFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsProd
+    Properties:
+      CodeUri: dist/
+      Handler: archive-recorder.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      # Under the state machine's 60 s on its task, so the function's own timeout reports first.
+      Timeout: 50
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+
+  ArchiveRecorderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ArchiveRecorderFunction}
+      RetentionInDays: 30
+
+  # A STANDARD WORKFLOW, PRODUCTION'S ALONE: it invokes the capture and then the recorder, and a
+  # capture error goes to the recorder too, so no Lambda waits on another. Every task has a
+  # timeout, and the whole run one the read's deadline sits past. [*Cloud target*]
+  ArchiveOperationsStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Condition: IsProd
+    Properties:
+      # Named under the stack's prefix, which the boundary and the execution role scope it by.
+      Name: !Sub quirenote-backend-user-${Environment}-archive-operations
+      Type: STANDARD
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      Policies:
+        - Statement:
+            - Sid: InvokeTheCaptureAndTheRecorder
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptureFunctionName}'
+                - !GetAtt ArchiveRecorderFunction.Arn
+      DefinitionSubstitutions:
+        CaptureFunctionArn: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptureFunctionName}'
+        RecorderFunctionArn: !GetAtt ArchiveRecorderFunction.Arn
+      Definition:
+        QueryLanguage: JSONata
+        # The read's deadline is this plus a minute, and the recorder finishes no run past it: a
+        # timeout here stops the run, not a recorder already invoked.
+        TimeoutSeconds: 1200
+        StartAt: Capture
+        States:
+          Capture:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Arguments:
+              FunctionName: ${CaptureFunctionArn}
+              Payload: '{% $states.input.event %}'
+            # Above the capture's own 600 s, so its timeout is the error that arrives.
+            TimeoutSeconds: 660
+            # AWS's retry for a Lambda SERVICE error, throttling included; a capture's own error is
+            # deterministic and is recorded, not retried.
+            Retry:
+              - ErrorEquals:
+                  - Lambda.ClientExecutionTimeoutException
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 2
+                MaxAttempts: 6
+                BackoffRate: 2
+                JitterStrategy: FULL
+            # `States.ALL`, as `States.TaskFailed` does not match a timeout.
+            Catch:
+              - ErrorEquals: [States.ALL]
+                Output:
+                  operationId: '{% $states.input.operationId %}'
+                  error: '{% $states.errorOutput %}'
+                Next: RecordFailure
+            Output:
+              operationId: '{% $states.input.operationId %}'
+              result: '{% $states.result.Payload %}'
+            Next: Record
+          Record:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Arguments:
+              FunctionName: ${RecorderFunctionArn}
+              Payload: '{% $states.input %}'
+            TimeoutSeconds: 60
+            Retry:
+              - ErrorEquals:
+                  - Lambda.ClientExecutionTimeoutException
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 2
+                MaxAttempts: 6
+                BackoffRate: 2
+                JitterStrategy: FULL
+              # The recorder's own error too: it finishes only a run still going, so a second
+              # attempt changes nothing the first wrote.
+              - ErrorEquals: [States.TaskFailed]
+                IntervalSeconds: 2
+                MaxAttempts: 3
+                BackoffRate: 2
+                JitterStrategy: FULL
+            End: true
+          RecordFailure:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Arguments:
+              FunctionName: ${RecorderFunctionArn}
+              Payload: '{% $states.input %}'
+            TimeoutSeconds: 60
+            Retry:
+              - ErrorEquals:
+                  - Lambda.ClientExecutionTimeoutException
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 2
+                MaxAttempts: 6
+                BackoffRate: 2
+                JitterStrategy: FULL
+              # The recorder's own error too: it finishes only a run still going, so a second
+              # attempt changes nothing the first wrote.
+              - ErrorEquals: [States.TaskFailed]
+                IntervalSeconds: 2
+                MaxAttempts: 3
+                BackoffRate: 2
+                JitterStrategy: FULL
+            End: true
 
   # THE ONE HOLDER OF THE CLIENT SECRET AND READER OF THE ACCESS TOKEN IT SEALS, with no cluster. Its
   # routes take no bearer token, only its cookies, so `x-csrf` and `Sec-Fetch-Site` guard them.

@@ -639,6 +639,523 @@
         }
       }
     },
+    "/admin/archive/operations": {
+      "post": {
+        "operationId": "postAdminArchiveOperations",
+        "summary": "POST /admin/archive/operations",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "observe"
+                        ]
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "inzhur",
+                          "nbu_fv"
+                        ]
+                      },
+                      "from": {
+                        "type": "string",
+                        "allOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^(?!0000)"
+                          }
+                        ]
+                      },
+                      "to": {
+                        "type": "string",
+                        "allOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^(?!0000)"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "source",
+                      "from",
+                      "to"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "importFundHistory"
+                        ]
+                      },
+                      "refs": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "inzhur-reit",
+                            "inzhur-energy"
+                          ]
+                        },
+                        "uniqueItems": true
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "refs"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "headers": {
+              "location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "accepted": {
+                    "value": {
+                      "id": "<operation id>",
+                      "mode": "observe",
+                      "parameters": {
+                        "source": "nbu_fv",
+                        "from": "2026-01-01",
+                        "to": "2026-01-31"
+                      },
+                      "state": "running",
+                      "startedBy": "<super-admin user id>",
+                      "startedAt": "2026-10-21T09:00:00.000000Z",
+                      "deadlineAt": "2026-10-21T09:21:00.000000Z",
+                      "finishedAt": null,
+                      "result": null,
+                      "error": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Refused",
+            "headers": {
+              "allow": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "operations_prod_only": {
+                    "value": {
+                      "error": "operations_prod_only"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "payload_too_large": {
+                    "value": {
+                      "error": "payload_too_large",
+                      "max": 1048576
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_operation": {
+                    "value": {
+                      "error": "invalid_operation",
+                      "issues": [
+                        {
+                          "field": "refs.0",
+                          "code": "invalid_value"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "start_failed": {
+                    "value": {
+                      "error": "start_failed"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getAdminArchiveOperations",
+        "summary": "GET /admin/archive/operations",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Operations per page, digits with no sign or leading zero; none is 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The previous page’s `next`; none starts at the newest.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "operations": {
+                    "value": {
+                      "operations": [
+                        {
+                          "id": "<operation id>",
+                          "mode": "observe",
+                          "parameters": {
+                            "source": "nbu_fv",
+                            "from": "2026-01-01",
+                            "to": "2026-01-31"
+                          },
+                          "state": "succeeded",
+                          "startedBy": "<super-admin user id>",
+                          "startedAt": "2026-10-21T09:00:00.000000Z",
+                          "deadlineAt": "2026-10-21T09:21:00.000000Z",
+                          "finishedAt": "2026-10-21T09:00:04.000000Z",
+                          "result": {
+                            "mode": "observe",
+                            "written": 0,
+                            "complete": true,
+                            "nextFrom": null
+                          },
+                          "error": null
+                        }
+                      ],
+                      "next": "<opaque cursor, present only when more follow>"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/archive/operations/{id}": {
+      "get": {
+        "operationId": "getAdminArchiveOperationsId",
+        "summary": "GET /admin/archive/operations/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "operation": {
+                    "value": {
+                      "id": "<operation id>",
+                      "mode": "observe",
+                      "parameters": {
+                        "source": "nbu_fv",
+                        "from": "2026-01-01",
+                        "to": "2026-01-31"
+                      },
+                      "state": "succeeded",
+                      "startedBy": "<super-admin user id>",
+                      "startedAt": "2026-10-21T09:00:00.000000Z",
+                      "deadlineAt": "2026-10-21T09:21:00.000000Z",
+                      "finishedAt": "2026-10-21T09:00:04.000000Z",
+                      "result": {
+                        "mode": "observe",
+                        "written": 0,
+                        "complete": true,
+                        "nextFrom": null
+                      },
+                      "error": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "error": "not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/start": {
       "post": {
         "operationId": "postAuthStart",

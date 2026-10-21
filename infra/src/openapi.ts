@@ -17,6 +17,12 @@ import {
 import { RESPONSES as ADMIN_RESPONSES } from './approve';
 import { RESPONSES as ARCHIVE_RESPONSES } from './archive-admin';
 import {
+  PARAMETERS as OPERATION_PARAMETERS,
+  RESPONSES as OPERATION_RESPONSES,
+  START_BODY as OPERATION_START_BODY,
+  START_ROUTE as OPERATION_START_ROUTE,
+} from './archive-operations';
+import {
   GOOGLE_COMPLETE_BODY,
   GOOGLE_COMPLETE_ROUTE,
   PARAMETERS as RELAY_PARAMETERS,
@@ -76,6 +82,7 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   // The two rulings and the list they start from share one function.
   'approve.handler': { ...ADMIN_RESPONSES, ...LIST_RESPONSES },
   'archive-admin.handler': ARCHIVE_RESPONSES,
+  'archive-operations.handler': OPERATION_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
   // The write, the export, the staged import and the settings share one function.
@@ -86,6 +93,7 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
  *  required JSON body to every operation it serves, a GET included. */
 const BODIES: Record<string, unknown> = {
   [APPLY_ROUTE]: REQUEST_BODY,
+  [OPERATION_START_ROUTE]: OPERATION_START_BODY,
   [START_ROUTE]: START_BODY,
   [RESPOND_ROUTE]: RESPOND_BODY,
   [GOOGLE_COMPLETE_ROUTE]: GOOGLE_COMPLETE_BODY,
@@ -124,6 +132,7 @@ type Operation = {
 /** A route's own request headers and query parameters, keyed like the bodies. */
 const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
   ...LIST_PARAMETERS,
+  ...OPERATION_PARAMETERS,
   ...RELAY_PARAMETERS,
   ...VIEW_PARAMETERS,
   ...MUTATIONS_PARAMETERS,

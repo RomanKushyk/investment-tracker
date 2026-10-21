@@ -305,6 +305,20 @@
       "Resource": "arn:aws:scheduler:eu-north-1:*:schedule/default/quirenote-backend-user-p*"
     },
     {
+      "Sid": "StateMachine",
+      "Effect": "Allow",
+      "Action": [
+        "states:CreateStateMachine",
+        "states:DescribeStateMachine",
+        "states:UpdateStateMachine",
+        "states:DeleteStateMachine",
+        "states:TagResource",
+        "states:UntagResource",
+        "states:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:states:eu-north-1:*:stateMachine:quirenote-backend-user-p*"
+    },
+    {
       "Sid": "ReadTemplateAndArtifacts",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:GetObjectVersion"],

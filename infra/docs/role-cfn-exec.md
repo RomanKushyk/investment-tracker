@@ -28,7 +28,8 @@ The inline permission policies are the files, applied as written:
 `src/stack-split.test.ts` holds each file to the services the resource types that environment
 deploys name in their schema handlers, three statements to one action each while a template still
 needs it, the Deny statements to a closed list, and every statement the two files share to the same
-actions — the resources and the conditions are where they differ, by design.
+actions — the resources and the conditions are where they differ, by design. Production alone
+carries `StateMachine`, for the archive operations' workflow, a service no type dev deploys uses.
 
 ```bash
 aws iam create-role --role-name quirenote-backend-cfn-exec-<env> --assume-role-policy-document file://trust.json
@@ -96,8 +97,8 @@ also creates. AWS's least-privilege guidance for CloudFormation says it plainly:
 with permissions to create a role and attach any policy can escalate their own permissions." The
 condition sits on every action that changes a role, and each of them takes the
 `iam:PermissionsBoundary` key (Service Authorization Reference). Every role a template creates
-names its environment's policy: SAM's generated ones through `PermissionsBoundary` on the function
-or in `Globals`, the declared ones in their own properties — `quirenote-backend-boundary-${Environment}`
+names its environment's policy: SAM's generated ones through `PermissionsBoundary` on the function,
+the state machine or in `Globals`, the declared ones in their own properties — `quirenote-backend-boundary-${Environment}`
 in the user template, `quirenote-backend-boundary-dev` in the archive's.
 
 **The boundaries are

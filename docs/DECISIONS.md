@@ -1118,8 +1118,33 @@ the deploy reads the name again once the archive has deployed, as it does the cl
 applies its schema before any mode, so a diagnose can land a schema change ahead of the scheduled
 run. AWS counts one Lambda waiting on another as an anti-pattern for what the wait costs; each read
 holds two executions of the account's concurrency, so the route admits one request a second, and a
-read that answers 504 leaves the capture running to its own timeout. No other capture mode is
-reachable from this API.
+read that answers 504 leaves the capture running to its own timeout.
+THE CAPTURE'S `observe` AND `importFundHistory` ARE OPERATIONS ON THIS API, for the super-admin, and
+no other mode is reachable from it. `POST /admin/archive/operations` takes `{mode: 'observe',
+source, from, to}` or `{mode: 'importFundHistory', refs}`, refuses with 422 and the field a body the
+capture would refuse or misread, records the start in `archive_operation` (who, when, the
+parameters, a deadline) and answers 202 with a `Location` to the operation, which
+`GET /admin/archive/operations/{id}` and the list, newest first and keyset-paged, answer with its
+state and the mode's own result: RFC 9110 §15.3.3's status monitor for a 202, and AIP-151's
+operation, its failure an error beside the state. The body's schema is built from the capture's own
+source and fund tables and checks a calendar day, so the route takes nothing the capture refuses, and
+the document's body is made from it. A STEP FUNCTIONS STANDARD WORKFLOW RUNS EACH START, IN
+PRODUCTION ALONE: named by the operation's id, it invokes the capture with the mode's event and then
+a recorder that writes the outcome; a capture error, caught as `States.ALL` because
+`States.TaskFailed` matches no timeout, goes to the recorder too; a Lambda service error is retried
+and a capture's own is not, while the recorder's own error is, a second attempt changing nothing
+the first wrote; and every task and the run have a timeout. A run still going a minute past the
+run's timeout reads failed, `deadline_exceeded`, as a Kubernetes Job past its deadline does, and the
+recorder finishes a run only inside that deadline. The start is sent once: one Step Functions refused,
+answering below 500, or one its credentials let nothing send, answers 502 and is recorded failed,
+`start_failed`, when that record lands; any other failure may have begun the run, so it answers 202
+like any other and the recorder or the deadline settles it.
+Dev deploys no state machine and no grant to start one: its start answers 405 with `Allow: GET`, a
+method "disabled by configuration" (RFC 9110 §10.2.1), and its list and read answer. Production then
+depends on nothing in dev, as AWS's guidance on environments and NIST SP 800-53 CM-4(1) keep the two
+apart. A run repeated writes nothing its first wrote, the capture's writes being idempotent by their
+key, and is recorded as a run of its own. The recorder connects as admin, as every function of this
+stack that reaches its cluster does.
 THE CLIENT BUILDS THE OPS in `src/lib/writes.ts`, which the repository calls. A repository write is
 a list of ops sent as one request under the strong tag `/view` or the last write gave, one write
 at a time, so a tab is never refused against its own tag, and a read of the view sent before one of
@@ -1414,7 +1439,13 @@ as delivered (*Measurement*), the page's first contentful paint, which waits on 
 at or under 2.5 s at p75 (web.dev's LCP "good" line) while the figures' paint is over it; #411
 found the first not so.
 · The last day kept while another loads: its baselines would stand under a date they are not
-before.
+before. · A Lambda that waits on the capture to run an operation: AWS counts one Lambda calling
+another an anti-pattern, and an asynchronous invoke is retried twice by default. · Lambda durable
+functions: a new SDK and replay determinism for a few runs a year. · Lambda destinations on the
+capture: configured on the archive's function, one for every environment. · An EventBridge rule on
+an execution's status as the recorder: its events are delivered on a best-effort basis. · A
+`timed_out` state beside `failed`: no caller would branch on it, and AIP-216 adds only states useful
+to a caller. · An `Idempotency-Key` on a start: it would fold two deliberate runs into one record.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER

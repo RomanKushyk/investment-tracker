@@ -11,6 +11,11 @@ import { LIST_ROUTE } from './admin-users';
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
 import { DIAGNOSIS_ROUTE } from './archive-admin';
 import {
+  OPERATIONS_ROUTE,
+  OPERATION_ROUTE,
+  START_ROUTE as OPERATION_START_ROUTE,
+} from './archive-operations';
+import {
   CSRF_HEADER,
   GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_ROUTE,
@@ -23,7 +28,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { ANSWER_MS, SECRET_MS } from './bot-check';
-import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
+import { envVars, grantAt, intrinsicAt, tagAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
 import { SETTINGS_ROUTE } from './settings';
@@ -735,5 +740,70 @@ describe('the archive diagnosis is a super-admin read, served in every environme
   it('carries a log group of its own, retained like the others', () => {
     expect(user.Resources.ArchiveAdminLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('ArchiveAdminLogGroup').RetentionInDays).toBe(30);
+  });
+});
+
+describe('the archive operations are super-admin routes, served in every environment', () => {
+  const FN = 'ArchiveOperationsFunction';
+  const statements = ['Resources', FN, 'Properties', 'Policies', 0, 'Statement'];
+
+  it('puts the start, the list and the read on this API, each naming the authorizer, on a function of its own', () => {
+    const routes = declaredRoutes().filter((r) => r.fn === FN);
+    expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
+      [OPERATION_START_ROUTE, 'PublicApi', AUTHORIZER],
+      [OPERATIONS_ROUTE, 'PublicApi', AUTHORIZER],
+      [OPERATION_ROUTE, 'PublicApi', AUTHORIZER],
+    ]);
+    expect(props(FN).Handler).toBe('archive-operations.handler');
+    // No condition: the routes keep their paths in every environment, and dev's start refuses.
+    expect(user.Resources[FN]).not.toHaveProperty('Condition');
+  });
+
+  // The start's grant stands apart under production's condition; the function's own policies hold
+  // the cluster alone.
+  it('may connect to the user cluster, and its own policies grant nothing else', () => {
+    const policies = props(FN).Policies as [{ Statement: unknown[] }];
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(1);
+    expect(grantAt(doc, statements, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+  });
+
+  it('is told the state machine in production alone, and holds the API under its 30 s limit', () => {
+    const at = [...envVars(FN), 'STATE_MACHINE_ARN'];
+    expect(tagAt(doc, ...at)).toBe('!If');
+    expect(intrinsicAt(doc, ...at, 0)).toEqual({ tag: undefined, value: 'IsProd' });
+    expect(intrinsicAt(doc, ...at, 1)).toEqual({
+      tag: '!GetAtt',
+      value: 'ArchiveOperationsStateMachine.Arn',
+    });
+    expect(intrinsicAt(doc, ...at, 2)).toEqual({ tag: '!Ref', value: 'AWS::NoValue' });
+    expect(intrinsicAt(doc, ...envVars(FN), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+    expect(props(FN).Timeout).toBeLessThan(30);
+  });
+
+  // A start holds an execution of the account's concurrency for the whole run: one a second and
+  // no burst. The reads are the admin reads' 2/5.
+  it('admits one start a second with no burst, and the reads as the admin reads', () => {
+    const settings = props('PublicApi').RouteSettings as Record<string, Record<string, unknown>>;
+    expect(settings[OPERATION_START_ROUTE]).toEqual({
+      ThrottlingRateLimit: 1,
+      ThrottlingBurstLimit: 1,
+    });
+    for (const route of [OPERATIONS_ROUTE, OPERATION_ROUTE])
+      expect([route, settings[route]]).toEqual([
+        route,
+        { ThrottlingRateLimit: 2, ThrottlingBurstLimit: 5 },
+      ]);
+  });
+
+  it('carries a log group of its own, retained like the others', () => {
+    expect(user.Resources.ArchiveOperationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('ArchiveOperationsLogGroup').RetentionInDays).toBe(30);
   });
 });

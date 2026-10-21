@@ -58,6 +58,9 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   [[...envVars('ApplicationsFunction'), 'BOT_CHECK_HOSTNAMES'], '!If'],
   [[...envVars('ApproveFunction'), 'OPEN_REGISTRATION'], '!If'],
   [[...envVars('ArchiveAdminFunction'), 'OPEN_REGISTRATION'], '!If'],
+  [[...envVars('ArchiveOperationsFunction'), 'OPEN_REGISTRATION'], '!If'],
+  // Production's state machine, which dev does not deploy.
+  [[...envVars('ArchiveOperationsFunction'), 'STATE_MACHINE_ARN'], '!If'],
   [[...envVars('AuthRelayFunction'), 'BOT_CHECK_HOSTNAMES'], '!If'],
   [[...envVars('ViewFunction'), 'OPEN_REGISTRATION'], '!If'],
   [[...envVars('MutationsFunction'), 'OPEN_REGISTRATION'], '!If'],
@@ -94,7 +97,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the twenty-eight written here', () => {
+  it('carries exactly the thirty written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 

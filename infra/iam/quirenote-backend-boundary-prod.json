@@ -93,6 +93,12 @@
       "Effect": "Allow",
       "Action": "lambda:InvokeFunction",
       "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-CaptureFunction-*"
+    },
+    {
+      "Sid": "StartArchiveOperations",
+      "Effect": "Allow",
+      "Action": "states:StartExecution",
+      "Resource": "arn:aws:states:eu-north-1:*:stateMachine:quirenote-backend-user-p*"
     }
   ]
 }
