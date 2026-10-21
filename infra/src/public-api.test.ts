@@ -9,6 +9,7 @@ import { LIST_ROUTE } from './admin-users';
 // The route key is matched by string equality in three places and nothing validates them against
 // each other. Renamed on one side alone, every suite here stays green and admin calls answer 400.
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
+import { DIAGNOSIS_ROUTE } from './archive-admin';
 import {
   CSRF_HEADER,
   GOOGLE_BEGIN_ROUTE,
@@ -670,5 +671,69 @@ describe('the approval handler holds exactly two grants, and they are different 
   it('carries a log group of its own, retained like the others', () => {
     expect(user.Resources.ApproveLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('ApproveLogGroup').RetentionInDays).toBe(30);
+  });
+});
+
+describe('the archive diagnosis is a super-admin read, served in every environment', () => {
+  const policies = props('ArchiveAdminFunction').Policies as [
+    { Statement: Record<string, unknown>[] },
+  ];
+  const statements = [
+    'Resources',
+    'ArchiveAdminFunction',
+    'Properties',
+    'Policies',
+    0,
+    'Statement',
+  ];
+
+  it('puts the read on this API, a GET naming the authorizer, on a function of its own', () => {
+    const routes = declaredRoutes().filter((r) => r.fn === 'ArchiveAdminFunction');
+    expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
+      [DIAGNOSIS_ROUTE, 'PublicApi', AUTHORIZER],
+    ]);
+    expect(props('ArchiveAdminFunction').Handler).toBe('archive-admin.handler');
+    // No condition: the read is the same store in dev and prod, so both stacks serve it.
+    expect(user.Resources.ArchiveAdminFunction).not.toHaveProperty('Condition');
+  });
+
+  // The function gates on the user cluster and invokes the capture, and holds nothing else: the
+  // invoke is the one grant the read adds to the stack.
+  it('may connect to the user cluster and invoke the capture function it is given, and nothing else', () => {
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(2);
+    expect(grantAt(doc, statements, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+    expect(grantAt(doc, statements, 'lambda:InvokeFunction')).toEqual({
+      tag: '!Sub',
+      value:
+        'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptureFunctionName}',
+    });
+  });
+
+  it('names the capture function by the deploy parameter, and holds the API under its 30 s limit', () => {
+    expect(intrinsicAt(doc, ...envVars('ArchiveAdminFunction'), 'CAPTURE_FUNCTION_NAME')).toEqual({
+      tag: '!Ref',
+      value: 'CaptureFunctionName',
+    });
+    expect(intrinsicAt(doc, ...envVars('ArchiveAdminFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+    expect(props('ArchiveAdminFunction').Timeout).toBeLessThan(30);
+  });
+
+  // Each read holds two executions while the capture runs, out of the account's concurrency: one
+  // a second and no burst, so the read cannot spend it in one go.
+  it('admits one request a second, with no burst', () => {
+    const settings = props('PublicApi').RouteSettings as Record<string, Record<string, unknown>>;
+    expect(settings[DIAGNOSIS_ROUTE]).toEqual({ ThrottlingRateLimit: 1, ThrottlingBurstLimit: 1 });
+  });
+
+  it('carries a log group of its own, retained like the others', () => {
+    expect(user.Resources.ArchiveAdminLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('ArchiveAdminLogGroup').RetentionInDays).toBe(30);
   });
 });

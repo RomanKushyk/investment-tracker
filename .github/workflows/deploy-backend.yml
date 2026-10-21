@@ -90,7 +90,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
+          for entry in capture migrate pre-signup applications approve archive-admin auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
             pnpm exec esbuild "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -109,7 +109,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -262,6 +262,29 @@ jobs:
               if (refusedList.statusCode !== 403) throw new Error('approve bundle listed the applications to an ordinary user: ' + refusedList.statusCode);
               if (calls.length) throw new Error('approve bundle called Cognito on a refusal: ' + calls.join());
               console.log('approve bundle loads, lists the applications to the super-admin alone, and refuses a demo row and an ordinary caller, without calling Cognito');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The capture writes on any event but the diagnose one, so the bundle must send that
+          # literal, and invoke nothing for a caller the gate refuses.
+          node -e "
+            const d = require('./archive-admin.js');
+            if (typeof d.handler !== 'function') throw new Error('handler missing from archive-admin bundle');
+            process.env.CAPTURE_FUNCTION_NAME = 'quirenote-backend-CaptureFunction-EXAMPLE';
+            const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
+            const sent = [];
+            const capture = { invoke: async (input) => { sent.push(input); return { Payload: new TextEncoder().encode('{\"mode\":\"diagnose\"}') }; } };
+            const client = (role) => ({ query: async () => ({ rows: [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }] }) });
+            const event = {
+              routeKey: 'GET /admin/archive/diagnosis',
+              requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: ADMIN, email: 'owner@quirenote.com' } } } },
+            };
+            d.diagnosis(client('user'), capture, event).then((refused) => {
+              if (refused.statusCode !== 403 || sent.length) throw new Error('archive-admin bundle invoked the capture for an ordinary user: ' + refused.statusCode);
+              return d.diagnosis(client('super_admin'), capture, event);
+            }).then((read) => {
+              if (read.statusCode !== 200 || read.body !== '{\"mode\":\"diagnose\"}') throw new Error('archive-admin bundle did not pass the diagnosis through: ' + read.statusCode);
+              if (JSON.stringify(sent) !== JSON.stringify([{ FunctionName: 'quirenote-backend-CaptureFunction-EXAMPLE', Payload: '{\"diagnose\":true}' }])) throw new Error('archive-admin bundle sent another event: ' + JSON.stringify(sent));
+              console.log('archive-admin bundle loads, sends the diagnose event alone, and invokes nothing for an ordinary caller');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # The relay holds the client secret and a stranger reaches it: both refusals land before
@@ -592,6 +615,18 @@ jobs:
           fi
           echo "cluster-id=$id" >> "$GITHUB_OUTPUT"
 
+      # The capture's name for the diagnosis route's invoke grant, read the same way.
+      - name: Read the archive capture function name
+        id: capture-name
+        run: |
+          name=$(aws cloudformation describe-stacks --stack-name quirenote-backend \
+            --query "Stacks[0].Outputs[?OutputKey=='FunctionName'].OutputValue" --output text)
+          if [ -z "$name" ] || [ "$name" = "None" ]; then
+            echo "::error::quirenote-backend answered no FunctionName output"
+            exit 1
+          fi
+          echo "function-name=$name" >> "$GITHUB_OUTPUT"
+
       # THE BOT CHECK'S SECRET, where the function reads it: CloudFormation cannot create a SecureString
       # (*Auth model*). Every deploy writes it, so a rotated GitHub secret lands on the next one.
       - name: Write the bot-check secret
@@ -621,7 +656,7 @@ jobs:
         run: |
           # The four on this line go every time: none has a default, so an unset value has to
           # fail rather than resolve.
-          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}" "ArchiveClusterId=${ARCHIVE_CLUSTER_ID}")
+          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}" "ArchiveClusterId=${ARCHIVE_CLUSTER_ID}" "CaptureFunctionName=${CAPTURE_FUNCTION_NAME}")
           # THE GOOGLE SWITCH GOES EVERY TIME, like `OpenRegistration` below: left out, it keeps its
           # previous value. The PAIR goes only when set, as `sam deploy` REFUSES an empty value.
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
@@ -667,6 +702,7 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           ARCHIVE_CLUSTER_ID: ${{ steps.archive-id.outputs.cluster-id }}
+          CAPTURE_FUNCTION_NAME: ${{ steps.capture-name.outputs.function-name }}
 
       # Skipped on `main`, so a dispatch there cannot repair the archive — dispatch on `dev`.
       # NAMED_IAM for the reader role's fixed name.
@@ -703,6 +739,20 @@ jobs:
           fi
         env:
           GIVEN: ${{ steps.archive-id.outputs.cluster-id }}
+
+      # The same for the capture's name: a replaced function takes a new suffix, which the user
+      # stack's invoke grant and variable do not name.
+      - name: Check the archive kept the capture function the user stack was given
+        if: steps.archive.outcome == 'success'
+        run: |
+          name=$(aws cloudformation describe-stacks --stack-name quirenote-backend \
+            --query "Stacks[0].Outputs[?OutputKey=='FunctionName'].OutputValue" --output text)
+          if [ "$name" != "$GIVEN" ]; then
+            echo "::error::the archive now answers FunctionName $name; this run gave the dev user stack $GIVEN, and prod's keeps what main last read. Re-run this workflow on dev, then dispatch it on main."
+            exit 1
+          fi
+        env:
+          GIVEN: ${{ steps.capture-name.outputs.function-name }}
 
       # A CHANGE SET DOES NOT COUNT THE STACK `Description` AS A CHANGE, AND `sam deploy` HAS NO
       # OTHER ROUTE. A commit that changes only that text gets back "No updates are to be

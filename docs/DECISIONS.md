@@ -1095,6 +1095,22 @@ and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE
 `If-Match` goes stale, and a patch applied twice leaves one state. The text lives on the row
 `data_version` lives on, so a settings write and a mutation touching the row at once conflict at
 commit, and the one that loses is retried.
+THE ARCHIVE'S DIAGNOSIS IS `GET /admin/archive/diagnosis`, a super-admin read on this API, served by a
+function of its own: past the gate it invokes the archive's capture function synchronously with the
+`diagnose` event and answers the capture's body unchanged; 502 `capture_failed` when the capture throws
+or cannot be invoked, 504 `capture_timeout` when it does not answer inside the invoke's own timeout,
+which sits under the function's, and both under the HTTP API's fixed 30 s. Any other event runs the
+capture's scheduled write, so the route sends that literal and nothing it was given. A USER STACK
+INVOKES THE CAPTURE FUNCTION FOR IT, in both environments, since the archive is the one store both
+already read: the capture's name reaches the stack as a deploy parameter the workflow reads off the
+archive's `FunctionName` output, as the cluster identifier does, and `lambda:InvokeFunction` on that
+one function is the grant, which each environment's boundary allows by the capture's name alone, and
+the deploy reads the name again once the archive has deployed, as it does the cluster. The capture
+applies its schema before any mode, so a diagnose can land a schema change ahead of the scheduled
+run. AWS counts one Lambda waiting on another as an anti-pattern for what the wait costs; each read
+holds two executions of the account's concurrency, so the route admits one request a second, and a
+read that answers 504 leaves the capture running to its own timeout. No other capture mode is
+reachable from this API.
 THE CLIENT BUILDS THE OPS in `src/lib/writes.ts`, which the repository calls. A repository write is
 a list of ops sent as one request under the strong tag `/view` or the last write gave, one write
 at a time, so a tab is never refused against its own tag, and a read of the view sent before one of

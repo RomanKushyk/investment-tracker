@@ -20,6 +20,7 @@ import {
   PARAMETERS as LIST_PARAMETERS,
   RESPONSES as LIST_RESPONSES,
 } from './admin-users';
+import { DIAGNOSIS_ROUTE, RESPONSES as ARCHIVE_RESPONSES } from './archive-admin';
 import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
@@ -244,6 +245,7 @@ describe('the document is regenerated, never typed', () => {
       './admin-users',
       './applications',
       './approve',
+      './archive-admin',
       './auth-relay',
       './http',
       './imports',
@@ -324,6 +326,7 @@ const DECLARED = {
   ...APPLICATION_RESPONSES,
   ...ADMIN_RESPONSES,
   ...LIST_RESPONSES,
+  ...ARCHIVE_RESPONSES,
   ...RELAY_RESPONSES,
   ...VIEW_RESPONSES,
   ...MUTATIONS_RESPONSES,
@@ -480,13 +483,14 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-four routes and no others', () => {
+  it('declares the twenty-five routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
         LIST_ROUTE,
         APPROVE_ROUTE,
         REJECT_ROUTE,
+        DIAGNOSIS_ROUTE,
         ...RELAY,
         VIEW_ROUTE,
         SERIES_ROUTE,
@@ -524,6 +528,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       LIST_ROUTE,
       APPROVE_ROUTE,
       REJECT_ROUTE,
+      DIAGNOSIS_ROUTE,
       VIEW_ROUTE,
       SERIES_ROUTE,
       BALANCES_ROUTE,

@@ -512,6 +512,133 @@
         }
       }
     },
+    "/admin/archive/diagnosis": {
+      "get": {
+        "operationId": "getAdminArchiveDiagnosis",
+        "summary": "GET /admin/archive/diagnosis",
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "diagnosis": {
+                    "value": {
+                      "mode": "diagnose",
+                      "size": {
+                        "rows": "<rows>",
+                        "payload_bytes": "<bytes>",
+                        "total_bytes": "<bytes>"
+                      },
+                      "bySource": [
+                        {
+                          "source": "nbu",
+                          "n": "<rows>",
+                          "bytes": "<bytes>"
+                        }
+                      ],
+                      "observations": [
+                        {
+                          "instrument_ref": "UA4000236475",
+                          "basis": "fair",
+                          "source": "nbu",
+                          "n": "<rows>",
+                          "before_capture": "<rows>",
+                          "gaps": 0
+                        }
+                      ],
+                      "sample": [],
+                      "instruments": [],
+                      "plans": {
+                        "observeNbu": [
+                          "<plan line>"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "capture_failed": {
+                    "value": {
+                      "error": "capture_failed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "capture_timeout": {
+                    "value": {
+                      "error": "capture_timeout"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/start": {
       "post": {
         "operationId": "postAuthStart",

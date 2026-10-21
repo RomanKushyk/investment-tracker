@@ -15,6 +15,7 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { RESPONSES as ADMIN_RESPONSES } from './approve';
+import { RESPONSES as ARCHIVE_RESPONSES } from './archive-admin';
 import {
   GOOGLE_COMPLETE_BODY,
   GOOGLE_COMPLETE_ROUTE,
@@ -74,6 +75,7 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'applications.handler': APPLICATION_RESPONSES,
   // The two rulings and the list they start from share one function.
   'approve.handler': { ...ADMIN_RESPONSES, ...LIST_RESPONSES },
+  'archive-admin.handler': ARCHIVE_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
   // The write, the export, the staged import and the settings share one function.

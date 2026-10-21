@@ -87,6 +87,12 @@
       "Effect": "Allow",
       "Action": "lambda:InvokeFunction",
       "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-user-p*"
+    },
+    {
+      "Sid": "InvokeArchiveCapture",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-CaptureFunction-*"
     }
   ]
 }

@@ -68,8 +68,9 @@ one deploying branch and user data two:
 | `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` — and because of that tag strictly more: two nightly Lambdas (recovery points, pool count against the free tier), each with log group, schedule and role, a metric filter, and three alarms, and a nightly wake before the backup with its own log group, schedule and role and no metric or alarm. They hang off `IsProd`, so `dev` renders none | `main` |
 
 The archive step is skipped off `main`, **so a `workflow_dispatch` on `main` cannot repair the archive**
-— the repair path is a dispatch on `dev`. **Every run reads the archive's `ClusterIdentifier` before it
-deploys anything**, for the user stack's `ArchiveClusterId`, so in a fresh account the archive is
+— the repair path is a dispatch on `dev`. **Every run reads the archive's `ClusterIdentifier` and
+`FunctionName` before it deploys anything**, for the user stack's `ArchiveClusterId` and
+`CaptureFunctionName`, so in a fresh account the archive is
 deployed by hand first, from `infra/` with the bundle built: `sam deploy --stack-name quirenote-backend
 --role-arn arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec-dev --capabilities CAPABILITY_NAMED_IAM`
 plus the bucket and prefix the workflow passes. A `prod` migration is refused from any branch but `main` by the

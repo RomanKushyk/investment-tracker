@@ -41,6 +41,13 @@ Parameters:
     AllowedPattern: ^[a-z0-9]+$
     ConstraintDescription: must be the archive stack's ClusterIdentifier output
 
+  # The archive's capture function, read off its stack the same way: the diagnosis route invokes
+  # it, and the grant names it alone. SAM generates the suffix. [*Cloud target*]
+  CaptureFunctionName:
+    Type: String
+    AllowedPattern: ^quirenote-backend-CaptureFunction-[A-Za-z0-9]+$
+    ConstraintDescription: must be the archive stack's FunctionName output
+
   OpenRegistration:
     Type: String
     AllowedValues: [closed, open]
@@ -432,6 +439,11 @@ Resources:
         'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        # ONE A SECOND: each read holds this function and the capture at once, out of the account's
+        # shared concurrency, so a burst here is a burst of two.
+        'GET /admin/archive/diagnosis':
+          ThrottlingRateLimit: 1
+          ThrottlingBurstLimit: 1
         # The relay's nine. A ceiling per route bounds its requests, not the concurrency they share.
         'POST /auth/start':
           ThrottlingRateLimit: 2
@@ -674,6 +686,56 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ApproveFunction}
+      RetentionInDays: 30
+
+  # The archive's diagnose read for the super-admin, in every environment: the archive is one store
+  # both stacks already read. A function of its own, so the invoke sits on no role that holds
+  # anything else. [*Cloud target*]
+  ArchiveAdminFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: archive-admin.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      # UNDER THE HTTP API'S FIXED 30 s, which ends the request whatever this function is doing; the
+      # invoke's own timeout sits below this one, so a slow capture answers 504 rather than nothing.
+      Timeout: 29
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          CAPTURE_FUNCTION_NAME: !Ref CaptureFunctionName
+          # The gate writes a row for somebody who got in while the door was open, as approve's does.
+          OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+            - Sid: InvokeArchiveCapture
+              Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptureFunctionName}'
+      Events:
+        Diagnosis:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /admin/archive/diagnosis
+            Auth:
+              Authorizer: CognitoJwt
+
+  ArchiveAdminLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ArchiveAdminFunction}
       RetentionInDays: 30
 
   # THE ONE HOLDER OF THE CLIENT SECRET AND READER OF THE ACCESS TOKEN IT SEALS, with no cluster. Its

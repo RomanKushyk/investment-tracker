@@ -94,6 +94,12 @@
       "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-*"
     },
     {
+      "Sid": "InvokeArchiveCapture",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-CaptureFunction-*"
+    },
+    {
       "Sid": "DeadLetter",
       "Effect": "Allow",
       "Action": "sqs:SendMessage",

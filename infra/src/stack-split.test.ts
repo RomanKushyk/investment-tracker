@@ -84,6 +84,9 @@ const userDoc = templateDoc('template-user.yaml');
 const archive = archiveDoc.toJS() as Template;
 const user = userDoc.toJS() as Template;
 
+/** A name the archive's `FunctionName` output really carried: SAM generates the suffix. */
+const CAPTURE_NAME = 'quirenote-backend-CaptureFunction-Bay7ThpWrGtq';
+
 const resources = (t: Template) => Object.entries(t.Resources);
 const idsOfType = (t: Template, type: string) =>
   resources(t)
@@ -671,6 +674,7 @@ describe('the user stacks reach the archive through a read-only role the archive
     expect(admin.sort()).toEqual([
       'ApplicationsFunction',
       'ApproveFunction',
+      'ArchiveAdminFunction',
       'BackupWakeFunction',
       'MigrateFunction',
       'MutationsFunction',
@@ -691,6 +695,25 @@ describe('the user stacks reach the archive through a read-only role the archive
     expect(p?.MinLength).toBe(1);
     expect(p?.AllowedPattern).toBe('^[a-z0-9]+$');
     expect(JSON.stringify(user)).not.toContain('ImportValue');
+  });
+
+  // The archive's generated name, read off its `FunctionName` output by the workflow, as the
+  // cluster identifier is: the invoke grant names that one function and no other.
+  it('takes the capture function’s name as a parameter with no default', () => {
+    const p = user.Parameters?.CaptureFunctionName as
+      { Type: string; AllowedPattern?: string; Default?: unknown } | undefined;
+    expect(p?.Type).toBe('String');
+    expect(p).not.toHaveProperty('Default');
+    const pattern = new RegExp(p?.AllowedPattern ?? '');
+    expect(pattern.test(CAPTURE_NAME)).toBe(true);
+    for (const other of [
+      'quirenote-backend-user-prod-MigrateFunction-Bay7ThpWrGtq',
+      'quirenote-backend-CaptureFunction-*',
+      'quirenote-backend-CaptureFunction-',
+      'arn:aws:lambda:eu-north-1:1:function:quirenote-backend-CaptureFunction-a',
+    ]) {
+      expect([other, pattern.test(other)]).toEqual([other, false]);
+    }
   });
 });
 
@@ -739,10 +762,11 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the relay, the view, the write, two watches, the wake and the rate job', () => {
+  it('holds the runner, the trigger, the application, the approval, the archive read, the relay, the view, the write, two watches, the wake and the rate job', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
+      'archive-admin.handler',
       'auth-relay.handler',
       'backup-freshness.handler',
       'backup-wake.handler',
@@ -1620,6 +1644,7 @@ describe('what reaches a role besides its own policies', () => {
       'PreSignUpFunction',
       'ApplicationsFunction',
       'ApproveFunction',
+      'ArchiveAdminFunction',
       'AuthRelayFunction',
       'ViewFunction',
       'MutationsFunction',
@@ -1927,13 +1952,15 @@ describe('the boundary allows exactly the actions the stack roles are granted', 
         throw new Error(
           `${where}: a resource this test cannot read: ${node.tag ?? ''} ${String(r)}`,
         );
-      // `Environment` is the one parameter resolved, to the environment under test: each stack is
-      // deployed with it set so, and the name compared is the one that environment's role reads.
+      // `Environment` is resolved to the environment under test: each stack is deployed with it set
+      // so, and the name compared is the one that environment's role reads. The capture's name is
+      // the archive's own, the same in both.
       const named = r
         .replaceAll('${AWS::Partition}', 'aws')
         .replaceAll('${AWS::Region}', 'eu-north-1')
         .replaceAll('${AWS::AccountId}', '123456789012')
-        .replaceAll('${Environment}', env);
+        .replaceAll('${Environment}', env)
+        .replaceAll('${CaptureFunctionName}', CAPTURE_NAME);
       if (named.includes('${'))
         throw new Error(`${where}: a resource naming more than the account and environment`);
       return named;
@@ -2297,6 +2324,10 @@ describe('each execution role grants only services the resource types it deploys
     for (const id of ['WriteOwnLogs', 'InvokeScheduledFunctions'])
       for (const r of [sid(id)?.Resource].flat().map(String))
         expect([id, r.includes(want.names)]).toEqual([id, true]);
+    // The archive's one function, which both environments read through: no wider.
+    expect(sid('InvokeArchiveCapture')?.Resource).toBe(
+      'arn:aws:lambda:eu-north-1:*:function:quirenote-backend-CaptureFunction-*',
+    );
   });
 
   // The role creates or changes no role that lacks ITS OWN environment's boundary.
@@ -2623,6 +2654,71 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(read?.run).toContain('>> "$GITHUB_OUTPUT"');
     expect(userStack.env?.ARCHIVE_CLUSTER_ID).toBe(`\${{ steps.${read?.id}.outputs.cluster-id }}`);
     expect(userStack.run).toContain('"ArchiveClusterId=${ARCHIVE_CLUSTER_ID}"');
+  });
+
+  // The same read for the capture function's name, which the diagnosis route invokes.
+  it('reads the capture function name off the archive stack, before the user deploy, and fails on none', () => {
+    const [read] = steps.filter((s) => s.run?.includes("OutputKey=='FunctionName'"));
+    const [userStack] = deploys;
+    expect(steps.indexOf(read)).toBeLessThan(steps.indexOf(userStack));
+    expect(read.run).toMatch(/--stack-name quirenote-backend(?!-)/);
+    expect(read.run).toMatch(/\[ -z "\$\w+" \] \|\| \[ "\$\w+" = "None" \]/);
+    expect(read.run).toContain('exit 1');
+    expect(read.if).toBeUndefined();
+    expect(read['continue-on-error']).toBeUndefined();
+    expect(read.id).toBeDefined();
+    expect(read.run).toContain('>> "$GITHUB_OUTPUT"');
+    expect(userStack.env?.CAPTURE_FUNCTION_NAME).toBe(
+      `\${{ steps.${read.id}.outputs.function-name }}`,
+    );
+    expect(userStack.run).toContain('"CaptureFunctionName=${CAPTURE_FUNCTION_NAME}"');
+  });
+
+  // The cluster's re-check, for the capture's name: a replaced function takes a new suffix, and the
+  // user stack's grant and variable would name the old one.
+  describe('reads the capture function name again once the archive has deployed', () => {
+    const reads = steps.filter((s) => s.run?.includes("OutputKey=='FunctionName'"));
+    const [first, again] = reads;
+    const [, archiveStack] = deploys;
+    const clusterAgain = steps.filter((s) => s.run?.includes("OutputKey=='ClusterIdentifier'"))[1];
+
+    it('follows the cluster re-check, on the archive deploy’s own outcome, against the first read', () => {
+      expect(reads).toHaveLength(2);
+      expect(steps.indexOf(again)).toBe(steps.indexOf(clusterAgain) + 1);
+      expect(again.if).toBe(`steps.${archiveStack.id}.outcome == 'success'`);
+      expect(again.env?.GIVEN).toBe(`\${{ steps.${first.id}.outputs.function-name }}`);
+      expect(again['continue-on-error']).toBeUndefined();
+    });
+
+    const run = (answered: string) => {
+      const script = again?.run;
+      if (script === undefined) throw new Error('no step reads the capture name a second time');
+      const stub = `aws() { printf '%s\\n' "${answered}"; }\n`;
+      try {
+        execFileSync(BASH, ['--noprofile', '--norc', '-e', '-c', stub + script], {
+          env: { ...process.env, GIVEN: CAPTURE_NAME },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+        return 0;
+      } catch (err) {
+        const status = (err as { status?: unknown }).status;
+        if (typeof status !== 'number') throw err;
+        return status;
+      }
+    };
+
+    it('passes when the archive still answers the name the user stack was given', () => {
+      expect(run(CAPTURE_NAME)).toBe(0);
+    });
+
+    it('fails when the archive answers another', () => {
+      expect(run('quirenote-backend-CaptureFunction-Other')).not.toBe(0);
+    });
+
+    it('fails when the archive answers none', () => {
+      expect(run('None')).not.toBe(0);
+    });
   });
 
   // THE USER STACK WAS GIVEN THE IDENTIFIER READ BEFORE THE ARCHIVE DEPLOYED, so a run whose archive

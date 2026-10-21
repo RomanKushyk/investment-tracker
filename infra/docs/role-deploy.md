@@ -74,7 +74,8 @@ For `prod`, the same with five substitutions: `stack/quirenote-backend-user-prod
 two dev stacks, because the archive deploys from `dev` alone; the role passed is
 `quirenote-backend-cfn-exec-prod`; the object prefix is `prod/*`; the runner is
 `quirenote-backend-user-prod-MigrateFunction-*`; and the parameter is `quirenote/prod/turnstile-secret`. And one statement more, because the
-production deploy still READS the archive, for the identifier it passes as `ArchiveClusterId`:
+production deploy still READS the archive, for the identifier it passes as `ArchiveClusterId` and the
+capture's name it passes as `CaptureFunctionName`:
 
 ```json
 {
