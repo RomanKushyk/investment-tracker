@@ -333,8 +333,11 @@ holding falls well short of it renders muted; per-asset XIRR is the money-weight
 annualization mark tests the WINDOW's length, not the asset's. A window's opening position is valued
 the day BEFORE it opens; on the rebuilt series that day, when it values anything, and the closing
 day are grid days, carried where nothing was observed on them, so the opening position is read off
-a point rather than off the last value before it. Where the rule below leaves a position ABSENT on that day, `/yield` leaves
-its basis, its row and its line absent over the window. Units are `Σ quantity deltas` over the
+a point rather than off the last value before it. Where the rule below leaves a position ABSENT on that day, `/yield` starts
+it late: its window opens the day after the first snapshot inside the window, before its last day,
+to quote it while the ledger holds units of it, or cannot count them, its opening is that quote, and
+its row, its line and its short-basis mark start there; one no such snapshot quotes keeps its basis,
+its row and its line absent over the window. Units are `Σ quantity deltas` over the
 ledger, never a stored total, each
 quantity counted as a whole number of 1e-8 units; a position's value counts at a date only while
 the ledger holds units of it then, on its last quote's own day, and on the
@@ -375,7 +378,10 @@ cards, both forms, the ledger on `/transactions`, the delete counts, the export 
 preview read every row, and the YTM the feed solves reads the transactions cut to the view's day by
 the selector that hands them over.
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
-makes the full history collapse onto its unwindowed twin. Capital gain is realized plus unrealized,
+makes the full history collapse onto its unwindowed twin. A late start reads its opening off a price
+the store holds, as Morningstar starts a fund's return at its first priced month and MSCI includes a
+security at its first close: a later price carried back, or the purchase price, values a day no
+observation covers, and leaving out a position held throughout drops it from a period it was in. Capital gain is realized plus unrealized,
 and the unrealized half is measured only on what is still held; `quotesAsOf` merges snapshots, so a
 last quote outlives its sale and would count it twice. A snapshot dated after the sale can still
 quote the position, the same double count one day at a time; `buildBalanceRow` shows it because a

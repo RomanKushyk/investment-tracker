@@ -13,21 +13,20 @@ import {
   reinvestedByAsset,
   soldAmountByAsset,
   totalReturnPct,
-  transactionsFromWindow,
   valuedQuotes,
   yieldSinceStart,
 } from '../derive';
 import { unnamedType, type Asset, type Snapshot, type Transaction } from '../types';
 import type { PeriodWindow } from '../period';
-import { dayBefore, daysBetween, latestSnapshotDate } from '../dates';
+import { addDays, dayBefore, daysBetween, latestSnapshotDate } from '../dates';
 import { xirr, type CashFlow } from '../xirr';
 import type { LedgerInput, PeriodInput } from './input';
 import { windowView } from './window';
 
 export interface YieldTableRow {
   asset: Asset;
-  // undefined = no quote values the units the window inherited the day before it opens, and so is
-  // every figure below: read at 0, that basis turns Δ into 0 % or into hundreds of percent.
+  // undefined = no snapshot values the units the window inherited, the day before it opens or inside
+  // it before its last, so nor is any figure below: read at 0, Δ turns 0 % or hundreds of percent.
   invested: number | undefined;
   // undefined = no quote values its units (never quoted, or bought back since the last valuation
   // day), and so is every figure below: read at 0, those units are a total loss at a huge rate.
@@ -88,25 +87,78 @@ function assetCashFlows(
   return flows;
 }
 
-/** What a window measures each position against: its value the day before the window opens,
- *  plus what was bought inside it. A position no snapshot values that day has no key in either:
- *  the window's basis is ABSENT. *Metric families and windows* */
+/** Each position's opening and its own window: one unvalued when the window opens starts late, as read
+ *  at 0 its basis is fiction; one no snapshot inside quotes while held has no key, ABSENT.
+ *  *Metric families and windows* */
 export function windowedBasisByAsset(
   assets: Asset[],
   snapshots: Snapshot[],
   transactions: Transaction[],
   w: PeriodWindow | undefined,
-): { open: Record<string, number>; basis: Record<string, number> } {
+): {
+  open: Record<string, number>;
+  basis: Record<string, number>;
+  from: Record<string, string>;
+} {
   const open =
     w === undefined ? {} : heldValues(assets, snapshots, transactions, dayBefore(w.from));
-  const invested = investedByAsset(transactionsFromWindow(transactions, w));
+  const from: Record<string, string> = {};
+  if (w !== undefined) {
+    for (const { id } of assets) if (Object.hasOwn(open, id)) from[id] = w.from;
+    startLate(assets, snapshots, transactions, w, open, from);
+  }
+  const invested = investedByAsset(flowsFrom(transactions, w, from));
   const basis: Record<string, number> = {};
   for (const asset of assets) {
-    if (w !== undefined && !Object.hasOwn(open, asset.id)) continue;
+    if (w !== undefined && !Object.hasOwn(from, asset.id)) continue;
     basis[asset.id] = (open[asset.id] ?? 0) + (invested[asset.id] ?? 0);
   }
-  return { open, basis };
+  return { open, basis, from };
 }
+
+// A snapshot's own quote, on a day the ledger holds units or cannot count them: a carried one may value
+// units since sold, and the window's last day leaves the position no day of its own.
+function startLate(
+  assets: Asset[],
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  w: PeriodWindow,
+  open: Record<string, number>,
+  from: Record<string, string>,
+): void {
+  const missing = new Set(assets.filter(({ id }) => !Object.hasOwn(open, id)).map(({ id }) => id));
+  const days = snapshots
+    .filter((s) => s.date >= w.from && s.date < w.to)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  for (const s of days) {
+    if (missing.size === 0) return;
+    let units: Record<string, number | undefined> | undefined;
+    for (const id of missing) {
+      const quote = Object.hasOwn(s.quotes, id) ? s.quotes[id] : undefined;
+      if (quote === undefined) continue;
+      units ??= ledgerUnits(transactions, s.date).units;
+      if (holdsNone(units[id])) continue;
+      open[id] = quote;
+      from[id] = addDays(s.date, 1);
+      missing.delete(id);
+    }
+  }
+}
+
+// The window's rows, each position's from the day its own window opens.
+function flowsFrom(
+  transactions: Transaction[],
+  w: PeriodWindow | undefined,
+  from: Record<string, string>,
+): Transaction[] {
+  if (w === undefined) return transactions;
+  return transactions.filter(
+    (t) => t.date >= (Object.hasOwn(from, t.assetId) ? from[t.assetId]! : w.from),
+  );
+}
+
+const later = (a: string | undefined, b: string | undefined) =>
+  a === undefined || (b !== undefined && b > a) ? b : a;
 
 /** Whether an annualized figure is spread over time its asset did not exist for. */
 export function shortBasisIn(start: string | undefined, w: PeriodWindow | undefined): boolean {
@@ -134,8 +186,8 @@ export function yieldTableRowsIn(
   // SINCE the last valuation — which every other screen counts, so clipping both ends
   // made a buy dated after the last snapshot vanish from this screen alone. No window
   // means no valuation date, not no ledger.
-  const flows = transactionsFromWindow(transactions, w);
-  const { open, basis } = windowedBasisByAsset(assets, snapshots, transactions, w);
+  const { open, basis, from } = windowedBasisByAsset(assets, snapshots, transactions, w);
+  const flows = flowsFrom(transactions, w, from);
   // Priced to the window's end, with units to the ledger's last row, where `flows` end too: a
   // sale entered since the last valuation takes the position's units with it.
   const valued = w === undefined ? [] : snapshots.filter((s) => s.date <= w.to);
@@ -157,6 +209,7 @@ export function yieldTableRowsIn(
   return assets.map((asset) => {
     const value = values[asset.id];
     const openValue = open[asset.id] ?? 0;
+    const opened = Object.hasOwn(from, asset.id) ? from[asset.id] : undefined;
     const inv = Object.hasOwn(basis, asset.id) ? basis[asset.id] : undefined;
     if (value === undefined || inv === undefined || now === undefined) {
       return {
@@ -181,7 +234,9 @@ export function yieldTableRowsIn(
       value,
       deltaTotal,
       annualized,
-      shortBasis: annualized === undefined ? false : shortBasisIn(startByAsset[asset.id], w),
+      // A late start is held for less of the window than its purchase says.
+      shortBasis:
+        annualized === undefined ? false : shortBasisIn(later(startByAsset[asset.id], opened), w),
       vsExpectedPp: annualized === undefined ? undefined : annualized * 100 - asset.expectedPct,
       // THE DENOMINATOR CHANGES MEANING UNDER A WINDOW. `totalReturnPct` counts
       // external capital only, but `openValue` is a MARKET value and embeds every
@@ -196,7 +251,7 @@ export function yieldTableRowsIn(
         openValue + (investedOwn[asset.id] ?? 0),
         reinvested[asset.id] ?? 0,
       ),
-      xirr: xirr(assetCashFlows(asset.id, flows, value, now, openValue, w?.from)),
+      xirr: xirr(assetCashFlows(asset.id, flows, value, now, openValue, opened)),
     };
   });
 }
@@ -266,8 +321,7 @@ export function cumulativeYieldSeriesIn(
   const inWindow =
     w === undefined ? snapshots : snapshots.filter((s) => s.date >= w.from && s.date <= w.to);
   const sorted = [...inWindow].sort((a, b) => a.date.localeCompare(b.date));
-  const { open, basis: windowed } = windowedBasisByAsset(assets, snapshots, transactions, w);
-  const openedOn = w?.from;
+  const { open, basis: windowed, from } = windowedBasisByAsset(assets, snapshots, transactions, w);
 
   return sorted.map((s) => {
     const point: YieldSeriesPoint = { date: s.date };
@@ -275,6 +329,9 @@ export function cumulativeYieldSeriesIn(
     for (const asset of assets) {
       // The table's absent basis: no line, whatever is bought inside the window.
       if (!Object.hasOwn(windowed, asset.id)) continue;
+      // A late start's line begins with its own window, as the table's row does.
+      const openedOn = Object.hasOwn(from, asset.id) ? from[asset.id] : undefined;
+      if (openedOn !== undefined && s.date < openedOn) continue;
       // Valued as total capital values it that day: a position the ledger holds none of is a
       // known 0, quoted or not, so a closed line runs on at its proceeds.
       const quote = holdsNone(units[asset.id]) ? 0 : s.quotes[asset.id];
