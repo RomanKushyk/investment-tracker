@@ -28,6 +28,13 @@ function leaves(node: Node, prefix = ''): Map<string, Node> {
 const EN = leaves(en as unknown as Node);
 const UK = leaves(uk as unknown as Node);
 
+// A function is read in the one branch that `'·'` arguments take, not in every branch.
+const text = (value: Node) => {
+  if (typeof value === 'string') return value;
+  const fn = value as (...a: never[]) => string;
+  return fn(...(Array.from({ length: fn.length }, () => '·') as never[]));
+};
+
 /** Keys whose value is legitimately identical in both languages. */
 const SHARED = new Set([
   // Each language names ITSELF in its own script, in both dictionaries —
@@ -203,15 +210,28 @@ describe('the deposit type', () => {
   });
 
   it('leaves no Ukrainian string on the old word, the sums included', () => {
-    // A function is read in the one branch that `'·'` arguments take, not in every branch.
-    const text = (value: Node) => {
-      if (typeof value === 'string') return value;
-      const fn = value as (...a: never[]) => string;
-      return fn(...(Array.from({ length: fn.length }, () => '·') as never[]));
-    };
     // The noun, its forms, the participle «внесено» and the verbal noun «внесення»; not the
     // verb, which a future «внесіть» may still need.
     const stale = [...UK].filter(([, value]) => /внес(?:ок|к|ен)/iu.test(text(value)));
+    expect(stale.map(([key]) => key)).toEqual([]);
+  });
+});
+
+// The rest of the Ukrainian copy calls the app a «застосунок»; a sign-out and its failure say the
+// same, «із» before «з» as Pravopys 2019 §25.2 asks.
+describe('the sign-out lines', () => {
+  it('say the app was left, or not, in the word the rest of the copy uses', () => {
+    expect(uk.auth.signedOut).toBe('Ви вийшли із застосунку.');
+    expect(uk.auth.signOutFailed).toBe(
+      'Не вдалося вийти — ви досі в застосунку. Спробуйте ще раз.',
+    );
+  });
+
+  // `uk.auth` only: «Системна» elsewhere is the device's theme, not the app.
+  it('leave no auth string calling the app a system', () => {
+    const stale = [...UK].filter(
+      ([key, value]) => key.startsWith('auth.') && /систем/iu.test(text(value)),
+    );
     expect(stale.map(([key]) => key)).toEqual([]);
   });
 });
