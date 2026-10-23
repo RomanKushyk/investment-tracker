@@ -6,7 +6,7 @@ import type { Session } from '../auth/session';
 
 /** The first segment of each route every user may call. `/admin/*` also answers `forbidden` to an
  *  active user who is not a super-admin, so only these may show a refusal in place of the screen. */
-export const DATA_ROOTS = ['view', 'mutations', 'state', 'imports', 'settings'] as const;
+export const DATA_ROOTS = ['view', 'mutations', 'state', 'imports', 'settings', 'me'] as const;
 
 export interface Call {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

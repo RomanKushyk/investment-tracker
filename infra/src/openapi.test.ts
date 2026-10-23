@@ -64,6 +64,7 @@ import {
   PART_ROUTE,
   RESPONSES as IMPORT_RESPONSES,
 } from './imports';
+import { ME_ROUTE, RESPONSES as ME_RESPONSES } from './me';
 import {
   BODY as MUTATIONS_BODY,
   MUTATIONS_ROUTE,
@@ -258,6 +259,7 @@ describe('the document is regenerated, never typed', () => {
       './auth-relay',
       './http',
       './imports',
+      './me',
       './mutations',
       './settings',
       './view',
@@ -342,6 +344,7 @@ const DECLARED = {
   ...MUTATIONS_RESPONSES,
   ...IMPORT_RESPONSES,
   ...SETTINGS_RESPONSES,
+  ...ME_RESPONSES,
 };
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
@@ -494,7 +497,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-eight routes and no others', () => {
+  it('declares the twenty-nine routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -517,6 +520,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         COMMIT_ROUTE,
         ABORT_ROUTE,
         SETTINGS_ROUTE,
+        ME_ROUTE,
       ].sort(),
     );
   });
@@ -557,6 +561,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       COMMIT_ROUTE,
       ABORT_ROUTE,
       SETTINGS_ROUTE,
+      ME_ROUTE,
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }

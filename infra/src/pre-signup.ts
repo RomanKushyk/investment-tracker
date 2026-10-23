@@ -6,6 +6,8 @@ import {
   ListUsersCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
+import { PROVIDERS } from './providers';
+
 // Pre-sign-up: the trigger that keeps one account per email true across a provider boundary.
 //
 // The pool refuses a second LOCAL sign-up on an address it already holds. It does NOT refuse a
@@ -40,12 +42,6 @@ export type IdentityClient = {
     };
   }): Promise<unknown>;
 };
-
-// The federated providers this pool can carry, matched case-INSENSITIVELY: the username's case is
-// undocumented and a first federated sign-in has been reported lower-cased, where an exact match
-// would fail every Google sign-in. EXPORTED so a test holds this to the template's `ProviderName`,
-// which renders through a `!Ref` and would otherwise rename silently.
-export const PROVIDERS = ['Google'];
 
 // AWS RENDERS A THROWN ERROR'S MESSAGE TO THE PERSON SIGNING UP, so this is prose rather than a
 // log line — and the same on every path, because whether an address has an application is not

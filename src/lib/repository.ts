@@ -69,6 +69,20 @@ export type SeriesData = Revalidated<SeriesBody>;
 export type BalancesData = Revalidated<BalancesBody>;
 export type DayData = Revalidated<DayQuotes>;
 
+/** `GET /me`: the caller's own account and what it holds. A field the API does not hold is absent. */
+export interface MeBody {
+  userId: string;
+  email: string;
+  role: 'user' | 'super_admin';
+  memberSince: string;
+  googleLinked: boolean;
+  assets: number;
+  transactions: number;
+  firstTransaction?: string;
+  settings: AccountSettings;
+}
+export type MeData = Revalidated<MeBody>;
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -89,6 +103,13 @@ const isBalances = (b: unknown): b is BalancesBody =>
   isObject(b) && Array.isArray(b.assets) && Array.isArray(b.rows) && typeof b.page === 'number';
 const isDay = (b: unknown): b is DayQuotes =>
   isObject(b) && typeof b.date === 'string' && isObject(b.quotes) && isObject(b.previous);
+const isMe = (b: unknown): b is MeBody =>
+  isObject(b) &&
+  typeof b.userId === 'string' &&
+  typeof b.role === 'string' &&
+  typeof b.assets === 'number' &&
+  typeof b.transactions === 'number' &&
+  isObject(b.settings);
 
 export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
   /** The strong tag the next write goes under; none until the view or an export has been read. */
@@ -205,6 +226,8 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
       revalidate(`/view/balances?page=${page}`, previous, isBalances),
     readDay: (date: string, previous?: DayData) =>
       revalidate(`/view/day?date=${date}`, previous, isDay),
+    /** The account's own read, asked for by the screen that shows it and never on a load. */
+    readMe: (previous?: MeData) => revalidate('/me', previous, isMe),
 
     /** Replaces the day's quotes with the drafts: a quote the day holds that they left out is
      *  cleared. `stored` is the day as the view served it. */

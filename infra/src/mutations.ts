@@ -1,4 +1,5 @@
-// `POST /mutations` and `GET /state` (*Cloud target*, *User schema and deletes*).
+// `POST /mutations` and `GET /state` (*Cloud target*, *User schema and deletes*), and the function's
+// other routes: the staged import, `PATCH /settings` and the account's own `GET /me`.
 //
 // A write is ONE TRANSACTION of ordered ops under a strong `If-Match`, after a claim on its
 // idempotency key committed on its own: the effect, the version bump and the stored response then
@@ -54,6 +55,7 @@ import {
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { IMPORT_ROUTES, imports, type ImportDeps } from './imports';
+import { ME_ROUTE, identityReader, me } from './me';
 import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
 import { SETTINGS_ROUTE, settings } from './settings';
 
@@ -828,6 +830,12 @@ export async function handler(
     if (event.routeKey === MUTATIONS_ROUTE) return await mutations(deps, event);
     if (IMPORT_ROUTES.includes(event.routeKey ?? '')) return await imports(deps, event);
     if (event.routeKey === SETTINGS_ROUTE) return await settings(deps, event);
+    if (event.routeKey === ME_ROUTE) {
+      return await me(
+        { user, identity: identityReader, userPoolId: process.env.USER_POOL_ID },
+        event,
+      );
+    }
     return INTERNAL;
   } finally {
     await user.end().catch((err: unknown) => console.error('mutations disconnect failed', err));

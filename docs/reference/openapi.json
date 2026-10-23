@@ -52,6 +52,10 @@
     {
       "name": "settings",
       "description": "The account’s settings, as a merge patch."
+    },
+    {
+      "name": "me",
+      "description": "The caller’s own account and what it holds, read by the screens that show it."
     }
   ],
   "paths": {
@@ -4515,6 +4519,135 @@
                           "code": "invalid"
                         }
                       ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "getMe",
+        "summary": "GET /me",
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "me": {
+                    "value": {
+                      "userId": "<the sub>",
+                      "email": "owner@quirenote.com",
+                      "role": "user",
+                      "memberSince": "2026-03-02",
+                      "googleLinked": false,
+                      "assets": 4,
+                      "transactions": 25,
+                      "firstTransaction": "2026-03-09",
+                      "settings": {
+                        "defaultCurrency": "UAH",
+                        "language": "uk",
+                        "autoQuoteSuggest": true,
+                        "couponSuggest": true,
+                        "remindersEnabled": true,
+                        "reminderLeadDays": 7,
+                        "dismissedReminders": [],
+                        "collapsedNavGroups": [],
+                        "sidebarCollapsed": false,
+                        "period": "all"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
                     }
                   }
                 }

@@ -30,6 +30,7 @@ import {
 import { ANSWER_MS, SECRET_MS } from './bot-check';
 import { envVars, grantAt, intrinsicAt, tagAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
+import { ME_ROUTE } from './me';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
 import { SETTINGS_ROUTE } from './settings';
 import { BALANCES_ROUTE, DAY_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
@@ -222,7 +223,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('ViewLogGroup').RetentionInDays).toBe(30);
   });
 
-  it('puts the write, the export, the import and the settings on this API, each naming the authorizer', () => {
+  it('puts the write, the export, the import, the settings and the account’s own read on this API, each naming the authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'MutationsFunction');
     expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [MUTATIONS_ROUTE, 'PublicApi', AUTHORIZER],
@@ -232,6 +233,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
       [COMMIT_ROUTE, 'PublicApi', AUTHORIZER],
       [ABORT_ROUTE, 'PublicApi', AUTHORIZER],
       [SETTINGS_ROUTE, 'PublicApi', AUTHORIZER],
+      [ME_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');
     expect(user.Resources.MutationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');

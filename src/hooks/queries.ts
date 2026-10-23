@@ -23,11 +23,13 @@ import {
 } from '@quirenote/core/view/serve';
 import { useT } from '../i18n/useT';
 import { repo, settingsCopy } from '../lib/api';
+import { meKey } from '../lib/me-key';
 import {
   ApiError,
   type BalancesData,
   type CouponReopen,
   type DayData,
+  type MeData,
   type SeriesData,
   type ViewData,
 } from '../lib/repository';
@@ -76,6 +78,15 @@ export const balancesQuery = (page: number) =>
       repo.readBalances(page, client.getQueryData<BalancesData>(queryKey)),
     ...FRESH,
   });
+
+/** The account's own read: outside the view's key, so reading the view again asks nothing of it,
+ *  and held for the view's window. A write invalidates it, since the counts move with the dataset,
+ *  and so does a settings patch (`lib/api.ts`). */
+export const meQuery = queryOptions({
+  queryKey: meKey,
+  queryFn: ({ client }) => repo.readMe(client.getQueryData<MeData>(meKey)),
+  ...FRESH,
+});
 
 export const dayQuery = (date: string) =>
   queryOptions({
@@ -160,6 +171,14 @@ export function useBalancesPage(page: number): BalancesBody | undefined {
   return data;
 }
 
+/** The caller's own account, nothing until the read answers. Read by the screen that shows it, so
+ *  a load asks for none; one whose first read fails is thrown to the screen's boundary. */
+export function useMe(): MeData | undefined {
+  const { data, error } = useQuery(meQuery);
+  throwFailedFirstRead(data, error);
+  return data;
+}
+
 /** What was recorded on `date`, and each position's value before it. The view carries the caller's day, so that day costs
  *  no read; another is read on its own, and is an empty day, and `pending`, until it lands, never
  *  the last one picked. */
@@ -193,7 +212,12 @@ export function useViewDayRollover(): void {
 // THE WRITES. Each settles only once the view it may have changed has been read again, so a control
 // that waits on its write is never idle beside the figure it had not changed yet. A write refused
 // for a stale tag changed nothing, and says so once, whichever tab or control it came from.
-const refreshView = (qc: QueryClient) => qc.invalidateQueries({ queryKey: viewKey });
+/** What a write moves: the view, which its control waits for, and the counts the account's own read
+ *  carries, which it does not. */
+const refreshWritten = (qc: QueryClient) => {
+  void qc.invalidateQueries({ queryKey: meKey });
+  return qc.invalidateQueries({ queryKey: viewKey });
+};
 const STALE_TOAST = 'stale-write';
 
 /** What a control tells of a write that failed. A write refused for a stale tag has been told by
@@ -213,7 +237,7 @@ function useWrite<V, R>(write: (variables: V) => Promise<R>) {
         toast.error(t.sync.staleWrite, { id: STALE_TOAST });
       }
     },
-    onSettled: () => refreshView(qc),
+    onSettled: () => refreshWritten(qc),
   });
 }
 

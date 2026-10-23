@@ -7,14 +7,18 @@ import { QueryClient } from '@tanstack/react-query';
 import { session, showAnswer } from '../auth/app';
 import { useSettings } from '../state/settings';
 import { forgetAccount, forgetOnAccountEnd } from './account';
+import { meKey } from './me-key';
 import { createRepository } from './repository';
 import { createSettingsCopy } from './settings-copy';
 import { createTransport } from './transport';
 
 export const settingsCopy = createSettingsCopy({
   store: useSettings,
-  // Looked up when called: the repository is made below, with this copy.
-  patch: (fields) => repo.patchSettings(fields),
+  // Looked up when called: the repository and the client are made below, with this copy.
+  patch: (fields) =>
+    repo
+      .patchSettings(fields)
+      .finally(() => void queryClient.invalidateQueries({ queryKey: meKey })),
 });
 
 export const repo = createRepository(

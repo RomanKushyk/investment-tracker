@@ -1379,27 +1379,36 @@ describe('the user stack stores the official rate ahead, in both environments', 
 });
 
 // `POST /mutations` and `GET /state`: the caller's rows in this stack's cluster, and nothing of the
-// archive. [*Cloud target*]
+// archive; `GET /me` reads the caller's own user in this stack's pool. [*Cloud target*]
 describe('the user stack serves the write and the export', () => {
   const grants = ['Resources', 'MutationsFunction', 'Properties', 'Policies', 0, 'Statement'];
 
-  it('connects to this stack’s cluster, and holds no other grant', () => {
-    expect(inlineStatements(user, 'MutationsFunction')).toHaveLength(1);
+  it('connects to this stack’s cluster, reads a user of this stack’s pool, and holds no other grant', () => {
+    expect(inlineStatements(user, 'MutationsFunction')).toHaveLength(2);
     expect(grantAt(userDoc, grants, 'dsql:DbConnectAdmin')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
     });
+    expect(grantAt(userDoc, grants, 'cognito-idp:AdminGetUser')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
   });
 
   // The gate reads the switch, and without it reads closed.
-  it('is told its cluster and the registration switch, and nothing else', () => {
+  it('is told its cluster, its pool and the registration switch, and nothing else', () => {
     const vars = user.Resources.MutationsFunction.Properties?.Environment?.Variables ?? {};
     expect(Object.keys(vars).sort()).toEqual([
       'AWS_REGION_NAME',
       'DSQL_ENDPOINT',
       'NODE_OPTIONS',
       'OPEN_REGISTRATION',
+      'USER_POOL_ID',
     ]);
+    expect(intrinsicAt(userDoc, ...envVars('MutationsFunction'), 'USER_POOL_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPool',
+    });
     expect(intrinsicAt(userDoc, ...envVars('MutationsFunction'), 'DSQL_ENDPOINT')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.Endpoint',

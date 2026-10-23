@@ -46,6 +46,7 @@ import {
   PART_ROUTE,
   RESPONSES as IMPORT_RESPONSES,
 } from './imports';
+import { PARAMETERS as ME_PARAMETERS, RESPONSES as ME_RESPONSES } from './me';
 import {
   BODY as MUTATIONS_BODY,
   MUTATIONS_ROUTE,
@@ -85,8 +86,14 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'archive-operations.handler': OPERATION_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
-  // The write, the export, the staged import and the settings share one function.
-  'mutations.handler': { ...MUTATIONS_RESPONSES, ...IMPORT_RESPONSES, ...SETTINGS_RESPONSES },
+  // The write, the export, the staged import, the settings and the account's own read share one
+  // function.
+  'mutations.handler': {
+    ...MUTATIONS_RESPONSES,
+    ...IMPORT_RESPONSES,
+    ...SETTINGS_RESPONSES,
+    ...ME_RESPONSES,
+  },
 };
 
 /** Keyed by route, not by handler: a second event on one function would otherwise attach a
@@ -118,6 +125,7 @@ export const TAGS: Record<string, string> = {
   imports:
     'The staged import: a dataset too large for one transaction, in parts that one commit moves.',
   settings: 'The account’s settings, as a merge patch.',
+  me: 'The caller’s own account and what it holds, read by the screens that show it.',
 };
 
 type Operation = {
@@ -152,6 +160,7 @@ const PARAMETERS: Record<string, NonNullable<Operation['parameters']>> = {
   ...VIEW_PARAMETERS,
   ...MUTATIONS_PARAMETERS,
   ...IMPORT_PARAMETERS,
+  ...ME_PARAMETERS,
 };
 
 export type OpenApiDocument = {

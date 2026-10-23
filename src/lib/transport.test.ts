@@ -248,6 +248,17 @@ describe('a refusal', () => {
     expect(showAnswer).toHaveBeenCalledExactlyOnceWith({ answer: 'rejected', email: ADDRESS });
   });
 
+  it("reaches a user from the account's own route, read on a screen's visit", async () => {
+    server.use(http.get(`${API}/me`, () => answering(403, { error: 'pending' })));
+    const { call, showAnswer } = await transport();
+
+    expect(await call({ method: 'GET', path: '/me' })).toEqual({
+      kind: 'answer',
+      answer: 'pending',
+    });
+    expect(showAnswer).toHaveBeenCalledExactlyOnceWith({ answer: 'pending', email: ADDRESS });
+  });
+
   it.each([{ message: 'Forbidden' }, { error: 'blocked' }, 'Forbidden'])(
     'is no answer when a 403 carries %j, which is not the API reading the caller',
     async (body) => {

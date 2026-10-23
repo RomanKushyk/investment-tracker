@@ -422,6 +422,23 @@ describe('the reads', () => {
     expect(new Set([curve.validator, page.validator, day.validator]).size).toBe(3);
   });
 
+  it("revalidate the account's own read, and hand back what they had when it is unchanged", async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
+    const first = await repo.readMe();
+    expect(first).toMatchObject({
+      role: 'user',
+      assets: 4,
+      validator: expect.stringMatching(/^W\//),
+    });
+
+    expect(await repo.readMe(first)).toBe(first);
+    expect(api.seen.at(-1)?.headers['if-none-match']).toBe(first.validator);
+
+    api.role = 'super_admin';
+    expect((await repo.readMe(first)).role).toBe('super_admin');
+  });
+
   it('send nothing without a token, and say the caller is signed out', async () => {
     const api = fakeApi(SEED_ROWS(), { today: TODAY });
     const signedOut = createSession({

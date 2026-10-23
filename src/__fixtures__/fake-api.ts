@@ -1,5 +1,5 @@
 // A fake of the user API for the client's tests: the reads `GET /view` and its three siblings, the
-// export, `POST /mutations`, `PATCH /settings` and the staged import, served as `fetch` answers over
+// account's `GET /me`, the export, `POST /mutations`, `PATCH /settings` and the staged import, served as `fetch` answers over
 // rows held in memory. It applies the ops with core's own schemas and merge patch, and the settings
 // with core's own, so a client that sends the wrong op, the wrong tag or the wrong bytes is refused
 // as the API refuses it. The relay's refresh answers too, so a page can sign in through it.
@@ -58,6 +58,9 @@ const invalid = (index: number, field: string, code: string, value?: string) =>
 const sha = (text: string) => createHash('sha256').update(text).digest('base64');
 
 export const DERIVATION_ID = 'derivation-of-this-build';
+/** The account `GET /me` answers for. */
+export const ME_USER_ID = '9f1e2d3c-0000-4000-8000-0000000000d4';
+export const ME_EMAIL = 'owner@quirenote.com';
 
 export interface FakeApi {
   fetch: typeof fetch;
@@ -74,6 +77,8 @@ export interface FakeApi {
   /** The account's settings as the column holds them: NULL until a first write. `/view` serves them
    *  and moves its validator when they change, and `PATCH /settings` merges onto them. */
   settings: string | null;
+  /** The row's role, which `GET /me` serves. */
+  role: 'user' | 'super_admin';
   /** Whether the relay holds a refresh cookie: a refresh answers tokens, a sign-out takes it away
    *  and a respond gives it back. */
   signedIn: boolean;
@@ -96,6 +101,7 @@ export function fakeApi(
     seen: [],
     notModified: 0,
     settings: null,
+    role: 'user',
     signedIn: true,
     tag: () => `"${api.version}"`,
   };
@@ -371,6 +377,31 @@ export function fakeApi(
     return json(dayBody(rows, query.get('date') ?? ''), 200, headers);
   }
 
+  /** `GET /me`: the account and what it holds, tagged by a digest of the body as the route tags it. */
+  function account(request: Sent): Response {
+    const [first] = api.rows.transactions.map((t) => t.date).sort();
+    const text = JSON.stringify({
+      userId: ME_USER_ID,
+      email: ME_EMAIL,
+      role: api.role,
+      memberSince: today,
+      googleLinked: false,
+      assets: api.rows.assets.length,
+      transactions: api.rows.transactions.length,
+      ...(first === undefined ? {} : { firstTransaction: first }),
+      settings: settingsOf(api.settings),
+    });
+    const headers = { etag: `W/"${sha(text)}"`, 'cache-control': 'private, no-cache' };
+    if (request.headers['if-none-match'] === headers.etag) {
+      api.notModified += 1;
+      return new Response(null, { status: 304, headers });
+    }
+    return new Response(text, {
+      status: 200,
+      headers: { ...headers, 'content-type': 'application/json' },
+    });
+  }
+
   /** `PATCH /settings`: a merge patch, applied whole or refused whole. It moves no dataset version. */
   function patched(request: Sent): Response {
     const type = request.headers['content-type']?.split(';')[0].trim().toLowerCase();
@@ -418,6 +449,7 @@ export function fakeApi(
     if (request.method === 'GET' && path === '/state') {
       return json(api.rows, 200, { etag: api.tag() });
     }
+    if (request.method === 'GET' && path === '/me') return account(request);
     if (request.method === 'GET' && /^\/view(\/series|\/balances|\/day)?$/.test(path)) {
       return read(request, path, url.searchParams);
     }

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO, skipped } from '../../src/repo-root';
 import { ORIGIN_SECONDS } from './auth-relay';
-import { PROVIDERS } from './pre-signup';
+import { PROVIDERS } from './providers';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
 // THE ONE RESOURCE IN THIS SYSTEM THAT CANNOT BE EDITED INTO CORRECTNESS. Three of the pool's

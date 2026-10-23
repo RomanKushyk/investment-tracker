@@ -517,6 +517,9 @@ Resources:
         'PATCH /settings':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'GET /me':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # THE ORIGINS ARE THE DEPLOYED HOSTS `src/auth/environment.ts` MAPS: a host it does not map
       # sends nothing to the API, and `localhost` reaches the relay same-origin through the dev
       # server's proxy. THE `!If` IS ON THE
@@ -1216,9 +1219,9 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # `POST /mutations`, `GET /state` and `PATCH /settings`, the write, the export and the settings
-  # write (`src/mutations.ts`, *Cloud target*). This stack's cluster alone: nothing here reads the
-  # archive.
+  # `POST /mutations`, `GET /state`, `PATCH /settings` and `GET /me`, the write, the export, the
+  # settings write and the account's own read (`src/mutations.ts`, *Cloud target*). This stack's
+  # cluster alone: nothing here reads the archive.
   MutationsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1239,6 +1242,7 @@ Resources:
           NODE_OPTIONS: --enable-source-maps
           # The gate writes the row of somebody who got in while the door was open.
           OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+          USER_POOL_ID: !Ref UserPool
       Policies:
         - Statement:
             # The only database role this cluster has is `admin`; the handler bounds the reach.
@@ -1246,6 +1250,12 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
+            # `GET /me` reads the caller's own user for the providers linked to it. One call and no
+            # write; this function is not in the chain the pool depends on, so naming it builds no cycle.
+            - Sid: ReadTheCallersUser
+              Effect: Allow
+              Action: cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
       Events:
         Mutations:
           Type: HttpApi
@@ -1304,6 +1314,15 @@ Resources:
             ApiId: !Ref PublicApi
             Method: PATCH
             Path: /settings
+            Auth:
+              Authorizer: CognitoJwt
+        # The account's own read (`me.ts`), asked for by the screens that show it.
+        Me:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /me
             Auth:
               Authorizer: CognitoJwt
 

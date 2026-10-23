@@ -1030,8 +1030,8 @@ archive is read for the linked refs from a week before the first transaction on 
 caller's day, so the first held day finds the observation before it. TWO VALIDATORS, NEVER ONE:
 the read's tag is WEAK and composed from seven inputs — the caller, the write's strong tag, a digest
 of the sell rows read, a digest of the payment dates served, the rate served with its day, the Kyiv
-day and the derivation identifier — and `/view`'s adds the caller's settings as served, the one body that
-carries them, while a write's precondition is the caller and `data_version` alone, as a strong tag. `If-None-Match`
+day and the derivation identifier — and `/view`'s adds the caller's settings as served, the one boot
+read that carries them (`GET /me` serves them too, under a digest of its body), while a write's precondition is the caller and `data_version` alone, as a strong tag. `If-None-Match`
 compares weakly and `*` matches;
 `If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
 `private, no-cache`. STALENESS IS A HEADER: the 200 names its derivation in `derivation-id`, which
@@ -1102,7 +1102,7 @@ landed it answers the current tag. `DELETE /imports/{id}` closes the staging, 20
 past its limit is gone. A price row is written as it stands, a witness time the file leaves out left
 out again.
 THE ACCOUNT'S SETTINGS ARE WRITTEN BY `PATCH /settings`, on the write's function and behind the same
-gate, and READ FROM `/view`: there is no `GET /settings`. The body is a JSON merge patch
+gate, and READ FROM `/view`, the boot copy: there is no `GET /settings`. The body is a JSON merge patch
 (RFC 7396) of the ten fields *Persistence today* names, sent as `application/merge-patch+json`: a
 field it names takes its value, `null` resets it to its default, and one it leaves out stays as
 stored (a value its rule refuses among them, which a read serves as the default, or as its strings
@@ -1124,6 +1124,22 @@ and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE
 `If-Match` goes stale, and a patch applied twice leaves one state. The text lives on the row
 `data_version` lives on, so a settings write and a mutation touching the row at once conflict at
 commit, and the one that loses is retried.
+THE CALLER'S OWN ACCOUNT IS `GET /me`, on the write's function and behind the same gate, READ ON
+DEMAND by a screen that shows it and never at sign-in or on a load, so a load stays one data
+request; Microsoft Graph serves the signed-in user at `GET /me`, and the products that carry the
+role and the settings in their boot read and read the account apart from it are Grafana, Discourse,
+Sentry and Mastodon. It answers the row's `userId`, `email` and `role`, `memberSince` as the Kyiv day
+of `decided_at`, `googleLinked` from the pool's `identities` on the caller's own user, the live
+dataset's `assets` and `transactions` and its `firstTransaction` day, and the settings as `/view`
+serves them. A FIELD IT DOES NOT HOLD IS OMITTED, NEVER NULL (OIDC Core §5.3.2), so an account with
+no transaction has no `firstTransaction`; it carries nothing a screen does not show (ASVS 5.0.0
+14.2.6): no status, application, decider, version, dataset, theme or sign-in history, and no
+password flag, which every account holds alike while registration is closed, the pool having no OTP
+factor and a Google sign-in needing a local account; opening registration admits a Google-only
+profile with none, and brings the flag. It looks the caller up by the token's `cognito:username`,
+since a `sub` names a local user only. Its tag is WEAK and a
+DIGEST OF THE BODY (RFC 9110 §8.8.3): a 304 needs the pool's answer as much as a 200 does, so a tag
+composed from inputs would save no read; `private, no-cache`, as `/view`. Nothing writes through it.
 THE ARCHIVE'S DIAGNOSIS IS `GET /admin/archive/diagnosis`, a super-admin read on this API, served by a
 function of its own: past the gate it invokes the archive's capture function synchronously with the
 `diagnose` event and answers the capture's body unchanged; 502 `capture_failed` when the capture throws
@@ -1425,7 +1441,8 @@ quotes: it quotes a carried grid day and an archive price as well. · The settin
 `/mutations`: it bumps `data_version`, so a period change costs a `/view` read and every other tab's
 write is refused 412. · A `GET /settings`: the read rides `/view`. · A `PUT` of the whole settings
 object: it deletes what its sender did not send, such as a field a build that loaded before does not
-know (AIP-134, above). · Dropping a name that is no setting, as a read does: a client sending a
+know (AIP-134, above). · Moving the settings off `/view` onto `GET /me`, read at every load: a second
+request, preflight and cold function on every load, where only Mattermost reads its `/me` at boot. · Dropping a name that is no setting, as a read does: a client sending a
 theme would be answered 200 and find it stored nowhere. · Salvaging a list's strings, as a read
 does: the write would store something other than what was sent and answer 200. · Taking
 `application/json` as a patch as well: the route takes one patch format, and RFC 5789 §2.2 answers
@@ -1762,7 +1779,9 @@ client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no 
 types, and this pool gives none without a username. · Build-time settings for the relay and the
 pool: a build can disagree with the host serving it, and the host cannot. · A who-am-I route to learn
 the four answers: every authenticated route reads the same row and answers them, so the first read
-the app makes serves, and a route of its own would cost an invocation on every sign-in. · The
+the app makes serves, and a route of its own would cost an invocation on every sign-in. `GET /me` is
+no such route: a screen that shows the account reads it, and the four answers still come from the
+first read the app makes. · The
 signed-out confirmation as a toast: it leaves on a timer, and a toast here
 reports on the page the user stays on. · Deciding the offer from the address step's answer, a
 `SELECT_CHALLENGE` without `WEB_AUTHN`: it depends on which way the user reached the password, and no
