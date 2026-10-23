@@ -3315,9 +3315,15 @@ describe('both stack descriptions are present, bounded, literal and ASCII', () =
 
   // THE STACK `Description` ALONE: the AlarmDescriptions carry em dashes and CloudWatch stores
   // them, em dashes and all.
+  //
+  // AN ALLOW-LIST, printable ASCII and `\n`, because a control is a keystroke away and none but the
+  // newline is known safe: a more-indented line in a folded scalar keeps its breaks, CloudFormation
+  // stores an internal `\n` as given, and the deploy's check compares it equal.
   it('keeps both stack descriptions inside the ASCII the pipeline carries', () => {
     for (const [file, , template] of templates) {
-      const outside = [...(template.Description ?? '')].filter((c) => c.charCodeAt(0) > 126);
+      const outside = [...(template.Description ?? '')].filter(
+        (c) => c !== '\n' && (c.charCodeAt(0) < 0x20 || c.charCodeAt(0) > 0x7e),
+      );
       expect([file, outside]).toEqual([file, []]);
     }
   });
