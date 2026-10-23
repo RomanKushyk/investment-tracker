@@ -71,7 +71,7 @@ import {
   RESPONSES as MUTATIONS_RESPONSES,
   STATE_ROUTE,
 } from './mutations';
-import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
+import { ANSWERS, TAGS, buildSpec, responses, securityOf, servers } from './openapi';
 import {
   BODY as SETTINGS_BODY,
   MERGE_PATCH,
@@ -425,7 +425,7 @@ describe('each operation publishes its own route’s answers', () => {
   // pattern here is a second answer to what the cluster accepts, which `address.ts` forbids.
   it('publishes the address rule itself', () => {
     const schema = (
-      buildSpec().paths['/v1/applications'].post.requestBody as {
+      buildSpec().paths['/applications'].post.requestBody as {
         content: {
           'application/json': {
             schema: { properties: { email: { maxLength: number; pattern: string } } };
@@ -526,7 +526,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
   });
 
   // THE ASYMMETRY IS THE POINT, AND IT IS STATED RATHER THAN IMPLIED.
-  // `POST /v1/applications` creates the very row every other route is checked against, and the
+  // `POST /applications` creates the very row every other route is checked against, and the
   // relay is how a token is obtained, so they need nothing — and say so with an EMPTY ARRAY, which
   // the specification defines as removing the document's default. Omitting the field would
   // INHERIT that default and publish them as needing the token they exist to hand out.
@@ -601,7 +601,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         ASKING_FOR_THE_HEADER,
       ]);
     }
-    expect(spec.paths['/v1/applications'].post.parameters).toBeUndefined();
+    expect(spec.paths['/applications'].post.parameters).toBeUndefined();
   });
 
   // THE READ'S CONDITIONAL HEADERS AND THE CODING IT ACCEPTS, ordinary header parameters: none is
@@ -777,6 +777,49 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ['limit', 'query', false],
       ['cursor', 'query', false],
     ]);
+  });
+});
+
+// One group per resource: Swagger UI files an untagged operation under «default» and orders its
+// groups as the document's `tags` list does. [*API shape*]
+describe('the document groups and names its operations', () => {
+  const spec = buildSpec();
+  const operations = Object.entries(spec.paths).flatMap(([path, ops]) =>
+    Object.entries(ops).map(([method, op]) => ({
+      route: `${method.toUpperCase()} ${path}`,
+      segment: path.split('/')[1],
+      op,
+    })),
+  );
+
+  it('tags every operation with its first path segment, and nothing else', () => {
+    expect(operations.length).toBeGreaterThan(0);
+    for (const { route, segment, op } of operations) {
+      expect([route, op.tags]).toEqual([route, [segment]]);
+    }
+  });
+
+  it('files the sign-out under auth, as a literal and not by the same split', () => {
+    expect(spec.paths['/auth/sign-out'].post.tags).toEqual(['auth']);
+    expect(spec.paths['/auth/sign-out'].post.operationId).toBe('postAuthSignOut');
+  });
+
+  it('lists each tag once, described, in the order its operations first appear', () => {
+    expect(spec.tags.map((t) => t.name)).toEqual([...new Set(operations.map((o) => o.segment))]);
+    // A description whose last route is gone would stay in the source, a claim about nothing.
+    expect(Object.keys(TAGS).sort()).toEqual(spec.tags.map((t) => t.name).sort());
+    for (const tag of spec.tags) {
+      expect([tag.name, tag.description.trim() !== '']).toEqual([tag.name, true]);
+    }
+  });
+
+  // Unique as OAS requires: dropping `{}` and `-` can fold two paths into one name.
+  it('names every operation once, in camelCase', () => {
+    for (const { route, op } of operations) {
+      expect([route, /^[a-z][A-Za-z0-9]*$/.test(op.operationId)]).toEqual([route, true]);
+    }
+    const ids = operations.map((o) => o.op.operationId);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
 });
 

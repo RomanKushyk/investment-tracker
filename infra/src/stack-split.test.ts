@@ -3975,7 +3975,7 @@ describe('the bot-check bypass exists in dev alone', () => {
     expect(intrinsicAt(userDoc, ...at, 2)).toEqual({ tag: undefined, value: PARAMETER });
   });
 
-  // `/v1/applications` keeps the real check on every host, so the relay is the only reader.
+  // `/applications` keeps the real check on every host, so the relay is the only reader.
   it('is named to no other function', () => {
     const naming = [...resources(archive), ...resources(user)]
       .filter(

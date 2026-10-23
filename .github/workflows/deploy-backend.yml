@@ -667,7 +667,7 @@ jobs:
       - name: Write the bot-check secret
         run: |
           if [ -z "$TURNSTILE_SECRET" ]; then
-            echo "::error::TURNSTILE_SECRET is not set in this environment, and /v1/applications would refuse everyone"
+            echo "::error::TURNSTILE_SECRET is not set in this environment, and /applications would refuse everyone"
             exit 1
           fi
           # NEVER ON A COMMAND LINE, which any process on the runner can read: jq takes it from the

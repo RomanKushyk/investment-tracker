@@ -382,7 +382,7 @@ Resources:
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn
 
-  # `POST /v1/applications` AND THE RELAY'S NINE ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
+  # `POST /applications` AND THE RELAY'S NINE ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
   # the first creates the very `app_user` row every other route is checked against, and the relay
   # is how a token is obtained at all, and where the access token is spent (*Auth model*).
   # EVERY OTHER ROUTE NAMES THE AUTHORIZER and
@@ -429,7 +429,7 @@ Resources:
       # <path>` and YAML 1.1 reads a bare ON/OFF/NO/YES as a boolean: a key arriving as `true` would
       # configure nothing and fail nowhere. Every route has one, the admin routes included.
       RouteSettings:
-        'POST /v1/applications':
+        'POST /applications':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
         'GET /admin/users':
@@ -614,7 +614,7 @@ Resources:
           Properties:
             ApiId: !Ref PublicApi
             Method: POST
-            Path: /v1/applications
+            Path: /applications
             # NO `Auth` BLOCK, AND ABSENCE IS THE DECISION, as on the relay's nine: this endpoint creates
             # the row every other route is checked against, so there is nothing to check it with.
             # `public-api.test.ts` names these ten as the only routes allowed to be here.

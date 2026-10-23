@@ -25,7 +25,7 @@ export function addressRefusal(typed: string): 'emailMissing' | 'emailInvalid' |
   return canonicalAddress(typed) ? undefined : 'emailInvalid';
 }
 
-/** `POST /v1/applications`. Its 202 is one constant for every address, so all it can tell is that
+/** `POST /applications`. Its 202 is one constant for every address, so all it can tell is that
  *  the application was recorded. No cookie: the route reads none, and through the dev server's
  *  proxy the relay's refresh cookie is same-origin and would ride along. */
 export function createApply({
@@ -43,7 +43,7 @@ export function createApply({
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ANSWER_MS);
     try {
-      const response = await fetch(`${base}/v1/applications`, {
+      const response = await fetch(`${base}/applications`, {
         method: 'POST',
         credentials: 'omit',
         headers: { 'content-type': 'application/json' },

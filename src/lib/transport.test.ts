@@ -278,7 +278,7 @@ describe('a refusal', () => {
     };
     const roots = new Set(Object.keys(spec.paths).map((path) => path.split('/')[1]));
     // The relay, the application and the admin routes are not a user's data.
-    expect([...roots].sort()).toEqual([...DATA_ROOTS, 'admin', 'auth', 'v1'].sort());
+    expect([...roots].sort()).toEqual([...DATA_ROOTS, 'admin', 'applications', 'auth'].sort());
   });
 
   it('shows no answer to a request that began before a sign-out, even one still running', async () => {

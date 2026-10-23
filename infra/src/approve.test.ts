@@ -53,7 +53,7 @@ const POOL = 'eu-north-1_EXAMPLE';
 /** The super-admin doing the ruling — `decided_by` must end up naming this one. */
 const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
 const ADMIN_EMAIL = 'owner@quirenote.com';
-/** The placeholder `POST /v1/applications` wrote, which approval REPLACES. */
+/** The placeholder `POST /applications` wrote, which approval REPLACES. */
 const PLACEHOLDER = '9f1e2d3c-0000-4000-8000-0000000000c3';
 /** What the create call hands back, and what the row must end up keyed by. */
 const SUB = '9f1e2d3c-0000-4000-8000-0000000000d4';

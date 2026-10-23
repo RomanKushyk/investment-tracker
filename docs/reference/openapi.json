@@ -20,11 +20,48 @@
       "CognitoJwt": []
     }
   ],
+  "tags": [
+    {
+      "name": "applications",
+      "description": "The sign-up application, which an approval turns into an account."
+    },
+    {
+      "name": "admin",
+      "description": "The super-admin’s: the applications and their rulings, and the price archive’s diagnosis and repairs."
+    },
+    {
+      "name": "auth",
+      "description": "The relay: sign-in by password, passkey or Google, the session’s refresh and sign-out, and the account’s passkeys."
+    },
+    {
+      "name": "view",
+      "description": "The derived reads: the portfolio for six periods, the yield curve, the Balances table and a day’s quotes."
+    },
+    {
+      "name": "mutations",
+      "description": "The portfolio’s write, as ordered ops under one precondition."
+    },
+    {
+      "name": "state",
+      "description": "The raw export of the stored portfolio."
+    },
+    {
+      "name": "imports",
+      "description": "The staged import: a dataset too large for one transaction, in parts that one commit moves."
+    },
+    {
+      "name": "settings",
+      "description": "The account’s settings, as a merge patch."
+    }
+  ],
   "paths": {
-    "/v1/applications": {
+    "/applications": {
       "post": {
-        "operationId": "postV1Applications",
-        "summary": "POST /v1/applications",
+        "tags": [
+          "applications"
+        ],
+        "operationId": "postApplications",
+        "summary": "POST /applications",
         "requestBody": {
           "required": true,
           "content": {
@@ -116,6 +153,9 @@
     },
     "/admin/users": {
       "get": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "getAdminUsers",
         "summary": "GET /admin/users",
         "parameters": [
@@ -245,6 +285,9 @@
     },
     "/admin/users/{id}/approve": {
       "post": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "postAdminUsersIdApprove",
         "summary": "POST /admin/users/{id}/approve",
         "parameters": [
@@ -382,6 +425,9 @@
     },
     "/admin/users/{id}/reject": {
       "post": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "postAdminUsersIdReject",
         "summary": "POST /admin/users/{id}/reject",
         "parameters": [
@@ -514,6 +560,9 @@
     },
     "/admin/archive/diagnosis": {
       "get": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "getAdminArchiveDiagnosis",
         "summary": "GET /admin/archive/diagnosis",
         "security": [
@@ -641,6 +690,9 @@
     },
     "/admin/archive/operations": {
       "post": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "postAdminArchiveOperations",
         "summary": "POST /admin/archive/operations",
         "requestBody": {
@@ -903,6 +955,9 @@
         }
       },
       "get": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "getAdminArchiveOperations",
         "summary": "GET /admin/archive/operations",
         "parameters": [
@@ -1032,6 +1087,9 @@
     },
     "/admin/archive/operations/{id}": {
       "get": {
+        "tags": [
+          "admin"
+        ],
         "operationId": "getAdminArchiveOperationsId",
         "summary": "GET /admin/archive/operations/{id}",
         "parameters": [
@@ -1158,6 +1216,9 @@
     },
     "/auth/start": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthStart",
         "summary": "POST /auth/start",
         "parameters": [
@@ -1351,6 +1412,9 @@
     },
     "/auth/respond": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthRespond",
         "summary": "POST /auth/respond",
         "parameters": [
@@ -1676,6 +1740,9 @@
     },
     "/auth/refresh": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthRefresh",
         "summary": "POST /auth/refresh",
         "parameters": [
@@ -1776,7 +1843,10 @@
     },
     "/auth/sign-out": {
       "post": {
-        "operationId": "postAuthSign-out",
+        "tags": [
+          "auth"
+        ],
+        "operationId": "postAuthSignOut",
         "summary": "POST /auth/sign-out",
         "parameters": [
           {
@@ -1848,6 +1918,9 @@
     },
     "/auth/google/begin": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthGoogleBegin",
         "summary": "POST /auth/google/begin",
         "parameters": [
@@ -1938,6 +2011,9 @@
     },
     "/auth/google/complete": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthGoogleComplete",
         "summary": "POST /auth/google/complete",
         "parameters": [
@@ -2080,6 +2156,9 @@
     },
     "/auth/passkey/list": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthPasskeyList",
         "summary": "POST /auth/passkey/list",
         "parameters": [
@@ -2199,6 +2278,9 @@
     },
     "/auth/passkey/start": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthPasskeyStart",
         "summary": "POST /auth/passkey/start",
         "parameters": [
@@ -2324,6 +2406,9 @@
     },
     "/auth/passkey/complete": {
       "post": {
+        "tags": [
+          "auth"
+        ],
         "operationId": "postAuthPasskeyComplete",
         "summary": "POST /auth/passkey/complete",
         "parameters": [
@@ -2440,6 +2525,9 @@
     },
     "/view": {
       "get": {
+        "tags": [
+          "view"
+        ],
         "operationId": "getView",
         "summary": "GET /view",
         "parameters": [
@@ -2635,6 +2723,9 @@
     },
     "/view/series": {
       "get": {
+        "tags": [
+          "view"
+        ],
         "operationId": "getViewSeries",
         "summary": "GET /view/series",
         "parameters": [
@@ -2812,6 +2903,9 @@
     },
     "/view/balances": {
       "get": {
+        "tags": [
+          "view"
+        ],
         "operationId": "getViewBalances",
         "summary": "GET /view/balances",
         "parameters": [
@@ -2996,6 +3090,9 @@
     },
     "/view/day": {
       "get": {
+        "tags": [
+          "view"
+        ],
         "operationId": "getViewDay",
         "summary": "GET /view/day",
         "parameters": [
@@ -3171,6 +3268,9 @@
     },
     "/mutations": {
       "post": {
+        "tags": [
+          "mutations"
+        ],
         "operationId": "postMutations",
         "summary": "POST /mutations",
         "parameters": [
@@ -3444,6 +3544,9 @@
     },
     "/state": {
       "get": {
+        "tags": [
+          "state"
+        ],
         "operationId": "getState",
         "summary": "GET /state",
         "parameters": [
@@ -3581,6 +3684,9 @@
     },
     "/imports": {
       "post": {
+        "tags": [
+          "imports"
+        ],
         "operationId": "postImports",
         "summary": "POST /imports",
         "requestBody": {
@@ -3725,6 +3831,9 @@
     },
     "/imports/{id}/parts/{part}": {
       "put": {
+        "tags": [
+          "imports"
+        ],
         "operationId": "putImportsIdPartsPart",
         "summary": "PUT /imports/{id}/parts/{part}",
         "parameters": [
@@ -3952,6 +4061,9 @@
     },
     "/imports/{id}/commit": {
       "post": {
+        "tags": [
+          "imports"
+        ],
         "operationId": "postImportsIdCommit",
         "summary": "POST /imports/{id}/commit",
         "parameters": [
@@ -4106,6 +4218,9 @@
     },
     "/imports/{id}": {
       "delete": {
+        "tags": [
+          "imports"
+        ],
         "operationId": "deleteImportsId",
         "summary": "DELETE /imports/{id}",
         "parameters": [
@@ -4189,6 +4304,9 @@
     },
     "/settings": {
       "patch": {
+        "tags": [
+          "settings"
+        ],
         "operationId": "patchSettings",
         "summary": "PATCH /settings",
         "requestBody": {

@@ -106,7 +106,22 @@ const BODIES: Record<string, unknown> = {
   [SETTINGS_ROUTE]: SETTINGS_BODY,
 };
 
+/** One group per first path segment, in Swagger UI and in a generated client. [*API shape*] */
+export const TAGS: Record<string, string> = {
+  applications: 'The sign-up application, which an approval turns into an account.',
+  admin:
+    'The super-admin’s: the applications and their rulings, and the price archive’s diagnosis and repairs.',
+  auth: 'The relay: sign-in by password, passkey or Google, the session’s refresh and sign-out, and the account’s passkeys.',
+  view: 'The derived reads: the portfolio for six periods, the yield curve, the Balances table and a day’s quotes.',
+  mutations: 'The portfolio’s write, as ordered ops under one precondition.',
+  state: 'The raw export of the stored portfolio.',
+  imports:
+    'The staged import: a dataset too large for one transaction, in parts that one commit moves.',
+  settings: 'The account’s settings, as a merge patch.',
+};
+
 type Operation = {
+  tags: string[];
   operationId: string;
   summary: string;
   parameters?: {
@@ -144,6 +159,7 @@ export type OpenApiDocument = {
   info: { title: string; version: string; description: string };
   servers: { url: string; description: string }[];
   security: { [scheme: string]: string[] }[];
+  tags: { name: string; description: string }[];
   paths: Record<string, Record<string, Operation>>;
   components: { securitySchemes: Record<string, Record<string, unknown>> };
 };
@@ -222,7 +238,8 @@ const operationId = (method: string, path: string): string =>
   path
     .split('/')
     .filter((seg) => seg !== '')
-    .map((seg) => seg.replace(/[{}]/g, ''))
+    // A kebab-case segment is split too, so `sign-out` names `SignOut`, not `Sign-out`.
+    .flatMap((seg) => seg.replace(/[{}]/g, '').split('-'))
     .map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1))
     .join('');
 
@@ -317,6 +334,7 @@ export function buildSpec(): OpenApiDocument {
   const user = doc.toJS() as Template;
 
   const paths: OpenApiDocument['paths'] = {};
+  const tags: OpenApiDocument['tags'] = [];
   for (const route of declaredRoutes(user)) {
     const key = `${route.method.toUpperCase()} ${route.path}`;
     const answers = ANSWERS[route.handler]?.[key];
@@ -326,10 +344,16 @@ export function buildSpec(): OpenApiDocument {
           `(${route.handler}) — export them from the handler and add it to ANSWERS`,
       );
     }
+    const tag = route.path.split('/')[1];
+    if (!Object.hasOwn(TAGS, tag)) {
+      throw new Error(`no description for the tag ${tag} of ${key} — add it to TAGS`);
+    }
+    if (!tags.some((t) => t.name === tag)) tags.push({ name: tag, description: TAGS[tag] });
     // A route's own headers and query parameters follow its path parameters, keyed like the bodies.
     const params = [...parameters(route.path), ...(PARAMETERS[key] ?? [])];
     paths[route.path] ??= {};
     paths[route.path][route.method] = {
+      tags: [tag],
       operationId: operationId(route.method, route.path),
       summary: `${route.method.toUpperCase()} ${route.path}`,
       ...(params.length > 0 ? { parameters: params } : {}),
@@ -358,6 +382,9 @@ export function buildSpec(): OpenApiDocument {
     // THE DEFAULT EVERY OPERATION ABOVE OVERRIDES. It governs nothing, since `securityOf` always
     // answers; it earns its place for what it SAYS about the API's posture.
     security: [{ [SCHEME]: [] }],
+    // Swagger UI orders its groups as this list does, and files an untagged operation under
+    // «default».
+    tags,
     paths,
     components: {
       securitySchemes: {

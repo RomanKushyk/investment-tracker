@@ -1479,7 +1479,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(call.DesiredDeliveryMediums).toEqual(['EMAIL']);
   });
 
-  // ASKED BEFORE ANYTHING IRREVERSIBLE. `POST /v1/applications` is public, so any
+  // ASKED BEFORE ANYTHING IRREVERSIBLE. `POST /applications` is public, so any
   // address — the owner's own included — can already hold a pending row. Insert-first,
   // that collides on `app_user_email_uq` AFTER an identity has been minted, and wedges:
   // this runner has no `AdminDeleteUser` to undo the identity with.

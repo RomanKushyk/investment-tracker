@@ -50,7 +50,7 @@ const user = doc.toJS() as Template;
 
 const props = (id: string) => user.Resources[id]?.Properties ?? {};
 
-const ROUTE = 'POST /v1/applications';
+const ROUTE = 'POST /applications';
 const AUTHORIZER = 'CognitoJwt';
 const DEV_API = 'api.dev.quirenote.com';
 const PROD_API = 'api.quirenote.com';
@@ -82,7 +82,7 @@ describe('the application route, on a domain the stack cannot finish', () => {
     expect(user.Resources.PublicApi?.Type).toBe('AWS::Serverless::HttpApi');
   });
 
-  it('routes POST /v1/applications at the handler and declares no other route', () => {
+  it('routes POST /applications at the handler and declares no other route', () => {
     const events = (props('ApplicationsFunction').Events ?? {}) as Record<
       string,
       { Type?: string; Properties?: { ApiId?: string; Method?: string; Path?: string } }
@@ -92,7 +92,7 @@ describe('the application route, on a domain the stack cannot finish', () => {
       e.Properties?.Method,
       e.Properties?.Path,
     ]);
-    expect(declared).toEqual([['HttpApi', 'POST', '/v1/applications']]);
+    expect(declared).toEqual([['HttpApi', 'POST', '/applications']]);
     expect(Object.values(events)[0].Properties?.ApiId).toBe('PublicApi');
     expect(props('ApplicationsFunction').Handler).toBe('applications.handler');
   });
@@ -102,6 +102,16 @@ describe('the application route, on a domain the stack cannot finish', () => {
   it('puts no authorizer in front of the application', () => {
     const [submit] = declaredRoutes().filter((r) => r.key === ROUTE);
     expect(submit.authorizer).toBeUndefined();
+  });
+});
+
+// The SPA is the only client and deploys from the same commit, so a breaking change is a deploy,
+// never a version. [*API shape*]
+describe('the paths carry no version', () => {
+  it('declares no route with a version segment', () => {
+    const paths = declaredRoutes().map((r) => r.key.split(' ')[1]);
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.filter((p) => p.split('/').some((seg) => /^v\d+/i.test(seg)))).toEqual([]);
   });
 });
 
@@ -249,6 +259,11 @@ describe('the route is throttled below the stage it sits in', () => {
         true,
       ]);
     }
+  });
+
+  it('admits the application at two a second with a burst of five', () => {
+    const settings = props('PublicApi').RouteSettings as Record<string, Record<string, unknown>>;
+    expect(settings[ROUTE]).toEqual({ ThrottlingRateLimit: 2, ThrottlingBurstLimit: 5 });
   });
 
   // A throttle key naming no real route configures nothing and fails nowhere, so it is derived.

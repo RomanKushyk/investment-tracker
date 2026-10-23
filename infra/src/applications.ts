@@ -1,4 +1,4 @@
-// `POST /v1/applications` — the row a sign-up leaves, and the first HTTP handler here.
+// `POST /applications` — the row a sign-up leaves, and the first HTTP handler here.
 //
 // REGISTRATION IS AN APPLICATION RATHER THAN A SIGN-UP, and the ordering protects the MAU
 // allowance: Cognito marks a user active at `SignUp`, so an application that reached the pool
@@ -25,7 +25,7 @@ const RECEIVED = json(202, '{"status":"received"}');
 
 /** What this route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `openapi.test.ts` catches a constant added above and not added to it. */
-export const ROUTE = 'POST /v1/applications';
+export const ROUTE = 'POST /applications';
 export const REQUEST_BODY = {
   required: true,
   content: {

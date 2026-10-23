@@ -1467,6 +1467,24 @@ an execution's status as the recorder: its events are delivered on a best-effort
 `timed_out` state beside `failed`: no caller would branch on it, and AIP-216 adds only states useful
 to a caller. · An `Idempotency-Key` on a start: it would fold two deliberate runs into one record.
 
+## API shape
+**Decision.** No version in the path: every route is `/<resource>…`, its segments in kebab-case.
+The document generated from the template (`infra/src/openapi.ts`) tags each operation with its
+first path segment alone, and lists each tag once with a description, in the order its operations
+first appear, which is the order Swagger UI shows its groups in. An `operationId` is camelCase,
+`-` included. A read without a body is a GET and a safe read with one a QUERY (#393 settles whether
+API Gateway routes it); a write takes the method whose semantics it has: POST, PUT, PATCH or DELETE.
+**Why.** A version in the path exists so that independent clients can move at their own pace (Google
+AIP-185, written for APIs with many consumers). Here the only client is the SPA, deployed from the
+same commit as the API, so a breaking change is a deploy, not a version: Zalando's guidelines forbid
+URL versioning and ask for kebab-case segments. The two deploy in separate workflows, so a renamed
+route answers 404 to one side for the minutes between them, and to a tab still on the old bundle
+until it reloads; that window is accepted rather than paid for with a route kept under both names. Grouping by resource is how Stripe and GitHub
+organise their references, and each operation already states its security posture on its own.
+**Rejected.** `/v1` on every route: a promise of coexisting versions nothing would keep. · Tags by
+audience (public, user, admin), OAS 3.2's `kind: audience`: the posture is already each
+operation's `security`, and a group would split one resource's routes across two places.
+
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
 ENVIRONMENT — a shared one would spend a production monthly active user on every dev sign-in and put
@@ -1622,7 +1640,7 @@ as SHA-256 digests in constant time, without asking siteverify; it refuses one t
 leaves a request without it to siteverify, and logs a pass as one line that never carries the value.
 The gate is a secret the server holds, as Clerk's Testing Tokens and Firebase App Check's debug
 token are; production names no parameter, grants no read and writes none, ASVS 5.0 13.4.2 asking
-that debug modes be off in production, and `/v1/applications` has no bypass anywhere. Three were
+that debug modes be off in production, and `/applications` has no bypass anywhere. Three were
 refused: Cloudflare's test secret, whose keys are public and which passes any token while naming
 another host and no action; trusting `localhost`, which `Origin` and `Sec-Fetch-Site` let any caller
 claim; and an allow-list of accounts, exactly the target credential stuffing has. The deploy writes

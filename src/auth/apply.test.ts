@@ -11,7 +11,7 @@ describe('an application', () => {
   it('posts the canonical address as JSON, and no cookie', async () => {
     const fetch = answer(202, { status: 'received' });
     await createApply({ base: 'https://api.test', fetch })('  Oksana.Melnyk@Example.com ', TOKEN);
-    expect(fetch).toHaveBeenCalledWith('https://api.test/v1/applications', {
+    expect(fetch).toHaveBeenCalledWith('https://api.test/applications', {
       method: 'POST',
       credentials: 'omit',
       headers: { 'content-type': 'application/json' },

@@ -91,7 +91,7 @@ export function leaveThroughLogout(logout: string | undefined, to: '/sign-in' | 
   return true;
 }
 
-/** The application; the relay's host is the API's, so `/v1/applications` sits beside `/auth/*`. */
+/** The application; the relay's host is the API's, so `/applications` sits beside `/auth/*`. */
 export const apply = createApply({
   base: environment?.relay,
   fetch: (input, init) => fetch(input, init),

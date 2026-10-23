@@ -152,7 +152,7 @@ parser turns out to have been wrong.
 
 Prices and user data must **never share a response, an auth policy, or a cache policy**.
 
-- `GET /v1/prices/{YYYY}.ndjson` — **public, no authorizer, ever.** Sealed years:
+- `GET /prices/{YYYY}.ndjson` — **public, no authorizer, ever.** Sealed years:
   `Cache-Control: public, max-age=31536000, immutable` + strong ETag; current year `max-age=3600,
   stale-while-revalidate=86400`. NDJSON, sorted deterministically, named keys, so a column added
   later does not break old parsers.
