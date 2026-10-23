@@ -16,7 +16,8 @@ import { readMeta, writeMeta } from '../lib/device-meta';
  */
 export const INZHUR_ASSETS_URL = 'https://www.inzhur.reit/_api/assets';
 
-/** Prices refresh at this Kyiv hour — the freshness boundary. */
+/** Prices refresh at this Kyiv hour — the freshness boundary. No Inzhur statement backs the hour:
+ *  it is this project's own figure (#236). */
 export const INZHUR_REFRESH_HOUR = 13;
 
 const INZHUR_TIMEOUT_MS = 10_000;

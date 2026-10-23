@@ -187,7 +187,8 @@ Resources:
       #
       # WHY IT STOPS AT 11:00 — the ceiling is the FEED REFRESH, not midnight. `inzhurAsOf`
       # stamps the run's OWN Kyiv date, with no subtraction, because the live endpoint serves
-      # the price struck for that date until Inzhur refreshes at ~13:00. A capture after the
+      # the price struck for that date until Inzhur refreshes, at the Kyiv hour
+      # `INZHUR_REFRESH_HOUR` in `src/hooks/useInzhurAssets.ts`. A capture after the
       # refresh would stamp what it serves THEN with a date that is not its own: wrong data
       # wearing a correct label, worse than a missing day. NBU is immune, its `as_of` being the
       # REQUEST parameter rather than a stamp — `infra/src/dates.ts` says why it trails a day.

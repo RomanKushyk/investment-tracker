@@ -47,25 +47,18 @@ CREATE TABLE IF NOT EXISTS price_capture (
   -- not substitutes and must never be merged.
   source          TEXT,
 
-  -- The Kyiv calendar date these prices are FOR — and the rule is PER SOURCE,
-  -- which it was not until 2026-08-18 (D71).
+  -- The Kyiv calendar date these prices are FOR — and the rule is PER SOURCE
+  -- (*The price archive*).
   --
   --   inzhur  as_of = the Kyiv date of the run. The endpoint is live and what
   --           it serves at 01:00 on day D is the price struck for day D.
   --   nbu_fv  as_of = the Kyiv date of the run - 1. Here the value is also the
-  --           REQUEST parameter: the URL names a date's file, and at 01:00 on D
-  --           the file for D does not exist yet (NBU publishes ~09:30).
+  --           REQUEST parameter: the URL names a date's file, which NBU writes
+  --           later on that date than the 01:00 run, so the file for D does not
+  --           exist yet when the run asks.
   --
-  -- This comment used to read "as_of = capture date - 1" for both, on the
-  -- premise that the 01:00 run reads prices published ~13:00 the previous day.
-  -- False for inzhur, true for nbu_fv — so one rule had to be wrong for one of
-  -- them, and it was wrong for 14 inzhur rows before inverting the DCF caught
-  -- it. Those rows were migrated +1 day on 2026-08-18; nbu_fv was never touched.
-  --
-  -- Still pinned in writing, and now with a decision behind it, because a
-  -- silent redefinition poisons the archive with no way to tell which rows used
-  -- which rule. That is exactly what happened, and it was only repairable
-  -- because the offset turned out to be uniform.
+  -- Pinned in writing because a silent redefinition poisons the archive with no
+  -- way to tell which rows used which rule.
   as_of           DATE        NOT NULL,
 
   -- Outcome. `ok` false still writes a row: a failed run is exactly the fact the

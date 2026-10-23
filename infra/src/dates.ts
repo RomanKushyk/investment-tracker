@@ -10,10 +10,12 @@ export function inzhurAsOf(now: Date): string {
 }
 
 /**
- * NBU: the previous Kyiv date. `nbuFairValueUrl(asOf)` asks for a NAMED date's file, which does
- * not exist until ~09:30, so D-1 is the latest fetchable — and a D-1 file holds D-1's values. The
- * subtraction must happen on the KYIV date: at 01:00 Kyiv the UTC date is already the previous
- * day, so subtracting from the UTC date silently yields D-2.
+ * NBU: the previous Kyiv date. `nbuFairValueUrl(asOf)` asks for a NAMED date's file, and NBU writes
+ * D's file later on D than the 01:00 run (measured on #236), so D-1 is the newest date that run can
+ * ask for — and a D-1 file holds D-1's values. The retries up to 11:00 ask for the same D-1, so they
+ * repeat the 01:00 run instead of capturing a second date. The subtraction must happen on the KYIV
+ * date: at 01:00 Kyiv the UTC date is already the previous day, so subtracting from the UTC date
+ * silently yields D-2.
  */
 export function nbuAsOf(now: Date): string {
   return addDays(kyivDateIso(now), -1);

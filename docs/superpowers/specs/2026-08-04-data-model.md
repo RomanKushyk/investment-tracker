@@ -132,9 +132,11 @@ row cannot be told apart from "the instrument did not exist yet", which is what 
 depends on, and `instrument_ref` is **permanently allocated, never reused, never renamed** with no FK
 protecting that. **`as_of` semantics, pinned, and there are TWO**, the two endpoints differing in kind:
 Inzhur's `as_of` is the Kyiv date of the run, its live endpoint serving the price struck for that date,
-published ~13:00 the day before; NBU's is that date − 1, its URL naming a date's file that does not
-exist until ~09:30. Pinned in writing because a silent redefinition poisons the archive with no way to
-tell which rows used which rule. `infra/src/dates.ts` holds the rule and `dates.test.ts` pins the split.
+published at `INZHUR_REFRESH_HOUR` (`src/hooks/useInzhurAssets.ts`) Kyiv the day before; NBU's is
+that date − 1, its URL naming a date's file that NBU writes later on that date than the 01:00 run, so
+the run's own date has no file yet. Pinned in writing because a silent redefinition poisons the
+archive with no way to tell which rows used which rule. `infra/src/dates.ts` holds the rule and
+`dates.test.ts` pins the split.
 
 ### Corrections, payloads, and the read contract
 
