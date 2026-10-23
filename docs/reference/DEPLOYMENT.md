@@ -318,8 +318,8 @@ assets are content-hashed and `index.html` is `no-cache`, so it takes effect on 
 ## 7. Watched by hand
 
 Amplify bills only storage and transfer ($0.15/GB), builds running in GitHub Actions, so cost is
-effectively $0/mo solo. The two guardrails below are console artefacts, neither execution role
-granting `budgets:*` or `cloudwatch:PutDashboard`. **Nothing re-creates either one.
+effectively $0/mo solo. The two guardrails below are in no template, and neither execution role
+grants `budgets:*` or `cloudwatch:PutDashboard`. **Nothing re-creates either one.
 Deleted, they are a repair by hand, and this section is the whole of the instructions.**
 
 **1. The Cognito usage budget.** It exists, a **usage** budget and not a cost budget. How its usage
@@ -354,8 +354,9 @@ read them back:
 | `TimeUnit` | `MONTHLY` |
 | `Metrics` | `UsageQuantity` |
 | `FilterExpression` | `Dimensions`, `Key` `USAGE_TYPE`, `Values` `EUN1-CognitoEssentialsMAU` |
+| Notification | `NotificationType` `ACTUAL`, `ComparisonOperator` `GREATER_THAN`, `Threshold` `80.0`, `ThresholdType` `PERCENTAGE`, which the notification read-back omits: the subscriber lookup finds the subscriber under it |
 | Notification | `NotificationType` `ACTUAL`, `ComparisonOperator` `GREATER_THAN`, `Threshold` `100.0`, `ThresholdType` `PERCENTAGE`, which the notification read-back omits: the subscriber lookup finds the subscriber under it |
-| Subscriber | `SubscriptionType` `EMAIL`, `Address` the owner's, the only subscriber |
+| Subscriber | `SubscriptionType` `EMAIL`, `Address` the owner's, the only subscriber under each notification |
 
 Creating it needs `budgets:ModifyBudget`, and `budgets:TagResource` to create it with tags; the
 three reads need `budgets:ViewBudget`. The Service Authorization Reference lists
@@ -390,8 +391,12 @@ in the month and then deleted, by `AdminDeleteUser` or by `DeleteUser`, stays me
 count. Either is made by hand: `DeleteUser` takes an access token, and an app sign-in's is one only
 the relay holds. The threshold gives no such lead on the account's allowance, since dev's pool
 spends the same 10,000 and `PoolUsers` leaves dev's pool out; the usage budget counts dev's pool
-too, but alerts only past the whole allowance. The count is read once a day, so growth from under
-the threshold to past the allowance between two readings reaches the bill first.
+too, and alerts at 80% of the allowance as well as past it. Neither reads the actives as they
+happen. `PoolUsers` is read once a day, so growth from under its threshold to past the allowance
+between two readings reaches the bill first. The budget's data, and the alerts sent from it, are
+updated on AWS Budgets' refresh cadence, which AWS puts at up to three times a day
+(`https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html`), so a
+jump across both of its thresholds between two updates brings both alerts together, with the bill.
 
 **2. The free-tier dashboard — NOT YET CREATED.** Two widgets in `eu-north-1`: `Quirenote` /
 `PoolUsers`, annotated at 8,000 where the alarm sits, and `AWS/Cognito` / `SignUpSuccesses` for the

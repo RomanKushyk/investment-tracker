@@ -740,3 +740,39 @@ describe('no sentence sets the pool alarm ahead of AWS’s mail again', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// THE RETIRED SENTENCES, NOT THE CLAIM: the usage budget alerts at 80% as well as past the
+// allowance, and no template holds either guardrail (DEPLOYMENT.md §7). A paraphrase needs a reader.
+describe('no retired sentence on where the guardrails live, or on a 100%-only budget, again', () => {
+  // As `prose()` reads each place before the fix, split so this file cannot match itself.
+  const RETIRED: [file: string, extract: string][] = [
+    [
+      'docs/reference/DEPLOYMENT.md',
+      'the two guardrails below are console ' + 'artefacts, neither',
+    ],
+    ['docs/reference/DEPLOYMENT.md', 'too, but alerts only past the whole ' + 'allowance.'],
+    ['infra/README.md', 'the dashboard beside it are console ' + 'artefacts —'],
+  ];
+  const NEEDLES = ['console ' + 'artefact', 'only past the whole ' + 'allowance'];
+  // Word-bounded, a plural allowed, so the singular is caught as well as the retired plural. The
+  // first needle is banned wherever it stands, as the issue's own repository-wide grep is.
+  const FINDERS = NEEDLES.map((n) => {
+    const literal = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return [n, new RegExp(`(?<!\\w)${literal}s?(?!\\w)`)] as const;
+  });
+
+  it('cuts every needle from a retired sentence, and has one for every place', () => {
+    const matches = (r: RegExp) => RETIRED.filter(([, extract]) => r.test(extract));
+    expect(FINDERS.filter(([, r]) => matches(r).length === 0).map(([n]) => n)).toEqual([]);
+    expect(RETIRED.filter(([, extract]) => !FINDERS.some(([, r]) => r.test(extract)))).toEqual([]);
+    // A walk that stopped reaching a place would leave the test below passing blind.
+    expect(searched).toEqual(expect.arrayContaining(RETIRED.map(([file]) => file)));
+  });
+
+  it('finds none of them under docs, infra or src', () => {
+    const offenders = searched.flatMap((f) =>
+      FINDERS.filter(([, r]) => r.test(prose(f))).map(([n]) => `${f}: ${n}`),
+    );
+    expect(offenders).toEqual([]);
+  });
+});

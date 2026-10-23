@@ -98,8 +98,9 @@ relay for the session: asked once on every portfolio load, and to sign in and ou
   with a token signed in for at the command line. It bounds the ACCOUNT's only in part, dev's pool
   spending the same allowance. An
   absent count THROWS rather than publishing zero: zero is the healthy side of a `GreaterThan`, the
-  same inversion `backup-age.ts` refuses in the other direction. The usage budget and the dashboard
-  beside it are console artefacts — `docs/reference/DEPLOYMENT.md` re-creates them.
+  same inversion `backup-age.ts` refuses in the other direction. The usage budget, and the dashboard
+  planned beside it, are in no template — each is made by hand from `docs/reference/DEPLOYMENT.md`
+  §7.
 - **Never let an output alias shadow the column you `ORDER BY`.** A bare name resolves to the
   aliased output column first, so the sort cannot inherit index order and the planner falls back to
   a full scan. Guarded by `src/order-by-alias.test.ts`.
