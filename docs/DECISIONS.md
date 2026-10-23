@@ -461,8 +461,11 @@ a mapped step could pass a date the walk bridged short of. The maturity a walk f
 coupon date stored is not mapped. A payout recorded within the
 dedupe window of the stored date settles the occurrence the stored date stands for, unless another
 published date within the window of the payout, owed and with no other payout beside it, claims the
-payout. The walk matches a skipped date as it matches a payout's, by the same dedupe window, until a
-payout names its coupon; a Skip never counts as the other payout that pays a claimant. A Skip passes
+payout. Otherwise the walk takes a payout, and a skipped date as it takes a payout's, as every
+occurrence within the dedupe window of it, until a payout names its coupon; a Skip never counts as
+the other payout that pays a claimant. That is unambiguous while a bond's payment dates sit further
+apart than the alias reaches, four times the window, which the feed-fixture test holds for every bond
+the captures list. A Skip passes
 every occurrence within the window of the skipped date; the reminders and `/`'s coupon card read the
 walk that way, with the dismissals and no dates. Where the walk is handed both the dismissals and
 the dates, which no reader is yet, a Skip within the window of the stored date settles the
@@ -603,8 +606,19 @@ pending. The stored date's alias gives a payout to one payment, as Actual Budget
 claims each candidate once
 ([sync.ts](https://unpkg.com/@actual-app/core@26.10.0/src/server/accounts/sync.ts)): a payout
 beside the stored date goes to the start unless another owed and unpaid published date beside it
-claims it. The walk's own match of a payout to an occurrence is still the dedupe window alone, so a
-payout beside the start and another published date settles both. The
+claims it. The walk's own match stays the window, as Actual's schedules mark an occurrence paid by
+any transaction in reach, though their source names the hazard where occurrences sit close: a
+lookback "would cause yesterday's transaction to falsely match today's occurrence"
+([schedules.ts](https://unpkg.com/@actual-app/core@26.10.0/src/shared/schedules.ts)). One payout
+settles two published dates only within twice the window of each other, and the alias hands it to
+another only within four times the window of the start: the payout within the window of the stored
+date, the claimant within the window of the payout, and the start no further from the stored date
+than the claimant. No period Resolution No. 80 sets brings dates that close: a coupon period of three
+months for the long-term issues with early redemption and the amortising ones, of six for the rest,
+an amortising bond repaid "в момент здійснення купонних платежів", and an early redemption falling
+only on "одна з дат, на які здійснюються купонні платежі". The feed-fixture test holds every bond the
+captures list, the offer page's included, to dates further apart than the alias reaches; a bond
+first served later is not held. The
 cost is accepted: a hand edit up to half a period past an unrecorded published date reopens that
 date in the walk, and a payout recorded beside it, or beside the stored date and claimed by no other
 date, settles it. A published date past the maturity yields the maturity, as the roll's own clamp
@@ -635,7 +649,10 @@ history is never rewritten, so the row would carry a date the user did not confi
 the published date: its walk passing the dates waits for the app reading `/view`, as above. · Without
 the dates, counting the one coupon on the stored date inside the window before the maturity: it is
 the date the walk offers and the confirm records, and the merge with the dates keeps its first date,
-but it sits up to the window before the day the price drops.
+but it sits up to the window before the day the price drops. · Matching payouts to occurrences one to
+one now, nearest first and each claimed once, as the alias claims: it rewrites the predicate the walk,
+the reminders and a payout's rollback all read, for a shape no period Resolution No. 80 sets
+produces, and a payout naming its coupon replaces the window where it is present.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

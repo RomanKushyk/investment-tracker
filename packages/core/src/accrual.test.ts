@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -25,7 +27,8 @@ import { holdsNone, unitsByAsset } from './derive';
 import fixture0923 from './inzhur/__fixtures__/assets-2026-09-23.json';
 import fixture0924 from './inzhur/__fixtures__/assets-2026-09-24.json';
 import fixtureSample from './inzhur/__fixtures__/assets-sample.json';
-import { parseAssetsFeed } from './inzhur/parse';
+import { parseOfferPage } from './inzhur/offer-page';
+import { parseAssetsFeed, type InzhurQuote } from './inzhur/parse';
 import { OVDP_COUPON_PERIOD_DAYS } from './ovdp';
 import { couponOverdueReminderId, maturityReminderId } from './reminders';
 import type { Asset, Transaction } from './types';
@@ -1626,6 +1629,57 @@ describe('a semiannual coupon with no published schedule steps 182 days', () => 
     }
     expect(bonds).toBe(61);
     expect(off).toEqual([]);
+  });
+
+  it('finds no bond the feed captures whose payment dates sit within the alias reach of each other', () => {
+    // Payout within the window of the stored date, claimant within the window of the payout, start no
+    // further from the stored date than the claimant: start to claimant is at most four windows, inclusive.
+    const reach = 4 * COUPON_MATCH_WINDOW_DAYS;
+    const pairs = (entries: readonly InzhurQuote[]) =>
+      entries.flatMap((b) => {
+        if (b.kind !== 'bond') return [];
+        const dates = [...new Set(b.paymentSchedule.map((p) => p.date))].sort();
+        return dates.slice(1).map((d, i) => ({
+          pair: `${b.ref} ${dates[i]} ${d}`,
+          days: daysBetween(dates[i]!, d),
+        }));
+      });
+    const tooClose = (entries: readonly InzhurQuote[]): string[] =>
+      pairs(entries)
+        .filter((p) => p.days <= reach)
+        .map((p) => p.pair);
+    const captures = [
+      ...[fixtureSample, fixture0923, fixture0924].map((c) => parseAssetsFeed(c).entries),
+      parseOfferPage(
+        readFileSync(
+          new URL('./inzhur/__fixtures__/offer-ovdp-2026-09-24.html', import.meta.url),
+          'utf8',
+        ),
+      ).entries,
+    ];
+    expect(captures.flat().filter((b) => b.kind === 'bond')).toHaveLength(100);
+    expect(captures.flatMap(pairs)).toHaveLength(294);
+    expect(captures.flatMap(tooClose)).toEqual([]);
+
+    // One bond's second date moved to the edge of the reach is caught, and a day past it is not.
+    const entries = captures[2]!;
+    const at = entries.findIndex((b) => b.kind === 'bond');
+    const b = entries[at]!;
+    const dates = [...new Set(b.paymentSchedule.map((p) => p.date))].sort();
+    const movedTo = (moved: string) =>
+      entries.map((e, i) =>
+        i === at
+          ? {
+              ...b,
+              paymentSchedule: b.paymentSchedule.map((p) =>
+                p.date === dates[1] ? { ...p, date: moved } : p,
+              ),
+            }
+          : e,
+      );
+    const edge = addDays(dates[0]!, reach);
+    expect(tooClose(movedTo(edge))).toEqual([`${b.ref} ${dates[0]} ${edge}`]);
+    expect(tooClose(movedTo(addDays(edge, 1)))).toEqual([]);
   });
 });
 
