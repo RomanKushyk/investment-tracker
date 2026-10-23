@@ -1,7 +1,7 @@
 -- 005 — the demo's own identity (W7)
 --
--- APPLIED BY `infra/src/migrate.ts`, unlike 001, 002 and 004, which are
--- reference copies of DDL `ensureSchema` holds inline. Those three are the
+-- APPLIED BY `infra/src/migrate.ts`, unlike 001, 002 and 004, which record DDL
+-- `ensureSchema` holds inline and no runner applies. Those three are the
 -- ARCHIVE's; this one and 003 are USER data, and the runner is what applies
 -- them. The runner names both files explicitly rather than globbing, so adding
 -- a file here does not enlist it.

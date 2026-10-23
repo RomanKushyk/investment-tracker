@@ -246,9 +246,10 @@ describe('the archive stack holds the archive and nothing else', () => {
   // deferred" — and the blacklist names only the two wordings that denied it, so a third
   // phrasing would pass the blacklist.
   it('does not defer a schema this stack writes and measures', () => {
-    // capture.ts and NOT migrations/002_price_observation.sql: the archive's migration files are
-    // reference copies of this DDL, read by nothing (infra/README.md), so a guard anchored there
-    // stays green with the deployed table gone. `[\s\S]` and not `.`, which excludes \r on CRLF.
+    // capture.ts and NOT migrations/002_price_observation.sql: no runner applies the archive's
+    // migration files, and their guard checks only what ensureSchema creates (infra/README.md), so
+    // a guard anchored there stays green with the deployed table gone. `[\s\S]` and not `.`, which
+    // excludes \r on CRLF.
     expect(
       stripTs(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8'), './capture.ts'),
     ).toMatch(

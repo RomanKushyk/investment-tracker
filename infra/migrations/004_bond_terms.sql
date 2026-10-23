@@ -5,9 +5,9 @@
 -- on the grounds that two files under one number is the ambiguity numbering
 -- exists to remove.
 --
--- REFERENCE DDL. NOTHING READS THIS FILE. The applied copy is inline in
--- `ensureSchema` (infra/src/capture.ts) and keeping the two in step is manual —
--- the same arrangement 001 and 002 describe, and the same hazard.
+-- NO RUNNER APPLIES THIS FILE. The applied DDL is inline in `ensureSchema`
+-- (infra/src/capture.ts); `infra/src/archive-schema.test.ts` fails when a table
+-- or index there is named in no record, or its primary key differs from one.
 --
 -- WHY THIS TABLE EXISTS, and it is the only reason. A bond's payment schedule
 -- is reconstructable in principle: it is in every raw payload we have stored.
@@ -29,7 +29,7 @@
 --
 -- 2. WRITTEN EVERY RUN, one row per bond per day, repeating unchanged terms.
 --    This applies the owner's write-every-day ruling for `price_observation`
---    (W4, 2026-09-02) to this table rather than inventing a second policy one
+--    (W4) to this table rather than inventing a second policy one
 --    table over. "Versioned and effective-dated" is therefore a property of the
 --    SERIES: consecutive rows are the terms as they stood on each day.
 --
