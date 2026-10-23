@@ -1,7 +1,7 @@
 name: Advisories
 
-# Dependabot opens no pull request for a transitive pnpm advisory, and GitHub auto-dismisses the
-# development-only ones, so `pnpm audit` files what it finds into the task list (*Dependabot*).
+# Dependabot opens no pull request for a transitive pnpm advisory its parent's range admits a fix
+# for, nor an alert for a SHA-pinned action: `pnpm audit` and the Advisory Database file them.
 on:
   schedule:
     # Off the hour: GitHub documents its start as a high-load time that can delay or drop a run.
@@ -41,7 +41,7 @@ jobs:
       - name: Enable pnpm via corepack
         run: corepack enable # honors packageManager
 
-      - name: Audit the lockfile
+      - name: Audit the lockfile and the action pins
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

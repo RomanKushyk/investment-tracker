@@ -2022,9 +2022,12 @@ it, and the command; while that issue is open it opens no other. An advisory acc
 goes in `auditConfig.ignoreGhsas`, with its reason; pnpm drops that GHSA on every version line it
 sits on. Every third-party action is pinned to a full commit SHA with its release in a trailing
 `# vX.Y.Z` comment, the manifest for the pins; no workflow step runs `npx`, and the Lambda bundler
-is the lockfile's esbuild. Dependabot creates no alert for a SHA-pinned action and no job audits the
-pins yet, so an advisory against one is a hand edit; #463 adds the audit to the same daily job,
-against the Advisory Database's `ACTIONS` ecosystem.
+is the lockfile's esbuild. Dependabot creates no alert for a SHA-pinned action, so the same daily job
+audits the pins and files them into the same issue: each pin at the longest release tag on its commit,
+against GitHub's global advisories endpoint, which matches the range itself; a pin whose comment's
+tag no longer points at its commit is filed too, and when no release tag is on the commit it is
+asked at the comment's version. A lookup that fails fails the run; a subpath action, which it does
+not audit, is filed as such. The fix is a hand edit of the SHA and comment.
 `reference/DEPENDABOT.md` carries the two ecosystems, their fixes and where overrides live.
 **Why.** Every merge here costs a review, so version churn taxes the gate that protects the app and
 buys no security. GitHub's squash preserves the PR author, so the button would land a bot-authored
@@ -2049,7 +2052,11 @@ the range admits the fix: it outlives the advisory and pins the tree. · `open-p
 with grouped security updates: it shapes Dependabot's PRs and leaves the pnpm refusal that stops
 them. · Renovate's `lockFileMaintenance`: it re-resolves every dependency to the latest
 ([options](https://docs.renovatebot.com/configuration-options/)). · A pull request from the
-workflow: it needs Actions allowed to create pull requests, for a fix that is one local command.
+workflow: it needs Actions allowed to create pull requests, for a fix that is one local command. ·
+zizmor's `known-vulnerable-actions` run as is: it is fetched outside the lockfile, and it skips a
+pinned commit no tag is on, which reads as clean. · Failing the run on such a commit: a floating
+major like `aws-actions/setup-sam`'s `v3` moves on at every release, so the job would go red for a
+stale comment rather than file it.
 
 ## Deployment
 **Decision.** Amplify Hosting as a manual-deploy app, fed by a GitHub Actions workflow that builds,

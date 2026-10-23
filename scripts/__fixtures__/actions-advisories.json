@@ -1,0 +1,34 @@
+[
+  {
+    "ghsa_id": "GHSA-mrrh-fwg8-r2c3",
+    "html_url": "https://github.com/advisories/GHSA-mrrh-fwg8-r2c3",
+    "summary": "tj-actions changed-files through 45.0.7 allows remote attackers to discover secrets by reading actions logs.",
+    "severity": "high",
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "actions",
+          "name": "tj-actions/changed-files"
+        },
+        "vulnerable_version_range": "<= 45.0.7",
+        "first_patched_version": "46.0.1"
+      }
+    ]
+  },
+  {
+    "ghsa_id": "GHSA-mcph-m25j-8j63",
+    "html_url": "https://github.com/advisories/GHSA-mcph-m25j-8j63",
+    "summary": "tj-actions/changed-files has Potential Actions command injection in output filenames (GHSL-2023-271)",
+    "severity": "high",
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "actions",
+          "name": "tj-actions/changed-files"
+        },
+        "vulnerable_version_range": "< 41",
+        "first_patched_version": "41"
+      }
+    ]
+  }
+]
