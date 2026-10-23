@@ -1,5 +1,7 @@
 // Cloudflare Turnstile, verified server-side: "The client-side widget alone does not protect your
 // forms." Siteverify decides; anything this module cannot read as a pass is not one (*Auth model*).
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 import { INTERNAL, type ApiResult, json } from './http';
 
 export const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
@@ -180,4 +182,73 @@ export const fromEnvironment = (): (() => BotCheckConfig | undefined) => {
     made = { ...cachedSecret(() => readParameter(name)), hostnames };
     return made;
   };
+};
+
+/** THE DEV API'S TEST BYPASS (*Auth model*), which the dev server's proxy adds: a credential gated
+ *  by a secret this environment holds, never by what the caller says about itself. */
+export const BYPASS_HEADER = 'x-bot-check-bypass';
+
+/** The relay's check: the bypass header, when this environment holds a bypass, else siteverify. */
+export type Check = (
+  token: string,
+  remoteip: string | undefined,
+  bypass?: string | undefined,
+) => Promise<Verdict>;
+
+/** Over 128 bits as base64url; a blank or short stored value is a broken configuration. */
+export const BYPASS_FLOOR = 32;
+
+/** Equal-length digests, so the comparison takes the same time whatever either value is. */
+const digest = (value: string) => createHash('sha256').update(value).digest();
+
+export const withBypass =
+  (verify: Verify, read: (() => Promise<string>) | undefined): Check =>
+  async (token, remoteip, presented) => {
+    // NO BYPASS IN PRODUCTION (ASVS 5.0 13.4.2): without the parameter the header is not read.
+    if (presented === undefined || read === undefined) return verify(token, remoteip);
+    let expected: string;
+    try {
+      // Trimmed as the proxy trims its file: a secret saved with its line ending still matches.
+      expected = (await read()).trim();
+    } catch (err) {
+      console.error('bot check: the bypass could not be read', nameOf(err));
+      return 'unavailable';
+    }
+    // FAIL CLOSED: an empty header must never match a value that trimmed to nothing.
+    if (expected.length < BYPASS_FLOOR) {
+      console.error('bot check: the stored bypass is shorter than its floor');
+      return 'unavailable';
+    }
+    if (!timingSafeEqual(digest(presented), digest(expected))) {
+      console.warn('bot check: bypass refused');
+      return 'refused';
+    }
+    console.info('bot check: bypassed');
+    return 'passed';
+  };
+
+/** AWS's Parameters and Secrets extension's default TTL: a junk header costs one read per window,
+ *  and a rotation revokes the old value within it. */
+export const BYPASS_TTL_MS = 300_000;
+
+/** `read`'s answer, kept for `ttl`; A FAILED READ IS NOT KEPT, as `cachedSecret`'s is not. */
+export const keptFor = (read: () => Promise<string>, ttl: number, now: () => number) => {
+  let kept: { value: Promise<string>; at: number } | undefined;
+  return (): Promise<string> => {
+    if (kept && now() - kept.at < ttl) return kept.value;
+    const entry = { value: read(), at: now() };
+    kept = entry;
+    entry.value.catch(() => {
+      if (kept === entry) kept = undefined;
+    });
+    return entry.value;
+  };
+};
+
+/** This environment's bypass, or none where it names no parameter. */
+export const bypassFromEnvironment = (
+  now: () => number = Date.now,
+): (() => Promise<string>) | undefined => {
+  const name = process.env.BOT_CHECK_BYPASS_PARAMETER;
+  return name ? keptFor(() => readParameter(name), BYPASS_TTL_MS, now) : undefined;
 };

@@ -338,11 +338,12 @@ describe('the relay: nine POSTs outside the authorizer, reading its two secrets'
 
   // NO SECRET IN ITS CONFIGURATION: the pool, the client, the managed-login domain and the bot-check
   // parameter are named, and both secrets are read.
-  it('is told the pool, the client, the auth domain and the bot check, and nothing else', () => {
+  it('is told the pool, the client, the auth domain, the bot check and its dev bypass, and nothing else', () => {
     const vars = (props('AuthRelayFunction').Environment as { Variables?: Record<string, unknown> })
       ?.Variables;
     expect(Object.keys(vars ?? {}).sort()).toEqual([
       'AUTH_DOMAIN',
+      'BOT_CHECK_BYPASS_PARAMETER',
       'BOT_CHECK_HOSTNAMES',
       'BOT_CHECK_PARAMETER',
       'NODE_OPTIONS',

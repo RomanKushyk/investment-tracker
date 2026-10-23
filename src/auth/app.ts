@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react';
 
 import type { Answer } from './access';
 import { createApply } from './apply';
-import { environmentFor } from './environment';
+import { botCheckSitekeyFor, environmentFor } from './environment';
 import { beginGoogle } from './google';
 import { type PasskeyDeps, hasPasskey } from './passkey';
 import { createRelay } from './relay';
@@ -98,7 +98,7 @@ export const apply = createApply({
 });
 
 /** This host's Turnstile widget, or none where no environment is keyed. */
-export const botCheckSitekey = environment?.botCheckSitekey;
+export const botCheckSitekey = botCheckSitekeyFor(location.hostname, location.search);
 
 /** One of the four refusals `answerOf` reads, and the address the caller signed in with. */
 export interface HeldAnswer {

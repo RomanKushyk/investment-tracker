@@ -172,6 +172,7 @@ const deployed = (env: Env): ['archive' | 'user', Document, Template][] =>
 const inEnv = (env: Env, where: string, r: Resource) => {
   if (r.Condition === undefined) return true;
   if (r.Condition === 'IsProd') return env === 'prod';
+  if (r.Condition === 'IsDev') return env === 'dev';
   if (r.Condition === 'HasGoogle' || r.Condition === 'IsRegistrationOpen') return true;
   throw new Error(`${where}: a condition this test cannot place: ${r.Condition}`);
 };
@@ -1861,7 +1862,7 @@ describe('the capture’s two health alarms read the scheduled run alone', () =>
 describe('what reaches a role besides its own policies', () => {
   // AN INVENTORY, NOT A SEARCH FOR A ROLE'S NAME, which `!Ref`, `!Sub` and a join each spell. The
   // trigger's stands apart for the cycle its template gives; a connector generates a policy too.
-  it('attaches a standalone policy to the trigger role and the operations role, and to no other', () => {
+  it('attaches a standalone policy to the trigger, operations and relay roles, and to no other', () => {
     const attaching = [
       'AWS::IAM::Policy',
       'AWS::IAM::ManagedPolicy',
@@ -1872,6 +1873,7 @@ describe('what reaches a role besides its own policies', () => {
     expect(attaching.flatMap((type) => idsOfType(user, type))).toEqual([
       'PreSignUpPolicy',
       'ArchiveOperationsStartPolicy',
+      'BotCheckBypassPolicy',
     ]);
     // The embedded form, a resource attribute SAM turns into a connector resource.
     for (const [id, r] of [...resources(archive), ...resources(user)])
@@ -3949,5 +3951,171 @@ describe('the OIDC token is granted to jobs that run no dependency code', () => 
   it('bounds the backend build well under the 360-minute default', () => {
     const minutes = workflow('deploy-backend.yml').jobs.build['timeout-minutes'] ?? 0;
     expect(minutes > 30 && minutes < 360).toBe(true);
+  });
+});
+
+// THE DEV API'S TEST BYPASS IS DEV'S ALONE (*Auth model*, ASVS 5.0 13.4.2): production's stack
+// names no variable for it and grants no read of it, and a `main` deploy writes no parameter.
+describe('the bot-check bypass exists in dev alone', () => {
+  const POLICY = 'BotCheckBypassPolicy';
+  const PARAMETER = '/quirenote/dev/bot-check-bypass';
+  const ARN = 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter' + PARAMETER;
+  const variablesOf = (r: Resource) =>
+    ((r.Properties?.Environment as { Variables?: Record<string, unknown> } | undefined)
+      ?.Variables ?? {}) as Record<string, unknown>;
+
+  it('names its parameter to the relay in dev, and nothing in production', () => {
+    const at = [...envVars('AuthRelayFunction'), 'BOT_CHECK_BYPASS_PARAMETER'];
+    expect(variablesOf(user.Resources.AuthRelayFunction).BOT_CHECK_BYPASS_PARAMETER).toEqual([
+      'IsProd',
+      'AWS::NoValue',
+      PARAMETER,
+    ]);
+    expect(intrinsicAt(userDoc, ...at, 1)).toEqual({ tag: '!Ref', value: 'AWS::NoValue' });
+    expect(intrinsicAt(userDoc, ...at, 2)).toEqual({ tag: undefined, value: PARAMETER });
+  });
+
+  // `/v1/applications` keeps the real check on every host, so the relay is the only reader.
+  it('is named to no other function', () => {
+    const naming = [...resources(archive), ...resources(user)]
+      .filter(
+        ([, r]) =>
+          Object.keys(variablesOf(r)).some((name) => name.includes('BYPASS')) ||
+          JSON.stringify(r.Properties?.Policies ?? []).includes('bot-check-bypass'),
+      )
+      .map(([id]) => id);
+    expect(naming).toEqual(['AuthRelayFunction']);
+    expect(JSON.stringify(user.Resources.AuthRelayFunction.Properties?.Policies)).not.toContain(
+      'bot-check-bypass',
+    );
+  });
+
+  it('is read under a grant of its own, to the relay’s role, rendered in dev alone', () => {
+    const policy = user.Resources[POLICY];
+    expect(policy?.Type).toBe('AWS::IAM::Policy');
+    expect(policy?.Condition).toBe('IsDev');
+    expect(user.Conditions?.IsDev).toEqual([{ Condition: 'IsProd' }]);
+    expect(policy?.Properties?.Roles).toHaveLength(1);
+    expect(intrinsicAt(userDoc, 'Resources', POLICY, 'Properties', 'Roles', 0)).toEqual({
+      tag: '!Ref',
+      value: 'AuthRelayFunctionRole',
+    });
+    const document = (policy?.Properties as { PolicyDocument?: { Statement: unknown[] } })
+      ?.PolicyDocument;
+    expect(document?.Statement).toEqual([
+      { Effect: 'Allow', Action: 'ssm:GetParameter', Resource: ARN },
+    ]);
+    const resourceAt = ['Resources', POLICY, 'Properties', 'PolicyDocument', 'Statement', 0];
+    expect(intrinsicAt(userDoc, ...resourceAt, 'Resource').tag).toBe('!Sub');
+    const ids = (env: Env) => resourcesIn(env).map(({ id }) => id);
+    expect(ids('dev')).toContain(POLICY);
+    expect(ids('prod')).not.toContain(POLICY);
+  });
+
+  it('is in the dev boundary, and production’s names none', () => {
+    expect(readFileSync(boundaryFile('dev'), 'utf8')).toContain(
+      'arn:aws:ssm:eu-north-1:*:parameter/quirenote/dev/bot-check-bypass',
+    );
+    expect(readFileSync(boundaryFile('prod'), 'utf8')).not.toContain('bot-check-bypass');
+  });
+
+  it('is composed by the relay alone', () => {
+    const read = (file: string) =>
+      stripTs(readFileSync(join(REPO, 'infra/src', file), 'utf8'), file);
+    expect(read('auth-relay.ts')).toContain('withBypass(');
+    expect(read('applications.ts')).not.toMatch(/withBypass|bypassFromEnvironment|BYPASS_HEADER/);
+  });
+
+  describe('is written by the dev deploy alone', () => {
+    const steps = workflow('deploy-backend.yml').jobs.deploy.steps ?? [];
+    const writing = steps.filter((s) => s.run?.includes('bot-check-bypass'));
+    const [write] = writing;
+
+    it('in one step, off `main`, from the environment’s secret', () => {
+      expect(writing).toHaveLength(1);
+      expect(write?.if).toBe("github.ref_name != 'main'");
+      expect(write?.env?.BOT_CHECK_BYPASS).toBe('${{ secrets.BOT_CHECK_BYPASS }}');
+      expect(write?.['continue-on-error']).toBeUndefined();
+      // Before the user stack deploys, as the Turnstile secret is: the relay reads it on first use.
+      const userStack = steps.findIndex((s) => s.run?.includes('template-user.yaml'));
+      expect(steps.indexOf(write as Step)).toBeLessThan(userStack);
+    });
+
+    /** The step under `bash -e`, `aws` recording its arguments and the request file it was given. */
+    const run = (value: string) => {
+      const script = write?.run;
+      if (script === undefined) throw new Error('no step writes the bot-check bypass');
+      const dir = mkdtempSync(join(tmpdir(), 'bypass-step-'));
+      const posix = (p: string) => p.replaceAll('\\', '/');
+      const args = join(dir, 'args.txt');
+      const request = join(dir, 'request.json');
+      const stub =
+        'aws() { printf \'%s\\n\' "$@" > "$ARGS"; for a in "$@"; do case "$a" in ' +
+        'file://*) cp "${a#file://}" "$REQUEST";; esac; done; }\n';
+      try {
+        let status = 0;
+        try {
+          execFileSync(BASH, ['--noprofile', '--norc', '-e', '-c', stub + script], {
+            env: {
+              ...process.env,
+              BOT_CHECK_BYPASS: value,
+              AWS_REGION: 'eu-north-1',
+              RUNNER_TEMP: posix(dir),
+              ARGS: posix(args),
+              REQUEST: posix(request),
+            },
+            encoding: 'utf8',
+            stdio: 'pipe',
+          });
+        } catch (err) {
+          const code = (err as { status?: unknown }).status;
+          if (typeof code !== 'number') throw err;
+          status = code;
+        }
+        return {
+          status,
+          args: existsSync(args) ? readFileSync(args, 'utf8') : undefined,
+          request: existsSync(request)
+            ? (JSON.parse(readFileSync(request, 'utf8')) as unknown)
+            : undefined,
+        };
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+
+    // AN UNSET SECRET FAILS THE DEPLOY, as the Turnstile secret's does: a skipped write would leave
+    // a revoked value live, since rotation is how the bypass is revoked.
+    // ON THE VALUE AS WRITTEN: the relay trims what it reads, so whitespace would pass here and fail there.
+    it('fails, and writes nothing, when the secret is unset, short or holds whitespace', () => {
+      const long = 'x'.repeat(32);
+      for (const weak of [
+        '',
+        'test',
+        'x'.repeat(31),
+        `${'x'.repeat(31)}
+`,
+        ' '.repeat(32),
+        `${long} `,
+        `x ${long}`,
+      ]) {
+        const { status, args } = run(weak);
+        expect([weak, status === 0, args]).toEqual([weak, false, undefined]);
+      }
+    });
+
+    it('writes the SecureString from a file, never from the command line', () => {
+      const VALUE = 'the-dev-bypass-value-of-forty-characters';
+      const { status, args, request } = run(VALUE);
+      expect(status).toBe(0);
+      expect(args).toContain('put-parameter');
+      expect(args).not.toContain(VALUE);
+      expect(request).toEqual({
+        Name: PARAMETER,
+        Type: 'SecureString',
+        Value: VALUE,
+        Overwrite: true,
+      });
+    });
   });
 });

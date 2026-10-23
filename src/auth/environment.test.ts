@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseDocument } from 'yaml';
 
-import { ENVIRONMENTS, environmentFor } from './environment';
+import { ENVIRONMENTS, TEST_SITEKEY, botCheckSitekeyFor, environmentFor } from './environment';
 
 type Arms = [string, string, string];
 type Cors = { AllowOrigins: string[] };
@@ -106,6 +106,47 @@ describe('the dev server', () => {
   // NO SITE, SO NO LOGOUT: Cognito lists no localhost URL to send a browser back to.
   it('has no site Cognito returns to, so a sign-out there stays in the app', () => {
     expect(environmentFor('localhost')?.site).toBeUndefined();
+  });
+
+  // AN AUTOMATED BROWSER FAILS THE REAL WIDGET, so `?botcheck=test` renders Cloudflare's
+  // always-pass key there; the dev relay admits its token only with the proxy's bypass header.
+  it('renders the always-pass test widget when asked, and dev’s own otherwise', () => {
+    expect(TEST_SITEKEY).toBe('1x00000000000000000000AA');
+    expect(botCheckSitekeyFor('localhost', '?botcheck=test')).toBe(TEST_SITEKEY);
+    expect(botCheckSitekeyFor('localhost', '?next=%2F&botcheck=test')).toBe(TEST_SITEKEY);
+    const dev = environmentFor('dev.quirenote.com')?.botCheckSitekey;
+    for (const search of ['', '?botcheck=real', '?botcheck=', '?botcheck=TEST'])
+      expect([search, botCheckSitekeyFor('localhost', search)]).toEqual([search, dev]);
+  });
+});
+
+// A DEV-SERVER SWITCH: the production bundle carries no test widget, on any host.
+describe('a production build asked for the test widget on localhost', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('keeps dev’s own', () => {
+    vi.stubEnv('DEV', false);
+    expect(botCheckSitekeyFor('localhost', '?botcheck=test')).toBe(
+      environmentFor('dev.quirenote.com')?.botCheckSitekey,
+    );
+  });
+});
+
+describe('a deployed host asked for the test widget', () => {
+  it.each(['dev.quirenote.com', 'quirenote.com', 'www.quirenote.com'])(
+    '%s keeps its own',
+    (host) => {
+      expect(botCheckSitekeyFor(host, '?botcheck=test')).toBe(
+        environmentFor(host)?.botCheckSitekey,
+      );
+      expect(botCheckSitekeyFor(host, '?botcheck=test')).not.toBe(TEST_SITEKEY);
+    },
+  );
+
+  it('has none where the host has no environment', () => {
+    expect(botCheckSitekeyFor('example.com', '?botcheck=test')).toBeUndefined();
   });
 });
 

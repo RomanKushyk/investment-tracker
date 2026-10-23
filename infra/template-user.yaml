@@ -85,6 +85,8 @@ Rules:
 
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
+  # The dev API's test bypass, which production does not hold (*Auth model*).
+  IsDev: !Not [Condition: IsProd]
 
   # ONE CONDITION READ IN FOUR PLACES — the pool's `AllowAdminCreateUserOnly`, the trigger's
   # `OPEN_REGISTRATION`, and the approve and view handlers'. The pool's arms point the OPPOSITE way
@@ -1001,6 +1003,10 @@ Resources:
           BOT_CHECK_PARAMETER: !Sub '/quirenote/${Environment}/turnstile-secret'
           BOT_CHECK_HOSTNAMES:
             !If [IsProd, 'quirenote.com,www.quirenote.com', 'dev.quirenote.com,localhost']
+          # THE DEV API'S TEST BYPASS, the name and never the value, which the deploy writes from
+          # dev's GitHub secret; production holds none (*Auth model*).
+          BOT_CHECK_BYPASS_PARAMETER:
+            !If [IsProd, !Ref AWS::NoValue, /quirenote/dev/bot-check-bypass]
       Policies:
         - Statement:
             # ONE READ, AND IT IS POOL-WIDE — any client in the pool can be described, the accepted
@@ -1083,6 +1089,21 @@ Resources:
     Properties:
       LogGroupName: !Sub /aws/lambda/${AuthRelayFunction}
       RetentionInDays: 30
+
+  # THE BYPASS GRANT STANDS APART, under dev's condition, so the relay's own policies stay
+  # unconditional as the boundary tests read them. Decrypted under the relay's existing KMS grant.
+  BotCheckBypassPolicy:
+    Type: AWS::IAM::Policy
+    Condition: IsDev
+    Properties:
+      PolicyName: ReadTheBotCheckBypass
+      Roles: [!Ref AuthRelayFunctionRole]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/quirenote/dev/bot-check-bypass'
 
   # The derived reads, `GET /view` and its siblings (`src/view.ts`, *Cloud target*). THE LOGICAL
   # ID IS THE ARCHIVE'S CONTRACT: the reader role's trust admits `…-ViewFunctionRole-*` by pattern.

@@ -52,6 +52,12 @@
       "Resource": "arn:aws:ssm:eu-north-1:*:parameter/quirenote/dev/turnstile-secret"
     },
     {
+      "Sid": "ReadTheBotCheckBypass",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
+      "Resource": "arn:aws:ssm:eu-north-1:*:parameter/quirenote/dev/bot-check-bypass"
+    },
+    {
       "Sid": "DecryptTheBotCheckSecret",
       "Effect": "Allow",
       "Action": "kms:Decrypt",

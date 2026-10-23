@@ -33,6 +33,7 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   [['Rules', 'GoogleNeedsBothHalves', 'Assertions', 1, 'Assert'], '!Not'],
   [['Rules', 'GoogleNeedsBothHalves', 'Assertions', 1, 'Assert', 0], '!Equals'],
   [['Conditions', 'IsProd'], '!Equals'],
+  [['Conditions', 'IsDev'], '!Not'],
   [['Conditions', 'IsRegistrationOpen'], '!Equals'],
   [['Conditions', 'HasGoogle'], '!Equals'],
   // `app=quirenote` selects into `quirenote-backups`, a LOCKED vault; dev's tag is out.
@@ -62,6 +63,8 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   // Production's state machine, which dev does not deploy.
   [[...envVars('ArchiveOperationsFunction'), 'STATE_MACHINE_ARN'], '!If'],
   [[...envVars('AuthRelayFunction'), 'BOT_CHECK_HOSTNAMES'], '!If'],
+  // The dev API's test bypass, which production does not hold (*Auth model*).
+  [[...envVars('AuthRelayFunction'), 'BOT_CHECK_BYPASS_PARAMETER'], '!If'],
   [[...envVars('ViewFunction'), 'OPEN_REGISTRATION'], '!If'],
   [[...envVars('MutationsFunction'), 'OPEN_REGISTRATION'], '!If'],
   [['Outputs', 'AuthDomain', 'Value'], '!If'],
@@ -97,7 +100,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the thirty written here', () => {
+  it('carries exactly the thirty-two written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 

@@ -28,12 +28,15 @@ import {
 
 import {
   BOT_CHECK_FAILED,
+  BYPASS_HEADER,
   TOKEN,
-  type Verify,
+  type Check,
+  bypassFromEnvironment,
   fromEnvironment,
   refusalOf,
   tokenOf,
   verifyWith,
+  withBypass,
 } from './bot-check';
 import {
   INTERNAL,
@@ -702,7 +705,7 @@ const tokensOf = (answered: CodeTokens): Tokens => ({
 type Client = { secret: string; google: boolean; callback: string | undefined };
 
 /** One relay per execution environment, which is what its client is cached across. */
-export const createRelay = (idp: IdentityClient, verify: Verify, now: () => number = Date.now) => {
+export const createRelay = (idp: IdentityClient, verify: Check, now: () => number = Date.now) => {
   let client: { value: Promise<Client>; at: number } | undefined;
   let rereadAt = -Infinity;
 
@@ -806,7 +809,13 @@ export const createRelay = (idp: IdentityClient, verify: Verify, now: () => numb
     const { parameters, botCheck } = asked;
     try {
       await cached(ids);
-      const refused = refusalOf(await verify(botCheck, event.requestContext?.http?.sourceIp));
+      const refused = refusalOf(
+        await verify(
+          botCheck,
+          event.requestContext?.http?.sourceIp,
+          event.headers?.[BYPASS_HEADER],
+        ),
+      );
       if (refused) return refused;
       const answer = await withSecret(ids, 'NotAuthorizedException', (s) =>
         idp.initiateAuth({
@@ -1175,7 +1184,11 @@ const sdk: IdentityClient = {
     ),
 };
 
+// The dev API's test bypass wraps the siteverify check; production names no parameter for it.
 export const handler = createRelay(
   sdk,
-  verifyWith((url, init) => fetch(url, init), fromEnvironment(), 'sign-in'),
+  withBypass(
+    verifyWith((url, init) => fetch(url, init), fromEnvironment(), 'sign-in'),
+    bypassFromEnvironment(),
+  ),
 );

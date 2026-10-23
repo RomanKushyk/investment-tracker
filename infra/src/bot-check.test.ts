@@ -8,10 +8,16 @@ import {
   SECRET_MS,
   SITEVERIFY,
   SSM_CONFIG,
+  BYPASS_FLOOR,
+  BYPASS_HEADER,
+  BYPASS_TTL_MS,
   type BotCheckConfig,
+  type Verdict,
   cachedSecret,
+  keptFor,
   readParameterWith,
   verifyWith,
+  withBypass,
 } from './bot-check';
 
 // The client's construction and what it is sent, recorded; nothing reaches AWS.
@@ -348,5 +354,219 @@ describe('the secret is read from SSM inside its own deadline', () => {
     await expect(held?.secret()).rejects.toThrow('the client could not be built');
     await expect(held?.secret()).resolves.toBe(SECRET);
     expect(built).toHaveBeenCalledTimes(2);
+  });
+});
+
+// THE DEV API'S TEST BYPASS (*Auth model*): a header matching a secret the server holds passes the
+// relay's check without siteverify; any other header is refused; none leaves siteverify to decide.
+describe('a bypass header decides on dev, and only where this environment holds a bypass', () => {
+  const BYPASS = 'the-dev-bypass-value-of-forty-characters';
+  const stored = (read: () => Promise<string> = async () => BYPASS) => vi.fn(read);
+  const siteverifying = () => vi.fn(async (): Promise<Verdict> => 'refused');
+
+  it('names its header', () => {
+    expect(BYPASS_HEADER).toBe('x-bot-check-bypass');
+  });
+
+  it('passes a matching header without asking siteverify', async () => {
+    const verify = siteverifying();
+    const watched = watchConsole();
+    try {
+      await expect(withBypass(verify, stored())(TOKEN, IP, BYPASS)).resolves.toBe('passed');
+      expect(verify).not.toHaveBeenCalled();
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // A secret saved with its line ending still matches the value a header carries, which has none.
+  it('matches a stored value whatever whitespace surrounds it', async () => {
+    const watched = watchConsole();
+    try {
+      const padded = stored(async () => ` ${BYPASS}\n`);
+      await expect(withBypass(siteverifying(), padded)(TOKEN, IP, BYPASS)).resolves.toBe('passed');
+    } finally {
+      watched.restore();
+    }
+  });
+
+  it('refuses a header that does not match, whatever its length', async () => {
+    const verify = siteverifying();
+    const watched = watchConsole();
+    try {
+      for (const wrong of ['', 'x', `${BYPASS}x`, BYPASS.slice(0, -1), BYPASS.toUpperCase()])
+        await expect([wrong, await withBypass(verify, stored())(TOKEN, IP, wrong)]).toEqual([
+          wrong,
+          'refused',
+        ]);
+      expect(verify).not.toHaveBeenCalled();
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // NEVER KEPT: a rotation revokes the old value on the next request, not when the environment recycles.
+  it('reads the stored value again for every header', async () => {
+    let value = BYPASS;
+    const read = stored(async () => value);
+    const check = withBypass(siteverifying(), read);
+    const watched = watchConsole();
+    try {
+      await expect(check(TOKEN, IP, BYPASS)).resolves.toBe('passed');
+      value = 'the-rotated-bypass-of-forty-characters!!';
+      await expect(check(TOKEN, IP, BYPASS)).resolves.toBe('refused');
+      await expect(check(TOKEN, IP, 'the-rotated-bypass-of-forty-characters!!')).resolves.toBe(
+        'passed',
+      );
+      expect(read).toHaveBeenCalledTimes(3);
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // A FLOOR OF 32 CHARACTERS, over 128 bits as base64url: a blank or short stored value is a broken
+  // configuration, and an empty header must never match one.
+  it('admits nobody when the stored value is blank or shorter than 32 characters', async () => {
+    const verify = siteverifying();
+    const watched = watchConsole();
+    try {
+      for (const [weak, presented] of [
+        ['\n', ''],
+        ['   ', ''],
+        ['x'.repeat(31), 'x'.repeat(31)],
+      ])
+        await expect([
+          weak,
+          await withBypass(
+            verify,
+            stored(async () => weak),
+          )(TOKEN, IP, presented),
+        ]).toEqual([weak, 'unavailable']);
+      expect(BYPASS_FLOOR).toBe(32);
+      await expect(
+        withBypass(
+          verify,
+          stored(async () => 'x'.repeat(32)),
+        )(TOKEN, IP, 'x'.repeat(32)),
+      ).resolves.toBe('passed');
+      expect(verify).not.toHaveBeenCalled();
+    } finally {
+      watched.restore();
+    }
+  });
+
+  it('leaves a request without the header to siteverify, as it was handed', async () => {
+    const verify = vi.fn(async (): Promise<Verdict> => 'passed');
+    const read = stored();
+    await expect(withBypass(verify, read)(TOKEN, IP, undefined)).resolves.toBe('passed');
+    expect(verify.mock.calls).toEqual([[TOKEN, IP]]);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  // ASVS 5.0 13.4.2: no debug path in production. Without the parameter there is no bypass at all.
+  it('ignores the header where this environment holds no bypass', async () => {
+    const verify = siteverifying();
+    await expect(withBypass(verify, undefined)(TOKEN, IP, BYPASS)).resolves.toBe('refused');
+    expect(verify.mock.calls).toEqual([[TOKEN, IP]]);
+  });
+
+  it('fails closed when the bypass cannot be read, and asks siteverify nothing', async () => {
+    const verify = siteverifying();
+    const watched = watchConsole();
+    try {
+      const unreadable = stored(async () => Promise.reject(new Error(`denied ${BYPASS}`)));
+      await expect(withBypass(verify, unreadable)(TOKEN, IP, BYPASS)).resolves.toBe('unavailable');
+      expect(verify).not.toHaveBeenCalled();
+    } finally {
+      watched.restore();
+    }
+  });
+
+  it('logs one line for each outcome it decides, naming no value, token or address', async () => {
+    const cases: [string, () => Promise<string>][] = [
+      [BYPASS, async () => BYPASS],
+      ['wrong-value', async () => BYPASS],
+      [BYPASS, async () => Promise.reject(new Error(`denied ${BYPASS}`))],
+    ];
+    const said: string[] = [];
+    for (const [presented, read] of cases) {
+      const watched = watchConsole();
+      try {
+        await withBypass(siteverifying(), stored(read))(TOKEN, IP, presented);
+        const lines = watched.lines();
+        expect(lines).toHaveLength(1);
+        for (const secret of [BYPASS, 'wrong-value', TOKEN, IP])
+          expect(lines[0]).not.toContain(secret);
+        said.push(lines[0] ?? '');
+      } finally {
+        watched.restore();
+      }
+    }
+    expect(said[0]).toBe('bot check: bypassed');
+  });
+
+  // The relay's composition, read off this environment as the siteverify check is.
+  it('is held only where this environment names its parameter', async () => {
+    vi.resetModules();
+    vi.stubEnv('BOT_CHECK_BYPASS_PARAMETER', '');
+    try {
+      const absent = await import('./bot-check');
+      expect(absent.bypassFromEnvironment()).toBeUndefined();
+      vi.resetModules();
+      ssmSent.length = 0;
+      vi.stubEnv('BOT_CHECK_BYPASS_PARAMETER', '/quirenote/dev/bot-check-bypass');
+      const present = await import('./bot-check');
+      const read = present.bypassFromEnvironment();
+      await expect(read?.()).resolves.toBe('test-secret-value');
+      expect(ssmSent.map((sent) => sent.input)).toEqual([
+        { Name: '/quirenote/dev/bot-check-bypass', WithDecryption: true },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  // KEPT FIVE MINUTES, as AWS's Parameters and Secrets extension keeps a parameter by default: a junk
+  // header costs one read per environment per window, and a rotation lands within it.
+  describe('the stored value is kept for its window', () => {
+    it('reads once inside the window, and again after it', async () => {
+      let at = 0;
+      const read = vi.fn(async () => 'v');
+      const kept = keptFor(read, BYPASS_TTL_MS, () => at);
+      expect(BYPASS_TTL_MS).toBe(300_000);
+      await kept();
+      at = BYPASS_TTL_MS - 1;
+      await kept();
+      expect(read).toHaveBeenCalledOnce();
+      at = BYPASS_TTL_MS;
+      await kept();
+      expect(read).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps no failed read', async () => {
+      const read = vi.fn<() => Promise<string>>();
+      read.mockRejectedValueOnce(new Error('throttled')).mockResolvedValue('v');
+      const kept = keptFor(read, BYPASS_TTL_MS, () => 0);
+      await expect(kept()).rejects.toThrow('throttled');
+      await expect(kept()).resolves.toBe('v');
+      expect(read).toHaveBeenCalledTimes(2);
+    });
+
+    it('is how this environment holds its parameter', async () => {
+      vi.resetModules();
+      ssmSent.length = 0;
+      vi.stubEnv('BOT_CHECK_BYPASS_PARAMETER', '/quirenote/dev/bot-check-bypass');
+      try {
+        let at = 0;
+        const read = (await import('./bot-check')).bypassFromEnvironment(() => at);
+        await read?.();
+        await read?.();
+        expect(ssmSent).toHaveLength(1);
+        at = BYPASS_TTL_MS;
+        await read?.();
+        expect(ssmSent).toHaveLength(2);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
   });
 });

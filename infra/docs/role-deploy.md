@@ -65,6 +65,12 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
       "Effect": "Allow",
       "Action": "ssm:PutParameter",
       "Resource": "arn:aws:ssm:eu-north-1:<account-id>:parameter/quirenote/dev/turnstile-secret"
+    },
+    {
+      "Sid": "WriteTheBotCheckBypass",
+      "Effect": "Allow",
+      "Action": "ssm:PutParameter",
+      "Resource": "arn:aws:ssm:eu-north-1:<account-id>:parameter/quirenote/dev/bot-check-bypass"
     }
   ]
 }
@@ -73,7 +79,7 @@ Inline permission policy, named `quirenote-backend-deploy-<env>Policy`. For `dev
 For `prod`, the same with five substitutions: `stack/quirenote-backend-user-prod/*` replaces the
 two dev stacks, because the archive deploys from `dev` alone; the role passed is
 `quirenote-backend-cfn-exec-prod`; the object prefix is `prod/*`; the runner is
-`quirenote-backend-user-prod-MigrateFunction-*`; and the parameter is `quirenote/prod/turnstile-secret`. And one statement more, because the
+`quirenote-backend-user-prod-MigrateFunction-*`; and the parameter is `quirenote/prod/turnstile-secret`. It holds no `WriteTheBotCheckBypass`, since production has no bypass. And one statement more, because the
 production deploy still READS the archive, for the identifier it passes as `ArchiveClusterId` and the
 capture's name it passes as `CaptureFunctionName`:
 
@@ -99,7 +105,7 @@ executes a change set while it reads the stack events. It never calls
 there", so the role holds no `s3:ListBucket`. A key that exists is still found, and a missing one
 is put, exactly as with a 404. `HandOffToCloudFormationOnly` is `--role-arn`, and `RunMigrations`
 is the invoke below. `WriteTheBotCheckSecret` is the deploy's `ssm put-parameter`, the one place the
-environment's Turnstile secret reaches AWS; CloudFormation cannot create a SecureString.
+environment's Turnstile secret reaches AWS; CloudFormation cannot create a SecureString. `WriteTheBotCheckBypass` is the same for dev's test bypass (*Auth model*).
 
 **The trust names the environment AND the branch, and each closes a gap the other leaves.** The `sub`
 a job in an environment carries is `…:environment:<env>`, never `ref:refs/heads/…`. `ref` is a claim

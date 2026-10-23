@@ -38,3 +38,19 @@ export const ENVIRONMENTS: Readonly<Record<string, AuthEnvironment>> = {
 export function environmentFor(hostname: string): AuthEnvironment | undefined {
   return Object.hasOwn(ENVIRONMENTS, hostname) ? ENVIRONMENTS[hostname] : undefined;
 }
+
+/** Cloudflare's always-pass test sitekey, which an automated browser passes; dev's siteverify
+ *  refuses its token, so the dev API admits it only with the proxy's bypass header (*Auth model*). */
+export const TEST_SITEKEY = '1x00000000000000000000AA';
+
+/** The widget this page renders: the test one on the dev server when `?botcheck=test` asks. A
+ *  production build carries no such switch. */
+export function botCheckSitekeyFor(hostname: string, search: string): string | undefined {
+  if (
+    import.meta.env.DEV &&
+    hostname === 'localhost' &&
+    new URLSearchParams(search).get('botcheck') === 'test'
+  )
+    return TEST_SITEKEY;
+  return environmentFor(hostname)?.botCheckSitekey;
+}

@@ -1596,7 +1596,26 @@ under the action `sign-in` once the body, the configuration and the client secre
 no failure of ours spends the single-use token. A press before the token waits on the password step;
 on the address step and the retry it is refused with a sentence, because their start opens the
 passkey sheet, and WebKit keeps a click's gesture across a fetch for ten seconds and no other wait.
-A start that carries no token is refused as a refused one is. Sign-up
+A start that carries no token is refused as a refused one is. THE DEV API ADMITS A TEST BYPASS, AND
+PRODUCTION HOLDS NONE: Turnstile detects an automated browser, as Cloudflare's testing page says of
+every suite, so on the dev server `?botcheck=test` renders Cloudflare's always-pass test sitekey,
+and the dev server's proxy adds `x-bot-check-bypass` from a file outside the repository, so the page
+never holds it. The dev relay's start passes a header that matches a dev-only SecureString, compared
+as SHA-256 digests in constant time, without asking siteverify; it refuses one that does not match,
+leaves a request without it to siteverify, and logs a pass as one line that never carries the value.
+The gate is a secret the server holds, as Clerk's Testing Tokens and Firebase App Check's debug
+token are; production names no parameter, grants no read and writes none, ASVS 5.0 13.4.2 asking
+that debug modes be off in production, and `/v1/applications` has no bypass anywhere. Three were
+refused: Cloudflare's test secret, whose keys are public and which passes any token while naming
+another host and no action; trusting `localhost`, which `Origin` and `Sec-Fetch-Site` let any caller
+claim; and an allow-list of accounts, exactly the target credential stuffing has. The deploy writes
+the parameter from dev's GitHub secret and fails when it is unset, shorter than the relay's floor or
+holds whitespace, since a skipped write would leave a revoked value live and a short one is a
+guessable credential; the relay admits nobody on a stored value under that floor, so an empty header
+never matches a blank one. It keeps a read for the default TTL of AWS's Parameters and Secrets
+extension, so a junk header costs one read per window and the deploy that writes a rotated secret
+revokes the old one within it.
+Sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
 Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. AN IDENTITY IS DELETED BY
 HAND OR NOT AT ALL: no handler holds `AdminDeleteUser`, and `DeleteUser` takes an access token no

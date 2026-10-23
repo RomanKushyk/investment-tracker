@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import pkg from './package.json';
 import { derivationId } from './scripts/derivation-id.ts';
 import { entryLoader } from './scripts/entry-loader.ts';
+import { readBypass, relayProxy } from './scripts/relay-proxy.ts';
 
 export default defineConfig({
   plugins: [
@@ -21,15 +22,8 @@ export default defineConfig({
   server: {
     port: 3300,
     strictPort: true,
-    // The relay admits only a same-site caller, which localhost is not; through the proxy it is
-    // same-origin. Not `/auth`: Cognito's callback, `/auth/callback`, is this app's page (#273).
-    proxy: {
-      '/relay': {
-        target: 'https://api.dev.quirenote.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/relay/, ''),
-      },
-    },
+    // Not `/auth`: Cognito's callback, `/auth/callback`, is this app's page (#273).
+    proxy: { '/relay': relayProxy(readBypass()) },
   },
   // Single source of truth for the sidebar version badge — see docs/reference/VERSIONING.md.
   // deploy-backend.yml hands esbuild the same function's value, so a reference in the SPA and one

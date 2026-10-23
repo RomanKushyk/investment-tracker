@@ -683,6 +683,26 @@ jobs:
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
 
+      # THE DEV API'S TEST BYPASS, dev's alone (*Auth model*): production holds no parameter. Unset
+      # fails, since a skipped write would leave a revoked value live; rotation is the revocation.
+      - name: Write the bot-check bypass
+        if: github.ref_name != 'main'
+        run: |
+          # The relay's floor too (`BYPASS_FLOOR`), on the value as written: the relay trims whitespace.
+          if [ "${#BOT_CHECK_BYPASS}" -lt 32 ] || [[ "$BOT_CHECK_BYPASS" =~ [[:space:]] ]]; then
+            echo "::error::BOT_CHECK_BYPASS must be set in the dev environment, 32 characters or more, no whitespace"
+            exit 1
+          fi
+          # Never on a command line, as the Turnstile secret above.
+          umask 077
+          request="$RUNNER_TEMP/bot-check-bypass.json"
+          trap 'rm -f "$request"' EXIT
+          jq -n '{Name: "/quirenote/dev/bot-check-bypass", Type: "SecureString", Value: env.BOT_CHECK_BYPASS, Overwrite: true}' > "$request"
+          aws ssm put-parameter --cli-input-json "file://$request" --region "$AWS_REGION" > /dev/null
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          BOT_CHECK_BYPASS: ${{ secrets.BOT_CHECK_BYPASS }}
+
       # USER STACK FIRST, ARCHIVE SECOND, in two steps: the archive deploy DELETES the old
       # migration function, so running it first leaves the plan step below — and any later
       # dispatch of `migrate.yml` — resolving nothing.

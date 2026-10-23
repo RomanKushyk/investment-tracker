@@ -265,6 +265,7 @@ an empty value rather than an error that names it.
 | Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: one alone fails the deploy, neither switches Google sign-in off |
 | Secret | `GOOGLE_CLIENT_SECRET` | that client's secret | both — as above |
 | Secret | `TURNSTILE_SECRET` | the environment's Turnstile widget secret, which every backend deploy writes to the SecureString `/quirenote/<env>/turnstile-secret` | both, each its own widget — unset fails the deploy |
+| Secret | `BOT_CHECK_BYPASS` | the dev API's test bypass, which the backend deploy writes to the SecureString `/quirenote/dev/bot-check-bypass` and the dev server's proxy sends from `~/.quirenote/bot-check-bypass.txt` (`infra/README.md`) | dev only, never prod — unset, shorter than the relay's floor or holding whitespace fails the dev deploy |
 | Secret | `DEV_BASIC_AUTH` | dev's basic-auth pair as `user:pass`, for the header check (§3.2) | `dev` only — re-set it whenever the pair is changed in the console |
 
 **The migration needs no environment of its own, and a `migrate-prod` pair was built and deleted.** A

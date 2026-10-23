@@ -5,6 +5,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { watchConsole } from './__fixtures__/console';
 import {
   GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_ROUTE,
@@ -22,7 +23,7 @@ import {
   handler as rawHandler,
   redeemWith,
 } from './auth-relay';
-import type { Verify, Verdict } from './bot-check';
+import { BYPASS_HEADER, type Verify, type Verdict, withBypass } from './bot-check';
 import type { ApiEvent, ApiResult } from './http';
 import { proveRouteContract, recorder } from './route-contract';
 
@@ -553,6 +554,58 @@ describe('a start is verified by the bot check before Cognito is asked', () => {
     expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
     expect(asked).toEqual([]);
     expect(of('initiateAuth')).toEqual([]);
+  });
+
+  // THE DEV API'S TEST BYPASS (*Auth model*), as the handler composes it: the header the dev
+  // server's proxy adds decides, and a request without it is siteverify's, as before.
+  describe('with a bypass this environment holds', () => {
+    const BYPASS = 'the-dev-bypass-value-of-forty-characters';
+    const bypassing = () => {
+      const siteverify = checking(() => 'refused');
+      return { ...siteverify, verify: withBypass(siteverify.verify, async () => BYPASS) };
+    };
+    const carrying = (value: string): ApiEvent => {
+      const event = from({ ...START, botCheck: TOKEN });
+      return { ...event, headers: { ...event.headers, [BYPASS_HEADER]: value } };
+    };
+
+    it('starts a request whose header matches, without asking siteverify', async () => {
+      const { idp, of } = cognito();
+      const { verify, asked } = bypassing();
+      const watched = watchConsole();
+      try {
+        const res = await checked(idp, verify)(carrying(BYPASS));
+        expect(res.statusCode).toBe(200);
+        expect(res.body).not.toContain(BYPASS);
+        expect(asked).toEqual([]);
+        expect(of('initiateAuth')).toHaveLength(1);
+      } finally {
+        watched.restore();
+      }
+    });
+
+    it('refuses a header that does not match, before Cognito is asked', async () => {
+      const { idp, of } = cognito();
+      const { verify, asked } = bypassing();
+      const watched = watchConsole();
+      try {
+        const res = await checked(idp, verify)(carrying('not-the-value'));
+        expect([res.statusCode, res.body]).toEqual(BOT_CHECK_FAILED);
+        expect(asked).toEqual([]);
+        expect(of('initiateAuth')).toEqual([]);
+      } finally {
+        watched.restore();
+      }
+    });
+
+    it('leaves a request without the header to siteverify', async () => {
+      const { idp, of } = cognito();
+      const { verify, asked } = bypassing();
+      const res = await checked(idp, verify)(from({ ...START, botCheck: TOKEN }));
+      expect([res.statusCode, res.body]).toEqual(BOT_CHECK_FAILED);
+      expect(asked).toEqual([[TOKEN, CALLER]]);
+      expect(of('initiateAuth')).toEqual([]);
+    });
   });
 
   it('publishes the token as required on every start', () => {
