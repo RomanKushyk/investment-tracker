@@ -1757,7 +1757,15 @@ runner holds back enough of its invocation to drop that schema and REFUSES TO SE
 THAT RESERVE ALREADY SPENT, naming it and what each file it ran cost, rather than being killed
 at a ceiling already set to the service maximum. That bounds when a statement STARTS and not how
 long it runs: one wait that overruns alone is still a kill, and a rehearsal killed that way is not
-applied, the overrun being possibly the SQL's own. A REFUSED REHEARSAL IS REPAIRED BY AN APPLY:
+applied, the overrun being possibly the SQL's own. NOTHING BOUNDS ONE STATEMENT BUT LAMBDA'S
+`Timeout`: DSQL refuses `statement_timeout` in each spelling probed, and its transaction-age cap,
+measured on a plain statement and not on a wait, refuses a statement only after it returns. The
+kill is the accepted residual, and its cost is a bare timeout: an apply killed inside an index wait
+leaves the job `submitted`, not cancelled, and a re-run resumes it through `sys.jobs`; a rehearsal
+killed that way leaves its throwaway schema for an operator to drop by hand. The connect is outside
+the question: it precedes every statement, so a hung one is killed with no schema made and no
+ledger row open, and `connectionTimeoutMillis` stays unset at the price of a hung connect reading
+as the same bare timeout. A REFUSED REHEARSAL IS REPAIRED BY AN APPLY:
 the statement it refused was never judged, and replaying the whole history it can never get
 further, while an apply resumes off the ledger. THE CODE IS LIVE BEFORE THE SCHEMA, the SQL riding
 in the deployed bundle, so every migration MUST BE WRITTEN expand/contract-compatible with the code
@@ -1873,7 +1881,12 @@ life, so a widened vocabulary would be a rule the rows already there were never 
 bound on the rehearsal, replaying only what the plan reported pending: the ledger a rehearsal reads
 is the empty one inside its own throwaway schema, so the files a bound would skip are the ones the
 rest resolve against. · A raised runner `Timeout`: it already sits at the service maximum, so there
-is no headroom to buy. · Steps inside one request that commit on their own: the request would land
+is no headroom to buy. · A connection `statement_timeout`: DSQL refuses the parameter at connect,
+by `SET` and by `set_config`, so there is no server-side bound to adopt. · A client-side bound on a
+wait, with a fresh connection for the teardown: `pg`'s `query_timeout` stops waiting for the reply
+while the statement runs on in the server, a cancel request is unprobed here, and no recorded run
+has come near the ceiling, so either would be a second connection path guarding a failure never
+observed. · Steps inside one request that commit on their own: the request would land
 in part, which no stored response describes. · Storing a refusal: a corrected request under the
 same key would replay it. · A scheduled sweep of expired keys: *Alerting* prices a scheduled
 function at two alarms, and a key costs nothing until its owner writes again. · Collecting garbage

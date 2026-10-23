@@ -617,7 +617,7 @@ export interface Budget {
  * `Timeout` already sits at Lambda's maximum, so stopping early is the only move left.
  *
  * IT BOUNDS WHEN A STATEMENT STARTS, NOT HOW LONG IT RUNS. A single `CALL
- * sys.wait_for_job` that overruns on its own is still a kill — the connection sets no
+ * sys.wait_for_job` that overruns on its own is still a kill — DSQL refuses
  * `statement_timeout` — so what this catches is a history grown past one invocation,
  * which is the cost that rises with every file added.
  *

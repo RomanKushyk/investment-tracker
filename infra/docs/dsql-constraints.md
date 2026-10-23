@@ -255,6 +255,30 @@ start_time, update_time`. A `CREATE INDEX ASYNC` writes `job_type = 'INDEX_BUILD
 `submitted` → `completed`. `CALL sys.wait_for_job(job_id)` on a job found that way resumes exactly
 what the killed invocation was waiting for.
 
+**`statement_timeout` cannot be set at all**, in any spelling probed on the dev cluster: as a startup
+parameter, which is how `pg` sends its `statement_timeout` option, and through `-c` in `options`,
+the connection is refused `FATAL` `0A000` *setting configuration parameter "statement_timeout" not
+supported*; `SET statement_timeout` and `set_config('statement_timeout', …)` answer the same as an
+`ERROR`. `SHOW statement_timeout` reads `0`. So no `57014` is reachable through `statement_timeout`.
+A protocol cancel request, which answers `57014` in Postgres, is unprobed.
+
+**DSQL's own transaction-age cap does not cut a statement short either.** AWS lists a five-minute
+maximum transaction time, `54000` — READ FROM AWS
+(https://docs.aws.amazon.com/aurora-dsql/latest/userguide/CHAP_quotas.html). On the dev cluster one
+autocommit `SELECT pg_sleep(…)` past that cap ran its whole length and only then answered `54000`
+*transaction age limit of 300s exceeded*: the cap refuses the transaction after the statement
+returns, it does not stop the statement. Whether a `CALL sys.wait_for_job` is held to the cap at all
+is unmeasured, no build here having outlasted it. If it is, a build outlasting the cap makes the
+wait raise after the build went through, and `finishIndex` in `infra/src/migrate.ts` settles it on
+the re-run that the open ledger row allows.
+
+**A wait given up on is not a build given up on.** With the server's timeout refused, the abort
+probed on the dev cluster was the client's: a `CALL sys.wait_for_job` abandoned by `pg`'s
+`query_timeout`, its connection then destroyed, left the job `submitted` and the index `indisvalid`
+false. A fresh connection opened straight after found the job in `sys.jobs` by `object_name`, waited
+on it — the `CALL` returns one row, `succeeded` true — and the job went `completed` with the index
+valid. So the resume above holds for an abandoned wait: the job was not cancelled with its waiter.
+
 **The SQLSTATEs for a statement whose object is already there**, which is what the runner's
 crash-window absorption turns on and which local Postgres could not be trusted to answer (`RESTRICT`
 already differs by engine, above):
