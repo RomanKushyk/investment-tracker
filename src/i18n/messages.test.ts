@@ -47,6 +47,8 @@ const SHARED = new Set([
   // A whole-number placeholder: no thousands mark and no decimals, so there is
   // nothing for a convention to change.
   'asset.placeholder.targetPct',
+  // A provider's name, which neither language translates.
+  'profile.google',
 ]);
 
 describe('the dictionaries', () => {

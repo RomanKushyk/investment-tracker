@@ -87,9 +87,9 @@ export function Mark({ className = '' }: { className?: string }) {
 // the padding that sets the height. The drawn box does NOT change below the
 // breakpoint — `TAP_44` grows the region around it, which is what holds the radii
 // where they are. *Shape system*
-function pillClass(padY: string, radius: string) {
+function pillClass(padY: string, radius: string, type = 'text-[13.5px]') {
   return ({ isActive }: { isActive: boolean }) =>
-    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left text-[13.5px] transition select-none active:scale-[.97] ` +
+    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left ${type} transition select-none active:scale-[.97] ` +
     (isActive
       ? // SAID TWICE, WHICH IS THE WHOLE POINT: a tint AND an inset left edge, because
         // 1.4.1 does not accept a state carried by colour alone. An INSET SHADOW and not
@@ -436,12 +436,13 @@ export function AccountFold({
 const ACCOUNT_STEP = 'mt-[3px] max-md:mt-2';
 const ACCOUNT_ROW = `${ACCOUNT_STEP} flex h-[36px] items-center px-3.5 text-[11px] text-sb-item`;
 const ACCOUNT_PILL = `${ACCOUNT_STEP} ${pillClass('py-2', 'rounded-[9px]')({ isActive: false })}`;
+// The address as the profile's link: the pill's states at the row's 36 and 11 px.
+const ACCOUNT_LINK = pillClass('py-2.5', 'rounded-[9px]', 'text-[11px] leading-[16px]');
 
 /**
- * THE ACCOUNT IS THE BAND'S LAST CONTROL, above the version: the address, then «Вийти» in
- * Settings' recipe. The address stands at a pill's geometry with no box of its own — information
- * until the profile page makes it a link. Signed out, the status and «Увійти», a plain `Link`:
- * `/sign-in/x` falls into the shell, where a `NavLink` would mark it current.
+ * THE ACCOUNT IS THE BAND'S LAST CONTROL, above the version: the address, the profile's link, then
+ * «Вийти» in Settings' recipe. Signed out, the status and «Увійти», a plain `Link`: `/sign-in/x`
+ * falls into the shell, where a `NavLink` would mark it current.
  */
 function AccountRows() {
   const t = useT();
@@ -463,12 +464,17 @@ function AccountRows() {
         </>
       ) : (
         <>
-          <div title={address} className={ACCOUNT_ROW}>
-            {address !== undefined && <span className="sr-only">{t.auth.signedInAs(address)}</span>}
-            <div aria-hidden={address !== undefined || undefined} className="min-w-0 flex-1">
-              <NavItem Icon={CircleUser} label={address ?? t.auth.signedIn} isActive={false} />
-            </div>
-          </div>
+          {/* Named for where it goes, the whole address in its `title`, as the cut row showed it. */}
+          <NavLink
+            to="/profile"
+            aria-label={address === undefined ? t.profile.title : t.auth.profileLink(address)}
+            title={address}
+            className={({ isActive }) => `${ACCOUNT_STEP} ${ACCOUNT_LINK({ isActive })}`}
+          >
+            {({ isActive }) => (
+              <NavItem Icon={CircleUser} label={address ?? t.auth.signedIn} isActive={isActive} />
+            )}
+          </NavLink>
           {/* `aria-disabled` and never `disabled` while it runs: disabling drops the focus, and a
               sign-out that fails leaves this button as the retry. */}
           <button

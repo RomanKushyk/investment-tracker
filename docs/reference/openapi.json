@@ -2259,6 +2259,11 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "insufficient_scope": {
+                    "value": {
+                      "error": "insufficient_scope"
+                    }
+                  },
                   "csrf": {
                     "value": {
                       "error": "csrf"
@@ -2387,6 +2392,11 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "insufficient_scope": {
+                    "value": {
+                      "error": "insufficient_scope"
+                    }
+                  },
                   "csrf": {
                     "value": {
                       "error": "csrf"
@@ -2506,6 +2516,11 @@
             "content": {
               "application/json": {
                 "examples": {
+                  "insufficient_scope": {
+                    "value": {
+                      "error": "insufficient_scope"
+                    }
+                  },
                   "csrf": {
                     "value": {
                       "error": "csrf"

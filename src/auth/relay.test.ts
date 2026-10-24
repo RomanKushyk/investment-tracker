@@ -95,6 +95,8 @@ describe('a relay call', () => {
     [429, { error: 'too_many_attempts' }, { kind: 'refused', reason: 'throttled' }],
     [403, { error: 'csrf' }, { kind: 'refused', reason: 'failed' }],
     [403, { error: 'bot_check_failed' }, { kind: 'refused', reason: 'botCheck' }],
+    // A token without the admin scope, which a Google sign-in's is: RFC 6750 §3.1's 403.
+    [403, { error: 'insufficient_scope' }, { kind: 'refused', reason: 'googleSession' }],
     [403, 'not json', { kind: 'refused', reason: 'failed' }],
     [500, { error: 'internal' }, { kind: 'refused', reason: 'failed' }],
     [200, { unexpected: true }, { kind: 'refused', reason: 'failed' }],

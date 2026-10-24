@@ -136,14 +136,24 @@ const unseal = (secret: string, value: string): string | undefined => {
   }
 };
 
-/** The account a token names, read and never verified: the relay sealed it, so nobody else wrote it. */
-const accountOf = (token: string): unknown => {
+/** A claim of a token, read and never verified: the relay sealed it, so nobody else wrote it. */
+const claimOf = (token: string, name: 'sub' | 'scope'): unknown => {
   try {
     const payload = Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8');
-    return (JSON.parse(payload) as { sub?: unknown } | null)?.sub;
+    return (JSON.parse(payload) as Record<string, unknown> | null)?.[name];
   } catch {
     return undefined;
   }
+};
+const accountOf = (token: string) => claimOf(token, 'sub');
+
+/** What every passkey call requires of the access token; an API sign-in's carries it alone. */
+const PASSKEY_SCOPE = 'aws.cognito.signin.user.admin';
+/** A token that names its scopes without that one, as a Google sign-in's does. One that names none
+ *  is Cognito's to judge. */
+const lacksPasskeyScope = (token: string) => {
+  const scope = claimOf(token, 'scope');
+  return typeof scope === 'string' && !scope.split(' ').includes(PASSKEY_SCOPE);
 };
 
 /** A GOOGLE FLOW'S STATE AND PKCE VERIFIER, bound to the browser that began it (RFC 9700 §2.1.1)
@@ -345,6 +355,8 @@ const CREATION_OPTIONS = derived({
 const REGISTERED = json(200, '{"status":"registered"}');
 
 const NOT_AUTHORIZED = json(401, '{"error":"not_authorized"}');
+/** RFC 6750 §3.1: a good token without the scope a call requires, which a Google sign-in's is. */
+const INSUFFICIENT_SCOPE = json(403, '{"error":"insufficient_scope"}');
 const INVALID_PASSWORD = json(400, '{"error":"invalid_password"}');
 /** The pool's history refusing the temporary password as the new one, which meets the rule. */
 const REUSED_PASSWORD = json(400, '{"error":"reused_password"}');
@@ -373,9 +385,23 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [SIGN_OUT_ROUTE]: [SIGNED_OUT, CSRF, INTERNAL],
   [GOOGLE_BEGIN_ROUTE]: [AUTHORIZE, GOOGLE_DISABLED, CSRF, INTERNAL],
   [GOOGLE_COMPLETE_ROUTE]: [TOKENS, NOT_AUTHORIZED, FLOW_SPENT, INVALID, CSRF, INTERNAL],
-  [PASSKEY_LIST_ROUTE]: [PASSKEYS, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
-  [PASSKEY_START_ROUTE]: [CREATION_OPTIONS, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
-  [PASSKEY_COMPLETE_ROUTE]: [REGISTERED, NOT_AUTHORIZED, INVALID, CSRF, INTERNAL],
+  [PASSKEY_LIST_ROUTE]: [PASSKEYS, NOT_AUTHORIZED, INSUFFICIENT_SCOPE, INVALID, CSRF, INTERNAL],
+  [PASSKEY_START_ROUTE]: [
+    CREATION_OPTIONS,
+    NOT_AUTHORIZED,
+    INSUFFICIENT_SCOPE,
+    INVALID,
+    CSRF,
+    INTERNAL,
+  ],
+  [PASSKEY_COMPLETE_ROUTE]: [
+    REGISTERED,
+    NOT_AUTHORIZED,
+    INSUFFICIENT_SCOPE,
+    INVALID,
+    CSRF,
+    INTERNAL,
+  ],
 };
 
 /** What a request must carry beyond its body, for the document to publish: every route the relay
@@ -408,8 +434,8 @@ const SESSION_OVER = new Set([
   'InvalidParameterException',
 ]);
 
-/** A passkey call's refusals the app can act on: a token Cognito does not take — expired, revoked,
- *  or a Google sign-in's, which lacks the scope — and a request it refuses. Anything else is logged. */
+/** A passkey call's refusals the app can act on: a token Cognito does not take, expired or
+ *  revoked, and a request it refuses. Anything else is logged. */
 const PASSKEY_REFUSED_AS = new Map<string, ApiResult>([
   ['NotAuthorizedException', NOT_AUTHORIZED],
   ['UserNotFoundException', NOT_AUTHORIZED],
@@ -1035,6 +1061,8 @@ export const createRelay = (idp: IdentityClient, verify: Check, now: () => numbe
     if (ids === undefined) return INTERNAL;
     const token = await opened(ids, sealed);
     if (token === undefined || accountOf(token) !== sub) return NOT_AUTHORIZED;
+    // Told apart from a token Cognito no longer takes, so the profile names Google only for this.
+    if (lacksPasskeyScope(token)) return INSUFFICIENT_SCOPE;
     try {
       return await call(token);
     } catch (err) {

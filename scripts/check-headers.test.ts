@@ -65,6 +65,8 @@ describe('the expected headers come from the file Amplify reads', () => {
       // Passkey sign-in and registration are WebAuthn; `()` would refuse both.
       expect(got['permissions-policy']).toContain('publickey-credentials-get=(self)');
       expect(got['permissions-policy']).toContain('publickey-credentials-create=(self)');
+      // The profile copies the account ID; Chromium refuses `writeText` under `()` on a top page.
+      expect(got['permissions-policy']).toContain('clipboard-write=(self)');
       expect(got['permissions-policy']).toContain('camera=()');
     }
   });

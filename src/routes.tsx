@@ -13,6 +13,7 @@ import { Transactions } from './screens/Transactions';
 import { Overview } from './screens/Overview';
 import { Payouts } from './screens/Payouts';
 import { Portfolio } from './screens/Portfolio';
+import { Profile } from './screens/Profile';
 import { Seasonality } from './screens/Seasonality';
 import { Settings } from './screens/Settings';
 import { Apply } from './screens/sign-in/Apply';
@@ -81,6 +82,8 @@ export const routes: RouteObject[] = [
               },
               // Settings reads no figure of the view, so it waits for nothing.
               { path: 'settings', element: <Settings /> },
+              // The profile reads the account, not the view, and holds its own place for it.
+              { path: 'profile', element: <Profile /> },
               // Every path nothing else matches, `/sign-in/x` too, inside the shell.
               { path: '*', element: <NotFound /> },
             ],

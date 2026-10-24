@@ -319,7 +319,13 @@ describe("the account is the footer band's last control", () => {
     expect(link, 'the entry is not a link to /sign-in').toBeGreaterThan(-1);
     expect(rows, 'the entry lost its glyph').toMatch(/Icon=\{LogIn\}/);
     expect(rows, 'the entry lost its label').toMatch(/label=\{t\.auth\.signInEntry\}/);
-    expect(rows, 'a NavLink would mark /sign-in/x current').not.toMatch(/<NavLink\b/);
+    // The entry's branch alone: the signed-in address is the profile's NavLink.
+    const [from, to] = [rows.indexOf("rows === 'entry' ?"), rows.indexOf(') : (')];
+    expect([from, to].every((i) => i > -1) && to > from, 'the entry has no branch of its own').toBe(
+      true,
+    );
+    const entry = rows.slice(from, to);
+    expect(entry, 'a NavLink would mark /sign-in/x current').not.toMatch(/<NavLink\b/);
     expect(
       rows.indexOf('t.auth.notSignedIn'),
       'the status row does not stand above the entry',
@@ -328,11 +334,18 @@ describe("the account is the footer band's last control", () => {
   });
 
   // ONE GEOMETRY BY CONSTRUCTION: the held slot is the signed-in rows' height, so the signed-out
-  // rows take the same row and the same pill, or Settings moves when the relay answers.
+  // rows take the same row and the same pill, or Settings moves when the relay answers. The
+  // address is the profile's link at the row's 36 (`own-account.dc.html`, T5): the pill's states
+  // on a box whose 10 + 16 + 10 is the row's `h-[36px]`.
   it('draws both answers from one row and one pill', () => {
     const at = SIDEBAR.indexOf('function AccountRows');
     const rows = SIDEBAR.slice(at, SIDEBAR.indexOf('</AccountFold>', at));
-    expect(rows.match(/className=\{ACCOUNT_ROW\}/g)?.length, 'a row left the shared row').toBe(2);
+    expect(rows.match(/className=\{ACCOUNT_ROW\}/g)?.length, 'a row left the shared row').toBe(1);
+    expect(rows.match(/ACCOUNT_LINK\b/g)?.length, 'the address left the shared link').toBe(1);
+    expect(SIDEBAR, "the address link left the row's height or the pill's states").toMatch(
+      /const ACCOUNT_LINK = pillClass\('py-2\.5', 'rounded-\[9px\]', 'text-\[11px\] leading-\[16px\]'\);/,
+    );
+    expect(SIDEBAR, "the row's height moved").toMatch(/const ACCOUNT_ROW = `[^`]*\bh-\[36px\]/);
     expect(rows.match(/ACCOUNT_PILL\b/g)?.length, 'a pill left the shared pill').toBe(2);
     // Exactly the shared pill, so a class added on one answer cannot move Settings on the other.
     expect(rows, 'the entry added to the pill').toMatch(

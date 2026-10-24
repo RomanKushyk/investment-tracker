@@ -16,10 +16,10 @@ import type { ReactElement, ReactNode } from 'react';
  * IT DOES NOT NAME ANYTHING. Radix puts `aria-describedby` on the trigger and
  * `role="tooltip"` on the content, so a control whose only text is a tooltip has
  * NO accessible name — a screen reader says "link". The caller carries
- * `aria-label` itself and passes the same string here, WHICH IS WHY THE TEXT IS
- * WRAPPED IN AN `aria-hidden` SPAN: left bare the description equals the name
- * and the item announces its label twice. Accessible-name computation includes a
- * node referenced by `aria-describedby` even when hidden, but skips its
+ * `aria-label` itself and passes the same string here, or a part of it, as the
+ * profile's address is of «Профіль: <address>», WHICH IS WHY THE TEXT IS
+ * WRAPPED IN AN `aria-hidden` SPAN: left bare the description repeats the
+ * name. Accessible-name computation includes a node referenced by `aria-describedby` even when hidden, but skips its
  * `aria-hidden` descendants, so the reference resolves to nothing.
  *
  * ONE PLAIN CLASS STRING, deliberately: `floating-edges.test.ts` enrols every

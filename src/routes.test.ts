@@ -23,6 +23,7 @@ const { Seasonality } = await import('./screens/Seasonality');
 const { Portfolio } = await import('./screens/Portfolio');
 const { Allocation } = await import('./screens/Allocation');
 const { Settings } = await import('./screens/Settings');
+const { Profile } = await import('./screens/Profile');
 const { SignIn } = await import('./screens/sign-in/SignIn');
 const { Apply } = await import('./screens/sign-in/Apply');
 const { GoogleCallback } = await import('./screens/sign-in/GoogleCallback');
@@ -31,7 +32,7 @@ const typeOf = (element: RouteObject['element']): unknown =>
   isValidElement(element) ? element.type : undefined;
 
 /** What a route shows. A screen that reads the portfolio waits behind the view, so it is the child of
- *  `Loadable`, and the one that reads none (Settings) stands alone. */
+ *  `Loadable`; Settings, which reads none, and the profile, which reads the account, stand alone. */
 const screenOf = (element: RouteObject['element']): { screen: unknown; waits: boolean } => {
   if (typeOf(element) !== Loadable) return { screen: typeOf(element), waits: false };
   const { children } = (element as ReactElement<{ children: RouteObject['element'] }>).props;
@@ -56,7 +57,7 @@ function isScreenBoundary(route: RouteObject): boolean {
 
 describe('an unknown path', () => {
   // Without a `*` the router answers 404 on the root route and replaces the whole app.
-  it.each(['/nope', '/sign-in/x', '/apply/x', '/overview/x', '/a/b/c'])(
+  it.each(['/nope', '/sign-in/x', '/apply/x', '/overview/x', '/profile/x', '/a/b/c'])(
     '%s lands on the not-found route inside the shell',
     (path) => {
       const [root, layout, boundary, leaf] = chain(path);
@@ -87,7 +88,7 @@ describe('the boundaries', () => {
     const boundary = layout.children![0]!;
     expect(isScreenBoundary(boundary)).toBe(true);
     const leaves = boundary.children!;
-    expect(leaves).toHaveLength(12);
+    expect(leaves).toHaveLength(13);
     for (const leaf of leaves) {
       expect(leaf.children, `${leaf.path} nests further`).toBeUndefined();
       expect(leaf.errorElement, `${leaf.path} catches its own throw`).toBeUndefined();
@@ -108,6 +109,7 @@ describe('the routes that exist', () => {
     ['/portfolio', Portfolio],
     ['/allocation', Allocation],
     ['/settings', Settings],
+    ['/profile', Profile],
   ];
 
   it.each(SCREENS)('%s still renders its screen, under the boundary', (path, Screen) => {
@@ -117,8 +119,9 @@ describe('the routes that exist', () => {
     expect(isScreenBoundary(walked[2]!)).toBe(true);
     const { screen, waits } = screenOf(walked[3]!.element);
     expect(screen).toBe(Screen);
-    // Every screen but Settings reads the view and waits behind it, holding its place meanwhile.
-    expect(waits).toBe(path !== '/settings');
+    // Every screen but Settings and the profile reads the view and waits behind it, holding its
+    // place meanwhile; the profile holds its own place for `GET /me`.
+    expect(waits).toBe(path !== '/settings' && path !== '/profile');
   });
 
   it.each([

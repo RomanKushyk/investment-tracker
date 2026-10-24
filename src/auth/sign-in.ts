@@ -52,6 +52,8 @@ const refused = (reason: SignInRefusal): SignInOutcome => ({ kind: 'refused', re
 const STEP: Record<Refusal, SignInRefusal> = {
   notAuthorized: 'wrong',
   botCheck: 'botCheck',
+  // A passkey call's answer, which no sign-in step receives.
+  googleSession: 'failed',
   invalid: 'failed',
   invalidPassword: 'failed',
   reusedPassword: 'failed',

@@ -25,10 +25,12 @@ export interface Challenge {
 }
 
 /** 400s: `invalid`, or a new password the pool's rule or history refuses; `botCheck`, the start's
- *  403 for its token; `throttled`, any 429; `failed`, all else. */
+ *  403 for its token; `googleSession`, a passkey call's 403 for a token without the scope, which a
+ *  Google sign-in's is; `throttled`, any 429; `failed`, all else. */
 export type Refusal =
   | 'notAuthorized'
   | 'botCheck'
+  | 'googleSession'
   | 'invalid'
   | 'invalidPassword'
   | 'reusedPassword'
@@ -56,6 +58,11 @@ const REFUSED: Record<number, Refusal> = { 429: 'throttled' };
 const NAMED = new Map<unknown, Refusal>([
   ['invalid_password', 'invalidPassword'],
   ['reused_password', 'reusedPassword'],
+]);
+/** The 403s the relay names; any other is `failed`. */
+const FORBIDDEN = new Map<unknown, Refusal>([
+  ['bot_check_failed', 'botCheck'],
+  ['insufficient_scope', 'googleSession'],
 ]);
 
 /** A passkey as the relay lists it: Cognito's name for it, which may be empty, and its Kyiv day. */
@@ -165,8 +172,7 @@ export function createRelay({
         return { kind: 'refused', reason: 'notAuthorized', ...googleIn(body) };
       }
       if (response.status === 403) {
-        const named = await errorOf(response);
-        return { kind: 'refused', reason: named === 'bot_check_failed' ? 'botCheck' : 'failed' };
+        return { kind: 'refused', reason: FORBIDDEN.get(await errorOf(response)) ?? 'failed' };
       }
       if (response.status !== 200) {
         return { kind: 'refused', reason: REFUSED[response.status] ?? 'failed' };

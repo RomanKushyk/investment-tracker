@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { type PasskeyDeps, addPasskey, hasPasskey } from './passkey';
+import { type PasskeyDeps, addPasskey, hasPasskey, listPasskeys } from './passkey';
 import { createRelay } from './relay';
 
 const BASE = 'https://api.test';
@@ -84,10 +84,48 @@ describe('whether the account has a passkey', () => {
 
   it('does not know when the relay cannot say, or nobody is signed in to ask for', async () => {
     expect(await hasPasskey(deps([refused(401, 'not_authorized')]).d)).toBeUndefined();
+    expect(await hasPasskey(deps([refused(403, 'insufficient_scope')]).d)).toBeUndefined();
     expect(await hasPasskey(deps([refused(500, 'internal')]).d)).toBeUndefined();
     expect(await hasPasskey(deps([new TypeError('offline')]).d)).toBeUndefined();
     const none = deps([], { signedIn: false });
     expect(await hasPasskey(none.d)).toBeUndefined();
+    expect(none.fetch).not.toHaveBeenCalled();
+  });
+});
+
+// THE PROFILE'S LIST: a Google sign-in's token cannot read it, which the relay answers apart from
+// every other refusal, so only that answer names Google.
+describe('the account’s passkeys', () => {
+  const LISTED = [
+    { name: 'Windows Hello', createdAt: '2026-10-24' },
+    { name: '', createdAt: '2026-10-23' },
+  ];
+
+  it('are the relay’s list, asked for the account the tab shows', async () => {
+    const { d, asked } = deps([ok({ passkeys: LISTED })]);
+    expect(await listPasskeys(d)).toEqual({ kind: 'passkeys', passkeys: LISTED });
+    expect(asked()).toEqual([['/auth/passkey/list', { sub: ACCOUNT }]]);
+  });
+
+  it('are a Google session’s when the token lacks the scope', async () => {
+    expect(await listPasskeys(deps([refused(403, 'insufficient_scope')]).d)).toEqual({
+      kind: 'google',
+    });
+  });
+
+  it.each([
+    ['a token the relay no longer admits', [refused(401, 'not_authorized')]],
+    ['a fault', [refused(500, 'internal')]],
+    ['another 403', [refused(403, 'csrf')]],
+    ['a list it cannot read', [ok({ passkeys: [{ name: 'x' }] })]],
+    ['no network', [new TypeError('offline')]],
+  ] as [string, (Response | Error)[]][])('fail on %s', async (_, answers) => {
+    expect(await listPasskeys(deps(answers).d)).toEqual({ kind: 'failed' });
+  });
+
+  it('fail, asking nothing, when nobody is signed in', async () => {
+    const none = deps([], { signedIn: false });
+    expect(await listPasskeys(none.d)).toEqual({ kind: 'failed' });
     expect(none.fetch).not.toHaveBeenCalled();
   });
 });

@@ -765,6 +765,44 @@ export const en = {
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
     },
   },
+  // `design/extensions/own-account.dc.html`, T9; the copy's failure is the owner's ruling on #192.
+  profile: {
+    title: 'Profile',
+    subtitle: 'Your account, how you sign in, and your data',
+    sections: { account: 'Account', data: 'Your data', signIn: 'Sign-in' },
+    email: 'Address',
+    /** Shown for the super-admin alone: a role is named where it names a privilege. */
+    role: 'Role',
+    superAdmin: 'Super-admin',
+    since: 'Member since',
+    id: 'Account ID',
+    copy: 'Copy',
+    copied: 'Copied',
+    copiedStatus: 'Account ID copied',
+    copyFailed: 'Not copied',
+    copyFailedStatus: 'Couldn’t copy the account ID. It is selected, so you can copy it yourself.',
+    google: 'Google',
+    linked: 'Linked',
+    notLinked: 'Not linked',
+    passkeys: {
+      title: 'Passkeys',
+      /** A passkey Cognito gave no name. */
+      unnamed: 'Passkey',
+      created: (date: string) => `Created ${date}`,
+      none: 'No passkeys yet.',
+      google:
+        'Passkeys show after a sign-in with a password or a passkey. You signed in with Google.',
+      failed: 'Couldn’t read your passkeys. Reload the page to try again.',
+    },
+    assets: 'Assets',
+    transactions: 'Transactions',
+    firstActivity: 'First transaction',
+    copyData: {
+      title: 'A copy of your data',
+      helper: 'A full JSON copy and CSV tables are in Settings, under Data.',
+      open: 'Go to Settings',
+    },
+  },
   // The brief on #164 and its amendments; `failed` is the owner's ruling on #165.
   auth: {
     signIn: {
@@ -857,6 +895,8 @@ export const en = {
         'The security check couldn’t load. Check your connection or ad blocker, then reload the page.',
     },
     signedInAs: (email: string) => `Signed in as ${email}`,
+    /** The address's name as the profile's link, in the panel and the rail. */
+    profileLink: (email: string) => `Profile: ${email}`,
     /** The account row when the ID token names no address. */
     signedIn: 'Signed in',
     signOut: 'Sign out',
@@ -1796,6 +1836,41 @@ export const uk: Dict = {
         'Що останнє отримання з Inzhur змогло і не змогло прочитати. Записи, які не вдалося прочитати, пропускаються, а не вгадуються — решта стрічки завантажується.',
     },
   },
+  profile: {
+    title: 'Профіль',
+    subtitle: 'Обліковий запис, вхід і ваші дані',
+    sections: { account: 'Обліковий запис', data: 'Ваші дані', signIn: 'Вхід' },
+    email: 'Адреса',
+    role: 'Роль',
+    superAdmin: 'Суперадміністратор',
+    since: 'Учасник з',
+    id: 'Ідентифікатор',
+    copy: 'Копіювати',
+    copied: 'Скопійовано',
+    copiedStatus: 'Ідентифікатор скопійовано',
+    copyFailed: 'Не скопійовано',
+    copyFailedStatus: 'Не вдалося скопіювати ідентифікатор. Його виділено — скопіюйте вручну.',
+    google: 'Google',
+    linked: 'Підключено',
+    notLinked: 'Не підключено',
+    passkeys: {
+      title: 'Ключі доступу',
+      unnamed: 'Ключ доступу',
+      created: (date: string) => `Створено ${date}`,
+      none: 'Ключів доступу ще немає.',
+      google:
+        'Ключі доступу видно після входу з паролем або ключем доступу. Ви увійшли через Google.',
+      failed: 'Не вдалося прочитати ключі доступу. Перезавантажте сторінку, щоб спробувати ще раз.',
+    },
+    assets: 'Активи',
+    transactions: 'Транзакції',
+    firstActivity: 'Перша операція',
+    copyData: {
+      title: 'Копія даних',
+      helper: 'Повна копія в JSON і таблиці CSV — у Налаштуваннях, розділ «Дані».',
+      open: 'До налаштувань',
+    },
+  },
   auth: {
     signIn: {
       title: 'Вхід',
@@ -1879,6 +1954,7 @@ export const uk: Dict = {
         'Не вдалося завантажити перевірку безпеки. Перевірте мережу чи блокувальник реклами й оновіть сторінку.',
     },
     signedInAs: (email: string) => `Ви увійшли як ${email}`,
+    profileLink: (email: string) => `Профіль: ${email}`,
     signedIn: 'Ви увійшли',
     signOut: 'Вийти',
     notSignedIn: 'Ви не ввійшли',

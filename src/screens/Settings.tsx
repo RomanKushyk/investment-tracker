@@ -18,7 +18,7 @@ import { useBackupDownload } from '../hooks/useBackupDownload';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
 
-function SectionLabel({
+export function SectionLabel({
   className = 'mb-3.5',
   children,
 }: {
@@ -32,7 +32,7 @@ function SectionLabel({
   );
 }
 
-function SettingRow({
+export function SettingRow({
   title,
   helper,
   children,
@@ -53,7 +53,7 @@ function SettingRow({
   );
 }
 
-function Divider() {
+export function Divider() {
   return <div className="my-4 h-px bg-hairline" />;
 }
 

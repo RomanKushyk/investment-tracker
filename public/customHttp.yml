@@ -14,9 +14,10 @@ customHeaders:
       - key: 'Referrer-Policy'
         value: 'strict-origin-when-cross-origin'
       # OWASP's list, but passkeys are WebAuthn: publickey-credentials-get is (self), not (), and
-      # publickey-credentials-create, which OWASP does not list, is pinned to (self) as well.
+      # publickey-credentials-create, which OWASP does not list, is pinned to (self) as well. The
+      # profile copies the account ID, and Chromium refuses writeText under clipboard-write=().
       - key: 'Permissions-Policy'
-        value: 'accelerometer=(), autoplay=(), camera=(), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-create=(self), publickey-credentials-get=(self), screen-wake-lock=(), sync-xhr=(self), usb=(), web-share=(), xr-spatial-tracking=(), clipboard-read=(), clipboard-write=(), gamepad=(), hid=(), idle-detection=(), interest-cohort=(), serial=(), unload=()'
+        value: 'accelerometer=(), autoplay=(), camera=(), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-create=(self), publickey-credentials-get=(self), screen-wake-lock=(), sync-xhr=(self), usb=(), web-share=(), xr-spatial-tracking=(), clipboard-read=(), clipboard-write=(self), gamepad=(), hid=(), idle-detection=(), interest-cohort=(), serial=(), unload=()'
       # The hashes are index.html's theme boot and the build's entry loader; csp.test.ts recomputes
       # them (*Deployment*).
       - key: 'Content-Security-Policy'

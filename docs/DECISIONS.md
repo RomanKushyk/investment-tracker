@@ -716,12 +716,16 @@ portfolio behind it — `/sign-in` and `/apply`, a refused caller, the first sig
 failed — mounts NEITHER: a top bar with the mark and the language control over one top-anchored card, `md` still its
 only breakpoint.
 THE ACCOUNT IS EVERY FOOTER BAND'S LAST CONTROL, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
-in the panel and the drawer a status row, then a pill in Settings' recipe, above the version; in the
-rail one item, the rail's foot reading in the panel's order — currency, Settings, account. Signed in
-the rows are the address and «Вийти»; signed out «Ви не ввійшли» and «Увійти», a LINK to `/sign-in`
-with the counterpart of the sign-out's glyph, the rail showing «Увійти» alone. The entry is a plain
-link and never a nav link, since `/sign-in/x` falls into the shell. Their slot is HELD until the
-relay answers, after a load it never answered too, and closed from the first render only on a host
+in the panel and the drawer two rows above the version, the second a pill in Settings' recipe; in
+the rail two items, the rail's foot reading in the panel's order — currency, Settings, profile,
+account. Signed in the rows are the address and «Вийти», the address a NAV LINK to `/profile` named
+«Профіль: » and the address, at the row's height with the pill's states, current there where
+Settings is not, and the rail's item the same link with the address in its tooltip; signed out «Ви
+не ввійшли» and «Увійти», a LINK to `/sign-in` with the counterpart of the sign-out's glyph, the
+rail showing the profile's glyph alone, no link and no hover, above «Увійти». The entry is a plain
+link and never a nav link, since `/sign-in/x` falls into the shell. Their slot, and the rail's
+profile item beside it, is HELD until the relay answers, after a load it never answered too, so
+Settings stands at one top in all three states, and closed from the first render only on a host
 with no auth environment, which has nothing to sign in to. While a sign-out runs every «Вийти» in
 the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
 failure raises one toast. A sign-out that succeeded keeps the signed-in rows under the control that
@@ -770,8 +774,11 @@ reads do not throw: a failure there names the route's error key, or the HTTP sta
 has none, and reads again, because its one operator decides what to run next from that answer.
 A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
 that failed, and so does one of the wide figures (a curve, a page of the table, a day other than
-the caller's), and the failed-screen state is what shows, the sidebar kept; an answer already in
-hand stays on screen when a later read of it fails. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
+the caller's), and so does the profile's `GET /me`, and the failed-screen state is what shows, the
+sidebar kept; an answer already in hand stays on screen when a later read of it fails. BESIDE THE
+ARCHIVE PANEL, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
+relay's read, apart from the account above it, so a failure is one sentence in its card that asks
+for a reload, and the account stays on screen. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
 shows neither an empty portfolio nor a spinner: the shell alone until the read has been out for a
 while, then every box whose size is known in place for a while at least, a figure as «—», a list as three rows, a chart
 as one block, a form with its title and its fields held, and nothing in it that can be reached; one
@@ -1137,7 +1144,15 @@ no transaction has no `firstTransaction`; it carries nothing a screen does not s
 password flag, which every account holds alike while registration is closed, the pool having no OTP
 factor and a Google sign-in needing a local account; opening registration admits a Google-only
 profile with none, and brings the flag. It looks the caller up by the token's `cognito:username`,
-since a `sub` names a local user only. Its tag is WEAK and a
+since a `sub` names a local user only. ITS ONE READER IS THE PROFILE, `/profile`, which departs from
+`own-account.dc.html` in three places, the drawing left as merged (*Design pipeline*): it draws no
+«Пароль» row, which with no flag would be a hard-coded figure (GitHub's *Password and
+authentication* page offers an action, not a status); it names the role for the super-admin alone,
+as «Суперадміністратор», since a role is shown where it names a privilege, as Grafana lists one per
+organization, and so holds no role row while the read is out; and a copy the browser refuses reads
+«Не скопійовано» on its button for the 2 s «Скопійовано» would, is said in the same status line and
+leaves the ID selected to copy by hand, where the drawing draws success alone (Primer's copy
+pattern: "Don't let a copy fail silently"). Its tag is WEAK and a
 DIGEST OF THE BODY (RFC 9110 §8.8.3): a 304 needs the pool's answer as much as a 200 does, so a tag
 composed from inputs would save no read; `private, no-cache`, as `/view`. Nothing writes through it.
 THE ARCHIVE'S DIAGNOSIS IS `GET /admin/archive/diagnosis`, a super-admin read on this API, served by a
@@ -1384,7 +1399,10 @@ The reads share a key prefix because one invalidation of it then reads again eve
 TanStack Query's guide on invalidations from mutations has a mutation whose `onSuccess` returns the
 invalidation's promise stay pending until it finishes. A read's `staleTime` is bounded, not zero and not
 infinite: zero would read the view again at every mount of a screen, where the owner's rule is the
-fewest reads the client can bear, and infinite would leave a screen as old as its page. A window
+fewest reads the client can bear, and infinite would leave a screen as old as its page. THE
+PROFILE'S PASSKEY LIST HAS NO WINDOW, read at every mount and every focus: it changes through a
+passkey registered elsewhere, on another device or in another tab, which this tab cannot learn of,
+so a window would show the old list exactly when someone looks for the new one. A window
 that ends lets TanStack Query's refetch on mount and on focus ask whether the view moved, which a
 conditional read answers without the body, so no hook of ours invalidates on focus: it would send a
 request for every read mounted at every focus, the window's included, and TanStack's own focus
@@ -1555,7 +1573,11 @@ was given. A GOOGLE SIGN-IN'S TOKEN MAKES NO PASSKEY CALL: those calls require
 `aws.cognito.signin.user.admin`, which every API sign-in's token carries and a Google sign-in's lacks,
 the client allowing only `openid email profile`. So no offer follows a Google sign-in, and a tab whose
 cookie another tab's Google sign-in replaced lists and registers none until it signs in with its
-password again.
+password again. THE RELAY TELLS THAT TOKEN APART: one whose `scope` lacks the admin scope is answered
+403 `insufficient_scope` before Cognito is asked, as RFC 6750 §3.1 answers a good token short of a
+scope, and never the 401 that a missing, unopenable or another account's cookie gets, or a token
+Cognito no longer takes; only the 403 lets the profile say «Ви увійшли через Google» of the session
+it is in.
 COGNITO'S LOCKOUT ANSWERS
 429, told from a wrong password by its message alone. OWASP's Authentication Cheat Sheet lists a
 locked account among the cases one generic error should cover. What that guards against, a
@@ -2129,7 +2151,8 @@ that checks out, downloads, assumes the role and runs no dependency code; the
 frontend's header read-back is a third job, holding no token either. The split denies the token,
 not the payload: a compromised build step still ships its bundle. HSTS climbs hstspreload.org's ramp with
 `includeSubDomains` and no `preload`; the Permissions-Policy is OWASP's list with both publickey
-features at `(self)`; `/auth/callback` alone takes `no-referrer`. THE CONTENT-SECURITY-POLICY IS
+features and `clipboard-write` at `(self)`, the last for the profile's copy, which Chromium refuses
+on the page itself under `()`; `/auth/callback` alone takes `no-referrer`. THE CONTENT-SECURITY-POLICY IS
 STRICT AND HASH-BASED: `script-src` admits two inline scripts by SHA-256, `index.html`'s theme boot
 and the loader the build writes in place of its entry tag, with `'strict-dynamic'` carrying that
 trust to the modules the loader imports; `object-src`, `base-uri` and `frame-ancestors` are `'none'`,

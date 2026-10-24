@@ -296,6 +296,7 @@ const STORE_READERS: Record<string, string> = {
     'the one client of the user API and the one query cache, made with their session',
   'src/main.tsx': 'the query client provider',
   'src/hooks/useInzhurAssets.ts': 'the Inzhur feed, a query of its own',
+  'src/hooks/usePasskeys.ts': 'the relay’s passkey list, a query of its own',
 };
 
 const { options: OPTIONS } = ts.convertCompilerOptionsFromJson(

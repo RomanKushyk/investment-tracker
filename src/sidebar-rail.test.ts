@@ -65,7 +65,7 @@ const HEADER = stripTs(readFileSync(join(here, 'app', 'AppHeader.tsx'), 'utf8'),
 
 const railLines = (re: RegExp) => RAIL.split('\n').filter((l) => re.test(l));
 
-/** The sheet's table, transcribed — the same eleven `nav-glyphs.test.ts` holds for the
+/** The sheet's table, transcribed — the same twelve `nav-glyphs.test.ts` holds for the
  *  expanded panel, so both files are pinned against one table and neither drifts alone. */
 const TABLE = [
   ['/', 'CalendarDays'],
@@ -79,6 +79,7 @@ const TABLE = [
   ['/portfolio', 'Table'],
   ['/allocation', 'ChartPie'],
   ['/settings', 'Settings'],
+  ['/profile', 'CircleUser'],
 ] as const;
 
 describe('the collapsed shell is a rail, not a masked panel', () => {
@@ -149,7 +150,8 @@ describe('the rail draws what the sheet draws', () => {
     );
   });
 
-  it.each(TABLE.filter(([r]) => r === '/' || r === '/transactions' || r === '/settings'))(
+  const INLINE = ['/', '/transactions', '/settings', '/profile'];
+  it.each(TABLE.filter(([r]) => INLINE.includes(r)))(
     'names %s and its glyph itself',
     (route, icon) => {
       const pair = new RegExp(
@@ -160,7 +162,7 @@ describe('the rail draws what the sheet draws', () => {
     },
   );
 
-  it.each(TABLE.filter(([r]) => !['/', '/transactions', '/settings'].includes(r)))(
+  it.each(TABLE.filter(([r]) => !INLINE.includes(r)))(
     'keeps %s in the shared table',
     (route, icon) => {
       const pair = new RegExp(`'${route}'[^\\n]*\\b${icon}\\b`);
@@ -294,10 +296,16 @@ describe("the rail's foot reads in the panel's order", () => {
   it('draws the currency box, then Settings, then the account', () => {
     const currency = RAIL.indexOf('h-8 w-10');
     const settings = RAIL.indexOf('to="/settings"');
-    const account = RAIL.indexOf('<RailAccount />');
+    const account = RAIL.indexOf('<RailAccount ');
     expect(currency, 'the currency box is gone').toBeGreaterThan(-1);
     expect(settings, 'Settings moved above the currency box').toBeGreaterThan(currency);
     expect(account, 'the account is not last in the foot band').toBeGreaterThan(settings);
+  });
+
+  // ONE SIGN-OUT FOR THE FOOT: its latch is the hook instance's, so the profile beside «Вийти»
+  // reads the same rows, or it drops to the signed-out glyph while the pressed sign-out leaves.
+  it('draws the profile and the account from one sign-out', () => {
+    expect(RAIL.match(/\buseSignOut\(\)/g)?.length, 'the foot holds two sign-outs').toBe(1);
   });
 
   // NAMED, because the tooltip only describes; a STRING className, because the tooltip's Slot

@@ -41,7 +41,10 @@ const ID = 'id.token.jwt';
 /** The account an access token names, in its payload's `sub`, as Cognito's own do. */
 const ACCOUNT = '5a1b2c3d-0000-4000-8000-0000000000a1';
 const jwt = (claims: object) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
-const ACCESS = jwt({ sub: ACCOUNT, token_use: 'access' });
+/** An API sign-in's: Cognito gives it the one scope the passkey calls take, and no other. */
+const ACCESS = jwt({ sub: ACCOUNT, token_use: 'access', scope: 'aws.cognito.signin.user.admin' });
+/** A Google sign-in's, through the token endpoint, with what the client lists. */
+const GOOGLE_ACCESS = jwt({ sub: ACCOUNT, token_use: 'access', scope: 'openid email profile' });
 const REFRESH = 'refresh.token.jwe';
 const ROTATED = 'rotated.refresh.token.jwe';
 /** A family's original, from a sign-in before this request: never `REFRESH`, so a test can tell
@@ -2275,6 +2278,39 @@ describe('the passkey calls, made with the token the relay holds', () => {
       const res = await relay(asking(route, { access: await holding(relay) }, body));
       expect([res.statusCode, res.body]).toEqual([401, '{"error":"not_authorized"}']);
       expect(passkeyCalls(calls)).toEqual([]);
+    });
+
+    // RFC 6750 §3.1: a token that is good but lacks the scope is a 403, told apart from one that is
+    // not good, so the profile names Google only for the token that is a Google sign-in's.
+    it(`answers on ${route} a token without the admin scope 403, asking for no passkey`, async () => {
+      const { idp, calls } = cognito({
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken: GOOGLE_ACCESS },
+        }),
+      });
+      const relay = environment(idp);
+      const res = await relay(asking(route, { access: await holding(relay) }, body));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        403,
+        '{"error":"insufficient_scope"}',
+        undefined,
+      ]);
+      expect(passkeyCalls(calls)).toEqual([]);
+    });
+
+    // Cognito's own tokens always carry `scope`; one without it is Cognito's to judge, as before.
+    it(`leaves to Cognito on ${route} a token that names no scope`, async () => {
+      const { idp, calls } = cognito({
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: {
+            ...SIGNED_IN.AuthenticationResult,
+            AccessToken: jwt({ sub: ACCOUNT, token_use: 'access' }),
+          },
+        }),
+      });
+      const relay = environment(idp);
+      await relay(asking(route, { access: await holding(relay) }, body));
+      expect(passkeyCalls(calls)).toHaveLength(1);
     });
 
     it(`refuses on ${route} a token sealed under a secret since replaced`, async () => {

@@ -73,23 +73,17 @@ const TABLE = [
   ['/portfolio', 'Table'],
   ['/allocation', 'ChartPie'],
   ['/settings', 'Settings'],
+  // The account's address is the profile's link (`own-account.dc.html`, T5); signed out the same
+  // glyph labels the status row.
+  ['/profile', 'CircleUser'],
 ] as const;
 
-/** The glyphs that wear none of the eleven routes. A chevron folds a group or collapses the shell
- *  and the theme track's three are segments — controls, which is why `parchment-5h.dc.html` keeps
- *  group headers glyphless; the account's three label its status row, its sign-out and its sign-in
- *  entry, whose link `sidebar-structure.test.ts` pins (`sign-out.dc.html`, `sign-in-entry.dc.html`).
- *  Listed so the import assertion can tell them from a route's icon. */
-const CONTROLS = [
-  'ChevronDown',
-  'ChevronLeft',
-  'CircleUser',
-  'LogIn',
-  'LogOut',
-  'Monitor',
-  'Moon',
-  'Sun',
-];
+/** The glyphs that wear none of the routes. A chevron folds a group or collapses the shell and the
+ *  theme track's three are segments — controls, which is why `parchment-5h.dc.html` keeps group
+ *  headers glyphless; the account's two label its sign-out and its sign-in entry, whose link
+ *  `sidebar-structure.test.ts` pins (`sign-out.dc.html`, `sign-in-entry.dc.html`). Listed so the
+ *  import assertion can tell them from a route's icon. */
+const CONTROLS = ['ChevronDown', 'ChevronLeft', 'LogIn', 'LogOut', 'Monitor', 'Moon', 'Sun'];
 
 /** Matched TO ITS OWN `/>` rather than the first `>`: an arbitrary variant may hold one
  *  (`[&>path]:…`), and a tag cut short there fails the anatomy checks on correct markup
@@ -137,7 +131,7 @@ function pairs(): string[][] {
   // Each block is cut at its own closing tag, so the next `NavLink`'s glyph is out of reach.
   // `to` is matched as a LITERAL, so the `ANALYTICS`-driven row — which carries `to={to}` —
   // contributes no pair here and is read from the table instead. That is why three inline
-  // plus eight mapped is eleven rather than a double count.
+  // plus eight mapped is twelve rather than a double count.
   for (const block of SIDEBAR.split('<NavLink').slice(1)) {
     const close = block.indexOf('</NavLink>');
     expect(close, 'a `NavLink` no longer closes — its block has no bound').toBeGreaterThan(-1);
@@ -162,7 +156,7 @@ function mapped(): string {
 }
 
 describe('every route wears the glyph the sheet gave it', () => {
-  it('imports the eleven the table names, and no glyph it does not', () => {
+  it('imports the twelve the table names, and no glyph it does not', () => {
     expect(
       imported()
         .filter((n) => !CONTROLS.includes(n))
@@ -178,7 +172,7 @@ describe('every route wears the glyph the sheet gave it', () => {
 
   // ATTACHED, not merely imported: an icon on the wrong route is the defect a name-only
   // check cannot see.
-  it('attaches all eleven to their own routes', () => {
+  it('attaches all twelve to their own routes', () => {
     expect(
       pairs()
         .map((p) => p.join(' '))

@@ -1,6 +1,15 @@
-import { ArrowDownUp, CalendarDays, LogIn, LogOut, type LucideIcon, Settings } from 'lucide-react';
+import {
+  ArrowDownUp,
+  CalendarDays,
+  CircleUser,
+  LogIn,
+  LogOut,
+  type LucideIcon,
+  Settings,
+} from 'lucide-react';
 import { Link, NavLink } from 'react-router';
 
+import { useSessionAddress } from '../auth/app';
 import { useSignOut } from '../hooks/useSignOut';
 import { AccountFold, ANALYTICS, Mark } from './Sidebar';
 import { NAV_TRIGGER_ID } from './nav-ids';
@@ -55,9 +64,20 @@ const ENTRY = [
  * the markup still reading correctly. A plain string on the link and the state
  * on an inner box is what survives the merge.
  */
-function RailItem({ to, label, Icon }: { to: string; label: string; Icon: LucideIcon }) {
+function RailItem({
+  to,
+  label,
+  tooltip = label,
+  Icon,
+}: {
+  to: string;
+  label: string;
+  /** The tooltip's words, where they are not the name. */
+  tooltip?: string;
+  Icon: LucideIcon;
+}) {
   return (
-    <Tooltip label={label}>
+    <Tooltip label={tooltip}>
       <NavLink to={to} aria-label={label} className="block rounded-[9px]">
         {({ isActive }) => <RailBox Icon={Icon} isActive={isActive} />}
       </NavLink>
@@ -65,14 +85,25 @@ function RailItem({ to, label, Icon }: { to: string; label: string; Icon: Lucide
   );
 }
 
-/** The drawn box and its glyph, shared by the links and the sign-out so the two cannot drift. */
-function RailBox({ Icon, isActive = false }: { Icon: LucideIcon; isActive?: boolean }) {
+/** The drawn box and its glyph, shared by the links and the sign-out so the two cannot drift.
+ *  `still` draws no hover, for a glyph that is no control. */
+function RailBox({
+  Icon,
+  isActive = false,
+  still = false,
+}: {
+  Icon: LucideIcon;
+  isActive?: boolean;
+  still?: boolean;
+}) {
   return (
     <span
       className={`mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition ${
         isActive
           ? 'bg-sb-item-active-bg shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
-          : 'hover:bg-sb-item-hover-bg'
+          : still
+            ? ''
+            : 'hover:bg-sb-item-hover-bg'
       }`}
     >
       <Icon
@@ -88,12 +119,11 @@ function RailBox({ Icon, isActive = false }: { Icon: LucideIcon; isActive?: bool
 /**
  * The foot band's LAST item, the panel's «Вийти» in the rail's recipe: an action and never a
  * route, so it takes no tint and no indicator. Held as the panel's rows are. The button carries
- * the radius for the same reason the link does: the focus ring follows it. Signed out, «Увійти»
- * alone, a plain `Link` for the panel's reason, with hover only, as its neighbours.
+ * the radius for the same reason the link does: the focus ring follows it. Signed out, «Увійти»,
+ * a plain `Link` for the panel's reason, with hover only, as its neighbours.
  */
-function RailAccount() {
+function RailAccount({ rows, leaving, leave }: SignOut) {
   const t = useT();
-  const { rows, leaving, leave } = useSignOut();
   return (
     <AccountFold rows={rows}>
       {rows === 'entry' ? (
@@ -123,9 +153,41 @@ function RailAccount() {
   );
 }
 
+/**
+ * The profile, after Settings, in a fold of its own on the account's rows, so Settings stands at
+ * one top whichever way the relay answers: held, empty and inert; signed out, the glyph alone
+ * beside the panel's status row, no link and no hover. Named as the panel's link, with the
+ * address alone in its tooltip.
+ */
+function RailProfile({ rows }: Pick<SignOut, 'rows'>) {
+  const t = useT();
+  const address = useSessionAddress();
+  return (
+    <AccountFold rows={rows}>
+      <div data-rail-profile className="mt-1.5">
+        {rows === 'entry' ? (
+          <RailBox Icon={CircleUser} still />
+        ) : (
+          <RailItem
+            to="/profile"
+            label={address === undefined ? t.profile.title : t.auth.profileLink(address)}
+            tooltip={address ?? t.profile.title}
+            Icon={CircleUser}
+          />
+        )}
+      </div>
+    </AccountFold>
+  );
+}
+
+type SignOut = ReturnType<typeof useSignOut>;
+
 export function SidebarRail({ onExpand }: { onExpand: () => void }) {
   const t = useT();
   const currency = useSettings((s) => s.currency);
+  // ONE SIGN-OUT FOR THE FOOT: its latch is the hook's, so the profile reads the rows the pressed
+  // «Вийти» does and stays the signed-in link while the page leaves.
+  const signOut = useSignOut();
 
   return (
     <TooltipProvider>
@@ -191,7 +253,8 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             above them uses. */}
         <div className="mt-[14px] -mr-2 mb-[calc(-16px-env(safe-area-inset-bottom))] ml-[calc(-8px-env(safe-area-inset-left))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg pt-2 pr-2 pb-[calc(8px+env(safe-area-inset-bottom))] pl-[calc(8px+env(safe-area-inset-left))]">
           {/* THE PANEL'S ORDER: the currency above Settings, as its track sits above
-              Settings in the panel, and the account last (`sign-out.dc.html`, T2).
+              Settings in the panel, then the profile and the account last (`sign-out.dc.html`,
+              T2; `own-account.dc.html`, T5).
               `sr-only` and not `aria-label`: a bare div is `role=generic`, which
               ARIA-in-HTML forbids naming, so the label was dropped and the box
               announced as a bare glyph. The same idiom the expanded track uses,
@@ -203,7 +266,8 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
           <div className="mt-1.5">
             <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
           </div>
-          <RailAccount />
+          <RailProfile rows={signOut.rows} />
+          <RailAccount {...signOut} />
         </div>
       </div>
     </TooltipProvider>

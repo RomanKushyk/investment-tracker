@@ -2,7 +2,8 @@
 // account's `GET /me`, the export, `POST /mutations`, `PATCH /settings` and the staged import, served as `fetch` answers over
 // rows held in memory. It applies the ops with core's own schemas and merge patch, and the settings
 // with core's own, so a client that sends the wrong op, the wrong tag or the wrong bytes is refused
-// as the API refuses it. The relay's refresh answers too, so a page can sign in through it.
+// as the API refuses it. The relay's refresh answers too, so a page can sign in through it, and its
+// passkey list, so the profile can read one.
 import { createHash } from 'node:crypto';
 
 import {
@@ -15,6 +16,7 @@ import { mergePatch, opIssues, opSchema, type Op } from '@quirenote/core/ops';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { patchSettings, settingsOf } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
+import type { Passkey } from '../auth/relay';
 import { movedPrices, pricesOfQuotes, type PriceRow } from '@quirenote/core/valuation';
 import {
   balancesBody,
@@ -79,6 +81,14 @@ export interface FakeApi {
   settings: string | null;
   /** The row's role, which `GET /me` serves. */
   role: 'user' | 'super_admin';
+  /** Whether `GET /me` says a Google identity is linked. */
+  googleLinked: boolean;
+  /** What the ID token a sign-in hands the page names; none by default. */
+  claims: Record<string, string>;
+  /** What the relay's passkey list answers: the list, a Google session's 403, or a fault. */
+  passkeys: Passkey[] | 'google' | 'failed';
+  /** How many times the passkey list has been asked for. */
+  passkeyLists: number;
   /** Whether the relay holds a refresh cookie: a refresh answers tokens, a sign-out takes it away
    *  and a respond gives it back. */
   signedIn: boolean;
@@ -102,6 +112,10 @@ export function fakeApi(
     notModified: 0,
     settings: null,
     role: 'user',
+    googleLinked: false,
+    claims: {},
+    passkeys: [],
+    passkeyLists: 0,
     signedIn: true,
     tag: () => `"${api.version}"`,
   };
@@ -385,7 +399,7 @@ export function fakeApi(
       email: ME_EMAIL,
       role: api.role,
       memberSince: today,
-      googleLinked: false,
+      googleLinked: api.googleLinked,
       assets: api.rows.assets.length,
       transactions: api.rows.transactions.length,
       ...(first === undefined ? {} : { firstTransaction: first }),
@@ -428,12 +442,19 @@ export function fakeApi(
     const url = new URL(original.url, 'http://localhost');
     // The dev server's proxy prefixes the API with `/relay`.
     const path = url.pathname.replace(/^\/relay/, '');
+    const idToken = `h.${Buffer.from(JSON.stringify(api.claims)).toString('base64url')}.s`;
     if (path === '/auth/refresh') {
-      return api.signedIn ? json({ idToken: 'h.e30.s', expiresIn: 3600 }) : json({}, 401);
+      return api.signedIn ? json({ idToken, expiresIn: 3600 }) : json({}, 401);
     }
     if (path === '/auth/respond') {
       api.signedIn = true;
-      return json({ idToken: 'h.e30.s', expiresIn: 3600 });
+      return json({ idToken, expiresIn: 3600 });
+    }
+    if (path === '/auth/passkey/list') {
+      api.passkeyLists += 1;
+      if (api.passkeys === 'google') return json({ error: 'insufficient_scope' }, 403);
+      if (api.passkeys === 'failed') return json({ error: 'internal' }, 500);
+      return json({ passkeys: api.passkeys });
     }
     if (path === '/auth/sign-out') {
       api.signedIn = false;
