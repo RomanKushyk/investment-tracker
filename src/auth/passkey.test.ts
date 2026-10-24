@@ -52,7 +52,7 @@ function deps(
 describe('the passkey calls', () => {
   it('go to the relay, each with its cookies and the header it asks for, and nowhere else', async () => {
     const { d, sent } = deps([
-      ok({ passkey: false }),
+      ok({ passkeys: [] }),
       ok({ options: OPTIONS }),
       ok({ status: 'registered' }),
     ]);
@@ -72,10 +72,10 @@ describe('the passkey calls', () => {
 
 describe('whether the account has a passkey', () => {
   it.each([
-    [{ passkey: false }, false],
-    [{ passkey: true }, true],
+    [{ passkeys: [] }, false],
+    [{ passkeys: [{ name: 'Windows Hello', createdAt: '2026-10-24' }] }, true],
     [{}, undefined],
-    [{ passkey: 'yes' }, undefined],
+    [{ passkeys: [{ name: 'Windows Hello' }] }, undefined],
   ])('reads %j as %s', async (body, expected) => {
     const { d, asked } = deps([ok(body)]);
     expect(await hasPasskey(d)).toBe(expected);

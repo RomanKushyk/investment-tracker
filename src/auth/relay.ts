@@ -37,14 +37,14 @@ export type Refusal =
   | 'failed';
 
 /** `google` is a refresh's word on whether Google is on; `logout`, Cognito's logout endpoint, which
- *  a sign-out names while it is. The passkey calls answer whether the account holds one, the OS
- *  dialog's options, and a registration done. */
+ *  a sign-out names while it is. The passkey calls answer the account's passkeys, the OS dialog's
+ *  options, and a registration done. */
 export type RelayAnswer =
   | { kind: 'tokens'; tokens: Tokens; google?: boolean }
   | { kind: 'challenge'; challenge: Challenge }
   | { kind: 'signedOut'; logout?: string }
   | { kind: 'authorize'; url: string }
-  | { kind: 'passkey'; listed: boolean }
+  | { kind: 'passkeys'; passkeys: Passkey[] }
   | { kind: 'options'; options: Record<string, unknown> }
   | { kind: 'registered' }
   | { kind: 'refused'; reason: Refusal; google?: boolean };
@@ -57,6 +57,24 @@ const NAMED = new Map<unknown, Refusal>([
   ['invalid_password', 'invalidPassword'],
   ['reused_password', 'reusedPassword'],
 ]);
+
+/** A passkey as the relay lists it: Cognito's name for it, which may be empty, and its Kyiv day. */
+export interface Passkey {
+  name: string;
+  createdAt: string;
+}
+
+// A day the calendar has: `Date` rolls 2026-02-30 over to March, so the date must come back as sent.
+const isDay = (d: unknown): d is string => {
+  if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const t = Date.parse(`${d}T00:00:00Z`);
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
+};
+
+const isPasskey = (p: unknown): p is Passkey => {
+  const { name, createdAt } = (p ?? {}) as Record<string, unknown>;
+  return typeof name === 'string' && isDay(createdAt);
+};
 
 /** The `error` a refusal's body names, or nothing. */
 const errorOf = async (response: Response): Promise<unknown> => {
@@ -100,7 +118,10 @@ function read(body: unknown): RelayAnswer {
   if (typeof b.authorize === 'string' && b.authorize !== '') {
     return { kind: 'authorize', url: b.authorize };
   }
-  if (typeof b.passkey === 'boolean') return { kind: 'passkey', listed: b.passkey };
+  // Whole or not at all: a list missing one it could not read would miscount.
+  if (Array.isArray(b.passkeys) && b.passkeys.every(isPasskey)) {
+    return { kind: 'passkeys', passkeys: b.passkeys };
+  }
   if (typeof b.options === 'object' && b.options !== null && !Array.isArray(b.options)) {
     return { kind: 'options', options: b.options as Record<string, unknown> };
   }

@@ -808,7 +808,7 @@ describe('the access token is sealed into a cookie only the relay can open', () 
     const { idp, of } = cognito();
     const res = await environment(idp)(asking(PASSKEY_LIST_ROUTE, { access }));
     expect(res.statusCode).toBe(200);
-    expect(of('listWebAuthnCredentials')).toEqual([{ AccessToken: ACCESS, MaxResults: 1 }]);
+    expect(of('listWebAuthnCredentials')).toEqual([{ AccessToken: ACCESS, MaxResults: 20 }]);
   });
 
   // A SECRET ROTATED IN PLACE leaves environments holding different ones, and Cognito refuses
@@ -2051,21 +2051,125 @@ describe('the passkey calls, made with the token the relay holds', () => {
   const passkeyCalls = (calls: { op: keyof IdentityClient }[]) =>
     calls.filter((c) => c.op.endsWith('WebAuthnCredentials') || c.op.endsWith('Registration'));
 
-  for (const [credentials, passkey] of [
-    [[], false],
-    [[{ CredentialId: 'x' }], true],
+  // The shape the dev pool answers: the provider's name, and the creation instant.
+  const credential = (name: string, createdAt: string) => ({
+    CredentialId: `id-${name}-${createdAt}`,
+    FriendlyCredentialName: name,
+    RelyingPartyId: 'dev.quirenote.com',
+    AuthenticatorAttachment: 'platform',
+    AuthenticatorTransports: ['internal'],
+    CreatedAt: new Date(createdAt),
+  });
+
+  it('lists with the token it sealed, and says when it holds none', async () => {
+    const { idp, of } = cognito({ listWebAuthnCredentials: async () => ({ Credentials: [] }) });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+    expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([200, { passkeys: [] }, undefined]);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(of('listWebAuthnCredentials')).toEqual([{ AccessToken: ACCESS, MaxResults: 20 }]);
+  });
+
+  // The day is Kyiv's, as `GET /me`'s `memberSince` is: 21:30Z on the 23rd is the 24th there.
+  it('answers each passkey’s name as Cognito gives it, an empty one included, and its Kyiv day', async () => {
+    const { idp } = cognito({
+      listWebAuthnCredentials: async () => ({
+        Credentials: [
+          credential('Windows Hello', '2026-10-23T21:30:00.000Z'),
+          credential('', '2026-10-24T13:50:24.094Z'),
+        ],
+      }),
+    });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+    expect(bodyOf(res)).toEqual({
+      passkeys: [
+        { name: 'Windows Hello', createdAt: '2026-10-24' },
+        { name: '', createdAt: '2026-10-24' },
+      ],
+    });
+  });
+
+  it('follows the next token to the end, so a second page is not cut off', async () => {
+    const first = Array.from({ length: 20 }, (_, i) =>
+      credential(`Key ${i}`, '2026-10-01T09:00:00.000Z'),
+    );
+    const { idp, of } = cognito({
+      listWebAuthnCredentials: async (input) =>
+        'NextToken' in input
+          ? { Credentials: [credential('Samsung Pass', '2026-10-02T09:00:00.000Z')] }
+          : { Credentials: first, NextToken: 'page-2' },
+    });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+    const { passkeys } = bodyOf(res) as { passkeys: { name: string }[] };
+    expect(passkeys.map((p) => p.name)).toEqual([
+      ...first.map((c) => c.FriendlyCredentialName),
+      'Samsung Pass',
+    ]);
+    expect(of('listWebAuthnCredentials')).toEqual([
+      { AccessToken: ACCESS, MaxResults: 20 },
+      { AccessToken: ACCESS, MaxResults: 20, NextToken: 'page-2' },
+    ]);
+  });
+
+  // AN ANSWER COGNITO CANNOT GIVE OFFERS NOTHING: a shorter list would read as fewer passkeys.
+  for (const [what, credentials] of [
+    ['a credential with no creation date', [{ FriendlyCredentialName: 'x' }]],
+    ['a credential with no name', [{ CreatedAt: new Date() }]],
+    ['a credential that is not an object', [null]],
+    [
+      'a credential whose creation date is no date',
+      [{ FriendlyCredentialName: 'x', CreatedAt: new Date(NaN) }],
+    ],
   ] as const) {
-    it(`lists with the token it sealed, and says ${passkey} for ${credentials.length} passkeys`, async () => {
-      const { idp, of } = cognito({
+    it(`answers ${what} as its own failure, never as a shorter list`, async () => {
+      const { idp } = cognito({
         listWebAuthnCredentials: async () => ({ Credentials: [...credentials] }),
       });
       const relay = environment(idp);
       const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
-      expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([200, { passkey }, undefined]);
-      expect(res.headers['cache-control']).toBe('no-store');
-      expect(of('listWebAuthnCredentials')).toEqual([{ AccessToken: ACCESS, MaxResults: 1 }]);
+      expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+      expect(console.error).toHaveBeenCalledWith(
+        'auth-relay: Cognito listed a credential it cannot describe',
+      );
     });
   }
+
+  it('answers a later page that carries no credentials as its own failure', async () => {
+    const { idp } = cognito({
+      listWebAuthnCredentials: async (input) =>
+        'NextToken' in input
+          ? {}
+          : {
+              Credentials: [credential('Windows Hello', '2026-10-01T09:00:00.000Z')],
+              NextToken: 'p',
+            },
+    });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+    expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+    expect(console.error).toHaveBeenCalledWith('auth-relay: Cognito listed no credentials');
+  });
+
+  it('stops at a page token Cognito hands back a second time, rather than paging forever', async () => {
+    let calls = 0;
+    const { idp } = cognito({
+      // BOUNDED: with no guard the loop would spin on microtasks, and no test timeout could fire.
+      listWebAuthnCredentials: async () => {
+        calls += 1;
+        if (calls > 5) throw new Error('paged on');
+        return {
+          Credentials: [credential('Windows Hello', '2026-10-01T09:00:00.000Z')],
+          NextToken: 'same',
+        };
+      },
+    });
+    const relay = environment(idp);
+    const res = await relay(asking(PASSKEY_LIST_ROUTE, { access: await holding(relay) }));
+    expect([res.statusCode, res.body, calls]).toEqual([500, '{"error":"internal"}', 2]);
+    expect(console.error).toHaveBeenCalledWith('auth-relay: Cognito repeated a page token');
+  });
 
   it('starts a registration with the token, and hands back Cognito’s options', async () => {
     const { idp, of } = cognito();

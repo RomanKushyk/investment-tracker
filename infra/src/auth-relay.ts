@@ -25,6 +25,7 @@ import {
   RevokeTokenCommand,
   StartWebAuthnRegistrationCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
+import { kyivDateIso } from '@quirenote/core/dates';
 
 import {
   BOT_CHECK_FAILED,
@@ -326,12 +327,13 @@ const FLOW_SPENT = derived({
   example: { error: 'not_authorized' },
 });
 
-/** Whether the account holds a passkey: the offer follows a password sign-in while it holds none. */
+/** The account's passkeys, each Cognito's name for it and its Kyiv creation day: the profile lists
+ *  them, and the offer follows a password sign-in while there are none. */
 const PASSKEYS = derived({
   statusCode: 200,
   name: 'passkeys',
   headers: ['cache-control'],
-  example: { passkey: false },
+  example: { passkeys: [{ name: 'Windows Hello', createdAt: '2026-10-24' }] },
 });
 /** `StartWebAuthnRegistration`'s options, for the OS dialog; its challenge is single-use. */
 const CREATION_OPTIONS = derived({
@@ -489,7 +491,8 @@ export type IdentityClient = {
   listWebAuthnCredentials(input: {
     AccessToken: string;
     MaxResults: number;
-  }): Promise<{ Credentials?: unknown[] }>;
+    NextToken?: string;
+  }): Promise<{ Credentials?: unknown[]; NextToken?: string }>;
   startWebAuthnRegistration(input: {
     AccessToken: string;
   }): Promise<{ CredentialCreationOptions?: unknown }>;
@@ -1046,20 +1049,44 @@ export const createRelay = (idp: IdentityClient, verify: Check, now: () => numbe
     const asked = exactly(parsed(event), PASSKEY_KEYS);
     if (asked === undefined) return Promise.resolve(INVALID);
     return withToken(event, PASSKEY_LIST_ROUTE, asked.sub, async (token) => {
-      const { Credentials } = await idp.listWebAuthnCredentials({
-        AccessToken: token,
-        MaxResults: 1,
-      });
-      // AN ANSWER COGNITO CANNOT GIVE OFFERS NOTHING (*Auth model*), so no list is not an empty one.
-      if (!Array.isArray(Credentials)) {
-        console.error('auth-relay: Cognito listed no credentials');
-        return INTERNAL;
-      }
-      return respond(
-        PASSKEYS,
-        { 'cache-control': NO_STORE },
-        JSON.stringify({ passkey: Credentials.length > 0 }),
-      );
+      const passkeys: { name: string; createdAt: string }[] = [];
+      // Twenty is both the page's limit and the pool's per user, yet the token is the contract.
+      let next: string | undefined;
+      const seen = new Set<string>();
+      do {
+        const page = await idp.listWebAuthnCredentials({
+          AccessToken: token,
+          MaxResults: 20,
+          ...(next === undefined ? {} : { NextToken: next }),
+        });
+        // AN ANSWER COGNITO CANNOT GIVE OFFERS NOTHING (*Auth model*), so no list is not an empty one.
+        if (!Array.isArray(page.Credentials)) {
+          console.error('auth-relay: Cognito listed no credentials');
+          return INTERNAL;
+        }
+        for (const c of page.Credentials as ({
+          FriendlyCredentialName?: unknown;
+          CreatedAt?: unknown;
+        } | null)[]) {
+          if (
+            typeof c?.FriendlyCredentialName !== 'string' ||
+            !(c.CreatedAt instanceof Date) ||
+            Number.isNaN(c.CreatedAt.getTime())
+          ) {
+            console.error('auth-relay: Cognito listed a credential it cannot describe');
+            return INTERNAL;
+          }
+          passkeys.push({ name: c.FriendlyCredentialName, createdAt: kyivDateIso(c.CreatedAt) });
+        }
+        next = page.NextToken;
+        // A token that comes back again would page until the function times out, with no reason logged.
+        if (next !== undefined && seen.has(next)) {
+          console.error('auth-relay: Cognito repeated a page token');
+          return INTERNAL;
+        }
+        if (next !== undefined) seen.add(next);
+      } while (next !== undefined);
+      return respond(PASSKEYS, { 'cache-control': NO_STORE }, JSON.stringify({ passkeys }));
     });
   };
 

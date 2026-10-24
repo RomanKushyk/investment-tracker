@@ -2214,7 +2214,12 @@
                 "examples": {
                   "passkeys": {
                     "value": {
-                      "passkey": false
+                      "passkeys": [
+                        {
+                          "name": "Windows Hello",
+                          "createdAt": "2026-10-24"
+                        }
+                      ]
                     }
                   }
                 }

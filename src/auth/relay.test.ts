@@ -105,9 +105,57 @@ describe('a relay call', () => {
       { kind: 'refused', reason: 'failed' },
     ],
     [200, { idToken: 'i' }, { kind: 'refused', reason: 'failed' }],
-    [200, { passkey: false }, { kind: 'passkey', listed: false }],
-    [200, { passkey: true }, { kind: 'passkey', listed: true }],
-    [200, { passkey: 'yes' }, { kind: 'refused', reason: 'failed' }],
+    [200, { passkeys: [] }, { kind: 'passkeys', passkeys: [] }],
+    [
+      200,
+      {
+        passkeys: [
+          { name: 'Windows Hello', createdAt: '2026-10-24' },
+          { name: '', createdAt: '2026-10-23' },
+        ],
+      },
+      {
+        kind: 'passkeys',
+        passkeys: [
+          { name: 'Windows Hello', createdAt: '2026-10-24' },
+          { name: '', createdAt: '2026-10-23' },
+        ],
+      },
+    ],
+    // One item it cannot read makes the whole list unreadable: a shorter one would miscount.
+    [
+      200,
+      { passkeys: [{ name: 'x', createdAt: '2026-10-24' }, { name: 'y' }] },
+      { kind: 'refused', reason: 'failed' },
+    ],
+    [
+      200,
+      { passkeys: [{ name: 1, createdAt: '2026-10-24' }] },
+      { kind: 'refused', reason: 'failed' },
+    ],
+    [
+      200,
+      { passkeys: [{ name: 'x', createdAt: '24.10.2026' }] },
+      { kind: 'refused', reason: 'failed' },
+    ],
+    [200, { passkeys: [null] }, { kind: 'refused', reason: 'failed' }],
+    [
+      200,
+      { passkeys: [{ name: 'x', createdAt: '2026-13-45' }] },
+      { kind: 'refused', reason: 'failed' },
+    ],
+    [
+      200,
+      { passkeys: [{ name: 'x', createdAt: '2026-02-30' }] },
+      { kind: 'refused', reason: 'failed' },
+    ],
+    [
+      200,
+      { passkeys: [{ name: 'x', createdAt: ['2026-10-24'] }] },
+      { kind: 'refused', reason: 'failed' },
+    ],
+    [200, { passkeys: 'none' }, { kind: 'refused', reason: 'failed' }],
+    [200, { passkey: false }, { kind: 'refused', reason: 'failed' }],
     [200, { options: { challenge: 'c' } }, { kind: 'options', options: { challenge: 'c' } }],
     [200, { options: null }, { kind: 'refused', reason: 'failed' }],
     [200, { options: 'c' }, { kind: 'refused', reason: 'failed' }],

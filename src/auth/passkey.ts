@@ -17,7 +17,7 @@ export async function hasPasskey(deps: PasskeyDeps): Promise<boolean | undefined
   const sub = await deps.account();
   if (sub === undefined) return undefined;
   const answer = await deps.relay('passkey/list', { sub });
-  return answer.kind === 'passkey' ? answer.listed : undefined;
+  return answer.kind === 'passkeys' ? answer.passkeys.length > 0 : undefined;
 }
 
 export type Registration = 'created' | 'notCreated' | 'offline' | 'failed';
