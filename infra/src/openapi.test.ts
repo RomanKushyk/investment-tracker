@@ -37,6 +37,7 @@ import {
 import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
 import {
   CSRF_HEADER,
+  GOOGLE_BEGIN_BODY,
   GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_BODY,
   GOOGLE_COMPLETE_ROUTE,
@@ -49,6 +50,8 @@ import {
   RESPOND_BODY,
   RESPOND_ROUTE,
   RESPONSES as RELAY_RESPONSES,
+  SIGN_OUT_GLOBAL_BODY,
+  SIGN_OUT_GLOBAL_ROUTE,
   SIGN_OUT_ROUTE,
   START_BODY,
   START_ROUTE,
@@ -413,6 +416,8 @@ describe('each operation publishes its own route’s answers', () => {
       [OPERATION_START_ROUTE, OPERATION_START_BODY],
       [START_ROUTE, START_BODY],
       [RESPOND_ROUTE, RESPOND_BODY],
+      [SIGN_OUT_GLOBAL_ROUTE, SIGN_OUT_GLOBAL_BODY],
+      [GOOGLE_BEGIN_ROUTE, GOOGLE_BEGIN_BODY],
       [GOOGLE_COMPLETE_ROUTE, GOOGLE_COMPLETE_BODY],
       [PASSKEY_LIST_ROUTE, PASSKEY_BODY],
       [PASSKEY_START_ROUTE, PASSKEY_BODY],
@@ -490,6 +495,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     RESPOND_ROUTE,
     REFRESH_ROUTE,
     SIGN_OUT_ROUTE,
+    SIGN_OUT_GLOBAL_ROUTE,
     GOOGLE_BEGIN_ROUTE,
     GOOGLE_COMPLETE_ROUTE,
     PASSKEY_LIST_ROUTE,
@@ -497,7 +503,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the twenty-nine routes and no others', () => {
+  it('declares the thirty routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,

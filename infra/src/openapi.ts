@@ -23,6 +23,8 @@ import {
   START_ROUTE as OPERATION_START_ROUTE,
 } from './archive-operations';
 import {
+  GOOGLE_BEGIN_BODY,
+  GOOGLE_BEGIN_ROUTE,
   GOOGLE_COMPLETE_BODY,
   GOOGLE_COMPLETE_ROUTE,
   PARAMETERS as RELAY_PARAMETERS,
@@ -34,6 +36,8 @@ import {
   RESPOND_BODY,
   RESPOND_ROUTE,
   RESPONSES as RELAY_RESPONSES,
+  SIGN_OUT_GLOBAL_BODY,
+  SIGN_OUT_GLOBAL_ROUTE,
   START_BODY,
   START_ROUTE,
 } from './auth-relay';
@@ -103,6 +107,8 @@ const BODIES: Record<string, unknown> = {
   [OPERATION_START_ROUTE]: OPERATION_START_BODY,
   [START_ROUTE]: START_BODY,
   [RESPOND_ROUTE]: RESPOND_BODY,
+  [SIGN_OUT_GLOBAL_ROUTE]: SIGN_OUT_GLOBAL_BODY,
+  [GOOGLE_BEGIN_ROUTE]: GOOGLE_BEGIN_BODY,
   [GOOGLE_COMPLETE_ROUTE]: GOOGLE_COMPLETE_BODY,
   [PASSKEY_LIST_ROUTE]: PASSKEY_BODY,
   [PASSKEY_START_ROUTE]: PASSKEY_BODY,
@@ -118,7 +124,7 @@ export const TAGS: Record<string, string> = {
   applications: 'The sign-up application, which an approval turns into an account.',
   admin:
     'The super-admin’s: the applications and their rulings, and the price archive’s diagnosis and repairs.',
-  auth: 'The relay: sign-in by password, passkey or Google, the session’s refresh and sign-out, and the account’s passkeys.',
+  auth: 'The relay: sign-in by password, passkey or Google, the session’s refresh and sign-out, sign-out everywhere, and the account’s passkeys.',
   view: 'The derived reads: the portfolio for six periods, the yield curve, the Balances table and a day’s quotes.',
   mutations: 'The portfolio’s write, as ordered ops under one precondition.',
   state: 'The raw export of the stored portfolio.',

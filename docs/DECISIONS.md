@@ -1653,7 +1653,31 @@ back in. EVERY SIGN-OUT WHILE GOOGLE IS ON LEAVES THROUGH COGNITO'S LOGOUT, the 
 cookie is cleared — `GlobalSignOut` "doesn't clear the managed login session cookie" — so the relay
 names the endpoint and the app goes there, to land on `/sign-in` or `/apply`, the two sign-out URLs
 the client lists; a tokenless sign-out too, since nothing the relay holds says whether the browser
-has a session there. The button is Google's: its colours per theme and its
+has a session there. SIGN-OUT EVERYWHERE ENDS EVERY SESSION THE ACCOUNT HOLDS, THIS DEVICE'S LAST, and
+only behind a sign-in under five minutes old: `/auth/sign-out/global` reads the window from the
+`auth_time` of the access token it sealed, which a refresh never resets, and refuses a token five
+minutes old or more as `insufficient_user_authentication`, and one that is not the tab's account
+as `not_authorized`.
+THE SESSION MUST STILL BE COGNITO'S: the token's own claims cannot say whether a sign-out or another
+device already ended it, so Cognito is asked with the token itself — `GetUser` for an API sign-in's,
+`/oauth2/userInfo` for a Google one's, which lacks the admin scope — and a token it refuses ends no
+other session; this browser's is over, its cookies cleared as a refused refresh clears them, so a
+retry after a lost answer leaves no dead cookie, and while Google is on it names Cognito's logout
+too. THE RELAY ENDS THEM, with `AdminUserGlobalSignOut` on its own pool by IAM and the token's pool
+username, because a Google sign-in's token lacks the `aws.cognito.signin.user.admin` scope
+`GlobalSignOut` takes; then it revokes and clears this browser's cookies as a sign-out does, and
+names Cognito's logout while Google is on. Any other refusal, or a failure before Cognito ends
+them, ends nothing, so a retry still carries what it ends; after it, this browser is signed out though a revoke
+fails, since every token is dead. NOT EVERYTHING ENDS AT ONCE: Cognito says other requests "might be valid until your user's
+token expires", and the API's authorizer checks the signature and `exp` alone, so an ID token
+already issued is accepted for the rest of its hour, and another device's tab reads until its next
+refresh is refused. A RE-AUTHENTICATION THROUGH GOOGLE NAMES THE TAB'S ACCOUNT to begin, which then
+sends `prompt=login` — Cognito "requires users to re-authenticate even if they have an existing
+session" and forwards it to Google — and binds that account to the flow; a code that comes back as
+another account is refused, its tokens revoked and this browser's session kept, and the answer
+names Cognito's logout, which alone clears the managed-login session that account left. Google "does not
+support Google Account reauth requests", so a live Google session can pass without asking: that gap
+is Google's, and the five minutes still hold. The button is Google's: its colours per theme and its
 face, Google Sans Medium, as the branding guidelines fix them for "the app verification process", and
 the bundle's own G cropped to its box.
 Registration is an APPLICATION,
@@ -1769,6 +1793,16 @@ sending it again unchanged cannot change. AWS's backoff study shows exponential 
 leaves clusters of calls and jitter spreads them, and says most AWS SDKs support both in their
 standard retry mode; its Builders' Library calls a retry "selfish", hence a bound. The window starts at
 the half second in which the API's two requests per second refill one token.
+OWASP ASVS 5.0.0 7.5.2 asks that users can "terminate any or all currently active sessions" while
+"having authenticated again with at least one factor"; no Cognito API lists a user's sessions, so
+its view half is not met. A session terminated "disallows any further use of the session" (ASVS
+7.4.1), which Firebase checks with `checkRevoked` and Supabase by finding the session before its
+logout. OIDC Core §12.2 has a refreshed ID token's `auth_time` "represent the
+time of the original authentication", RFC 9470 names a token whose authentication is too old for
+the call `insufficient_user_authentication`, and Firebase's own server check processes a sign-in
+only "in the last 5 minutes". A hint naming another user than the one signed in "MUST return an
+error" (OIDC Core §3.1.2.1); Cognito takes no hint, and Keycloak refuses the same case after a
+`prompt=login`, Firebase's reauthentication as `auth/user-mismatch`.
 Self-XSS "tricks you into executing malicious code in your web browser" (Chrome); Google's account
 pages, Facebook and Discord have answered it with a console warning, which Facebook and Discord
 keep out of development builds. Chrome's and Firefox's own guard is a gate on the first paste into
@@ -1826,8 +1860,14 @@ Ory's flow-first shape: an invocation and a flow cookie for every visit, and a f
 the time of a late click. · A Google flag in the host table: a deploy that drops the credentials
 would leave the button standing. · Leaving through Cognito's logout only after a Google sign-in: one
 more cookie to remember one, and the relay guessing at a session only Cognito can see. ·
-`prompt` left out, or `login`: without it a live Google session signs the last account straight
-back in; `login` asks for Google's password every time. · The flow's pair encrypted, as Auth.js
+`prompt` left out, or `login`, for a sign-in: without it a live Google session signs the last
+account straight back in; `login` asks for a fresh sign-in every time, which only a
+re-authentication wants. · The session confirmed by a refresh: it rotates the family, and with the
+grace window a sign-out everywhere that then failed would leave the browser on a rotated-out token.
+· The sealed token's claims alone: they pass for a session a sign-out already ended. · Sign-out everywhere as an API route: this device's cookies are the
+relay's, and would wait on a second call. · `GlobalSignOut` with the user's own token: a Google
+sign-in's lacks the scope it takes. · A re-authentication answered by whichever account Google
+returns: it would sign this browser into another account in place of the one the tab shows. · The flow's pair encrypted, as Auth.js
 keeps its own: HttpOnly and `__Host-` already keep it from script and other hosts, and neither half
 is a token — the verifier redeems nothing without the code Cognito sends to this browser, which
 lives five minutes. · A reset-required account answered apart, as Amplify JS makes it a

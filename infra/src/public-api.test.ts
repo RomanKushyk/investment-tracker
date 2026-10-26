@@ -24,6 +24,7 @@ import {
   PASSKEY_START_ROUTE,
   REFRESH_ROUTE,
   RESPOND_ROUTE,
+  SIGN_OUT_GLOBAL_ROUTE,
   SIGN_OUT_ROUTE,
   START_ROUTE,
 } from './auth-relay';
@@ -161,6 +162,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     RESPOND_ROUTE,
     REFRESH_ROUTE,
     SIGN_OUT_ROUTE,
+    SIGN_OUT_GLOBAL_ROUTE,
     GOOGLE_BEGIN_ROUTE,
     GOOGLE_COMPLETE_ROUTE,
     PASSKEY_LIST_ROUTE,
@@ -278,18 +280,19 @@ describe('the route is throttled below the stage it sits in', () => {
   });
 });
 
-describe('the relay: nine POSTs outside the authorizer, reading its two secrets', () => {
+describe('the relay: ten POSTs outside the authorizer, reading its two secrets', () => {
   const relay = ['Resources', 'AuthRelayFunction', 'Properties', 'Policies', 0, 'Statement'];
 
   // OUTSIDE THE AUTHORIZER BECAUSE THEY ARE HOW A TOKEN IS OBTAINED OR SPENT: a caller reaching them
   // holds none yet, or holds only the cookies. [*Auth model*]
-  it('routes the six sign-in routes and the three passkey calls at the relay, each a POST with no authorizer', () => {
+  it('routes the six sign-in routes, sign-out everywhere and the three passkey calls at the relay, each a POST with no authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'AuthRelayFunction');
     expect(routes.map((r) => r.key)).toEqual([
       START_ROUTE,
       RESPOND_ROUTE,
       REFRESH_ROUTE,
       SIGN_OUT_ROUTE,
+      SIGN_OUT_GLOBAL_ROUTE,
       GOOGLE_BEGIN_ROUTE,
       GOOGLE_COMPLETE_ROUTE,
       PASSKEY_LIST_ROUTE,
@@ -318,9 +321,10 @@ describe('the relay: nine POSTs outside the authorizer, reading its two secrets'
     }
   });
 
-  // ONE ACTION ON ONE POOL, pool-wide by the accepted cost of storing the secret nowhere, and the one
-  // bot-check parameter; the passkey calls take the user's access token, which Cognito checks alone.
-  it('may read the client secret in this pool and its bot-check secret, and do nothing else', () => {
+  // TWO ACTIONS ON ONE POOL — the secret's read, pool-wide by the accepted cost of storing it nowhere,
+  // and sign-out everywhere, which a Google token's scope cannot authorize — and the one bot-check
+  // parameter; the passkey calls take the user's access token, which Cognito checks alone.
+  it('may read the client secret and end a user’s sessions in this pool, read its bot-check secret, and do nothing else', () => {
     const policies = props('AuthRelayFunction').Policies as {
       Statement: Record<string, unknown>[];
     }[];
@@ -329,11 +333,17 @@ describe('the relay: nine POSTs outside the authorizer, reading its two secrets'
       'cognito-idp:DescribeUserPoolClient',
       'ssm:GetParameter',
       'kms:Decrypt',
+      'cognito-idp:AdminUserGlobalSignOut',
     ]);
-    expect(grantAt(doc, relay, 'cognito-idp:DescribeUserPoolClient')).toEqual({
-      tag: '!GetAtt',
-      value: 'UserPool.Arn',
-    });
+    for (const action of [
+      'cognito-idp:DescribeUserPoolClient',
+      'cognito-idp:AdminUserGlobalSignOut',
+    ]) {
+      expect([action, grantAt(doc, relay, action)]).toEqual([
+        action,
+        { tag: '!GetAtt', value: 'UserPool.Arn' },
+      ]);
+    }
     expect(grantAt(doc, relay, 'ssm:GetParameter')).toEqual({
       tag: '!Sub',
       value:

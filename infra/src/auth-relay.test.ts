@@ -15,6 +15,7 @@ import {
   REFRESH_ROUTE,
   RESPOND_ROUTE,
   RESPONSES,
+  SIGN_OUT_GLOBAL_ROUTE,
   SIGN_OUT_ROUTE,
   START_BODY,
   START_ROUTE,
@@ -22,6 +23,7 @@ import {
   createRelay,
   handler as rawHandler,
   redeemWith,
+  userInfoWith,
 } from './auth-relay';
 import { BYPASS_HEADER, type Verify, type Verdict, withBypass } from './bot-check';
 import type { ApiEvent, ApiResult } from './http';
@@ -41,10 +43,29 @@ const ID = 'id.token.jwt';
 /** The account an access token names, in its payload's `sub`, as Cognito's own do. */
 const ACCOUNT = '5a1b2c3d-0000-4000-8000-0000000000a1';
 const jwt = (claims: object) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
-/** An API sign-in's: Cognito gives it the one scope the passkey calls take, and no other. */
-const ACCESS = jwt({ sub: ACCOUNT, token_use: 'access', scope: 'aws.cognito.signin.user.admin' });
+/** When the sign-in behind every token here happened, in seconds as `auth_time` spells it. */
+const AUTH_TIME = 1_793_014_704;
+/** A clock `seconds` after that sign-in. */
+const after = (seconds: number) => () => (AUTH_TIME + seconds) * 1000;
+/** An API sign-in's: Cognito gives it the one scope the passkey calls take, and no other. Its
+ *  `username` is the pool's, which for a local user is the `sub` (the dev reading on #502). */
+const ACCESS = jwt({
+  sub: ACCOUNT,
+  token_use: 'access',
+  scope: 'aws.cognito.signin.user.admin',
+  auth_time: AUTH_TIME,
+  username: ACCOUNT,
+});
+/** A federated user's pool username: the provider's name and its subject. */
+const GOOGLE_USERNAME = 'Google_100000000000000000001';
 /** A Google sign-in's, through the token endpoint, with what the client lists. */
-const GOOGLE_ACCESS = jwt({ sub: ACCOUNT, token_use: 'access', scope: 'openid email profile' });
+const GOOGLE_ACCESS = jwt({
+  sub: ACCOUNT,
+  token_use: 'access',
+  scope: 'openid email profile',
+  auth_time: AUTH_TIME,
+  username: GOOGLE_USERNAME,
+});
 const REFRESH = 'refresh.token.jwe';
 const ROTATED = 'rotated.refresh.token.jwe';
 /** A family's original, from a sign-in before this request: never `REFRESH`, so a test can tell
@@ -85,8 +106,8 @@ const ACCESS_CLEARED = `__Host-Http-access=; Max-Age=0; ${ATTRIBUTES}`;
 const ENDED = [CLEARED, ACCESS_CLEARED];
 const FORGOTTEN = [CLEARED, `__Host-Http-origin=; Max-Age=0; ${ATTRIBUTES}`, ACCESS_CLEARED];
 /** The Google flow's state and verifier: fifteen minutes, as Auth.js keeps its pair. */
-const flow = (state: string, verifier: string) =>
-  `__Host-Http-google=${state}.${verifier}; Max-Age=900; ${ATTRIBUTES}`;
+const flow = (state: string, verifier: string, account?: string) =>
+  `__Host-Http-google=${state}.${verifier}${account === undefined ? '' : `.${account}`}; Max-Age=900; ${ATTRIBUTES}`;
 const FLOW_CLEARED = `__Host-Http-google=; Max-Age=0; ${ATTRIBUTES}`;
 
 const BROWSER = { 'x-csrf': '1', 'sec-fetch-site': 'same-site' };
@@ -219,6 +240,18 @@ const cognito = (
     completeWebAuthnRegistration: async (input) => {
       log('completeWebAuthnRegistration', input);
       return script.completeWebAuthnRegistration ? script.completeWebAuthnRegistration(input) : {};
+    },
+    adminUserGlobalSignOut: async (input) => {
+      log('adminUserGlobalSignOut', input);
+      return script.adminUserGlobalSignOut ? script.adminUserGlobalSignOut(input) : {};
+    },
+    getUser: async (input) => {
+      log('getUser', input);
+      return script.getUser ? script.getUser(input) : {};
+    },
+    userInfo: async (input) => {
+      log('userInfo', input);
+      return script.userInfo ? script.userInfo(input) : undefined;
     },
   };
   const of = (op: keyof IdentityClient) => calls.filter((c) => c.op === op).map((c) => c.input);
@@ -1636,8 +1669,8 @@ describe('a sign-out revokes every token before it forgets them', () => {
 // was started". The pair lives in a cookie only this relay reads, drawn afresh for every redirect.
 describe('Google: begin binds a new flow to this browser', () => {
   const google = () => cognito({}, [SECRET], WITH_GOOGLE);
-  const begun = async (idp = google().idp) => {
-    const res = await environment(idp)(post(GOOGLE_BEGIN_ROUTE));
+  const begun = async (idp = google().idp, body?: unknown) => {
+    const res = await environment(idp)(post(GOOGLE_BEGIN_ROUTE, body));
     const pair = /^__Host-Http-google=([^;]*);/.exec(res.cookies?.[0] ?? '')?.[1] ?? '';
     const [state = '', verifier = ''] = pair.split('.');
     return { res, state, verifier, url: new URL(bodyOf(res).authorize as string) };
@@ -1681,6 +1714,72 @@ describe('Google: begin binds a new flow to this browser', () => {
     expect(a.state).not.toBe(b.state);
     expect(a.verifier).not.toBe(b.verifier);
   });
+
+  // COGNITO "requires users to re-authenticate even if they have an existing session" on `login`, and
+  // forwards it to Google; the tab's account goes into the flow, for complete to hold the answer to.
+  it('re-authenticates the account a tab names with prompt=login, binding that account to the flow', async () => {
+    const { res, state, verifier, url } = await begun(google().idp, { sub: ACCOUNT });
+    expect(res.statusCode).toBe(200);
+    expect(url.searchParams.get('prompt')).toBe('login');
+    expect(res.cookies).toEqual([flow(state, verifier, ACCOUNT)]);
+  });
+
+  it('keeps select_account, and binds no account, for a sign-in', async () => {
+    const { res, url } = await begun();
+    expect(url.searchParams.get('prompt')).toBe('select_account');
+    expect(res.cookies?.[0]).toMatch(/^__Host-Http-google=[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{43};/);
+  });
+
+  for (const body of ['', '  ']) {
+    it(`begins a sign-in for a body of ${JSON.stringify(body)}, as for none`, async () => {
+      const res = await environment(google().idp)({
+        ...post(GOOGLE_BEGIN_ROUTE),
+        body,
+        isBase64Encoded: false,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(new URL(bodyOf(res).authorize as string).searchParams.get('prompt')).toBe(
+        'select_account',
+      );
+    });
+  }
+
+  it('begins a sign-in for a whitespace body sent base64-encoded, as for none', async () => {
+    const res = await environment(google().idp)({
+      ...post(GOOGLE_BEGIN_ROUTE),
+      body: Buffer.from('  ').toString('base64'),
+      isBase64Encoded: true,
+    });
+    expect(new URL(bodyOf(res).authorize as string).searchParams.get('prompt')).toBe(
+      'select_account',
+    );
+  });
+
+  const refusedBegins = [
+    {},
+    { sub: '' },
+    { sub: 7 },
+    { sub: ACCOUNT, extra: 'x' },
+    'text',
+    null,
+    // THE FLOW COOKIE'S OWN SEPARATOR, and a cookie's: either would cut the account short.
+    { sub: `${ACCOUNT}.x` },
+    { sub: `${ACCOUNT};x` },
+    // Longer than any username `AdminUserGlobalSignOut` takes, and than a cookie should carry.
+    { sub: 'a'.repeat(129) },
+  ];
+  for (const body of refusedBegins) {
+    it(`refuses a begin with ${JSON.stringify(body)}, asking Cognito nothing`, async () => {
+      const { idp, calls } = google();
+      const res = await environment(idp)(post(GOOGLE_BEGIN_ROUTE, body));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        400,
+        '{"error":"invalid_request"}',
+        undefined,
+      ]);
+      expect(calls).toEqual([]);
+    });
+  }
 
   it('refuses when the client lists no Google, and binds nothing', async () => {
     const res = await environment(cognito().idp)(post(GOOGLE_BEGIN_ROUTE));
@@ -1746,7 +1845,11 @@ describe('Google: complete redeems the code in the browser that began, and only 
     ['a state of another length', completing({}, { code: CODE, state: STATE.slice(1) })],
     ['a cookie holding no verifier', completing({ google: STATE })],
     ['a cookie holding an empty verifier', completing({ google: `${STATE}.` })],
-    ['a cookie holding more than a pair', completing({ google: `${STATE}.${VERIFIER}.x` })],
+    ['a cookie holding an empty account', completing({ google: `${STATE}.${VERIFIER}.` })],
+    [
+      'a cookie holding more than a pair and an account',
+      completing({ google: `${STATE}.${VERIFIER}.${ACCOUNT}.x` }),
+    ],
   ];
   for (const [what, event] of unbound) {
     it(`refuses ${what}, never asking for the tokens`, async () => {
@@ -1760,6 +1863,55 @@ describe('Google: complete redeems the code in the browser that began, and only 
       expect(of('redeemCode')).toEqual([]);
     });
   }
+
+  // OIDC CORE §3.1.2.1: a hint naming another user than the one signed in "MUST return an error",
+  // and Cognito takes no `id_token_hint`, so the relay holds the answer to the account itself —
+  // as Keycloak refuses `DIFFERENT_USER_AUTHENTICATED` after a `prompt=login` and Firebase
+  // `auth/user-mismatch`.
+  describe('a re-authentication answers for the account it began for, or for none', () => {
+    const reauthenticating = (jar: Jar = {}) =>
+      completing({ google: `${STATE}.${VERIFIER}.${ACCOUNT}`, ...jar });
+    const ANOTHER = jwt({
+      sub: 'another-account',
+      token_use: 'access',
+      scope: 'openid email profile',
+    });
+
+    it('signs the same account in as any sign-in does', async () => {
+      const { idp, of } = google();
+      const res = await environment(idp)(reauthenticating({ refresh: ROTATED, origin: ORIGIN }));
+      expect(res.statusCode).toBe(200);
+      expect(res.cookies).toEqual([kept(REFRESH), origin(REFRESH), sealed, FLOW_CLEARED]);
+      expect(of('revokeToken').map((input) => input.Token)).toEqual([ORIGIN, ROTATED]);
+    });
+
+    it('refuses another account, revoking what it was given and keeping this browser’s session', async () => {
+      const { idp, of } = google({
+        redeemCode: async () => ({
+          id_token: ID,
+          access_token: ANOTHER,
+          refresh_token: REFRESH,
+          expires_in: 3600,
+        }),
+      });
+      const res = await environment(idp)(reauthenticating({ refresh: ROTATED, origin: ORIGIN }));
+      expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+        403,
+        { error: 'another_account', logout: `https://${DOMAIN}/logout?client_id=${CLIENT}` },
+        [FLOW_CLEARED],
+      ]);
+      expect(of('revokeToken').map((input) => input.Token)).toEqual([REFRESH]);
+    });
+
+    it('answers tokens without an access token as its own failure, not as another account', async () => {
+      const { idp, of } = google({
+        redeemCode: async () => ({ id_token: ID, refresh_token: REFRESH, expires_in: 3600 }),
+      });
+      const res = await environment(idp)(reauthenticating());
+      expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+      expect(of('revokeToken')).toEqual([]);
+    });
+  });
 
   const malformed: unknown[] = [
     { code: CODE },
@@ -1919,6 +2071,54 @@ describe('the token endpoint', () => {
   });
 });
 
+// COGNITO, *The user attributes endpoint*: a refused token answers 401 with `invalid_token`.
+describe('the userInfo endpoint', () => {
+  const answering = (status: number) => {
+    const fetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response('{}', { status }),
+    );
+    return { fetch, check: userInfoWith(fetch) };
+  };
+
+  it('asks with the token as a bearer, and takes a 200 as live', async () => {
+    const { fetch, check } = answering(200);
+    await expect(check({ domain: DOMAIN, token: GOOGLE_ACCESS })).resolves.toBeUndefined();
+    expect(fetch.mock.calls).toEqual([
+      [
+        `https://${DOMAIN}/oauth2/userInfo`,
+        { method: 'GET', headers: { authorization: `Bearer ${GOOGLE_ACCESS}` } },
+      ],
+    ]);
+  });
+
+  // UNDICI KEEPS A SOCKET UNTIL A BODY IS READ OR CANCELLED, and this one holds the user's attributes.
+  it('cancels the body it does not read', async () => {
+    let cancelled = false;
+    const body = new ReadableStream({
+      cancel: () => {
+        cancelled = true;
+      },
+    });
+    const fetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+      async () => new Response(body, { status: 200 }),
+    );
+    await userInfoWith(fetch)({ domain: DOMAIN, token: 't' });
+    expect(cancelled).toBe(true);
+  });
+
+  it('throws a 401 as invalid_token', async () => {
+    await expect(answering(401).check({ domain: DOMAIN, token: 't' })).rejects.toMatchObject({
+      name: 'invalid_token',
+    });
+  });
+
+  it('throws any other answer as a fault, never as a refusal', async () => {
+    await expect(answering(500).check({ domain: DOMAIN, token: 't' })).rejects.toMatchObject({
+      name: 'UserInfoFault',
+    });
+  });
+});
+
 // Supabase's `GET /settings` publishes `"google": true` for a sign-in page to read; here the
 // answer every load already asks for carries it, so knowing costs no call of its own.
 describe('a refresh says whether Google is on', () => {
@@ -2041,6 +2241,312 @@ describe('a sign-out names Cognito’s logout while Google is on', () => {
       FORGOTTEN,
     ]);
   });
+});
+
+// OWASP ASVS 5.0.0 7.5.2: every session ends "having authenticated again". The window is the
+// sealed access token's `auth_time`, which a refresh never resets (the dev reading on #502), and
+// RFC 9470 §3 names the token whose authentication is too old for the call.
+describe('sign-out everywhere, after a sign-in under five minutes old, for the tab’s account', () => {
+  const LOGOUT = `https://${DOMAIN}/logout?client_id=${CLIENT}`;
+  const STALE = '{"error":"insufficient_user_authentication"}';
+  const signedInWith = (AccessToken: string) =>
+    cognito({
+      respondToAuthChallenge: async () => ({
+        AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken },
+      }),
+    });
+  const everywhere = (access: string, body: unknown = ASKED) =>
+    asking(SIGN_OUT_GLOBAL_ROUTE, { access, refresh: REFRESH, origin: ORIGIN }, body);
+
+  it('ends every session the account holds, then this browser’s as a sign-out does', async () => {
+    const { idp, calls } = cognito();
+    const relay = environment(idp, after(299));
+    const access = await holding(relay);
+    calls.length = 0;
+    const res = await relay(everywhere(access));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      200,
+      '{"status":"signed_out"}',
+      FORGOTTEN,
+    ]);
+    expect(calls.map((c) => c.op)).toEqual([
+      'getUser',
+      'adminUserGlobalSignOut',
+      'revokeToken',
+      'revokeToken',
+    ]);
+    expect(calls.map((c) => c.input)).toEqual([
+      { AccessToken: ACCESS },
+      { UserPoolId: POOL, Username: ACCOUNT },
+      expect.objectContaining({ Token: ORIGIN }),
+      expect.objectContaining({ Token: REFRESH }),
+    ]);
+  });
+
+  // A GOOGLE SIGN-IN'S TOKEN LACKS THE ADMIN SCOPE, which is why the relay calls the admin API: it
+  // passes here, by the pool username Cognito gave the federated user, and leaves through logout.
+  it('ends a Google account’s by its pool username, and names Cognito’s logout', async () => {
+    const { idp, of } = cognito(
+      {
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken: GOOGLE_ACCESS },
+        }),
+      },
+      [SECRET],
+      WITH_GOOGLE,
+    );
+    const relay = environment(idp, after(0));
+    const res = await relay(everywhere(await holding(relay)));
+    expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+      200,
+      { status: 'signed_out', logout: LOGOUT },
+      FORGOTTEN,
+    ]);
+    expect(of('adminUserGlobalSignOut')).toEqual([{ UserPoolId: POOL, Username: GOOGLE_USERNAME }]);
+    // ITS TOKEN CARRIES `openid` AND NOT THE ADMIN SCOPE, so userInfo is what Cognito judges it by.
+    expect([of('userInfo'), of('getUser')]).toEqual([
+      [{ domain: DOMAIN, token: GOOGLE_ACCESS }],
+      [],
+    ]);
+  });
+
+  // OWASP ASVS 7.4.1: a session a sign-out or another device ended "disallows any further use", and
+  // its token's own claims cannot say so. It is over here too, as a refused refresh ends it.
+  const dead: [string, string, Partial<IdentityClient>][] = [
+    [
+      'GetUser refuses',
+      ACCESS,
+      {
+        getUser: async () => {
+          throw refusal('NotAuthorizedException');
+        },
+      },
+    ],
+    [
+      'GetUser finds no user',
+      ACCESS,
+      {
+        getUser: async () => {
+          throw refusal('UserNotFoundException');
+        },
+      },
+    ],
+    [
+      'userInfo refuses',
+      GOOGLE_ACCESS,
+      {
+        userInfo: async () => {
+          throw refusal('invalid_token');
+        },
+      },
+    ],
+  ];
+  for (const [what, token, script] of dead) {
+    it(`refuses a session Cognito no longer takes (${what}), ending this browser's alone`, async () => {
+      const { idp, of } = cognito({
+        ...script,
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken: token },
+        }),
+      });
+      const relay = environment(idp, after(0));
+      const res = await relay(everywhere(await holding(relay)));
+      expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+        401,
+        { error: 'not_authorized', google: false },
+        ENDED,
+      ]);
+      expect([of('adminUserGlobalSignOut'), of('revokeToken')]).toEqual([[], []]);
+    });
+  }
+
+  // EVERY SIGN-OUT WHILE GOOGLE IS ON LEAVES THROUGH COGNITO'S LOGOUT, this one's too.
+  it('names Cognito’s logout for a session already over while Google is on', async () => {
+    const { idp } = cognito(
+      {
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken: GOOGLE_ACCESS },
+        }),
+        userInfo: async () => {
+          throw refusal('invalid_token');
+        },
+      },
+      [SECRET],
+      WITH_GOOGLE,
+    );
+    const relay = environment(idp, after(0));
+    const res = await relay(everywhere(await holding(relay)));
+    expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+      401,
+      { error: 'not_authorized', google: true, logout: LOGOUT },
+      ENDED,
+    ]);
+  });
+
+  // AN ACCOUNT STATE, NOT A DEAD SESSION: refused, clearing nothing.
+  for (const name of ['PasswordResetRequiredException', 'UserNotConfirmedException']) {
+    it(`refuses an account GetUser answers ${name}, ending nothing`, async () => {
+      const { idp, of } = cognito({
+        getUser: async () => {
+          throw refusal(name);
+        },
+      });
+      const relay = environment(idp, after(0));
+      const res = await relay(everywhere(await holding(relay)));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        401,
+        '{"error":"not_authorized"}',
+        undefined,
+      ]);
+      expect([of('adminUserGlobalSignOut'), of('revokeToken')]).toEqual([[], []]);
+    });
+  }
+
+  for (const err of [refusal('UserInfoFault'), refusal('TypeError', 'fetch failed')]) {
+    it(`answers a userInfo ${err.name} as its own failure, ending nothing`, async () => {
+      const { idp, of } = cognito({
+        respondToAuthChallenge: async () => ({
+          AuthenticationResult: { ...SIGNED_IN.AuthenticationResult, AccessToken: GOOGLE_ACCESS },
+        }),
+        userInfo: async () => {
+          throw err;
+        },
+      });
+      const relay = environment(idp, after(0));
+      const res = await relay(everywhere(await holding(relay)));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        500,
+        '{"error":"internal"}',
+        undefined,
+      ]);
+      expect([of('adminUserGlobalSignOut'), of('revokeToken')]).toEqual([[], []]);
+    });
+  }
+
+  it('answers a check Cognito cannot make as its own failure, ending nothing', async () => {
+    const { idp, of } = cognito({
+      getUser: async () => {
+        throw refusal('TooManyRequestsException');
+      },
+    });
+    const relay = environment(idp, after(0));
+    const res = await relay(everywhere(await holding(relay)));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      500,
+      '{"error":"internal"}',
+      undefined,
+    ]);
+    expect([of('adminUserGlobalSignOut'), of('revokeToken')]).toEqual([[], []]);
+  });
+
+  // EVERY TOKEN IS DEAD ONCE COGNITO HAS ENDED THEM, so a revoke that fails keeps nothing for a retry.
+  it('signs this browser out though a revoke fails once every session has ended', async () => {
+    const { idp } = cognito({
+      revokeToken: async () => {
+        throw refusal('TooManyRequestsException');
+      },
+    });
+    const relay = environment(idp, after(0));
+    const res = await relay(everywhere(await holding(relay)));
+    expect([res.statusCode, res.body, res.cookies]).toEqual([
+      200,
+      '{"status":"signed_out"}',
+      FORGOTTEN,
+    ]);
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  // FIVE MINUTES OLD OR MORE IS REFUSED, as Firebase's own check processes only `< 5 * 60`.
+  const stale: [string, string, number][] = [
+    ['five minutes old', ACCESS, 300],
+    ['an hour old', ACCESS, 3600],
+    ['naming no sign-in time', jwt({ sub: ACCOUNT, username: ACCOUNT }), 0],
+    ['naming it as text', jwt({ sub: ACCOUNT, username: ACCOUNT, auth_time: `${AUTH_TIME}` }), 0],
+  ];
+  for (const [what, token, seconds] of stale) {
+    it(`refuses a token ${what}, ending nothing`, async () => {
+      const { idp, of } = signedInWith(token);
+      const relay = environment(idp, after(seconds));
+      const res = await relay(everywhere(await holding(relay)));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([401, STALE, undefined]);
+      expect([of('adminUserGlobalSignOut'), of('revokeToken')]).toEqual([[], []]);
+    });
+  }
+
+  const unauthorized: [string, (access: string) => ApiEvent, string][] = [
+    ['no access cookie', () => asking(SIGN_OUT_GLOBAL_ROUTE, { refresh: REFRESH }), ACCESS],
+    [
+      'a token for another account than the tab names',
+      (a) => everywhere(a, { sub: 'another-account' }),
+      ACCESS,
+    ],
+    [
+      'a token that names no username',
+      (a) => everywhere(a),
+      jwt({ sub: ACCOUNT, auth_time: AUTH_TIME }),
+    ],
+  ];
+  for (const [what, event, token] of unauthorized) {
+    it(`refuses ${what}, ending nothing`, async () => {
+      const { idp, of } = signedInWith(token);
+      const relay = environment(idp, after(0));
+      const res = await relay(event(await holding(relay)));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        401,
+        '{"error":"not_authorized"}',
+        undefined,
+      ]);
+      expect([of('adminUserGlobalSignOut'), of('revokeToken')]).toEqual([[], []]);
+    });
+  }
+
+  // NOTHING IS CLEARED WHEN COGNITO DID NOT END THEM, so the retry still carries what it ends.
+  for (const name of [
+    'NotAuthorizedException',
+    'UserNotFoundException',
+    'TooManyRequestsException',
+  ]) {
+    it(`answers ${name} as its own failure, revoking and clearing nothing`, async () => {
+      const { idp, of } = cognito({
+        adminUserGlobalSignOut: async () => {
+          throw refusal(name);
+        },
+      });
+      const relay = environment(idp, after(0));
+      const res = await relay(everywhere(await holding(relay)));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        500,
+        '{"error":"internal"}',
+        undefined,
+      ]);
+      expect(of('revokeToken')).toEqual([]);
+      expect(console.error).toHaveBeenCalled();
+    });
+  }
+
+  for (const body of [
+    {},
+    { sub: '' },
+    { sub: 7 },
+    { sub: ACCOUNT, extra: 'x' },
+    [ACCOUNT],
+    'text',
+    null,
+  ]) {
+    it(`refuses ${JSON.stringify(body)}, asking Cognito nothing`, async () => {
+      const { idp, calls } = cognito();
+      const relay = environment(idp, after(0));
+      const access = await holding(relay);
+      calls.length = 0;
+      const res = await relay(everywhere(access, body));
+      expect([res.statusCode, res.body, res.cookies]).toEqual([
+        400,
+        '{"error":"invalid_request"}',
+        undefined,
+      ]);
+      expect(calls).toEqual([]);
+    });
+  }
 });
 
 // RFC 10017 §6.2.2.3: a token wider than the frontend needs "SHOULD NOT" go back to it, and this
@@ -2435,6 +2941,7 @@ describe('a request the relay does not answer at all', () => {
     // `SEALED` IS A PLACEHOLDER: only a sign-in in the same environment seals a token it can open.
     [PASSKEY_LIST_ROUTE, asking(PASSKEY_LIST_ROUTE, { access: 'SEALED' })],
     [PASSKEY_START_ROUTE, asking(PASSKEY_START_ROUTE, { access: 'SEALED' })],
+    [SIGN_OUT_GLOBAL_ROUTE, asking(SIGN_OUT_GLOBAL_ROUTE, { access: 'SEALED' })],
     [
       PASSKEY_COMPLETE_ROUTE,
       asking(
@@ -2469,8 +2976,9 @@ describe('a request the relay does not answer at all', () => {
       });
     }
 
+    // At the sign-in's own second, which sign-out everywhere admits.
     it(`admits a same-origin fetch on ${route}`, async () => {
-      const relay = environment(cognito({}, [SECRET], WITH_GOOGLE).idp);
+      const relay = environment(cognito({}, [SECRET], WITH_GOOGLE).idp, after(0));
       const access = event.cookies?.includes('__Host-Http-access=SEALED')
         ? await holding(relay)
         : undefined;

@@ -456,7 +456,7 @@ Resources:
         'GET /admin/archive/operations/{id}':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
-        # The relay's nine. A ceiling per route bounds its requests, not the concurrency they share.
+        # The relay's ten. A ceiling per route bounds its requests, not the concurrency they share.
         'POST /auth/start':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -467,6 +467,9 @@ Resources:
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
         'POST /auth/sign-out':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/sign-out/global':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
         'POST /auth/google/begin':
@@ -1031,6 +1034,12 @@ Resources:
               Condition:
                 StringEquals:
                   kms:ViaService: !Sub 'ssm.${AWS::Region}.amazonaws.com'
+            # SIGN-OUT EVERYWHERE, BY IAM: a Google sign-in's token lacks the scope `GlobalSignOut`
+            # takes. The relay calls it only behind a sign-in under five minutes old.
+            - Sid: EndEverySession
+              Effect: Allow
+              Action: cognito-idp:AdminUserGlobalSignOut
+              Resource: !GetAtt UserPool.Arn
       Events:
         Start:
           Type: HttpApi
@@ -1056,6 +1065,12 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /auth/sign-out
+        SignOutGlobal:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/sign-out/global
         GoogleBegin:
           Type: HttpApi
           Properties:

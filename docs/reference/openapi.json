@@ -31,7 +31,7 @@
     },
     {
       "name": "auth",
-      "description": "The relay: sign-in by password, passkey or Google, the session’s refresh and sign-out, and the account’s passkeys."
+      "description": "The relay: sign-in by password, passkey or Google, the session’s refresh and sign-out, sign-out everywhere, and the account’s passkeys."
     },
     {
       "name": "view",
@@ -1920,6 +1920,148 @@
         }
       }
     },
+    "/auth/sign-out/global": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "postAuthSignOutGlobal",
+        "summary": "POST /auth/sign-out/global",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sub"
+                ],
+                "properties": {
+                  "sub": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "signed_out": {
+                    "value": {
+                      "status": "signed_out",
+                      "logout": "https://<auth domain>/logout?client_id=<client>"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  },
+                  "session_ended": {
+                    "value": {
+                      "error": "not_authorized",
+                      "google": true,
+                      "logout": "https://<auth domain>/logout?client_id=<client>"
+                    }
+                  },
+                  "insufficient_user_authentication": {
+                    "value": {
+                      "error": "insufficient_user_authentication"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/google/begin": {
       "post": {
         "tags": [
@@ -1940,6 +2082,27 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sub"
+                ],
+                "properties": {
+                  "sub": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                  }
+                }
+              }
+            }
+          }
+        },
         "security": [],
         "responses": {
           "200": {
@@ -1962,6 +2125,20 @@
                   "authorize": {
                     "value": {
                       "authorize": "https://<auth domain>/oauth2/authorize?identity_provider=Google&…"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
                     }
                   }
                 }
@@ -2129,9 +2306,22 @@
           },
           "403": {
             "description": "Refused",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "examples": {
+                  "another_account": {
+                    "value": {
+                      "error": "another_account",
+                      "logout": "https://<auth domain>/logout?client_id=<client>"
+                    }
+                  },
                   "csrf": {
                     "value": {
                       "error": "csrf"

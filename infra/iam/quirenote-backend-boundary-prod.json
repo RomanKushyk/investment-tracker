@@ -73,6 +73,7 @@
         "cognito-idp:ListUsers",
         "cognito-idp:AdminLinkProviderForUser",
         "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:AdminUserGlobalSignOut",
         "cognito-idp:DescribeUserPool"
       ],
       "Resource": "arn:aws:cognito-idp:eu-north-1:*:userpool/*",
