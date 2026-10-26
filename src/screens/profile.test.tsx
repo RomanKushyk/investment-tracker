@@ -618,7 +618,22 @@ describe('signing out everywhere', () => {
     expect(session.status()).toBe('signedOut');
   });
 
-  // ANOTHER TAB SIGNED THIS BROWSER OUT while the dialog waited: one refresh says so.
+  // A SESSION OVER HERE WHILE GOOGLE IS ON leaves through Cognito's logout, as every sign-out does.
+  it('leaves through Cognito’s logout when a session over here names one', async () => {
+    api.everywhere = ['endedHere'];
+    api.logout = LOGOUT;
+    leaving.site = SITE;
+    signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
+    await toThePassword();
+    await typeAndConfirm();
+    await waitFor(() => expect(leaving.to).toHaveLength(1));
+    const url = new URL(leaving.to[0]!);
+    expect(`${url.origin}${url.pathname}`).toBe('https://auth.dev.quirenote.com/logout');
+    expect(url.searchParams.get('logout_uri')).toBe(`${SITE}/sign-in`);
+    expect(session.status()).toBe('signedOut');
+  });
+
+  // THE REFRESH COOKIE DIED while the dialog waited, the access cookie gone: one refresh says so.
   it('lands signed out after a plain refusal whose refresh is refused', async () => {
     api.everywhere = ['cookieGone'];
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });

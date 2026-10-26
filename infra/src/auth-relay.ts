@@ -350,8 +350,8 @@ const SESSION_ENDED = derived({
   headers: ['set-cookie'],
   example: { error: 'not_authorized', google: true },
 });
-/** Sign-out everywhere's word that this browser's session was already over: its refusal beside
- *  `not_authorized`, cleared as a refused refresh clears it. */
+/** Sign-out everywhere's word that this browser's session was already over — Cognito refused its
+ *  token, or no cookie can serve it — beside `not_authorized`, cleared as a refused refresh clears it. */
 const SESSION_OVER_HERE = derived({
   statusCode: 401,
   name: 'session_ended',
@@ -1161,17 +1161,18 @@ export const createRelay = (idp: IdentityClient, verify: Check, now: () => numbe
   };
 
   /** THE TOKEN A SIGN-IN SEALED, for the account the tab names: the cookie is the browser's, and
-   *  another tab's sign-in replaces it. An answer instead when there is none to spend. */
+   *  another tab's sign-in replaces it. None when no cookie opens; an answer for any other refusal. */
   const tabToken = async (
     event: ApiEvent,
     sub: string,
-  ): Promise<{ ids: Ids; token: string } | ApiResult> => {
+  ): Promise<{ ids: Ids; token: string } | ApiResult | undefined> => {
     const sealed = cookieIn(event, ACCESS);
-    if (sealed === undefined) return NOT_AUTHORIZED;
+    if (sealed === undefined) return undefined;
     const ids = idsOf();
     if (ids === undefined) return INTERNAL;
     const token = await opened(ids, sealed);
-    if (token === undefined || accountOf(token) !== sub) return NOT_AUTHORIZED;
+    if (token === undefined) return undefined;
+    if (accountOf(token) !== sub) return NOT_AUTHORIZED;
     return { ids, token };
   };
 
@@ -1182,7 +1183,7 @@ export const createRelay = (idp: IdentityClient, verify: Check, now: () => numbe
     sub: string,
     call: (token: string) => Promise<ApiResult>,
   ): Promise<ApiResult> => {
-    const held = await tabToken(event, sub);
+    const held = (await tabToken(event, sub)) ?? NOT_AUTHORIZED;
     if ('statusCode' in held) return held;
     const { token } = held;
     // Told apart from a token Cognito no longer takes, so the profile names Google only for this.
@@ -1275,12 +1276,30 @@ export const createRelay = (idp: IdentityClient, verify: Check, now: () => numbe
     });
   };
 
+  /** A SESSION OVER IN THIS BROWSER: cleared as a refused refresh clears it, and through Cognito's
+   *  logout while Google is on, as every sign-out leaves. */
+  const overHere = async (ids: Ids | undefined): Promise<ApiResult> => {
+    const google = await googleOn(ids);
+    const body = { error: 'not_authorized', google };
+    return respond(
+      SESSION_OVER_HERE,
+      { 'set-cookie': ENDED },
+      JSON.stringify(google && ids !== undefined ? { ...body, logout: logoutOf(ids) } : body),
+    );
+  };
+
   /** EVERY SESSION ENDS ONLY BEHIND A LIVE SIGN-IN UNDER FIVE MINUTES OLD, then this browser's. Before
-   *  Cognito ends them, a dead token ends this browser's alone, and anything else ends nothing. */
+   *  Cognito ends them, a dead token or a browser no cookie can serve ends this browser's alone, and
+   *  anything else ends nothing. */
   const signOutGlobal = async (event: ApiEvent): Promise<ApiResult> => {
     const asked = exactly(parsed(event), ACCOUNT_KEYS);
     if (asked === undefined) return INVALID;
     const held = await tabToken(event, asked.sub);
+    // THE REFRESH COOKIE DECIDES, as on the refresh route: it outlives the access cookie, and while it
+    // is here one refresh may still bring a token, so the refusal stays plain for the app to ask.
+    if (held === undefined) {
+      return cookieIn(event, COOKIE) === undefined ? overHere(idsOf()) : NOT_AUTHORIZED;
+    }
     if ('statusCode' in held) return held;
     const { ids, token } = held;
     const authTime = claimOf(token, 'auth_time');
@@ -1300,15 +1319,7 @@ export const createRelay = (idp: IdentityClient, verify: Check, now: () => numbe
     } catch (err) {
       // A DEAD SESSION IS OVER HERE TOO, as a refused refresh ends it: a retry after an answer that
       // was lost then leaves no dead cookie behind.
-      if (NOT_LIVE.has(nameOf(err) ?? '')) {
-        const google = await googleOn(ids);
-        const body = { error: 'not_authorized', google };
-        return respond(
-          SESSION_OVER_HERE,
-          { 'set-cookie': ENDED },
-          JSON.stringify(google ? { ...body, logout: logoutOf(ids) } : body),
-        );
-      }
+      if (NOT_LIVE.has(nameOf(err) ?? '')) return overHere(ids);
       if (ACCOUNT_REFUSED.has(nameOf(err) ?? '')) return NOT_AUTHORIZED;
       console.error('auth-relay: checking the session before signing out everywhere failed', err);
       return INTERNAL;

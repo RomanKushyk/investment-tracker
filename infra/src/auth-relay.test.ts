@@ -2473,11 +2473,48 @@ describe('sign-out everywhere, after a sign-in under five minutes old, for the t
     });
   }
 
+  // THE REFRESH COOKIE DECIDES, outliving the access cookie: no token that opens, and no refresh
+  // cookie, is a session over in this browser, as the refresh route draws the line.
+  const overHere: [string, Jar][] = [
+    ['no cookie at all', {}],
+    ['an access cookie that will not open and no refresh cookie', { access: 'A'.repeat(60) }],
+  ];
+  for (const [what, jar] of overHere) {
+    for (const google of [false, true]) {
+      it(`ends this browser's session for ${what}, Google ${google ? 'on' : 'off'}`, async () => {
+        const { idp, calls } = cognito({}, [SECRET], google ? WITH_GOOGLE : undefined);
+        const res = await environment(idp, after(0))(asking(SIGN_OUT_GLOBAL_ROUTE, jar));
+        expect([res.statusCode, bodyOf(res), res.cookies]).toEqual([
+          401,
+          google
+            ? { error: 'not_authorized', google, logout: LOGOUT }
+            : { error: 'not_authorized', google },
+          ENDED,
+        ]);
+        expect(calls.filter((c) => c.op !== 'describeUserPoolClient')).toEqual([]);
+      });
+    }
+  }
+
   const unauthorized: [string, (access: string) => ApiEvent, string][] = [
-    ['no access cookie', () => asking(SIGN_OUT_GLOBAL_ROUTE, { refresh: REFRESH }), ACCESS],
+    [
+      'no access cookie beside a refresh cookie',
+      () => asking(SIGN_OUT_GLOBAL_ROUTE, { refresh: REFRESH }),
+      ACCESS,
+    ],
+    [
+      'an access cookie that will not open beside a refresh cookie',
+      () => asking(SIGN_OUT_GLOBAL_ROUTE, { access: 'A'.repeat(60), refresh: REFRESH }),
+      ACCESS,
+    ],
     [
       'a token for another account than the tab names',
       (a) => everywhere(a, { sub: 'another-account' }),
+      ACCESS,
+    ],
+    [
+      'a token for another account with no refresh cookie',
+      (a) => asking(SIGN_OUT_GLOBAL_ROUTE, { access: a }, { sub: 'another-account' }),
       ACCESS,
     ],
     [

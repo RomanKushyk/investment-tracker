@@ -197,10 +197,11 @@ export function createSession({
               return { kind: 'reauthenticate' };
             }
             const refused = answer.kind === 'refused' && answer.reason === 'notAuthorized';
-            // A plain refusal names no cause: the cookie gone, or another account's.
+            // A plain refusal names no cause: no access token beside a refresh cookie, or another
+            // account's.
             if (refused && answer.google === undefined) return 'ask';
             // One that says whether Google is on is a session already over here, its cookies
-            // cleared: an answer the network lost, retried.
+            // cleared: a token Cognito refused, or a browser no cookie can serve.
             if (answer.kind !== 'signedOut' && !refused) return { kind: 'failed' };
             set('signedOut');
             return answer.logout === undefined
@@ -208,8 +209,8 @@ export function createSession({
               : { kind: 'signedOut', logout: answer.logout };
           });
           if (outcome !== 'ask') return outcome;
-          // A plain refusal: the cookies may be gone, as another tab's sign-out leaves them while
-          // the pair here is fresh; one refresh says.
+          // A plain refusal: the refresh cookie may be dead while the pair here is fresh; one
+          // refresh says.
           await refresh();
           return ended();
         })().finally(() => {

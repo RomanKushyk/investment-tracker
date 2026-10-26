@@ -1671,8 +1671,12 @@ device already ended it, so Cognito is asked with the token itself — `GetUser`
 `/oauth2/userInfo` for a Google one's, which lacks the admin scope — and a token it refuses ends no
 other session; this browser's is over, its cookies cleared as a refused refresh clears them, so a
 retry after a lost answer leaves no dead cookie, and while Google is on it names Cognito's logout
-too. THE RELAY ENDS THEM, with `AdminUserGlobalSignOut` on its own pool by IAM and the token's pool
-username, because a Google sign-in's token lacks the `aws.cognito.signin.user.admin` scope
+too. A BROWSER NO COOKIE CAN SERVE IS OVER HERE TOO: a request with no refresh cookie and no access
+token that opens is answered the same way, so a Google session leaves through the logout. The refresh
+cookie decides, as it does on the refresh route: it is re-set on every refresh and outlives the access
+cookie, which lives only as long as its token, so an access cookie missing or unopenable beside a
+refresh cookie stays a plain `not_authorized`, which the app settles with one refresh. THE RELAY
+ENDS THEM, with `AdminUserGlobalSignOut` on its own pool by IAM and the token's pool username, because a Google sign-in's token lacks the `aws.cognito.signin.user.admin` scope
 `GlobalSignOut` takes; then it revokes and clears this browser's cookies as a sign-out does, and
 names Cognito's logout while Google is on. Any other refusal, or a failure before Cognito ends
 them, ends nothing, so a retry still carries what it ends; after it, this browser is signed out though a revoke
