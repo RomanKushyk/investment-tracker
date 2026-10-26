@@ -76,6 +76,8 @@ export interface MeBody {
   role: 'user' | 'super_admin';
   memberSince: string;
   googleLinked: boolean;
+  /** A password the account set itself; an invitation's, never replaced, is not one. */
+  passwordSet: boolean;
   assets: number;
   transactions: number;
   firstTransaction?: string;

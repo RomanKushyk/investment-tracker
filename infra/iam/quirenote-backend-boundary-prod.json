@@ -68,6 +68,7 @@
       "Action": [
         "cognito-idp:AdminCreateUser",
         "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminGetUserAuthFactors",
         "cognito-idp:AdminDisableUser",
         "cognito-idp:AdminEnableUser",
         "cognito-idp:ListUsers",

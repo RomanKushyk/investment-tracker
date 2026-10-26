@@ -260,6 +260,12 @@ once one is registered, and registration takes an access token, so it follows a 
 rather than preceding it. Passkey-first onboarding is therefore an ordering of steps after an
 invitation, not a pool setting.
 
+**`AdminGetUserAuthFactors` lists what a user holds, not what it can use.** On the dev pool every
+user's `ConfiguredUserAuthFactors` carries `EMAIL_OTP`, though `AllowedFirstAuthFactors` offers no
+OTP, and an invited user still `FORCE_CHANGE_PASSWORD`, its temporary password long expired, lists
+`PASSWORD` like a user who set one. So `GET /me`'s `passwordSet` reads `PASSWORD` with the user's
+status, `CONFIRMED` (*Cloud target*).
+
 **An address with no account gets an answer keyed on the address, and it repeats.** With
 `PreventUserExistenceErrors` on, `/auth/start` with `PREFERRED_CHALLENGE=WEB_AUTHN` on invented
 addresses answered one of three things:

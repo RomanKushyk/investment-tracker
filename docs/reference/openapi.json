@@ -4799,6 +4799,7 @@
                       "role": "user",
                       "memberSince": "2026-03-02",
                       "googleLinked": false,
+                      "passwordSet": true,
                       "assets": 4,
                       "transactions": 25,
                       "firstTransaction": "2026-03-09",

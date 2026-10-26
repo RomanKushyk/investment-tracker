@@ -1135,19 +1135,27 @@ THE CALLER'S OWN ACCOUNT IS `GET /me`, on the write's function and behind the sa
 DEMAND by a screen that shows it and never at sign-in or on a load, so a load stays one data
 request; Microsoft Graph serves the signed-in user at `GET /me`, and the products that carry the
 role and the settings in their boot read and read the account apart from it are Grafana, Discourse,
-Sentry and Mastodon. It answers the row's `userId`, `email` and `role`, `memberSince` as the Kyiv day
-of `decided_at`, `googleLinked` from the pool's `identities` on the caller's own user, the live
-dataset's `assets` and `transactions` and its `firstTransaction` day, and the settings as `/view`
-serves them. A FIELD IT DOES NOT HOLD IS OMITTED, NEVER NULL (OIDC Core §5.3.2), so an account with
-no transaction has no `firstTransaction`; it carries nothing a screen does not show (ASVS 5.0.0
-14.2.6): no status, application, decider, version, dataset, theme or sign-in history, and no
-password flag, which every account holds alike while registration is closed, the pool having no OTP
-factor and a Google sign-in needing a local account; opening registration admits a Google-only
-profile with none, and brings the flag. It looks the caller up by the token's `cognito:username`,
-since a `sub` names a local user only. ITS ONE READER IS THE PROFILE, `/profile`, which departs from
-`own-account.dc.html` in three places, the drawing left as merged (*Design pipeline*): it draws no
-«Пароль» row, which with no flag would be a hard-coded figure (GitHub's *Password and
-authentication* page offers an action, not a status); it names the role for the super-admin alone,
+Sentry and Mastodon. It answers the row's `userId`, `email` and `role`, `memberSince` as the Kyiv
+day of `decided_at`, `googleLinked` from the pool's `identities` on the caller's own user,
+`passwordSet` from the same user and its configured factors, the live dataset's `assets` and
+`transactions` and its `firstTransaction` day, and the settings as `/view` serves them. A FIELD IT
+DOES NOT HOLD IS OMITTED, NEVER NULL (OIDC Core §5.3.2), so an account with no transaction has no
+`firstTransaction`; it carries nothing a screen does not use, the minimum ASVS 5.0.0 14.2.6 asks
+for: no status, application, decider, version, dataset, theme or sign-in history. `PASSWORDSET` IS A
+PASSWORD OF THE ACCOUNT'S OWN: `PASSWORD` among `AdminGetUserAuthFactors`' configured factors and
+the user `CONFIRMED`, since the factors list an invitation's password too
+(`docs/reference/COGNITO-POOL-PARAMS.md`), and an approved account that only ever signs in through
+Google keeps that one, `FORCE_CHANGE_PASSWORD`, "until they sign in and set their password"
+(`AdminCreateUser`), and past the pool's validity days "an administrator must reset their password"
+(`PasswordPolicyType`). It never becomes the account's own (*Auth model*), so that account has no
+password, registration closed or not. It is the one field served ahead of its screen: the
+re-authentication step on `/profile`, which offers Google where no password is
+(`re-authentication.dc.html` T1), does not read it yet. Both reads are IAM-authorized, so a Google
+sign-in's token, which lacks the admin scope, does not limit them. It looks the caller up by the
+token's `cognito:username`, since a `sub` names a local user only. ITS ONE READER IS THE PROFILE,
+`/profile`, which departs from `own-account.dc.html` in three places, the drawing left as merged
+(*Design pipeline*): it draws no «Пароль» row, since GitHub's *Password and authentication* page
+offers an action, not a status; it names the role for the super-admin alone,
 as «Суперадміністратор», since a role is shown where it names a privilege, as Grafana lists one per
 organization, and so holds no role row while the read is out; and a copy the browser refuses reads
 «Не скопійовано» on its button for the 2 s «Скопійовано» would, is said in the same status line and

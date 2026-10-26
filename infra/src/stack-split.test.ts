@@ -1379,17 +1379,20 @@ describe('the user stack stores the official rate ahead, in both environments', 
 });
 
 // `POST /mutations` and `GET /state`: the caller's rows in this stack's cluster, and nothing of the
-// archive; `GET /me` reads the caller's own user in this stack's pool. [*Cloud target*]
+// archive; `GET /me` reads the caller's own user and its sign-in factors in this stack's pool.
+// [*Cloud target*]
 describe('the user stack serves the write and the export', () => {
   const grants = ['Resources', 'MutationsFunction', 'Properties', 'Policies', 0, 'Statement'];
 
-  it('connects to this stack’s cluster, reads a user of this stack’s pool, and holds no other grant', () => {
+  it('connects to this stack’s cluster, reads a user and its factors in this stack’s pool, and holds no other grant', () => {
     expect(inlineStatements(user, 'MutationsFunction')).toHaveLength(2);
     expect(grantAt(userDoc, grants, 'dsql:DbConnectAdmin')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
     });
-    expect(grantAt(userDoc, grants, 'cognito-idp:AdminGetUser')).toEqual({
+    expect(
+      grantAt(userDoc, grants, ['cognito-idp:AdminGetUser', 'cognito-idp:AdminGetUserAuthFactors']),
+    ).toEqual({
       tag: '!GetAtt',
       value: 'UserPool.Arn',
     });

@@ -65,11 +65,18 @@ const linked = (providerName: string) =>
 let db: PGlite;
 let asked: { UserPoolId: string; Username: string }[];
 let attributes: { Name?: string; Value?: string }[];
+let status: string;
+let factorsAsked: { UserPoolId: string; Username: string }[];
+let factors: string[] | undefined;
 
 const identity: IdentityReader = {
   adminGetUser: async (input) => {
     asked.push(input);
-    return { UserAttributes: attributes };
+    return { UserAttributes: attributes, UserStatus: status };
+  },
+  adminGetUserAuthFactors: async (input) => {
+    factorsAsked.push(input);
+    return { ConfiguredUserAuthFactors: factors };
   },
 };
 
@@ -126,6 +133,10 @@ beforeEach(async () => {
     { Name: 'sub', Value: SUB },
     { Name: 'email', Value: EMAIL },
   ];
+  // A user who set a password; the pool lists factors it does not offer, so EMAIL_OTP rides along.
+  status = 'CONFIRMED';
+  factorsAsked = [];
+  factors = ['PASSWORD', 'EMAIL_OTP'];
   vi.stubEnv('OPEN_REGISTRATION', 'false');
   vi.mocked(connect).mockRejectedValue(new Error('no cluster in a test'));
 });
@@ -146,6 +157,7 @@ describe("the caller's own account", () => {
         role: 'user',
         memberSince: '2026-03-02',
         googleLinked: false,
+        passwordSet: true,
         assets: 0,
         transactions: 0,
         settings: { ...SETTINGS_DEFAULTS, language: 'en' },
@@ -176,6 +188,7 @@ describe("the caller's own account", () => {
         'email',
         'googleLinked',
         'memberSince',
+        'passwordSet',
         'role',
         'settings',
         'transactions',
@@ -260,6 +273,39 @@ describe('Google linked, from the pool', () => {
   });
 });
 
+describe('a password of its own, from the pool', () => {
+  it("asks the pool for the caller's own factors, by its pool username", async () => {
+    await read({ username: 'Google_1234567890' });
+    expect(factorsAsked).toEqual([{ UserPoolId: POOL, Username: 'Google_1234567890' }]);
+  });
+
+  it('is true when PASSWORD is configured on a confirmed user', async () => {
+    expect(answer(await read())[1]).toMatchObject({ passwordSet: true });
+  });
+
+  // An approved account that only ever signs in through Google holds just the invitation's
+  // password, which is not its own (ASVS 5.0.0 6.4.1) and expires unused.
+  it('is false while the invitation password was never changed, though PASSWORD is listed', async () => {
+    status = 'FORCE_CHANGE_PASSWORD';
+    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
+  });
+
+  it('is false when a reset is required', async () => {
+    status = 'RESET_REQUIRED';
+    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
+  });
+
+  it('is false for a confirmed user whose factors lack PASSWORD', async () => {
+    factors = ['WEB_AUTHN', 'EMAIL_OTP'];
+    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
+  });
+
+  it('is false when the pool lists no factor at all', async () => {
+    factors = undefined;
+    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
+  });
+});
+
 describe('the validator', () => {
   it('sends a weak tag, kept by the browser alone and revalidated on every use', async () => {
     const res = await read();
@@ -302,12 +348,20 @@ describe('the validator', () => {
     attributes.push({ Name: 'identities', Value: linked('Google') });
     expect((await read({ ifNoneMatch: etag })).statusCode).toBe(200);
   });
+
+  it('moves the tag when the account sets its password', async () => {
+    status = 'FORCE_CHANGE_PASSWORD';
+    const etag = etagOf(await read());
+    status = 'CONFIRMED';
+    expect((await read({ ifNoneMatch: etag })).statusCode).toBe(200);
+  });
 });
 
 describe('the gate', () => {
   const refuses = async (expected: string, o: Parameters<typeof event>[0] = {}) => {
     expect(answer(await read(o))).toEqual([403, { error: expected }]);
     expect(asked).toEqual([]);
+    expect(factorsAsked).toEqual([]);
   };
 
   it('tells a pending applicant to wait', async () => {
@@ -340,7 +394,20 @@ describe('a failure answers rather than throws', () => {
   it('answers a failing pool with its own 500', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const failing: IdentityReader = {
+      ...identity,
       adminGetUser: () => Promise.reject(new Error('the pool went away')),
+    };
+    expect(answer(await read({}, deps({ identity: failing })))).toEqual([
+      500,
+      { error: 'internal' },
+    ]);
+  });
+
+  it("answers a pool that refuses the factors' read with its own 500", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failing: IdentityReader = {
+      ...identity,
+      adminGetUserAuthFactors: () => Promise.reject(new Error('the pool went away')),
     };
     expect(answer(await read({}, deps({ identity: failing })))).toEqual([
       500,
@@ -373,11 +440,17 @@ describe('the function that serves it', () => {
   it("answers through the pool reader, told the function's pool", async () => {
     const ended = connected();
     vi.stubEnv('USER_POOL_ID', POOL);
-    const pool = vi.spyOn(identityReader, 'adminGetUser').mockResolvedValue({ UserAttributes: [] });
+    const pool = vi
+      .spyOn(identityReader, 'adminGetUser')
+      .mockResolvedValue({ UserAttributes: [], UserStatus: 'CONFIRMED' });
+    const held = vi
+      .spyOn(identityReader, 'adminGetUserAuthFactors')
+      .mockResolvedValue({ ConfiguredUserAuthFactors: ['PASSWORD'] });
     const e = event();
     const res = record(e, (await rawHandler(e)) as ApiResult);
-    expect(answer(res)[0]).toBe(200);
+    expect(answer(res)).toEqual([200, expect.objectContaining({ passwordSet: true })]);
     expect(pool).toHaveBeenCalledExactlyOnceWith({ UserPoolId: POOL, Username: SUB });
+    expect(held).toHaveBeenCalledExactlyOnceWith({ UserPoolId: POOL, Username: SUB });
     expect(ended()).toBe(1);
   });
 

@@ -1265,11 +1265,14 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
-            # `GET /me` reads the caller's own user for the providers linked to it. One call and no
-            # write; this function is not in the chain the pool depends on, so naming it builds no cycle.
+            # `GET /me` reads the caller's own user for the providers linked to it and its status, and
+            # the factors configured on it for a password of its own. Reads, no write; this function is
+            # not in the chain the pool depends on, so naming it builds no cycle.
             - Sid: ReadTheCallersUser
               Effect: Allow
-              Action: cognito-idp:AdminGetUser
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminGetUserAuthFactors
               Resource: !GetAtt UserPool.Arn
       Events:
         Mutations:

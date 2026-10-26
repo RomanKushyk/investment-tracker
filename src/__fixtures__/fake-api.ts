@@ -83,6 +83,8 @@ export interface FakeApi {
   role: 'user' | 'super_admin';
   /** Whether `GET /me` says a Google identity is linked. */
   googleLinked: boolean;
+  /** Whether `GET /me` says the account holds a password of its own. */
+  passwordSet: boolean;
   /** What the ID token a sign-in hands the page names; none by default. */
   claims: Record<string, string>;
   /** What the relay's passkey list answers: the list, a Google session's 403, or a fault. */
@@ -121,6 +123,7 @@ export function fakeApi(
     settings: null,
     role: 'user',
     googleLinked: false,
+    passwordSet: true,
     claims: {},
     passkeys: [],
     passkeyLists: 0,
@@ -410,6 +413,7 @@ export function fakeApi(
       role: api.role,
       memberSince: today,
       googleLinked: api.googleLinked,
+      passwordSet: api.passwordSet,
       assets: api.rows.assets.length,
       transactions: api.rows.transactions.length,
       ...(first === undefined ? {} : { firstTransaction: first }),

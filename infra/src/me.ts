@@ -7,6 +7,7 @@
 import { createHash } from 'node:crypto';
 
 import {
+  AdminGetUserAuthFactorsCommand,
   AdminGetUserCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -48,6 +49,7 @@ const ME = derived({
     role: 'user',
     memberSince: '2026-03-02',
     googleLinked: false,
+    passwordSet: true,
     assets: 4,
     transactions: 25,
     firstTransaction: '2026-03-09',
@@ -68,12 +70,17 @@ export const PARAMETERS = {
   ],
 };
 
-/** The pool's one read: the caller's user, whose `identities` names the providers linked to it. */
+/** The pool's two reads of the caller's user: its `identities`, naming the providers linked to it,
+ *  and its status; and the sign-in factors configured on it. */
 export type IdentityReader = {
   adminGetUser(input: {
     UserPoolId: string;
     Username: string;
-  }): Promise<{ UserAttributes?: { Name?: string; Value?: string }[] }>;
+  }): Promise<{ UserAttributes?: { Name?: string; Value?: string }[]; UserStatus?: string }>;
+  adminGetUserAuthFactors(input: {
+    UserPoolId: string;
+    Username: string;
+  }): Promise<{ ConfiguredUserAuthFactors?: string[] }>;
 };
 
 export interface MeDeps {
@@ -103,6 +110,11 @@ const googleLinked = (attributes: { Name?: string; Value?: string }[] = []): boo
   return identities.some((i) => i.providerName === GOOGLE);
 };
 
+/** A password of the account's own: the pool lists an invitation's password too, which stays
+ *  `FORCE_CHANGE_PASSWORD` until replaced and is never the account's own (ASVS 5.0.0 6.4.1). */
+const passwordSet = (status: string | undefined, factors: string[] = []): boolean =>
+  status === 'CONFIRMED' && factors.includes('PASSWORD');
+
 export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
   // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
   try {
@@ -119,11 +131,12 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
     // carries it, so one without it is refused as the gate refuses a token it cannot read.
     const username = claim(event.requestContext?.authorizer?.jwt?.claims, 'cognito:username');
     if (username === undefined) return FORBIDDEN;
-    const [member, held, moved, pooled] = await Promise.all([
+    const [member, held, moved, pooled, factors] = await Promise.all([
       deps.user.query<{ decided_at: string }>(MEMBER, [userId]),
       deps.user.query<{ assets: number }>(ASSETS, [userId]),
       deps.user.query<Moved>(TRANSACTIONS, [userId]),
       deps.identity.adminGetUser({ UserPoolId, Username: username }),
+      deps.identity.adminGetUserAuthFactors({ UserPoolId, Username: username }),
     ]);
     const { transactions, first_transaction: first } = moved.rows[0];
     const text = JSON.stringify({
@@ -132,6 +145,7 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
       role,
       memberSince: kyivDateIso(new Date(utc(member.rows[0].decided_at))),
       googleLinked: googleLinked(pooled.UserAttributes),
+      passwordSet: passwordSet(pooled.UserStatus, factors.ConfiguredUserAuthFactors),
       assets: held.rows[0].assets,
       transactions,
       ...(first === null ? {} : { firstTransaction: first }),
@@ -152,4 +166,6 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
 const identityClient = new CognitoIdentityProviderClient({});
 export const identityReader: IdentityReader = {
   adminGetUser: (input) => identityClient.send(new AdminGetUserCommand(input)),
+  adminGetUserAuthFactors: (input) =>
+    identityClient.send(new AdminGetUserAuthFactorsCommand(input)),
 };
