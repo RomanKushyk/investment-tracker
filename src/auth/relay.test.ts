@@ -54,6 +54,18 @@ describe('a relay call', () => {
     ]);
   });
 
+  it('reaches sign-out everywhere under /auth/sign-out, the account as JSON', async () => {
+    const fetch = answer(200, { status: 'signed_out' });
+    await createRelay({ base: 'https://api.test', fetch })('sign-out/global', { sub: 'u' });
+    expect(fetch).toHaveBeenCalledWith('https://api.test/auth/sign-out/global', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'x-csrf': '1', 'content-type': 'application/json' },
+      body: '{"sub":"u"}',
+      signal: expect.any(AbortSignal),
+    });
+  });
+
   it('sends no body where the relay reads none', async () => {
     const fetch = answer(401, { error: 'not_authorized' });
     await createRelay({ base: '/relay', fetch })('refresh');
@@ -189,6 +201,28 @@ describe('a relay call', () => {
       { kind: 'signedOut', logout: 'https://auth.test/logout?client_id=c' },
     ],
     [200, { status: 'signed_out', logout: 7 }, { kind: 'signedOut' }],
+    // SIGN-OUT EVERYWHERE'S REFUSALS: a sign-in too old to act on, and a session already over here,
+    // whose cookies the relay cleared and whose logout it names while Google is on.
+    [
+      401,
+      { error: 'insufficient_user_authentication' },
+      { kind: 'refused', reason: 'reauthenticate' },
+    ],
+    [
+      401,
+      { error: 'not_authorized', google: true, logout: 'https://auth.test/logout?client_id=c' },
+      {
+        kind: 'refused',
+        reason: 'notAuthorized',
+        google: true,
+        logout: 'https://auth.test/logout?client_id=c',
+      },
+    ],
+    [
+      401,
+      { error: 'not_authorized', google: true, logout: 7 },
+      { kind: 'refused', reason: 'notAuthorized', google: true },
+    ],
     [
       200,
       { authorize: 'https://auth.test/oauth2/authorize?state=s' },

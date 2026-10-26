@@ -89,6 +89,14 @@ export interface FakeApi {
   passkeys: Passkey[] | 'google' | 'failed';
   /** How many times the passkey list has been asked for. */
   passkeyLists: number;
+  /** What sign-out everywhere answers, one per call, then a sign-out: `tooOld` is a sign-in past its
+   *  five minutes, `endedHere` a session already over in this browser, `cookieGone` the plain refusal
+   *  for a browser another tab signed out. */
+  everywhere: ('signedOut' | 'tooOld' | 'endedHere' | 'cookieGone' | 'failed')[];
+  /** Each sign-out everywhere's body, as sent. */
+  everywhereSent: unknown[];
+  /** Cognito's logout, which a sign-out names while Google is on; none by default. */
+  logout?: string;
   /** Whether the relay holds a refresh cookie: a refresh answers tokens, a sign-out takes it away
    *  and a respond gives it back. */
   signedIn: boolean;
@@ -116,6 +124,8 @@ export function fakeApi(
     claims: {},
     passkeys: [],
     passkeyLists: 0,
+    everywhere: [],
+    everywhereSent: [],
     signedIn: true,
     tag: () => `"${api.version}"`,
   };
@@ -459,6 +469,18 @@ export function fakeApi(
     if (path === '/auth/sign-out') {
       api.signedIn = false;
       return json({ status: 'signed_out' });
+    }
+    if (path === '/auth/sign-out/global') {
+      api.everywhereSent.push(JSON.parse(await original.text()));
+      const answer = api.everywhere.shift() ?? 'signedOut';
+      const logout = api.logout === undefined ? {} : { logout: api.logout };
+      if (answer === 'tooOld') return json({ error: 'insufficient_user_authentication' }, 401);
+      if (answer === 'failed') return json({ error: 'internal' }, 500);
+      api.signedIn = false;
+      if (answer === 'cookieGone') return json({ error: 'not_authorized' }, 401);
+      return answer === 'endedHere'
+        ? json({ error: 'not_authorized', google: api.logout !== undefined, ...logout }, 401)
+        : json({ status: 'signed_out', ...logout });
     }
     const request: Sent = {
       method: original.method,

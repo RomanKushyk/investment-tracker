@@ -609,3 +609,175 @@ describe('Google', () => {
     expect(session.status()).toBe('signedOut');
   });
 });
+
+describe('signing out everywhere', () => {
+  const logout = 'https://auth.test/logout?client_id=c';
+  const signedIn = ID_TOKEN(jwt({ sub: 'u-1', email: 'a@b.cd' }));
+  const scripted = (...answers: RelayAnswer[]) =>
+    vi.fn<RelayCall>(async () => answers.shift() ?? REFUSED('failed'));
+
+  // THE RELAY ACTS ONLY FOR THE ACCOUNT THIS TAB SHOWS, as every passkey call names it; it writes
+  // the cookies, so it takes the lock.
+  it('names the account it holds, inside the lock, and is signed out by the answer', async () => {
+    const relay = scripted(signedIn, { kind: 'signedOut', logout });
+    const names: string[] = [];
+    const locks = {
+      request: (name: string, call: () => unknown) => {
+        names.push(name);
+        return call();
+      },
+    } as unknown as Locks;
+    const session = createSession({ relay, locks });
+    await session.restore();
+
+    expect(await session.signOutEverywhere()).toEqual({ kind: 'signedOut', logout });
+    expect(relay.mock.calls.at(-1)).toEqual(['sign-out/global', { sub: 'u-1' }]);
+    expect(names).toEqual(['quirenote-auth', 'quirenote-auth']);
+    expect(session.status()).toBe('signedOut');
+    expect(await session.getIdToken()).toBeUndefined();
+  });
+
+  // A SESSION ALREADY OVER HERE is a 401 that says whether Google is on, its cookies cleared: an
+  // answer the network lost, retried. Anything else ended nothing, and the pair stays.
+  it.each<[string, RelayAnswer, unknown, 'signedIn' | 'signedOut']>([
+    [
+      'a session already over here, Google on',
+      { kind: 'refused', reason: 'notAuthorized', google: true, logout },
+      { kind: 'signedOut', logout },
+      'signedOut',
+    ],
+    [
+      'a session already over here, Google off',
+      { kind: 'refused', reason: 'notAuthorized', google: false },
+      { kind: 'signedOut' },
+      'signedOut',
+    ],
+    [
+      'a sign-in too old',
+      { kind: 'refused', reason: 'reauthenticate' },
+      { kind: 'reauthenticate' },
+      'signedIn',
+    ],
+    ['a failure', REFUSED('failed'), { kind: 'failed' }, 'signedIn'],
+    ['no connection', REFUSED('offline'), { kind: 'failed' }, 'signedIn'],
+    ['throttled', { kind: 'refused', reason: 'throttled' }, { kind: 'failed' }, 'signedIn'],
+  ])('reads %s', async (_, answer, outcome, status) => {
+    const session = createSession({ relay: scripted(signedIn, answer), locks: webLocks() });
+    await session.restore();
+    expect(await session.signOutEverywhere()).toEqual(outcome);
+    expect(session.status()).toBe(status);
+  });
+
+  // A SESSION ENDED WHILE THE DIALOG WAITED, by another device or the token's age: the page is
+  // signed out, so it lands as one, and asking again could never succeed.
+  it('reads a session the relay ended meanwhile as signed out, sending nothing', async () => {
+    let clock = 0;
+    const relay = scripted(signedIn, REFUSED('failed'), REFUSED('notAuthorized'));
+    const session = createSession({ relay, locks: webLocks(), now: () => clock });
+    await session.restore();
+    expect(await session.signOutEverywhere()).toEqual({ kind: 'failed' });
+    clock = 3_600_000;
+    expect(await session.signOutEverywhere()).toEqual({ kind: 'signedOut' });
+    expect(session.status()).toBe('signedOut');
+    expect(relay.mock.calls.map(([route]) => route)).toEqual([
+      'refresh',
+      'sign-out/global',
+      'refresh',
+    ]);
+  });
+
+  // THE PRESS'S OWN REFRESH can bring the account another tab signed in: the request is for the
+  // account the dialog proved, so it goes nowhere.
+  it('sends nothing when its own refresh brings another account', async () => {
+    let clock = 0;
+    const another = ID_TOKEN(jwt({ sub: 'u-2', email: 'b@b.cd' }));
+    const relay = scripted(signedIn, another, { kind: 'signedOut' });
+    const session = createSession({ relay, locks: webLocks(), now: () => clock });
+    await session.restore();
+    clock = 3_600_000;
+    expect(await session.signOutEverywhere()).toEqual({ kind: 'failed' });
+    expect(relay.mock.calls.map(([route]) => route)).toEqual(['refresh', 'refresh']);
+  });
+
+  // A REFUSAL WITH THE COOKIES GONE, a sign-out in another tab, while the pair held here is fresh:
+  // one refresh says whether this browser is still signed in.
+  it.each<[string, RelayAnswer, unknown, 'signedIn' | 'signedOut']>([
+    ['signed out', REFUSED('notAuthorized'), { kind: 'signedOut' }, 'signedOut'],
+    ['still signed in', signedIn, { kind: 'failed' }, 'signedIn'],
+  ])('asks once after a plain refusal: %s', async (_, refreshed, outcome, status) => {
+    const relay = scripted(signedIn, REFUSED('notAuthorized'), refreshed);
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+    expect(await session.signOutEverywhere()).toEqual(outcome);
+    expect(session.status()).toBe(status);
+    expect(relay.mock.calls.map(([route]) => route)).toEqual([
+      'refresh',
+      'sign-out/global',
+      'refresh',
+    ]);
+  });
+
+  // The cookie is another account's: the refresh brings it, and nothing is sent for it.
+  it('sends nothing more when the refresh after a plain refusal brings another account', async () => {
+    const another = ID_TOKEN(jwt({ sub: 'u-2', email: 'b@b.cd' }));
+    const relay = scripted(signedIn, REFUSED('notAuthorized'), another);
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+    expect(await session.signOutEverywhere()).toEqual({ kind: 'failed' });
+    expect(session.accountChanges()).toBe(1);
+    expect(relay.mock.calls.map(([route]) => route)).toEqual([
+      'refresh',
+      'sign-out/global',
+      'refresh',
+    ]);
+  });
+
+  it.each<[string, RelayAnswer, unknown]>([
+    ['signed out by the relay', REFUSED('notAuthorized'), { kind: 'signedOut' }],
+    ['a load the relay never answered', REFUSED('offline'), { kind: 'failed' }],
+  ])('sends nothing for a tab that holds no account, %s', async (_, answer, outcome) => {
+    const relay = scripted(answer, answer);
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+    expect(await session.signOutEverywhere()).toEqual(outcome);
+    expect(relay.mock.calls.map(([route]) => route).includes('sign-out/global')).toBe(false);
+  });
+
+  // IT IS A SIGN-OUT to every reader: an answer from before it is the leaving account's.
+  it('counts as a sign-out from when it begins, running until the relay answers', async () => {
+    let answer: (answered: RelayAnswer) => void = () => undefined;
+    const relay = vi.fn<RelayCall>((route) =>
+      route === 'sign-out/global'
+        ? new Promise<RelayAnswer>((resolve) => (answer = resolve))
+        : Promise.resolve(signedIn),
+    );
+    const session = createSession({ relay, locks: noLocks });
+    await session.restore();
+    const told: boolean[] = [];
+    session.subscribe(() => told.push(session.signingOut()));
+
+    const leaving = session.signOutEverywhere();
+    expect(session.signOuts()).toBe(1);
+    expect(session.signingOut()).toBe(true);
+    expect(told).toEqual([true]);
+
+    await vi.waitFor(() => expect(relay).toHaveBeenCalledTimes(2));
+    answer(REFUSED('failed'));
+    await leaving;
+    expect(session.signingOut()).toBe(false);
+    expect(told.at(-1)).toBe(false);
+    expect(session.status()).toBe('signedIn');
+  });
+
+  it('sends one however often it is asked while one runs', async () => {
+    const relay = scripted(signedIn, { kind: 'signedOut' });
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+    expect(await Promise.all([session.signOutEverywhere(), session.signOutEverywhere()])).toEqual([
+      { kind: 'signedOut' },
+      { kind: 'signedOut' },
+    ]);
+    expect(relay.mock.calls.map(([route]) => route)).toEqual(['refresh', 'sign-out/global']);
+    expect(session.signOuts()).toBe(1);
+  });
+});

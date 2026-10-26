@@ -769,7 +769,7 @@ export const en = {
   profile: {
     title: 'Profile',
     subtitle: 'Your account, how you sign in, and your data',
-    sections: { account: 'Account', data: 'Your data', signIn: 'Sign-in' },
+    sections: { account: 'Account', data: 'Your data', sessions: 'Sessions', signIn: 'Sign-in' },
     email: 'Address',
     /** Shown for the super-admin alone: a role is named where it names a privilege. */
     role: 'Role',
@@ -802,6 +802,39 @@ export const en = {
       helper: 'A full JSON copy and CSV tables are in Settings, under Data.',
       open: 'Go to Settings',
     },
+    // `own-account.dc.html` T4 and `re-authentication.dc.html` T9: the action's own lines.
+    signOutEverywhere: {
+      title: 'Sign out everywhere',
+      helper: 'Ends the sign-in on every device, this one included. You confirm it’s you first.',
+      open: 'Sign out everywhere…',
+      confirm: {
+        title: 'Sign out everywhere?',
+        body: 'The sign-in ends on every device, this one included. Next, confirm it’s you.',
+        cancel: 'Cancel',
+        continue: 'Continue',
+      },
+      reauth: {
+        lead: 'Before you sign out everywhere, confirm your sign-in.',
+        action: 'Sign out everywhere',
+        busy: 'Signing out…',
+        failed: 'Couldn’t sign out everywhere. Try again.',
+        confirmedLead: 'You can now sign out on every device, this one included.',
+      },
+    },
+  },
+  // Re-authentication's own lines (`re-authentication.dc.html` T9); the action brings the rest.
+  reauth: {
+    title: 'Confirm it’s you',
+    continue: 'Confirm',
+    passkey: {
+      usePassword: 'Confirm with your password',
+      notFinished:
+        'Passkey confirmation didn’t finish: it was cancelled, or this device has no passkey for this address.',
+    },
+    // The address is the signed-in account's own, so the sentence names the password alone.
+    password: { wrong: 'Incorrect password.' },
+    confirmed: { title: 'You’ve confirmed it’s you' },
+    expired: 'The time to confirm ran out. Confirm it’s you again.',
   },
   // The brief on #164 and its amendments; `failed` is the owner's ruling on #165.
   auth: {
@@ -1839,7 +1872,7 @@ export const uk: Dict = {
   profile: {
     title: 'Профіль',
     subtitle: 'Обліковий запис, вхід і ваші дані',
-    sections: { account: 'Обліковий запис', data: 'Ваші дані', signIn: 'Вхід' },
+    sections: { account: 'Обліковий запис', data: 'Ваші дані', sessions: 'Сеанси', signIn: 'Вхід' },
     email: 'Адреса',
     role: 'Роль',
     superAdmin: 'Суперадміністратор',
@@ -1870,6 +1903,36 @@ export const uk: Dict = {
       helper: 'Повна копія в JSON і таблиці CSV — у Налаштуваннях, розділ «Дані».',
       open: 'До налаштувань',
     },
+    signOutEverywhere: {
+      title: 'Вийти на всіх пристроях',
+      helper: 'Завершує вхід на кожному пристрої, зокрема на цьому. Спершу підтвердьте, що це ви.',
+      open: 'Вийти всюди…',
+      confirm: {
+        title: 'Вийти на всіх пристроях?',
+        body: 'Вхід завершиться на кожному пристрої, зокрема на цьому. Далі підтвердьте, що це ви.',
+        cancel: 'Скасувати',
+        continue: 'Продовжити',
+      },
+      reauth: {
+        lead: 'Перш ніж вийти на всіх пристроях, підтвердьте вхід.',
+        action: 'Вийти всюди',
+        busy: 'Виходимо…',
+        failed: 'Не вдалося вийти на всіх пристроях. Спробуйте ще раз.',
+        confirmedLead: 'Тепер можна вийти на всіх пристроях, зокрема на цьому.',
+      },
+    },
+  },
+  reauth: {
+    title: 'Підтвердьте, що це ви',
+    continue: 'Підтвердити',
+    passkey: {
+      usePassword: 'Підтвердити паролем',
+      notFinished:
+        'Підтвердження ключем доступу не завершено: його скасовано, або на цьому пристрої немає ключа для цієї адреси.',
+    },
+    password: { wrong: 'Неправильний пароль.' },
+    confirmed: { title: 'Ви підтвердили, що це ви' },
+    expired: 'Час на підтвердження минув. Підтвердьте ще раз.',
   },
   auth: {
     signIn: {

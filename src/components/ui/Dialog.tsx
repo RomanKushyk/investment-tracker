@@ -27,8 +27,14 @@ const OVERLAY_CLASS =
 // on the layout viewport and hangs into it anyway. `* 0.5` and NOT `/ 2`, because
 // Tailwind reads a slash in an arbitrary value as the opacity modifier. Both fall back
 // to 0px, so a desktop compiles to what was here before.
-const PANEL_CLASS =
-  'border-field-border border bg-card fixed top-1/2 left-1/2 z-50 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] w-[calc(100vw-32px)] -translate-x-1/2 translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+const SURFACE =
+  'border-field-border border bg-card fixed left-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+const PANEL_CLASS = `${SURFACE} top-1/2 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto]`;
+// TOP-ANCHORED, so a flow whose steps grow downward keeps its top edge (`re-authentication.dc.html`
+// T1); the keyboard only shortens the cap, which the Scroller holds inside the border.
+const TOP_PANEL_CLASS = `${SURFACE} top-4 md:top-16`;
+const TOP_CAP =
+  'max-h-[calc(100dvh-var(--keyboard-inset,0px)-34px)] md:max-h-[calc(100dvh-var(--keyboard-inset,0px)-130px)]';
 
 // THE PANEL IS THREE BANDS AND ONLY THE MIDDLE ONE SCROLLS: a title that slides away
 // takes "what am I confirming" with it, and a Save button that scrolls has to be
@@ -120,6 +126,7 @@ export function AlertDialog({
   onOpenAutoFocus,
   onEscapeKeyDown,
   width = 420,
+  anchor = 'centre',
   children,
 }: {
   open: boolean;
@@ -129,6 +136,9 @@ export function AlertDialog({
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
   /** The wider band carries the import diff. */
   width?: 420 | 480;
+  /** `top`: the whole panel scrolls, its rail floating in the gutter the caller's bands draw, where
+   *  a bot check wider than the content overhangs unclipped. */
+  anchor?: 'centre' | 'top';
   children: ReactNode;
 }) {
   // A container-query context, because the import diff reflows by the DIALOG's width.
@@ -140,9 +150,15 @@ export function AlertDialog({
         <RadixAlertDialog.Content
           onOpenAutoFocus={onOpenAutoFocus}
           onEscapeKeyDown={onEscapeKeyDown}
-          className={`${PANEL_CLASS} ${widthClass}`}
+          className={`${anchor === 'top' ? TOP_PANEL_CLASS : PANEL_CLASS} ${widthClass}`}
         >
-          {children}
+          {anchor === 'top' ? (
+            <Scroller overlay className={TOP_CAP}>
+              {children}
+            </Scroller>
+          ) : (
+            children
+          )}
         </RadixAlertDialog.Content>
       </RadixAlertDialog.Portal>
     </RadixAlertDialog.Root>

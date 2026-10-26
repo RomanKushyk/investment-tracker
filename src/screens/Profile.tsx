@@ -15,18 +15,45 @@ import { useMe } from '../hooks/queries';
 import { usePasskeys } from '../hooks/usePasskeys';
 import { useT } from '../i18n/useT';
 import type { MeData } from '../lib/repository';
+import { SignOutEverywhere } from './profile/SignOutEverywhere';
 import { Divider, SectionLabel, SettingRow } from './Settings';
 
-// THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T3 and T6), read on demand from
+// THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T4 and T6), read on demand from
 // `GET /me`; the passkeys are the relay's list. Signed out, or before the session is known, the
 // shell stands alone and nothing is asked, as a screen behind the view.
 export function Profile() {
-  return useSessionStatus() === 'signedIn' ? <Account /> : null;
+  const signedIn = useSessionStatus() === 'signedIn';
+  // Held here, outside the account: signing out everywhere empties the page before it leaves, and
+  // the dialog stays busy meanwhile. A fresh key per open resets it while a closed one exits.
+  const [everywhere, setEverywhere] = useState({ n: 0, open: false, email: '' });
+  return (
+    <>
+      {signedIn && (
+        <Account
+          onSignOutEverywhere={(email) =>
+            setEverywhere(({ n }) => ({ n: n + 1, open: true, email }))
+          }
+        />
+      )}
+      {everywhere.n > 0 && (
+        <SignOutEverywhere
+          key={everywhere.n}
+          open={everywhere.open}
+          email={everywhere.email}
+          onClose={closeEverywhere}
+        />
+      )}
+    </>
+  );
+
+  function closeEverywhere() {
+    setEverywhere((was) => (was.open ? { ...was, open: false } : was));
+  }
 }
 
 const CARD = 'animate-in p-[22px] duration-300 fade-in slide-in-from-bottom-1';
 
-function Account() {
+function Account({ onSignOutEverywhere }: { onSignOutEverywhere: (email: string) => void }) {
   const t = useT();
   const answered = useMe();
   const passkeys = usePasskeys();
@@ -47,8 +74,26 @@ function Account() {
         <Card radius={24} className={`${CARD} delay-150`}>
           <DataCard me={me} />
         </Card>
-        {/* Last, since its list is a read of its own: a list that lands moves nothing below it. */}
         <Card radius={24} className={`${CARD} delay-200`}>
+          <SectionLabel>{t.profile.sections.sessions}</SectionLabel>
+          <SettingRow
+            title={t.profile.signOutEverywhere.title}
+            helper={t.profile.signOutEverywhere.helper}
+          >
+            {me ? (
+              <Button variant="outline" onClick={() => onSignOutEverywhere(me.email)}>
+                {t.profile.signOutEverywhere.open}
+              </Button>
+            ) : (
+              <Block
+                kind="link"
+                className="h-10 w-[128px] rounded-[10px] max-md:h-11 max-md:rounded-[11px]"
+              />
+            )}
+          </SettingRow>
+        </Card>
+        {/* Last, since its list is a read of its own: a list that lands moves nothing below it. */}
+        <Card radius={24} className={`${CARD} delay-300`}>
           <SectionLabel>{t.profile.sections.signIn}</SectionLabel>
           {google === true && (
             <>

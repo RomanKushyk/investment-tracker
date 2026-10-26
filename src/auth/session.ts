@@ -4,6 +4,10 @@ export type SessionStatus = 'unknown' | 'signedIn' | 'signedOut';
 export type Locks = Pick<LockManager, 'request'>;
 /** A finished sign-out, and Cognito's logout endpoint while Google is on. */
 export type SignedOut = { logout?: string };
+/** Sign-out everywhere's outcome: every session over, this one's too; a sign-in too old to act on,
+ *  which a new one renews; or nothing ended, and the same sign-in may ask again. */
+export type Everywhere =
+  ({ kind: 'signedOut' } & SignedOut) | { kind: 'reauthenticate' } | { kind: 'failed' };
 
 export interface Session {
   status(): SessionStatus;
@@ -23,6 +27,9 @@ export interface Session {
   complete(body: unknown): Promise<RelayAnswer>;
   /** `false` when the relay could not revoke, which keeps both cookies for a retry. */
   signOut(): Promise<false | SignedOut>;
+  /** Ends every session the account holds, this browser's last, for the account this tab shows. A
+   *  sign-out to every reader, counted and told as one. */
+  signOutEverywhere(): Promise<Everywhere>;
   /** How many sign-outs this page has begun, counted when one begins and not when the relay answers:
    *  a reader that saw a different count when it asked has an answer from before one. */
   signOuts(): number;
@@ -74,6 +81,7 @@ export function createSession({
   let google: boolean | undefined;
   let refreshing: Promise<void> | undefined;
   let leaving: Promise<false | SignedOut> | undefined;
+  let everywhere: Promise<Everywhere> | undefined;
   let begun = 0;
   // The `sub` the last signed-in answer named, forgotten at a sign-out, which empties the page.
   let account: string | undefined;
@@ -123,6 +131,11 @@ export function createSession({
     return held && held.until > now() ? held : undefined;
   };
 
+  const freshAccount = async () => {
+    const pair = await fresh();
+    return pair && claimOf(pair.idToken, 'sub');
+  };
+
   return {
     status: () => status,
     address: () => address,
@@ -165,13 +178,52 @@ export function createSession({
       }
       return leaving;
     },
+    // Shared and told as a sign-out is. The account is read before the lock, whose refresh takes it.
+    signOutEverywhere() {
+      if (everywhere === undefined) {
+        begun += 1;
+        // The relay ended this session meanwhile, so the page is signed out already.
+        const ended = (): Everywhere =>
+          status === 'signedOut' && !unanswered ? { kind: 'signedOut' } : { kind: 'failed' };
+        everywhere = (async (): Promise<Everywhere> => {
+          const before = changes;
+          const sub = await freshAccount();
+          // The press's own refresh brought another account: the proof was the earlier one's.
+          if (changes !== before) return { kind: 'failed' };
+          if (sub === undefined) return ended();
+          const outcome = await locked(async (): Promise<Everywhere | 'ask'> => {
+            const answer = await relay('sign-out/global', { sub });
+            if (answer.kind === 'refused' && answer.reason === 'reauthenticate') {
+              return { kind: 'reauthenticate' };
+            }
+            const refused = answer.kind === 'refused' && answer.reason === 'notAuthorized';
+            // A plain refusal names no cause: the cookie gone, or another account's.
+            if (refused && answer.google === undefined) return 'ask';
+            // One that says whether Google is on is a session already over here, its cookies
+            // cleared: an answer the network lost, retried.
+            if (answer.kind !== 'signedOut' && !refused) return { kind: 'failed' };
+            set('signedOut');
+            return answer.logout === undefined
+              ? { kind: 'signedOut' }
+              : { kind: 'signedOut', logout: answer.logout };
+          });
+          if (outcome !== 'ask') return outcome;
+          // A plain refusal: the cookies may be gone, as another tab's sign-out leaves them while
+          // the pair here is fresh; one refresh says.
+          await refresh();
+          return ended();
+        })().finally(() => {
+          everywhere = undefined;
+          tell();
+        });
+        tell();
+      }
+      return everywhere;
+    },
     signOuts: () => begun,
-    signingOut: () => leaving !== undefined,
+    signingOut: () => leaving !== undefined || everywhere !== undefined,
     accountChanges: () => changes,
     getIdToken: async () => (await fresh())?.idToken,
-    getAccount: async () => {
-      const pair = await fresh();
-      return pair && claimOf(pair.idToken, 'sub');
-    },
+    getAccount: freshAccount,
   };
 }

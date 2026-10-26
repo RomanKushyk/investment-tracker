@@ -3,6 +3,7 @@ export type RelayRoute =
   | 'respond'
   | 'refresh'
   | 'sign-out'
+  | 'sign-out/global'
   | 'google/begin'
   | 'google/complete'
   | 'passkey/list'
@@ -26,9 +27,11 @@ export interface Challenge {
 
 /** 400s: `invalid`, or a new password the pool's rule or history refuses; `botCheck`, the start's
  *  403 for its token; `googleSession`, a passkey call's 403 for a token without the scope, which a
- *  Google sign-in's is; `throttled`, any 429; `failed`, all else. */
+ *  Google sign-in's is; `reauthenticate`, sign-out everywhere's 401 for a sign-in too old to act
+ *  on (RFC 9470 §3); `throttled`, any 429; `failed`, all else. */
 export type Refusal =
   | 'notAuthorized'
+  | 'reauthenticate'
   | 'botCheck'
   | 'googleSession'
   | 'invalid'
@@ -39,8 +42,9 @@ export type Refusal =
   | 'failed';
 
 /** `google` is a refresh's word on whether Google is on; `logout`, Cognito's logout endpoint, which
- *  a sign-out names while it is. The passkey calls answer the account's passkeys, the OS dialog's
- *  options, and a registration done. */
+ *  a sign-out names while it is, and so does a sign-out everywhere that finds this browser's session
+ *  already over. The passkey calls answer the account's passkeys, the OS dialog's options, and a
+ *  registration done. */
 export type RelayAnswer =
   | { kind: 'tokens'; tokens: Tokens; google?: boolean }
   | { kind: 'challenge'; challenge: Challenge }
@@ -49,7 +53,7 @@ export type RelayAnswer =
   | { kind: 'passkeys'; passkeys: Passkey[] }
   | { kind: 'options'; options: Record<string, unknown> }
   | { kind: 'registered' }
-  | { kind: 'refused'; reason: Refusal; google?: boolean };
+  | { kind: 'refused'; reason: Refusal; google?: boolean; logout?: string };
 
 export type RelayCall = (route: RelayRoute, body?: unknown) => Promise<RelayAnswer>;
 
@@ -59,6 +63,8 @@ const NAMED = new Map<unknown, Refusal>([
   ['invalid_password', 'invalidPassword'],
   ['reused_password', 'reusedPassword'],
 ]);
+/** The 401 that is no refusal of the caller, only of how long ago they signed in. */
+const STALE = 'insufficient_user_authentication';
 /** The 403s the relay names; any other is `failed`. */
 const FORBIDDEN = new Map<unknown, Refusal>([
   ['bot_check_failed', 'botCheck'],
@@ -97,6 +103,12 @@ export const ANSWER_MS = 30_000;
 function googleIn(body: unknown): { google?: boolean } {
   const google = (body as { google?: unknown } | null | undefined)?.google;
   return typeof google === 'boolean' ? { google } : {};
+}
+
+/** The logout where a body names one as a string, and nothing otherwise. */
+function logoutIn(body: unknown): { logout?: string } {
+  const logout = (body as { logout?: unknown } | null | undefined)?.logout;
+  return typeof logout === 'string' ? { logout } : {};
 }
 
 function read(body: unknown): RelayAnswer {
@@ -169,7 +181,10 @@ export function createRelay({
       // A refresh's refusal is what a signed-out page reads whether Google is on from.
       if (response.status === 401) {
         const body: unknown = await response.json().catch(() => undefined);
-        return { kind: 'refused', reason: 'notAuthorized', ...googleIn(body) };
+        if ((body as { error?: unknown } | null | undefined)?.error === STALE) {
+          return { kind: 'refused', reason: 'reauthenticate' };
+        }
+        return { kind: 'refused', reason: 'notAuthorized', ...googleIn(body), ...logoutIn(body) };
       }
       if (response.status === 403) {
         return { kind: 'refused', reason: FORBIDDEN.get(await errorOf(response)) ?? 'failed' };
