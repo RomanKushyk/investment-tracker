@@ -978,7 +978,10 @@ describe('signing out everywhere', () => {
     it('counts the window from the sign-in, then returns to the first state at zero', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], shouldAdvanceTime: true });
       await back(30);
-      const until = (Number(api.claims.auth_time) + 300) * 1000;
+      // The window the dialog counts: the session's sign-in in this device's clock, which the
+      // token's whole-second `auth_time` trails; it still starts at the sign-in, 30 s back.
+      expect(Math.abs(Date.now() / 1000 - 30 - session.authTime()!)).toBeLessThan(5);
+      const until = (session.authTime()! + 300) * 1000;
       // To a moment `ms` before the window closes, half a second off any change of figure, so the
       // real time the clock also advances by cannot cross one.
       const to = (ms: number) =>
