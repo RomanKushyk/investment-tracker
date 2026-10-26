@@ -2,10 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   GOOGLE_FAILED,
+  REAUTHENTICATED,
+  REAUTHENTICATION_REFUSED,
   arrivedGoogleFailed,
+  arrivedReauthentication,
   beginGoogle,
   belowTheForm,
+  carryReauthentication,
   completeGoogle,
+  forgetReauthentication,
+  reauthenticating,
 } from './google';
 import type { RelayAnswer, RelayCall } from './relay';
 
@@ -22,6 +28,13 @@ describe('beginning a Google sign-in', () => {
     const relay = answering({ kind: 'authorize', url });
     expect(await beginGoogle(relay)).toEqual({ url });
     expect(relay).toHaveBeenCalledWith('google/begin');
+  });
+
+  it('names the account a re-authentication is for, and nothing for a sign-in', async () => {
+    const relay = answering({ kind: 'authorize', url: 'https://auth.test/oauth2/authorize' });
+    await beginGoogle(relay, 'sub-1');
+    await beginGoogle(relay);
+    expect(relay.mock.calls).toEqual([['google/begin', { sub: 'sub-1' }], ['google/begin']]);
   });
 
   it('reads no connection as offline, and every other answer as a failure', async () => {
@@ -120,6 +133,61 @@ describe('the fact a refused Google flow hands `/sign-in`', () => {
       true,
     ]) {
       expect(arrivedGoogleFailed(other), JSON.stringify(other)).toBe(false);
+    }
+  });
+});
+
+// ACROSS GOOGLE'S REDIRECT the tab's own storage carries the fact, never the URL (T10).
+describe('the re-authentication this tab began', () => {
+  const tab = () => {
+    const kept = new Map<string, string>();
+    return {
+      getItem: (k: string) => kept.get(k) ?? null,
+      setItem: (k: string, v: string) => void kept.set(k, v),
+      removeItem: (k: string) => void kept.delete(k),
+    };
+  };
+
+  it('is carried, read and forgotten in the tab', () => {
+    const storage = tab();
+    expect(reauthenticating(storage)).toBe(false);
+    carryReauthentication(storage);
+    expect(reauthenticating(storage)).toBe(true);
+    expect(reauthenticating(storage)).toBe(true);
+    forgetReauthentication(storage);
+    expect(reauthenticating(storage)).toBe(false);
+  });
+
+  it('is none where the tab refuses storage', () => {
+    const refusing = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    };
+    expect(() => carryReauthentication(refusing)).not.toThrow();
+    expect(reauthenticating(refusing)).toBe(false);
+    expect(() => forgetReauthentication(refusing)).not.toThrow();
+    expect(reauthenticating(undefined)).toBe(false);
+  });
+
+  it('hands `/profile` its outcome as router state, read from nothing else', () => {
+    expect(arrivedReauthentication(REAUTHENTICATED)).toBe('confirmed');
+    expect(arrivedReauthentication(REAUTHENTICATION_REFUSED)).toBe('refused');
+    for (const other of [
+      undefined,
+      null,
+      {},
+      { reauthenticated: 'yes' },
+      GOOGLE_FAILED,
+      'confirmed',
+    ]) {
+      expect(arrivedReauthentication(other), JSON.stringify(other)).toBeUndefined();
     }
   });
 });

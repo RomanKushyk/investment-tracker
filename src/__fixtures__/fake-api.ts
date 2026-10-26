@@ -86,7 +86,7 @@ export interface FakeApi {
   /** Whether `GET /me` says the account holds a password of its own. */
   passwordSet: boolean;
   /** What the ID token a sign-in hands the page names; none by default. */
-  claims: Record<string, string>;
+  claims: Record<string, string | number>;
   /** What the relay's passkey list answers: the list, a Google session's 403, or a fault. */
   passkeys: Passkey[] | 'google' | 'failed';
   /** How many times the passkey list has been asked for. */
@@ -97,6 +97,10 @@ export interface FakeApi {
   everywhere: ('signedOut' | 'tooOld' | 'endedHere' | 'cookieGone' | 'failed')[];
   /** Each sign-out everywhere's body, as sent. */
   everywhereSent: unknown[];
+  /** Each Google begin's body, as sent; none for a sign-in's. */
+  googleBegun: unknown[];
+  /** What Google's complete answers: tokens, a refused code, or the code of another account. */
+  googleComplete: 'tokens' | 'refused' | 'anotherAccount';
   /** Cognito's logout, which a sign-out names while Google is on; none by default. */
   logout?: string;
   /** Whether the relay holds a refresh cookie: a refresh answers tokens, a sign-out takes it away
@@ -129,6 +133,8 @@ export function fakeApi(
     passkeyLists: 0,
     everywhere: [],
     everywhereSent: [],
+    googleBegun: [],
+    googleComplete: 'tokens',
     signedIn: true,
     tag: () => `"${api.version}"`,
   };
@@ -469,6 +475,19 @@ export function fakeApi(
       if (api.passkeys === 'google') return json({ error: 'insufficient_scope' }, 403);
       if (api.passkeys === 'failed') return json({ error: 'internal' }, 500);
       return json({ passkeys: api.passkeys });
+    }
+    if (path === '/auth/google/begin') {
+      const body = await original.text();
+      api.googleBegun.push(body === '' ? undefined : JSON.parse(body));
+      return json({ authorize: 'https://auth.dev.quirenote.com/oauth2/authorize?identity_provider=Google' });
+    }
+    if (path === '/auth/google/complete') {
+      if (api.googleComplete === 'refused') return json({ error: 'not_authorized' }, 401);
+      if (api.googleComplete === 'anotherAccount') {
+        return json({ error: 'another_account', logout: api.logout ?? 'https://auth/logout' }, 403);
+      }
+      api.signedIn = true;
+      return json({ idToken, expiresIn: 3600 });
     }
     if (path === '/auth/sign-out') {
       api.signedIn = false;

@@ -14,7 +14,7 @@ import {
   useSessionStatus,
 } from '../../auth/app';
 import { addressRefusal } from '../../auth/apply';
-import { arrivedGoogleFailed, belowTheForm } from '../../auth/google';
+import { arrivedGoogleFailed, belowTheForm, forgetReauthentication } from '../../auth/google';
 import { addPasskey } from '../../auth/passkey';
 import {
   type HeldChallenge,
@@ -327,6 +327,8 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     setGoogleSaid(undefined);
     const begun = await startGoogle();
     if ('url' in begun) {
+      // A sign-in's return is no re-authentication's, whatever an abandoned one left in the tab.
+      forgetReauthentication(tabStorage());
       window.location.assign(begun.url);
       return;
     }

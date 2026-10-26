@@ -50,6 +50,13 @@ describe('makeFormat — Contract 0', () => {
   const en = makeFormat('en');
   const NBSP = ' ';
 
+  it('writes a whole duration in one short unit, the gap an NBSP', () => {
+    expect(uk.duration(5, 'minute')).toBe(`5${NBSP}хв`);
+    expect(uk.duration(40, 'second')).toBe(`40${NBSP}с`);
+    expect(en.duration(5, 'minute')).toBe(`5${NBSP}min`);
+    expect(en.duration(40, 'second')).toBe(`40${NBSP}sec`);
+  });
+
   it('writes the brief’s table exactly', () => {
     expect(uk.num(68702.1)).toBe(`68${NBSP}702,10`);
     expect(en.num(68702.1)).toBe('68,702.10');

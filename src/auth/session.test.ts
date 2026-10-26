@@ -447,6 +447,42 @@ describe('one tab', () => {
     }
   });
 
+  // Where re-authentication's window starts: a refreshed ID token keeps the original (OIDC §12.2).
+  // Told in this device's clock: the token's age when issued, counted back from its arrival.
+  it('reads the sign-in time the ID token names, none it cannot read, and forgets it on sign-out', async () => {
+    const NOW = 1_000_000_000_000;
+    for (const [idToken, at] of [
+      [jwt({ sub: 's', auth_time: 1_790_000_000, iat: 1_790_000_100 }), NOW / 1000 - 100],
+      [jwt({ sub: 's', auth_time: 1_790_000_000 }), 1_790_000_000],
+      [jwt({ sub: 's' }), undefined],
+      [jwt({ sub: 's', auth_time: '1790000000' }), undefined],
+      ['h.%%%.s', undefined],
+    ] as const) {
+      const session = createSession({
+        relay: scripted(ID_TOKEN(idToken), { kind: 'signedOut' }),
+        locks: webLocks(),
+        now: () => NOW,
+      });
+      expect(session.authTime()).toBeUndefined();
+      await session.restore();
+      expect(session.authTime()).toBe(at);
+      await session.signOut();
+      expect(session.authTime()).toBeUndefined();
+    }
+  });
+
+  // A CODE GOOGLE HANDED BACK proves Google is on: a page loaded by its return asks no refresh.
+  it('knows Google is on once a Google code is redeemed', async () => {
+    const session = createSession({
+      relay: scripted(ID_TOKEN(jwt({ sub: 's' }))),
+      locks: webLocks(),
+    });
+    expect(session.google()).toBeUndefined();
+    await session.complete({ code: 'c', state: 's' });
+    expect(session.status()).toBe('signedIn');
+    expect(session.google()).toBe(true);
+  });
+
   it('sends one sign-out however often it is asked while one runs', async () => {
     const relay = scripted(TOKENS('1'), { kind: 'signedOut' });
     const session = createSession({ relay, locks: webLocks() });

@@ -210,12 +210,22 @@ export interface Format {
   pctPlain(n: number, fractionDigits?: number): string;
   /** A signed percentage-point gap, unit suffix per call site. */
   pp(n: number, suffix?: string): string;
+  /** A whole number of minutes or seconds in its short unit: «5 хв», «40 с». */
+  duration(n: number, unit: 'minute' | 'second'): string;
   date(iso: string): string;
   dateShort(iso: string): string;
   savedAt(iso: string): string;
   signedMoney(n: number, currency?: Currency): string;
   signedNum(n: number): string;
 }
+
+// `NumberFormat`'s unit style, not `DurationFormat`, which Safari has only from 16.4.
+const unitIn = (locale: string, unit: 'minute' | 'second') =>
+  new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short' });
+const UNIT: Record<Lang, Record<'minute' | 'second', Intl.NumberFormat>> = {
+  uk: { minute: unitIn('uk-UA', 'minute'), second: unitIn('uk-UA', 'second') },
+  en: { minute: unitIn('en-US', 'minute'), second: unitIn('en-US', 'second') },
+};
 
 /** Binds every formatter to one language. Call once per render, not per value. */
 export function makeFormat(lang: Lang): Format {
@@ -245,6 +255,7 @@ export function makeFormat(lang: Lang): Format {
     num: finite(num),
     numWhole: finite((n) => nbsp(f.whole.format(n))),
     units: finite((n) => nbsp(f.free.format(n))),
+    duration: (n, unit) => nbsp(UNIT[lang][unit].format(n)),
     input: (n) => {
       const shown = nbsp(f.free.format(n));
       return Number(normalizeNumberInput(shown, groupsWithCommaFor(lang))) === n

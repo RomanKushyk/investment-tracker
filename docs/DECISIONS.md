@@ -1148,9 +1148,9 @@ the user `CONFIRMED`, since the factors list an invitation's password too
 Google keeps that one, `FORCE_CHANGE_PASSWORD`, "until they sign in and set their password"
 (`AdminCreateUser`), and past the pool's validity days "an administrator must reset their password"
 (`PasswordPolicyType`). It never becomes the account's own (*Auth model*), so that account has no
-password, registration closed or not. It is the one field served ahead of its screen: the
-re-authentication step on `/profile`, which offers Google where no password is
-(`re-authentication.dc.html` T1), does not read it yet. Both reads are IAM-authorized, so a Google
+password, registration closed or not. Its reader is the re-authentication step on `/profile`,
+which offers Google where no password is, alone or beside a passkey
+(`re-authentication.dc.html` T1, T2). Both reads are IAM-authorized, so a Google
 sign-in's token, which lacks the admin scope, does not limit them. It looks the caller up by the
 token's `cognito:username`, since a `sub` names a local user only. ITS ONE READER IS THE PROFILE,
 `/profile`, which departs from `own-account.dc.html` in three places, the drawing left as merged

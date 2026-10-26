@@ -13,9 +13,13 @@ export interface Session {
   status(): SessionStatus;
   /** The address the ID token names, for a label; undefined when it names none. */
   address(): string | undefined;
+  /** When the account signed in, in seconds of THIS DEVICE'S CLOCK: the token's age at issue
+   *  (`iat − auth_time`, the server's) counted back from its arrival, so skew moves no window. */
+  authTime(): number | undefined;
   /** True while the status is a signed-out the relay never gave: the load went unanswered. */
   unanswered(): boolean;
-  /** Whether Google is on, as the last refresh answer said; undefined until one has. */
+  /** Whether Google is on, as the last refresh said or a redeemed Google code proved; undefined
+   *  until then. */
   google(): boolean | undefined;
   subscribe(listener: () => void): () => void;
   /** Asks the relay until it has answered: the refresh cookie is HttpOnly, so asking is the only
@@ -53,17 +57,19 @@ const EARLY_MS = 60_000;
 
 // READ, NEVER VERIFIED: a claim labels a row or names an account, and the API verifies every token it
 // is sent. The ID token is the client's to read (OIDC Core §2); its payload is base64url JSON.
-function claimOf(idToken: string, name: 'email' | 'sub'): string | undefined {
+function claimsOf(idToken: string): Record<string, unknown> {
   try {
     const payload = (idToken.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
     const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
-    const claim: unknown = (JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>)[
-      name
-    ];
-    return typeof claim === 'string' && claim !== '' ? claim : undefined;
+    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+function claimOf(idToken: string, name: 'email' | 'sub'): string | undefined {
+  const claim = claimsOf(idToken)[name];
+  return typeof claim === 'string' && claim !== '' ? claim : undefined;
 }
 
 export function createSession({
@@ -78,6 +84,7 @@ export function createSession({
   let status: SessionStatus = 'unknown';
   let held: (Tokens & { until: number }) | undefined;
   let address: string | undefined;
+  let signedInAt: number | undefined;
   let google: boolean | undefined;
   let refreshing: Promise<void> | undefined;
   let leaving: Promise<false | SignedOut> | undefined;
@@ -97,6 +104,10 @@ export function createSession({
   const set = (next: SessionStatus, tokens?: Tokens, answered = true) => {
     held = tokens && { ...tokens, until: now() + tokens.expiresIn * 1000 };
     address = tokens && claimOf(tokens.idToken, 'email');
+    const claims = tokens && claimsOf(tokens.idToken);
+    const { auth_time: at, iat } = claims ?? {};
+    signedInAt =
+      typeof at !== 'number' ? undefined : typeof iat === 'number' ? now() / 1000 - (iat - at) : at;
     status = next;
     unanswered = !answered;
     const sub = tokens && claimOf(tokens.idToken, 'sub');
@@ -139,6 +150,7 @@ export function createSession({
   return {
     status: () => status,
     address: () => address,
+    authTime: () => signedInAt,
     unanswered: () => unanswered,
     google: () => google,
     subscribe(listener) {
@@ -157,7 +169,11 @@ export function createSession({
     complete: (body) =>
       locked(async () => {
         const answer = await relay('google/complete', body);
-        if (answer.kind === 'tokens') set('signedIn', answer.tokens);
+        // A code Google handed back proves Google is on; a page its return loads asks no refresh.
+        if (answer.kind === 'tokens') {
+          google = true;
+          set('signedIn', answer.tokens);
+        }
         return answer;
       }),
     // Shared while one runs, as a refresh is: one sign-out, however many controls are pressed.

@@ -834,6 +834,13 @@ export const en = {
     // The address is the signed-in account's own, so the sentence names the password alone.
     password: { wrong: 'Incorrect password.' },
     confirmed: { title: 'You’ve confirmed it’s you' },
+    google: {
+      completing: 'Finishing your Google confirmation.',
+      failed: 'Your Google confirmation didn’t finish.',
+    },
+    timeLeft: (time: string) => `${time} left`,
+    // Said once, to a screen reader, as the time left turns to seconds.
+    timeReminder: '1 minute left.',
     expired: 'The time to confirm ran out. Confirm it’s you again.',
   },
   // The brief on #164 and its amendments; `failed` is the owner's ruling on #165.
@@ -1932,6 +1939,12 @@ export const uk: Dict = {
     },
     password: { wrong: 'Неправильний пароль.' },
     confirmed: { title: 'Ви підтвердили, що це ви' },
+    google: {
+      completing: 'Завершуємо підтвердження через Google.',
+      failed: 'Підтвердження через Google не завершено.',
+    },
+    timeLeft: (time: string) => `Залишилося ${time}`,
+    timeReminder: 'Залишилася 1 хвилина.',
     expired: 'Час на підтвердження минув. Підтвердьте ще раз.',
   },
   auth: {

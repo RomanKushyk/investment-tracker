@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
+import { carryReauthentication, reauthenticating } from '../auth/google';
 import type { SignInDeps } from '../auth/sign-in';
 import { uk } from '../i18n/messages';
 import type { BotCheckProps } from './sign-in/BotCheck';
@@ -76,9 +77,13 @@ afterAll(() => vi.unstubAllGlobals());
 
 // Whether Google sign-in is on, as a refresh would have said: the first refresh settles it for the
 // page's life, so a test sets it here. `leaving` lends jsdom's host a listed site, which Cognito's
-// logout returns to, and records where the page left for.
+// logout returns to, and records where the page left for: Cognito's logout, or Google.
 const google = vi.hoisted(() => ({ on: false }));
-const leaving = vi.hoisted(() => ({ site: undefined as string | undefined, to: [] as string[] }));
+const leaving = vi.hoisted(() => ({
+  site: undefined as string | undefined,
+  to: [] as string[],
+  google: [] as string[],
+}));
 vi.mock('../auth/app', async (original) => {
   const { throughLogout } = await import('../auth/signed-out');
   return {
@@ -90,6 +95,7 @@ vi.mock('../auth/app', async (original) => {
       leaving.to.push(out.url);
       return true;
     },
+    leaveFor: (url: string) => void leaving.google.push(url),
   };
 });
 
@@ -121,6 +127,8 @@ beforeEach(async () => {
   google.on = false;
   leaving.site = undefined;
   leaving.to = [];
+  leaving.google = [];
+  sessionStorage.clear();
   check.props = undefined;
   signIn.address.mockReset();
   signIn.password.mockReset();
@@ -825,5 +833,263 @@ describe('signing out everywhere', () => {
     await act(async () => finish({ kind: 'signedIn', offerPasskey: false }));
     await wait(50);
     expect(api.everywhereSent).toEqual([]);
+  });
+
+  // AN ACCOUNT WITH NO PASSWORD proves it through Google: alone (T1), or beside its passkey (T2).
+  describe('through Google', () => {
+    const G = {
+      google: 'Продовжити з Google',
+      completing: 'Завершуємо підтвердження через Google.',
+      failed: 'Підтвердження через Google не завершено.',
+      reminder: 'Залишилася 1 хвилина.',
+    };
+    // A code is redeemed once per page, whoever asks: each return brings its own.
+    let codes = 0;
+    const callback = () => `/auth/callback?code=c${++codes}&state=s`;
+    const timer = () => dialog()?.querySelector('[role="timer"]');
+    const onlyGoogle = () => {
+      google.on = true;
+      api.googleLinked = true;
+      api.passwordSet = false;
+    };
+    /** Back from Google in this tab, its sign-in `ago` seconds old. */
+    async function back(ago = 0, path = callback()) {
+      onlyGoogle();
+      // As Cognito's: issued now, for a sign-in `ago` seconds old.
+      const issued = Math.floor(Date.now() / 1000);
+      api.claims = { ...api.claims, auth_time: issued - ago, iat: issued };
+      carryReauthentication(sessionStorage);
+      const view = await open(path);
+      await waitFor(() => expect(view.router.state.location.pathname).toBe('/profile'));
+      await waitFor(() => expect(dialog()).not.toBeNull());
+      return view;
+    }
+
+    for (const passkeys of [[], 'google'] satisfies FakeApi['passkeys'][]) {
+      it(`offers Google alone, with no check, when the list is ${JSON.stringify(passkeys)}`, async () => {
+        onlyGoogle();
+        api.passkeys = passkeys;
+        await toTheStep();
+        const panel = dialog()!;
+        expect(text(panel)).toContain(E.title);
+        expect(text(panel)).toContain(ME_EMAIL);
+        expect(buttonIn(panel, G.google)).toBeDefined();
+        expect(buttonIn(panel, E.confirm)).toBeUndefined();
+        expect(panel.querySelector('[data-bot-check]')).toBeNull();
+      });
+    }
+
+    it('leaves for Google naming the account, this tab marked, «Скасувати» busy', async () => {
+      onlyGoogle();
+      await toTheStep();
+      await press(buttonIn(dialog(), G.google));
+      await waitFor(() => expect(leaving.google).toHaveLength(1));
+      expect(api.googleBegun).toEqual([{ sub: ME_USER_ID }]);
+      expect(reauthenticating(sessionStorage)).toBe(true);
+      expect(buttonIn(dialog(), E.cancel)?.getAttribute('aria-disabled')).toBe('true');
+      expect(buttonIn(dialog(), G.google)?.getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('offers Google, not the password, beside a passkey of an account with none', async () => {
+      onlyGoogle();
+      api.passkeys = [{ name: '', createdAt: '2026-07-01' }];
+      signIn.address.mockImplementation(
+        (_: string, __: string, ___: SignInDeps, onPasskey: (email: string) => unknown) => {
+          onPasskey(ME_EMAIL);
+          return new Promise(() => {});
+        },
+      );
+      await toTheStep();
+      expect(dialog()!.querySelector('[data-bot-check]')).not.toBeNull();
+      pass();
+      await press(buttonIn(dialog(), E.confirm));
+      await waitFor(() => expect(text(dialog()!)).toContain(E.passkeyTitle));
+      expect(buttonIn(dialog(), E.usePassword)).toBeUndefined();
+      await press(buttonIn(dialog(), G.google));
+      await waitFor(() => expect(leaving.google).toHaveLength(1));
+      expect(api.googleBegun).toEqual([{ sub: ME_USER_ID }]);
+    });
+
+    it('holds the callback card while the code is redeemed, saying what it finishes', async () => {
+      onlyGoogle();
+      carryReauthentication(sessionStorage);
+      const release = hold('/auth/google/complete');
+      const view = await open(callback());
+      expect(text(view.view.container)).toContain(E.checking);
+      expect(text(view.view.container)).toContain(G.completing);
+      expect(view.router.state.location.pathname).toBe('/auth/callback');
+      release();
+      await waitFor(() => expect(view.router.state.location.pathname).toBe('/profile'));
+    });
+
+    // T5: back on /profile the step is confirmed, and nothing runs without the press (T10).
+    it('comes back to the confirmed state, and signs out only on the press', async () => {
+      const view = await back();
+      await waitFor(() => expect(text(dialog()!)).toContain(E.confirmedTitle));
+      expect(text(dialog()!)).toContain(E.confirmedLead);
+      expect(document.activeElement?.textContent).toBe(E.confirmedTitle);
+      expect(reauthenticating(sessionStorage)).toBe(false);
+      await wait(50);
+      expect(api.everywhereSent).toEqual([]);
+      await press(buttonIn(dialog(), E.action));
+      await waitFor(() => expect(view.router.state.location.pathname).toBe('/sign-in'));
+      expect(api.everywhereSent).toEqual([{ sub: ME_USER_ID }]);
+    });
+
+    it('uses up its arrival, so a reload of /profile opens nothing', async () => {
+      const first = await back();
+      expect(first.router.state.location.state).toBeNull();
+      cleanup();
+      await open('/profile');
+      await wait(50);
+      expect(dialog()).toBeNull();
+      expect(api.everywhereSent).toEqual([]);
+    });
+
+    it('reads a callback this tab did not begin as a sign-in’s, and opens nothing', async () => {
+      onlyGoogle();
+      const view = await open(callback());
+      await waitFor(() => expect(view.router.state.location.pathname).not.toBe('/auth/callback'));
+      expect(view.router.state.location.pathname).not.toBe('/profile');
+      expect(dialog()).toBeNull();
+      expect(api.everywhereSent).toEqual([]);
+    });
+
+    for (const [name, refuse, path] of [
+      ['a refused code', () => (api.googleComplete = 'refused'), callback],
+      ['another account', () => (api.googleComplete = 'anotherAccount'), callback],
+      ['a cancel at Google', () => undefined, () => '/auth/callback?error=access_denied&state=s'],
+    ] as const) {
+      it(`returns to the first state after ${name}, said, with no trip through logout`, async () => {
+        refuse();
+        leaving.site = SITE;
+        api.logout = LOGOUT;
+        await back(0, path());
+        await waitFor(() => expect(alerts()).toContain(G.failed));
+        expect(text(dialog()!)).toContain(E.title);
+        expect(buttonIn(dialog(), G.google)).toBeDefined();
+        expect(leaving.to).toEqual([]);
+        expect(reauthenticating(sessionStorage)).toBe(false);
+        expect(session.status()).toBe('signedIn');
+      });
+    }
+
+    // T5's time left: whole minutes rounded up, seconds from 60, one reminder; T6 at zero.
+    it('counts the window from the sign-in, then returns to the first state at zero', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], shouldAdvanceTime: true });
+      await back(30);
+      const until = (Number(api.claims.auth_time) + 300) * 1000;
+      // To a moment `ms` before the window closes, half a second off any change of figure, so the
+      // real time the clock also advances by cannot cross one.
+      const to = (ms: number) =>
+        act(async () => void vi.advanceTimersByTime(until - ms - Date.now()));
+      await waitFor(() => expect(text(timer()!)).toBe('Залишилося 5\u00a0хв'));
+      expect(statuses()).not.toContain(G.reminder);
+      await to(240_500);
+      expect(text(timer()!)).toBe('Залишилося 5\u00a0хв');
+      await to(239_500);
+      expect(text(timer()!)).toBe('Залишилося 4\u00a0хв');
+      await to(60_500);
+      expect(text(timer()!)).toBe('Залишилося 2\u00a0хв');
+      expect(statuses()).not.toContain(G.reminder);
+      await to(59_500);
+      expect(text(timer()!)).toBe('Залишилося 60\u00a0с');
+      expect(statuses()).toContain(G.reminder);
+      await to(39_500);
+      expect(text(timer()!)).toBe('Залишилося 40\u00a0с');
+      await to(-500);
+      expect(statuses()).toContain(E.expired);
+      expect(document.activeElement?.textContent).toBe(E.expired);
+      expect(text(dialog()!)).toContain(E.title);
+      expect(buttonIn(dialog(), G.google)).toBeDefined();
+      expect(timer()).toBeFalsy();
+      expect(api.everywhereSent).toEqual([]);
+    });
+
+    // A window that ran out while the action was out is said once the action answers.
+    it('returns to the first state when the window ran out during a failed action', async () => {
+      await back(298);
+      api.everywhere = ['failed'];
+      const release = hold('/auth/sign-out/global');
+      await press(buttonIn(dialog(), E.action));
+      await wait(2500);
+      release();
+      await waitFor(() => expect(statuses()).toContain(E.expired));
+      expect(text(dialog()!)).toContain(E.title);
+    });
+
+    // One sentence at a time: a press leaves T6's behind, as «Підтвердити» does.
+    it('drops the expired sentence once Google is pressed again', async () => {
+      await back();
+      api.everywhere = ['tooOld'];
+      await press(buttonIn(dialog(), E.action));
+      await waitFor(() => expect(statuses()).toContain(E.expired));
+      failing.add('/auth/google/begin');
+      await press(buttonIn(dialog(), G.google));
+      await waitFor(() => expect(alerts()).toContain(G.failed));
+      expect(statuses()).not.toContain(E.expired);
+    });
+
+    // A STOP before Google's page loads leaves this one here: nothing is bound for Google.
+    it('lets go once a trip to Google is halted', async () => {
+      const navigation = new EventTarget();
+      vi.stubGlobal('navigation', navigation);
+      try {
+        onlyGoogle();
+        await toTheStep();
+        await press(buttonIn(dialog(), G.google));
+        await waitFor(() => expect(leaving.google).toHaveLength(1));
+        act(() => void navigation.dispatchEvent(new Event('navigateerror')));
+        await waitFor(() =>
+          expect(buttonIn(dialog(), E.cancel)?.getAttribute('aria-disabled')).toBeNull(),
+        );
+        expect(buttonIn(dialog(), G.google)?.getAttribute('aria-disabled')).toBeNull();
+        expect(reauthenticating(sessionStorage)).toBe(false);
+      } finally {
+        vi.stubGlobal('navigation', undefined);
+      }
+    });
+
+    // A trip abandoned by a reload ends there: a later callback in the tab is a sign-in's (T10).
+    it('forgets a mark the tab still carries when /profile loads', async () => {
+      carryReauthentication(sessionStorage);
+      await open('/profile');
+      expect(reauthenticating(sessionStorage)).toBe(false);
+    });
+
+    // A region in place before its words, so the reminder is announced however late the step lands.
+    it('inserts the reminder’s region empty, then fills it', async () => {
+      // Each mutation that adds the reminder's words into a region already in the document.
+      const filledInPlace: string[] = [];
+      const seen = new MutationObserver((records) => {
+        for (const record of records) {
+          const region = record.target;
+          if (!(region instanceof Element) || region.getAttribute('role') !== 'status') continue;
+          for (const node of record.addedNodes) {
+            if (node.textContent === G.reminder) filledInPlace.push(node.textContent);
+          }
+        }
+      });
+      seen.observe(document.body, { childList: true, subtree: true });
+      try {
+        await back(250);
+        await waitFor(() => expect(statuses()).toContain(G.reminder));
+        expect(filledInPlace).toEqual([G.reminder]);
+      } finally {
+        seen.disconnect();
+      }
+    });
+
+    it('shows the time left on a failed action too, whichever proof came before it', async () => {
+      // The proof is mocked, so the session's own sign-in carries the time it names.
+      api.claims = { ...api.claims, auth_time: Math.floor(Date.now() / 1000) };
+      await session.respond({});
+      api.everywhere = ['failed'];
+      signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
+      await toThePassword();
+      await typeAndConfirm();
+      await waitFor(() => expect(alerts()).toContain(E.failed));
+      expect(text(timer()!)).toBe('Залишилося 5\u00a0хв');
+    });
   });
 });

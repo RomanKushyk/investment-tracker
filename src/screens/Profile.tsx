@@ -1,8 +1,9 @@
 import { Check, ChevronRight, CircleAlert, Copy, KeyRound } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 
-import { useGoogle, useSessionStatus } from '../auth/app';
+import { tabStorage, useGoogle, useSessionStatus } from '../auth/app';
+import { arrivedReauthentication, forgetReauthentication } from '../auth/google';
 import type { PasskeyList } from '../auth/passkey';
 import { Block, Dash, PlaceholderScreen } from '../components/loading/Placeholder';
 import { Button } from '../components/ui/Button';
@@ -15,24 +16,45 @@ import { useMe } from '../hooks/queries';
 import { usePasskeys } from '../hooks/usePasskeys';
 import { useT } from '../i18n/useT';
 import type { MeData } from '../lib/repository';
-import { SignOutEverywhere } from './profile/SignOutEverywhere';
+import { usedUp } from '../auth/signed-out';
+import { SignOutEverywhere, type Ways } from './profile/SignOutEverywhere';
 import { Divider, SectionLabel, SettingRow } from './Settings';
 
 // THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T4 and T6), read on demand from
 // `GET /me`; the passkeys are the relay's list. Signed out, or before the session is known, the
 // shell stands alone and nothing is asked, as a screen behind the view.
+type Arrived = ReturnType<typeof arrivedReauthentication>;
+
 export function Profile() {
   const signedIn = useSessionStatus() === 'signedIn';
+  const location = useLocation();
+  const navigate = useNavigate();
+  // BACK FROM GOOGLE, read at mount and the entry used up at once, so a reload opens nothing (T10).
+  const [arrived, setArrived] = useState(() => arrivedReauthentication(location.state));
+  useEffect(() => {
+    if (arrivedReauthentication(location.state)) void navigate(...usedUp(location));
+  }, [location, navigate]);
+  // A page that loads here is no trip to Google: one the tab still marks was abandoned, so a later
+  // callback in it is a sign-in's (T10). The callback forgets its own before landing.
+  useEffect(() => forgetReauthentication(tabStorage()), []);
   // Held here, outside the account: signing out everywhere empties the page before it leaves, and
   // the dialog stays busy meanwhile. A fresh key per open resets it while a closed one exits.
-  const [everywhere, setEverywhere] = useState({ n: 0, open: false, email: '' });
+  const [everywhere, setEverywhere] = useState<{
+    n: number;
+    open: boolean;
+    email: string;
+    ways: Ways;
+    arrived?: Arrived;
+  }>({ n: 0, open: false, email: '', ways: { password: true, google: false, passkey: false } });
   return (
     <>
       {signedIn && (
         <Account
-          onSignOutEverywhere={(email) =>
-            setEverywhere(({ n }) => ({ n: n + 1, open: true, email }))
-          }
+          arrived={arrived}
+          onSignOutEverywhere={(email, ways, from) => {
+            setArrived(undefined);
+            setEverywhere(({ n }) => ({ n: n + 1, open: true, email, ways, arrived: from }));
+          }}
         />
       )}
       {everywhere.n > 0 && (
@@ -40,6 +62,8 @@ export function Profile() {
           key={everywhere.n}
           open={everywhere.open}
           email={everywhere.email}
+          ways={everywhere.ways}
+          arrived={everywhere.arrived}
           onClose={closeEverywhere}
         />
       )}
@@ -53,11 +77,29 @@ export function Profile() {
 
 const CARD = 'animate-in p-[22px] duration-300 fade-in slide-in-from-bottom-1';
 
-function Account({ onSignOutEverywhere }: { onSignOutEverywhere: (email: string) => void }) {
+function Account({
+  arrived,
+  onSignOutEverywhere,
+}: {
+  arrived: Arrived;
+  onSignOutEverywhere: (email: string, ways: Ways, arrived?: Arrived) => void;
+}) {
   const t = useT();
   const answered = useMe();
   const passkeys = usePasskeys();
   const google = useGoogle();
+  // A list Google's session cannot read counts as no passkey: Google is a proof the account holds.
+  const ways = (me: MeData): Ways => ({
+    password: me.passwordSet,
+    google: google === true && me.googleLinked,
+    passkey: passkeys?.kind === 'passkeys' && passkeys.passkeys.length > 0,
+  });
+  // The dialog reopens once the account and its list have landed, which its first state reads.
+  useEffect(() => {
+    if (arrived && answered !== undefined && passkeys !== undefined) {
+      onSignOutEverywhere(answered.email, ways(answered), arrived);
+    }
+  });
   // Nothing new for 300 ms, then every box held, and held for a while once shown: a page that
   // flashes reads slower than it is.
   const held = useHold(answered === undefined);
@@ -81,7 +123,7 @@ function Account({ onSignOutEverywhere }: { onSignOutEverywhere: (email: string)
             helper={t.profile.signOutEverywhere.helper}
           >
             {me ? (
-              <Button variant="outline" onClick={() => onSignOutEverywhere(me.email)}>
+              <Button variant="outline" onClick={() => onSignOutEverywhere(me.email, ways(me))}>
                 {t.profile.signOutEverywhere.open}
               </Button>
             ) : (

@@ -68,8 +68,12 @@ export function useGoogle() {
   return useSyncExternalStore(session.subscribe, session.google);
 }
 
-/** The authorize URL for this browser, from the relay, which keeps the flow's pair. */
-export const startGoogle = () => beginGoogle(relay);
+/** The authorize URL for this browser, from the relay, which keeps the flow's pair; with `sub`, a
+ *  re-authentication of that account. */
+export const startGoogle = (sub?: string) => beginGoogle(relay, sub);
+
+/** Leaves the app for `url`, as a page bound for Google does. */
+export const leaveFor = (url: string) => location.assign(url);
 
 /** This tab's session storage, or none where the browser refuses it. */
 export function tabStorage(): Storage | undefined {

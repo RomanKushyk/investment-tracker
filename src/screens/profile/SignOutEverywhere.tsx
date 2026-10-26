@@ -9,7 +9,16 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 
-import { cancelPasskey, leaveThroughLogout, session, signInDeps } from '../../auth/app';
+import {
+  cancelPasskey,
+  leaveFor,
+  leaveThroughLogout,
+  session,
+  signInDeps,
+  startGoogle,
+  tabStorage,
+} from '../../auth/app';
+import { carryReauthentication, forgetReauthentication } from '../../auth/google';
 import { signInWithAddress, signInWithPassword, type SignInDeps } from '../../auth/sign-in';
 import { SIGNED_OUT } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
@@ -20,16 +29,30 @@ import {
   AlertDialogTitle,
   DialogHeader,
 } from '../../components/ui/Dialog';
+import { useFormat } from '../../hooks/useFormat';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 import { BotCheck } from '../sign-in/BotCheck';
+import { GoogleButton } from '../sign-in/GoogleButton';
 import { Field, LINK, PasswordInput, StepAlert } from '../sign-in/parts';
 import type { Reason as SignInReason } from '../sign-in/refusals';
 import { type BotCheckOf, afterPass, useBotCheck } from '../sign-in/useBotCheck';
 
-// «ВИЙТИ НА ВСІХ ПРИСТРОЯХ» (`re-authentication.dc.html` T1–T4): the confirmation, a fresh sign-in the
-// relay requires, then every session ends; a failed action keeps the proof (T5, without its timer).
+// «ВИЙТИ НА ВСІХ ПРИСТРОЯХ» (`re-authentication.dc.html` T1–T6): the confirmation, a fresh sign-in the
+// relay requires, by a local credential or a round trip to Google, then every session ends; a failed
+// action keeps the proof, and its window shows until it runs out.
+
+/** The account's ways to prove it, from `GET /me` and the passkey list: Google is offered to an
+ *  account with no password, alone or beside its passkey (T1, T2). */
+export interface Ways {
+  password: boolean;
+  google: boolean;
+  passkey: boolean;
+}
+
+/** RE-AUTHENTICATION'S WINDOW, the relay's too: five minutes from the sign-in (*Auth model*). */
+const WINDOW_S = 300;
 
 type Step =
   | { name: 'confirm' }
@@ -45,6 +68,7 @@ type Said = { reason: Reason; n: number };
 function sentence(t: Dict, reason: Reason): string {
   const own: Partial<Record<Reason, string>> = {
     actionFailed: t.profile.signOutEverywhere.reauth.failed,
+    googleFailed: t.reauth.google.failed,
     // The account is the signed-in one, so the sentence names the password alone (T3).
     wrong: t.reauth.password.wrong,
     notFinished: t.reauth.passkey.notFinished,
@@ -69,17 +93,30 @@ const GUTTER = 'px-[28px]';
 export function SignOutEverywhere({
   open,
   email,
+  ways,
+  arrived,
   onClose,
 }: {
   open: boolean;
   /** The signed-in account's, shown and sent: the address is not asked for again. */
   email: string;
+  ways: Ways;
+  /** Back from Google: the step confirmed, or refused there (T5). */
+  arrived?: 'confirmed' | 'refused';
   onClose: () => void;
 }) {
   const t = useT();
   const s = t.profile.signOutEverywhere;
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>({ name: 'confirm' });
+  const [step, setStep] = useState<Step>(() =>
+    arrived === 'confirmed'
+      ? { name: 'confirmed' }
+      : arrived === 'refused'
+        ? { name: 'first' }
+        : { name: 'confirm' },
+  );
+  // No local credential to ask for: the first state is Google's own button, with no check (T1).
+  const googleFirst = !ways.password && ways.google && !ways.passkey;
   const [password, setPassword] = useState('');
   // A proof on its way to the relay: the pressed button reads «Перевіряємо…», «Скасувати» stays live.
   const [proving, setProving] = useState(false);
@@ -89,11 +126,15 @@ export function SignOutEverywhere({
   const [acting, setActing] = useState(false);
   // The page set out for Cognito's logout, the sign-out done: a Stop leaves it here, signed out.
   const [left, setLeft] = useState(false);
-  const held = acting && !left;
+  // From the press until the page has gone to Google, which nothing recalls either.
+  const [bound, setBound] = useState(false);
+  const held = (acting && !left) || bound;
   // The proof is this account's: another one in the tab ends the dialog (`accountChanges`).
   const changes = useSyncExternalStore(session.subscribe, session.accountChanges);
   const [opened] = useState(changes);
-  const [said, setSaid] = useState<Said>();
+  const [said, setSaid] = useState<Said | undefined>(() =>
+    arrived === 'refused' ? { reason: 'googleFailed', n: 1 } : undefined,
+  );
   const [retrySaid, setRetrySaid] = useState<Said>();
   const [expired, setExpired] = useState(0);
   const expiredRef = useRef<HTMLDivElement>(null);
@@ -146,22 +187,33 @@ export function SignOutEverywhere({
   useEffect(() => {
     if (changes !== opened) leave();
   }, [changes, opened]);
-  // A halted logout (Stop, or a navigation that superseded it) fires `navigateerror`.
+  // A halted logout or trip to Google (Stop, or a navigation that superseded it) fires
+  // `navigateerror`: signed out, the dialog goes; bound for Google, nothing went.
   useEffect(() => {
     const navigation = (globalThis as { navigation?: EventTarget }).navigation;
-    if (!left || !navigation) return;
-    const stayed = () => leave();
+    if (!(left || bound) || !navigation) return;
+    const stayed = () => {
+      if (left) return leave();
+      forgetReauthentication(tabStorage());
+      setBound(false);
+    };
     navigation.addEventListener('navigateerror', stayed);
     return () => navigation.removeEventListener('navigateerror', stayed);
-  }, [left]);
+  }, [left, bound]);
   // Back from Cognito's logout can restore this page, busy as it left; it is signed out by then.
+  // Back from Google restores it bound, and nothing came back from there.
   useEffect(() => {
     const restored = (event: PageTransitionEvent) => {
-      if (event.persisted && left) leave();
+      if (!event.persisted) return;
+      if (left) leave();
+      else if (bound) {
+        forgetReauthentication(tabStorage());
+        setBound(false);
+      }
     };
     addEventListener('pageshow', restored);
     return () => removeEventListener('pageshow', restored);
-  }, [left]);
+  }, [left, bound]);
 
   function begin() {
     const mine = ++run.current;
@@ -221,6 +273,31 @@ export function SignOutEverywhere({
       setStep({ name: 'confirmed' });
       say('actionFailed');
     }
+  }
+
+  // THE PAGE LEAVES FOR GOOGLE naming this tab's account, which the relay asks Google to sign in
+  // again; the tab carries the fact across, and the return lands confirmed with nothing run (T5).
+  async function toGoogle() {
+    if (held || acting) return;
+    setExpired(0);
+    const current = begin();
+    setBound(true);
+    const sub = await session.getAccount();
+    const begun = sub === undefined ? ({ refused: 'failed' } as const) : await startGoogle(sub);
+    if (!current()) return setBound(false);
+    if ('url' in begun) {
+      carryReauthentication(tabStorage());
+      leaveFor(begun.url);
+      return;
+    }
+    setBound(false);
+    say(begun.refused === 'offline' ? 'offline' : 'googleFailed');
+  }
+
+  function expire() {
+    if (acting) return;
+    go({ name: 'first' });
+    setExpired((n) => n + 1);
   }
 
   /** THE START IS THE PRESS'S FIRST WAIT, its token in hand, as sign-in's: Safari before 17.4 opens
@@ -313,6 +390,16 @@ export function SignOutEverywhere({
     </AlertDialogCancel>
   );
   const pressedLabel = acting ? s.reauth.busy : proving ? t.auth.signIn.checking : undefined;
+  const google = (
+    <GoogleButton
+      busy={bound || checking || acting}
+      className={WIDE}
+      onClick={() => void toGoogle()}
+    >
+      {t.auth.google.continue}
+    </GoogleButton>
+  );
+  const authTime = session.authTime();
 
   return (
     <AlertDialog open={open} anchor="top" onOpenChange={(next) => !next && close()}>
@@ -340,14 +427,20 @@ export function SignOutEverywhere({
               lead={s.reauth.lead}
             />
             <div className={`${GUTTER} flex flex-col`}>
-              <Address email={email} spaced />
-              {firstCheck.props && <BotCheck {...firstCheck.props} action="sign-in" />}
+              <Address email={email} spaced={!googleFirst} />
+              {!googleFirst && firstCheck.props && (
+                <BotCheck {...firstCheck.props} action="sign-in" />
+              )}
             </div>
             <Footer>
               <Row cancel={cancel}>
-                <Primary busy={proving || acting} onPress={confirmFirst}>
-                  {pressedLabel ?? t.reauth.continue}
-                </Primary>
+                {googleFirst ? (
+                  google
+                ) : (
+                  <Primary busy={proving || acting} onPress={confirmFirst}>
+                    {pressedLabel ?? t.reauth.continue}
+                  </Primary>
+                )}
               </Row>
               {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
             </Footer>
@@ -365,15 +458,20 @@ export function SignOutEverywhere({
               <Address email={email} />
             </div>
             <Footer>
+              {/* The account's second way: its password, else Google, else none (T2). */}
               <Row cancel={cancel}>
-                <Button
-                  variant="outline"
-                  className={`${WIDE} ${BUSY}`}
-                  aria-disabled={checking || acting || undefined}
-                  onClick={() => !checking && !acting && go({ name: 'password' })}
-                >
-                  {t.reauth.passkey.usePassword}
-                </Button>
+                {ways.password ? (
+                  <Button
+                    variant="outline"
+                    className={`${WIDE} ${BUSY}`}
+                    aria-disabled={checking || acting || undefined}
+                    onClick={() => !checking && !acting && go({ name: 'password' })}
+                  >
+                    {t.reauth.passkey.usePassword}
+                  </Button>
+                ) : (
+                  ways.google && google
+                )}
               </Row>
               {/* The retry's widget enters with the sentence, as on sign-in (T2). */}
               {(stepError || retrySaid) && (
@@ -448,6 +546,11 @@ export function SignOutEverywhere({
               title={<Title focus>{t.reauth.confirmed.title}</Title>}
               lead={s.reauth.confirmedLead}
             />
+            {authTime !== undefined && (
+              <div className={`${GUTTER} flex flex-col`}>
+                <TimeLeft until={(authTime + WINDOW_S) * 1000} held={acting} onOut={expire} />
+              </div>
+            )}
             <Footer>
               <Row cancel={cancel}>
                 <Primary busy={acting} onPress={() => void act()}>
@@ -472,6 +575,44 @@ export function SignOutEverywhere({
         </div>
       </div>
     </AlertDialog>
+  );
+}
+
+/** T5'S TIME LEFT: minutes rounded up, then seconds from 60 (hmrc-frontend's timeout dialog), each
+ *  redraw scheduling the next; while `held` by the action, zero waits for its answer. */
+function TimeLeft({ until, held, onOut }: { until: number; held: boolean; onOut: () => void }) {
+  const t = useT();
+  const f = useFormat();
+  const [left, setLeft] = useState(() => until - Date.now());
+  // Filled only once the region is in place, so the reminder is announced however late it lands.
+  const [remind, setRemind] = useState(false);
+  const out = useEffectEvent(onOut);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const now = until - Date.now();
+      setLeft(now);
+      setRemind(now <= 60_000);
+      if (now <= 0) return void (held || out());
+      const seconds = Math.ceil(now / 1000);
+      const next = seconds <= 60 ? (seconds - 1) * 1000 : (Math.ceil(seconds / 60) - 1) * 60_000;
+      timer = setTimeout(tick, now - next);
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [until, held]);
+  const seconds = Math.max(0, Math.ceil(left / 1000));
+  const time =
+    seconds <= 60 ? f.duration(seconds, 'second') : f.duration(Math.ceil(seconds / 60), 'minute');
+  return (
+    <>
+      <div role="timer" aria-atomic="true" className="text-[12px] leading-[18px] text-muted">
+        {t.reauth.timeLeft(time)}
+      </div>
+      <div role="status" className="sr-only">
+        {remind && t.reauth.timeReminder}
+      </div>
+    </>
   );
 }
 
@@ -557,7 +698,7 @@ function Footer({ children }: { children: ReactNode }) {
 }
 
 /** The drawn order is the focus order (WCAG 2.4.3): below md the action stacks first (T1). */
-function Row({ cancel, children }: { cancel: ReactNode; children: ReactNode }) {
+function Row({ cancel, children }: { cancel: ReactNode; children?: ReactNode }) {
   const desktop = useIsDesktop();
   return (
     <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:justify-end">
