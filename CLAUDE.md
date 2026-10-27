@@ -8,7 +8,7 @@ Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. 
 - Fifth gate when `infra/` or `packages/core/` changes: `pnpm exec tsc --noEmit -p infra` from the root. The root typecheck does not cover `infra/`, and the two configs disagree on purpose — a DOM type in the package passes one and fails the other.
 
 ## Workflow
-1. Session start: read the Project's `Triage` column (`gh project item-list 2 --owner RomanKushyk --format json`). Non-empty → run the `triage-issue` skill first. Nothing is coded against an untriaged issue.
+1. Session start: read the Project's `Triage` column (`triage_list`, in the `triage-issue` skill's helper block). Non-empty → run the `triage-issue` skill first. Nothing is coded against an untriaged issue.
 2. Pick a `Ready` issue with no open blocker — from the lowest open version milestone, or an `observation` once the date in its title has come, whatever its milestone, and never before; the topmost such card on the board is the pick. Read it, explore and plan in plan mode; the plan's approval is the gate, and the move to `In progress` — that column must be empty before, or hold that issue as a resume — is the first write after it. One issue at a time. A multi-part ask that will not fit one issue goes through the `plan-epic` skill first and lands as an epic with `Ready` sub-issues to pick from.
 3. Branch `<type>/<kebab-title>` from `dev`. Always a branch, however small the diff; `dependabot/…` is the one naming exception.
 4. Failing test first, then the change, then the gates.

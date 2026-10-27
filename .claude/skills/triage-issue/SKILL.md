@@ -13,8 +13,10 @@ export GH_CONFIG_DIR="$HOME/.quirenote/gh-config"; P=2; O=RomanKushyk
 PID=$(gh project view $P --owner $O --format json --jq .id)
 FID=$(gh project field-list $P --owner $O --format json --jq '.fields[]|select(.name=="Status")|.id')
 opt()  { gh project field-list $P --owner $O --format json --jq ".fields[]|select(.name==\"Status\")|.options[]|select(.name==\"$1\")|.id"; }
-item() { gh project item-list $P --owner $O --format json --limit 500 --jq ".items[]|select(.content.number==$1)|.id"; }
-triage_list() { gh project item-list $P --owner $O --format json --limit 500 --jq '.items[]|select(.status=="Triage")|"#\(.content.number) \(.title)"'; }
+# Read off the issue and paged through the board: `gh project item-list` stops at its --limit, and a
+# new card sits at the end of the board.
+item() { gh api graphql -f o=$O -f r=investment-tracker -F n=$1 -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){projectItems(first:20){nodes{id project{number}}}}}}' --jq ".data.repository.issue.projectItems.nodes[]|select(.project.number==$P)|.id"; }
+triage_list() { gh api graphql --paginate -f o=$O -F p=$P -f query='query($o:String!,$p:Int!,$endCursor:String){user(login:$o){projectV2(number:$p){items(first:100,after:$endCursor){pageInfo{hasNextPage endCursor} nodes{status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name}} content{... on Issue{number title}}}}}}}' --jq '.data.user.projectV2.items.nodes[]|select(.status.name=="Triage")|"#\(.content.number) \(.content.title)"'; }
 set_status()  { gh project item-edit --project-id $PID --id $(item $1) --field-id $FID --single-select-option-id $(opt "$2"); }
 ```
 
