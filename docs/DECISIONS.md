@@ -1517,12 +1517,16 @@ first path segment alone, and lists each tag once with a description, in the ord
 first appear, which is the order Swagger UI shows its groups in. An `operationId` is camelCase,
 `-` included. A read without a body is a GET; a write takes the method whose semantics it has: POST,
 PUT, PATCH or DELETE. A safe read with a body would be a QUERY (RFC 10008); it is a POST that writes
-nothing instead, because an HTTP API routes no QUERY (#393), and becomes a QUERY when one does. The
-one such read is `/auth/passkey/list`. `CreateRoute` refuses a `QUERY` route key. CloudFormation
-builds the API from SAM's body, with `ImportApi` on create and `ReimportApi` on update; both answer
-"Method QUERY is not supported" to `QUERY` among the CORS methods. `ReimportApi` reads a `query`
-operation as an unexpected attribute: a warning that `FailOnWarnings` turns into a refusal; without
-it the import succeeds, ignores the key and leaves the path with no route.
+nothing instead, because an HTTP API takes no `QUERY` route key, routes a QUERY through an `ANY`
+route, and its CORS cannot admit one that carries cookies (#393). The one such read is
+`/auth/passkey/list`. No route key, method or CORS setting takes `QUERY`. `CreateRoute` refuses the
+route key; a REST API's `PutMethod` refuses the method, from the CLI and from CloudFormation alike;
+and `ImportApi` and `ReimportApi`, which CloudFormation calls to create and update the API from
+SAM's body, answer "Method QUERY is not supported" to `QUERY` among the CORS methods. `ReimportApi`
+reads a `query` operation as an unexpected attribute: a warning that `FailOnWarnings` turns into a
+refusal; without it the import succeeds, ignores the key and leaves the path with no route. With
+`AllowMethods: *` the preflight answers a literal `*`, which the Fetch standard reads as a wildcard
+only when the request's credentials mode is not "include".
 **Why.** A version in the path exists so that independent clients can move at their own pace (Google
 AIP-185, written for APIs with many consumers). Here the only client is the SPA, deployed from the
 same commit as the API, so a breaking change is a deploy, not a version: Zalando's guidelines forbid
@@ -1532,7 +1536,13 @@ until it reloads; that window is accepted rather than paid for with a route kept
 organise their references, and each operation already states its security posture on its own.
 **Rejected.** `/v1` on every route: a promise of coexisting versions nothing would keep. · Tags by
 audience (public, user, admin), OAS 3.2's `kind: audience`: the posture is already each
-operation's `security`, and a group would split one resource's routes across two places.
+operation's `security`, and a group would split one resource's routes across two places. · The
+list as a QUERY through an `ANY` route on an API of its own with no CORS, mapped at
+`auth/passkey/list`, the relay answering its own preflight: a second API and a hand-written CORS on
+the relay, for a read that answers `no-store` and is never retried, so the caching and retries the
+method allows would buy nothing. · The API's CORS moved into every handler, since API Gateway
+ignores a handler's CORS headers while the API has its own: each path would need an OPTIONS route
+or a catch-all, and the API declares neither.
 
 ## Auth model
 **Decision.** Cognito Essentials behind a JWT authorizer, and ONE POOL PER
