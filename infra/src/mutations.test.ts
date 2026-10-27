@@ -1327,21 +1327,7 @@ describe('GET /state', () => {
     expect(Math.round(13 * prices[0].price * 100) / 100 / 13).not.toBe(prices[0].price);
   });
 
-  // The deploy smoke-tests the bundle's export against keys it keeps by hand, in a step only the
-  // post-merge deploy runs.
-  it('answers the keys the deploy smoke test expects', async () => {
-    const workflow = readFileSync(
-      new URL('../../.github/workflows/deploy-backend.yml', import.meta.url),
-      'utf8',
-    );
-    const pinned = [
-      ...workflow.matchAll(/Object\.keys\(JSON\.parse\(ok\.body\)\)\.join\(\) !== '([^']*)'/g),
-    ];
-    expect(pinned).toHaveLength(1);
-    expect(pinned[0][1]).toBe(Object.keys(await state()).join());
-  });
-
-  // The same smoke test keeps the tag its stub account's export wears, by hand: the account is the
+  // The deploy's smoke test keeps the tag its stub account's export wears, by hand: the account is the
   // one that step names, not this file's.
   it('answers the tag the deploy smoke test expects', () => {
     const workflow = readFileSync(

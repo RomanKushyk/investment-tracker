@@ -104,6 +104,8 @@ jobs:
 
       # Catches what typecheck cannot: that the bundle LOADS — an ESM one dies on `Dynamic
       # require of "events"`. No package.json here, like the zip, or node would read it as ESM.
+      # The suite runs each snippet too, on bundles this file's esbuild calls build: a route change
+      # that breaks one fails `pnpm test` before the merge (`infra/src/deploy-smoke.test.ts`).
       - name: Smoke-test the bundle
         run: |
           mkdir -p /tmp/bundle-check
@@ -507,8 +509,11 @@ jobs:
             if (typeof m.handler !== 'function') throw new Error('handler missing from mutations bundle');
             const SUB = '9f1e2d3c-0000-4000-8000-0000000000d4';
             const EMAIL = 'owner@quirenote.com';
+            const TOKEN = '00000000-0000-4000-8000-000000000001';
             const sent = [];
-            const deps = (status) => ({
+            // GRANTING, any other statement answers the row a landed claim reads back, its token
+            // this request's: a refused write that reached a claim then still answers 428.
+            const deps = (status, granting) => ({
               user: {
                 query: async (text) => {
                   sent.push(text);
@@ -517,11 +522,11 @@ jobs:
                       ? [{ data_version: '0' }]
                       : text.includes('FROM app_user')
                         ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: null }]
-                        : [],
+                        : granting ? [{ token: TOKEN }] : [],
                   };
                 },
               },
-              token: () => '00000000-0000-4000-8000-000000000001',
+              token: () => TOKEN,
               sleep: async () => {},
             });
             const claims = { authorizer: { jwt: { claims: { token_use: 'id', sub: SUB, email: EMAIL } } } };
@@ -539,17 +544,27 @@ jobs:
               if (Object.keys(JSON.parse(ok.body)).join() !== 'assets,transactions,prices') throw new Error('export shape: ' + ok.body);
               const again = await m.state(deps('active'), read({ 'if-none-match': ok.headers.etag }));
               if (again.statusCode !== 304 || 'body' in again) throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
+              // A write refused for its precondition sends what the gate alone sends, whatever a claim's
+              // statement names. The gate's statements are read off another route that refuses right
+              // after admitting the caller, so nothing in this one can join them.
+              const sentBy = async (route, event) => {
+                const from = sent.length;
+                const res = await route(deps('active', true), event);
+                return { res: res, texts: JSON.stringify(sent.slice(from)) };
+              };
+              if (typeof m.settings !== 'function') throw new Error('settings missing from mutations bundle');
+              const gated = await sentBy(m.settings, { routeKey: 'PATCH /settings', headers: { 'content-type': 'application/json' }, body: '{}', requestContext: claims });
+              if (gated.res.statusCode !== 415) throw new Error('the gate was not read off a refused settings patch: ' + JSON.stringify(gated.res));
               const key = '00000000-0000-4000-8000-0000000000aa';
               for (const headers of [{ 'idempotency-key': key }, { 'idempotency-key': key, 'if-match': '*' }]) {
-                const res = await m.mutations(deps('active'), write(headers));
-                if (res.statusCode !== 428) throw new Error('a write without a precondition was not refused 428: ' + JSON.stringify(res));
+                const refused = await sentBy(m.mutations, write(headers));
+                if (refused.res.statusCode !== 428) throw new Error('a write without a precondition was not refused 428: ' + JSON.stringify(refused.res));
+                if (refused.texts !== gated.texts) throw new Error('a refused write sent ' + refused.texts + ', its gate ' + gated.texts);
               }
-              if (sent.some((s) => s.includes('mutation_key'))) throw new Error('a refused write claimed its key');
               const pending = await m.mutations(deps('pending'), write({}));
               if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
               const patch = (headers, body) => ({ routeKey: 'PATCH /settings', headers: headers, body: body, requestContext: claims });
               const MERGE = 'application/merge-patch+json';
-              if (typeof m.settings !== 'function') throw new Error('settings missing from mutations bundle');
               const wrongType = await m.settings(deps('active'), patch({ 'content-type': 'application/json' }, '{}'));
               if (wrongType.statusCode !== 415 || wrongType.headers['accept-patch'] !== MERGE) throw new Error('a patch of another type was not refused 415: ' + JSON.stringify(wrongType));
               const theme = await m.settings(deps('active'), patch({ 'content-type': MERGE }, JSON.stringify({ theme: 'dark' })));
