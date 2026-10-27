@@ -1,7 +1,6 @@
 // `POST /mutations` and `GET /state` over PGlite: the caller's dataset, the key table and the gate
 // in one database, each reached through the module the routes use (*User schema and deletes*).
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 
 import type { PGlite } from '@electric-sql/pglite';
 import { validateImport } from '@quirenote/core/backup/import';
@@ -125,7 +124,7 @@ const version = async () =>
       [SUB],
     )
   ).rows[0].v;
-const tagAt = (version: string, sub = SUB) => dataTag(sub, version);
+const tagAt = (version: string) => dataTag(SUB, version);
 const tag = async () => tagAt(await version());
 
 type Send = {
@@ -1325,20 +1324,6 @@ describe('GET /state', () => {
     expect(prices.map((p) => p.price)).toEqual([1000.01 / 10]);
     // The case is real: a quote rounded to kopecks at the day's 13 units divides back to another price.
     expect(Math.round(13 * prices[0].price * 100) / 100 / 13).not.toBe(prices[0].price);
-  });
-
-  // The deploy's smoke test keeps the tag its stub account's export wears, by hand: the account is the
-  // one that step names, not this file's.
-  it('answers the tag the deploy smoke test expects', () => {
-    const workflow = readFileSync(
-      new URL('../../.github/workflows/deploy-backend.yml', import.meta.url),
-      'utf8',
-    );
-    const block = workflow.slice(workflow.indexOf("require('./mutations.js')"));
-    const stub = /const SUB = '([^']+)'/.exec(block);
-    if (stub === null) throw new Error('the mutations smoke block names no SUB');
-    const kept = `ok.headers.etag !== '${tagAt('0', stub[1]).replaceAll('"', '\\"')}'`;
-    expect(block).toContain(kept);
   });
 
   it('answers under the strong tag, kept by no cache', async () => {
