@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { carrySignedOut } from '../../auth/signed-out';
 
-import type { SignInOutcome } from '../../auth/sign-in';
+import type { SignInDeps, SignInOutcome } from '../../auth/sign-in';
 import { uk } from '../../i18n/messages';
 import type { BotCheckProps } from './BotCheck';
 
@@ -19,6 +19,8 @@ const hold = vi.hoisted(() => ({
   address: vi.fn(),
   password: vi.fn(),
   newPassword: vi.fn(),
+  /** The OS passkey sheet, which `signInDeps.authenticate` opens. */
+  sheet: vi.fn(),
   /** This tab's session storage, as `tabStorage` hands it. */
   tab: undefined as Storage | undefined,
 }));
@@ -27,7 +29,7 @@ vi.mock('../../auth/app', () => ({
   cancelPasskey: vi.fn(),
   passkeyDeps: {},
   session: { restore: vi.fn(async () => {}) },
-  signInDeps: {},
+  signInDeps: { authenticate: hold.sheet },
   startGoogle: vi.fn(),
   tabStorage: () => hold.tab,
   useGoogle: () => false,
@@ -100,6 +102,7 @@ beforeEach(() => {
   hold.address.mockReset();
   hold.password.mockReset();
   hold.newPassword.mockReset();
+  hold.sheet.mockReset();
   hold.tab = undefined;
 });
 afterEach(cleanup);
@@ -249,6 +252,70 @@ describe('the passkey step’s retry takes a widget of its own', () => {
     expect(screen.queryByTestId('bot-check')).toBeNull();
     await act(async () => finish({ kind: 'refused', reason: 'notFinished' }));
     expect(screen.getByTestId('bot-check')).toBeTruthy();
+  });
+});
+
+// `account-way-in-and-out.dc.html` T6: after the sheet closes the step stays, its lead turning to
+// «Входимо…» over the sentence it replaces, and both its controls busy until the relay answers.
+describe('a passkey being verified', () => {
+  let closeSheet: () => void = () => {};
+  let answer: (outcome: SignInOutcome) => void = () => {};
+
+  async function toTheSheet() {
+    hold.sheet.mockImplementationOnce(() => new Promise((close) => (closeSheet = () => close({}))));
+    hold.address.mockImplementationOnce(
+      async (_: string, __: string, deps: SignInDeps, onPasskey: (email: string) => void) => {
+        onPasskey(EMAIL);
+        await deps.authenticate({ challenge: 'c' });
+        return new Promise<SignInOutcome>((resolve) => (answer = resolve));
+      },
+    );
+    mount();
+    type(uk.auth.email, EMAIL);
+    await emit((w) => w.onToken('address-token'));
+    await press(CONTINUE);
+  }
+  const line = () => screen.getByRole('status');
+  const change = () => screen.getByRole('button', { name: uk.auth.changeLabel });
+  const passwordButton = () => button(new RegExp(uk.auth.passkey.usePassword));
+  const busy = () => [change(), passwordButton()].map((b) => b.getAttribute('aria-disabled'));
+
+  it('reads «Входимо…» in the line the lead stood in, the lead held beneath it unread', async () => {
+    await toTheSheet();
+    // Present and silent since the step appeared, so the word it gains is announced.
+    const before = line();
+    expect(before.textContent).toBe('');
+    expect(screen.getByText(uk.auth.passkey.lead).getAttribute('aria-hidden')).toBeNull();
+    expect(busy()).toEqual([null, null]);
+
+    await act(async () => closeSheet());
+    expect(line()).toBe(before);
+    expect(before.textContent).toBe('Входимо…');
+    expect(screen.getByText(uk.auth.passkey.lead).getAttribute('aria-hidden')).toBe('true');
+    expect(busy()).toEqual(['true', 'true']);
+  });
+
+  it('keeps its step when «Змінити» or «Увійти з паролем» is pressed', async () => {
+    await toTheSheet();
+    await act(async () => closeSheet());
+    await act(async () => change().click());
+    await act(async () => passwordButton().click());
+    expect(screen.getByText(uk.auth.passkey.title)).toBeTruthy();
+    expect(screen.queryByLabelText(uk.auth.password.label)).toBeNull();
+    expect(screen.queryByLabelText(uk.auth.email)).toBeNull();
+  });
+
+  // The lead coming back is not news: a refusal announces its own sentence, and no window is open.
+  it('gives the controls and the lead back with the refusal, and announces only the refusal', async () => {
+    await toTheSheet();
+    await act(async () => closeSheet());
+    await act(async () => answer({ kind: 'refused', reason: 'notFinished' }));
+    expect(alerts()).toEqual([uk.auth.passkey.notFinished]);
+    expect(line().textContent).toBe('');
+    expect(screen.getByText(uk.auth.passkey.lead).getAttribute('aria-hidden')).toBeNull();
+    expect(busy()).toEqual([null, null]);
+    await act(async () => passwordButton().click());
+    expect(screen.getByLabelText(uk.auth.password.label)).toBeTruthy();
   });
 });
 

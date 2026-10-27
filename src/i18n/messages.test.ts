@@ -238,6 +238,16 @@ describe('the sign-out lines', () => {
   });
 });
 
+// `account-way-in-and-out.dc.html`: a sign-in on its way in says the password step's own busy word.
+describe('the way in', () => {
+  it('says «Входимо…», the word the password step already says while it signs in', () => {
+    expect([uk.auth.signingIn, en.auth.signingIn]).toEqual([
+      uk.auth.password.busy,
+      en.auth.password.busy,
+    ]);
+  });
+});
+
 describe('the reused temporary password', () => {
   // The words the owner ruled (`password-reuse.dc.html`): what happened, then the fix the lead
   // already asks for, in its own last words.

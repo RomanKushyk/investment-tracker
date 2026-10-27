@@ -18,6 +18,7 @@ import { arrivedGoogleFailed, belowTheForm, forgetReauthentication } from '../..
 import { addPasskey } from '../../auth/passkey';
 import {
   type HeldChallenge,
+  type SignInDeps,
   setNewPassword,
   signInWithAddress,
   signInWithPassword,
@@ -59,6 +60,10 @@ type Step =
   | { name: 'offer' }
   | { name: 'created' };
 
+// BUSY WITHOUT `disabled`, which would drop focus to the page: announced as unavailable, drawn as
+// the password step's busy, and every handler returns while it holds.
+const BUSY = 'aria-disabled:pointer-events-none aria-disabled:opacity-70';
+
 /** A refusal, and a count that re-inserts its alert so a repeat is announced again. */
 type Said = { reason: Reason; n: number };
 
@@ -85,8 +90,7 @@ function sentence(t: Dict, reason: Reason): string {
   }[reason];
 }
 
-/** `completing`: back from Google on `/auth/callback`, the relay redeeming the code. */
-export function SignIn({ completing = false }: { completing?: boolean }) {
+export function SignIn() {
   const t = useT();
   const status = useSessionStatus();
   const google = useGoogle();
@@ -94,6 +98,8 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  // The passkey sheet has answered and the relay is verifying it (`account-way-in-and-out.dc.html` T6).
+  const [verifying, setVerifying] = useState(false);
   const [said, setSaid] = useState<Said>();
   // The passkey retry's own check, said under its link (`bot-check-steps.dc.html` T2).
   const [retrySaid, setRetrySaid] = useState<Said>();
@@ -113,8 +119,8 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
       ? 'said'
       : undefined,
   );
-  // Busy from the press until the page leaves for Google, and while the relay redeems its code.
-  const [googleBusy, setGoogleBusy] = useState(completing);
+  // Busy from the press until the page leaves for Google.
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [googleSaid, setGoogleSaid] = useState<Said | undefined>(() =>
     arrivedGoogleFailed(location.state) ? { reason: 'googleFailed', n: 1 } : undefined,
   );
@@ -203,6 +209,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     cancelPasskey();
     for (const check of [addressCheck, passwordCheck, retryCheck]) check.forget();
     setBusy(false);
+    setVerifying(false);
     setSaid(undefined);
     setRetrySaid(undefined);
     setGoogleSaid(undefined);
@@ -210,6 +217,16 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     setPassword('');
     setStep(next);
   }
+
+  /** The sheet's answer turns the step to verifying, until the outcome lands. */
+  const depsFor = (current: () => boolean): SignInDeps => ({
+    ...signInDeps,
+    authenticate: async (options) => {
+      const answered = await signInDeps.authenticate(options);
+      if (current()) setVerifying(true);
+      return answered;
+    },
+  });
 
   /** THE START IS THE PRESS'S FIRST WAIT, its token already in hand: Safari before 17.4 opens the
    *  passkey sheet only after one fetch and no other wait. */
@@ -220,7 +237,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     refusedAs: (reason: Reason) => void,
   ) {
     const current = begin();
-    const outcome = await signInWithAddress(typed, token, signInDeps, (email) => {
+    const outcome = await signInWithAddress(typed, token, depsFor(current), (email) => {
       if (!current()) return false;
       setBusy(false);
       setStep({ name: 'passkey', email });
@@ -228,6 +245,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     if (!current()) return;
     check.spent();
     setBusy(false);
+    setVerifying(false);
     if (outcome.kind === 'password') {
       setPassword('');
       setStep({ name: 'password', email: outcome.email });
@@ -364,7 +382,7 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
     setChanged(true);
   };
 
-  const below = belowTheForm(status, google, completing || googleSaid !== undefined);
+  const below = belowTheForm(status, google, googleSaid !== undefined);
   const fieldError = said && ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const stepError = said && !ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const ruleError = said && ON_THE_RULE.includes(said.reason) ? said : undefined;
@@ -430,14 +448,29 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
         {step.name === 'passkey' && (
           <>
             <FocusedTitle>{t.auth.passkey.title}</FocusedTitle>
-            <AddressRow email={step.email} onChange={change} />
-            <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">
-              {t.auth.passkey.lead}
+            <AddressRow email={step.email} busy={verifying} onChange={change} />
+            {/* The status is present and silent since the step appeared, so only «Входимо…» is
+                announced; the lead held beneath keeps the line's height under the pointer. */}
+            <p className="mb-[22px] grid text-[13px] leading-[19.5px] text-muted">
+              <span
+                aria-hidden={verifying || undefined}
+                className={`col-start-1 row-start-1 ${verifying ? 'invisible' : ''}`}
+              >
+                {t.auth.passkey.lead}
+              </span>
+              <span role="status" className="col-start-1 row-start-1">
+                {verifying && (
+                  <span className="animate-in duration-300 ease-soft fade-in">
+                    {t.auth.signingIn}
+                  </span>
+                )}
+              </span>
             </p>
             <Button
               variant="outline"
-              className="w-full"
-              onClick={() => go({ name: 'password', email: step.email })}
+              className={`w-full ${BUSY}`}
+              aria-disabled={verifying || undefined}
+              onClick={() => !verifying && go({ name: 'password', email: step.email })}
             >
               {t.auth.passkey.usePassword}
             </Button>
@@ -599,7 +632,15 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   );
 }
 
-function AddressRow({ email, onChange }: { email: string; onChange: () => void }) {
+function AddressRow({
+  email,
+  busy = false,
+  onChange,
+}: {
+  email: string;
+  busy?: boolean;
+  onChange: () => void;
+}) {
   const t = useT();
   return (
     <div className="mb-[22px] flex items-baseline gap-3 text-[13px] leading-[19.5px]">
@@ -607,8 +648,9 @@ function AddressRow({ email, onChange }: { email: string; onChange: () => void }
       <button
         type="button"
         aria-label={t.auth.changeLabel}
-        onClick={onChange}
-        className={`flex-none ${LINK}`}
+        aria-disabled={busy || undefined}
+        onClick={() => !busy && onChange()}
+        className={`flex-none transition ${LINK} ${BUSY}`}
       >
         {t.auth.change}
       </button>

@@ -858,6 +858,8 @@ export const en = {
     emailInvalid: 'Use Latin letters, like name@example.com.',
     change: 'Change',
     changeLabel: 'Change the address',
+    // A sign-in on its way in: back from Google, and a passkey being verified.
+    signingIn: 'Signing in…',
     passkey: {
       title: 'Confirm with your passkey',
       lead: 'Your browser opened its passkey window.',
@@ -870,6 +872,7 @@ export const en = {
       or: 'or',
       continue: 'Continue with Google',
       failed: 'Google sign-in didn’t finish.',
+      completing: 'Finishing your Google sign-in.',
     },
     retry: 'Try again',
     password: {
@@ -1961,6 +1964,7 @@ export const uk: Dict = {
     emailInvalid: 'Адреса — латиницею, як name@example.com.',
     change: 'Змінити',
     changeLabel: 'Змінити адресу',
+    signingIn: 'Входимо…',
     passkey: {
       title: 'Підтвердьте ключем доступу',
       lead: 'Браузер відкрив вікно ключа доступу.',
@@ -1972,6 +1976,7 @@ export const uk: Dict = {
       or: 'або',
       continue: 'Продовжити з Google',
       failed: 'Вхід через Google не завершено.',
+      completing: 'Завершуємо вхід через Google.',
     },
     retry: 'Спробувати ще раз',
     password: {
