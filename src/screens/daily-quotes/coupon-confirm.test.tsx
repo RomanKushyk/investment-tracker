@@ -89,11 +89,8 @@ async function open(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(client.isFetching()).toBe(0));
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 50));
-  });
-  await waitFor(() => expect(client.isFetching()).toBe(0));
+  // The card itself, not the read's end: a slow read keeps the placeholder up for a while after.
+  await waitFor(card);
 }
 
 /** The card of the bond: the smallest element around its amount field that holds a confirm button. */

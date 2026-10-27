@@ -85,11 +85,14 @@ async function open(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(client.isFetching()).toBe(0));
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 50));
-  });
-  await waitFor(() => expect(client.isFetching()).toBe(0));
+  // The sidebar's capital, «—» until the view answers with the tag a write is sent under: /settings
+  // draws its controls before that.
+  await waitFor(() =>
+    expect(
+      within(document.querySelector('aside')!).getByText(uk.sidebar.totalCapital)
+        .nextElementSibling!.firstElementChild!.textContent,
+    ).not.toBe('—'),
+  );
 }
 
 /** Another tab writes, then this one sends its write under the tag it had. Every toast of an error
@@ -110,7 +113,7 @@ const reit = SEED.assets[0];
 describe('a control with a failure message of its own', () => {
   it('Delete asset says a stale tag once', async () => {
     await open('/portfolio');
-    fireEvent.click(screen.getByRole('button', { name: uk.edit.edit }));
+    fireEvent.click(await screen.findByRole('button', { name: uk.edit.edit }));
     fireEvent.click(await screen.findByRole('button', { name: uk.assets.deleteAria(reit.name) }));
     const dialog = await screen.findByRole('alertdialog');
 
@@ -123,7 +126,7 @@ describe('a control with a failure message of its own', () => {
 
   it('Save changes on an asset says a stale tag once', async () => {
     await open('/portfolio');
-    fireEvent.click(screen.getByRole('button', { name: uk.edit.edit }));
+    fireEvent.click(await screen.findByRole('button', { name: uk.edit.edit }));
     fireEvent.click(await screen.findByRole('button', { name: uk.assets.editAria(reit.name) }));
     const dialog = await screen.findByRole('dialog');
 
@@ -136,7 +139,7 @@ describe('a control with a failure message of its own', () => {
 
   it('Save on the targets says a stale tag once', async () => {
     await open('/allocation');
-    fireEvent.click(screen.getByRole('button', { name: uk.edit.edit }));
+    fireEvent.click(await screen.findByRole('button', { name: uk.edit.edit }));
     const field = await screen.findByRole('textbox', { name: uk.targets.fieldAria(reit.name) });
     fireEvent.change(field, { target: { value: '12' } });
 
@@ -149,7 +152,7 @@ describe('a control with a failure message of its own', () => {
 
   it('Erase data says a stale tag once', async () => {
     await open('/settings');
-    fireEvent.click(screen.getByRole('button', { name: uk.danger.trigger }));
+    fireEvent.click(await screen.findByRole('button', { name: uk.danger.trigger }));
     const dialog = await screen.findByRole('alertdialog');
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'erase' } });
 
@@ -162,7 +165,9 @@ describe('a control with a failure message of its own', () => {
 
   it('deleting a transaction says a stale tag once', async () => {
     await open('/transactions');
-    fireEvent.click(screen.getAllByRole('button', { name: uk.transaction.delete.aria })[0]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: uk.transaction.delete.aria }))[0],
+    );
 
     const told = await refused(() =>
       fireEvent.click(screen.getByRole('button', { name: uk.transaction.delete.confirm })),
@@ -175,7 +180,7 @@ describe('a control with a failure message of its own', () => {
 describe('the same controls, refused for another reason', () => {
   it('Delete asset says what failed, once', async () => {
     await open('/portfolio');
-    fireEvent.click(screen.getByRole('button', { name: uk.edit.edit }));
+    fireEvent.click(await screen.findByRole('button', { name: uk.edit.edit }));
     fireEvent.click(await screen.findByRole('button', { name: uk.assets.deleteAria(reit.name) }));
     const dialog = await screen.findByRole('alertdialog');
     // The API answers 500 to the write the dialog sends.

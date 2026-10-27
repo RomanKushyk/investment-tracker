@@ -104,17 +104,22 @@ async function open(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await settle(client);
+  await settle(client, path);
   return { client, view, router };
 }
 
-async function settle(client: QueryClient) {
-  await waitFor(() => expect(client.isFetching()).toBe(0));
-  // A read that follows from another's answer starts a tick after it.
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 50));
-  });
-  await waitFor(() => expect(client.isFetching()).toBe(0));
+/** Every read the page makes, answered and drawn: a wide figure's read starts once the screen is,
+ *  and the curve's marks nothing busy, so it is looked for. Two held reads in a row are slow. */
+async function settle(client: QueryClient, path?: string) {
+  await waitFor(
+    () => {
+      expect(document.querySelector('main h2')).not.toBeNull();
+      expect(document.querySelector('main [aria-busy="true"]')).toBeNull();
+      if (path === '/yield') screen.getByTestId('curve');
+      expect(client.isFetching()).toBe(0);
+    },
+    { timeout: 3_000 },
+  );
 }
 
 /** What the API was asked, by route: the data routes only, the relay's refresh being the session's. */
@@ -172,7 +177,7 @@ describe('moving between screens', () => {
       await act(async () => {
         await router.navigate(path);
       });
-      await settle(client);
+      await settle(client, path);
     }
     expect(asked()).toEqual({ view: 1, series: 1, balances: 1, day: 0, total: 3 });
   });
@@ -192,7 +197,7 @@ describe('moving between screens', () => {
       await act(async () => {
         await router.navigate(path);
       });
-      await settle(client);
+      await settle(client, path);
     }
     expect(asked().total).toBe(1);
   });

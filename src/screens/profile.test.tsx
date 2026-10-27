@@ -142,24 +142,25 @@ afterEach(() => {
   failing.clear();
 });
 
-async function open(path = '/profile') {
-  const client = new QueryClient();
+function mount(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const view = render(
-    <QueryClientProvider client={client}>
+    <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await settle(client);
-  return { client, view, router, main: () => view.container.querySelector('main')! };
+  return { view, router, main: () => view.container.querySelector('main')! };
 }
 
-async function settle(client: QueryClient) {
-  await waitFor(() => expect(client.isFetching()).toBe(0));
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 50));
+/** The profile once the account and the passkey list are on it: a slow read keeps their
+ *  placeholders up for a while after it answers. */
+async function open(path = '/profile') {
+  const page = mount(path);
+  await waitFor(() => {
+    expect(page.main()?.textContent).toContain(ME_EMAIL);
+    expect(page.main()?.querySelector('[data-placeholder="passkey"]')).toBeNull();
   });
-  await waitFor(() => expect(client.isFetching()).toBe(0));
+  return page;
 }
 
 const wait = (ms: number) => act(async () => void (await new Promise((r) => setTimeout(r, ms))));
@@ -300,11 +301,13 @@ describe('the passkeys', () => {
 
   // The list changes only from another device's sign-in, which this tab cannot learn of.
   it('is read again on every visit', async () => {
-    const { router, client } = await open();
+    const { router } = await open();
     expect(api.passkeyLists).toBe(1);
     await act(() => router.navigate('/settings'));
     await act(() => router.navigate('/profile'));
-    await settle(client);
+    await waitFor(() => expect(api.passkeyLists).toBe(2));
+    // Once, not again a moment later.
+    await wait(50);
     expect(api.passkeyLists).toBe(2);
   });
 });
@@ -349,15 +352,15 @@ describe('the account read', () => {
 
   it('that fails shows the failed-screen state inside the shell', async () => {
     failing.add('/me');
-    const { main, view } = await open();
-    expect(text(main())).toContain(uk.boundary.failed.title);
+    const { main, view } = mount('/profile');
+    await waitFor(() => expect(text(main())).toContain(uk.boundary.failed.title));
     // The shell stands: the sidebar is still there around it.
     expect(view.container.querySelector('#app-sidebar')).not.toBeNull();
   });
 
   it('is not made, and nothing shows, when nobody is signed in', async () => {
     await session.signOut();
-    const { main } = await open();
+    const { main } = mount('/profile');
     // Past the hold, after which a page that were made would show its held boxes.
     await wait(400);
     expect(text(main())).toBe('');
@@ -656,13 +659,23 @@ describe('signing out everywhere', () => {
     api.logout = LOGOUT;
     leaving.site = SITE;
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
-    await toThePassword();
-    await typeAndConfirm();
-    await waitFor(() => expect(leaving.to).toHaveLength(1));
-    const restored = new Event('pageshow');
-    Object.defineProperty(restored, 'persisted', { value: true });
-    act(() => void window.dispatchEvent(restored));
-    await waitFor(() => expect(dialog()).toBeNull());
+    const added = vi.spyOn(globalThis, 'addEventListener');
+    const pageshows = () => added.mock.calls.filter(([type]) => type === 'pageshow').length;
+    try {
+      await toThePassword();
+      const before = pageshows();
+      await typeAndConfirm();
+      await waitFor(() => expect(leaving.to).toHaveLength(1));
+      // The dialog listens anew from an effect once the page has set out; a restore before that
+      // finds the listener of a page still here.
+      await waitFor(() => expect(pageshows()).toBeGreaterThan(before));
+      const restored = new Event('pageshow');
+      Object.defineProperty(restored, 'persisted', { value: true });
+      act(() => void window.dispatchEvent(restored));
+      await waitFor(() => expect(dialog()).toBeNull());
+    } finally {
+      added.mockRestore();
+    }
   });
 
   // A back/forward restore of a page still signed in keeps the dialog and its proof.
@@ -715,12 +728,17 @@ describe('signing out everywhere', () => {
     leaving.site = SITE;
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
     const navigation = new EventTarget();
+    const added = vi.spyOn(navigation, 'addEventListener');
     vi.stubGlobal('navigation', navigation);
     try {
       await toThePassword();
       await typeAndConfirm();
       await waitFor(() => expect(leaving.to).toHaveLength(1));
       expect(dialog()).not.toBeNull();
+      // The dialog listens from an effect once the page has set out, after the leave was recorded.
+      await waitFor(() =>
+        expect(added).toHaveBeenCalledWith('navigateerror', expect.any(Function)),
+      );
       act(() => void navigation.dispatchEvent(new Event('navigateerror')));
       await waitFor(() => expect(dialog()).toBeNull());
     } finally {
@@ -859,7 +877,7 @@ describe('signing out everywhere', () => {
       const issued = Math.floor(Date.now() / 1000);
       api.claims = { ...api.claims, auth_time: issued - ago, iat: issued };
       carryReauthentication(sessionStorage);
-      const view = await open(path);
+      const view = mount(path);
       await waitFor(() => expect(view.router.state.location.pathname).toBe('/profile'));
       await waitFor(() => expect(dialog()).not.toBeNull());
       return view;
@@ -914,7 +932,9 @@ describe('signing out everywhere', () => {
       onlyGoogle();
       carryReauthentication(sessionStorage);
       const release = hold('/auth/google/complete');
-      const view = await open(callback());
+      const view = mount(callback());
+      // Still held a moment on, not only as first drawn.
+      await wait(50);
       expect(text(view.view.container)).toContain(E.checking);
       expect(text(view.view.container)).toContain(G.completing);
       expect(view.router.state.location.pathname).toBe('/auth/callback');
@@ -948,7 +968,7 @@ describe('signing out everywhere', () => {
 
     it('reads a callback this tab did not begin as a sign-in’s, and opens nothing', async () => {
       onlyGoogle();
-      const view = await open(callback());
+      const view = mount(callback());
       await waitFor(() => expect(view.router.state.location.pathname).not.toBe('/auth/callback'));
       expect(view.router.state.location.pathname).not.toBe('/profile');
       expect(dialog()).toBeNull();
@@ -1036,12 +1056,17 @@ describe('signing out everywhere', () => {
     // A STOP before Google's page loads leaves this one here: nothing is bound for Google.
     it('lets go once a trip to Google is halted', async () => {
       const navigation = new EventTarget();
+      const added = vi.spyOn(navigation, 'addEventListener');
       vi.stubGlobal('navigation', navigation);
       try {
         onlyGoogle();
         await toTheStep();
         await press(buttonIn(dialog(), G.google));
         await waitFor(() => expect(leaving.google).toHaveLength(1));
+        // The dialog listens from an effect once it is bound for Google.
+        await waitFor(() =>
+          expect(added).toHaveBeenCalledWith('navigateerror', expect.any(Function)),
+        );
         act(() => void navigation.dispatchEvent(new Event('navigateerror')));
         await waitFor(() =>
           expect(buttonIn(dialog(), E.cancel)?.getAttribute('aria-disabled')).toBeNull(),

@@ -3,7 +3,7 @@
 // cards of Overview and the sidebar's capital follow a served rate, and read «—» when the API has
 // none, never a number made up (*Language, numbers, fonts*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, waitFor, within } from '@testing-library/react';
+import { cleanup, render, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -100,11 +100,11 @@ async function open(
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(client.isFetching()).toBe(0));
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 50));
-  });
-  await waitFor(() => expect(client.isFetching()).toBe(0));
+  // The rate line, which the screen draws and its placeholder does not: a slow read keeps the
+  // placeholder up for a while after it answers.
+  await waitFor(() =>
+    expect(document.querySelector('main a[href^="https://bank.gov.ua/"]')).not.toBeNull(),
+  );
 }
 
 /** A card of the page, read off the label that heads it: its value, its sub-line, and the paint of
