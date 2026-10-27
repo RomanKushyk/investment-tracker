@@ -729,9 +729,12 @@ Settings stands at one top in all three states, and closed from the first render
 with no auth environment, which has nothing to sign in to. While a sign-out runs every «Вийти» in
 the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
 failure raises one toast. Nothing holds a sign-out that succeeded, unsaved work included: every
-«Вийти» stays busy over the signed-in rows while the page leaves, one the rail mounts meanwhile too, and the
-slot answers signed out only when the page is still here after Back, a Stop or a route change, by
-the next route change at the latest. «Увійти» there is a plain visit to `/sign-in`; the line that
+«Вийти» stays busy over the signed-in rows while the page leaves, one the rail, a crossing of 768 or
+a reopened drawer mounts meanwhile too, and the slot answers signed out only when the page is still
+here after Back, a Stop or a route change, by the next route change at the latest. UNTIL THE LOAD
+ENDS THE DRAWER MAKES NO HISTORY ACT: it opens and closes, and crosses 768, without its marker, a
+route change included, and puts the marker back in step once a Stop, Back or a restore finds the
+page still here. A Stop is the `navigateerror` no `navigate` follows. «Увійти» there is a plain visit to `/sign-in`; the line that
 says so is a sign-out's own arrival's, the logout's landing included. A logout the relay names that
 is no URL is none: the sign-out goes its own way to `/sign-in`.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
@@ -747,7 +750,12 @@ pointer. By the time a guard for unsaved work could ask, the relay has revoked t
 work has gone with the account's figures, so a sign-out passes it. Where the page is still here
 after a later act of the user's, the slot answers signed out: a busy «Вийти» under a signed-in label
 would misstate the session (NN/g's visibility of system status), and the swap moves no target. It
-never answers the press itself, which asked to leave (`account-way-in-and-out.dc.html` T4, T9).
+never answers the press itself, which asked to leave (`account-way-in-and-out.dc.html` T4, T9). A
+drawer that closes is not a Stop the user chose: a traversal while the logout loads cancels it (HTML,
+*apply the history step*), and only that load clears Cognito's session cookie, which its `/logout`
+must be invoked in the browser to do; a push fires `navigateerror`, the Stop's own signal, then its own `navigate` (HTML,
+*fire a push/replace/reload navigate event*), which is what tells the two apart. A route change
+answers the slot but not the load, which still runs.
 Signed out, a screen behind the portfolio's view mounts the shell over an empty `main`,
 and a visitor with no way in reads the app as having no auth at all; the entry is a signed-out
 visitor's one control there that reaches `/sign-in`, and it offers sign-in alone because the
@@ -761,7 +769,10 @@ slot folding shut on a signed-out answer: it moves Settings under a resting poin
 control in the shell: the sign-in card is one link from the application. · «Гість» as the status:
 the app has no guest mode. · A person glyph on the entry: it would read as the profile the status
 row stands for. · A dialog for unsaved work before a sign-out: once the session is revoked it could
-keep nothing.
+keep nothing. · Telling a Stop from a push in place of the pause: a close is a real traversal, which
+cancels the logout whatever the listener reads. · The slot's latch as the pause: a route change
+ends it while the logout still loads. · `CloseWatcher` in place of the
+marker: iOS Safari has none, so the marker and its pause stay there.
 
 ## Not found and failures
 **Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE

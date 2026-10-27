@@ -1,5 +1,5 @@
 import { Dialog as RadixDialog } from 'radix-ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Outlet, useLocation } from 'react-router';
 
 import { session } from '../auth/app';
@@ -7,6 +7,7 @@ import { LoadingStatus } from '../components/loading/LoadingStatus';
 import { useSettingsCopy, useViewDayRollover } from '../hooks/queries';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
+import { pageLeaving, subscribeToLeaving } from '../hooks/useSignOut';
 import { AppHeader } from './AppHeader';
 import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { Sidebar, SidebarDrawer } from './Sidebar';
@@ -17,6 +18,11 @@ import { useSettings } from '../state/settings';
 interface DrawerHistoryState {
   quirenoteDrawer?: boolean;
 }
+
+const isMarked = () =>
+  (window.history.state as DrawerHistoryState | null)?.quirenoteDrawer === true;
+const pushMarker = () =>
+  window.history.pushState({ ...window.history.state, quirenoteDrawer: true }, '');
 
 export function Layout() {
   const { pathname } = useLocation();
@@ -67,13 +73,23 @@ export function Layout() {
   useEffect(
     () =>
       subscribeToBreakpoint(() => {
-        if ((window.history.state as DrawerHistoryState | null)?.quirenoteDrawer === true) {
-          window.history.back();
-        }
+        if (!pageLeaving() && isMarked()) window.history.back();
         setDrawerOpen(false);
       }),
     [],
   );
+
+  // The drawer makes no history act while the page leaves, and puts its marker back in step when it
+  // stays (*Two shells, one breakpoint*); an effect, so it reads the drawer this commit drew.
+  const leaving = useSyncExternalStore(subscribeToLeaving, pageLeaving);
+  const wasLeaving = useRef(leaving);
+  useEffect(() => {
+    const stayed = wasLeaving.current && !leaving;
+    wasLeaving.current = leaving;
+    if (!stayed) return;
+    if (drawerOpen && !isMarked()) pushMarker();
+    else if (!drawerOpen && isMarked()) window.history.back();
+  }, [leaving, drawerOpen]);
 
   // THE SIDEBAR'S CONTROLS DISAPPEAR WHEN THE RAIL FLIPS, so focus held in it falls to
   // `<body>` and a keyboard user Tabs from the top of the document to get the navigation
@@ -111,9 +127,9 @@ export function Layout() {
   // AN EFFECT: StrictMode runs an effect's body, cleanup, then body again, so the push
   // ran twice and the pop once and the stack grew a dead entry per open.
   function toggleDrawer(next: boolean) {
-    if (next) {
-      window.history.pushState({ ...window.history.state, quirenoteDrawer: true }, '');
-    } else if ((window.history.state as DrawerHistoryState | null)?.quirenoteDrawer === true) {
+    if (next && !pageLeaving()) {
+      pushMarker();
+    } else if (!next && !pageLeaving() && isMarked()) {
       // Closing has to SPEND the entry it pushed, and THE GUARD KEEPS IT FROM FIRING
       // WHEN THE MARKER IS NOT THE CURRENT ENTRY: after a route change the router's own
       // entry sits on top, and popping would walk back to the route just left.

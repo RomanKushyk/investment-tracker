@@ -37,6 +37,52 @@ const restored = (event: PageTransitionEvent) => {
 };
 const stayed = () => setOut(undefined);
 
+// THE LOAD OUTLIVES THE LATCH: a route change ends the latch, not the logout, which a traversal would
+// cancel. A Stop fires `navigateerror` alone; a push, or a load replacing the logout, then its own
+// `navigate`.
+let departing = false;
+let followed = false;
+const departs = new Set<() => void>();
+const navigated = () => {
+  followed = true;
+};
+const halted = () => {
+  followed = false;
+  queueMicrotask(() => {
+    if (!followed) depart(false);
+  });
+};
+const arrived = (event: PageTransitionEvent) => {
+  if (event.persisted) depart(false);
+};
+const traversed = () => depart(false);
+
+function depart(next: boolean) {
+  if (next === departing) return;
+  departing = next;
+  const navigation = (globalThis as { navigation?: EventTarget }).navigation;
+  if (next) {
+    addEventListener('pageshow', arrived);
+    addEventListener('popstate', traversed);
+    navigation?.addEventListener('navigateerror', halted);
+    navigation?.addEventListener('navigate', navigated);
+  } else {
+    removeEventListener('pageshow', arrived);
+    removeEventListener('popstate', traversed);
+    navigation?.removeEventListener('navigateerror', halted);
+    navigation?.removeEventListener('navigate', navigated);
+  }
+  for (const listener of departs) listener();
+}
+
+/** Whether the page is on its way out through Cognito's logout, which a history act would cancel or
+ *  read as a Stop; the drawer makes none meanwhile. */
+export const pageLeaving = () => departing;
+export const subscribeToLeaving = (listener: () => void) => {
+  departs.add(listener);
+  return () => void departs.delete(listener);
+};
+
 function setOut(from: string | undefined) {
   if (from === setOutFrom) return;
   setOutFrom = from;
@@ -94,6 +140,7 @@ export function useSignOut() {
     // Through Cognito's logout while Google is on; the latch holds every control's rows until the
     // page goes, or is found still here.
     if (leaveThroughLogout(out.logout, '/sign-in')) {
+      depart(true);
       setOut(here);
       setLeaving(false);
       return;
