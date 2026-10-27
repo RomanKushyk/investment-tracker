@@ -1515,8 +1515,14 @@ to a caller. · An `Idempotency-Key` on a start: it would fold two deliberate ru
 The document generated from the template (`infra/src/openapi.ts`) tags each operation with its
 first path segment alone, and lists each tag once with a description, in the order its operations
 first appear, which is the order Swagger UI shows its groups in. An `operationId` is camelCase,
-`-` included. A read without a body is a GET and a safe read with one a QUERY (#393 settles whether
-API Gateway routes it); a write takes the method whose semantics it has: POST, PUT, PATCH or DELETE.
+`-` included. A read without a body is a GET; a write takes the method whose semantics it has: POST,
+PUT, PATCH or DELETE. A safe read with a body would be a QUERY (RFC 10008); it is a POST that writes
+nothing instead, because an HTTP API routes no QUERY (#393), and becomes a QUERY when one does. The
+one such read is `/auth/passkey/list`. `CreateRoute` refuses a `QUERY` route key. CloudFormation
+builds the API from SAM's body, with `ImportApi` on create and `ReimportApi` on update; both answer
+"Method QUERY is not supported" to `QUERY` among the CORS methods. `ReimportApi` reads a `query`
+operation as an unexpected attribute: a warning that `FailOnWarnings` turns into a refusal; without
+it the import succeeds, ignores the key and leaves the path with no route.
 **Why.** A version in the path exists so that independent clients can move at their own pace (Google
 AIP-185, written for APIs with many consumers). Here the only client is the SPA, deployed from the
 same commit as the API, so a breaking change is a deploy, not a version: Zalando's guidelines forbid
