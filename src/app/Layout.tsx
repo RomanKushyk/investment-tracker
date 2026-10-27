@@ -1,6 +1,6 @@
 import { Dialog as RadixDialog } from 'radix-ui';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Outlet, useLocation } from 'react-router';
+import { NavigationType, Outlet, useLocation, useNavigationType } from 'react-router';
 
 import { session } from '../auth/app';
 import { LoadingStatus } from '../components/loading/LoadingStatus';
@@ -25,7 +25,8 @@ const pushMarker = () =>
   window.history.pushState({ ...window.history.state, quirenoteDrawer: true }, '');
 
 export function Layout() {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
+  const navigationType = useNavigationType();
   // HERE BECAUSE THE LAYOUT SPANS EVERY PORTFOLIO ROUTE: the toast fires once on app open, whatever
   // screen the person lands on. Theme and language are `Root`'s.
   useReminderToast();
@@ -55,6 +56,17 @@ export function Layout() {
   // history side effects, and the router has already pushed its own entry on top of
   // the marker, so popping would walk back to the route just left.
   const [lastPath, setLastPath] = useState(pathname);
+  // A DRAWER LINK TO THE ROUTE ON SCREEN closes it too, and it REPLACED the marker (NavLink's
+  // same-path default), so the entry it wrote is spent further down, or the next Back would stay put.
+  const [lastKey, setLastKey] = useState(key);
+  const [replacedMarker, setReplacedMarker] = useState<string | null>(null);
+  if (lastKey !== key) {
+    setLastKey(key);
+    if (lastPath === pathname && drawerOpen && navigationType === NavigationType.Replace) {
+      setDrawerOpen(false);
+      setReplacedMarker(key);
+    }
+  }
   if (lastPath !== pathname) {
     setLastPath(pathname);
     setDrawerOpen(false);
@@ -90,6 +102,13 @@ export function Layout() {
     if (drawerOpen && !isMarked()) pushMarker();
     else if (!drawerOpen && isMarked()) window.history.back();
   }, [leaving, drawerOpen]);
+
+  // The entry an own-route tap wrote is spent only while it is still the current one: once the page
+  // stays, after a Back already left it, and on a re-run that has already spent it.
+  useEffect(() => {
+    const current = (window.history.state as { key?: string } | null)?.key;
+    if (!leaving && replacedMarker !== null && current === replacedMarker) window.history.back();
+  }, [replacedMarker, leaving]);
 
   // THE SIDEBAR'S CONTROLS DISAPPEAR WHEN THE RAIL FLIPS, so focus held in it falls to
   // `<body>` and a keyboard user Tabs from the top of the document to get the navigation

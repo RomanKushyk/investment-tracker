@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createBrowserRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useEditMode } from '../hooks/useEditMode';
 
 vi.mock('sonner', () => ({
   Toaster: () => null,
@@ -83,9 +85,9 @@ let push: ReturnType<typeof vi.spyOn>;
 let back: ReturnType<typeof vi.spyOn>;
 
 // Over jsdom's own history, as `main.tsx` mounts it: the router's entries and the marker share one stack.
-function mount() {
+function mount(page = <p>screen</p>) {
   const router = createBrowserRouter([
-    { element: <Layout />, children: [{ path: '*', element: <p>screen</p> }] },
+    { element: <Layout />, children: [{ path: '*', element: page }] },
   ]);
   render(<RouterProvider router={router} />);
   return router;
@@ -301,6 +303,30 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
   });
 
   // A load the page starts in place of the logout, as a reload, still takes the page: no Stop.
+  // The tap REPLACED the marker; the entry it wrote is spent once a Stop finds the page here.
+  it('spends the entry a tap on its own route wrote once a Stop leaves the page here', async () => {
+    const router = mount();
+    await openDrawer();
+    await signOut('drawer');
+    await act(() => router.navigate('/allocation', { replace: true }));
+    await settle();
+    expect(back, 'the drawer walked back over the logout').not.toHaveBeenCalled();
+    await stop();
+    await settle();
+    expect(back, 'the entry the tap wrote outlived the Stop').toHaveBeenCalledTimes(1);
+  });
+
+  it('walks back no further once a Back has left the entry a tap on its own route wrote', async () => {
+    const router = mount();
+    await openDrawer();
+    await signOut('drawer');
+    await act(() => router.navigate('/allocation', { replace: true }));
+    await act(() => history.back());
+    await settle();
+    expect(back, "the drawer walked back after the user's Back").toHaveBeenCalledTimes(1);
+    expect(location.pathname).toBe('/allocation');
+  });
+
   it('keeps the pause when another load replaces the logout', async () => {
     mount();
     await openDrawer();
@@ -315,5 +341,177 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
     });
     await settle();
     expect(back, 'the drawer walked back over the replacing load').not.toHaveBeenCalled();
+  });
+});
+
+// The real edit guard over unsaved work, as `/allocation` mounts it.
+function Editing() {
+  const { pathname } = useLocation();
+  const { editing, start, asking, keepEditing, discard } = useEditMode(true);
+  return (
+    <>
+      <p data-testid="edit">{`${pathname}:${editing ? 'editing' : 'idle'}:${asking ? 'asking' : 'quiet'}`}</p>
+      <button type="button" onClick={start}>
+        edit
+      </button>
+      <button type="button" onClick={keepEditing}>
+        keep
+      </button>
+      <button type="button" onClick={discard}>
+        discard
+      </button>
+    </>
+  );
+}
+
+describe('the drawer over unsaved work', () => {
+  let go: ReturnType<typeof vi.spyOn>;
+  const press = (name: string) => act(() => void fireEvent.click(screen.getByText(name)));
+  const edit = () => screen.getByTestId('edit').textContent;
+  // On `/allocation` after `/portfolio`, editing, so a Back has a route to leave for.
+  const arrive = async () => {
+    history.replaceState(null, '', '/portfolio');
+    const router = mount(<Editing />);
+    await act(() => router.navigate('/allocation'));
+    await press('edit');
+    return router;
+  };
+
+  beforeEach(() => {
+    const realGo = History.prototype.go;
+    // `go(0)` reloads the document (HTML, `history.go`), which jsdom cannot: recorded, not run.
+    go = vi.spyOn(history, 'go').mockImplementation(function (this: History, delta?: number) {
+      if (delta) realGo.call(this, delta);
+    });
+  });
+
+  it('closes by Escape without reloading the page or asking', async () => {
+    await arrive();
+    await openDrawer();
+    await escape();
+    await settle();
+    expect(go, 'the close reloaded the page').not.toHaveBeenCalled();
+    expect(edit()).toBe('/allocation:editing:quiet');
+    expect(marked(), 'the close left the marker current').toBe(false);
+  });
+
+  it('closes by Back without reloading the page or asking', async () => {
+    await arrive();
+    await openDrawer();
+    await act(() => history.back());
+    await settle();
+    expect(go, 'the close reloaded the page').not.toHaveBeenCalled();
+    expect(edit()).toBe('/allocation:editing:quiet');
+    expect(screen.queryByTestId('drawer'), 'Back left the drawer open').toBeNull();
+    expect(marked()).toBe(false);
+  });
+
+  it('closes by crossing 768 without reloading the page or asking', async () => {
+    await arrive();
+    await openDrawer();
+    await cross(true);
+    await settle();
+    expect(go, 'the close reloaded the page').not.toHaveBeenCalled();
+    expect(edit()).toBe('/allocation:editing:quiet');
+    expect(marked()).toBe(false);
+  });
+
+  it('asks before a link in the open drawer leaves the route', async () => {
+    const router = await arrive();
+    await openDrawer();
+    await act(() => router.navigate('/portfolio'));
+    expect(edit()).toBe('/allocation:editing:asking');
+    await press('keep');
+    expect(edit()).toBe('/allocation:editing:quiet');
+    await act(() => router.navigate('/portfolio'));
+    await press('discard');
+    await settle();
+    expect(edit()).toBe('/portfolio:idle:quiet');
+  });
+
+  it('asks before Back leaves the route with the drawer closed', async () => {
+    await arrive();
+    await act(() => history.back());
+    await settle();
+    expect(edit()).toBe('/allocation:editing:asking');
+    await press('keep');
+    await settle();
+    expect(edit()).toBe('/allocation:editing:quiet');
+    expect(location.pathname).toBe('/allocation');
+  });
+
+  // A drawer link to the route on screen REPLACES the marker (NavLink's same-path default).
+  it('closes on a tap on its own route and spends the entry the tap wrote', async () => {
+    const router = await arrive();
+    await press('discard');
+    await openDrawer();
+    await act(() => router.navigate('/allocation', { replace: true }));
+    await settle();
+    expect(screen.queryByTestId('drawer'), 'the tap left the drawer open').toBeNull();
+    expect(back, 'the entry the tap wrote stayed on the stack').toHaveBeenCalledTimes(1);
+    await press('edit');
+    await act(() => history.back());
+    await settle();
+    expect(
+      go.mock.calls.filter(([delta]: unknown[]) => !delta),
+      'Back reloaded the page',
+    ).toEqual([]);
+    expect(edit()).toBe('/allocation:editing:asking');
+  });
+
+  it('asks before a tap on its own route, and closes on Discard', async () => {
+    const router = await arrive();
+    await openDrawer();
+    await act(() => router.navigate('/allocation', { replace: true }));
+    expect(edit()).toBe('/allocation:editing:asking');
+    await press('discard');
+    await settle();
+    expect(
+      go.mock.calls.filter(([delta]: unknown[]) => !delta),
+      'the close reloaded the page',
+    ).toEqual([]);
+    expect(back, 'the entry the tap wrote stayed on the stack').toHaveBeenCalledTimes(1);
+    expect(edit()).toBe('/allocation:idle:quiet');
+    expect(screen.queryByTestId('drawer')).toBeNull();
+  });
+
+  // Forward lands on the entry the tap wrote: another key, the same URL, the same index.
+  it('keeps the work when Forward pops to an entry of the same URL', async () => {
+    const router = await arrive();
+    await press('discard');
+    await openDrawer();
+    await act(() => router.navigate('/allocation', { replace: true }));
+    await settle();
+    await press('edit');
+    await act(() => history.forward());
+    await settle();
+    expect(go, 'Forward reloaded the page').not.toHaveBeenCalled();
+    expect(edit()).toBe('/allocation:editing:quiet');
+  });
+
+  it('keeps the work when Back pops to an earlier entry of the same URL', async () => {
+    const router = await arrive();
+    await press('discard');
+    await act(() => router.navigate('/allocation'));
+    await press('edit');
+    await act(() => history.back());
+    await settle();
+    expect(go).not.toHaveBeenCalled();
+    expect(edit()).toBe('/allocation:editing:quiet');
+  });
+
+  // The close spent the marker, so the next Back is the route's own and the guard asks first.
+  it('leaves the route on the next Back after the drawer closes, asking first', async () => {
+    await arrive();
+    await openDrawer();
+    await escape();
+    await settle();
+    await act(() => history.back());
+    await settle();
+    expect(edit()).toBe('/allocation:editing:asking');
+    await press('discard');
+    await settle();
+    expect(edit()).toBe('/portfolio:idle:quiet');
+    expect(location.pathname).toBe('/portfolio');
   });
 });

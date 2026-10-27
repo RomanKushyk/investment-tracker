@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { type BlockerFunction, useBlocker } from 'react-router';
+import { type BlockerFunction, createPath, NavigationType, useBlocker } from 'react-router';
 
 import { arrivedSignedOut } from '../auth/signed-out';
 
@@ -31,9 +31,18 @@ export function useEditMode(dirty = false): EditMode {
 
   // A SIGN-OUT PASSES: the relay revoked the session before any guard could ask, and the unsaved
   // work went with the account's figures (`account-way-in-and-out.dc.html`, T4).
+  // A POP TO THE SAME URL PASSES: it keeps this screen and its drafts mounted, and a blocked pop with
+  // a zero delta, as over the drawer's marker, is answered with `history.go(0)`, a reload.
   const blocker = useBlocker(
     useCallback<BlockerFunction>(
-      ({ nextLocation }) => editing && dirty && !arrivedSignedOut(nextLocation.state),
+      ({ currentLocation, nextLocation, historyAction }) =>
+        editing &&
+        dirty &&
+        !(
+          historyAction === NavigationType.Pop &&
+          createPath(nextLocation) === createPath(currentLocation)
+        ) &&
+        !arrivedSignedOut(nextLocation.state),
       [editing, dirty],
     ),
   );
