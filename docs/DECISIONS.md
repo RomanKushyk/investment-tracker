@@ -728,11 +728,12 @@ profile item beside it, is HELD until the relay answers, after a load it never a
 Settings stands at one top in all three states, and closed from the first render only on a host
 with no auth environment, which has nothing to sign in to. While a sign-out runs every «Вийти» in
 the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
-failure raises one toast. A sign-out that succeeded keeps the signed-in rows under the control that
-was pressed while the page leaves; where unsaved work holds the page, or Back restores it, or a
-route change finds it still here after the redirect to Cognito's logout set out, the slot answers
-signed out. A logout the relay names that is no URL is none: the sign-out goes its own way to
-`/sign-in`.
+failure raises one toast. Nothing holds a sign-out that succeeded, unsaved work included: every
+«Вийти» stays busy over the signed-in rows while the page leaves, one the rail mounts meanwhile too, and the
+slot answers signed out only when the page is still here after Back, a Stop or a route change, by
+the next route change at the latest. «Увійти» there is a plain visit to `/sign-in`; the line that
+says so is a sign-out's own arrival's, the logout's landing included. A logout the relay names that
+is no URL is none: the sign-out goes its own way to `/sign-in`.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,
@@ -742,10 +743,12 @@ must be visible and reachable from every page that has a session (OWASP's *Logou
 7.4.4), and the owner ruled it last; a footer band is anchored to the bottom and grows upward, so
 rows appearing on the session's answer would move every target above them — held, they fade into
 their slot, whose height is the same answered either way, so nothing above it moves under a resting
-pointer. Where the page stays after a sign-out, held by unsaved work or restored by Back, the slot
-answers signed out at once, departing from `sign-in-entry.dc.html` T4: a busy «Вийти» under a
-signed-in label would misstate the session (NN/g's visibility of system status), and the swap moves
-no target. Signed out, a screen behind the portfolio's view mounts the shell over an empty `main`,
+pointer. By the time a guard for unsaved work could ask, the relay has revoked the session and the
+work has gone with the account's figures, so a sign-out passes it. Where the page is still here
+after a later act of the user's, the slot answers signed out: a busy «Вийти» under a signed-in label
+would misstate the session (NN/g's visibility of system status), and the swap moves no target. It
+never answers the press itself, which asked to leave (`account-way-in-and-out.dc.html` T4, T9).
+Signed out, a screen behind the portfolio's view mounts the shell over an empty `main`,
 and a visitor with no way in reads the app as having no auth at all; the entry is a signed-out
 visitor's one control there that reaches `/sign-in`, and it offers sign-in alone because the
 sign-in card is one link from the application. It is a link because it goes to a route (APG's link
@@ -757,7 +760,8 @@ A sign-out offered to every visitor regardless of session: a way out for someone
 slot folding shut on a signed-out answer: it moves Settings under a resting pointer. · An Apply
 control in the shell: the sign-in card is one link from the application. · «Гість» as the status:
 the app has no guest mode. · A person glyph on the entry: it would read as the profile the status
-row stands for.
+row stands for. · A dialog for unsaved work before a sign-out: once the session is revoked it could
+keep nothing.
 
 ## Not found and failures
 **Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useBlocker } from 'react-router';
+import { type BlockerFunction, useBlocker } from 'react-router';
+
+import { arrivedSignedOut } from '../auth/signed-out';
 
 /**
  * Whether a screen is being edited, and the guard that stops unsaved work being dropped
@@ -27,8 +29,14 @@ export function useEditMode(dirty = false): EditMode {
   const [editing, setEditing] = useState(false);
   const [askingExit, setAskingExit] = useState(false);
 
-  // A boolean, which react-router takes directly, so there is no identity to keep stable.
-  const blocker = useBlocker(editing && dirty);
+  // A SIGN-OUT PASSES: the relay revoked the session before any guard could ask, and the unsaved
+  // work went with the account's figures (`account-way-in-and-out.dc.html`, T4).
+  const blocker = useBlocker(
+    useCallback<BlockerFunction>(
+      ({ nextLocation }) => editing && dirty && !arrivedSignedOut(nextLocation.state),
+      [editing, dirty],
+    ),
+  );
   const blocked = blocker.state === 'blocked';
 
   /**

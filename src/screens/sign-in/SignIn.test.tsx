@@ -7,6 +7,8 @@ import type { ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { carrySignedOut } from '../../auth/signed-out';
+
 import type { SignInOutcome } from '../../auth/sign-in';
 import { uk } from '../../i18n/messages';
 import type { BotCheckProps } from './BotCheck';
@@ -17,6 +19,8 @@ const hold = vi.hoisted(() => ({
   address: vi.fn(),
   password: vi.fn(),
   newPassword: vi.fn(),
+  /** This tab's session storage, as `tabStorage` hands it. */
+  tab: undefined as Storage | undefined,
 }));
 vi.mock('../../auth/app', () => ({
   botCheckSitekey: 'site-key',
@@ -25,7 +29,7 @@ vi.mock('../../auth/app', () => ({
   session: { restore: vi.fn(async () => {}) },
   signInDeps: {},
   startGoogle: vi.fn(),
-  tabStorage: () => undefined,
+  tabStorage: () => hold.tab,
   useGoogle: () => false,
   useSessionStatus: () => 'signedOut',
 }));
@@ -53,13 +57,15 @@ const HELD = { session: 'held-session', userId: 'user-id' };
 const PENDING = 'Перевірка безпеки ще триває. Спробуйте ще раз за мить.';
 const EXPIRED = 'Час на встановлення пароля минув. Введіть тимчасовий пароль ще раз.';
 
-function mount() {
+/** `/sign-in` as the page's first location, or, `after` another, as a visit from within the app. */
+function mount(after?: string) {
   const router = createMemoryRouter(
     [
       { path: '/sign-in', element: <SignIn /> },
       { path: '/', element: <p>home</p> },
+      { path: '/allocation', element: <p>allocation</p> },
     ],
-    { initialEntries: ['/sign-in'] },
+    { initialEntries: after === undefined ? ['/sign-in'] : [after, '/sign-in'] },
   );
   render(<RouterProvider router={router} />);
 }
@@ -94,8 +100,34 @@ beforeEach(() => {
   hold.address.mockReset();
   hold.password.mockReset();
   hold.newPassword.mockReset();
+  hold.tab = undefined;
 });
 afterEach(cleanup);
+
+// The fact a sign-out through Cognito's logout carries in this tab is said only by the logout's own
+// landing, a load of the page; «Увійти» on a page the logout left is a plain visit (T4).
+describe("the line a sign-out through Cognito's logout carries", () => {
+  beforeEach(() => {
+    hold.tab = window.sessionStorage;
+    hold.tab.clear();
+    carrySignedOut(hold.tab);
+  });
+  // The note writes its line once its live region has settled, a tenth of a second in.
+  const settled = () => act(() => new Promise((settle) => setTimeout(settle, 200)));
+
+  it("is said where the logout lands, the page's first location", async () => {
+    mount();
+    await settled();
+    expect(screen.queryByText(uk.auth.signedOut)).not.toBeNull();
+  });
+
+  it('is not said on a visit from within the app, and is forgotten there', async () => {
+    mount('/allocation');
+    await settled();
+    expect(screen.queryByText(uk.auth.signedOut)).toBeNull();
+    expect(hold.tab?.length, 'the visit kept the fact').toBe(0);
+  });
+});
 
 describe('the address step refuses a press before the token, so the passkey sheet can open', () => {
   it('refuses an empty address on its field, and waits for no token', async () => {

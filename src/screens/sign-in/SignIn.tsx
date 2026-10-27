@@ -105,9 +105,13 @@ export function SignIn({ completing = false }: { completing?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   // Read at mount, so the visit keeps what it read after the entry is used up; held once submitted.
-  // A sign-out through Cognito's logout arrives by a load, carrying the fact in this tab instead.
+  // A sign-out through Cognito's logout arrives by a load, the page's first location, carrying the
+  // fact in this tab instead; a visit from within the app is a plain one.
   const [note, setNote] = useState<'said' | 'held' | undefined>(() =>
-    arrivedSignedOut(location.state) || returnedSignedOut(tabStorage()) ? 'said' : undefined,
+    arrivedSignedOut(location.state) ||
+    (location.key === 'default' && returnedSignedOut(tabStorage()))
+      ? 'said'
+      : undefined,
   );
   // Busy from the press until the page leaves for Google, and while the relay redeems its code.
   const [googleBusy, setGoogleBusy] = useState(completing);

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
@@ -19,12 +19,42 @@ import { useT } from '../i18n/useT';
 let failures = 0;
 const failedId = (n: number) => `sign-out-failed-${n}`;
 
-/**
- * Busy is the session's while a sign-out runs, so a «Вийти» mounted meanwhile is busy too; a failure
- * keeps the user signed in, so one toast says so and every control is the retry. After a success
- * the pressed control stays busy while the page leaves, and a page still here at the next route
- * change answers signed out. `rows` is what the footer band draws.
- */
+// THE WAY OUT THROUGH COGNITO'S LOGOUT IS THE PAGE'S: the route it set out from, so a control mounted
+// meanwhile, as by a collapse to the rail, is busy too.
+let setOutFrom: string | undefined;
+// The route the mounted controls last committed; the pressed one may be gone by the relay's answer.
+let here: string | undefined;
+const hearing = new Set<() => void>();
+const hear = (listener: () => void) => {
+  hearing.add(listener);
+  return () => void hearing.delete(listener);
+};
+
+// Still here after a back/forward-cache restore, a Stop (`navigateerror`, which a route change fires
+// too) or a traversal no control saw (`account-way-in-and-out.dc.html`, T4).
+const restored = (event: PageTransitionEvent) => {
+  if (event.persisted) setOut(undefined);
+};
+const stayed = () => setOut(undefined);
+
+function setOut(from: string | undefined) {
+  if (from === setOutFrom) return;
+  setOutFrom = from;
+  const navigation = (globalThis as { navigation?: EventTarget }).navigation;
+  if (from === undefined) {
+    removeEventListener('pageshow', restored);
+    removeEventListener('popstate', stayed);
+    navigation?.removeEventListener('navigateerror', stayed);
+  } else {
+    addEventListener('pageshow', restored);
+    addEventListener('popstate', stayed);
+    navigation?.addEventListener('navigateerror', stayed);
+  }
+  for (const listener of hearing) listener();
+}
+
+/** Every «Вийти» is busy while a sign-out runs and while its page leaves, and a failure's one toast
+ *  makes each the retry; `rows` is what the footer band draws. */
 export function useSignOut() {
   const t = useT();
   const navigate = useNavigate();
@@ -33,39 +63,22 @@ export function useSignOut() {
   const unanswered = useSessionUnanswered();
   const running = useSessionSigningOut();
   const [leaving, setLeaving] = useState(false);
-  // The route the redirect to Cognito's logout set out from, while `leaving` holds for it.
-  const [leftFrom, setLeftFrom] = useState<string>();
-  const busy = leaving || running;
+  const latch = useSyncExternalStore(hear, () => setOutFrom);
+  const busy = leaving || running || latch === route;
 
-  // The route at the redirect, not the press's render, which a move mid-run makes stale. Set at
-  // commit: a passive effect can trail a transition's commit past the relay's answer.
-  const here = useRef(route);
+  // Set at commit, not in a passive effect, which can trail a transition's commit past the answer.
   useLayoutEffect(() => {
-    here.current = route;
+    here = route;
   }, [route]);
 
-  // A Stop while the logout loads leaves the page here, latched: the next route change ends it
-  // (`account-way-in-and-out.dc.html`, T4), and forgets the route, so Back re-latches nothing.
-  if (leftFrom !== undefined && leftFrom !== route) {
-    setLeftFrom(undefined);
-    setLeaving(false);
-  }
-
-  // Back from Cognito's logout can restore this page from the back/forward cache, `leaving` and all.
-  useEffect(() => {
-    const restored = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        setLeftFrom(undefined);
-        setLeaving(false);
-      }
-    };
-    addEventListener('pageshow', restored);
-    return () => removeEventListener('pageshow', restored);
-  }, []);
+  // A route change finds the page still here, and forgets the route, so Back re-latches nothing.
+  useLayoutEffect(() => {
+    if (latch !== undefined && latch !== route) setOut(undefined);
+  }, [latch, route]);
 
   async function leave() {
-    // The store read now, not the last render's: a press never joins a running sign-out.
-    if (leaving || session.signingOut()) return;
+    // The stores read now, not the last render's: a press joins no sign-out and no way out.
+    if (leaving || session.signingOut() || setOutFrom !== undefined) return;
     setLeaving(true);
     toast.dismiss(failedId(failures));
     const out = await session.signOut();
@@ -78,16 +91,17 @@ export function useSignOut() {
       });
       return;
     }
-    // Through Cognito's logout while Google is on; `leaving` holds the rows until the page goes,
-    // or the next route change finds it still here.
+    // Through Cognito's logout while Google is on; the latch holds every control's rows until the
+    // page goes, or is found still here.
     if (leaveThroughLogout(out.logout, '/sign-in')) {
-      setLeftFrom(here.current);
+      setOut(here);
+      setLeaving(false);
       return;
     }
     // The session is signed out already; `leaving` keeps the rows up while the page leaves, and
     // `flushSync` commits that change at once rather than in a transition. `/sign-in` says so.
     await navigate('/sign-in', { flushSync: true, state: SIGNED_OUT });
-    // Still mounted only when unsaved work held the way out: the page stays, signed out.
+    // Still mounted only where something held the way out: the page stays, signed out.
     setLeaving(false);
   }
 

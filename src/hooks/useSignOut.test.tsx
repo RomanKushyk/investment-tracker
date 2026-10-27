@@ -2,7 +2,7 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { useEffect, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
-import { createMemoryRouter, RouterProvider, useBlocker } from 'react-router';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -54,6 +54,7 @@ const hear = (listener: () => void) => {
 };
 
 const LOGOUT = 'https://auth.test/logout?client_id=c';
+const navigated = () => (globalThis as unknown as { navigation: EventTarget }).navigation;
 const SITE = 'https://dev.quirenote.com';
 
 vi.mock('../auth/app', () => ({
@@ -70,6 +71,7 @@ vi.mock('../auth/app', () => ({
 }));
 
 const { useSignOut } = await import('./useSignOut');
+const { useEditMode } = await import('./useEditMode');
 
 let block = false;
 /** What one instance of the hook last published. */
@@ -77,7 +79,9 @@ interface Seen {
   rows: string;
   leaving: boolean;
   leave: () => Promise<void>;
-  blocker: ReturnType<typeof useBlocker>;
+  /** The edit guard's "Discard changes?", asked. */
+  asking: boolean;
+  keepEditing: () => void;
   drawn: string[];
 }
 const seen = {} as Seen;
@@ -87,15 +91,16 @@ const other = {} as Seen;
 let mounted = 0;
 
 function Probe({ into }: { into: Seen }) {
-  // The edit screens' guard: unsaved work holds every navigation, the sign-out's too.
-  const blocker = useBlocker(() => block);
+  // The edit screens' guard, editing from the mount: unsaved work holds the user's navigations.
+  const { start, asking, keepEditing } = useEditMode(block);
   const { rows, leaving, leave } = useSignOut();
   useEffect(() => {
     mounted += 1;
-  }, []);
+    start();
+  }, [start]);
   // Published after each commit, which `act` flushes before the test reads it.
   useEffect(() => {
-    Object.assign(into, { rows, leaving, leave, blocker });
+    Object.assign(into, { rows, leaving, leave, asking, keepEditing });
     into.drawn.push(rows);
   });
   return null;
@@ -133,7 +138,17 @@ beforeEach(() => {
     record.drawn = [];
   }
 });
-afterEach(cleanup);
+beforeEach(() => {
+  // The Navigation API, which jsdom lacks: a Stop while a cross-document load runs fires
+  // `navigateerror` on it.
+  vi.stubGlobal('navigation', new EventTarget());
+});
+afterEach(() => {
+  cleanup();
+  // Back to a page restored from the back/forward cache ends a latch a test left set.
+  dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  vi.unstubAllGlobals();
+});
 
 describe("the shell's account slot", () => {
   // «Увійти» never takes the place of the «Вийти» that was pressed while the page leaves.
@@ -154,25 +169,18 @@ describe("the shell's account slot", () => {
     expect(seen.drawn, '«Увійти» stood in for the pressed «Вийти»').not.toContain('entry');
   });
 
-  // Unsaved work can hold the way out, and the screen that holds it can unmount and drop it: the
-  // page stays, signed out, so the slot says so rather than a dead «Вийти» under "Signed in".
-  it('answers signed out on the same route when unsaved work holds the way out', async () => {
-    mount('/allocation');
+  // Nothing holds a sign-out that succeeded: the relay has revoked the session before any guard
+  // could ask, and the work went with the account's figures (`account-way-in-and-out.dc.html`, T4).
+  it('leaves for /sign-in past unsaved work, asking nothing', async () => {
     block = true;
-    await act(() => seen.leave());
-    expect(seen.blocker.state, 'the sign-out was not held').toBe('blocked');
-    expect(seen.rows).toBe('entry');
-  });
-
-  it('stays signed out on a return to the route the sign-out was pressed on', async () => {
     const router = mount('/allocation');
-    block = true;
-    await act(() => seen.leave());
-    act(() => seen.blocker.reset?.());
-    block = false;
     await act(() => router.navigate('/overview'));
-    await act(() => router.navigate('/allocation'));
-    expect(seen.rows).toBe('entry');
+    expect(seen.asking, "the guard held no navigation of the user's").toBe(true);
+    act(() => seen.keepEditing());
+    await act(() => seen.leave());
+    expect(router.state.location.pathname).toBe('/sign-in');
+    expect(seen.asking, 'the guard asked of the sign-out').toBe(false);
+    expect(seen.drawn, '«Увійти» stood in for the pressed «Вийти»').not.toContain('entry');
   });
 
   // Busy while it runs, whatever route the user moves to meanwhile: a second press would join
@@ -273,6 +281,74 @@ describe("the shell's account slot", () => {
     await act(() => router.navigate('/overview'));
     expect(seen.rows, 'the latch outlived the route change').toBe('entry');
     expect(seen.leaving).toBe(false);
+    await act(() => router.navigate(-1));
+    expect(seen.rows, 'Back re-latched the route the sign-out set out from').toBe('entry');
+    expect(seen.leaving).toBe(false);
+  });
+
+  // A Stop while Cognito's logout loads leaves the page here: the Navigation API says so at once.
+  it("answers signed out at once when a Stop halts Cognito's logout", async () => {
+    auth.logout = LOGOUT;
+    mount('/allocation');
+    await act(() => seen.leave());
+    expect(seen.rows).toBe('shown');
+    act(() => void navigated().dispatchEvent(new Event('navigateerror')));
+    expect(seen.rows, 'the Stop left «Вийти» busy').toBe('entry');
+    expect(seen.leaving).toBe(false);
+  });
+
+  // A collapse to the rail or a crossing of 768 mounts another control while the page leaves; it
+  // shows the pressed one's state, and the next route change ends both. Each router's first entry
+  // is the route `default`, so the two stand on one route.
+  it("shows a control mounted while the page leaves through Cognito's logout busy", async () => {
+    auth.logout = LOGOUT;
+    const router = mount('/allocation');
+    await act(() => seen.leave());
+    mount('/allocation', other);
+    expect(other.rows, 'the new control answered signed out').toBe('shown');
+    expect(other.leaving).toBe(true);
+    await act(() => router.navigate('/overview'));
+    expect(seen.rows).toBe('entry');
+    expect(other.rows, 'the route change left the new control busy').toBe('entry');
+  });
+
+  // The latch is the busy state while the page leaves: a press then begins nothing.
+  it("begins no second sign-out from a press while the page leaves through Cognito's logout", async () => {
+    auth.logout = LOGOUT;
+    mount('/allocation');
+    await act(() => seen.leave());
+    await act(() => seen.leave());
+    expect(auth.signOut, 'the press sent a second sign-out').toHaveBeenCalledTimes(1);
+  });
+
+  // The pressed control can be gone by the answer, a collapse to the rail unmounting it, and the user
+  // can move meanwhile: the latch takes the route the controls still mounted are on.
+  it('latches the route the page is on when the relay answers, though the pressed control is gone', async () => {
+    let answer = () => {};
+    auth.answer = new Promise<void>((resolve) => (answer = resolve));
+    auth.logout = LOGOUT;
+    const panel = mount('/allocation');
+    const rail = mount('/allocation', other);
+    let leaving: Promise<void> = Promise.resolve();
+    act(() => void (leaving = seen.leave()));
+    await act(() => panel.navigate('/balances'));
+    await act(() => rail.navigate('/overview'));
+    await act(async () => {
+      answer();
+      await leaving;
+    });
+    expect(other.rows, 'the rail answered signed out while the page leaves').toBe('shown');
+    expect(other.leaving).toBe(true);
+  });
+
+  // The drawer closed, no control sees a route change; a return to the route the redirect set out
+  // from is a traversal, which a browser tells by `popstate` and a memory history does not.
+  it('ends the latch by a traversal no control saw', async () => {
+    auth.logout = LOGOUT;
+    const router = mount('/allocation');
+    await act(() => seen.leave());
+    await act(() => router.navigate('/balances'));
+    act(() => void dispatchEvent(new PopStateEvent('popstate')));
     await act(() => router.navigate(-1));
     expect(seen.rows, 'Back re-latched the route the sign-out set out from').toBe('entry');
     expect(seen.leaving).toBe(false);
