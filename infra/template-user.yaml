@@ -662,9 +662,8 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
-            # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S: this function can mint an identity and
-            # take one away. `AdminDeleteUser` is deliberately absent — a grant held for a call nobody
-            # makes is a call somebody can make later without anyone deciding.
+            # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S: this function can mint an identity,
+            # take one away, and find and delete those under a declined application (*Auth model*).
             - Sid: RuleOnApplications
               Effect: Allow
               Action:
@@ -672,6 +671,8 @@ Resources:
                 - cognito-idp:AdminGetUser
                 - cognito-idp:AdminDisableUser
                 - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:ListUsers
               Resource: !GetAtt UserPool.Arn
       Events:
         # The list a ruling starts from, past the same gate the two rulings stand behind.
@@ -1606,8 +1607,9 @@ Resources:
 
   # THERE IS NO CLOUDWATCH METRIC FOR MONTHLY ACTIVES, so the pool's TOTAL user count stands in:
   # an upper bound only while no user is deleted during the month, by `AdminDeleteUser` or
-  # `DeleteUser`, as `PoolUsersAlarm`'s description says: either made by hand, an app sign-in's
-  # access token being one only the relay holds. IN THIS STACK, NOT THE CAPTURE'S, the
+  # `DeleteUser`, as `PoolUsersAlarm`'s description says: the first by reject, for a declined
+  # application's identity, or by hand, and the second by hand, an app sign-in's access token
+  # being one only the relay holds. IN THIS STACK, NOT THE CAPTURE'S, the
   # pool being per-environment — handing the capture a pool id is the coupling the check above
   # already refused (*Alerting*). Dev identities count too, so this bounds prod's share alone.
   PoolUsageFunction:
@@ -1706,10 +1708,12 @@ Resources:
         actives Essentials bills nothing for. This is TOTAL USERS, not MAU, and an upper
         bound on the month's actives only while no user is deleted during the month: a user
         created or active in the month and then deleted stays among its actives but leaves
-        this count. No handler deletes a user, and no page can: DeleteUser takes an access
-        token, and an app sign-in's is one only the relay holds. AdminDeleteUser or
-        DeleteUser by hand can. Check the sign-up path, the approval queue, and CloudTrail
-        for either call this month: each can leave the count one short.
+        this count. The approve function deletes the identity under an application it
+        declines, and no page can delete one: DeleteUser takes an access token, and an app
+        sign-in's is one only the relay holds. AdminDeleteUser or DeleteUser by hand can.
+        Check the sign-up path and CloudTrail for either call this month: a declined
+        application leaves no row in the approval queue, and each call can leave the count
+        one short.
       Namespace: Quirenote
       MetricName: PoolUsers
       Statistic: Maximum

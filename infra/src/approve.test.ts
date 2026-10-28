@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
+import { applications } from './applications';
 import {
   APPROVE_ROUTE,
   REJECT_ROUTE,
@@ -84,6 +85,7 @@ const spy = (existing?: string, UserStatus = 'FORCE_CHANGE_PASSWORD', Enabled = 
   const fetched: unknown[] = [];
   const disabled: { Username: string }[] = [];
   const enabled: { Username: string }[] = [];
+  const deleted: { Username: string }[] = [];
   const idp = {
     adminCreateUser: async (input: { UserPoolId: string; Username: string }) => {
       created.push(input as { Username: string });
@@ -106,8 +108,15 @@ const spy = (existing?: string, UserStatus = 'FORCE_CHANGE_PASSWORD', Enabled = 
       enabled.push(input);
       return {};
     },
+    adminDeleteUser: async (input: { UserPoolId: string; Username: string }) => {
+      deleted.push(input);
+      return {};
+    },
+    listUsers: async (): Promise<{ Users?: { Username?: string; UserStatus?: string }[] }> => ({
+      Users: [],
+    }),
   };
-  return { idp, created, fetched, disabled, enabled };
+  return { idp, created, fetched, disabled, enabled, deleted };
 };
 
 /**
@@ -489,6 +498,29 @@ describe('approving replaces the placeholder with the sub the create call return
     expect((await rows())[0].user_id).toBe(SUB);
   });
 
+  // A DECLINE DELETES THE ROW, which frees the address: an approve that read the row before the
+  // decline committed would otherwise write an `active` row over an application already refused.
+  it('writes no account for an application a decline deleted under it', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const declinedFirst: SqlClient = {
+      query: async <R>(text: string, values?: unknown[]) => {
+        if (text === 'BEGIN')
+          await db.query('DELETE FROM app_user WHERE user_id = $1', [PLACEHOLDER]);
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    const { idp, created, disabled } = spy();
+    const res = await approve(declinedFirst, idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toContain('already_decided');
+    expect(await rows()).toEqual([]);
+    expect(await accounts()).toEqual([]);
+    // Minted by this call and wanted by no row, so it is withdrawn.
+    expect(created).toHaveLength(1);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
   it('leaves the identity enabled when the create answered no sub', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const { idp } = spy();
@@ -534,8 +566,114 @@ describe('what approve refuses before it asks Cognito anything', () => {
   });
 });
 
-describe('rejecting is a status, and disabling is its consequence', () => {
-  it('asks the pool even for a row that never had an identity, and still records the decision', async () => {
+// THE ORDER IS DISABLE, ROW, IDENTITY: the row delete decides against a racing approve, so the one
+// step nothing can undo comes after it (*Auth model*).
+describe('declining a pending application deletes the row and the identity under its address', () => {
+  it('deletes the row and the identity it disabled', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled, deleted } = spy();
+    const res = await approve(db, idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect(await rows()).toEqual([]);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(deleted).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
+  it('deletes the row of an applicant who holds no identity, a missing one counting as deleted', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp } = holdingNobody();
+    const absent = {
+      ...idp,
+      adminDeleteUser: async () => {
+        throw Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
+      },
+    };
+    const res = await approve(db, absent, call(REJECT_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect(await rows()).toEqual([]);
+  });
+
+  it('leaves the application pending and its identity in place when the row delete fails', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const first = spy();
+    const res = await approve(failingOn('DELETE FROM app_user'), first.idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).toBe(500);
+    expect(await rows()).toEqual([
+      expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending', decided: false }),
+    ]);
+    expect(first.deleted).toEqual([]);
+
+    const second = spy();
+    expect((await approve(db, second.idp, call(REJECT_ROUTE))).statusCode).toBe(200);
+    expect(await rows()).toEqual([]);
+    expect(second.deleted).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
+  // Logged by the row's id, never the address (*Deployment*).
+  it('answers a failure when the identity outlives the deleted row, and names the row', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled } = spy();
+    const failing = {
+      ...idp,
+      adminDeleteUser: async () => {
+        throw new Error('TooManyRequestsException');
+      },
+    };
+    const watched = watchConsole();
+    try {
+      const res = await approve(db, failing, call(REJECT_ROUTE));
+      expect(res.statusCode).toBe(500);
+      expect(await rows()).toEqual([]);
+      // The local account was disabled before the row went, so it cannot sign in.
+      expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+      const lines = watched.lines();
+      expect(lines.some((line) => line.includes(PLACEHOLDER))).toBe(true);
+      for (const line of lines) expect(line).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // A Google sign-in during an open window leaves a profile of its own, which the address alias
+  // does not reach (*Auth model*).
+  it('deletes a Google profile made under the address as well', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, deleted } = holdingNobody();
+    const asked: unknown[] = [];
+    const google = {
+      ...idp,
+      listUsers: async (input: unknown) => {
+        asked.push(input);
+        return { Users: [{ Username: 'Google_1234', UserStatus: 'EXTERNAL_PROVIDER' }] };
+      },
+    };
+    const res = await approve(db, google, call(REJECT_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect(await rows()).toEqual([]);
+    expect(asked).toEqual([{ UserPoolId: POOL, Filter: `email = "${EMAIL}"`, Limit: 60 }]);
+    expect(deleted).toContainEqual({ UserPoolId: POOL, Username: 'Google_1234' });
+  });
+
+  it('lets a declined address apply again, as a fresh application', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await approve(db, spy().idp, call(REJECT_ROUTE));
+    const res = await applications(db, {
+      body: JSON.stringify({ email: EMAIL, botCheck: 'token' }),
+    });
+
+    expect(res.statusCode).toBe(202);
+    const again = await rows();
+    expect(again).toEqual([expect.objectContaining({ status: 'pending', decided: false })]);
+    expect(again[0].user_id).not.toBe(PLACEHOLDER);
+  });
+});
+
+describe('rejecting turns the identity off before the row changes', () => {
+  it('asks the pool even for a row that never had an identity, and still deletes the application', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const { idp, created, fetched, disabled } = holdingNobody();
     const res = await approve(db, idp, call(REJECT_ROUTE));
@@ -544,14 +682,7 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     // Asked — without this the test passes for a reject that short-circuited before Cognito.
     expect(fetched).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
     expect([created, disabled]).toEqual([[], []]);
-    expect(await rows()).toEqual([
-      expect.objectContaining({
-        user_id: PLACEHOLDER,
-        status: 'rejected',
-        decided_by: ADMIN,
-        decided: true,
-      }),
-    ]);
+    expect(await rows()).toEqual([]);
   });
 
   it('disables the identity of an applicant who signed up during an open window', async () => {
@@ -561,16 +692,18 @@ describe('rejecting is a status, and disabling is its consequence', () => {
 
     expect(res.statusCode).toBe(200);
     expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
-    expect((await rows())[0].status).toBe('rejected');
+    expect(await rows()).toEqual([]);
   });
 
+  // An account owns a dataset, so its identity is turned off and kept, never deleted.
   it('disables the identity of somebody who was approved', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
-    const { idp, disabled } = spy();
+    const { idp, disabled, deleted } = spy();
     const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
 
     expect(res.statusCode).toBe(200);
     expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(deleted).toEqual([]);
     expect((await rows())[0].status).toBe('rejected');
   });
 
@@ -625,7 +758,7 @@ describe('rejecting is a status, and disabling is its consequence', () => {
 
   it('does not report a rejection that changed nothing', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
-    const res = await approve(swallowing('UPDATE app_user'), spy().idp, call(REJECT_ROUTE));
+    const res = await approve(swallowing('DELETE FROM app_user'), spy().idp, call(REJECT_ROUTE));
     expect(res.statusCode).not.toBe(200);
     expect((await rows())[0].status).toBe('pending');
   });
@@ -684,11 +817,11 @@ describe('rejecting is a status, and disabling is its consequence', () => {
 
   it('records the decision for an account somebody else had already turned off', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
-    const { idp, disabled, enabled } = spy(undefined, undefined, false);
+    const { idp, disabled, enabled, deleted } = spy(undefined, undefined, false);
     const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
 
     expect(res.statusCode).toBe(200);
-    expect([disabled, enabled]).toEqual([[], []]);
+    expect([disabled, enabled, deleted]).toEqual([[], [], []]);
     expect((await rows())[0].status).toBe('rejected');
   });
 

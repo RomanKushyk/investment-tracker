@@ -661,19 +661,22 @@ describe('the approval handler holds exactly two grants, and they are different 
   const policies = props('ApproveFunction').Policies as [{ Statement: Record<string, unknown>[] }];
   const approve = ['Resources', 'ApproveFunction', 'Properties', 'Policies', 0, 'Statement'];
 
-  // This function can mint an identity and disable one, so the pool is named, never wildcarded,
-  // and the actions are the four the handler makes and no fifth. `AdminEnableUser` undoes this
-  // file's own disable and grants no access by itself: an enabled identity with no `active` row is
-  // refused by every route. `AdminDeleteUser` is absent — a user is deleted by hand. [*Auth model*]
-  it('may create, read, disable and re-enable a user in ONE pool, and nothing else', () => {
+  // This function can mint an identity, disable one and delete one, so the pool is named, never
+  // wildcarded, and the actions are the six the handler makes and no seventh. `AdminEnableUser`
+  // undoes this file's own disable and grants no access by itself: an enabled identity with no
+  // `active` row is refused by every route. `AdminDeleteUser` and `ListUsers` are a declined
+  // application's identities going with its row. [*Auth model*]
+  it('may create, read, disable, re-enable, find and delete a user in ONE pool, and nothing else', () => {
     expect(policies).toHaveLength(1);
     expect(policies[0].Statement).toHaveLength(2);
     expect(
       grantAt(doc, approve, [
         'cognito-idp:AdminCreateUser',
+        'cognito-idp:AdminDeleteUser',
         'cognito-idp:AdminDisableUser',
         'cognito-idp:AdminEnableUser',
         'cognito-idp:AdminGetUser',
+        'cognito-idp:ListUsers',
       ]),
     ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
   });

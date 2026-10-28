@@ -5,17 +5,20 @@
 // replaced rather than updated, because a DSQL primary key is immutable and changing one is a
 // delete and an insert. A pending row owns nothing, so that disturbs no foreign key. It is also
 // where the monthly active user is spent and the one invitation goes out, which is what makes
-// approval the verification step (*Auth model*). REJECT IS THE OPPOSITE SHAPE: a status, with a
-// Cognito call only as its consequence.
+// approval the verification step (*Auth model*). REJECT DEPENDS ON THE ROW: an `active` account,
+// which owns a dataset, is a status and a disable; a `pending` application is deleted, and the
+// identity under its address with it.
 //
 // The list a ruling starts from, `GET /admin/users`, is `admin-users.ts`'s, served from this
 // function past the same gate.
 import {
   AdminCreateUserCommand,
+  AdminDeleteUserCommand,
   AdminDisableUserCommand,
   AdminEnableUserCommand,
   AdminGetUserCommand,
   CognitoIdentityProviderClient,
+  ListUsersCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
 import { LIST_ROUTE, listUsers } from './admin-users';
@@ -42,7 +45,7 @@ type UserAttribute = { Name?: string; Value?: string };
  *  `AdminCreateUser` answers `UsernameExistsException` without handing back the one it made;
  *  whether anybody has PROVED they hold it, which `UserStatus` says; and `Enabled`, which
  *  `UserStatus` cannot stand in for, since a disabled account keeps its status. `adminEnableUser`
- *  only undoes this file's own disable, and there is no `adminDeleteUser`. */
+ *  only undoes this file's own disable; the last two serve a decline once its row is gone. */
 export type IdentityClient = {
   adminCreateUser(input: {
     UserPoolId: string;
@@ -57,6 +60,12 @@ export type IdentityClient = {
   }): Promise<{ UserAttributes?: UserAttribute[]; UserStatus?: string; Enabled?: boolean }>;
   adminDisableUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
   adminEnableUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
+  adminDeleteUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
+  listUsers(input: {
+    UserPoolId: string;
+    Filter: string;
+    Limit: number;
+  }): Promise<{ Users?: { Username?: string; UserStatus?: string }[] }>;
 };
 
 const APPROVED = json(200, '{"status":"approved"}');
@@ -103,8 +112,9 @@ const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied
 
 /** `AND status = 'pending'` is not decoration: two approvals racing resolve to the SAME `sub`, so
  *  the loser's insert collides or aborts at `COMMIT`, the transaction rolls back and the winner's
- *  row is untouched — where an unguarded delete would have removed it. */
-const REMOVE = `DELETE FROM app_user WHERE user_id = $1 AND status = 'pending'`;
+ *  row is untouched — where an unguarded delete would have removed it. IT REPORTS ITSELF: a
+ *  decline is this delete too, and one that won leaves `REPLACE` a free address. */
+const REMOVE = `DELETE FROM app_user WHERE user_id = $1 AND status = 'pending' RETURNING user_id`;
 
 /** `applied_at` IS CARRIED OVER rather than restamped: a delete-and-insert is where the one thing
  *  the pending row held that cannot be reconstructed goes missing. ONE STATEMENT WRITES BOTH
@@ -121,7 +131,7 @@ const DECIDE = `UPDATE app_user SET status = 'rejected', decided_at = now(), dec
                 RETURNING user_id`;
 
 /** Read BY ADDRESS rather than by id, because the row this call was rekeying may now be keyed by
- *  another approve's `sub`, or be the `rejected` row somebody left under the placeholder. */
+ *  another approve's `sub`, or be gone, deleted by a decline. */
 const ROW_NOW = `SELECT status FROM app_user WHERE email = $1`;
 
 const subOf = (attributes: UserAttribute[] | undefined): string | undefined =>
@@ -259,7 +269,12 @@ async function approveRow(
   // again completes it, as it completes every other half-done state here.
   try {
     await client.query('BEGIN');
-    await client.query(REMOVE, [row.user_id]);
+    const removed = await client.query<{ user_id: string }>(REMOVE, [row.user_id]);
+    if (removed.rows.length === 0) {
+      await client.query('ROLLBACK');
+      if (minted) await withdraw(client, idp, UserPoolId, row);
+      return ALREADY_DECIDED;
+    }
     await client.query(REPLACE, [sub, row.email, row.role, row.applied_at, decidedBy]);
     await client.query(ACCOUNT, [sub]);
     await giveDataset(client, sub);
@@ -311,14 +326,22 @@ async function rejectRow(
 
   // A ROW ALREADY `rejected` IS A REPAIR RATHER THAN A NO-OP, which makes "rule again" an answer
   // to every way an enabled identity can outlive a rejection. What does not repeat is the
-  // DECISION: `decided_at` and `decided_by` go on naming whoever ruled first.
+  // DECISION: `decided_at` and `decided_by` go on naming whoever ruled first. Such a row is a
+  // suspended account, a declined application leaving none.
   if (row.status === 'rejected') return ALREADY_DECIDED;
 
   // THE WRITE REPORTS ITSELF, or a reject that matched nothing answers success having changed
   // nothing. AND IT FAILS IN TWO SHAPES, so the repair hangs off the failure rather than one: DSQL
   // aborts a write-write conflict at commit, so a lost reject arrives as `40001` or as no rows.
+  //
+  // A PENDING APPLICATION IS DELETED, NOT DECIDED, owning no account and no dataset. The delete is
+  // the point of no return: an approve that commits first leaves it nothing to match.
+  const pending = row.status === 'pending';
   const { rows } = await client
-    .query<{ user_id: string }>(DECIDE, [row.user_id, decidedBy, row.status])
+    .query<{ user_id: string }>(
+      pending ? REMOVE : DECIDE,
+      pending ? [row.user_id] : [row.user_id, decidedBy, row.status],
+    )
     .catch(async (err: unknown) => {
       if (live) await restore(client, idp, UserPoolId, row);
       throw err;
@@ -328,8 +351,35 @@ async function rejectRow(
     if (live) await restore(client, idp, UserPoolId, row);
     return ALREADY_DECIDED;
   }
+  if (!pending) return REJECTED;
+
+  // THE ONE STEP NOTHING UNDOES COMES LAST, once the row delete has ruled out a racing approve. The
+  // alias reaches a local account; a Google profile made in an open window answers only the filter.
+  try {
+    await deleteIdentity(idp, UserPoolId, row.email);
+    const { Users = [] } = await idp.listUsers({
+      UserPoolId,
+      Filter: `email = "${row.email}"`,
+      Limit: 60,
+    });
+    for (const { Username, UserStatus } of Users) {
+      if (UserStatus === 'EXTERNAL_PROVIDER' && Username) {
+        await deleteIdentity(idp, UserPoolId, Username);
+      }
+    }
+  } catch (err) {
+    // NO CALL CAN RETRY THIS, the row being gone: an operator deletes what is left (*Auth model*).
+    console.error(`approve: row ${row.user_id} is deleted and an identity under it is not: ${err}`);
+    return INTERNAL;
+  }
   return REJECTED;
 }
+
+/** One already gone counts as deleted. */
+const deleteIdentity = (idp: IdentityClient, UserPoolId: string, Username: string) =>
+  idp.adminDeleteUser({ UserPoolId, Username }).catch((err: unknown) => {
+    if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
+  });
 
 export async function approve(
   client: SqlClient,
@@ -365,7 +415,7 @@ export async function approve(
     const { rows } = await client.query<Target>(TARGET, [id]);
     const row = rows[0];
     if (row === undefined) return NOT_FOUND;
-    // ASKED BEFORE ANYTHING IRREVERSIBLE: no handler here holds `AdminDeleteUser`.
+    // ASKED BEFORE ANYTHING IRREVERSIBLE, approve's mint and reject's delete alike.
     if (row.role === 'demo') return DEMO;
 
     return routeKey === APPROVE_ROUTE
@@ -384,6 +434,8 @@ const sdk: IdentityClient = {
   adminGetUser: (input) => identityClient.send(new AdminGetUserCommand(input)),
   adminDisableUser: (input) => identityClient.send(new AdminDisableUserCommand(input)),
   adminEnableUser: (input) => identityClient.send(new AdminEnableUserCommand(input)),
+  adminDeleteUser: (input) => identityClient.send(new AdminDeleteUserCommand(input)),
+  listUsers: (input) => identityClient.send(new ListUsersCommand(input)),
 };
 
 export async function handler(event: ApiEvent): Promise<ApiResult> {

@@ -58,6 +58,8 @@ const idp: IdentityClient = {
   adminGetUser: async () => ({}),
   adminDisableUser: async () => ({}),
   adminEnableUser: async () => ({}),
+  adminDeleteUser: async () => ({}),
+  listUsers: async () => ({}),
 };
 
 let db: PGlite;

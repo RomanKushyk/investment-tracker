@@ -388,8 +388,8 @@ allowance runs out: the tracking documentation above gives the Amazon Cognito ro
 `PoolUsersAlarm`'s threshold, 80% of the same 10,000, is crossed before prod's actives alone spend
 the allowance, **but only while no prod user is deleted during the month**: a user created or active
 in the month and then deleted, by `AdminDeleteUser` or by `DeleteUser`, stays metered but leaves the
-count. Either is made by hand: `DeleteUser` takes an access token, and an app sign-in's is one only
-the relay holds. The threshold gives no such lead on the account's allowance, since dev's pool
+count. Reject makes the first for the identity under an application it declines; anything else is
+made by hand, `DeleteUser` taking an access token, and an app sign-in's is one only the relay holds. The threshold gives no such lead on the account's allowance, since dev's pool
 spends the same 10,000 and `PoolUsers` leaves dev's pool out; the usage budget counts dev's pool
 too, and alerts at 80% of the allowance as well as past it. Neither reads the actives as they
 happen. `PoolUsers` is read once a day, so growth from under its threshold to past the allowance

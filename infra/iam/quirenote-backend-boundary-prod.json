@@ -71,6 +71,7 @@
         "cognito-idp:AdminGetUserAuthFactors",
         "cognito-idp:AdminDisableUser",
         "cognito-idp:AdminEnableUser",
+        "cognito-idp:AdminDeleteUser",
         "cognito-idp:ListUsers",
         "cognito-idp:AdminLinkProviderForUser",
         "cognito-idp:DescribeUserPoolClient",

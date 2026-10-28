@@ -1766,9 +1766,19 @@ extension, so a junk header costs one read per window and the deploy that writes
 revokes the old one within it.
 Sign-up
 writes the row that carries status and role, and approval mints the identity — so approve is a
-Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. AN IDENTITY IS DELETED BY
-HAND OR NOT AT ALL: no handler holds `AdminDeleteUser`, and `DeleteUser` takes an access token no
-page holds. Cognito fires no trigger on a deletion, so whoever deletes an identity clears its
+Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. A DECLINED APPLICATION IS
+DELETED AT THE DECISION, ITS IDENTITY WITH IT: a `pending` row owns no account and no dataset, so
+neither outlives it, and the address may apply again, as Mastodon and Lemmy let a deleted applicant.
+While a registration window is open a decline keeps nobody out, the gate admitting any verified
+address that holds no row.
+Reject disables the identity under the address, deletes the row guarded on `pending`, then deletes
+the identity and any Google profile `ListUsers` finds under the address, which the alias misses.
+The row delete is the point of no return, DSQL letting the earliest commit win against
+a racing approve, and the one step nothing undoes comes after it, where the Saga pattern puts it and
+where Mastodon suspends and GitLab blocks before they delete. A delete that fails answers 500 and
+leaves an identity no row admits and no call can retry, the row being gone: an operator deletes it. Rejecting an `active` account stays a status and a disable, the account
+owning a dataset, and is the one `rejected` row. ANY OTHER IDENTITY IS DELETED BY HAND OR NOT AT
+ALL: `DeleteUser` takes an access token no page holds. Cognito fires no trigger on a deletion, so whoever deletes an identity clears its
 `app_user` row, as Auth0, Okta and Entra keep deletion on the backend, and nothing watches for one.
 Until the app offers a deletion of its own, the operator erases an account on request. THE
 APPLICATION IS THE APP'S
@@ -1967,7 +1977,7 @@ by the bootstrap mode — each idempotent, so a re-run leaves one account and on
 gate's and the bootstrap's retry on a serialization failure; approval's does not, a retry there
 re-running an insert whichever concurrent approval won has already made. A PENDING application is
 written by neither and provisions nothing: approval DELETES that row to rekey it onto the minted
-`sub`, and a key restricted on delete would refuse that. The demo identity is written by a
+`sub`, and a decline deletes it outright; a key restricted on delete would refuse either. The demo identity is written by a
 migration, so its account is too, in a file of its own.
 A USER'S DATA IS A DATASET: a `dataset` row keyed `(user_id, id)`, its id unique on its own, and
 `app_user` names two of them — the live one and the one an import is staging. Each pointer's key

@@ -91,8 +91,9 @@ function applicationOf(event: ApiEvent): Application | undefined {
  * `ON CONFLICT` rather than a read then a write: a read that decided the address was new could be
  * overtaken. `user_id` IS A PLACEHOLDER — the column holds the Cognito `sub`, no identity exists
  * yet, and approval replaces the row. `decided_at` and `decided_by` are unset because
- * `app_user_decided_ck` requires both NULL for a pending row. A rejected applicant re-applying
- * lands in this no-op and never reaches the approval queue.
+ * `app_user_decided_ck` requires both NULL for a pending row. A declined application leaves no
+ * row, so its address applying again lands a fresh `pending` one; the address of an account, a
+ * suspended one included, lands in this no-op.
  */
 const INSERT = `INSERT INTO app_user (user_id, email, status, role, applied_at)
                 VALUES (gen_random_uuid(), $1, 'pending', 'user', now())
