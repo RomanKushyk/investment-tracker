@@ -6,6 +6,7 @@
 // is never refused against its own tag, which a read sent before one of its writes landed does not
 // move back; a tag another tab has moved is a 412, which is never retried. The caller reads the
 // view again and decides. What a tab began for an account ends when the account changes.
+import type { FundRef, Source } from '@quirenote/core/archive';
 import type { StagedImport } from '@quirenote/core/backup/parts';
 import type { PeriodOption } from '@quirenote/core/period';
 import type { AccountSettings } from '@quirenote/core/settings';
@@ -117,6 +118,44 @@ export interface ArchiveDiagnosis {
   }[];
 }
 
+/** A start of `POST /admin/archive/operations`, as its schema takes one. */
+export type ArchiveStart =
+  | { mode: 'observe'; source: Source; from: string; to: string }
+  | { mode: 'importFundHistory'; refs: FundRef[] };
+
+/** One run of `/admin/archive/operations`, as `operationOf` in `infra/src/archive-operations.ts`
+ *  serves it: `parameters` as started, `result` the capture's own answer, and a run past its
+ *  deadline read `failed`, reason `deadline_exceeded`. */
+export interface ArchiveOperation {
+  id: string;
+  mode: ArchiveStart['mode'];
+  parameters: Record<string, unknown>;
+  state: 'running' | 'succeeded' | 'failed';
+  startedBy: string;
+  startedAt: string;
+  deadlineAt: string;
+  finishedAt: string | null;
+  result: Record<string, unknown> | null;
+  error: { reason: string; message: string | null } | null;
+}
+
+/** One page of the list, newest first; `next` only while more follow. */
+export interface ArchiveOperationsPage {
+  operations: ArchiveOperation[];
+  next?: string;
+}
+
+/** What a start came to. A refusal records no run, but for `startFailed`, which the log may show
+ *  failed, and an answer that never came, after which the start may have landed. */
+export type StartReply =
+  | { kind: 'started'; operation: ArchiveOperation }
+  | { kind: 'prodOnly' }
+  | { kind: 'invalid'; issues: { field: string; code: string }[] }
+  | { kind: 'startFailed' }
+  | { kind: 'throttled' }
+  | { kind: 'failed'; status: number }
+  | { kind: 'offline' };
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -150,6 +189,46 @@ const isDiagnosis = (b: unknown): b is ArchiveDiagnosis =>
   Array.isArray(b.bySource) &&
   Array.isArray(b.observations) &&
   Array.isArray(b.sample);
+
+const isOperation = (b: unknown): b is ArchiveOperation =>
+  isObject(b) &&
+  typeof b.id === 'string' &&
+  typeof b.state === 'string' &&
+  typeof b.startedAt === 'string' &&
+  isObject(b.parameters);
+const isOperationsPage = (b: unknown): b is ArchiveOperationsPage =>
+  isObject(b) && Array.isArray(b.operations) && b.operations.every(isOperation);
+const isIssue = (v: unknown): v is { field: string; code: string } =>
+  isObject(v) && typeof v.field === 'string' && typeof v.code === 'string';
+
+const NAMED_STATUS: Partial<Record<Refusal['kind'], number>> = {
+  notModified: 304,
+  inFlight: 409,
+  conflict: 412,
+  tooLarge: 413,
+  keyReused: 422,
+  invalidOp: 422,
+  preconditionRequired: 428,
+  unauthorized: 401,
+  answer: 403,
+};
+
+/** The refusal a start's form shows, from the route's own answers (`RESPONSES` in
+ *  `infra/src/archive-operations.ts`); any other is its status, or no answer. */
+function startReplyOf(reply: Refusal): StartReply {
+  if (reply.kind === 'throttled') return { kind: 'throttled' };
+  // A kind the transport names from a status is a definite refusal, never a lost answer.
+  const named = NAMED_STATUS[reply.kind];
+  if (named !== undefined) return { kind: 'failed', status: named };
+  if (reply.kind !== 'failed' || reply.status === undefined) return { kind: 'offline' };
+  const body = isObject(reply.body) ? reply.body : {};
+  if (reply.status === 405 && body.error === 'operations_prod_only') return { kind: 'prodOnly' };
+  if (reply.status === 502 && body.error === 'start_failed') return { kind: 'startFailed' };
+  if (reply.status === 422 && body.error === 'invalid_operation' && Array.isArray(body.issues)) {
+    return { kind: 'invalid', issues: body.issues.filter(isIssue) };
+  }
+  return { kind: 'failed', status: reply.status };
+}
 
 export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
   /** The strong tag the next write goes under; none until the view or an export has been read. */
@@ -275,6 +354,31 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
       if (reply.kind !== 'ok') throw new ApiError(reply);
       if (!isDiagnosis(reply.body)) throw misread(reply);
       return reply.body;
+    },
+    /** One page of the archive's runs, ten to a page, from `cursor` on. */
+    readArchiveOperations: async (cursor?: string): Promise<ArchiveOperationsPage> => {
+      const query = cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`;
+      const reply = await begun()({
+        method: 'GET',
+        path: `/admin/archive/operations?limit=10${query}`,
+      });
+      if (reply.kind !== 'ok') throw new ApiError(reply);
+      if (!isOperationsPage(reply.body)) throw misread(reply);
+      return reply.body;
+    },
+    /** Starts a repair, sent once (*Cloud target*): each start is a run of its own, so the operator
+     *  repeats one, never the transport. A refusal comes back for its form, never thrown. */
+    startArchiveOperation: async (start: ArchiveStart): Promise<StartReply> => {
+      const reply = await begun()({
+        method: 'POST',
+        path: '/admin/archive/operations',
+        body: JSON.stringify(start),
+        once: true,
+      });
+      if (reply.kind !== 'ok') return startReplyOf(reply);
+      // A 2xx the client cannot read may still have recorded the run: as no answer, check the log.
+      if (!isOperation(reply.body)) return { kind: 'offline' };
+      return { kind: 'started', operation: reply.body };
     },
 
     /** Replaces the day's quotes with the drafts: a quote the day holds that they left out is

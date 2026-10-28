@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { z } from 'zod';
 
+import { FUND_REFS, SOURCE } from '@quirenote/core/archive';
 import { DEFAULT_LIMIT, LIMIT, MAX_LIMIT, STAMPED, instant } from './admin-users';
 import {
   FORBIDDEN,
@@ -17,9 +18,7 @@ import {
   superAdminOnly,
 } from './authorize';
 import type { HandlerEvent } from './capture';
-import { SOURCE } from './capture-source';
 import { connect } from './dsql';
-import { FUND_HISTORY_CATEGORIES } from './fund-history';
 import {
   INTERNAL,
   INVALID,
@@ -71,7 +70,7 @@ const START = z.discriminatedUnion('mode', [
     mode: z.literal('importFundHistory'),
     // Each fund once: the capture would fetch a repeat again only to write nothing.
     refs: z
-      .array(z.enum(Object.keys(FUND_HISTORY_CATEGORIES) as [string, ...string[]]))
+      .array(z.enum(FUND_REFS))
       .min(1)
       .refine((refs) => new Set(refs).size === refs.length, 'each fund once')
       .meta({ uniqueItems: true }),

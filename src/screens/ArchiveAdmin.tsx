@@ -2,6 +2,7 @@ import { Archive, ChevronLeft, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router';
 
+import { SOURCES } from '@quirenote/core/archive';
 import { kyivDateIso, kyivTimeHm } from '@quirenote/core/dates';
 import { NotFound } from '../app/Boundaries';
 import { useSessionStatus } from '../auth/app';
@@ -9,15 +10,16 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
-import { useArchiveDiagnosis, useMe, type ReadFailure } from '../hooks/queries';
+import { useArchiveDiagnosis, useArchiveRuns, useMe, type ReadFailure } from '../hooks/queries';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { CoverageCard } from './archive/Coverage';
 import { Figures } from './archive/Figures';
-import { SOURCES } from './archive/sources';
+import { Repairs } from './archive/Repairs';
+import { RunLog } from './archive/RunLog';
 import { SpotCheck } from './archive/SpotCheck';
 
-// THE SUPER-ADMIN'S ARCHIVE PANEL (`design/extensions/archive-admin.dc.html`, T1–T4). The route is
+// THE SUPER-ADMIN'S ARCHIVE PANEL (`design/extensions/archive-admin.dc.html`, T1–T6). The route is
 // the super-admin's alone: until `GET /me` answers nothing is drawn, so no other role sees it
 // arrive, and anyone else gets the app's not-found. A failed `/me` throws, as the profile's does.
 export function ArchiveAdmin() {
@@ -28,14 +30,15 @@ export function ArchiveAdmin() {
 function Gate() {
   const me = useMe();
   if (me === undefined) return null;
-  return me.role === 'super_admin' ? <Panel /> : <NotFound />;
+  return me.role === 'super_admin' ? <Panel me={me.userId} /> : <NotFound />;
 }
 
 const CARD = 'animate-in duration-300 fade-in slide-in-from-bottom-1';
 
-function Panel() {
+function Panel({ me }: { me: string }) {
   const t = useT();
   const diagnosis = useArchiveDiagnosis();
+  const log = useArchiveRuns();
   const { data, failure, fetching } = diagnosis;
   // The first read's failure is a card that holds the retry; a refresh's keeps the answer in hand.
   const firstFailed = data === undefined && failure !== undefined && !fetching;
@@ -61,7 +64,7 @@ function Panel() {
     diagnosis.read();
   };
 
-  if (failure?.kind === 'refused') return <NotFound />;
+  if (failure?.kind === 'refused' || log.failure?.kind === 'refused') return <NotFound />;
   const day = data === undefined ? undefined : kyivDateIso(new Date(diagnosis.at));
 
   return (
@@ -86,6 +89,8 @@ function Panel() {
           )
         }
       />
+      {/* The operator's order: the figures, then the repairs and the log above the long group
+          list, where a start's result is read. */}
       <div className="flex flex-col gap-3.5" aria-busy={fetching && data === undefined}>
         {unread ? (
           <ReadCard
@@ -107,8 +112,12 @@ function Panel() {
             button={retry}
           />
         ) : (
+          <Figures answer={data} className={CARD} />
+        )}
+        <Repairs start={log.start} className={`${CARD} delay-75`} />
+        <RunLog log={log} me={me} className={`${CARD} delay-150`} />
+        {!unread && !firstFailed && (
           <>
-            <Figures answer={data} className={CARD} />
             {SOURCES.map((source, i) => (
               <CoverageCard
                 key={source}

@@ -1,10 +1,6 @@
 import type { Lang } from '@quirenote/core/money';
 import { useSettings } from '../../state/settings';
 
-/** The two sources the archive keeps, never merged: the first read knows them and nothing else. */
-export const SOURCES = ['inzhur', 'nbu_fv'] as const;
-export type Source = (typeof SOURCES)[number];
-
 const MB_OPTIONS: Intl.NumberFormatOptions = {
   style: 'unit',
   unit: 'megabyte',

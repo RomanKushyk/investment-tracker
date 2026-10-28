@@ -23,7 +23,13 @@ import {
 import type { RelayAnswer, RelayCall } from '../auth/relay';
 import { createSession, type Locks, type Session } from '../auth/session';
 import { csvTablesOf } from './backup';
-import { ApiError, createRepository, type AccountCopy, type Repository } from './repository';
+import {
+  ApiError,
+  createRepository,
+  type AccountCopy,
+  type ArchiveStart,
+  type Repository,
+} from './repository';
 import { createTransport } from './transport';
 
 const TODAY = '2026-07-28';
@@ -715,5 +721,71 @@ describe('the account’s settings', () => {
     repo.forget();
 
     expect(forgets).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the archive’s runs', () => {
+  const IMPORT: ArchiveStart = { mode: 'importFundHistory', refs: ['inzhur-reit'] };
+
+  it('answers a 202 with the run it recorded, sent once', async () => {
+    const api = fakeApi({}, { today: TODAY });
+    api.role = 'super_admin';
+    const repo = await tab(api);
+    const reply = await repo.startArchiveOperation(IMPORT);
+    expect(reply).toMatchObject({ kind: 'started', operation: { state: 'running' } });
+    expect(api.seen.filter((s) => s.method === 'POST')).toHaveLength(1);
+    expect(JSON.parse(api.seen[0].body)).toEqual(IMPORT);
+  });
+
+  it.each([
+    [{ status: 405, body: { error: 'operations_prod_only' } }, { kind: 'prodOnly' }],
+    [
+      {
+        status: 422,
+        body: { error: 'invalid_operation', issues: [{ field: 'to', code: 'custom' }] },
+      },
+      { kind: 'invalid', issues: [{ field: 'to', code: 'custom' }] },
+    ],
+    [{ status: 502, body: { error: 'start_failed' } }, { kind: 'startFailed' }],
+    [{ status: 429, body: { error: 'too_many_requests' } }, { kind: 'throttled' }],
+    [
+      { status: 500, body: { error: 'internal' } },
+      { kind: 'failed', status: 500 },
+    ],
+    // A definite refusal the transport names by its kind is no lost answer.
+    [
+      { status: 413, body: { error: 'payload_too_large' } },
+      { kind: 'failed', status: 413 },
+    ],
+    // A 2xx whose body cannot be read may still have recorded the run.
+    [{ status: 202, body: 'x' }, { kind: 'offline' }],
+    ['offline', { kind: 'offline' }],
+  ] as const)(
+    'maps a refused start to its form’s reply, never resending it',
+    async (answer, kind) => {
+      const api = fakeApi({}, { today: TODAY });
+      api.role = 'super_admin';
+      api.starts = [answer];
+      const repo = await tab(api);
+      expect(await repo.startArchiveOperation(IMPORT)).toEqual(kind);
+      expect(api.seen.filter((s) => s.method === 'POST')).toHaveLength(1);
+    },
+  );
+
+  it('pages the list ten at a time, from the cursor the last page named', async () => {
+    const api = fakeApi({}, { today: TODAY });
+    api.role = 'super_admin';
+    const repo = await tab(api);
+    for (let i = 0; i < 12; i += 1) await repo.startArchiveOperation(IMPORT);
+    const first = await repo.readArchiveOperations();
+    expect(first.operations).toHaveLength(10);
+    expect(first.next).toBeDefined();
+    const second = await repo.readArchiveOperations(first.next);
+    expect(second.operations).toHaveLength(2);
+    expect(second.next).toBeUndefined();
+    expect(api.seen.filter((s) => s.method === 'GET').map((s) => s.path)).toEqual([
+      '/admin/archive/operations?limit=10',
+      `/admin/archive/operations?limit=10&cursor=${first.next}`,
+    ]);
   });
 });

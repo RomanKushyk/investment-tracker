@@ -17,7 +17,7 @@ import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { patchSettings, settingsOf } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import type { Passkey } from '../auth/relay';
-import type { ArchiveDiagnosis } from '../lib/repository';
+import type { ArchiveDiagnosis, ArchiveOperation } from '../lib/repository';
 import { movedPrices, pricesOfQuotes, type PriceRow } from '@quirenote/core/valuation';
 import {
   balancesBody,
@@ -85,6 +85,16 @@ export interface FakeApi {
   /** What the super-admin's `GET /admin/archive/diagnosis` answers: the body, or the route's
    *  502 or 504. Anyone else is refused `forbidden`, as `superAdminOnly` refuses them. */
   diagnosis: ArchiveDiagnosis | 'capture_failed' | 'capture_timeout';
+  /** The archive's runs, newest first, as `GET /admin/archive/operations` lists them, or the status
+   *  its read fails with. */
+  operations: ArchiveOperation[] | number;
+  /** What each `POST /admin/archive/operations` answers, one per start, then `accepted`: the run
+   *  recorded `running` under a 202, a refusal's status and body, or no answer at all. */
+  starts: ('accepted' | 'offline' | { status: number; body: unknown })[];
+  /** Holds a start's answer until it settles. */
+  holdStart?: Promise<void>;
+  /** Holds each read of the list's answer, its rows already read, until it settles. */
+  holdRead?: Promise<void>;
   /** Whether `GET /me` says a Google identity is linked. */
   googleLinked: boolean;
   /** Whether `GET /me` says the account holds a password of its own. */
@@ -131,6 +141,8 @@ export function fakeApi(
     settings: null,
     role: 'user',
     diagnosis: { size: { rows: '0', total_bytes: '0' }, bySource: [], observations: [], sample: [] },
+    operations: [],
+    starts: [],
     googleLinked: false,
     passwordSet: true,
     claims: {},
@@ -459,6 +471,60 @@ export function fakeApi(
     return json(result.settings);
   }
 
+  /** The super-admin's runs: a start answered as `starts` says, and the list paged as the API pages
+   *  it, newest first, from the run its cursor names, `next` only while more follow. */
+  async function operating(request: Sent, query: URLSearchParams): Promise<Response> {
+    if (api.role !== 'super_admin') return json({ error: 'forbidden' }, 403);
+    if (request.method === 'GET') {
+      if (typeof api.operations === 'number') {
+        const status = api.operations;
+        await api.holdRead;
+        return json({ error: 'internal' }, status);
+      }
+      // Keyset paging, as the route pages: `started_at DESC, id DESC`, after the cursor's pair.
+      const limit = Number(query.get('limit') ?? 50);
+      const cursor = query.get('cursor');
+      const [at, id] =
+        cursor === null ? [] : Buffer.from(cursor, 'base64url').toString().split('|');
+      const ordered = [...api.operations].sort((a, b) => (newer(a, b) ? -1 : 1));
+      const rest = cursor === null ? ordered : ordered.filter((run) => newer({ startedAt: at, id }, run));
+      const page = rest.slice(0, limit);
+      const last = page.at(-1);
+      const next =
+        rest.length > limit && last !== undefined
+          ? Buffer.from(`${last.startedAt}|${last.id}`).toString('base64url')
+          : undefined;
+      await api.holdRead;
+      return json({ operations: page, ...(next === undefined ? {} : { next }) });
+    }
+    // A start is recorded as it arrives, before its answer travels back.
+    const answer = api.starts.shift() ?? 'accepted';
+    const { mode, ...parameters } = JSON.parse(request.body) as { mode: ArchiveOperation['mode'] };
+    // The API's stamps carry microseconds.
+    const stamp = (ms: number) => new Date(ms).toISOString().replace('Z', '000Z');
+    const run: ArchiveOperation = {
+      id: crypto.randomUUID(),
+      mode,
+      parameters,
+      state: 'running',
+      startedBy: ME_USER_ID,
+      startedAt: stamp(Date.now()),
+      deadlineAt: stamp(Date.now() + 21 * 60_000),
+      finishedAt: null,
+      result: null,
+      error: null,
+    };
+    if (answer === 'accepted' && Array.isArray(api.operations)) api.operations.unshift(run);
+    await api.holdStart;
+    if (answer === 'offline') throw new TypeError('Failed to fetch');
+    if (answer !== 'accepted') return json(answer.body, answer.status);
+    return json(run, 202, { location: `/admin/archive/operations/${run.id}` });
+  }
+
+  /** Whether `a` lists before `b`, in the route's order. */
+  const newer = (a: { startedAt: string; id: string }, b: { startedAt: string; id: string }) =>
+    a.startedAt > b.startedAt || (a.startedAt === b.startedAt && a.id > b.id);
+
   api.fetch = async (input, init) => {
     const original =
       input instanceof Request
@@ -527,6 +593,7 @@ export function fakeApi(
       if (api.diagnosis === 'capture_timeout') return json({ error: 'capture_timeout' }, 504);
       return json(api.diagnosis);
     }
+    if (path === '/admin/archive/operations') return operating(request, url.searchParams);
     if (request.method === 'GET' && /^\/view(\/series|\/balances|\/day)?$/.test(path)) {
       return read(request, path, url.searchParams);
     }

@@ -1,5 +1,6 @@
 // The provider's published fund price history, workbook to rows. Pure: everything decidable from
 // the file alone lives here and is tested, and the DB half stays in `capture.ts`.
+import type { FundRef } from '@quirenote/core/archive';
 import { addDays } from '@quirenote/core/dates';
 import type { XlsxCell, XlsxWorkbook } from './xlsx';
 
@@ -9,8 +10,9 @@ export const FUND_HISTORY_PARSER_VERSION = 'fund-history-1';
 
 /** Each fund's document category in the provider's CMS, the list its offer page renders its
  *  documents from. Held fixed rather than discovered, so an id the CMS no longer answers throws
- *  instead of importing from a guessed link (*External sources*). */
-export const FUND_HISTORY_CATEGORIES: Readonly<Record<string, number>> = {
+ *  instead of importing from a guessed link (*External sources*). Keyed by core's `FundRef`, so a
+ *  fund the route accepts has its id. */
+export const FUND_HISTORY_CATEGORIES: Readonly<Record<FundRef, number>> = {
   'inzhur-reit': 19,
   'inzhur-energy': 18,
 };

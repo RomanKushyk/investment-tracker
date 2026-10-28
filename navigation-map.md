@@ -229,22 +229,42 @@ Interactions to verify:
 24. **Import — CSV is announced but not yet accepted:** the copy and file picker name `.csv`, but a `.csv` currently gets the unsupported-file-type message.
 25. **Two tabs:** open a second tab on `/` and save a quote in the first → the second is told nothing. Saving in the second is refused: one `POST /mutations` answered 412, never sent again, one toast "This changed in another tab or on another device, so nothing was saved. The screen shows the current data now — check it and try again.", and a `GET /view` after it; nothing the first tab wrote is lost, and the second tab's next save goes through. Shown again after the view has gone stale, the second tab reads it again.
 26. **The account's settings follow it from device to device, and the theme does not.** Two contexts signed in as one account (a throwaway user, per the top), the second already loaded. In the first, choose «3 months» on `/overview`, collapse a nav group and the rail, and set the language to English and the reminder lead to 14 on `/settings`: each reaches the API as `PATCH /settings` naming only what changed, once the changes have been quiet for half a second (the period alone; the group and the rail together when clicked within it), and no screen waits on it. Reload the second: «3 months», the closed group, the collapsed rail, English and 14 in the lead field, from the account's `GET /view` answer, with no `PATCH` from it, its theme as it was and no focus moved (`document.activeElement` is still `<body>`). At 360 the same for the period, the language and the lead. A context left open on `/settings` with focus in the lead field, once its view has gone stale and it is shown again, reads the first's lead in the field and takes the first's rail, and focus stays in the field; with focus in the sidebar instead, on the panel's collapse control or one of its links, the rail collapses and focus lands on the rail's expand control. Another account signing in on the same browser starts from its own answer, whatever the first left in `quirenote-settings`, and nothing of the first's is sent to it, a nav group clicked before that answer comes included. Signed out, the language control on `/sign-in` writes `quirenote-settings` and sends nothing. A `PATCH` the API refuses leaves the control where the person put it until the next `GET /view` says what the account holds.
-27. **Administration, the super-admin's alone** (`archive-admin.dc.html`, T1): `/settings` sends one `GET /me`. Once it answers `super_admin`, a fourth card «Адміністрування» follows Appearance with one row, «Архів цін», its helper ending "Only the super-admin sees this card.", and an outline LINK «Відкрити» with a trailing `ChevronRight` to `/settings/archive`. A plain user never sees it. While `/me` is out, or after it fails (hold or fail `/relay/me` in an init-script `fetch` wrapper), the three cards render, nothing takes the fourth's place and the page does not fail.
+27. **Administration, the super-admin's alone** (`archive-admin.dc.html`, T1): `/settings` sends one `GET /me`. Once it answers `super_admin`, a fourth card «Адміністрування» follows Appearance with one row, «Архів цін», its helper "Quote coverage by source, two archive repairs and the run log. Only the super-admin sees this card.", and an outline LINK «Відкрити» with a trailing `ChevronRight` to `/settings/archive`. A plain user never sees it. While `/me` is out, or after it fails (hold or fail `/relay/me` in an init-script `fetch` wrapper), the three cards render, nothing takes the fourth's place and the page does not fail.
 
 ## `/settings/archive` — Price archive
 
-The super-admin's panel (`design/extensions/archive-admin.dc.html`, T1–T4), reached from `/settings` → Administration → «Відкрити»; Settings stays the active pill. It reads `GET /me` and `GET /admin/archive/diagnosis`, never the view. Until `/me` answers, `main` is empty; a failed `/me` is the failed screen, as on `/profile`. Any other signed-in user, or a 403 from the diagnosis, gets the app's not-found.
+The super-admin's panel (`design/extensions/archive-admin.dc.html`, T1–T6), reached from `/settings` → Administration → «Відкрити»; Settings stays the active pill. It reads `GET /me`, `GET /admin/archive/diagnosis` and `GET /admin/archive/operations`, and starts runs with `POST /admin/archive/operations`; it never reads the view. Until `/me` answers, `main` is empty; a failed `/me` is the failed screen, as on `/profile`. Any other signed-in user, or a 403 from the diagnosis or the run log, gets the app's not-found.
 
-- A muted «‹ Налаштування» link to `/settings` above the header "Price archive" + subtitle "Quote coverage by source". Below 768 the link takes `TAP_44`'s 44 × 44.
-- **Nothing is read on arrival.** One card, «Архів ще не прочитано», says the diagnosis takes up to 25 s and runs only on request, with an outline «Прочитати архів» (`Archive` glyph). The header's slot is empty.
+- A muted «‹ Налаштування» link to `/settings` above the header "Price archive" + subtitle "Quote coverage, archive repairs and the run log". Below 768 the link takes `TAP_44`'s 44 × 44.
+- **The diagnosis is not read on arrival; the run log is**, with one `GET /admin/archive/operations?limit=10`. In the diagnosis's place, one card «Архів ще не прочитано» says the diagnosis takes up to 25 s and runs only on request, with an outline «Прочитати архів» (`Archive` glyph). The header's slot is empty. «Ремонт» and «Журнал запусків» follow it, whatever the diagnosis's state.
 - **The answer:** the slot reads «Знімок dd.MM.yyyy, HH:mm» (Kyiv) beside an outline header-size «Оновити» (`RefreshCw`). Under the header, in order:
   - **Two figures** side by side at and above 768, stacked below: «Inzhur · котирування й NAV» and «НБУ · справедлива вартість». The value is the summed `emptyDays`: «N днів» in `warn-tint-text` with a 20px `TriangleAlert` when it is not zero, with the line «порожніх днів · у k з m груп · u не виміряно»; at zero «0 днів» and «порожніх днів немає». Under a hairline come «Опубліковано мінус записано (gaps)», the summed `gaps`, which can be negative, and «Захоплень · обсяг», `bySource`'s count and gzip size in МБ of 1024².
+  - **«Ремонт»**: two forms side by side with a hairline between them at and above 768, stacked with a hairline divider below.
+    - «Дозаписати спостереження»: a helper; «Джерело» as a filled two-segment track «Inzhur · НБУ», Inzhur chosen; «Від» and «До» as empty date fields, 130 wide in 13px at and above 768 and sharing the row in 16px below; an outline «Запустити…».
+    - «Імпортувати історію фондів»: a helper; «Фонди», one row per fund (the ref in mono over its name in muted) with a switch, every fund on; the same «Запустити…».
+    - «Запустити…» stays pressable while a start is out.
+  - **«Журнал запусків»**, with «новіші вгорі» to its right. While its first read is out, three held `panel` rows.
+    - Layout: at and above 768, a table in mono, Стан · Операція · Почато · Запустив · Результат. Below, stacked rows: the chip with the time to its right, the operation, the result, then «Запустив: …».
+    - Four chips, 22 tall at radius 6: «Надсилається» (`Clock`, a `field-border` outline), «Виконується» (`LoaderCircle`, spinning, `info-tint`), «Готово» (`Check`, `panel`), «Помилка» (`TriangleAlert`, `warn-tint`).
+    - The operation reads «Дозапис · Inzhur|НБУ» over its range, or «Імпорт історії» over its refs in mono.
+    - «Почато» is «dd.MM.yyyy, HH:mm» in Kyiv time, or «щойно» for a start not answered yet. A running run adds «до HH:mm», its deadline.
+    - «Запустив» is «Ви» for the caller, else the first eight characters of the id and «…».
+    - The result:
+      - a pending start: «Запит надіслано, чекаємо на відповідь сервера.»;
+      - a running run: «Триває. Без відповіді до HH:mm запуск вважатиметься невдалим.»;
+      - an NBU observe: «Дат: … · рядків записано … · розбіжностей …»;
+      - an Inzhur observe: «Дат: … · рядків записано …, пропущено … · умови: записано …, відхилено …»;
+      - an observe that stopped short adds «Не завершено — далі з dd.MM.yyyy» in `warn-tint-text`;
+      - an import: one line per fund, «<ref>: N рядків, записано N · dd.MM.yyyy – dd.MM.yyyy»;
+      - a failure: its reason («Не вдалося запустити.», «Захоплення завершилося помилкою.» or «Перевищено ліміт часу: запуск не відповів за 21 хв, результату немає.») over its message in muted mono.
+    - Ten runs, then an outline «Показати ще» while the list answers `next`.
+    - With no runs, «Ще жодного запуску» and its lead beside a `Clock`. On dev the log is always this.
   - **One coverage card per source**, titled «Покриття · <source>», with «<earliest bound> — сьогодні · груп: N» and the legend: Captured, Imported history (only where the source has it), Empty day, Dates not served. One tick row (months under 200 days, quarters under two years, years beyond, the year on the first tick and on January, none in the last 12 %), with «сьогодні» at the end. Then **every group** of the source: the ref in mono, its basis in a 16-tall hairline tag, the strip, and the count («N днів» in `warn-tint-text` with a 12px glyph, a muted «0», or «не виміряно»). The most empty days come first, then the served order, and a group not measured comes last. At 360 the ref and the count share a line above a full-width strip.
   - **The strip:** a 12px `page` track at radius 3. The captured era runs from `measured_from` to `last_as_of` in `muted`. Imported history is half the height in `info`, ending at a 2px `card` seam. A missing day is a `warn` mark at least 2px wide, standing 3px above and below the band in a 1px `card` keyline; adjacent days make one mark. Past the latest 100, the span from the earliest expected day is hatched, with «ще N порожніх днів до dd.MM.yyyy — дати не надано» under the strip.
   - **«Останні рядки»:** «Збережені захоплення: <rows> · <size>», then the three `sample` rows. At and above 768 they are a table (Дата · Інструмент in mono · База · Ціна · YTM · Чиста ціна, the last three right-aligned, YTM and the clean price in %); below, each row is two lines with «Ціна … · YTM … · Чиста …». A null reads «—».
 
 Interactions to verify:
-1. **The gate:** signed in as a plain user, `/settings/archive` is the not-found and no `/admin/*` request is sent. As the super-admin, nothing under `/admin/*` is sent until «Прочитати архів» is pressed.
+1. **The gate:** signed in as a plain user, `/settings/archive` is the not-found and no `/admin/*` request is sent. As the super-admin, the run log's one `GET /admin/archive/operations?limit=10` is the only `/admin/*` request until «Прочитати архів» is pressed.
 2. **The first read:** press «Прочитати архів». The card leaves and focus lands on the slot's busy «Читаємо» (`aria-disabled`, spinning), beside «Читаємо архів…». The figures read «—» in `faint`, and each coverage card and the spot check hold three `panel` rows with no axis and no legend. One `GET /admin/archive/diagnosis` is sent, and the answer replaces the held boxes.
 3. **A refresh:** «Оновити» keeps the answer on screen. The slot reads «Знімок … · оновлюємо…» beside a busy «Оновлюємо».
 4. **A first read that fails** (fail `/relay/admin/archive/diagnosis` in an init-script `fetch` wrapper): one card «Не вдалося прочитати архів» in place of the figures, coverage and spot check, with an outline «Спробувати ще раз». For 502, «Захоплення відповіло помилкою.» + `capture_failed` in mono; for 504, «Архів не відповів за 25 с; читання ще може тривати.» + `capture_timeout`; any other status, «Відповідь HTTP N.»; no answer, «Сервер не відповів.» The slot stays empty.
@@ -252,6 +272,29 @@ Interactions to verify:
 6. **The snapshot is kept for the session:** leave for `/settings` and come back, and the answer is there with its stamp and nothing is sent. A sign-out forgets it.
 7. 360px: the figures stack, each group's ref and count share a line above the strip, the spot check is two-line rows, and nothing scrolls sideways. Every control in `main` keeps a 44 × 44 hit area.
 8. `prefers-reduced-motion`: the cards' entrance, the pulse and the spin are instant or still (the global switch).
+9. **A start's confirmation:**
+   - «Запустити…» opens a centred dialog: 420 wide at and above 768, the width less 32 below.
+   - It is titled «Запустити дозапис?» or «Запустити імпорт?», over «Запуск буде надіслано серверу з цими параметрами.»
+   - It echoes the start on a `page` panel: Операція, then either Джерело «Inzhur · `inzhur`», Від, До and «Днів у діапазоні» (the range counted inclusive, «—» while a date is empty), or Фонди with the refs in mono.
+   - The outline «Скасувати» sends nothing. The filled «Запустити», the screen's one fill, closes the dialog and puts a «Надсилається» row on top of the log at once.
+10. **A start's answer** (stub `/relay/admin/archive/operations` in an init-script `fetch` wrapper, since dev answers 405):
+    - A 202 turns the pending row «Виконується», and the log is read again.
+    - The log is read every 10 s while a row is pending or running, and stops once none is.
+    - A run that finishes takes «Готово» or «Помилка» in place, its chip cross-fading.
+    - While a start awaits its answer, a run the log lists as started after the press is held back.
+11. **A refused start** records no row, and the pending row leaves.
+    - On dev, a 405: under the pressed form's button, an `info-tint` notice with `Info`: «Запуск тут вимкнено: ремонти виконує лише продакшн. Діагностика й журнал працюють.»
+    - A 422 puts its sentence under the field it names, and the field takes a `neg` edge: «Кінець раніше за початок.» under «До» for `to`/`custom`, «Потрібна календарна дата.» for an empty date.
+    - A 422 on a field the form does not own reads «Сервер відхилив запуск: <field> — <code>.» under the form.
+    - A 502, a 429, a 500 and no answer each read their sentence under the form, in `neg`.
+    - The refusal clears on that form's next «Запустити…».
+12. **The log's own read fails:**
+    - A first read that fails leaves the log card alone: «Не вдалося прочитати журнал» beside a `warn` `TriangleAlert`, then «Відповідь HTTP N. Запуски тривають і без журналу.» (or «Сервер не відповів. …»), then an outline small «Спробувати ще раз».
+    - A poll that fails with rows in hand keeps them, with «Журнал не оновився о HH:mm: відповідь HTTP N. Оновлюємо далі.» over them in `warn-tint-text`, and the poll goes on.
+13. 360px:
+    - The forms stack, the two date fields share their row, and the log is stacked rows.
+    - Every control of the forms, the dialog and the log keeps a 44 × 44 hit area.
+    - `prefers-reduced-motion` leaves the dialog, the chips and the run rows instant.
 
 ## `/profile` — Profile
 

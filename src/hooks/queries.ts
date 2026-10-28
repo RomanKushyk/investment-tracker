@@ -1,12 +1,13 @@
 import {
   keepPreviousData,
   queryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { StagedImport } from '@quirenote/core/backup/parts';
@@ -26,11 +27,15 @@ import { repo, settingsCopy } from '../lib/api';
 import { meKey } from '../lib/me-key';
 import {
   ApiError,
+  type ArchiveOperation,
+  type ArchiveOperationsPage,
+  type ArchiveStart,
   type BalancesData,
   type CouponReopen,
   type DayData,
   type MeData,
   type SeriesData,
+  type StartReply,
   type ViewData,
 } from '../lib/repository';
 import { useToday } from './useToday';
@@ -241,6 +246,121 @@ export function useArchiveDiagnosis() {
     fetching: query.isFetching,
     read: () => void query.refetch(),
   };
+}
+
+export const archiveOperationsKey = ['admin', 'archive', 'operations'] as const;
+/** How often the log is read again while a start awaits its answer or a run is running. */
+const RUN_POLL_MS = 10_000;
+
+/** A start sent and not answered yet: the client's own row, which no server state names. */
+export interface PendingStart {
+  key: string;
+  start: ArchiveStart;
+  /** Whether the log had been read at the press, and the newest run it held then: a run listed
+   *  above that one may be this start's own. */
+  read: boolean;
+  newest: string | undefined;
+}
+
+/** The archive's run log and the starts that feed it: read on arrival, after each start's answer,
+ *  and every `RUN_POLL_MS` while a start is pending or a run running. */
+export function useArchiveRuns() {
+  const [pending, setPending] = useState<PendingStart[]>([]);
+  // The runs starts' answers named, newest first, kept here and merged over the reads by id: a
+  // read in flight answers what it read before the run was recorded, and never drops one.
+  const [started, setStarted] = useState<readonly ArchiveOperation[]>([]);
+  // When «Показати ще»'s read failed, so its error is told from a read again's: TanStack's own
+  // flags move to whichever read is out next.
+  const [moreFailedAt, setMoreFailedAt] = useState<number>();
+  const query = useInfiniteQuery({
+    queryKey: archiveOperationsKey,
+    queryFn: ({ pageParam }) => repo.readArchiveOperations(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next,
+    retry: false,
+    networkMode: 'always',
+    refetchInterval: (q) =>
+      pending.length > 0 ||
+      mergedOf(started, q.state.data?.pages)?.some((run) => run.state === 'running')
+        ? RUN_POLL_MS
+        : false,
+  });
+  // THE ONE LIST the log shows and decides from: the runs starts' answers named, over the runs
+  // listed, in the route's order.
+  const merged = mergedOf(started, query.data?.pages);
+
+  async function start(request: ArchiveStart): Promise<StartReply> {
+    const entry: PendingStart = {
+      key: crypto.randomUUID(),
+      start: request,
+      read: merged !== undefined,
+      newest: merged?.[0]?.id,
+    };
+    setPending((all) => [entry, ...all]);
+    const reply = await repo.startArchiveOperation(request);
+    if (reply.kind === 'started') setStarted((all) => [reply.operation, ...all]);
+    setPending((all) => all.filter((e) => e !== entry));
+    // Not over a «Показати ще» in flight, which would be dropped; the poll reads the log next.
+    void query.refetch({ cancelRefetch: false });
+    return reply;
+  }
+
+  // A run listed above the newest one a pending start saw is held back while it awaits its
+  // answer, since it may be that start's own; one a start's answer has named is not.
+  const named = new Set(started.map((run) => run.id));
+  const runs = merged?.filter(
+    (run, i) => named.has(run.id) || !pending.some((e) => isAbove(merged, i, e)),
+  );
+  const failed = query.error !== null;
+  const moreFailed = failed && moreFailedAt === query.errorUpdatedAt;
+  return {
+    pending,
+    runs,
+    failure: failed ? failureOf(query.error) : undefined,
+    /** A read again failed with rows in hand: the stale line over them, and when. */
+    stale: failed && merged !== undefined && !moreFailed,
+    failedAt: query.errorUpdatedAt,
+    /** «Показати ще»'s own read failed; the rows in hand are as they were. */
+    moreFailed,
+    loading: query.isPending && query.isFetching,
+    more: query.hasNextPage
+      ? () =>
+          void query
+            .fetchNextPage()
+            .then((r) => setMoreFailedAt(r.isFetchNextPageError ? r.errorUpdatedAt : undefined))
+      : undefined,
+    loadingMore: query.isFetchingNextPage,
+    read: () => void query.refetch(),
+    start,
+  };
+}
+
+/** The runs listed, and over them the started runs no read lists yet, in the route's order. One
+ *  the reads have moved past, listing after the oldest run listed, is let go. */
+function mergedOf(
+  started: readonly ArchiveOperation[],
+  pages: ArchiveOperationsPage[] | undefined,
+): ArchiveOperation[] | undefined {
+  const rows = pages?.flatMap((page) => page.operations);
+  const ids = new Set(rows?.map((run) => run.id));
+  const oldest = rows?.at(-1);
+  const unlisted = started.filter(
+    (run) => !ids.has(run.id) && (oldest === undefined || !listsBefore(oldest, run)),
+  );
+  if (rows === undefined && unlisted.length === 0) return undefined;
+  return [...unlisted, ...(rows ?? [])].sort((a, b) => (listsBefore(a, b) ? -1 : 1));
+}
+
+/** Whether `a` lists before `b`, as the route orders and pages its runs: `started_at DESC, id DESC`. */
+const listsBefore = (a: ArchiveOperation, b: ArchiveOperation) =>
+  a.startedAt > b.startedAt || (a.startedAt === b.startedAt && a.id > b.id);
+
+/** Whether the `i`th run listed sits above the newest run `entry` saw at its press: all of them
+ *  when the log it saw was empty, none when it had not been read. */
+function isAbove(listed: ArchiveOperation[], i: number, entry: PendingStart): boolean {
+  if (!entry.read) return false;
+  if (entry.newest === undefined) return true;
+  return i < listed.findIndex((run) => run.id === entry.newest);
 }
 
 /** What was recorded on `date`, and each position's value before it. The view carries the caller's day, so that day costs

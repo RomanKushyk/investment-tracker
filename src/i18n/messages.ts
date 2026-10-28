@@ -765,10 +765,10 @@ export const en = {
       helper:
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
     },
-    // As `screen.archive`: the repairs and the run log join the helper with #512.
     archive: {
       title: 'Price archive',
-      helper: 'Quote coverage by source. Only the super-admin sees this card.',
+      helper:
+        'Quote coverage by source, two archive repairs and the run log. Only the super-admin sees this card.',
       open: 'Open',
     },
   },
@@ -825,6 +825,107 @@ export const en = {
       clean: 'Clean price',
       line: (price: string, ytm: string, clean: string) =>
         `Price ${price} · YTM ${ytm} · Clean ${clean}`,
+    },
+    repairs: {
+      title: 'Repairs',
+      start: 'Start…',
+      observe: {
+        title: 'Backfill observations',
+        helper:
+          'Re-reads the source’s stored captures over a range and writes the observations missing; a day with no capture cannot be filled this way. A long range can finish partly — the log shows where to continue.',
+        source: 'Source',
+        from: 'From',
+        to: 'To',
+        sources: { inzhur: 'Inzhur', nbu_fv: 'NBU' },
+      },
+      import: {
+        title: 'Import fund history',
+        helper:
+          'Downloads a fund’s NAV history as the provider publishes it and writes the days the archive does not hold yet.',
+        funds: 'Funds',
+        names: { 'inzhur-reit': 'Inzhur REIT', 'inzhur-energy': 'Inzhur Energy' },
+      },
+      confirm: {
+        observe: 'Start the backfill?',
+        import: 'Start the import?',
+        body: 'The start goes to the server with these parameters.',
+        operation: 'Operation',
+        days: 'Days in range',
+        ops: { observe: 'Observation backfill', importFundHistory: 'Fund history import' },
+        cancel: 'Cancel',
+        start: 'Start',
+      },
+      refused: {
+        prodOnly:
+          'Starting is off here: only production runs repairs. The diagnosis and the log work.',
+        // By the field and the code the route's 422 names (`issuesOf`): `refs.<n>` reads as
+        // `refsN`, and a code with no field before it holds for any field.
+        field: {
+          'to.custom': 'The end is before the start.',
+          invalid_format: 'A calendar day is needed.',
+          invalid_type: 'Required.',
+          'source.invalid_value': 'Unknown source.',
+          'refs.too_small': 'Choose at least one fund.',
+          'refs.custom': 'A fund is named twice.',
+          'refsN.invalid_value': 'Unknown fund.',
+        },
+        other: (field: string, code: string) => `The server refused the start: ${field} — ${code}.`,
+        startFailed:
+          'The server could not start it. If the run was recorded, the log will show it failed.',
+        network:
+          'The server did not answer. The start may have arrived: check the log before trying again.',
+        throttled: 'Too many starts at once. Try again in a moment.',
+        internal:
+          'The server did not take the start. Try again; if it was recorded after all, it will appear in the log.',
+      },
+    },
+    runs: {
+      title: 'Run log',
+      order: 'newest first',
+      columns: {
+        state: 'State',
+        operation: 'Operation',
+        started: 'Started',
+        by: 'Started by',
+        result: 'Result',
+      },
+      state: { pending: 'Sending', running: 'Running', succeeded: 'Done', failed: 'Failed' },
+      observe: (source: string) => `Backfill · ${source}`,
+      import: 'History import',
+      pending: 'Request sent, waiting for the server.',
+      justNow: 'just now',
+      running: (at: string) => `Running. With no answer by ${at} the run counts as failed.`,
+      until: (at: string) => `until ${at}`,
+      nbu: (dates: string, written: string, mismatched: string) =>
+        `Dates: ${dates} · rows written ${written} · mismatched ${mismatched}`,
+      inzhur: (
+        dates: string,
+        written: string,
+        skipped: string,
+        termsWritten: string,
+        termsRefused: string,
+      ) =>
+        `Dates: ${dates} · rows written ${written}, skipped ${skipped} · terms: written ${termsWritten}, refused ${termsRefused}`,
+      fund: (ref: string, n: number, rows: string, written: string, from: string, to: string) =>
+        `${ref}: ${rows} ${n === 1 ? 'row' : 'rows'}, written ${written} · ${from} – ${to}`,
+      incomplete: (next: string) => `Not finished — continue from ${next}`,
+      reason: {
+        start_failed: 'The start was refused.',
+        capture_failed: 'The capture ended in an error.',
+        deadline_exceeded: (minutes: number) =>
+          `Over the time limit: the run didn’t answer within ${minutes} min, no result.`,
+      },
+      you: 'You',
+      by: 'Started by:',
+      empty: 'No runs yet',
+      emptyLead: 'A start from the forms above appears here: who, what, when and how it ended.',
+      more: 'Show more',
+      staleStatus: (at: string, n: number) =>
+        `The log did not refresh at ${at}: the answer was HTTP ${n}. Still refreshing.`,
+      staleOffline: (at: string) =>
+        `The log did not refresh at ${at}: the server did not answer. Still refreshing.`,
+      failed: 'Couldn’t read the log',
+      failedLead: (cause: string) => `${cause} Runs go on without it.`,
     },
   },
   // `design/extensions/own-account.dc.html`, T9; the copy's failure is the owner's ruling on #192.
@@ -1293,11 +1394,10 @@ export const en = {
       title: 'Settings',
       subtitle: 'Preferences, data and automation',
     },
-    // Names only what the screen holds: the repairs and the run log join the copy with #512.
     archive: {
       back: 'Settings',
       title: 'Price archive',
-      subtitle: 'Quote coverage by source',
+      subtitle: 'Quote coverage, archive repairs and the run log',
     },
   },
 };
@@ -1949,7 +2049,8 @@ export const uk: Dict = {
     },
     archive: {
       title: 'Архів цін',
-      helper: 'Покриття котирувань за джерелами. Цю картку бачить лише суперадміністратор.',
+      helper:
+        'Покриття котирувань за джерелами, два ремонти архіву й журнал запусків. Цю картку бачить лише суперадміністратор.',
       open: 'Відкрити',
     },
   },
@@ -2004,6 +2105,101 @@ export const uk: Dict = {
       ytm: 'YTM',
       clean: 'Чиста ціна',
       line: (price, ytm, clean) => `Ціна ${price} · YTM ${ytm} · Чиста ${clean}`,
+    },
+    repairs: {
+      title: 'Ремонт',
+      start: 'Запустити…',
+      observe: {
+        title: 'Дозаписати спостереження',
+        helper:
+          'Перечитує збережені захоплення джерела за діапазон і дописує спостереження, яких бракує; день без захоплення так не заповнити. Довгий діапазон може завершитися частково — журнал покаже, звідки продовжити.',
+        source: 'Джерело',
+        from: 'Від',
+        to: 'До',
+        sources: { inzhur: 'Inzhur', nbu_fv: 'НБУ' },
+      },
+      import: {
+        title: 'Імпортувати історію фондів',
+        helper:
+          'Завантажує опубліковану провайдером історію NAV фонду і дописує дні, яких в архіві ще немає.',
+        funds: 'Фонди',
+        names: { 'inzhur-reit': 'Inzhur REIT', 'inzhur-energy': 'Inzhur Energy' },
+      },
+      confirm: {
+        observe: 'Запустити дозапис?',
+        import: 'Запустити імпорт?',
+        body: 'Запуск буде надіслано серверу з цими параметрами.',
+        operation: 'Операція',
+        days: 'Днів у діапазоні',
+        ops: { observe: 'Дозапис спостережень', importFundHistory: 'Імпорт історії фондів' },
+        cancel: 'Скасувати',
+        start: 'Запустити',
+      },
+      refused: {
+        prodOnly:
+          'Запуск тут вимкнено: ремонти виконує лише продакшн. Діагностика й журнал працюють.',
+        field: {
+          'to.custom': 'Кінець раніше за початок.',
+          invalid_format: 'Потрібна календарна дата.',
+          invalid_type: 'Поле обов’язкове.',
+          'source.invalid_value': 'Невідоме джерело.',
+          'refs.too_small': 'Оберіть хоча б один фонд.',
+          'refs.custom': 'Фонд вказано двічі.',
+          'refsN.invalid_value': 'Невідомий фонд.',
+        },
+        other: (field, code) => `Сервер відхилив запуск: ${field} — ${code}.`,
+        startFailed:
+          'Сервер не зміг запустити. Якщо запуск записано, журнал покаже його як невдалий.',
+        network: 'Сервер не відповів. Запуск міг дійти — перевірте журнал, перш ніж повторювати.',
+        throttled: 'Забагато запусків поспіль. Спробуйте за мить.',
+        internal:
+          'Сервер не прийняв запуск. Спробуйте ще раз; якщо його все ж записано, він з’явиться в журналі.',
+      },
+    },
+    runs: {
+      title: 'Журнал запусків',
+      order: 'новіші вгорі',
+      columns: {
+        state: 'Стан',
+        operation: 'Операція',
+        started: 'Почато',
+        by: 'Запустив',
+        result: 'Результат',
+      },
+      state: {
+        pending: 'Надсилається',
+        running: 'Виконується',
+        succeeded: 'Готово',
+        failed: 'Помилка',
+      },
+      observe: (source) => `Дозапис · ${source}`,
+      import: 'Імпорт історії',
+      pending: 'Запит надіслано, чекаємо на відповідь сервера.',
+      justNow: 'щойно',
+      running: (at) => `Триває. Без відповіді до ${at} запуск вважатиметься невдалим.`,
+      until: (at) => `до ${at}`,
+      nbu: (dates, written, mismatched) =>
+        `Дат: ${dates} · рядків записано ${written} · розбіжностей ${mismatched}`,
+      inzhur: (dates, written, skipped, termsWritten, termsRefused) =>
+        `Дат: ${dates} · рядків записано ${written}, пропущено ${skipped} · умови: записано ${termsWritten}, відхилено ${termsRefused}`,
+      fund: (ref, n, rows, written, from, to) =>
+        `${ref}: ${rows} ${plural(n, 'рядок', 'рядки', 'рядків')}, записано ${written} · ${from} – ${to}`,
+      incomplete: (next) => `Не завершено — далі з ${next}`,
+      reason: {
+        start_failed: 'Не вдалося запустити.',
+        capture_failed: 'Захоплення завершилося помилкою.',
+        deadline_exceeded: (minutes) =>
+          `Перевищено ліміт часу: запуск не відповів за ${minutes} хв, результату немає.`,
+      },
+      you: 'Ви',
+      by: 'Запустив:',
+      empty: 'Ще жодного запуску',
+      emptyLead: 'Запуск із форми вище з’явиться тут: хто, що, коли й чим завершився.',
+      more: 'Показати ще',
+      staleStatus: (at, n) => `Журнал не оновився о ${at}: відповідь HTTP ${n}. Оновлюємо далі.`,
+      staleOffline: (at) => `Журнал не оновився о ${at}: сервер не відповів. Оновлюємо далі.`,
+      failed: 'Не вдалося прочитати журнал',
+      failedLead: (cause) => `${cause} Запуски тривають і без журналу.`,
     },
   },
   profile: {
@@ -2415,7 +2611,7 @@ export const uk: Dict = {
     archive: {
       back: 'Налаштування',
       title: 'Архів цін',
-      subtitle: 'Покриття котирувань за джерелами',
+      subtitle: 'Покриття котирувань, ремонт архіву і журнал запусків',
     },
   },
 };

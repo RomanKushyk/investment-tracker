@@ -1,12 +1,13 @@
 import { TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { SOURCES, type Source } from '@quirenote/core/archive';
 import { Dash } from '../../components/loading/Placeholder';
 import { KpiCard } from '../../components/ui/KpiCard';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ArchiveDiagnosis } from '../../lib/repository';
-import { SOURCES, useMegabytes, type Source } from './sources';
+import { useMegabytes } from './sources';
 
 /** One figure per source: the empty days its strips mark and count, then `gaps`, named for what
  *  it is because it nets, and the stored captures. `undefined` while the first read is out. */

@@ -51,6 +51,10 @@ const SHARED = new Set([
   'asset.placeholder.targetPct',
   // A provider's name, which neither language translates.
   'profile.google',
+  // The provider and its funds, named as it names them.
+  'archive.repairs.observe.sources.inzhur',
+  'archive.repairs.import.names.inzhur-reit',
+  'archive.repairs.import.names.inzhur-energy',
 ]);
 
 describe('the dictionaries', () => {

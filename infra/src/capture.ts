@@ -21,8 +21,8 @@ import type { SqlClient } from './migrate';
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
 // Re-exported for the tests that name it here.
-export { SOURCE } from './capture-source';
-import { SOURCE } from './capture-source';
+export { SOURCE } from '@quirenote/core/archive';
+import { FUND_REFS, isFundRef, SOURCE } from '@quirenote/core/archive';
 import { parseAssetsFeed, type ParsedFeed } from '@quirenote/core/inzhur/parse';
 import { parseOfferPage } from '@quirenote/core/inzhur/offer-page';
 import { bondTermsRow } from './bond-terms';
@@ -872,13 +872,13 @@ interface ImportFundHistoryRequest {
  *  (*The price archive*). A fund that fails throws the whole invocation: a partial import reported
  *  as a success is the one outcome to avoid. */
 async function importFundHistory(client: Client, req: ImportFundHistoryRequest) {
-  const refs = req.refs ?? Object.keys(FUND_HISTORY_CATEGORIES);
+  const refs = req.refs ?? FUND_REFS;
   if (refs.length === 0) throw new Error('importFundHistory: no refs to import');
   const observedAt = new Date().toISOString();
   const funds = [];
   for (const ref of refs) {
+    if (!isFundRef(ref)) throw new Error(`unknown fund ref: ${ref}`);
     const category = FUND_HISTORY_CATEGORIES[ref];
-    if (category === undefined) throw new Error(`unknown fund ref: ${ref}`);
     const url = documentListUrl(category);
     const list = await fetchFeed(url);
     if (!list.ok || list.body === undefined) throw new Error(`${list.error} for ${url}`);

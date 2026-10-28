@@ -1,13 +1,13 @@
 import { TriangleAlert } from 'lucide-react';
 import type { CSSProperties } from 'react';
 
+import type { Source } from '@quirenote/core/archive';
 import { Bar } from '../../components/loading/Placeholder';
 import { Card } from '../../components/ui/Card';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ArchiveDiagnosis, ArchiveGroup } from '../../lib/repository';
 import { axisOf, orderGroups, stripOf, ticksOf, type Axis, type Strip } from './strip';
-import type { Source } from './sources';
 
 // A group is one row: the ref and its basis, the strip, the count. At 360 the ref and the count
 // share a line above a full-width strip.

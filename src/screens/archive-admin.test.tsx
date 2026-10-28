@@ -140,13 +140,15 @@ const ANSWER: ArchiveDiagnosis = {
 const r = uk.archive.read;
 
 describe('/settings/archive', () => {
-  it('is the panel for the super-admin, and reads nothing on arrival', async () => {
+  it('is the panel for the super-admin, and reads the run log alone on arrival', async () => {
     api.role = 'super_admin';
     const page = mount('/settings/archive');
-    await waitFor(() => expect(page.main()).toContain('Архів цін'));
+    await waitFor(() => expect(page.main()).toContain(uk.archive.runs.empty));
     expect(page.main()).toContain('Прочитати архів');
     expect(page.main()).not.toContain(uk.boundary.notFound.title);
-    expect(api.seen.some((s) => s.path.startsWith('/admin/'))).toBe(false);
+    expect(api.seen.filter((s) => s.path.startsWith('/admin/')).map((s) => s.path)).toEqual([
+      '/admin/archive/operations?limit=10',
+    ]);
   });
 
   it('is the app’s not-found for any other signed-in user', async () => {
@@ -175,7 +177,8 @@ describe('/settings/archive', () => {
     expect(text).toContain('17,25 %');
     expect(text).not.toContain('1 009,860');
     // Every group is listed, the one with a missing day first.
-    expect(text.indexOf('UA4000207518')).toBeLessThan(text.indexOf('inzhur-reit'));
+    const coverage = text.slice(text.indexOf(uk.archive.coverage.title(uk.archive.source.inzhur)));
+    expect(coverage.indexOf('UA4000207518')).toBeLessThan(coverage.indexOf('inzhur-reit'));
     expect(text).toContain(uk.archive.kpi.empty(1, '1'));
   });
 

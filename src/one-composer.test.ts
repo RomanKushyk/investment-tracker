@@ -202,6 +202,10 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
     'dates#addDays',
     'dates#daysBetween',
   ),
+  'src/screens/archive/Repairs.tsx': each(
+    "the archive panel: the days a repair's range spans, echoed before it is sent",
+    'dates#daysBetween',
+  ),
   'src/screens/daily-quotes/QuoteRow.tsx': each(QUOTES, 'derive#yieldSinceStart'),
   'src/screens/daily-quotes/quotes.ts': each(QUOTES, 'derive#needsQuote'),
   'src/screens/daily-quotes/suggestions.ts': each(
