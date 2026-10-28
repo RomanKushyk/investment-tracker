@@ -1,10 +1,9 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import type { VariantProps } from 'class-variance-authority';
 
 import { buttonVariants } from './button-variants';
 
-interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+interface ButtonProps extends ComponentProps<'button'>, VariantProps<typeof buttonVariants> {}
 
 export function Button({ className, variant, weight, size, disabledTone, ...props }: ButtonProps) {
   return (

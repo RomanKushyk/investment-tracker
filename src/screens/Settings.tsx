@@ -1,7 +1,10 @@
+import { ChevronRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
+import { buttonVariants } from '../components/ui/button-variants';
 import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
 import { ParseSkips } from '../components/ui/ParseSkips';
@@ -15,6 +18,7 @@ import { DangerZone } from './settings/DangerZone';
 import { ImportRow } from './settings/ImportRow';
 import { parseLeadDays } from './settings/settings';
 import { useBackupDownload } from '../hooks/useBackupDownload';
+import { useRole } from '../hooks/queries';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
 
@@ -296,14 +300,15 @@ function AutomationRows() {
 
 export function Settings() {
   const t = useT();
+  const role = useRole();
   return (
     <div>
       <ScreenHeader title={t.screen.settings.title} subtitle={t.screen.settings.subtitle} />
 
       <div className="flex flex-col gap-3.5">
         {/* THE PORTFOLIO CARD IS GONE: its two halves went to the screens that draw what
-            they edit. Settings keeps what belongs to the BROWSER — data, automation,
-            appearance — and nothing that belongs to the portfolio. */}
+            they edit. Settings keeps data, automation and appearance, and for the
+            super-admin alone the way to the archive panel. */}
         <Card
           radius={24}
           className="animate-in p-[22px] delay-75 duration-300 fade-in slide-in-from-bottom-1"
@@ -350,6 +355,23 @@ export function Settings() {
             <CurrencyControl />
           </SettingRow>
         </Card>
+
+        {/* Only once `GET /me` says so: while it is out or after it fails nothing stands here,
+            so no other role sees the card arrive or leave (`archive-admin.dc.html`, T1). */}
+        {role === 'super_admin' && (
+          <Card
+            radius={24}
+            className="animate-in p-[22px] delay-300 duration-300 fade-in slide-in-from-bottom-1"
+          >
+            <SectionLabel>{t.settings.sections.admin}</SectionLabel>
+            <SettingRow title={t.settings.archive.title} helper={t.settings.archive.helper}>
+              <Link to="/settings/archive" className={buttonVariants({ variant: 'outline' })}>
+                {t.settings.archive.open}
+                <ChevronRight size={16} aria-hidden />
+              </Link>
+            </SettingRow>
+          </Card>
+        )}
       </div>
     </div>
   );

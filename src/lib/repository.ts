@@ -85,6 +85,38 @@ export interface MeBody {
 }
 export type MeData = Revalidated<MeBody>;
 
+/** One `(instrument_ref, basis, source)` group of `diagnose`'s reconciliation, as
+ *  `infra/src/diagnose-reconciliation.ts` maps it: counts are Postgres text, and the measured
+ *  fields are null when nothing was measured. `emptyDates` is the latest 100 of `emptyDays`. */
+export interface ArchiveGroup {
+  instrument_ref: string;
+  basis: string;
+  source: string;
+  dates: string;
+  measured_from: string | null;
+  last_as_of: string | null;
+  publishedDays: string | null;
+  gaps: number | null;
+  importedDays: string | null;
+  emptyDays: number | null;
+  emptyDates: string[] | null;
+}
+
+/** `GET /admin/archive/diagnosis`: the capture's `diagnose` answer, in the fields the panel reads. */
+export interface ArchiveDiagnosis {
+  size: { rows: string; total_bytes: string };
+  bySource: { source: string; n: string; bytes: string }[];
+  observations: ArchiveGroup[];
+  sample: {
+    as_of: string;
+    instrument_ref: string;
+    basis: string;
+    price: string | null;
+    ytm: string | null;
+    clean_rate: string | null;
+  }[];
+}
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -112,6 +144,12 @@ const isMe = (b: unknown): b is MeBody =>
   typeof b.assets === 'number' &&
   typeof b.transactions === 'number' &&
   isObject(b.settings);
+const isDiagnosis = (b: unknown): b is ArchiveDiagnosis =>
+  isObject(b) &&
+  isObject(b.size) &&
+  Array.isArray(b.bySource) &&
+  Array.isArray(b.observations) &&
+  Array.isArray(b.sample);
 
 export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
   /** The strong tag the next write goes under; none until the view or an export has been read. */
@@ -230,6 +268,14 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
       revalidate(`/view/day?date=${date}`, previous, isDay),
     /** The account's own read, asked for by the screen that shows it and never on a load. */
     readMe: (previous?: MeData) => revalidate('/me', previous, isMe),
+    /** The super-admin's diagnosis of the price archive, read on a press only and sent once: each
+     *  arrival executes the observe window's payloads (`infra/src/capture.ts`, `diagnose`). */
+    readArchiveDiagnosis: async (): Promise<ArchiveDiagnosis> => {
+      const reply = await begun()({ method: 'GET', path: '/admin/archive/diagnosis', once: true });
+      if (reply.kind !== 'ok') throw new ApiError(reply);
+      if (!isDiagnosis(reply.body)) throw misread(reply);
+      return reply.body;
+    },
 
     /** Replaces the day's quotes with the drafts: a quote the day holds that they left out is
      *  cleared. `stored` is the day as the view served it. */

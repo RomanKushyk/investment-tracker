@@ -697,6 +697,29 @@ describe('the retries', () => {
     expect(sent).toBe(5);
   });
 
+  // The archive's diagnosis runs on the capture Lambda each time it arrives, and the API itself
+  // does not retry it (`infra/src/archive-admin.ts`): the caller repeats it.
+  it.each([
+    ['a 429', () => answering(429, { message: 'Too Many Requests' }), { kind: 'throttled' }],
+    ['no answer', () => HttpResponse.error(), { kind: 'offline' }],
+  ] as const)('sends a call marked once one time, after %s too', async (_, answer, expected) => {
+    vi.useFakeTimers();
+    drawHalf();
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, () => {
+        sent += 1;
+        return answer();
+      }),
+    );
+    const { call } = await transport();
+
+    const reply = call({ ...view, once: true });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await reply).toEqual(expected);
+    expect(sent).toBe(1);
+  });
+
   it('takes the first answer that is not a 429', async () => {
     vi.useFakeTimers();
     drawHalf();
@@ -819,6 +842,24 @@ describe('the retries', () => {
       clock = 3_600_000 + 1;
 
       const reply = call(view);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await reply).toMatchObject({ kind: 'ok' });
+      expect(sent.count).toBe(1);
+    });
+
+    // A pass with no token sends nothing, so a call marked once still waits for one.
+    it('waits for a token for a call marked once too, then sends it one time', async () => {
+      vi.useFakeTimers();
+      drawHalf();
+      const sent = served();
+      const answers = [TOKENS, OFFLINE, OFFLINE, TOKENS];
+      const relay = vi.fn<RelayCall>(async () => answers.shift() ?? OFFLINE);
+      let clock = 0;
+      const { session, call } = over(relay, () => clock);
+      await session.restore();
+      clock = 3_600_000 + 1;
+
+      const reply = call({ ...view, once: true });
       await vi.advanceTimersByTimeAsync(10_000);
       expect(await reply).toMatchObject({ kind: 'ok' });
       expect(sent.count).toBe(1);

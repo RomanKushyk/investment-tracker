@@ -6,6 +6,7 @@ import { Layout } from './app/Layout';
 import { Root } from './app/Root';
 import { Loadable } from './components/loading/Loadable';
 import { Allocation } from './screens/Allocation';
+import { ArchiveAdmin } from './screens/ArchiveAdmin';
 import { Attributes } from './screens/Attributes';
 import { Balances } from './screens/Balances';
 import { DailyQuotes } from './screens/DailyQuotes';
@@ -82,6 +83,9 @@ export const routes: RouteObject[] = [
               },
               // Settings reads no figure of the view, so it waits for nothing.
               { path: 'settings', element: <Settings /> },
+              // The super-admin's archive panel reads the account and the archive, never the view;
+              // a sibling, not a child, so every screen stays one level below the boundary.
+              { path: 'settings/archive', element: <ArchiveAdmin /> },
               // The profile reads the account, not the view, and holds its own place for it.
               { path: 'profile', element: <Profile /> },
               // Every path nothing else matches, `/sign-in/x` too, inside the shell.

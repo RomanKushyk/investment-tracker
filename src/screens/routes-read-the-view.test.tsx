@@ -130,23 +130,25 @@ const asked = () => {
     series: count('/view/series'),
     balances: count('/view/balances'),
     day: count('/view/day'),
+    me: count('/me'),
     total: api.seen.length,
   };
 };
 
-// The wide figures are reads of their own: the curve by period, the table by page.
-const READS: [string, { series: number; balances: number }][] = [
-  ['/', { series: 0, balances: 0 }],
-  ['/transactions', { series: 0, balances: 0 }],
-  ['/overview', { series: 0, balances: 0 }],
-  ['/balances', { series: 0, balances: 1 }],
-  ['/payouts', { series: 0, balances: 0 }],
-  ['/yield', { series: 1, balances: 0 }],
-  ['/attributes', { series: 0, balances: 0 }],
-  ['/seasonality', { series: 0, balances: 0 }],
-  ['/portfolio', { series: 0, balances: 0 }],
-  ['/allocation', { series: 0, balances: 0 }],
-  ['/settings', { series: 0, balances: 0 }],
+// The wide figures are reads of their own: the curve by period, the table by page. Settings asks
+// the account its role, for a card only the super-admin sees.
+const READS: [string, { series: number; balances: number; me: number }][] = [
+  ['/', { series: 0, balances: 0, me: 0 }],
+  ['/transactions', { series: 0, balances: 0, me: 0 }],
+  ['/overview', { series: 0, balances: 0, me: 0 }],
+  ['/balances', { series: 0, balances: 1, me: 0 }],
+  ['/payouts', { series: 0, balances: 0, me: 0 }],
+  ['/yield', { series: 1, balances: 0, me: 0 }],
+  ['/attributes', { series: 0, balances: 0, me: 0 }],
+  ['/seasonality', { series: 0, balances: 0, me: 0 }],
+  ['/portfolio', { series: 0, balances: 0, me: 0 }],
+  ['/allocation', { series: 0, balances: 0, me: 0 }],
+  ['/settings', { series: 0, balances: 0, me: 1 }],
 ];
 
 describe('a cold render', () => {
@@ -158,7 +160,8 @@ describe('a cold render', () => {
       series: wide.series,
       balances: wide.balances,
       day: 0,
-      total: 1 + wide.series + wide.balances,
+      me: wide.me,
+      total: 1 + wide.series + wide.balances + wide.me,
     });
   });
 
@@ -179,7 +182,7 @@ describe('moving between screens', () => {
       });
       await settle(client, path);
     }
-    expect(asked()).toEqual({ view: 1, series: 1, balances: 1, day: 0, total: 3 });
+    expect(asked()).toEqual({ view: 1, series: 1, balances: 1, day: 0, me: 0, total: 3 });
   });
 
   it('sends nothing for any screen that has no wide figure of its own', async () => {
@@ -199,7 +202,8 @@ describe('moving between screens', () => {
       });
       await settle(client, path);
     }
-    expect(asked().total).toBe(1);
+    // Settings' own read of the account's role is the one request past the view.
+    expect(asked()).toMatchObject({ view: 1, me: 1, total: 2 });
   });
 });
 

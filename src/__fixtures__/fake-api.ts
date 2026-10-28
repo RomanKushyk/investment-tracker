@@ -17,6 +17,7 @@ import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { patchSettings, settingsOf } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import type { Passkey } from '../auth/relay';
+import type { ArchiveDiagnosis } from '../lib/repository';
 import { movedPrices, pricesOfQuotes, type PriceRow } from '@quirenote/core/valuation';
 import {
   balancesBody,
@@ -81,6 +82,9 @@ export interface FakeApi {
   settings: string | null;
   /** The row's role, which `GET /me` serves. */
   role: 'user' | 'super_admin';
+  /** What the super-admin's `GET /admin/archive/diagnosis` answers: the body, or the route's
+   *  502 or 504. Anyone else is refused `forbidden`, as `superAdminOnly` refuses them. */
+  diagnosis: ArchiveDiagnosis | 'capture_failed' | 'capture_timeout';
   /** Whether `GET /me` says a Google identity is linked. */
   googleLinked: boolean;
   /** Whether `GET /me` says the account holds a password of its own. */
@@ -126,6 +130,7 @@ export function fakeApi(
     notModified: 0,
     settings: null,
     role: 'user',
+    diagnosis: { size: { rows: '0', total_bytes: '0' }, bySource: [], observations: [], sample: [] },
     googleLinked: false,
     passwordSet: true,
     claims: {},
@@ -516,6 +521,12 @@ export function fakeApi(
       return json(api.rows, 200, { etag: api.tag() });
     }
     if (request.method === 'GET' && path === '/me') return account(request);
+    if (request.method === 'GET' && path === '/admin/archive/diagnosis') {
+      if (api.role !== 'super_admin') return json({ error: 'forbidden' }, 403);
+      if (api.diagnosis === 'capture_failed') return json({ error: 'capture_failed' }, 502);
+      if (api.diagnosis === 'capture_timeout') return json({ error: 'capture_timeout' }, 504);
+      return json(api.diagnosis);
+    }
     if (request.method === 'GET' && /^\/view(\/series|\/balances|\/day)?$/.test(path)) {
       return read(request, path, url.searchParams);
     }

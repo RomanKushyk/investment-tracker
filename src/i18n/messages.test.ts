@@ -44,6 +44,8 @@ const SHARED = new Set([
   // A financial acronym, spelled the same in both — the "(ann.)" variant beside
   // it is what carries the translated word.
   'analytics.yield.xirr',
+  // The archive's column, the same acronym: the spot check prints the stored yield under it.
+  'archive.spot.ytm',
   // A whole-number placeholder: no thousands mark and no decimals, so there is
   // nothing for a convention to change.
   'asset.placeholder.targetPct',

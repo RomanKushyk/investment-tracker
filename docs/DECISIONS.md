@@ -793,7 +793,10 @@ the caller's), and so does the profile's `GET /me`, and the failed-screen state 
 sidebar kept; an answer already in hand stays on screen when a later read of it fails. BESIDE THE
 ARCHIVE PANEL, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
 relay's read, apart from the account above it, so a failure is one sentence in its card that asks
-for a reload, and the account stays on screen. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
+for a reload, and the account stays on screen. NOR DOES SETTINGS' `GET /me` (`archive-admin.dc.html`,
+T1): it is asked only for the super-admin's «Адміністрування» card, so while it is out or after it
+fails that card is not rendered, nothing takes its place, and the three other cards stand; the
+archive panel's own route still throws a failed `/me`, as the profile does. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
 shows neither an empty portfolio nor a spinner: the shell alone until the read has been out for a
 while, then every box whose size is known in place for a while at least, a figure as «—», a list as three rows, a chart
 as one block, a form with its title and its fields held, and nothing in it that can be reached; one
@@ -810,7 +813,11 @@ distracting and make the product feel slower than it is", so a warm read shows n
 a Suspense fallback before revealing content for the same reason. Few screen readers honour
 `aria-busy` (Adrian Roselli, *More Accessible Skeletons*), so each block is hidden from them and the
 status line speaks, outside the busy element since WAI-ARIA 1.2 lets assistive technology hold the
-changes of one until its busy period ends.
+changes of one until its busy period ends. The admin card is a convenience, not the control: OWASP's
+Authorization Cheat Sheet allows a client-side check only "for improving the user experience", the
+API's `superAdminOnly` refuses everyone else, and Mattermost's permission gate likewise renders
+nothing until the roles it holds grant the permission. Throwing would replace three cards over a read
+they do not use, which AWS Well-Architected REL05-BP01 names an anti-pattern.
 **Rejected.** `HydrateFallback`, `Suspense` and a route loader: the read is a query whose state the
 screen reads itself, and nothing suspends. · A centred spinner, or «—» with no boxes: the layout
 would jump when the data lands, and an empty box reads as an empty portfolio. · A placeholder from

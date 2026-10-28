@@ -17,6 +17,8 @@ export interface Call {
   headers?: Readonly<Record<string, string>>;
   /** One logical write: it goes under one `Idempotency-Key`, the same on every attempt. */
   keyed?: boolean;
+  /** Sent one time, whatever comes back: a call that costs the API a run, which its caller repeats. */
+  once?: boolean;
 }
 
 /** What a call came to. `notModified` is a 304: the caller's `If-None-Match` named what the API
@@ -195,7 +197,9 @@ export function createTransport({
         return { kind: 'unauthorized' };
       }
       const seen = idToken === undefined ? undefined : await attempt(call, idToken, key);
-      if ((seen === undefined || seen.status === 429 || running(seen)) && retry < RETRIES) {
+      // A pass with no token sent nothing, so even a call marked once waits for one.
+      const again = seen === undefined || seen.status === 429 || running(seen);
+      if (again && (!call.once || idToken === undefined) && retry < RETRIES) {
         await backoff(retry);
         continue;
       }

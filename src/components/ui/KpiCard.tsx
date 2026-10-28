@@ -55,6 +55,7 @@ export function KpiCard({
   className = '',
   style,
   timing,
+  children,
 }: {
   label: string;
   value: ReactNode;
@@ -68,6 +69,8 @@ export function KpiCard({
   /** The name the paint of this value is reported under (`PerformanceElementTiming.identifier`).
    *  The browser stamps the paint of the element itself, which a mark set from an effect cannot. */
   timing?: string;
+  /** Below the sub-line: the archive panel's figures carry their breakdown here. */
+  children?: ReactNode;
 }) {
   return (
     <div
@@ -82,6 +85,7 @@ export function KpiCard({
         {value}
       </div>
       {sub != null && <div className={`mt-0.5 text-xs ${subClassName}`}>{sub}</div>}
+      {children}
     </div>
   );
 }

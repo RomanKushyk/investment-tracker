@@ -23,6 +23,7 @@ const { Seasonality } = await import('./screens/Seasonality');
 const { Portfolio } = await import('./screens/Portfolio');
 const { Allocation } = await import('./screens/Allocation');
 const { Settings } = await import('./screens/Settings');
+const { ArchiveAdmin } = await import('./screens/ArchiveAdmin');
 const { Profile } = await import('./screens/Profile');
 const { SignIn } = await import('./screens/sign-in/SignIn');
 const { Apply } = await import('./screens/sign-in/Apply');
@@ -32,7 +33,8 @@ const typeOf = (element: RouteObject['element']): unknown =>
   isValidElement(element) ? element.type : undefined;
 
 /** What a route shows. A screen that reads the portfolio waits behind the view, so it is the child of
- *  `Loadable`; Settings, which reads none, and the profile, which reads the account, stand alone. */
+ *  `Loadable`; Settings, which reads none, and the profile and the archive panel, which read the
+ *  account, stand alone. */
 const screenOf = (element: RouteObject['element']): { screen: unknown; waits: boolean } => {
   if (typeOf(element) !== Loadable) return { screen: typeOf(element), waits: false };
   const { children } = (element as ReactElement<{ children: RouteObject['element'] }>).props;
@@ -88,7 +90,7 @@ describe('the boundaries', () => {
     const boundary = layout.children![0]!;
     expect(isScreenBoundary(boundary)).toBe(true);
     const leaves = boundary.children!;
-    expect(leaves).toHaveLength(13);
+    expect(leaves).toHaveLength(14);
     for (const leaf of leaves) {
       expect(leaf.children, `${leaf.path} nests further`).toBeUndefined();
       expect(leaf.errorElement, `${leaf.path} catches its own throw`).toBeUndefined();
@@ -109,6 +111,7 @@ describe('the routes that exist', () => {
     ['/portfolio', Portfolio],
     ['/allocation', Allocation],
     ['/settings', Settings],
+    ['/settings/archive', ArchiveAdmin],
     ['/profile', Profile],
   ];
 
@@ -119,9 +122,9 @@ describe('the routes that exist', () => {
     expect(isScreenBoundary(walked[2]!)).toBe(true);
     const { screen, waits } = screenOf(walked[3]!.element);
     expect(screen).toBe(Screen);
-    // Every screen but Settings and the profile reads the view and waits behind it, holding its
-    // place meanwhile; the profile holds its own place for `GET /me`.
-    expect(waits).toBe(path !== '/settings' && path !== '/profile');
+    // Every screen but Settings, the profile and the archive panel reads the view and waits behind
+    // it, holding its place meanwhile; the profile holds its own place for `GET /me`.
+    expect(waits).toBe(!['/settings', '/settings/archive', '/profile'].includes(path));
   });
 
   it.each([

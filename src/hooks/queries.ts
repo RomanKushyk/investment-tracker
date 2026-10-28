@@ -179,6 +179,70 @@ export function useMe(): MeData | undefined {
   return data;
 }
 
+/** The caller's role, nothing while `GET /me` is out or after it fails. Settings reads it for a card
+ *  only the super-admin sees, and three cards of the browser's own are not replaced over it. */
+export function useRole(): MeData['role'] | undefined {
+  return useQuery(meQuery).data?.role;
+}
+
+export const archiveDiagnosisKey = ['admin', 'archive', 'diagnosis'] as const;
+
+// THE PANEL NAMES ITS FAILURES (*Not found and failures*, the archive panel's exception): the
+// route's own error key, or the HTTP status where the route has none. A 403 is the router's
+// not-found, which no other role may tell apart from a missing route.
+export type ReadFailure =
+  | { kind: 'refused' }
+  | { kind: 'key'; key: 'capture_failed' | 'capture_timeout' }
+  | { kind: 'status'; status: number }
+  | { kind: 'offline' };
+
+const READ_KEYS = ['capture_failed', 'capture_timeout'] as const;
+const isReadKey = (v: unknown): v is (typeof READ_KEYS)[number] => READ_KEYS.some((k) => k === v);
+
+function failureOf(error: Error): ReadFailure {
+  if (!(error instanceof ApiError)) return { kind: 'offline' };
+  const reply = error.reply;
+  switch (reply.kind) {
+    case 'answer':
+      return { kind: 'refused' };
+    case 'unauthorized':
+      return { kind: 'status', status: 401 };
+    case 'throttled':
+      return { kind: 'status', status: 429 };
+    case 'failed': {
+      if (reply.status === undefined) return { kind: 'offline' };
+      const key =
+        typeof reply.body === 'object' && reply.body !== null && 'error' in reply.body
+          ? reply.body.error
+          : undefined;
+      return isReadKey(key) ? { kind: 'key', key } : { kind: 'status', status: reply.status };
+    }
+    default:
+      return { kind: 'offline' };
+  }
+}
+
+/** The archive's diagnosis, read on a press only and never on arrival, focus or a timer. Kept until
+ *  the account's queries are reset at sign-out (the owner's ruling), and a refresh that fails keeps
+ *  the answer in hand, as TanStack's error state does. */
+export function useArchiveDiagnosis() {
+  const query = useQuery({
+    queryKey: archiveDiagnosisKey,
+    queryFn: () => repo.readArchiveDiagnosis(),
+    enabled: false,
+    gcTime: Infinity,
+    retry: false,
+    networkMode: 'always',
+  });
+  return {
+    data: query.data,
+    at: query.dataUpdatedAt,
+    failure: query.error === null ? undefined : failureOf(query.error),
+    fetching: query.isFetching,
+    read: () => void query.refetch(),
+  };
+}
+
 /** What was recorded on `date`, and each position's value before it. The view carries the caller's day, so that day costs
  *  no read; another is read on its own, and is an empty day, and `pending`, until it lands, never
  *  the last one picked. */

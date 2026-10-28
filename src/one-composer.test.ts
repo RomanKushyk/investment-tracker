@@ -197,6 +197,11 @@ const NOT_A_ROUTE: Record<string, Record<string, string>> = {
     ),
   },
   'src/screens/daily-quotes/CouponDueCard.tsx': each(QUOTES, 'accrual#rollNextCoupon'),
+  'src/screens/archive/strip.ts': each(
+    'the archive panel: calendar positions on its coverage axis, no portfolio figure',
+    'dates#addDays',
+    'dates#daysBetween',
+  ),
   'src/screens/daily-quotes/QuoteRow.tsx': each(QUOTES, 'derive#yieldSinceStart'),
   'src/screens/daily-quotes/quotes.ts': each(QUOTES, 'derive#needsQuote'),
   'src/screens/daily-quotes/suggestions.ts': each(

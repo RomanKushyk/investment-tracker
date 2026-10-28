@@ -699,6 +699,7 @@ export const en = {
       data: 'Data',
       automation: 'Automation',
       appearance: 'Appearance',
+      admin: 'Administration',
     },
     theme: {
       title: 'Theme',
@@ -763,6 +764,67 @@ export const en = {
       title: 'Last feed parse',
       helper:
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
+    },
+    archive: {
+      title: 'Price archive',
+      helper:
+        'Quote coverage by source, two archive repairs and the run log. Only the super-admin sees this card.',
+      open: 'Open',
+    },
+  },
+  // `design/extensions/archive-admin.dc.html`, T9.
+  archive: {
+    read: {
+      stamp: (at: string) => `Snapshot ${at}`,
+      reading: 'Reading the archive…',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing',
+      refreshingAt: (at: string) => `Snapshot ${at} · refreshing…`,
+      refreshFailed: (at: string) => `Snapshot ${at} · refresh failed:`,
+      failed: 'Couldn’t read the archive',
+      capture_failed: 'The capture answered with an error.',
+      capture_timeout: 'The archive didn’t answer within 25 s; the read may still be running.',
+      status: (n: number) => `The answer was HTTP ${n}.`,
+      offline: 'The server did not answer.',
+      retry: 'Try again',
+      unread: 'The archive has not been read yet',
+      unreadLead:
+        'The diagnosis reads the whole archive and takes up to 25 s, so it runs only when you ask.',
+      start: 'Read the archive',
+      starting: 'Reading',
+    },
+    source: { inzhur: 'Inzhur · quotes and NAV', nbu_fv: 'NBU · fair value' },
+    kpi: {
+      empty: (n: number, shown: string) => `${shown} ${n === 1 ? 'day' : 'days'}`,
+      emptySub: (k: number, m: number, u: number) =>
+        `empty days · in ${k} of ${m} ${m === 1 ? 'group' : 'groups'} · ${u} not measured`,
+      noEmpty: 'no empty days',
+      gaps: 'Published less written (gaps)',
+      size: 'Captures · size',
+    },
+    coverage: {
+      title: (source: string) => `Coverage · ${source}`,
+      span: (from: string, n: number) => `${from} — today · groups: ${n}`,
+      captured: 'Captured',
+      imported: 'Imported history',
+      empty: 'Empty day',
+      unserved: 'Dates not served',
+      today: 'today',
+      notMeasured: 'not measured',
+      cut: (n: number, shown: string, date: string) =>
+        `${shown} more empty ${n === 1 ? 'day' : 'days'} before ${date} — dates not served`,
+    },
+    spot: {
+      title: 'Latest rows',
+      total: (rows: string, size: string) => `Stored captures: ${rows} · ${size}`,
+      date: 'Date',
+      instrument: 'Instrument',
+      basis: 'Basis',
+      price: 'Price',
+      ytm: 'YTM',
+      clean: 'Clean price',
+      line: (price: string, ytm: string, clean: string) =>
+        `Price ${price} · YTM ${ytm} · Clean ${clean}`,
     },
   },
   // `design/extensions/own-account.dc.html`, T9; the copy's failure is the owner's ruling on #192.
@@ -1230,6 +1292,11 @@ export const en = {
     settings: {
       title: 'Settings',
       subtitle: 'Preferences, data and automation',
+    },
+    archive: {
+      back: 'Settings',
+      title: 'Price archive',
+      subtitle: 'Quote coverage, archive repairs and the run log',
     },
   },
 };
@@ -1815,6 +1882,7 @@ export const uk: Dict = {
       data: 'Дані',
       automation: 'Автоматизація',
       appearance: 'Вигляд',
+      admin: 'Адміністрування',
     },
     theme: {
       title: 'Тема', // ✎
@@ -1877,6 +1945,65 @@ export const uk: Dict = {
       title: 'Останній розбір стрічки',
       helper:
         'Що останнє отримання з Inzhur змогло і не змогло прочитати. Записи, які не вдалося прочитати, пропускаються, а не вгадуються — решта стрічки завантажується.',
+    },
+    archive: {
+      title: 'Архів цін',
+      helper:
+        'Покриття котирувань за джерелами, два ремонти архіву й журнал запусків. Цю картку бачить лише суперадміністратор.',
+      open: 'Відкрити',
+    },
+  },
+  archive: {
+    read: {
+      stamp: (at) => `Знімок ${at}`,
+      reading: 'Читаємо архів…',
+      refresh: 'Оновити',
+      refreshing: 'Оновлюємо',
+      refreshingAt: (at) => `Знімок ${at} · оновлюємо…`,
+      refreshFailed: (at) => `Знімок ${at} · оновити не вдалося:`,
+      failed: 'Не вдалося прочитати архів',
+      capture_failed: 'Захоплення відповіло помилкою.',
+      capture_timeout: 'Архів не відповів за 25 с; читання ще може тривати.',
+      status: (n) => `Відповідь HTTP ${n}.`,
+      offline: 'Сервер не відповів.',
+      retry: 'Спробувати ще раз',
+      unread: 'Архів ще не прочитано',
+      unreadLead:
+        'Діагностика читає весь архів і триває до 25 с, тому запускається лише на вашу вимогу.',
+      start: 'Прочитати архів',
+      starting: 'Читаємо',
+    },
+    source: { inzhur: 'Inzhur · котирування й NAV', nbu_fv: 'НБУ · справедлива вартість' },
+    kpi: {
+      empty: (n, shown) => `${shown} ${plural(n, 'день', 'дні', 'днів')}`,
+      emptySub: (k, m, u) =>
+        `порожніх днів · у ${k} з ${m} ${plural(m, 'групи', 'груп', 'груп')} · ${u} не виміряно`,
+      noEmpty: 'порожніх днів немає',
+      gaps: 'Опубліковано мінус записано (gaps)',
+      size: 'Захоплень · обсяг',
+    },
+    coverage: {
+      title: (source) => `Покриття · ${source}`,
+      span: (from, n) => `${from} — сьогодні · груп: ${n}`,
+      captured: 'Захоплено',
+      imported: 'Імпортована історія',
+      empty: 'Порожній день',
+      unserved: 'Дати не надано',
+      today: 'сьогодні',
+      notMeasured: 'не виміряно',
+      cut: (n, shown, date) =>
+        `ще ${shown} ${plural(n, 'порожній день', 'порожні дні', 'порожніх днів')} до ${date} — дати не надано`,
+    },
+    spot: {
+      title: 'Останні рядки',
+      total: (rows, size) => `Збережені захоплення: ${rows} · ${size}`,
+      date: 'Дата',
+      instrument: 'Інструмент',
+      basis: 'База',
+      price: 'Ціна',
+      ytm: 'YTM',
+      clean: 'Чиста ціна',
+      line: (price, ytm, clean) => `Ціна ${price} · YTM ${ytm} · Чиста ${clean}`,
     },
   },
   profile: {
@@ -2284,6 +2411,11 @@ export const uk: Dict = {
     settings: {
       title: 'Налаштування',
       subtitle: 'Уподобання, дані та автоматизація',
+    },
+    archive: {
+      back: 'Налаштування',
+      title: 'Архів цін',
+      subtitle: 'Покриття котирувань, ремонт архіву і журнал запусків',
     },
   },
 };
