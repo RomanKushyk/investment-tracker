@@ -1,5 +1,5 @@
-// `PATCH /settings` over PGlite: the caller's row and the gate in one database, reached through the
-// module the route uses (*Persistence today*, *Cloud target*).
+// `PATCH /me/settings` over PGlite: the caller's row and the gate in one database, reached through
+// the module the route uses (*Persistence today*, *Cloud target*).
 import { randomUUID } from 'node:crypto';
 
 import type { PGlite } from '@electric-sql/pglite';
@@ -491,6 +491,11 @@ describe('the function that serves it', () => {
   // The deploy smoke test calls the route from the bundle, whose entry is this module.
   it('exports the route from its entry module', () => {
     expect(exported).toBe(settingsRoute);
+  });
+
+  // The settings are a singleton under the caller, beside `GET /me`, and not a root of their own.
+  it('serves the write at /me/settings', () => {
+    expect(SETTINGS_ROUTE).toBe('PATCH /me/settings');
   });
 
   it('routes the patch to the route and closes its connection', async () => {

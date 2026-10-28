@@ -648,7 +648,7 @@ describe('the account’s settings', () => {
 
     const [sent] = api.seen.filter(isPatch);
     expect(sent).toMatchObject({
-      path: '/settings',
+      path: '/me/settings',
       headers: { 'content-type': 'application/merge-patch+json' },
       body: JSON.stringify({ period: '3m', collapsedNavGroups: ['entry'] }),
     });

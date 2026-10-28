@@ -130,8 +130,7 @@ export const TAGS: Record<string, string> = {
   state: 'The raw export of the stored portfolio.',
   imports:
     'The staged import: a dataset too large for one transaction, in parts that one commit moves.',
-  settings: 'The account’s settings, as a merge patch.',
-  me: 'The caller’s own account and what it holds, read by the screens that show it.',
+  me: 'The caller’s own account and what it holds, read by the screens that show it, and its settings, written as a merge patch.',
 };
 
 type Operation = {

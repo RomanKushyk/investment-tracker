@@ -1,5 +1,5 @@
 // `POST /mutations` and `GET /state` (*Cloud target*, *User schema and deletes*), and the function's
-// other routes: the staged import, `PATCH /settings` and the account's own `GET /me`.
+// other routes: the staged import, `PATCH /me/settings` and the account's own `GET /me`.
 //
 // A write is ONE TRANSACTION of ordered ops under a strong `If-Match`, after a claim on its
 // idempotency key committed on its own: the effect, the version bump and the stored response then

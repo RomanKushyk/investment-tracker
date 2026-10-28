@@ -1,5 +1,5 @@
 // A fake of the user API for the client's tests: the reads `GET /view` and its three siblings, the
-// account's `GET /me`, the export, `POST /mutations`, `PATCH /settings` and the staged import, served as `fetch` answers over
+// account's `GET /me`, the export, `POST /mutations`, `PATCH /me/settings` and the staged import, served as `fetch` answers over
 // rows held in memory. It applies the ops with core's own schemas and merge patch, and the settings
 // with core's own, so a client that sends the wrong op, the wrong tag or the wrong bytes is refused
 // as the API refuses it. The relay's refresh answers too, so a page can sign in through it, and its
@@ -78,7 +78,7 @@ export interface FakeApi {
   /** How many reads have been answered 304. */
   notModified: number;
   /** The account's settings as the column holds them: NULL until a first write. `/view` serves them
-   *  and moves its validator when they change, and `PATCH /settings` merges onto them. */
+   *  and moves its validator when they change, and `PATCH /me/settings` merges onto them. */
   settings: string | null;
   /** The row's role, which `GET /me` serves. */
   role: 'user' | 'super_admin';
@@ -453,7 +453,8 @@ export function fakeApi(
     });
   }
 
-  /** `PATCH /settings`: a merge patch, applied whole or refused whole. It moves no dataset version. */
+  /** `PATCH /me/settings`: a merge patch, applied whole or refused whole. It moves no dataset
+   *  version. */
   function patched(request: Sent): Response {
     const type = request.headers['content-type']?.split(';')[0].trim().toLowerCase();
     if (type !== 'application/merge-patch+json') {
@@ -598,7 +599,7 @@ export function fakeApi(
       return read(request, path, url.searchParams);
     }
     if (request.method === 'POST' && path === '/mutations') return mutate(request);
-    if (request.method === 'PATCH' && path === '/settings') return patched(request);
+    if (request.method === 'PATCH' && path === '/me/settings') return patched(request);
     if (path.startsWith('/imports')) return importing(request, path);
     return json({ error: 'not_found' }, 404);
   };

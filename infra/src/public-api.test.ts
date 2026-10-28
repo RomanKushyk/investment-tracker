@@ -33,7 +33,6 @@ import { envVars, grantAt, intrinsicAt, tagAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { ME_ROUTE } from './me';
 import { MUTATIONS_ROUTE, STATE_ROUTE } from './mutations';
-import { SETTINGS_ROUTE } from './settings';
 import { BALANCES_ROUTE, DAY_ROUTE, EXPOSED, ROUTE as VIEW_ROUTE, SERIES_ROUTE } from './view';
 
 type Resource = {
@@ -234,7 +233,8 @@ describe('every other route is behind the pool, and the pool is the only issuer'
       [PART_ROUTE, 'PublicApi', AUTHORIZER],
       [COMMIT_ROUTE, 'PublicApi', AUTHORIZER],
       [ABORT_ROUTE, 'PublicApi', AUTHORIZER],
-      [SETTINGS_ROUTE, 'PublicApi', AUTHORIZER],
+      // A literal, not `SETTINGS_ROUTE`, so the template is held to the route on its own.
+      ['PATCH /me/settings', 'PublicApi', AUTHORIZER],
       [ME_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');

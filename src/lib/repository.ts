@@ -420,7 +420,7 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
     async patchSettings(fields: Partial<AccountSettings>): Promise<void> {
       const reply = await begun()({
         method: 'PATCH',
-        path: '/settings',
+        path: '/me/settings',
         headers: { 'content-type': 'application/merge-patch+json' },
         body: JSON.stringify(fields),
       });

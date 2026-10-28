@@ -76,12 +76,7 @@ import {
   STATE_ROUTE,
 } from './mutations';
 import { ANSWERS, TAGS, buildSpec, responses, securityOf, servers } from './openapi';
-import {
-  BODY as SETTINGS_BODY,
-  MERGE_PATCH,
-  RESPONSES as SETTINGS_RESPONSES,
-  SETTINGS_ROUTE,
-} from './settings';
+import { BODY as SETTINGS_BODY, MERGE_PATCH, RESPONSES as SETTINGS_RESPONSES } from './settings';
 import {
   BALANCES_ROUTE,
   DAY_ROUTE,
@@ -425,7 +420,8 @@ describe('each operation publishes its own route’s answers', () => {
       [MUTATIONS_ROUTE, MUTATIONS_BODY],
       [BEGIN_ROUTE, BEGIN_BODY],
       [PART_ROUTE, PART_BODY],
-      [SETTINGS_ROUTE, SETTINGS_BODY],
+      // The settings route as a literal here and below, not `SETTINGS_ROUTE`: an oracle of its own.
+      ['PATCH /me/settings', SETTINGS_BODY],
     ]);
   });
 
@@ -525,7 +521,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         PART_ROUTE,
         COMMIT_ROUTE,
         ABORT_ROUTE,
-        SETTINGS_ROUTE,
+        'PATCH /me/settings',
         ME_ROUTE,
       ].sort(),
     );
@@ -566,7 +562,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       PART_ROUTE,
       COMMIT_ROUTE,
       ABORT_ROUTE,
-      SETTINGS_ROUTE,
+      'PATCH /me/settings',
       ME_ROUTE,
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
@@ -700,7 +696,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
   // A MERGE PATCH, so its media type is the one the route takes and no other; the body names the
   // account's settings and nothing per-device, and every one may be null, which resets it.
   it('publishes the settings patch as a merge patch over the account’s settings alone', () => {
-    const op = spec.paths['/settings'].patch;
+    const op = spec.paths['/me/settings'].patch;
     const content = (op.requestBody as { content: Record<string, { schema: unknown }> }).content;
     expect(Object.keys(content)).toEqual([MERGE_PATCH]);
     const schema = content[MERGE_PATCH].schema as {

@@ -86,7 +86,7 @@ DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which E
 overwrites, the theme excepted, because a paint comes before that answer: the shell's first render
 reads the rail, and a signed-out page has no account at all, so there the copy is what applies and
 the signed-out bar's language control writes it and nothing else. A CHANGE WRITES THE COPY AT ONCE
-and reaches the account as `PATCH /settings` naming only the fields that changed, sent once changes
+and reaches the account as `PATCH /me/settings` naming only the fields that changed, sent once changes
 have been quiet for `SETTINGS_PATCH_DELAY_MS` and one write at a time (`settings-copy.ts`), and the
 screen never waits on it. A FIELD IS THE DEVICE'S, NOT THE ACCOUNT'S, from its change until the answer
 to the write that carried it, and for any read begun before that answer, which may have been
@@ -101,7 +101,7 @@ field reads the store again when the answer moves it, and the rail's focus hando
 move of the rail under focus held in the sidebar, which takes the focused control away, so an answer
 leaves focus anywhere else where it is. THE ACCOUNT'S SETTINGS ARE ONE NULLABLE
 TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their defaults; A WRITE MERGES THE
-FIELDS IT NAMES onto those stored and leaves the rest as they are, `PATCH /settings` being that
+FIELDS IT NAMES onto those stored and leaves the rest as they are, `PATCH /me/settings` being that
 write and `/view` the read (*Cloud target*); and the sanitiser of those fields, `migrateSettings`'
 rule for each, is core's (`settings.ts`), so both sides run it: the server on a write and on the
 read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member is the default currency alone, with no per-device field and no
@@ -1131,8 +1131,11 @@ the live pointer, closes the staging and bumps `data_version` in one row update;
 landed it answers the current tag. `DELETE /imports/{id}` closes the staging, 204. An import idle
 past its limit is gone. A price row is written as it stands, a witness time the file leaves out left
 out again.
-THE ACCOUNT'S SETTINGS ARE WRITTEN BY `PATCH /settings`, on the write's function and behind the same
-gate, and READ FROM `/view`, the boot copy: there is no `GET /settings`. The body is a JSON merge patch
+THE ACCOUNT'S SETTINGS ARE WRITTEN BY `PATCH /me/settings`, on the write's function and behind the same
+gate, and READ FROM `/view`, the boot copy: there is no `GET /me/settings`, and `GET /me` carries them for
+the account screen. They are a singleton under the caller, AIP-156's `users/{user}/config` and Microsoft
+Graph's `/me/mailboxSettings`, so they take a path of their own under `/me`, and nothing writes through
+`/me` itself. The body is a JSON merge patch
 (RFC 7396) of the ten fields *Persistence today* names, sent as `application/merge-patch+json`: a
 field it names takes its value, `null` resets it to its default, and one it leaves out stays as
 stored (a value its rule refuses among them, which a read serves as the default, or as its strings
@@ -1488,7 +1491,14 @@ left out lost its price, the loss AIP-134 gives. · Every recorded day in `/view
 the history, and the quotes screen reads one day. · The rebuilt series as the source of the recorded
 quotes: it quotes a carried grid day and an archive price as well. · The settings as an op of
 `/mutations`: it bumps `data_version`, so a period change costs a `/view` read and every other tab's
-write is refused 412. · A `GET /settings`: the read rides `/view`. · A `PUT` of the whole settings
+write is refused 412. · A `PATCH /me` with a `settings` member: nothing writes through `/me`, and a path of the settings'
+own keeps the write to them. · A `GET /me/settings` beside `/view` and `GET /me`: both already carry the
+settings, so it is a third copy no screen calls. AIP-156 says a singleton "should", not "must", define a
+Get; Mastodon's web client reads its settings from its boot payload (`InitialStateSerializer`) and keeps
+`GET /api/v1/preferences` for third-party clients, which this app has none of; and every exposed endpoint
+is one more for the inventory OWASP API9:2023 asks for. · A `GET /me/settings` as the only read, the
+settings off `/view` and `/me`: every load sends a second request, the cost that rejects moving them
+onto `GET /me` below. · A `PUT` of the whole settings
 object: it deletes what its sender did not send, such as a field a build that loaded before does not
 know (AIP-134, above). · Moving the settings off `/view` onto `GET /me`, read at every load: a second
 request, preflight and cold function on every load, where only Mattermost reads its `/me` at boot. · Dropping a name that is no setting, as a read does: a client sending a
@@ -1792,7 +1802,7 @@ repository calls. It sends the ID token as a bearer, and no cookie, to the API t
 each answer back as a typed reply: the four refusals apart; a 304 and a 412, a 409 for a write still running,
 a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
 own; any other answer by its status and body. A body goes as the text it was given, under
-`application/json` unless its caller names a type, as `PATCH /settings` must. Nothing is sent where
+`application/json` unless its caller names a type, as `PATCH /me/settings` must. Nothing is sent where
 the host names no API, nor where the account is signed out or a sign-out is running, the pair held
 meanwhile being the account's that is leaving; the reply to the latter two is a 401's kind. It shows
 a refusal only for a route every user may call, which the first segment of its path names, and only

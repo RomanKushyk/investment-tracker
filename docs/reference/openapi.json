@@ -50,12 +50,8 @@
       "description": "The staged import: a dataset too large for one transaction, in parts that one commit moves."
     },
     {
-      "name": "settings",
-      "description": "The account’s settings, as a merge patch."
-    },
-    {
       "name": "me",
-      "description": "The caller’s own account and what it holds, read by the screens that show it."
+      "description": "The caller’s own account and what it holds, read by the screens that show it, and its settings, written as a merge patch."
     }
   ],
   "paths": {
@@ -4516,13 +4512,13 @@
         }
       }
     },
-    "/settings": {
+    "/me/settings": {
       "patch": {
         "tags": [
-          "settings"
+          "me"
         ],
-        "operationId": "patchSettings",
-        "summary": "PATCH /settings",
+        "operationId": "patchMeSettings",
+        "summary": "PATCH /me/settings",
         "requestBody": {
           "required": true,
           "content": {

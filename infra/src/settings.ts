@@ -1,4 +1,4 @@
-// `PATCH /settings`: the account's settings written (*Persistence today*, *Cloud target*).
+// `PATCH /me/settings`: the account's settings written (*Persistence today*, *Cloud target*).
 //
 // A JSON merge patch (RFC 7396) of the fields the column stores, applied whole or refused whole
 // (RFC 5789 §2). It moves no `data_version`: a settings write triggers no `/view` read, and a
@@ -32,7 +32,7 @@ import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { RETRY_DELAYS_MS, retryable } from './provision';
 
-export const SETTINGS_ROUTE = 'PATCH /settings';
+export const SETTINGS_ROUTE = 'PATCH /me/settings';
 export const MERGE_PATCH = 'application/merge-patch+json';
 
 const SETTINGS = derived({

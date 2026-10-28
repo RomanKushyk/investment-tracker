@@ -178,7 +178,7 @@ describe('a request', () => {
     async (name) => {
       const seen: { text: string; type: string | null }[] = [];
       server.use(
-        http.patch(`${API}/settings`, async ({ request }) => {
+        http.patch(`${API}/me/settings`, async ({ request }) => {
           seen.push({ text: await request.text(), type: request.headers.get('content-type') });
           return answering(200, {});
         }),
@@ -187,7 +187,7 @@ describe('a request', () => {
       const body = '{"language":null}';
       const reply = await call({
         method: 'PATCH',
-        path: '/settings',
+        path: '/me/settings',
         body,
         headers: { [name]: 'application/merge-patch+json' },
       });
@@ -238,10 +238,10 @@ describe('a refusal', () => {
   });
 
   it('reaches a user from the settings route too, which every user may call', async () => {
-    server.use(http.patch(`${API}/settings`, () => answering(403, { error: 'rejected' })));
+    server.use(http.patch(`${API}/me/settings`, () => answering(403, { error: 'rejected' })));
     const { call, showAnswer } = await transport();
 
-    expect(await call({ method: 'PATCH', path: '/settings', body: '{}' })).toEqual({
+    expect(await call({ method: 'PATCH', path: '/me/settings', body: '{}' })).toEqual({
       kind: 'answer',
       answer: 'rejected',
     });

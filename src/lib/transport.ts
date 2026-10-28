@@ -6,7 +6,7 @@ import type { Session } from '../auth/session';
 
 /** The first segment of each route every user may call. `/admin/*` also answers `forbidden` to an
  *  active user who is not a super-admin, so only these may show a refusal in place of the screen. */
-export const DATA_ROOTS = ['view', 'mutations', 'state', 'imports', 'settings', 'me'] as const;
+export const DATA_ROOTS = ['view', 'mutations', 'state', 'imports', 'me'] as const;
 
 export interface Call {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -90,7 +90,7 @@ const errorOf = (body: unknown) =>
 // A 409 for a write still running under its key: sent again unchanged, it finds the stored answer.
 const running = ({ status, body }: Seen) => status === 409 && errorOf(body) === 'request_in_flight';
 
-/** The data routes of the API (`/view`, `/mutations`, `/state`, `/imports`, `/settings`), called as
+/** The data routes of the API (`/view`, `/mutations`, `/state`, `/imports`, `/me`), called as
  *  the signed-in user. The ID token rides as a bearer and no cookie does: the relay's is its own. */
 export function createTransport({
   hostname,

@@ -553,7 +553,7 @@ jobs:
                 return { res: res, texts: JSON.stringify(sent.slice(from)) };
               };
               if (typeof m.settings !== 'function') throw new Error('settings missing from mutations bundle');
-              const gated = await sentBy(m.settings, { routeKey: 'PATCH /settings', headers: { 'content-type': 'application/json' }, body: '{}', requestContext: claims });
+              const gated = await sentBy(m.settings, { routeKey: 'PATCH /me/settings', headers: { 'content-type': 'application/json' }, body: '{}', requestContext: claims });
               if (gated.res.statusCode !== 415) throw new Error('the gate was not read off a refused settings patch: ' + JSON.stringify(gated.res));
               const key = '00000000-0000-4000-8000-0000000000aa';
               for (const headers of [{ 'idempotency-key': key }, { 'idempotency-key': key, 'if-match': '*' }]) {
@@ -563,7 +563,7 @@ jobs:
               }
               const pending = await m.mutations(deps('pending'), write({}));
               if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
-              const patch = (headers, body) => ({ routeKey: 'PATCH /settings', headers: headers, body: body, requestContext: claims });
+              const patch = (headers, body) => ({ routeKey: 'PATCH /me/settings', headers: headers, body: body, requestContext: claims });
               const MERGE = 'application/merge-patch+json';
               const wrongType = await m.settings(deps('active'), patch({ 'content-type': 'application/json' }, '{}'));
               if (wrongType.statusCode !== 415 || wrongType.headers['accept-patch'] !== MERGE) throw new Error('a patch of another type was not refused 415: ' + JSON.stringify(wrongType));

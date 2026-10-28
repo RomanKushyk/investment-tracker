@@ -151,7 +151,7 @@ describe('the account’s settings', () => {
 
     expect(patches()).toHaveLength(1);
     expect(patches()[0]).toMatchObject({
-      path: '/settings',
+      path: '/me/settings',
       headers: { 'content-type': 'application/merge-patch+json' },
       body: JSON.stringify({ period: 'ytd' }),
     });

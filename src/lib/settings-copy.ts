@@ -1,6 +1,6 @@
 // The device's copy of the account's settings (*Persistence today*). A paint comes before the
 // account's answer, so the store holds a copy: every `/view` answer overwrites it, a change on the
-// device is written to it at once and sent as `PATCH /settings` after a quiet half second. A
+// device is written to it at once and sent as `PATCH /me/settings` after a quiet half second. A
 // signed-out page has no token to send under, so there the copy is all there is.
 import { SETTING_NAMES, sanitiseSettings, type AccountSettings } from '@quirenote/core/settings';
 

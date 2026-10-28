@@ -517,7 +517,7 @@ Resources:
         'DELETE /imports/{id}':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
-        'PATCH /settings':
+        'PATCH /me/settings':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
         'GET /me':
@@ -1235,7 +1235,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # `POST /mutations`, `GET /state`, `PATCH /settings` and `GET /me`, the write, the export, the
+  # `POST /mutations`, `GET /state`, `PATCH /me/settings` and `GET /me`, the write, the export, the
   # settings write and the account's own read (`src/mutations.ts`, *Cloud target*). This stack's
   # cluster alone: nothing here reads the archive.
   MutationsFunction:
@@ -1332,7 +1332,7 @@ Resources:
           Properties:
             ApiId: !Ref PublicApi
             Method: PATCH
-            Path: /settings
+            Path: /me/settings
             Auth:
               Authorizer: CognitoJwt
         # The account's own read (`me.ts`), asked for by the screens that show it.

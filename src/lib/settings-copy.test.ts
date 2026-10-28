@@ -1,6 +1,6 @@
 // The device's copy of the account's settings (*Persistence today*): every `/view` answer overwrites
-// it, a change on the device is written to it at once and sent as `PATCH /settings` after a quiet
-// half second, naming only the fields that changed, and a signed-out page keeps it alone.
+// it, a change on the device is written to it at once and sent as `PATCH /me/settings` after a
+// quiet half second, naming only the fields that changed, and a signed-out page keeps it alone.
 import { createStore } from 'zustand/vanilla';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
