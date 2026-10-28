@@ -235,7 +235,7 @@ Interactions to verify:
 
 The super-admin's panel (`design/extensions/archive-admin.dc.html`, T1–T4), reached from `/settings` → Administration → «Відкрити»; Settings stays the active pill. It reads `GET /me` and `GET /admin/archive/diagnosis`, never the view. Until `/me` answers, `main` is empty; a failed `/me` is the failed screen, as on `/profile`. Any other signed-in user, or a 403 from the diagnosis, gets the app's not-found.
 
-- A muted «‹ Налаштування» link to `/settings` above the header "Price archive" + subtitle "Quote coverage, archive repairs and the run log". Below 768 the link takes `TAP_44`'s 44 × 44.
+- A muted «‹ Налаштування» link to `/settings` above the header "Price archive" + subtitle "Quote coverage by source". Below 768 the link takes `TAP_44`'s 44 × 44.
 - **Nothing is read on arrival.** One card, «Архів ще не прочитано», says the diagnosis takes up to 25 s and runs only on request, with an outline «Прочитати архів» (`Archive` glyph). The header's slot is empty.
 - **The answer:** the slot reads «Знімок dd.MM.yyyy, HH:mm» (Kyiv) beside an outline header-size «Оновити» (`RefreshCw`). Under the header, in order:
   - **Two figures** side by side at and above 768, stacked below: «Inzhur · котирування й NAV» and «НБУ · справедлива вартість». The value is the summed `emptyDays`: «N днів» in `warn-tint-text` with a 20px `TriangleAlert` when it is not zero, with the line «порожніх днів · у k з m груп · u не виміряно»; at zero «0 днів» and «порожніх днів немає». Under a hairline come «Опубліковано мінус записано (gaps)», the summed `gaps`, which can be negative, and «Захоплень · обсяг», `bySource`'s count and gzip size in МБ of 1024².

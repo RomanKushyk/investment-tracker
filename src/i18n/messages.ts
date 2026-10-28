@@ -765,10 +765,10 @@ export const en = {
       helper:
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
     },
+    // As `screen.archive`: the repairs and the run log join the helper with #512.
     archive: {
       title: 'Price archive',
-      helper:
-        'Quote coverage by source, two archive repairs and the run log. Only the super-admin sees this card.',
+      helper: 'Quote coverage by source. Only the super-admin sees this card.',
       open: 'Open',
     },
   },
@@ -1293,10 +1293,11 @@ export const en = {
       title: 'Settings',
       subtitle: 'Preferences, data and automation',
     },
+    // Names only what the screen holds: the repairs and the run log join the copy with #512.
     archive: {
       back: 'Settings',
       title: 'Price archive',
-      subtitle: 'Quote coverage, archive repairs and the run log',
+      subtitle: 'Quote coverage by source',
     },
   },
 };
@@ -1948,8 +1949,7 @@ export const uk: Dict = {
     },
     archive: {
       title: 'Архів цін',
-      helper:
-        'Покриття котирувань за джерелами, два ремонти архіву й журнал запусків. Цю картку бачить лише суперадміністратор.',
+      helper: 'Покриття котирувань за джерелами. Цю картку бачить лише суперадміністратор.',
       open: 'Відкрити',
     },
   },
@@ -2415,7 +2415,7 @@ export const uk: Dict = {
     archive: {
       back: 'Налаштування',
       title: 'Архів цін',
-      subtitle: 'Покриття котирувань, ремонт архіву і журнал запусків',
+      subtitle: 'Покриття котирувань за джерелами',
     },
   },
 };
