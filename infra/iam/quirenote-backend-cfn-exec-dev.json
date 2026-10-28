@@ -217,7 +217,7 @@
       "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-ArchiveReaderGrantFunction-*"
     },
     {
-      "Sid": "ConfigureTheGrantProvidersInvocation",
+      "Sid": "ConfigureAsyncInvocation",
       "Effect": "Allow",
       "Action": [
         "lambda:PutFunctionEventInvokeConfig",
@@ -225,7 +225,10 @@
         "lambda:UpdateFunctionEventInvokeConfig",
         "lambda:DeleteFunctionEventInvokeConfig"
       ],
-      "Resource": "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-ArchiveReaderGrantFunction-*"
+      "Resource": [
+        "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-CaptureFunction-*",
+        "arn:aws:lambda:eu-north-1:*:function:quirenote-backend-ArchiveReaderGrantFunction-*"
+      ]
     },
     {
       "Sid": "RolesTheStackOwns",

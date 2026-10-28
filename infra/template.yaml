@@ -82,6 +82,11 @@ Resources:
                 - notifications:ListNotificationConfigurations
                 - notifications:ListChannels
               Resource: '*'
+      # Lambda holds a throttled event up to six hours by default: no attempt starts so late that the
+      # last firing runs past Inzhur's refresh. A dropped event reaches the DLQ below.
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 2400
+        MaximumRetryAttempts: 2
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt CaptureDlq.Arn

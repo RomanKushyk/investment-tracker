@@ -976,8 +976,9 @@ ALARMS COUNT ITS SCHEDULED RUN ALONE: the schedule's input marks the event, the 
 that it ran and, when it throws, one that it failed, and a metric filter reads each. The function's
 `Invocations` and `Errors` count every manual mode as well, so a diagnosis read passed for the day's
 capture and a failed import for a failed one. A timeout or crash the handler cannot catch logs no
-failure: one that fails every attempt Lambda makes lands in the dead-letter queue, which `DlqAlarm`
-watches, and one a retry recovers is seen by nothing. The set overshoots the always-free tier
+failure: one that fails every attempt Lambda makes, or that Lambda holds past the capture's event-age
+cap, lands in the dead-letter queue, which `DlqAlarm` watches, and one a retry recovers is seen by
+nothing. The set overshoots the always-free tier
 knowingly; THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE PER WATCHED VALUE — a check's silence and
 its errors, then one alarm for each published number a threshold can be right for — and `DlqAlarm`
 sits outside that rule, its depth published by SQS rather than by any check here. A REQUEST PATH IS

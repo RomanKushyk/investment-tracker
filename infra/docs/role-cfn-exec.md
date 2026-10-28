@@ -221,10 +221,11 @@ the custom resource fails `CREATE` with `User:
 arn:aws:sts::<account-id>:assumed-role/quirenote-backend-cfn-exec-dev/AWSCloudFormation is not
 authorized to perform: lambda:InvokeFunction on resource: …`. The resource is that one function's
 name prefix, never `function:quirenote-backend-*`, which would let a template point a custom
-resource at a migration runner. **`ConfigureTheGrantProvidersInvocation` is what that function's
-`EventInvokeConfig` takes**, the four actions the `AWS::Lambda::EventInvokeConfig` type's create,
-read, update and delete handlers name: the invocation is asynchronous, and capping an event's age
-is what keeps a late one from running after CloudFormation has stopped waiting.
+resource at a migration runner. **`ConfigureAsyncInvocation` is what an `EventInvokeConfig` takes**,
+the four actions the `AWS::Lambda::EventInvokeConfig` type's create, read, update and delete
+handlers name, on the name prefix of each function that caps its event age: the grant provider's,
+so a late event never runs after CloudFormation has stopped waiting, and the capture's, so a late
+one never runs past Inzhur's refresh.
 
 **A grant is for a call a declared resource type's schema handlers name, or it is one of three
 statements:** `InvokeTheGrantProvider` for the custom resource, `ApplyTheSamTransform` for the

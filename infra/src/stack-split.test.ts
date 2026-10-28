@@ -373,28 +373,44 @@ describe('the archive stack holds the archive and nothing else', () => {
   });
 
   // A run after Inzhur's refresh stamps the refreshed price with its own date, so every attempt
-  // ends before it: Scheduler's delivery retries start a firing up to their event age late, then
-  // Lambda retries a failed invocation twice, a minute and two minutes after, each up to the
-  // timeout (lambda/latest/dg/invocation-async-error-handling.html). Kyiv's clock, the refresh's.
+  // ends before it: Scheduler's delivery retries hand a firing over up to their event age late, and
+  // Lambda starts no attempt on an event older than its age cap, throttled or not, where its default
+  // is six hours (lambda/latest/dg/invocation-async-error-handling.html). Kyiv's clock, the refresh's.
   it('ends every capture, its retries spent, before Inzhur refreshes, on Kyiv’s clock', () => {
     const schedule = archive.Resources.CaptureSchedule.Properties;
     expect(schedule?.ScheduleExpressionTimezone).toBe('Europe/Kyiv');
     expect(schedule?.FlexibleTimeWindow).toEqual({ Mode: 'OFF' });
-    const fn = archive.Resources.CaptureFunction.Properties;
-    const timeout = Number(fn?.Timeout ?? archive.Globals?.Function?.Timeout);
+    const fn = archive.Resources.CaptureFunction.Properties as {
+      Timeout?: number;
+      EventInvokeConfig?: Record<string, unknown>;
+    };
+    const timeout = Number(fn.Timeout ?? archive.Globals?.Function?.Timeout);
     expect(timeout).toBeGreaterThan(0);
     const delivery = Number(
       (schedule as { Target?: { RetryPolicy?: { MaximumEventAgeInSeconds?: number } } }).Target
         ?.RetryPolicy?.MaximumEventAgeInSeconds,
     );
     expect(delivery).toBeGreaterThan(0);
+    // A destination would add a policy no test here counts; a dropped event goes to the DLQ instead.
+    expect(Object.keys(fn.EventInvokeConfig ?? {}).sort()).toEqual([
+      'MaximumEventAgeInSeconds',
+      'MaximumRetryAttempts',
+    ]);
+    const age = Number(fn.EventInvokeConfig?.MaximumEventAgeInSeconds);
+    expect(age).toBeGreaterThanOrEqual(60);
+    expect(fn.EventInvokeConfig?.MaximumRetryAttempts).toBe(2);
+    // Lambda's Init phase runs outside the function's timeout, and takes up to ten seconds.
+    const INIT_ALLOWANCE = 20;
+    // The cap still lets both retries after a function error start: each attempt up to the
+    // timeout, the retries a minute and then two minutes after.
     const RETRY_WAITS_SECONDS = (1 + 2) * 60;
+    expect(age).toBeGreaterThanOrEqual(2 * (INIT_ALLOWANCE + timeout) + RETRY_WAITS_SECONDS);
     const cron = /^cron\((\d+) ([\d,]+) /.exec(schedule?.ScheduleExpression ?? '');
     expect(cron).not.toBeNull();
     const [, minute, hours] = cron ?? [];
     for (const hour of hours.split(',').map(Number))
       expect(
-        hour * 3600 + Number(minute) * 60 + delivery + RETRY_WAITS_SECONDS + 3 * timeout,
+        hour * 3600 + Number(minute) * 60 + delivery + age + INIT_ALLOWANCE + timeout,
       ).toBeLessThan(INZHUR_REFRESH_HOUR * 3600);
   });
 });
@@ -1943,7 +1959,7 @@ describe('what reaches a role besides its own policies', () => {
       'DeadLetterQueue',
       'Events',
       'PermissionsBoundary',
-      // Grants only through a destination, which the grant provider's test refuses.
+      // Grants only through a destination, which the capture's and the grant provider's tests refuse.
       'EventInvokeConfig',
     ]);
     const bags = Object.entries({ archive, user }).flatMap(([name, t]) => [
@@ -1982,6 +1998,7 @@ describe('what reaches a role besides its own policies', () => {
       'CaptureFunction',
     ]);
     expect(bags.filter(([, bag]) => 'EventInvokeConfig' in bag).map(([id]) => id)).toEqual([
+      'CaptureFunction',
       'ArchiveReaderGrantFunction',
     ]);
     const dlq = ['Resources', 'CaptureFunction', 'Properties', 'DeadLetterQueue'];
@@ -2503,20 +2520,25 @@ describe('each execution role grants only services the resource types it deploys
     },
   );
 
-  // The custom resource lives in the archive, which production never deploys.
-  it('grants the custom resource’s invoke to dev alone', () => {
+  // The custom resource and both capped functions live in the archive, which production never deploys.
+  it('grants the custom resource’s invoke and the async invocation’s configuration to dev alone', () => {
     const invokes = (env: Env) =>
       policy(env)
         .map((s) => s.Sid)
-        .filter(
-          (sid) =>
-            sid === 'InvokeTheGrantProvider' || sid === 'ConfigureTheGrantProvidersInvocation',
-        );
-    expect(invokes('dev').sort()).toEqual([
-      'ConfigureTheGrantProvidersInvocation',
-      'InvokeTheGrantProvider',
-    ]);
+        .filter((sid) => sid === 'InvokeTheGrantProvider' || sid === 'ConfigureAsyncInvocation');
+    expect(invokes('dev').sort()).toEqual(['ConfigureAsyncInvocation', 'InvokeTheGrantProvider']);
     expect(invokes('prod')).toEqual([]);
+  });
+
+  // The deploy creates each function's `EventInvokeConfig` as dev's role, by one function's name
+  // prefix: a function capped without its prefix here fails the archive deploy.
+  it('lets dev configure the async invocation of each archive function that caps it, and no other', () => {
+    const capped = resources(archive)
+      .filter(([, r]) => r.Type === 'AWS::Serverless::Function')
+      .filter(([, r]) => 'EventInvokeConfig' in (r.Properties ?? {}))
+      .map(([id]) => `arn:aws:lambda:eu-north-1:*:function:quirenote-backend-${id}-*`);
+    const configure = policy('dev').find((s) => s.Sid === 'ConfigureAsyncInvocation');
+    expect([configure?.Resource].flat().sort()).toEqual(capped.sort());
   });
 
   // THE DENIES ARE A CLOSED LIST: the roles that deploy, the other environment's API and domain,
