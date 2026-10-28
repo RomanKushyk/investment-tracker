@@ -6,6 +6,7 @@ import { basename, join } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { isScalar, parseDocument, visit, type Document, type Node } from 'yaml';
+import { INZHUR_REFRESH_HOUR } from '@quirenote/core/inzhur/parse';
 import { REPO } from '../../src/repo-root';
 import { DEADLINE_SECONDS, RUN_TIMEOUT_SECONDS } from './archive-operations';
 import { NO_BACKUP_HOURS } from './backup-age';
@@ -369,6 +370,32 @@ describe('the archive stack holds the archive and nothing else', () => {
       ],
       managed: [],
     });
+  });
+
+  // A run after Inzhur's refresh stamps the refreshed price with its own date, so every attempt
+  // ends before it: Scheduler's delivery retries start a firing up to their event age late, then
+  // Lambda retries a failed invocation twice, a minute and two minutes after, each up to the
+  // timeout (lambda/latest/dg/invocation-async-error-handling.html). Kyiv's clock, the refresh's.
+  it('ends every capture, its retries spent, before Inzhur refreshes, on Kyiv’s clock', () => {
+    const schedule = archive.Resources.CaptureSchedule.Properties;
+    expect(schedule?.ScheduleExpressionTimezone).toBe('Europe/Kyiv');
+    expect(schedule?.FlexibleTimeWindow).toEqual({ Mode: 'OFF' });
+    const fn = archive.Resources.CaptureFunction.Properties;
+    const timeout = Number(fn?.Timeout ?? archive.Globals?.Function?.Timeout);
+    expect(timeout).toBeGreaterThan(0);
+    const delivery = Number(
+      (schedule as { Target?: { RetryPolicy?: { MaximumEventAgeInSeconds?: number } } }).Target
+        ?.RetryPolicy?.MaximumEventAgeInSeconds,
+    );
+    expect(delivery).toBeGreaterThan(0);
+    const RETRY_WAITS_SECONDS = (1 + 2) * 60;
+    const cron = /^cron\((\d+) ([\d,]+) /.exec(schedule?.ScheduleExpression ?? '');
+    expect(cron).not.toBeNull();
+    const [, minute, hours] = cron ?? [];
+    for (const hour of hours.split(',').map(Number))
+      expect(
+        hour * 3600 + Number(minute) * 60 + delivery + RETRY_WAITS_SECONDS + 3 * timeout,
+      ).toBeLessThan(INZHUR_REFRESH_HOUR * 3600);
   });
 });
 

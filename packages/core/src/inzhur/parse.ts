@@ -15,6 +15,9 @@ import type { Asset, PayoutSchedule } from '../types';
 
 /** The feed publishes bond payment amounts in integer kopecks per bond. */
 export const KOPECKS_PER_UAH = 100;
+/** Prices refresh at this Kyiv hour — the freshness boundary. No Inzhur statement backs the hour:
+ *  it is this project's own figure. */
+export const INZHUR_REFRESH_HOUR = 13;
 /** Kyiv calendar dates; ₴ per unit, converted from the feed’s kopecks. */
 export interface InzhurPayment {
   date: string;

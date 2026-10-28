@@ -5,7 +5,12 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { msUntilNextKyivHour } from '@quirenote/core/dates';
-import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from '@quirenote/core/inzhur/parse';
+import {
+  INZHUR_REFRESH_HOUR,
+  parseAssetsFeed,
+  type ParsedFeed,
+  type SkippedEntry,
+} from '@quirenote/core/inzhur/parse';
 import { readMeta, writeMeta } from '../lib/device-meta';
 
 /**
@@ -15,10 +20,6 @@ import { readMeta, writeMeta } from '../lib/device-meta';
  * Both fail in the browser.
  */
 export const INZHUR_ASSETS_URL = 'https://www.inzhur.reit/_api/assets';
-
-/** Prices refresh at this Kyiv hour — the freshness boundary. No Inzhur statement backs the hour:
- *  it is this project's own figure (#236). */
-export const INZHUR_REFRESH_HOUR = 13;
 
 const INZHUR_TIMEOUT_MS = 10_000;
 
