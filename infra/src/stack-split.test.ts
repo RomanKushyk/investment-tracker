@@ -727,6 +727,7 @@ describe('the user stacks reach the archive through a read-only role the archive
       'MigrateFunction',
       'MutationsFunction',
       'RateAheadFunction',
+      'SweepFunction',
       'ViewFunction',
     ]);
     expect(assumes).toEqual(['ViewFunction']);
@@ -811,7 +812,7 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the archive read, its operations and their recorder, the relay, the view, the write, two watches, the wake and the rate job', () => {
+  it('holds the runner, the trigger, the application, the approval, the archive read, its operations and their recorder, the relay, the view, the write, two watches, the wake, the rate job and the sweep', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
@@ -826,6 +827,7 @@ describe('the user stack holds user data and nothing else', () => {
       'pool-usage.handler',
       'pre-signup.handler',
       'rate-ahead.handler',
+      'sweep.handler',
       'view.handler',
     ]);
   });
@@ -908,8 +910,9 @@ describe('the user stack watches its own cluster’s backups', () => {
   ];
 
   /** A schedule that does work rather than watching it, so it runs in both environments: dev's
-   *  cluster holds the official rate the way prod's does. Its watch is prod's like every other. */
-  const IN_BOTH = ['RateAheadSchedule'];
+   *  cluster holds the official rate and collects cleared data the way prod's does. Its watch is
+   *  prod's like every other. */
+  const IN_BOTH = ['RateAheadSchedule', 'SweepSchedule'];
 
   it('deploys the whole check on prod only', () => {
     for (const id of WATCH) {
@@ -1421,6 +1424,158 @@ describe('the user stack stores the official rate ahead, in both environments', 
   });
 });
 
+// What `dataset.clear` leaves and an import left idle is collected by a daily job, so the thirty
+// days the notice promises hold for a user who never writes again. IN BOTH ENVIRONMENTS, as the
+// rate job is: it does work, and its watch is prod's alone. [*User schema and deletes*, *Alerting*]
+describe('the user stack sweeps cleared data daily, in both environments', () => {
+  const JOB = ['SweepFunction', 'SweepLogGroup', 'SweepSchedule', 'SweepSchedulerRole'];
+  const WATCH = [
+    'SweepRunMetricFilter',
+    'SweepRunFailedMetricFilter',
+    'SweepSilenceAlarm',
+    'SweepErrorAlarm',
+  ];
+
+  it('runs the job in dev and prod, and watches it in prod alone', () => {
+    for (const id of JOB) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, undefined]);
+    }
+    for (const id of WATCH) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+    }
+  });
+
+  // DAILY, on the UTC clock the stack's other jobs keep, and with the input that tells a firing
+  // from a hand run: with none Scheduler sends `{}`, which a hand invocation sends too.
+  it('fires once a day, on Etc/UTC, with the input that marks the firing as scheduled', () => {
+    const schedule = user.Resources.SweepSchedule.Properties;
+    expect(schedule?.ScheduleExpression).toMatch(/^cron\(\d{1,2} \d{1,2} \* \* \? \*\)$/);
+    expect(schedule?.ScheduleExpressionTimezone).toBe('Etc/UTC');
+    expect(schedule?.FlexibleTimeWindow).toEqual({ Mode: 'OFF' });
+    const target = ['Resources', 'SweepSchedule', 'Properties', 'Target'];
+    expect(intrinsicAt(userDoc, ...target, 'Arn')).toEqual({
+      tag: '!GetAtt',
+      value: 'SweepFunction.Arn',
+    });
+    expect(intrinsicAt(userDoc, ...target, 'Input')).toEqual({
+      tag: undefined,
+      value: '{"scheduled":true}',
+    });
+  });
+
+  it('connects to this stack’s cluster and holds no other grant', () => {
+    expect(inlineStatements(user, 'SweepFunction')).toHaveLength(1);
+    expect(
+      grantAt(
+        userDoc,
+        ['Resources', 'SweepFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
+    expect(intrinsicAt(userDoc, ...envVars('SweepFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+  });
+
+  it('lets its scheduler invoke that job and nothing else', () => {
+    expect(
+      grantAt(
+        userDoc,
+        [
+          'Resources',
+          'SweepSchedulerRole',
+          'Properties',
+          'Policies',
+          0,
+          'PolicyDocument',
+          'Statement',
+        ],
+        'lambda:InvokeFunction',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'SweepFunction.Arn' });
+    expect(roleGrants(user, 'SweepSchedulerRole')).toEqual({
+      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      managed: [],
+    });
+  });
+
+  it('keeps the job’s log group thirty days, under the name its filters read', () => {
+    const group = ['Resources', 'SweepLogGroup', 'Properties'];
+    expect(intrinsicAt(userDoc, ...group, 'LogGroupName')).toEqual({
+      tag: '!Sub',
+      value: '/aws/lambda/${SweepFunction}',
+    });
+    expect(intrinsicAt(userDoc, ...group, 'RetentionInDays')).toEqual({
+      tag: undefined,
+      value: 30,
+    });
+  });
+
+  // THE SCHEDULED RUN'S OWN LINES, as the capture's two are read, under names of their own: the
+  // capture counts under `Quirenote` too. NO `DefaultValue`: it would publish a 0 for every period
+  // with no line, the healthy side of the error alarm.
+  it('counts the lines the run writes, under names of its own, with no default', () => {
+    const capture = ['ScheduledRunMetricFilter', 'ScheduledRunFailedMetricFilter'].map(
+      (id) => archive.Resources[id].Properties?.MetricTransformations?.[0]?.MetricName,
+    );
+    const filters = [
+      ['SweepRunMetricFilter', '{ $.metric = "sweepRun" }', 'SweepRuns'],
+      ['SweepRunFailedMetricFilter', '{ $.metric = "sweepRunFailed" }', 'SweepFailures'],
+    ] as const;
+    for (const [id, pattern, name] of filters) {
+      const filter = user.Resources[id].Properties;
+      expect([id, filter?.FilterPattern]).toEqual([id, pattern]);
+      expect(intrinsicAt(userDoc, 'Resources', id, 'Properties', 'LogGroupName')).toEqual({
+        tag: '!Ref',
+        value: 'SweepLogGroup',
+      });
+      expect(filter?.MetricTransformations).toHaveLength(1);
+      const [transformation] = filter?.MetricTransformations ?? [];
+      expect([id, transformation?.MetricNamespace]).toEqual([id, 'Quirenote']);
+      expect([id, transformation?.MetricName]).toEqual([id, name]);
+      expect([id, capture.includes(name)]).toEqual([id, false]);
+      expect([id, transformation?.MetricValue]).toEqual([id, '$.value']);
+      expect(transformation?.Dimensions).toBeUndefined();
+      expect(transformation && 'DefaultValue' in transformation).toBe(false);
+    }
+  });
+
+  // THE LINES, NOT THE FUNCTION'S `Invocations` AND `Errors`: a hand run invokes it too. SILENCE
+  // IS `breaching`, because a schedule that never fires writes nothing at all.
+  it('alarms on a day with no run line and on a day with a failed one', () => {
+    const silence = user.Resources.SweepSilenceAlarm.Properties;
+    expect(silence?.Namespace).toBe('Quirenote');
+    expect(silence?.MetricName).toBe('SweepRuns');
+    expect(silence?.Dimensions).toBeUndefined();
+    expect(silence?.Statistic).toBe('Sum');
+    expect(silence?.Period).toBe(86400);
+    expect(silence?.EvaluationPeriods).toBe(2);
+    expect(silence?.Threshold).toBe(1);
+    expect(silence?.ComparisonOperator).toBe('LessThanThreshold');
+    expect(silence?.TreatMissingData).toBe('breaching');
+
+    const errors = user.Resources.SweepErrorAlarm.Properties;
+    expect(errors?.Namespace).toBe('Quirenote');
+    expect(errors?.MetricName).toBe('SweepFailures');
+    expect(errors?.Dimensions).toBeUndefined();
+    expect(errors?.Statistic).toBe('Sum');
+    expect(errors?.Period).toBe(86400);
+    expect(errors?.EvaluationPeriods).toBe(1);
+    expect(errors?.Threshold).toBe(1);
+    expect(errors?.ComparisonOperator).toBe('GreaterThanOrEqualToThreshold');
+    expect(errors?.TreatMissingData).toBe('notBreaching');
+  });
+
+  // NO `AlarmActions` AND NO TOPIC, here as everywhere. [*Alerting*]
+  it('carries no alarm action', () => {
+    for (const id of ['SweepSilenceAlarm', 'SweepErrorAlarm'])
+      expect([id, user.Resources[id].Properties?.AlarmActions]).toEqual([id, undefined]);
+  });
+});
+
 // `POST /mutations` and `GET /state`: the caller's rows in this stack's cluster, and nothing of the
 // archive; `GET /me` reads the caller's own user and its sign-in factors in this stack's pool.
 // [*Cloud target*]
@@ -1799,7 +1954,7 @@ describe('the capture pipeline exists exactly once across both templates', () =>
 
   // EACH TARGET AS THE INTRINSIC, and the capture's dead-letter queue with them: `toJS()` reads the
   // literal `CaptureFunction.Arn` as it reads the `!GetAtt`, and the literal is no function's ARN.
-  it('schedules the capture once, and the user stack schedules only its own watches, the wake and the rate job', () => {
+  it('schedules the capture once, and the user stack schedules only its own watches, the wake, the rate job and the sweep', () => {
     const target = (doc: Document, id: string) => [
       id,
       intrinsicAt(doc, 'Resources', id, 'Properties', 'Target', 'Arn'),
@@ -1823,6 +1978,7 @@ describe('the capture pipeline exists exactly once across both templates', () =>
       ['BackupWakeSchedule', { tag: '!GetAtt', value: 'BackupWakeFunction.Arn' }],
       ['PoolUsageSchedule', { tag: '!GetAtt', value: 'PoolUsageFunction.Arn' }],
       ['RateAheadSchedule', { tag: '!GetAtt', value: 'RateAheadFunction.Arn' }],
+      ['SweepSchedule', { tag: '!GetAtt', value: 'SweepFunction.Arn' }],
     ]);
   });
 
@@ -1988,6 +2144,7 @@ describe('what reaches a role besides its own policies', () => {
       'BackupWakeFunction',
       'PoolUsageFunction',
       'RateAheadFunction',
+      'SweepFunction',
     ]);
     for (const [id, bag] of bags) {
       expect([id, Object.keys(bag).filter((k) => !allowed.has(k))]).toEqual([id, []]);
@@ -2765,7 +2922,7 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
     ]);
   });
 
-  it('deploys ten more from the user stack', () => {
+  it('deploys twelve more from the user stack', () => {
     expect(idsOfType(user, ALARM).sort()).toEqual([
       'ArchiveReaderRefusedAlarm',
       'BackupFreshnessErrorAlarm',
@@ -2776,6 +2933,8 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
       'RateAgeAlarm',
       'RateAheadErrorAlarm',
       'RateAheadSilenceAlarm',
+      'SweepErrorAlarm',
+      'SweepSilenceAlarm',
       'UserBackupAgeAlarm',
     ]);
   });
@@ -2788,9 +2947,9 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
       }
   });
 
-  it('is six past the ten, which the Alerting decision takes knowingly', () => {
+  it('is eight past the ten, which the Alerting decision takes knowingly', () => {
     const deployed = [archive, user].flatMap((t) => idsOfType(t, ALARM));
-    expect(deployed.length - FREE_TIER_ALARMS).toBe(6);
+    expect(deployed.length - FREE_TIER_ALARMS).toBe(8);
   });
 });
 

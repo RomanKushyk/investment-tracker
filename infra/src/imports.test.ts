@@ -929,7 +929,7 @@ describe('a stored price survives an export, an import and a second export', () 
   });
 });
 
-describe('dead generations are collected without a scheduled function', () => {
+describe('dead generations are collected by the requests that follow them', () => {
   it('collects them before the commit answers when the function has time to spare', async () => {
     const live = (await pointers()).live!;
     await importAll(partsOf(NEW, 25), deps({ remainingMs: () => 14_000, batchRows: 4 }));

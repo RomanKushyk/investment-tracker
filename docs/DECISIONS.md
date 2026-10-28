@@ -985,7 +985,15 @@ that it ran and, when it throws, one that it failed, and a metric filter reads e
 capture and a failed import for a failed one. A timeout or crash the handler cannot catch logs no
 failure: one that fails every attempt Lambda makes, or that Lambda holds past the capture's event-age
 cap, lands in the dead-letter queue, which `DlqAlarm` watches, and one a retry recovers is seen by
-nothing. The set overshoots the always-free tier
+nothing. THE DAILY SWEEP OF CLEARED DATA TAKES THE SAME TWO ALARMS, counted off its own log group
+as the capture's are: a run that finishes logs one line, and a run that threw, or in which a
+collection failed, a failed one, so a run that stops for want of time is no failure, and nor is a
+lost write conflict, the contention the next run retries. A run that threw logs no run line, and
+one cut off by its timeout logs nothing, no dead-letter queue standing behind a user-stack
+schedule. ITS SILENCE ALARM READS TWO DAYS, as the rate job's does: the sliding window can miss a
+daily run that lands later than the day before, so one day with no run line raises nothing and a
+second does, well inside the thirty days. The job runs in both environments and
+its watch in prod alone. The set overshoots the always-free tier
 knowingly; THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE PER WATCHED VALUE — a check's silence and
 its errors, then one alarm for each published number a threshold can be right for — and `DlqAlarm`
 sits outside that rule, its depth published by SQS rather than by any check here. A REQUEST PATH IS
@@ -2009,7 +2017,14 @@ NEITHER POINTER NAMES — what a commit, a clear, an abort or a new begin leaves
 past its limit, whose pointer the collector clears — and every later `POST /mutations` that
 answers 200 and every import request that succeeds removes one bounded batch of it, children first,
 in statements of their own after its transaction, their failure logged; a commit as many as the
-function's remaining time allows. Nothing collects on a schedule, on a read or on a settings write.
+function's remaining time allows. A DAILY SWEEP COLLECTS WHAT NO WRITE REACHES, for a user who
+never writes again: a function of its own on a schedule, in both environments, reads `dataset` and
+`app_user` alone for the users holding a dataset neither pointer names or a staging, and runs the
+collector's batches for each while its remaining time allows, so every statement over a data table
+still joins one caller's generation. A run that stops early leaves the rest for the next. THE BOUND
+IS THIRTY DAYS from «Стерти дані», kept with room to spare: collection of a cleared dataset starts
+at the first run after the clear, and an idle import's at the first after its limit, a day past it
+at most. Nothing collects on a read or on a settings write.
 Every account holder
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
 writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
@@ -2028,7 +2043,7 @@ does, `If-Match` left out — replays the stored response; another body is 422 `
 claim is 409 `request_in_flight`; a claim past its window, which outlasts the function's timeout, or
 a key past its lifetime, is taken over by a compare-and-set on its token. ONLY A SUCCESS IS STORED: a
 refusal releases the claim. Each later success deletes a bounded number of the caller's expired keys
-in a statement of its own, its failure logged, and nothing sweeps on a schedule. A serialization
+in a statement of its own, its failure logged, and nothing sweeps keys on a schedule. A serialization
 failure, `40001` or `XX000`, is retried after short delays, the key row read first, which answers a
 commit that landed under the error; a stale `If-Match` is 412, never 409, and never retried. A SCHEMA THE CODE WILL NEED SHIPS A MERGE BEFORE THAT CODE, the code
 being live before the schema — except a table no deployed code writes, which may be recreated in the
@@ -2060,7 +2075,10 @@ constraint, clearing a dataset moves only a pointer, and Ghostfolio keys its act
 account the same way. A generation is the LEADING KEY, not a filter beside `user_id`, which is why
 the tombstone's objection is answered by that guard and those tests rather than by care: a
 statement that skips the pointer reads every generation. Garbage is found as git finds it, by
-reachability, and git's maintenance runs "after they have written data". A dataset is never
+reachability, and git's maintenance runs "after they have written data". A user who never writes
+again would keep a cleared dataset for good, and the notice promises a period, so one daily job
+collects what no write reaches, as Mastodon's cleanup scheduler runs once a day and removes
+discarded statuses past thirty days in batches. A dataset is never
 unreferenced at birth nor referenced again once dropped; a mutation begun before a commit or a clear
 conflicts with it on `app_user`, and a part begun before an abort or a new begin writes the manifest
 row the collector deletes before the dataset, so under DSQL's write-write adjudication the two

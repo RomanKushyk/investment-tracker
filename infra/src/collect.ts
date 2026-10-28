@@ -1,8 +1,10 @@
 // Dead generations — datasets of the caller that neither pointer names — removed a bounded batch
-// at a time by `POST /mutations` and the import's routes, never on a schedule (*User schema and deletes*).
+// at a time by `POST /mutations` and the import's routes, and by the daily sweep (`sweep.ts`) for a
+// user who never writes again (*User schema and deletes*).
 import { codeOf } from './dsql';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
+import { retryable } from './provision';
 
 /** AWS's DSQL guidance on batch size, well under the row ceiling. */
 export const BATCH_ROWS = 500;
@@ -100,20 +102,24 @@ export const once = (): (() => boolean) => {
 };
 
 /** Clears an idle import, then collects a batch at a time while `more` allows. NEVER THE ANSWER:
- *  a failure is logged and the request answers as it would have. */
+ *  a failure is logged and the request answers as it would have. `false` says it failed, for the
+ *  sweep to count, and a lost write conflict is contention the next run retries; a request
+ *  ignores it. */
 export async function collect(
   client: SqlClient,
   userId: string,
   more: () => boolean,
   rows = BATCH_ROWS,
-): Promise<void> {
-  if (!more()) return;
+): Promise<boolean> {
+  if (!more()) return true;
   try {
     await client.query(EXPIRE, [userId, IDLE_LIMIT]);
     do {
-      if (!(await batch(client, userId, rows))) return;
+      if (!(await batch(client, userId, rows))) return true;
     } while (more());
+    return true;
   } catch (err) {
     console.error('collection failed', loggable(err));
+    return retryable(err);
   }
 }

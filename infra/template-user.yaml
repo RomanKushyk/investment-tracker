@@ -1914,6 +1914,142 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
+  # WHAT `dataset.clear` LEAVES AND AN IMPORT LEFT IDLE, COLLECTED WITH NO WRITE FROM THEIR OWNER
+  # (`src/sweep.ts`). In both environments, like the rate job above; its watch is prod's alone.
+  SweepFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: sweep.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      # A run this cuts off writes no run line, which is what `SweepSilenceAlarm` reads.
+      Timeout: 60
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            # The only database role this cluster has is `admin`; the handler bounds the reach.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+
+  SweepLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${SweepFunction}
+      RetentionInDays: 30
+
+  # ONCE A DAY, in `Etc/UTC` as the stack's other jobs. The input tells a firing from a hand run,
+  # which sends `{}` as Scheduler does with none; the next firing finds whatever this one left.
+  SweepSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Description: Collect the data users cleared and the imports they left idle.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      ScheduleExpression: cron(0 3 * * ? *)
+      ScheduleExpressionTimezone: Etc/UTC
+      Target:
+        Arn: !GetAtt SweepFunction.Arn
+        RoleArn: !GetAtt SweepSchedulerRole.Arn
+        Input: '{"scheduled":true}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+          MaximumEventAgeInSeconds: 3600
+
+  SweepSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokeSweep
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt SweepFunction.Arn
+
+  # THE SCHEDULED RUN'S OWN LINES, as the capture's: `Invocations` and `Errors` count a hand run too.
+  # No `DefaultValue`: a 0 for every period with no line would be the error alarm's healthy side.
+  SweepRunMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref SweepLogGroup
+      FilterPattern: '{ $.metric = "sweepRun" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: SweepRuns
+          MetricValue: $.value
+
+  SweepRunFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref SweepLogGroup
+      FilterPattern: '{ $.metric = "sweepRunFailed" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: SweepFailures
+          MetricValue: $.value
+
+  # `breaching` is the whole point: a schedule that never fires writes no line at all. Two periods,
+  # as the sliding window holds no run on a day it lands later in the minute than the day before.
+  SweepSilenceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        No scheduled sweep finished in two days, so data users cleared and imports
+        they left idle are no longer collected. Check the schedule and its role, then
+        SweepFunction's log group: a run that threw or ran out of its timeout writes no
+        run line. Expect it on a first deploy too, until the first scheduled run: there is
+        no data yet, and missing data here is treated as breaching.
+      Namespace: Quirenote
+      MetricName: SweepRuns
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  SweepErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The scheduled sweep threw, or a collection in it failed. Read SweepFunction's log
+        group for the `collection failed` line and the error beside it: the cluster (its
+        connection or its admin grant), or a table missing until the migrate job has run.
+      Namespace: Quirenote
+      MetricName: SweepFailures
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
   ClusterIdentifier:
     Value: !GetAtt UserCluster.Identifier

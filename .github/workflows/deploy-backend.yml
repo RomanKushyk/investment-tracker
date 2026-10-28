@@ -90,7 +90,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead archive-reader-grant view mutations; do
+          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead sweep archive-reader-grant view mutations; do
             pnpm exec esbuild "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -111,7 +111,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/sweep.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -417,6 +417,25 @@ jobs:
               if (none !== 'refused') throw new Error('no stored rate was published as an age');
               if (asked.join() !== '2026-09-29,2026-09-30') throw new Error('16:00 Kyiv did not ask for today and tomorrow: ' + asked.join());
               console.log('rate-ahead bundle loads, asks for today and tomorrow after 15:30 Kyiv, and refuses an age it could not read');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The budget is what matters: with no time left a run reads who to collect for and starts
+          # no collection, and with time it collects, or a cleared dataset outlives the notice.
+          node -e "
+            const s = require('./sweep.js');
+            if (typeof s.handler !== 'function') throw new Error('handler missing from sweep bundle');
+            const run = async (remaining) => {
+              const sent = [];
+              const client = { query: async (text) => { sent.push(text); if (sent.length === 1) return { rows: [{ user_id: 'u1' }] }; return { rows: /^\s*SELECT g\.id/.test(text) ? [{ id: 'g1' }] : [] }; } };
+              const clean = await s.sweep(client, () => remaining);
+              return { sent, clean };
+            };
+            run(0).then(async (idle) => {
+              if (idle.sent.length !== 1) throw new Error('a sweep with no time left sent ' + idle.sent.length + ' statements');
+              const timed = await run(60000);
+              if (!timed.sent.some((t) => /^\s*DELETE/.test(t))) throw new Error('a sweep with time left deleted nothing: ' + timed.sent.length);
+              if (!timed.clean) throw new Error('a sweep with nothing to collect reported a failure');
+              console.log('sweep bundle loads, starts no collection with no time left, and collects while there is');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # CloudFormation waits on this bundle's answer, so one that cannot load holds the archive
