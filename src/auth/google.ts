@@ -54,7 +54,7 @@ export function arrivedReauthentication(state: unknown): 'confirmed' | 'refused'
 
 // A RE-AUTHENTICATION THIS TAB BEGAN, across Google's redirect: the tab's own storage carries it,
 // never the URL, so a pasted callback is a sign-in's (`re-authentication.dc.html` T10).
-const REAUTHENTICATING = 'quirenote-reauthenticating';
+export const REAUTHENTICATING = 'quirenote-reauthenticating';
 type Tab = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export function carryReauthentication(tab: Tab | undefined): void {

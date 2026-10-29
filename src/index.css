@@ -457,6 +457,12 @@
     overscroll-behavior-y: contain;
   }
 
+  /* The privacy notice's contents scroll to their section smoothly; on the root, because that
+     is where `scroll-behavior` reaches the viewport. Reduced motion below makes it instant. */
+  :root:has([data-privacy]) {
+    scroll-behavior: smooth;
+  }
+
   body {
     background: var(--color-page);
     color: var(--color-ink);

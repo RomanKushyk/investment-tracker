@@ -1,12 +1,26 @@
 import type { ReactNode } from 'react';
+import { NavLink } from 'react-router';
 
 import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
+import { TAP_44 } from '../components/ui/tap-target';
+import { useT } from '../i18n/useT';
 import { Mark } from './Sidebar';
 
 /** A page with no portfolio behind it (*Two shells, one breakpoint*): the mark and the language
- *  control over one card, top-anchored so a change in its height moves no button. */
-export function SignedOutShell({ children }: { children: ReactNode }) {
+ *  control over one card, top-anchored so a change in its height moves no button, and the privacy
+ *  notice's link under it (*Legal documents*). `wide` is the notice's own measure; `notice="tab"`
+ *  opens the link beside a page that must stay. */
+export function SignedOutShell({
+  wide = false,
+  notice = 'here',
+  children,
+}: {
+  wide?: boolean;
+  notice?: 'here' | 'tab';
+  children: ReactNode;
+}) {
+  const t = useT();
   return (
     <div className="min-h-dvh bg-page text-ink">
       <header className="flex h-[57px] items-center justify-between border-b border-hairline bg-page px-9 max-md:px-3">
@@ -18,10 +32,23 @@ export function SignedOutShell({ children }: { children: ReactNode }) {
         </div>
         <LanguageControl />
       </header>
-      <main className="flex justify-center px-3 pt-16 pb-12 max-md:pt-4 max-md:pb-4">
-        <Card radius={24} className="flex w-full max-w-[440px] flex-col p-7 max-md:p-[22px]">
+      <main className="flex flex-col items-center px-3 pt-16 pb-12 max-md:pt-4 max-md:pb-4">
+        <Card
+          radius={24}
+          className={`flex w-full flex-col p-7 max-md:p-[22px] ${wide ? 'max-w-[680px]' : 'max-w-[440px]'}`}
+        >
           {children}
         </Card>
+        <div className="mt-4 text-center">
+          <NavLink
+            to="/privacy"
+            {...(notice === 'tab' && { target: '_blank', rel: 'noopener' })}
+            className={`text-[12px] leading-[18px] text-muted underline underline-offset-2 transition-colors hover:text-ink ${TAP_44}`}
+          >
+            {t.privacy.link}
+            {notice === 'tab' && <span className="sr-only"> {t.privacy.newTab}</span>}
+          </NavLink>
+        </div>
       </main>
     </div>
   );

@@ -225,6 +225,20 @@ function DataCard({ me }: { me: MeData | undefined }) {
           />
         )}
       </SettingRow>
+      <Divider />
+      <SettingRow title={t.profile.privacy.title} helper={t.profile.privacy.helper}>
+        {me ? (
+          <Link to="/privacy" className={buttonVariants({ variant: 'outline' })}>
+            {t.profile.privacy.open}
+            <ChevronRight size={16} aria-hidden />
+          </Link>
+        ) : (
+          <Block
+            kind="link"
+            className="h-10 w-[183px] rounded-[10px] max-md:h-11 max-md:rounded-[11px]"
+          />
+        )}
+      </SettingRow>
     </>
   );
 }

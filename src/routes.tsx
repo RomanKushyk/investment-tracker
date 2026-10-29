@@ -14,6 +14,7 @@ import { Transactions } from './screens/Transactions';
 import { Overview } from './screens/Overview';
 import { Payouts } from './screens/Payouts';
 import { Portfolio } from './screens/Portfolio';
+import { Privacy } from './screens/privacy/Privacy';
 import { Profile } from './screens/Profile';
 import { Seasonality } from './screens/Seasonality';
 import { Settings } from './screens/Settings';
@@ -50,6 +51,8 @@ export const routes: RouteObject[] = [
       { path: 'apply', element: <Apply /> },
       // Cognito's redirect back from Google (`CallbackURLs`); `/auth/*` otherwise is the API's.
       { path: 'auth/callback', element: <GoogleCallback /> },
+      // The privacy notice, the same page for every reader, signed in or not (*Legal documents*).
+      { path: 'privacy', element: <Privacy /> },
       {
         element: <Layout />,
         children: [

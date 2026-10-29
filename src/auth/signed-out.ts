@@ -12,7 +12,7 @@ export function arrivedSignedOut(state: unknown): boolean {
 
 /** THE FACT ACROSS COGNITO'S LOGOUT, which loads `/sign-in` afresh from another origin where router
  *  state cannot follow. This tab's session storage does; the page forgets it once it has read it. */
-const RETURNING = 'quirenote-signed-out';
+export const RETURNING = 'quirenote-signed-out';
 type Tab = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export function carrySignedOut(tab: Tab | undefined): void {

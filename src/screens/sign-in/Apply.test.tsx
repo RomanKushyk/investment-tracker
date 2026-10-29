@@ -277,3 +277,40 @@ describe('a widget showing its checkbox', () => {
     expect(hold.apply).not.toHaveBeenCalled();
   });
 });
+
+// The notice's first layer (`privacy-notice.dc.html` S2): at collection, under the button, with no
+// checkbox and no "you agree" (EDPB 2/2019 ¶20).
+describe('the first layer of the privacy notice', () => {
+  const layer = () =>
+    screen.getByText(
+      (_, el) => el?.tagName === 'P' && el.querySelector('a[href="/privacy"]') !== null,
+    );
+
+  it('stands under the button, and asks for no agreement', () => {
+    mount();
+    expect(
+      button().compareDocumentPosition(layer()) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'the layer is not under the button',
+    ).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(layer().textContent).not.toMatch(/agree|погодж/i);
+  });
+
+  it('opens the notice in a new tab, and its name says so', () => {
+    mount();
+    const link = screen.getByRole('link', { name: /Політиці конфіденційності/ });
+    expect(link.getAttribute('href')).toBe('/privacy');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+    expect(link.textContent!.endsWith(uk.privacy.newTab)).toBe(true);
+  });
+
+  it('goes with the form once the application is recorded', async () => {
+    hold.apply.mockResolvedValue(recorded);
+    mount();
+    type(ADDRESS);
+    await emit((w) => w.onToken('token-1'));
+    await press();
+    expect(screen.queryByRole('link', { name: /Політиці конфіденційності/ })).toBeNull();
+  });
+});

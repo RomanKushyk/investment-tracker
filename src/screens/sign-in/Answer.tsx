@@ -83,8 +83,9 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
     showAnswer(undefined);
   }
 
+  // The sign-out above may still be running, and leaving would lose its outcome (*Legal documents*).
   return (
-    <SignedOutShell>
+    <SignedOutShell notice="tab">
       <div
         key={held.answer}
         className="flex animate-in flex-col duration-300 ease-soft fade-in slide-in-from-top-1"

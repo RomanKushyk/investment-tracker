@@ -51,8 +51,7 @@ function InShell({ children }: { children: ReactNode }) {
   );
 }
 
-/** Both failures' words, the same for every unexpected problem. No router hook: the boot renders
- *  it outside the router. */
+/** Both failures' words, the same for every unexpected problem. */
 function Failed() {
   const t = useT();
   return (
@@ -95,8 +94,8 @@ export function ScreenFailure() {
   );
 }
 
-/** A throw in `Root` or `Layout`, or a database that cannot open at boot: no shell to keep. It
- *  stands where `Root` would, so it owns the two root attributes `Root` would have. */
+/** A throw in `Root` or `Layout`: no shell to keep. It stands where `Root` would, so it owns the
+ *  two root attributes `Root` would have. */
 export function AppFailure() {
   useTheme();
   useDocumentLang();

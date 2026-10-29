@@ -390,10 +390,24 @@ function SidebarPanel({
 
         <AccountRows />
 
-        {/* `sb-label` is the caption rank in here, and its shortfall is recorded rather
-            than repaired: a second grey is a re-mint the palette forbids. */}
-        <div className="mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sb-label uppercase">
-          v{__APP_VERSION__}
+        {/* The version's line carries the privacy notice's link (*Legal documents*). Below the
+            breakpoint it and «Вийти» both carry `TAP_44`, so the gap is their two overlays'
+            halves. `sb-label` is the caption rank in here, and
+            its shortfall is recorded rather than repaired: a second grey is a re-mint the
+            palette forbids. */}
+        <div className="mt-2.5 flex h-[14.25px] items-center justify-center gap-2 max-md:mt-[19px]">
+          <NavLink
+            to="/privacy"
+            className={`block text-[11px] leading-[14.25px] text-sb-item underline underline-offset-2 transition-colors hover:text-sb-item-hover ${TAP_44}`}
+          >
+            {t.privacy.link}
+          </NavLink>
+          <span aria-hidden className="text-[11px] leading-[14.25px] text-sb-label">
+            ·
+          </span>
+          <span className="text-[9.5px] leading-[14.25px] tracking-[.12em] text-sb-label uppercase">
+            v{__APP_VERSION__}
+          </span>
         </div>
       </div>
     </div>
@@ -440,9 +454,9 @@ const ACCOUNT_PILL = `${ACCOUNT_STEP} ${pillClass('py-2', 'rounded-[9px]')({ isA
 const ACCOUNT_LINK = pillClass('py-2.5', 'rounded-[9px]', 'text-[11px] leading-[16px]');
 
 /**
- * THE ACCOUNT IS THE BAND'S LAST CONTROL, above the version: the address, the profile's link, then
- * «Вийти» in Settings' recipe. Signed out, the status and «Увійти», a plain `Link`: `/sign-in/x`
- * falls into the shell, where a `NavLink` would mark it current.
+ * THE ACCOUNT IS THE BAND'S LAST ROW, above the version's line: the address, the profile's link,
+ * then «Вийти» in Settings' recipe. Signed out, the status and «Увійти», a plain `Link`:
+ * `/sign-in/x` falls into the shell, where a `NavLink` would mark it current.
  */
 function AccountRows() {
   const t = useT();

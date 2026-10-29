@@ -21,6 +21,14 @@ function plural(n: number, one: string, few: string, many: string): string {
   return many;
 }
 
+/** A block of a notice: a paragraph, or a list of its items. */
+export type Block = string | string[];
+
+/** A numbered section of a notice, its title and its blocks in order. */
+function section(title: string, ...body: Block[]) {
+  return { title, body };
+}
+
 export const en = {
   nav: {
     groupEntry: 'Entry',
@@ -965,6 +973,12 @@ export const en = {
       helper: 'A full JSON copy and CSV tables are in Settings, under Data.',
       open: 'Go to Settings',
     },
+    // `privacy-notice.dc.html` S6: the row after the copy, to the notice.
+    privacy: {
+      title: 'How we handle your data',
+      helper: 'Who holds it, why, for how long, and your rights.',
+      open: 'Privacy',
+    },
     // `own-account.dc.html` T4 and `re-authentication.dc.html` T9: the action's own lines.
     signOutEverywhere: {
       title: 'Sign out everywhere',
@@ -1135,6 +1149,117 @@ export const en = {
       title: 'No access',
       lead: 'This account has no access to Quirenote.',
     },
+  },
+  // The privacy notice (`privacy-notice.dc.html`, brief #497); the Ukrainian prevails and this
+  // says no more. A list is an array of its items; `[text](href)` is a link inside its sentence;
+  // a section's title is bare, and the page numbers it.
+  privacy: {
+    link: 'Privacy',
+    title: 'Privacy policy',
+    updated: (date: string) => `Last updated: ${date}`,
+    contents: 'Contents',
+    back: 'Back to Quirenote',
+    newTab: '(opens in a new tab)',
+    intro: [
+      'This page says which of your data Quirenote handles, why, who receives it, how long it is kept, and what your rights are. We handle it under Ukraine’s Law on Personal Data Protection and give all the information Article 13 of the GDPR asks for.',
+      'The page is in Ukrainian and English. Where the two differ, the Ukrainian version applies.',
+    ],
+    sections: {
+      controller: section(
+        'Who is responsible for your data',
+        'The controller is Roman Kushyk, a private individual in Ukraine. For any question about your data, write to support@quirenote.com; on request we also give the controller’s place of residence.',
+        'We have not appointed a data protection officer: the law does not require one for this processing.',
+      ),
+      data: section(
+        'What data we handle',
+        [
+          'Application: your email address and when you applied.',
+          'Account: your address, role, and the dates you applied and were approved. Amazon Cognito keeps your password; Quirenote does not keep it. Passkeys: Amazon Cognito keeps their ID, name, device type and creation date; the private key stays on your device.',
+          'Google sign-in: Google gives Amazon Cognito your name, address and profile photo. Only the address, the mark that Google verified it, and your Google account ID are kept.',
+          'Portfolio: the accounts, assets, transactions with their notes, prices and settings you enter.',
+          'Technical data: the IP address and browser details received by Cloudflare, whose network the site opens through, and by Amazon Web Services, whose servers run the app and the sign-in. To check a form, the server passes your IP address to Cloudflare. The service’s logs name an account by its ID, not its address.',
+          'Messages: what you write to support@quirenote.com.',
+        ],
+        'Your address is needed to apply: without it we cannot review the application. Everything else you enter yourself.',
+      ),
+      purposes: section(
+        'Why, and on what basis',
+        [
+          'To review your application and send the invitation — steps before a contract, at your request (Law, Article 11(1)(3); GDPR Article 6(1)(b)).',
+          'To sign you in, keep, compute and show your portfolio, and answer your messages — performing the contract (the same articles).',
+          'To protect the service from bots and abuse: Cloudflare’s check, logs, backups — our legitimate interest in network and information security (Law, Article 11(1)(6); GDPR Article 6(1)(f) and Recital 49).',
+        ],
+        'We do not ask for consent, because no processing rests on it. We send no advertising, build no profiles and make no automated decisions with legal effects on you: Cloudflare only checks that a person is sending the form, and a person reviews the application.',
+      ),
+      recipients: section(
+        'Who receives your data',
+        [
+          'Amazon Web Services stores the data and sends the invitation: region eu-north-1, Stockholm, Sweden.',
+          'Cloudflare, Inc. (USA): the network the site opens through, and the check on the application and sign-in forms (Turnstile). Cloudflare also uses the check’s data itself, as a separate controller, to detect bots better: [Cloudflare’s Turnstile notice](https://www.cloudflare.com/turnstile-privacy-policy/).',
+          'Google LLC (USA), only if you sign in with Google.',
+          'Mail to support@quirenote.com is forwarded by Cloudflare to the owner’s Gmail inbox (Google LLC).',
+          'Your browser requests Inzhur’s public price list itself (the “Fetch quotes” button, or picking an Inzhur asset in the form), so Inzhur sees your IP address. We pass nothing about you to Inzhur.',
+        ],
+        'We pass your data to no one else, and we do not sell it.',
+      ),
+      transfers: section(
+        'Transfers abroad',
+        'Sweden is in the European Economic Area. Cloudflare, Inc. and Google LLC are certified under the EU–US Data Privacy Framework, for which the European Commission adopted an adequacy decision (2023/1795). Ukrainian law recognises adequate protection both in EEA states and in the USA (Law, Article 29).',
+      ),
+      retention: section('How long we keep it', [
+        'An application — until it is reviewed. A declined one is deleted when it is declined.',
+        'Your account and portfolio — as long as the account exists. To delete it, write to support@quirenote.com.',
+        'Data removed with “Erase data” leaves the working database within 30 days.',
+        'Database backups are kept 35 days, so deleted data leaves them within 35 days of leaving the working database.',
+        'Service logs — 30 days. The AWS account’s event history (CloudTrail), which shows Google sign-ins with the IP address and browser details, and account actions by ID — 90 days; AWS does not let it be shortened.',
+        'Correspondence — as long as your account exists; deleted with it. A message from someone with no account is deleted once it is answered.',
+        'Cookies and browser entries — as in “Cookies and browser storage”.',
+      ]),
+      rights: section(
+        'Your rights',
+        'You can:',
+        [
+          'know which of your data we handle, where it comes from, where it is stored, why, and who receives it;',
+          'get a copy: a JSON copy of your portfolio and CSV tables are in Settings, under Data, and we send your account’s data on request;',
+          'correct inaccurate data;',
+          'delete your data or your account;',
+          'restrict processing;',
+          'object to processing, including processing that rests on our legitimate interest;',
+          'be protected against unlawful processing and against accidental loss, destruction or damage of your data;',
+          'move your data to another service — the same copy;',
+          'know how automated processing works, and be protected from automated decisions with legal effects (we make none);',
+          'withdraw or limit consent, where processing rests on consent (ours does not).',
+        ],
+        'Write to support@quirenote.com. Within 10 working days we tell you whether we will meet the request, and we meet it within 30 calendar days, or within one month where the month is shorter.',
+        'You can complain to the Ukrainian Parliament Commissioner for Human Rights ([ombudsman.gov.ua](https://ombudsman.gov.ua/), hotline 1678, hotline@ombudsman.gov.ua) or to a court. If you are in the EU or EEA, you can also complain to the supervisory authority of the state where you live or work, or where the infringement took place.',
+      ),
+      cookies: {
+        ...section(
+          'Cookies and browser storage',
+          'All of them are needed for the service to work. There are no analytics or advertising cookies, so we do not ask consent for any. Cloudflare’s check sets no cookie.',
+        ),
+        // What each entry is for and how long it lasts; its name is the code's, beside it on the page.
+        rows: {
+          refresh: 'keeps you signed in · 2 hours, extended on every refresh',
+          origin: 'lets a stolen sign-in be revoked · 24 hours',
+          access: 'the encrypted access token · up to 1 hour',
+          google: 'Google sign-in · 15 minutes',
+          cognito: 'Google sign-in · 1 hour',
+          settings: 'your settings on this device · until you clear them',
+          draft: 'the day’s quote draft · until you sign out or the session ends',
+          inzhur: 'Inzhur’s last price list · until you clear them',
+          handoff:
+            'carrying a sign-out and a re-authentication across a page load · until the tab closes',
+        },
+        cognitoName: 'Amazon Cognito’s cookie on auth.quirenote.com',
+      },
+      changes: section(
+        'Changes',
+        'The date of the last update is at the top. We announce material changes in the app before they take effect.',
+      ),
+    },
+    firstLayer:
+      'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. Who handles your address, where it is kept and your rights: the [Privacy policy](/privacy).',
   },
   transaction: {
     title: 'Transaction',
@@ -2236,6 +2361,11 @@ export const uk: Dict = {
       helper: 'Повна копія в JSON і таблиці CSV — у Налаштуваннях, розділ «Дані».',
       open: 'До налаштувань',
     },
+    privacy: {
+      title: 'Як ми обробляємо дані',
+      helper: 'Хто їх зберігає, навіщо, скільки й ваші права.',
+      open: 'Конфіденційність',
+    },
     signOutEverywhere: {
       title: 'Вийти на всіх пристроях',
       helper: 'Завершує вхід на кожному пристрої, зокрема на цьому. Спершу підтвердьте, що це ви.',
@@ -2386,6 +2516,112 @@ export const uk: Dict = {
       title: 'Немає доступу',
       lead: 'Цей обліковий запис не має доступу до Quirenote.',
     },
+  },
+  privacy: {
+    link: 'Конфіденційність',
+    title: 'Політика конфіденційності',
+    updated: (date: string) => `Останнє оновлення: ${date}`,
+    contents: 'Зміст',
+    back: 'До Quirenote',
+    newTab: '(відкривається в новій вкладці)',
+    intro: [
+      'Тут сказано, які ваші дані обробляє Quirenote, навіщо, кому вони передаються, скільки зберігаються і які у вас права. Ми обробляємо їх за Законом України «Про захист персональних даних» і даємо всю інформацію, якої вимагає стаття 13 GDPR.',
+      'Сторінка є українською й англійською. Якщо версії розходяться, чинна українська.',
+    ],
+    sections: {
+      controller: section(
+        'Хто відповідає за ваші дані',
+        'Володілець персональних даних — Роман Кушик, фізична особа, Україна. З будь-яким питанням про ваші дані пишіть на support@quirenote.com; на запит повідомимо й місце проживання володільця.',
+        'Інспектора з захисту даних ми не призначали: для такої обробки закон його не вимагає.',
+      ),
+      data: section(
+        'Які дані ми обробляємо',
+        [
+          'Заявка: адреса електронної пошти й час подання.',
+          'Обліковий запис: адреса, роль, дати подання заявки й схвалення. Пароль зберігає Amazon Cognito, Quirenote його не зберігає. Ключі доступу: Amazon Cognito зберігає їхні ідентифікатор, назву, тип пристрою й дату створення; закритий ключ лишається на вашому пристрої.',
+          'Вхід через Google: Google передає Amazon Cognito ваше ім’я, адресу й фото профілю. Зберігаються лише адреса, позначка, що Google її підтвердив, і ідентифікатор облікового запису Google.',
+          'Портфель: рахунки, активи, операції з нотатками, ціни й налаштування, які ви вносите.',
+          'Технічні дані: IP-адреса й дані браузера, які отримують Cloudflare, через мережу якого відкривається сайт, і Amazon Web Services, на серверах якого працюють застосунок і вхід. Щоб перевірити форму, сервер передає Cloudflare вашу IP-адресу. У журналах сервісу обліковий запис названо ідентифікатором, а не адресою.',
+          'Звернення: те, що ви пишете на support@quirenote.com.',
+        ],
+        'Адреса потрібна, щоб подати заявку: без неї ми не можемо її розглянути. Решту даних ви вносите самі.',
+      ),
+      purposes: section(
+        'Навіщо й на якій підставі',
+        [
+          'Розглянути заявку й надіслати запрошення — дії перед укладенням договору на ваше прохання (пункт 3 частини першої статті 11 Закону; стаття 6(1)(b) GDPR).',
+          'Дати вам вхід, зберігати, рахувати й показувати портфель і відповідати на звернення — виконання договору (ті самі статті).',
+          'Захищати сервіс від ботів і зловживань: перевірка Cloudflare, журнали, резервні копії — наш законний інтерес у безпеці мережі й інформації (пункт 6 частини першої статті 11 Закону; стаття 6(1)(f) і пункт 49 преамбули GDPR).',
+        ],
+        'Згоди ми не просимо, бо не обробляємо даних на її підставі. Ми не надсилаємо реклами, не будуємо профілів і не ухвалюємо автоматизованих рішень, які мають для вас правові наслідки: Cloudflare лише перевіряє, що форму надсилає людина, а заявку розглядає людина.',
+      ),
+      recipients: section(
+        'Кому передаються дані',
+        [
+          'Amazon Web Services зберігає дані й надсилає запрошення: регіон eu-north-1, Стокгольм, Швеція.',
+          'Cloudflare, Inc. (США): мережа, через яку відкривається сайт, і перевірка форм заявки й входу (Turnstile). Дані перевірки Cloudflare також використовує сам, як окремий володілець, щоб краще розпізнавати ботів: [повідомлення Cloudflare про Turnstile](https://www.cloudflare.com/turnstile-privacy-policy/).',
+          'Google LLC (США), лише якщо ви входите через Google.',
+          'Листи на support@quirenote.com Cloudflare пересилає на поштову скриньку власника в Gmail (Google LLC).',
+          'Відкритий прайс Inzhur (кнопка «Отримати котирування» чи вибір активу Inzhur у формі) запитує ваш браузер, тож Inzhur бачить вашу IP-адресу. Про вас ми Inzhur нічого не передаємо.',
+        ],
+        'Нікому іншому ми ваших даних не передаємо й не продаємо.',
+      ),
+      transfers: section(
+        'Передача за кордон',
+        'Швеція входить до Європейської економічної зони. Cloudflare, Inc. і Google LLC сертифіковані за Рамковою програмою захисту даних ЄС—США, щодо якої Європейська комісія ухвалила рішення про належний рівень захисту (2023/1795). Закон України визнає належним рівень захисту і в державах ЄЕЗ, і в США (стаття 29 Закону).',
+      ),
+      retention: section('Скільки ми зберігаємо', [
+        'Заявку — доки її не розглянуто. Відхилену видаляємо в момент відхилення.',
+        'Обліковий запис і портфель — доки існує обліковий запис. Щоб видалити його, напишіть на support@quirenote.com.',
+        'Дані, стерті кнопкою «Стерти дані», зникають з робочої бази протягом 30 днів.',
+        'Резервні копії бази зберігаються 35 днів, тож видалене зникає з них протягом 35 днів після того, як зникло з робочої бази.',
+        'Журнали сервісу — 30 днів. Журнал подій облікового запису AWS (CloudTrail), де видно вхід через Google з IP-адресою й даними браузера та дії з обліковими записами за ідентифікатором, — 90 днів; AWS не дає його скоротити.',
+        'Листування — доки існує ваш обліковий запис; видаляємо разом з ним. Лист від того, хто облікового запису не має, видаляємо, щойно на нього відповіли.',
+        'Cookie й записи в браузері — як у розділі «Cookie та сховище браузера».',
+      ]),
+      rights: section(
+        'Ваші права',
+        'Ви можете:',
+        [
+          'знати, які ваші дані ми обробляємо, звідки вони, де зберігаються, навіщо й кому передаються;',
+          'отримати їх копію: копія портфеля у JSON і таблиці CSV є в Налаштуваннях, у розділі «Дані», а дані облікового запису надішлемо на запит;',
+          'виправити неточні дані;',
+          'видалити дані або обліковий запис;',
+          'обмежити обробку;',
+          'заперечити проти обробки, зокрема тієї, що спирається на наш законний інтерес;',
+          'бути захищеними від незаконної обробки, випадкової втрати, знищення чи пошкодження даних;',
+          'перенести дані до іншого сервісу — та сама копія;',
+          'знати, як працює автоматична обробка, і бути захищеними від автоматизованих рішень з правовими наслідками (таких ми не ухвалюємо);',
+          'відкликати згоду або обмежити її, коли обробка спирається на згоду (наша не спирається).',
+        ],
+        'Пишіть на support@quirenote.com. Протягом 10 робочих днів ми повідомимо, чи виконаємо запит, і виконаємо його протягом 30 календарних днів, а якщо місяць коротший — протягом місяця.',
+        'Скаргу можна подати Уповноваженому Верховної Ради України з прав людини ([ombudsman.gov.ua](https://ombudsman.gov.ua/), гаряча лінія 1678, hotline@ombudsman.gov.ua) або до суду. Якщо ви в ЄС чи ЄЕЗ, можна звернутися й до наглядового органу держави, де ви живете чи працюєте або де сталося порушення.',
+      ),
+      cookies: {
+        ...section(
+          'Cookie та сховище браузера',
+          'Усі вони потрібні, щоб сервіс працював. Аналітичних і рекламних cookie немає, тож згоди на них ми не просимо. Перевірка Cloudflare cookie не ставить.',
+        ),
+        rows: {
+          refresh: 'тримає вхід · 2 години, подовжується з кожним оновленням',
+          origin: 'дає скасувати вхід, якщо його викрали · 24 години',
+          access: 'зашифрований токен доступу · до 1 години',
+          google: 'вхід через Google · 15 хвилин',
+          cognito: 'вхід через Google · 1 година',
+          settings: 'налаштування на цьому пристрої · доки ви їх не зітрете',
+          draft: 'чернетка котирувань за день · до виходу чи кінця сеансу',
+          inzhur: 'останній прайс Inzhur · доки ви їх не зітрете',
+          handoff: 'перехід через вихід і повторний вхід · до закриття вкладки',
+        },
+        cognitoName: 'cookie Amazon Cognito на auth.quirenote.com',
+      },
+      changes: section(
+        'Зміни',
+        'Дату останнього оновлення вказано вгорі. Про суттєві зміни ми повідомимо в застосунку, перш ніж вони наберуть чинності.',
+      ),
+    },
+    firstLayer:
+      'Quirenote використовує адресу, щоб розглянути заявку й надіслати запрошення, а Cloudflare перевіряє, що форму надсилає людина. Хто обробляє адресу, де її зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
   },
   transaction: {
     title: 'Транзакція',

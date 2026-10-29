@@ -1,6 +1,7 @@
 import { StrictMode, createElement, isValidElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
+  MemoryRouter,
   Outlet,
   StaticRouterProvider,
   createStaticHandler,
@@ -103,9 +104,12 @@ describe('the app failing', () => {
     }
   });
 
-  // How `main.tsx` renders it when the database cannot open: no router, no query client.
-  it('renders on its own, with the signed-out bar', () => {
-    const html = renderToStaticMarkup(createElement(StrictMode, null, createElement(AppFailure)));
+  // As the root route's boundary renders it: inside the router, with no query client.
+  it('renders on its own, with the signed-out bar and the privacy link', () => {
+    const html = renderToStaticMarkup(
+      createElement(StrictMode, null, createElement(MemoryRouter, null, createElement(AppFailure))),
+    );
+    expect(html).toMatch(new RegExp(`<a[^>]*href="/privacy"[^>]*>${uk.privacy.link}</a>`));
     expect(html).toContain(uk.boundary.failed.title);
     expect(html).toContain(uk.boundary.failed.lead);
     expect(html).toMatch(new RegExp(`<button[^>]*>${uk.boundary.failed.reload}</button>`));

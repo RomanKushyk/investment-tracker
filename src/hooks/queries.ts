@@ -375,9 +375,9 @@ export function useDayQuotes(date: string, today: DayQuotes): { day: DayQuotes; 
 }
 
 /** The device's copy of the account's settings sends its changes while the portfolio shell is
- *  mounted: the pages without it have no account to send to. Mounted once, where the shell is. */
-export function useSettingsCopy(): void {
-  useEffect(() => settingsCopy.start(), []);
+ *  mounted, or `/privacy` while signed in: the other pages have no account to send to. */
+export function useSettingsCopy(sending = true): void {
+  useEffect(() => (sending ? settingsCopy.start() : undefined), [sending]);
 }
 
 /** The view is cut at the caller's day, so a new day is a new view: read again when the clock finds

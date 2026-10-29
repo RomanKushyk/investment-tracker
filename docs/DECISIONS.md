@@ -713,10 +713,12 @@ header carries the figure, which a 56px shell cannot hold. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
 portfolio behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
-failed — mounts NEITHER: a top bar with the mark and the language control over one top-anchored card, `md` still its
-only breakpoint.
-THE ACCOUNT IS EVERY FOOTER BAND'S LAST CONTROL, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
-in the panel and the drawer two rows above the version, the second a pill in Settings' recipe; in
+failed, and `/privacy` for every reader, signed in or not — mounts NEITHER: a top bar with the mark
+and the language control over one top-anchored card and the privacy notice's link under it, `md`
+still its only breakpoint.
+THE ACCOUNT IS EVERY FOOTER BAND'S LAST ROW, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
+in the panel and the drawer two rows above the version's line, which carries the privacy notice's
+link (*Legal documents*), the second a pill in Settings' recipe; in
 the rail two items, the rail's foot reading in the panel's order — currency, Settings, profile,
 account. Signed in the rows are the address and «Вийти», the address a NAV LINK to `/profile` named
 «Профіль: » and the address, at the row's height with the pill's states, current there where
@@ -2117,6 +2119,39 @@ function at two alarms, and a key costs nothing until its owner writes again. ·
 on a read: practice collects where data is written — git after a command that writes, SQLite at
 commit — and the reads stay read-only transactions. · A timestamp per part so parts could be staged
 in parallel: the manifest row is what makes a late part conflict with the commit and the collector.
+
+## Legal documents
+**Decision.** THE PRIVACY NOTICE LIVES WHOLE AT `/privacy` AND IN FIRST LAYER AT COLLECTION.
+`/privacy` is one public route in the signed-out shell for every reader, signed in or not, so it waits
+on no session, reads no data and swaps no shell; signed in, a language chosen there is the
+account's. «До Quirenote» leads back to `/`. Under `/apply`'s
+button stand two sentences naming Quirenote, the purpose and Cloudflare's check, with the link;
+there is no checkbox and no "you agree", and the link opens a new tab, so what was typed stays. The
+link also stands under every signed-out card (under a refused caller's answer it opens a new tab:
+the answer may hold a sign-out still running, which leaving would lose), on the version's line in the panel and the drawer,
+and as a row in the profile's «Ваші дані»; the collapsed rail has none, the panel being one press
+away. The notice is written under Law 2297-VI and gives every GDPR Art. 13 item; the controller is
+named, Роман Кушик, a private individual, with no street address or city, and support@ is the
+contact. Ukrainian prevails and the English says no more; a test fails if a mapped item is missing
+or empty, or if the English holds a section the Ukrainian lacks. The periods it states are the
+code's: a declined application is deleted when declined (*User schema and deletes*), erased data
+leaves the working database within 30 days, backups keep 35, function logs 30, CloudTrail's event
+history 90. CORRESPONDENCE, which no code holds, is kept while the account exists and deleted with
+it; a message from someone with no account is deleted once answered.
+**Why.** GDPR Art. 13 and 2297-VI Art. 12(2) ask for the information "at the time when personal data
+are obtained"; WP260 rev.01 ¶36 wants a first layer shown as the form is filled, ¶17 "one single
+place or one complete document", and ¶11 a link "clearly visible on each page". EDPB 2/2019 ¶20
+keeps a contract's necessity apart from consent, so nothing asks to agree. Law 2704-VIII Art. 27(6)
+lets a translation say no more than the Ukrainian. Linear, Notion and GitHub serve their policies
+outside the app, and Mastodon puts its link beside the version in its sidebar. Retention is periods
+the code enforces first (GDPR Art. 5(1)(e), recital 39; 2297-VI Art. 6(8)). The sources and the
+item-by-item mapping are in brief #497 and `design/extensions/privacy-notice.dc.html`.
+**Rejected.** An Art. 27 representative: the app targets no EU market (recital 23; EDPB 3/2018,
+Example 10). · The first layer collapsed behind «Детальніше»: collapsed text reads as unseen under
+¶36. · A rail item: it lifted the rail's foot for a link seldom sought there. · A footer on every
+route: under long lists it turns into "whack-a-mole" (NN/g). · The app shell on `/privacy` when
+signed in: the page would wait on the session and swap shells. · A cookie banner: every cookie and
+storage entry is strictly necessary.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only

@@ -28,6 +28,7 @@ const { Profile } = await import('./screens/Profile');
 const { SignIn } = await import('./screens/sign-in/SignIn');
 const { Apply } = await import('./screens/sign-in/Apply');
 const { GoogleCallback } = await import('./screens/sign-in/GoogleCallback');
+const { Privacy } = await import('./screens/privacy/Privacy');
 
 const typeOf = (element: RouteObject['element']): unknown =>
   isValidElement(element) ? element.type : undefined;
@@ -132,6 +133,8 @@ describe('the routes that exist', () => {
     ['/apply', Apply],
     // COGNITO'S REDIRECT LANDS HERE (`CallbackURLs`), signed out, so outside the portfolio shell.
     ['/auth/callback', GoogleCallback],
+    // A page with no portfolio behind it, for every reader, signed in or not (*Legal documents*).
+    ['/privacy', Privacy],
   ] as [string, ComponentType][])('%s still renders outside the shell', (path, Screen) => {
     const walked = chain(path);
     expect(walked).toHaveLength(2);

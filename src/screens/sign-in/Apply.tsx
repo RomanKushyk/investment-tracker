@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import { apply } from '../../auth/app';
 import { type ApplyRefusal, addressRefusal } from '../../auth/apply';
 import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
+import { rich } from '../../i18n/rich';
 import { useT } from '../../i18n/useT';
 import { BotCheck } from './BotCheck';
 import { EmailInput, Field, FocusedTitle, Foot, StepAlert, Title } from './parts';
@@ -119,6 +120,22 @@ export function Apply() {
               {busy ? t.auth.apply.busy : t.auth.apply.submit}
             </Button>
             {stepError && <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>}
+            {/* The notice's first layer, at collection (WP260 ¶36), asking for no agreement. Its
+                link opens a new tab, as the widget's own do, so what was typed here stays. */}
+            <p className="mt-3 text-[12px] leading-[18px] text-muted">
+              {rich(t.privacy.firstLayer, (label, href, key) => (
+                <Link
+                  key={key}
+                  to={href}
+                  target="_blank"
+                  rel="noopener"
+                  className="text-accent underline underline-offset-2"
+                >
+                  {label}
+                  <span className="sr-only"> {t.privacy.newTab}</span>
+                </Link>
+              ))}
+            </p>
           </form>
           <Foot prompt={t.auth.apply.signInPrompt} to="/sign-in">
             {t.auth.apply.signInLink}
