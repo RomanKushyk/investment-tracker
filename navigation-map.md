@@ -391,7 +391,7 @@ Not a route. When a request every signed-in user may make answers `403` with `pe
 At 1280 and 360, in either theme:
 - A 24px glyph in `muted` — clock, ban, file-question-mark, lock — 16 above the title, which takes focus. No colour tells them apart; none is `neg`.
 - **pending:** "Your application is being reviewed" / "Access opens once it's approved. There's nothing else to do."
-- **rejected:** "Your application wasn't approved" / "This address won't get access to Quirenote."
+- **rejected:** "Your account is disabled" / "Access to it is closed. To ask why, write to support@quirenote.com."
 - **no application:** "No application for this account", on two lines / "Sign out, then apply with the address you'll use."
 - **forbidden:** "No access" / "This account has no access to Quirenote." — and no address.
 - Under the lead of the first three, "Signed in as <address>" (13px `muted`); then an outline "Sign out", full width. No application stacks a primary "Sign out and apply" above it, 10 apart, at both widths. None offers "Sign in".

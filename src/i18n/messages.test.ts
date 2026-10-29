@@ -290,6 +290,32 @@ describe('the account slot signed out', () => {
   });
 });
 
+// A declined application is deleted with its identity, so `rejected` reaches only an active account
+// a super-admin disabled (*Auth model*): Google's words for that (support.google.com/accounts/answer/40695),
+// and the privacy notice's address.
+describe('the rejected answer', () => {
+  it('says the account is disabled and where to ask why, in both languages', () => {
+    expect(en.auth.rejected).toEqual({
+      title: 'Your account is disabled',
+      lead: 'Access to it is closed. To ask why, write to support@quirenote.com.',
+    });
+    expect(uk.auth.rejected).toEqual({
+      title: 'Обліковий запис вимкнено',
+      lead: 'Доступ до нього закрито. Щоб дізнатися причину, напишіть на support@quirenote.com.',
+    });
+  });
+
+  it('names no declined application and no closure for good', () => {
+    const copy = [en, uk].flatMap(({ auth: { rejected } }) => [rejected.title, rejected.lead]);
+    expect(
+      copy.filter((line) =>
+        /application|заявк|won’t get access|не отримає|never|назавжди/iu.test(line),
+      ),
+    ).toEqual([]);
+    for (const { auth } of [en, uk]) expect(auth.rejected.lead).toContain('support@quirenote.com');
+  });
+});
+
 describe('the not-found and failure states', () => {
   const BOUNDARY = [...EN, ...UK].filter(([key]) => key.startsWith('boundary.'));
 

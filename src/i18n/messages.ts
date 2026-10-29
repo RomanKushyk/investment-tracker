@@ -1123,8 +1123,8 @@ export const en = {
       lead: 'Access opens once it’s approved. There’s nothing else to do.',
     },
     rejected: {
-      title: 'Your application wasn’t approved',
-      lead: 'This address won’t get access to Quirenote.',
+      title: 'Your account is disabled',
+      lead: 'Access to it is closed. To ask why, write to support@quirenote.com.',
     },
     noApplication: {
       title: 'No application for this account',
@@ -2374,8 +2374,8 @@ export const uk: Dict = {
       lead: 'Доступ відкриється, щойно її схвалять. Більше нічого робити не потрібно.',
     },
     rejected: {
-      title: 'Заявку не схвалено',
-      lead: 'Ця адреса не отримає доступу до Quirenote.',
+      title: 'Обліковий запис вимкнено',
+      lead: 'Доступ до нього закрито. Щоб дізнатися причину, напишіть на support@quirenote.com.',
     },
     noApplication: {
       title: 'Для цього облікового запису немає заявки',
