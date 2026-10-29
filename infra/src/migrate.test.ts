@@ -54,12 +54,13 @@ const MUTATION_KEY = '014_mutation_key.sql';
 const IMPORT_STAGING = '015_import_staging.sql';
 const APP_USER_SETTINGS = '016_app_user_settings.sql';
 const ARCHIVE_OPERATION = '017_archive_operation.sql';
+const APP_USER_TERMS = '018_app_user_terms.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset, its backfill, its keys, its catch-up, the mutation keys, the import’s staging, the account’s settings column and the archive’s operations, in that order, and nothing else', () => {
+  it('names the user schema, the demo row, the case rule, the dropped column, the demo account, the official rate, the dataset, its backfill, its keys, its catch-up, the mutation keys, the import’s staging, the account’s settings column, the archive’s operations and the terms an account accepted, in that order, and nothing else', () => {
     expect(MIGRATIONS).toEqual([
       USER_SCHEMA,
       DEMO_ROW,
@@ -75,6 +76,7 @@ describe('the file list', () => {
       IMPORT_STAGING,
       APP_USER_SETTINGS,
       ARCHIVE_OPERATION,
+      APP_USER_TERMS,
     ]);
   });
 });
@@ -132,6 +134,10 @@ describe('statementsOf', () => {
 
   it('splits the archive’s operations into their one table', () => {
     expect(statementsOf(read(ARCHIVE_OPERATION))).toHaveLength(1);
+  });
+
+  it('splits the accepted terms into their two columns and the rule that pairs them', () => {
+    expect(statementsOf(read(APP_USER_TERMS))).toHaveLength(3);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -497,6 +503,26 @@ describe('applyFile', () => {
     });
   });
 
+  // The same for `018`'s columns, and its CHECK re-sent meets `42710`, which the runner absorbs.
+  it('re-runs the open terms columns and their rule of `018` without raising', async () => {
+    await applyFile(db, USER_SCHEMA, stmts);
+    const terms = statementsOf(read(APP_USER_TERMS));
+    await applyFile(db, APP_USER_TERMS, terms);
+    await db.query(`UPDATE schema_migration SET applied_at = NULL WHERE file = $1`, [
+      APP_USER_TERMS,
+    ]);
+    expect(await applyFile(db, APP_USER_TERMS, terms)).toEqual({
+      file: APP_USER_TERMS,
+      applied: 3,
+      skipped: 0,
+      pending: 0,
+    });
+    const { rows } = await db.query<{ conname: string }>(
+      `SELECT conname FROM pg_constraint WHERE conname = 'app_user_terms_ck'`,
+    );
+    expect(rows).toEqual([{ conname: 'app_user_terms_ck' }]);
+  });
+
   it('applies the demo row against the schema it depends on', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
@@ -677,6 +703,7 @@ describe('migrate', () => {
         { file: IMPORT_STAGING, applied: 0, skipped: 0, pending: 2, ms: expect.any(Number) },
         { file: APP_USER_SETTINGS, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
         { file: ARCHIVE_OPERATION, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: APP_USER_TERMS, applied: 0, skipped: 0, pending: 3, ms: expect.any(Number) },
       ],
     });
   });
@@ -698,6 +725,7 @@ describe('migrate', () => {
     await applyFile(db, IMPORT_STAGING, statementsOf(read(IMPORT_STAGING)));
     await applyFile(db, APP_USER_SETTINGS, statementsOf(read(APP_USER_SETTINGS)));
     await applyFile(db, ARCHIVE_OPERATION, statementsOf(read(ARCHIVE_OPERATION)));
+    await applyFile(db, APP_USER_TERMS, statementsOf(read(APP_USER_TERMS)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -717,6 +745,7 @@ describe('migrate', () => {
         { file: IMPORT_STAGING, applied: 0, skipped: 2, pending: 0, ms: expect.any(Number) },
         { file: APP_USER_SETTINGS, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
         { file: ARCHIVE_OPERATION, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: APP_USER_TERMS, applied: 0, skipped: 3, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -804,6 +833,7 @@ describe('migrate', () => {
         { file: IMPORT_STAGING, applied: 2, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: APP_USER_SETTINGS, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
         { file: ARCHIVE_OPERATION, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: APP_USER_TERMS, applied: 3, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -899,7 +929,9 @@ describe('the invocation budget', () => {
       undefined,
       left(TEARDOWN_RESERVE_MS + 1),
     );
-    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([
+      12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1, 1, 3,
+    ]);
 
     // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
     const below = await freshDb();
@@ -915,8 +947,12 @@ describe('the invocation budget', () => {
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
-    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1, 1]);
-    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(report.files.map((f) => f.skipped)).toEqual([
+      12, 1, 1, 1, 1, 1, 5, 2, 9, 2, 1, 2, 1, 1, 3,
+    ]);
+    expect(report.files.map((f) => f.applied)).toEqual([
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
   });
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.

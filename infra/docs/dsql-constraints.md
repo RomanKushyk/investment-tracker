@@ -88,7 +88,8 @@ Postgres it is re-checked, whichever column is written, which would make such a 
 rather than tolerated — measured on PGlite, never sent to a cluster.
 `migrations/006_email_lower.sql` records the same gap and is written so the answer cannot change it:
 the only row it meets is `005`'s, already lower-cased — which is reasoning from what writes this
-table, not a cluster reading.
+table, not a cluster reading. `018`'s `app_user_terms_ck` rests on the same reasoning: every row
+already there is NULL in both columns, which the rule allows.
 
 A late foreign key still carries its referential action — one added `ON DELETE CASCADE … NOT VALID`
 deletes its children when the parent goes. `ALTER COLUMN … SET DEFAULT` behaves the same way without

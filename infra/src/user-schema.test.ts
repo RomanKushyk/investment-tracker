@@ -937,6 +937,73 @@ describe('app_user.settings', () => {
   });
 });
 
+// The terms an account accepted: the version, a date, and when it was accepted. Types are
+// pinned for the reason `settings` is, and the two are written together or not at all.
+describe('app_user terms', () => {
+  const termsOf = async (id: string) => {
+    const { rows } = await db.query<{ version: string | null; accepted: string | null }>(
+      `SELECT terms_version::text AS version,
+              (terms_accepted_at AT TIME ZONE 'UTC')::text AS accepted
+         FROM app_user WHERE user_id = ${id}`,
+    );
+    return rows[0];
+  };
+
+  it('are a nullable date and a nullable timestamptz, with no default', async () => {
+    const { rows } = await db.query<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'app_user'
+          AND column_name IN ('terms_version', 'terms_accepted_at')
+        ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      {
+        column_name: 'terms_accepted_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+        column_default: null,
+      },
+      { column_name: 'terms_version', data_type: 'date', is_nullable: 'YES', column_default: null },
+    ]);
+  });
+
+  it('read NULL on a row that never named them', async () => {
+    expect(await termsOf(USER)).toEqual({ version: null, accepted: null });
+  });
+
+  it('hold the date and the time they are given, and refuse a version that is no date', async () => {
+    const id = nextId();
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                         terms_version, terms_accepted_at)
+                     VALUES (${id}, 'terms@x.com', 'pending', 'user', now(),
+                             '2026-10-29', '2026-10-29 10:11:12.123456+00');`);
+    expect(await termsOf(id)).toEqual({
+      version: '2026-10-29',
+      accepted: '2026-10-29 10:11:12.123456',
+    });
+    await refuses(`UPDATE app_user SET terms_version = 'v1' WHERE user_id = ${id};`);
+  });
+
+  it('refuse a version with no time, and a time with no version', async () => {
+    const id = nextId();
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at)
+                     VALUES (${id}, 'terms-half@x.com', 'pending', 'user', now());`);
+    await refuses(`UPDATE app_user SET terms_version = '2026-10-29' WHERE user_id = ${id};`);
+    await refuses(`UPDATE app_user SET terms_accepted_at = now() WHERE user_id = ${id};`);
+    await accepts(`UPDATE app_user SET terms_version = '2026-10-29', terms_accepted_at = now()
+                     WHERE user_id = ${id};`);
+    await refuses(`UPDATE app_user SET terms_accepted_at = NULL WHERE user_id = ${id};`);
+    await refuses(`INSERT INTO app_user (user_id, email, status, role, applied_at, terms_version)
+                     VALUES (${nextId()}, 'terms-insert@x.com', 'pending', 'user', now(),
+                             '2026-10-29');`);
+  });
+});
+
 describe('archive_operation', () => {
   const FINISHED = `now() + interval '5 seconds'`;
   /** A run still going; `over` replaces a column's SQL value. */

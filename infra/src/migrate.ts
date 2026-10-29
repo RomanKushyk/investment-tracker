@@ -46,6 +46,7 @@ export const MIGRATIONS = [
   '015_import_staging.sql',
   '016_app_user_settings.sql',
   '017_archive_operation.sql',
+  '018_app_user_terms.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */
