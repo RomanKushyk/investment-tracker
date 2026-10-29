@@ -269,8 +269,8 @@ describe('the head carries the capital as a strip, and the blob is gone', () => 
 });
 
 // THE ACCOUNT IS THE BAND'S LAST ROW (`design/extensions/sign-out.dc.html`, T1): the owner ruled
-// the sign-out last, a pill in Settings' own recipe, with the address above it. The version's line
-// under it carries the privacy link (`privacy-notice.dc.html`).
+// the sign-out last, a pill in Settings' own recipe, with the address above it. The links line
+// under it carries the privacy and terms links over the version (`terms-of-use.dc.html`).
 describe("the account is the footer band's last row", () => {
   it('draws the account rows after Settings and before the version', () => {
     const settings = SIDEBAR.indexOf('to="/settings"');

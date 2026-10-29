@@ -106,9 +106,11 @@ export const RESPONSES: Record<string, readonly ApiResult[]> = {
   [REJECT_ROUTE]: [REJECTED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, ALREADY_DECIDED, INTERNAL],
 };
 
-/** `applied_at` AS TEXT, because pg's Date keeps milliseconds and the stamp holds microseconds. */
-const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied_at FROM app_user
-                WHERE user_id = $1`;
+/** The stamps AS TEXT, because pg's Date keeps milliseconds and they hold microseconds. */
+const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied_at,
+                       terms_version::text AS terms_version,
+                       terms_accepted_at::text AS terms_accepted_at
+                  FROM app_user WHERE user_id = $1`;
 
 /** `AND status = 'pending'` is not decoration: two approvals racing resolve to the SAME `sub`, so
  *  the loser's insert collides or aborts at `COMMIT`, the transaction rolls back and the winner's
@@ -116,12 +118,13 @@ const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied
  *  decline is this delete too, and one that won leaves `REPLACE` a free address. */
 const REMOVE = `DELETE FROM app_user WHERE user_id = $1 AND status = 'pending' RETURNING user_id`;
 
-/** `applied_at` IS CARRIED OVER rather than restamped: a delete-and-insert is where the one thing
- *  the pending row held that cannot be reconstructed goes missing. ONE STATEMENT WRITES BOTH
- *  HALVES OF THE DECISION PAIR, because `app_user_decided_ck` reads "not both null". */
+/** `applied_at` AND THE ACCEPTED TERMS ARE CARRIED OVER rather than restamped: a delete-and-insert
+ *  is where what the pending row held that cannot be reconstructed goes missing. ONE STATEMENT
+ *  WRITES BOTH HALVES OF THE DECISION PAIR, because `app_user_decided_ck` reads "not both null". */
 const REPLACE = `INSERT INTO app_user (user_id, email, status, role, applied_at,
-                                       decided_at, decided_by)
-                 VALUES ($1, $2, 'active', $3, $4::timestamptz, now(), $5)`;
+                                       decided_at, decided_by, terms_version, terms_accepted_at)
+                 VALUES ($1, $2, 'active', $3, $4::timestamptz, now(), $5, $6::date,
+                         $7::timestamptz)`;
 
 /** GUARDED ON THE STATUS THAT WAS READ, for the reason `REMOVE` is: a reject racing an approve
  *  must not write over the row the approval just made. NO ROWS MEANS THE STATUS MOVED UNDER US, so
@@ -137,7 +140,15 @@ const ROW_NOW = `SELECT status FROM app_user WHERE email = $1`;
 const subOf = (attributes: UserAttribute[] | undefined): string | undefined =>
   attributes?.find((a) => a.Name === 'sub')?.Value;
 
-type Target = { user_id: string; email: string; status: string; role: string; applied_at: string };
+type Target = {
+  user_id: string;
+  email: string;
+  status: string;
+  role: string;
+  applied_at: string;
+  terms_version: string | null;
+  terms_accepted_at: string | null;
+};
 
 /** `minted` IS WHAT THIS CALL MAY UNDO: an identity created here belongs to this approval and
  *  nothing refers to it yet, where an ADOPTED one is somebody else's and turning it off would
@@ -275,7 +286,15 @@ async function approveRow(
       if (minted) await withdraw(client, idp, UserPoolId, row);
       return ALREADY_DECIDED;
     }
-    await client.query(REPLACE, [sub, row.email, row.role, row.applied_at, decidedBy]);
+    await client.query(REPLACE, [
+      sub,
+      row.email,
+      row.role,
+      row.applied_at,
+      decidedBy,
+      row.terms_version,
+      row.terms_accepted_at,
+    ]);
     await client.query(ACCOUNT, [sub]);
     await giveDataset(client, sub);
     await client.query('COMMIT');

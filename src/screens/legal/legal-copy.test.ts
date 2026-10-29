@@ -27,6 +27,33 @@ const ANSWERS: [item: string, key: string][] = [
   ['2297-VI 8(2)(1) the data’s location', 'privacy.sections.recipients.body.0.0'],
 ];
 
+// The terms' brief (#514): the intro and each of the twelve sections it maps, the line on `/apply`
+// and the row on `/profile`, by the key that carries it.
+const TERMS = [
+  'operator',
+  'service',
+  'advice',
+  'sources',
+  'account',
+  'data',
+  'use',
+  'availability',
+  'liability',
+  'termination',
+  'changes',
+  'law',
+];
+const TERMS_KEYS = [
+  'terms.link',
+  'terms.title',
+  'terms.intro',
+  'terms.accept',
+  'profile.terms.title',
+  'profile.terms.helper',
+  'profile.terms.open',
+  ...TERMS.flatMap((id) => [`terms.sections.${id}.title`, `terms.sections.${id}.body`]),
+];
+
 const SECTIONS = [
   'controller',
   'data',
@@ -66,6 +93,61 @@ describe('the privacy notice answers every item asked at collection', () => {
       expect(said(at(dict, key)), `${language} ${key} is missing or empty`).toBe(true);
     });
   }
+});
+
+describe('the terms say every section the brief maps', () => {
+  for (const [language, dict] of [
+    ['en', en],
+    ['uk', uk],
+  ] as const) {
+    it.each(TERMS_KEYS)(`${language}: %s`, (key) => {
+      expect(said(at(dict, key)), `${language} ${key} is missing or empty`).toBe(true);
+    });
+  }
+});
+
+describe('the English terms say no more than the Ukrainian', () => {
+  const sections = (dict: unknown) => Object.keys((at(dict, 'terms.sections') ?? {}) as object);
+
+  it('have the twelve sections, in both languages', () => {
+    expect(sections(uk)).toEqual(TERMS);
+    expect(sections(en)).toEqual(TERMS);
+  });
+
+  it.each(TERMS)('hold as many blocks and list items in %s', (id) => {
+    const shape = (dict: unknown) =>
+      ((at(dict, `terms.sections.${id}.body`) ?? []) as unknown[]).map((block) =>
+        Array.isArray(block) ? block.length : 'paragraph',
+      );
+    expect(shape(en)).toEqual(shape(uk));
+    expect(shape(uk).length, `${id} has no body`).toBeGreaterThan(0);
+  });
+});
+
+// The acceptance names the button by its label, in both languages, or it names nothing pressable
+// (*Chabolla v. ClassPass*); the intro says the same.
+describe('the terms name the button that accepts them', () => {
+  it.each([
+    ['en', en, (label: string) => `“${label}”`],
+    ['uk', uk, (label: string) => `«${label}»`],
+  ] as const)('%s', (_language, dict, quoted) => {
+    const button = quoted(dict.auth.apply.submit);
+    expect(dict.terms.accept).toContain(button);
+    expect(dict.terms.intro[0]).toContain(button);
+  });
+});
+
+// What an application now holds (GDPR Art. 13(1)(c); 2297-VI Art. 12(2)): the notice names the
+// terms version accepted and its time, in the application's line and the account's.
+describe('the privacy notice names the terms record', () => {
+  it.each([
+    ['en', en, /terms of use you accepted and when/i],
+    ['uk', uk, /умов користування, яку ви прийняли, і час її прийняття/i],
+  ] as const)('%s', (_language, dict, record) => {
+    const [application, account] = at(dict, 'privacy.sections.data.body.0') as string[];
+    expect(application).toMatch(record);
+    expect(account).toMatch(record);
+  });
 });
 
 describe('the English notice says no more than the Ukrainian', () => {

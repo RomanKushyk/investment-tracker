@@ -14,6 +14,7 @@ import { Transactions } from './screens/Transactions';
 import { Overview } from './screens/Overview';
 import { Payouts } from './screens/Payouts';
 import { Portfolio } from './screens/Portfolio';
+import { Terms } from './screens/legal/Terms';
 import { Privacy } from './screens/privacy/Privacy';
 import { Profile } from './screens/Profile';
 import { Seasonality } from './screens/Seasonality';
@@ -53,6 +54,8 @@ export const routes: RouteObject[] = [
       { path: 'auth/callback', element: <GoogleCallback /> },
       // The privacy notice, the same page for every reader, signed in or not (*Legal documents*).
       { path: 'privacy', element: <Privacy /> },
+      // The terms of use, in the same frame for the same reason.
+      { path: 'terms', element: <Terms /> },
       {
         element: <Layout />,
         children: [

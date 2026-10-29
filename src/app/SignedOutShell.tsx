@@ -1,16 +1,17 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 
 import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
 import { TAP_44 } from '../components/ui/tap-target';
 import { useT } from '../i18n/useT';
+import { LEGAL_LINKS } from './legal-links';
 import { Mark } from './Sidebar';
 
 /** A page with no portfolio behind it (*Two shells, one breakpoint*): the mark and the language
  *  control over one card, top-anchored so a change in its height moves no button, and the privacy
- *  notice's link under it (*Legal documents*). `wide` is the notice's own measure; `notice="tab"`
- *  opens the link beside a page that must stay. */
+ *  notice's and the terms' links under it (*Legal documents*). `wide` is the documents' own
+ *  measure; `notice="tab"` opens the links beside a page that must stay. */
 export function SignedOutShell({
   wide = false,
   notice = 'here',
@@ -40,14 +41,23 @@ export function SignedOutShell({
           {children}
         </Card>
         <div className="mt-4 text-center">
-          <NavLink
-            to="/privacy"
-            {...(notice === 'tab' && { target: '_blank', rel: 'noopener' })}
-            className={`text-[12px] leading-[18px] text-muted underline underline-offset-2 transition-colors hover:text-ink ${TAP_44}`}
-          >
-            {t.privacy.link}
-            {notice === 'tab' && <span className="sr-only"> {t.privacy.newTab}</span>}
-          </NavLink>
+          {LEGAL_LINKS.map(([to, document], i) => (
+            <Fragment key={to}>
+              {i > 0 && (
+                <span aria-hidden className="mx-2 text-[12px] leading-[18px] text-muted">
+                  ·
+                </span>
+              )}
+              <NavLink
+                to={to}
+                {...(notice === 'tab' && { target: '_blank', rel: 'noopener' })}
+                className={`text-[12px] leading-[18px] text-muted underline underline-offset-2 transition-colors hover:text-ink ${TAP_44}`}
+              >
+                {t[document].link}
+                {notice === 'tab' && <span className="sr-only"> {t.privacy.newTab}</span>}
+              </NavLink>
+            </Fragment>
+          ))}
         </div>
       </main>
     </div>

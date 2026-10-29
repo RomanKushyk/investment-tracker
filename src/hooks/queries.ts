@@ -375,7 +375,8 @@ export function useDayQuotes(date: string, today: DayQuotes): { day: DayQuotes; 
 }
 
 /** The device's copy of the account's settings sends its changes while the portfolio shell is
- *  mounted, or `/privacy` while signed in: the other pages have no account to send to. */
+ *  mounted, or a legal document (`/privacy`, `/terms`) while signed in: the other pages have no
+ *  account to send to. */
 export function useSettingsCopy(sending = true): void {
   useEffect(() => (sending ? settingsCopy.start() : undefined), [sending]);
 }

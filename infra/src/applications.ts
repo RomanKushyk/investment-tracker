@@ -5,6 +5,7 @@
 // would already have cost a monthly active user, approved or not. Minting the identity belongs to
 // APPROVAL, which is also what makes approval the verification step (*Auth model*).
 import { ADDRESS, MAX_ADDRESS, canonicalAddress } from '@quirenote/core/address';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import {
   BOT_CHECK_FAILED,
   TOKEN,
@@ -22,6 +23,9 @@ import type { SqlClient } from './migrate';
 // EVERY ANSWER IS FIXED TEXT: a body carrying the cluster's message would repeat a
 // constraint name to a stranger, and one varying with the row would be a directory of applicants.
 const RECEIVED = json(202, '{"status":"received"}');
+/** Terms other than the route's: their own code, so a form that knows it asks for a reload, not an
+ *  address. */
+const TERMS_OUTDATED = json(400, '{"error":"terms_outdated"}');
 
 /** What this route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `openapi.test.ts` catches a constant added above and not added to it. */
@@ -32,7 +36,7 @@ export const REQUEST_BODY = {
     'application/json': {
       schema: {
         type: 'object',
-        required: ['email', 'botCheck'],
+        required: ['email', 'botCheck', 'termsVersion'],
         additionalProperties: false,
         // THE RULE ITSELF, not a description of it: `format` is annotation-only, so a client
         // generated from one sends `user@localhost` and is refused. Both bounds are `address.ts`'s.
@@ -45,6 +49,8 @@ export const REQUEST_BODY = {
           },
           /** The Turnstile widget's token, verified with siteverify before the cluster is asked. */
           botCheck: TOKEN,
+          /** The terms the form showed, accepted by pressing its button; only the current ones. */
+          termsVersion: { type: 'string', enum: [TERMS_VERSION] },
         },
       },
     },
@@ -52,17 +58,18 @@ export const REQUEST_BODY = {
 } as const;
 
 export const RESPONSES: Record<string, readonly ApiResult[]> = {
-  [ROUTE]: [RECEIVED, INVALID, BOT_CHECK_FAILED, INTERNAL],
+  [ROUTE]: [RECEIVED, INVALID, TERMS_OUTDATED, BOT_CHECK_FAILED, INTERNAL],
 };
 
-const KEYS = new Set(['email', 'botCheck']);
+const KEYS = new Set(['email', 'botCheck', 'termsVersion']);
 
 type Application = { email: string; botCheck: string };
 
-/** The address a request carries, already folded, and its token — or nothing, which is the 400.
- *  A token that is absent or not text reads as empty, which the bot check refuses as a 403. */
-function applicationOf(event: ApiEvent): Application | undefined {
-  if (typeof event.body !== 'string') return undefined;
+/** The address a request carries, already folded, and its token, under the current terms — or the
+ *  400 that refuses it. A token that is absent or not text reads as empty, which the bot check
+ *  refuses as a 403. */
+function applicationOf(event: ApiEvent): Application | ApiResult {
+  if (typeof event.body !== 'string') return INVALID;
   const text = event.isBase64Encoded
     ? Buffer.from(event.body, 'base64').toString('utf8')
     : event.body;
@@ -71,18 +78,24 @@ function applicationOf(event: ApiEvent): Application | undefined {
   try {
     parsed = JSON.parse(text);
   } catch {
-    return undefined;
+    return INVALID;
   }
   // An array is an object to `typeof`, and `[].email` is `undefined` rather than an error, so both
   // have to be turned away by name.
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return INVALID;
   // EXACT-KEY, as the published schema says: a key nothing reads is a client misreading the route.
-  if (Object.keys(parsed).some((key) => !KEYS.has(key))) return undefined;
+  if (Object.keys(parsed).some((key) => !KEYS.has(key))) return INVALID;
 
-  const { email: supplied, botCheck } = parsed as { email?: unknown; botCheck?: unknown };
-  if (typeof supplied !== 'string') return undefined;
+  const {
+    email: supplied,
+    botCheck,
+    termsVersion,
+  } = parsed as { email?: unknown; botCheck?: unknown; termsVersion?: unknown };
+  if (typeof supplied !== 'string') return INVALID;
   const email = canonicalAddress(supplied);
-  if (email === undefined) return undefined;
+  if (email === undefined) return INVALID;
+  // A stale form showed other terms; what it accepted is not what this route would record.
+  if (termsVersion !== TERMS_VERSION) return TERMS_OUTDATED;
 
   return { email, botCheck: tokenOf(botCheck) };
 }
@@ -93,10 +106,13 @@ function applicationOf(event: ApiEvent): Application | undefined {
  * yet, and approval replaces the row. `decided_at` and `decided_by` are unset because
  * `app_user_decided_ck` requires both NULL for a pending row. A declined application leaves no
  * row, so its address applying again lands a fresh `pending` one; the address of an account, a
- * suspended one included, lands in this no-op.
+ * suspended one included, lands in this no-op. The terms are accepted as the application is
+ * made, so one `now()` stamps both. Applying again writes nothing, the first acceptance standing,
+ * so this route never writes a row approval has read.
  */
-const INSERT = `INSERT INTO app_user (user_id, email, status, role, applied_at)
-                VALUES (gen_random_uuid(), $1, 'pending', 'user', now())
+const INSERT = `INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                      terms_version, terms_accepted_at)
+                VALUES (gen_random_uuid(), $1, 'pending', 'user', now(), $2::date, now())
                 ON CONFLICT (email) DO NOTHING`;
 
 /** A SQLSTATE, or nothing — the shape `migrate.ts` reads one in, and for its reasons. */
@@ -120,7 +136,7 @@ const isDuplicateAddress = (err: unknown): boolean =>
 
 async function apply(client: SqlClient, email: string): Promise<ApiResult> {
   try {
-    await client.query(INSERT, [email]);
+    await client.query(INSERT, [email, TERMS_VERSION]);
   } catch (err) {
     if (isDuplicateAddress(err)) return RECEIVED;
     // LOGGED, NOT RETURNED: whatever the cluster said belongs in CloudWatch.
@@ -133,7 +149,7 @@ async function apply(client: SqlClient, email: string): Promise<ApiResult> {
 /** The cluster's half alone, which the bundle's smoke test drives; the token is the handler's. */
 export async function applications(client: SqlClient, event: ApiEvent): Promise<ApiResult> {
   const application = applicationOf(event);
-  return application === undefined ? INVALID : apply(client, application.email);
+  return 'statusCode' in application ? application : apply(client, application.email);
 }
 
 type Connection = SqlClient & { end: () => Promise<void> };
@@ -144,7 +160,7 @@ export const createHandler =
     // THE GATES ARE BEFORE THE CONNECTION, which costs a handshake and a concurrency slot: the
     // address first, spending no token, then the token, so a flood costs one siteverify call.
     const application = applicationOf(event);
-    if (application === undefined) return INVALID;
+    if ('statusCode' in application) return application;
 
     const refused = refusalOf(
       await verify(application.botCheck, event.requestContext?.http?.sourceIp),

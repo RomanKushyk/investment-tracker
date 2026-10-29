@@ -1,3 +1,4 @@
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import { describe, expect, it, vi } from 'vitest';
 
 import { addressRefusal, createApply } from './apply';
@@ -8,14 +9,14 @@ const answer = (status: number, body: unknown) =>
   vi.fn(async () => new Response(JSON.stringify(body), { status }));
 
 describe('an application', () => {
-  it('posts the canonical address as JSON, and no cookie', async () => {
+  it('posts the canonical address and the terms version as JSON, and no cookie', async () => {
     const fetch = answer(202, { status: 'received' });
     await createApply({ base: 'https://api.test', fetch })('  Oksana.Melnyk@Example.com ', TOKEN);
     expect(fetch).toHaveBeenCalledWith('https://api.test/applications', {
       method: 'POST',
       credentials: 'omit',
       headers: { 'content-type': 'application/json' },
-      body: `{"email":"oksana.melnyk@example.com","botCheck":"${TOKEN}"}`,
+      body: `{"email":"oksana.melnyk@example.com","botCheck":"${TOKEN}","termsVersion":"${TERMS_VERSION}"}`,
       signal: expect.any(AbortSignal),
     });
   });
@@ -30,6 +31,8 @@ describe('an application', () => {
 
   it.each([
     [400, { error: 'invalid_request' }, 'emailInvalid'],
+    // A form built since the terms, holding older ones: a reload shows the current ones.
+    [400, { error: 'terms_outdated' }, 'termsOutdated'],
     [429, { message: 'Too Many Requests' }, 'throttled'],
     [500, { error: 'internal' }, 'failed'],
     [503, { message: 'Service Unavailable' }, 'failed'],

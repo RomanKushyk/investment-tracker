@@ -979,6 +979,12 @@ export const en = {
       helper: 'Who holds it, why, for how long, and your rights.',
       open: 'Privacy',
     },
+    // `terms-of-use.dc.html` T4: the row after the notice's, to the terms.
+    terms: {
+      title: 'Terms of use',
+      helper: 'The terms the service runs on, and what it does not do.',
+      open: 'Terms',
+    },
     // `own-account.dc.html` T4 and `re-authentication.dc.html` T9: the action's own lines.
     signOutEverywhere: {
       title: 'Sign out everywhere',
@@ -1099,6 +1105,8 @@ export const en = {
       signInLink: 'Sign in',
       busyServer: 'Too many requests right now. Try again in a moment.',
       failed: 'The application couldn’t be sent. Try again.',
+      termsOutdated:
+        'The terms of use have changed. Reload the page to read them, then apply again.',
       recordedTitle: 'Application recorded',
       recordedLead: (email: string) =>
         `If it’s approved, the invitation will go to ${email}. No other email is sent.`,
@@ -1173,8 +1181,8 @@ export const en = {
       data: section(
         'What data we handle',
         [
-          'Application: your email address and when you applied.',
-          'Account: your address, role, and the dates you applied and were approved. Amazon Cognito keeps your password; Quirenote does not keep it. Passkeys: Amazon Cognito keeps their ID, name, device type and creation date; the private key stays on your device.',
+          'Application: your email address, when you applied, and which version of the terms of use you accepted and when.',
+          'Account: your address, role, the dates you applied and were approved, and which version of the terms of use you accepted and when. Amazon Cognito keeps your password; Quirenote does not keep it. Passkeys: Amazon Cognito keeps their ID, name, device type and creation date; the private key stays on your device.',
           'Google sign-in: Google gives Amazon Cognito your name, address and profile photo. Only the address, the mark that Google verified it, and your Google account ID are kept.',
           'Portfolio: the accounts, assets, transactions with their notes, prices and settings you enter.',
           'Technical data: the IP address and browser details received by Cloudflare, whose network the site opens through, and by Amazon Web Services, whose servers run the app and the sign-in. To check a form, the server passes your IP address to Cloudflare. The service’s logs name an account by its ID, not its address.',
@@ -1260,6 +1268,85 @@ export const en = {
     },
     firstLayer:
       'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. Who handles your address, where it is kept and your rights: the [Privacy policy](/privacy).',
+  },
+  // `terms-of-use.dc.html` T1 and T7 (brief #514): the Ukrainian prevails and the English says no
+  // more. A section's title is bare, and the page numbers it.
+  terms: {
+    link: 'Terms',
+    title: 'Terms of use',
+    updated: (date: string) => `Last updated: ${date}`,
+    intro: [
+      'These terms are an agreement between you and the owner of Quirenote about using the service. You accept them whole when you press “Apply”, as a contract of adhesion (Civil Code of Ukraine, Article 634), and they start to apply to you when the application is approved.',
+      'The page is in Ukrainian and English. Where the two differ, the Ukrainian version applies.',
+    ],
+    sections: {
+      operator: section(
+        'Who provides the service',
+        'Quirenote is provided by Roman Kushyk, a private individual in Ukraine (“we”). Write to support@quirenote.com.',
+        'The service is free, and we do not provide it as a business. So these terms are not a public contract and not a public offer (Civil Code, Articles 633 and 641): we review every application and may decline it.',
+      ),
+      service: section(
+        'What Quirenote is',
+        'Quirenote is an information tool for keeping track of your own portfolio: domestic government bonds, Inzhur funds and cash in accounts. Every figure is computed from what you enter and from the data named in section 4.',
+      ),
+      advice: section(
+        'This is not advice',
+        'Quirenote gives no individual investment, tax or legal advice and forecasts no prices. Investment advice is an activity of investment firms (Law of Ukraine on Capital Markets and Organised Commodity Markets, Article 44(10)), and we do not carry it out. The hints the service shows are computed from your data and the target shares you set yourself. You make your own decisions about your investments and taxes.',
+      ),
+      sources: section(
+        'Where the data comes from',
+        [
+          'The hryvnia’s rate to the dollar is the National Bank of Ukraine’s official rate, from its open data, with a link to the source.',
+          'For assets linked to Inzhur, the service also uses prices and payment schedules from the archive it keeps.',
+          'Your browser requests Inzhur’s price list itself, when you press “Fetch quotes” or open the choice of an Inzhur asset in the form.',
+          'A price you entered yourself for a day takes precedence.',
+        ],
+        'We show this data as we received or computed it: it may be late, incomplete or inaccurate. We do not check what you enter yourself.',
+      ),
+      account: section('Your account', [
+        'Accounts are given by application. A declined application is deleted, and we do not give a reason.',
+        'A password cannot be reset in the app. Keep your device, passkeys and password safe: whoever holds them signs in to your account.',
+        'If you lose access or see a sign-in that is not yours, write to support@quirenote.com.',
+      ]),
+      data: section(
+        'Your data',
+        [
+          'The data you enter is yours. We use it only to provide the service to you.',
+          'A JSON copy of your portfolio and CSV tables are in Settings, under Data; the “Erase data” button there erases the portfolio.',
+          'To delete your account, write to support@quirenote.com.',
+          'We back up the database, but we advise you to keep a copy of your own too.',
+        ],
+        'How we handle personal data is set out in the [Privacy policy](/privacy).',
+      ),
+      use: section('What you may not do', [
+        'access the service with bots or scripts, or overload it;',
+        'get around Cloudflare’s check or the service’s other limits;',
+        'try to reach another person’s account or data;',
+        'use the service against the law.',
+      ]),
+      availability: section(
+        'Availability and changes to the service',
+        'The service is provided “as is”. We do not promise that it will run without interruptions or errors: failures and maintenance can stop it. We may change, add and remove features. If we close the service, we will announce it in the app in advance, so that you have time to save a copy of your data.',
+      ),
+      liability: section(
+        'Liability',
+        'The service is free, so our liability for losses is limited as Article 906(2) of the Civil Code sets it for free services. This limit does not apply to an intentional breach (Article 614(3) of the Code). We are not liable for a breach caused by chance or force majeure (Article 617 of the Code).',
+      ),
+      termination: section(
+        'Ending the agreement',
+        'You can stop using the service at any time and ask for your account to be deleted (section 6). We may disable or delete an account that breaches these terms; we write to you first, unless the breach threatens the service or other users. Before an account is deleted, save a copy of your data.',
+      ),
+      changes: section(
+        'Changes to these terms',
+        'The date of the last update is at the top, and it is how we record which version you accepted. We announce material changes in the app before they take effect. If you do not agree with new terms, you can stop using the service and ask for your account to be deleted (section 6).',
+      ),
+      law: section(
+        'Law and disputes',
+        'These terms are governed by the law of Ukraine. We first try to settle a dispute by correspondence; if that fails, a court of Ukraine hears it under the rules of jurisdiction.',
+      ),
+    },
+    // `terms-of-use.dc.html` T2: directly above the button, naming it.
+    accept: 'By pressing “Apply”, you accept the [Terms of use](/terms).',
   },
   transaction: {
     title: 'Transaction',
@@ -2366,6 +2453,11 @@ export const uk: Dict = {
       helper: 'Хто їх зберігає, навіщо, скільки й ваші права.',
       open: 'Конфіденційність',
     },
+    terms: {
+      title: 'Умови користування',
+      helper: 'На яких умовах працює сервіс і що він не робить.',
+      open: 'Умови',
+    },
     signOutEverywhere: {
       title: 'Вийти на всіх пристроях',
       helper: 'Завершує вхід на кожному пристрої, зокрема на цьому. Спершу підтвердьте, що це ви.',
@@ -2476,6 +2568,8 @@ export const uk: Dict = {
       signInLink: 'Увійти',
       busyServer: 'Зараз забагато запитів. Спробуйте ще раз за мить.',
       failed: 'Не вдалося надіслати заявку. Спробуйте ще раз.',
+      termsOutdated:
+        'Умови користування змінилися. Перезавантажте сторінку, щоб прочитати їх, і подайте заявку ще раз.',
       recordedTitle: 'Заявку записано',
       recordedLead: (email: string) =>
         `Якщо її схвалять, запрошення прийде на ${email}. Інших листів не буде.`,
@@ -2537,8 +2631,8 @@ export const uk: Dict = {
       data: section(
         'Які дані ми обробляємо',
         [
-          'Заявка: адреса електронної пошти й час подання.',
-          'Обліковий запис: адреса, роль, дати подання заявки й схвалення. Пароль зберігає Amazon Cognito, Quirenote його не зберігає. Ключі доступу: Amazon Cognito зберігає їхні ідентифікатор, назву, тип пристрою й дату створення; закритий ключ лишається на вашому пристрої.',
+          'Заявка: адреса електронної пошти, час подання, версія Умов користування, яку ви прийняли, і час її прийняття.',
+          'Обліковий запис: адреса, роль, дати подання заявки й схвалення, версія Умов користування, яку ви прийняли, і час її прийняття. Пароль зберігає Amazon Cognito, Quirenote його не зберігає. Ключі доступу: Amazon Cognito зберігає їхні ідентифікатор, назву, тип пристрою й дату створення; закритий ключ лишається на вашому пристрої.',
           'Вхід через Google: Google передає Amazon Cognito ваше ім’я, адресу й фото профілю. Зберігаються лише адреса, позначка, що Google її підтвердив, і ідентифікатор облікового запису Google.',
           'Портфель: рахунки, активи, операції з нотатками, ціни й налаштування, які ви вносите.',
           'Технічні дані: IP-адреса й дані браузера, які отримують Cloudflare, через мережу якого відкривається сайт, і Amazon Web Services, на серверах якого працюють застосунок і вхід. Щоб перевірити форму, сервер передає Cloudflare вашу IP-адресу. У журналах сервісу обліковий запис названо ідентифікатором, а не адресою.',
@@ -2622,6 +2716,82 @@ export const uk: Dict = {
     },
     firstLayer:
       'Quirenote використовує адресу, щоб розглянути заявку й надіслати запрошення, а Cloudflare перевіряє, що форму надсилає людина. Хто обробляє адресу, де її зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
+  },
+  terms: {
+    link: 'Умови',
+    title: 'Умови користування',
+    updated: (date: string) => `Останнє оновлення: ${date}`,
+    intro: [
+      'Ці умови — договір між вами й власником Quirenote про користування сервісом. Ви приймаєте їх цілком, коли натискаєте «Подати заявку», як договір приєднання (стаття 634 Цивільного кодексу України), а діяти для вас вони починають, коли заявку схвалено.',
+      'Сторінка є українською й англійською. Якщо версії розходяться, чинна українська.',
+    ],
+    sections: {
+      operator: section(
+        'Хто надає сервіс',
+        'Quirenote надає Роман Кушик, фізична особа, Україна (далі — «ми»). Пишіть на support@quirenote.com.',
+        'Сервіс безоплатний, і ми надаємо його не як підприємницьку діяльність. Тому ці умови — не публічний договір і не публічна оферта (статті 633 і 641 Цивільного кодексу): ми розглядаємо кожну заявку й можемо її відхилити.',
+      ),
+      service: section(
+        'Що таке Quirenote',
+        'Quirenote — інформаційний інструмент для обліку вашого власного портфеля: облігацій внутрішньої державної позики, фондів Inzhur і грошей на рахунках. Кожну цифру він рахує з того, що вносите ви, і з даних, названих у розділі 4.',
+      ),
+      advice: section(
+        'Це не порада',
+        'Quirenote не дає індивідуальних інвестиційних, податкових чи юридичних порад і не прогнозує цін. Інвестиційне консультування — діяльність інвестиційних фірм (частина десята статті 44 Закону України «Про ринки капіталу та організовані товарні ринки»), і ми її не провадимо. Підказки, які показує сервіс, рахуються з ваших даних і цільових часток, які ви задали самі. Рішення про свої інвестиції й податки ви ухвалюєте самі.',
+      ),
+      sources: section(
+        'Звідки дані',
+        [
+          'Курс гривні до долара — офіційний курс Національного банку України з його відкритих даних, з посиланням на джерело.',
+          'Для активів, пов’язаних з Inzhur, сервіс використовує також ціни й графіки виплат з архіву, який веде сам.',
+          'Прайс Inzhur ваш браузер запитує в Inzhur сам, коли ви натискаєте «Отримати котирування» чи відкриваєте вибір активу Inzhur у формі.',
+          'Ціна, яку ви внесли самі на певний день, має перевагу.',
+        ],
+        'Ці дані ми показуємо такими, як їх отримали чи розрахували: вони можуть запізнюватися, бути неповними чи неточними. Те, що ви вносите самі, ми не перевіряємо.',
+      ),
+      account: section('Обліковий запис', [
+        'Обліковий запис дають за заявкою. Відхилену заявку видаляємо, а причину не повідомляємо.',
+        'Пароль у застосунку відновити не можна. Бережіть пристрій, ключі доступу й пароль: хто ними володіє, той входить у ваш обліковий запис.',
+        'Якщо втратили доступ чи помітили чужий вхід, напишіть на support@quirenote.com.',
+      ]),
+      data: section(
+        'Ваші дані',
+        [
+          'Дані, які ви вносите, — ваші. Ми використовуємо їх лише для того, щоб надавати вам сервіс.',
+          'Копія портфеля у JSON і таблиці CSV є в Налаштуваннях, у розділі «Дані»; там само кнопка «Стерти дані» стирає портфель.',
+          'Щоб видалити обліковий запис, напишіть на support@quirenote.com.',
+          'Ми робимо резервні копії бази, але радимо зберігати й власну копію.',
+        ],
+        'Як ми обробляємо персональні дані, сказано в [Політиці конфіденційності](/privacy).',
+      ),
+      use: section('Чого робити не можна', [
+        'заходити в сервіс ботами чи скриптами або перевантажувати його;',
+        'обходити перевірку Cloudflare чи інші обмеження сервісу;',
+        'намагатися отримати доступ до чужого облікового запису чи чужих даних;',
+        'користуватися сервісом усупереч закону.',
+      ]),
+      availability: section(
+        'Доступність і зміни сервісу',
+        'Сервіс надаємо «як є». Ми не обіцяємо, що він працюватиме без перерв і помилок: його можуть зупиняти збої й обслуговування. Ми можемо змінювати, додавати й прибирати функції. Якщо закриємо сервіс, повідомимо про це в застосунку заздалегідь, щоб ви встигли зберегти копію даних.',
+      ),
+      liability: section(
+        'Відповідальність',
+        'Сервіс безоплатний, тож наша відповідальність за збитки обмежена так, як для безоплатних послуг встановлює частина друга статті 906 Цивільного кодексу. Це обмеження не стосується умисного порушення (частина третя статті 614 Кодексу). За порушення через випадок чи непереборну силу ми не відповідаємо (стаття 617 Кодексу).',
+      ),
+      termination: section(
+        'Припинення',
+        'Ви можете будь-коли перестати користуватися сервісом і попросити видалити обліковий запис (розділ 6). Ми можемо вимкнути чи видалити обліковий запис, якщо ви порушуєте ці умови; спершу ми вам напишемо, крім випадків, коли порушення загрожує сервісу чи іншим користувачам. Перш ніж обліковий запис видалять, збережіть копію даних.',
+      ),
+      changes: section(
+        'Зміни умов',
+        'Дату останнього оновлення вказано вгорі, і за нею ми записуємо, яку версію ви прийняли. Про суттєві зміни ми повідомимо в застосунку, перш ніж вони наберуть чинності. Якщо ви не згодні з новими умовами, можете припинити користування й попросити видалити обліковий запис (розділ 6).',
+      ),
+      law: section(
+        'Право й суперечки',
+        'До цих умов застосовується право України. Суперечку ми спершу намагаємося розв’язати листуванням; якщо не вийде, її розглядає суд України за правилами підсудності.',
+      ),
+    },
+    accept: 'Натискаючи «Подати заявку», ви приймаєте [Умови користування](/terms).',
   },
   transaction: {
     title: 'Транзакція',

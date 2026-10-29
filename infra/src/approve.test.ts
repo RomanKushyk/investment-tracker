@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PGlite } from '@electric-sql/pglite';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -272,6 +273,36 @@ describe('approving replaces the placeholder with the sub the create call return
     });
     expect(row.user_id).not.toBe(PLACEHOLDER);
     expect(row.applied_at.toISOString()).toBe(new Date(APPLIED).toISOString());
+  });
+
+  // The acceptance record is the pending row's too, and as unreconstructable as `applied_at`;
+  // microseconds included, which pg's Date would drop.
+  it('carries the accepted terms across, to the microsecond', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await db.exec(`UPDATE app_user SET terms_version = '2026-10-29',
+                     terms_accepted_at = '2026-09-01 10:00:00.123456+00' WHERE email = '${EMAIL}';`);
+    await approve(db, spy().idp, call(APPROVE_ROUTE));
+    const { rows: terms } = await db.query<{ user_id: string; version: string; accepted: string }>(
+      `SELECT user_id, terms_version::text AS version,
+              (terms_accepted_at AT TIME ZONE 'UTC')::text AS accepted
+         FROM app_user WHERE email = $1`,
+      [EMAIL],
+    );
+    expect(terms).toEqual([
+      { user_id: SUB, version: '2026-10-29', accepted: '2026-09-01 10:00:00.123456' },
+    ]);
+  });
+
+  // An account that predates the terms has no record, and approval invents none (#553).
+  it('carries no terms across when the application accepted none', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await approve(db, spy().idp, call(APPROVE_ROUTE));
+    const { rows: terms } = await db.query<{ version: string | null; accepted: string | null }>(
+      `SELECT terms_version::text AS version, terms_accepted_at::text AS accepted
+         FROM app_user WHERE email = $1`,
+      [EMAIL],
+    );
+    expect(terms).toEqual([{ version: null, accepted: null }]);
   });
 
   it('carries the role across rather than assuming one', async () => {
@@ -662,7 +693,7 @@ describe('declining a pending application deletes the row and the identity under
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     await approve(db, spy().idp, call(REJECT_ROUTE));
     const res = await applications(db, {
-      body: JSON.stringify({ email: EMAIL, botCheck: 'token' }),
+      body: JSON.stringify({ email: EMAIL, botCheck: 'token', termsVersion: TERMS_VERSION }),
     });
 
     expect(res.statusCode).toBe(202);

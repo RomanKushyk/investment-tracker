@@ -70,7 +70,8 @@
                 "type": "object",
                 "required": [
                   "email",
-                  "botCheck"
+                  "botCheck",
+                  "termsVersion"
                 ],
                 "additionalProperties": false,
                 "properties": {
@@ -84,6 +85,12 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 2048
+                  },
+                  "termsVersion": {
+                    "type": "string",
+                    "enum": [
+                      "2026-10-29"
+                    ]
                   }
                 }
               }
@@ -114,6 +121,11 @@
                   "invalid_request": {
                     "value": {
                       "error": "invalid_request"
+                    }
+                  },
+                  "terms_outdated": {
+                    "value": {
+                      "error": "terms_outdated"
                     }
                   }
                 }

@@ -21,13 +21,14 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
-import { Children, isValidElement, type ReactNode, useEffect, useRef } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode, useEffect, useRef } from 'react';
 import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import { useSessionAddress } from '../auth/app';
 import { useSignOut } from '../hooks/useSignOut';
 import { useT } from '../i18n/useT';
 import type { accountRows } from './account-rows';
+import { LEGAL_LINKS } from './legal-links';
 import { SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { THEME_ORDER, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
@@ -390,24 +391,30 @@ function SidebarPanel({
 
         <AccountRows />
 
-        {/* The version's line carries the privacy notice's link (*Legal documents*). Below the
-            breakpoint it and «Вийти» both carry `TAP_44`, so the gap is their two overlays'
-            halves. `sb-label` is the caption rank in here, and
-            its shortfall is recorded rather than repaired: a second grey is a re-mint the
-            palette forbids. */}
+        {/* The privacy notice's and the terms' links (*Legal documents*), on a line of their own
+            over the version's, which they would not fit beside. Below the breakpoint they and
+            «Вийти» all carry `TAP_44`, so the gap is their two overlays' halves. `sb-label` is the
+            caption rank in here, and its shortfall is recorded rather than repaired: a second
+            grey is a re-mint the palette forbids. */}
         <div className="mt-2.5 flex h-[14.25px] items-center justify-center gap-2 max-md:mt-[19px]">
-          <NavLink
-            to="/privacy"
-            className={`block text-[11px] leading-[14.25px] text-sb-item underline underline-offset-2 transition-colors hover:text-sb-item-hover ${TAP_44}`}
-          >
-            {t.privacy.link}
-          </NavLink>
-          <span aria-hidden className="text-[11px] leading-[14.25px] text-sb-label">
-            ·
-          </span>
-          <span className="text-[9.5px] leading-[14.25px] tracking-[.12em] text-sb-label uppercase">
-            v{__APP_VERSION__}
-          </span>
+          {LEGAL_LINKS.map(([to, document], i) => (
+            <Fragment key={to}>
+              {i > 0 && (
+                <span aria-hidden className="text-[11px] leading-[14.25px] text-sb-label">
+                  ·
+                </span>
+              )}
+              <NavLink
+                to={to}
+                className={`block text-[11px] leading-[14.25px] text-sb-item underline underline-offset-2 transition-colors hover:text-sb-item-hover ${TAP_44}`}
+              >
+                {t[document].link}
+              </NavLink>
+            </Fragment>
+          ))}
+        </div>
+        <div className="mt-1 text-center text-[9.5px] leading-[14.25px] tracking-[.12em] text-sb-label uppercase">
+          v{__APP_VERSION__}
         </div>
       </div>
     </div>
@@ -454,7 +461,7 @@ const ACCOUNT_PILL = `${ACCOUNT_STEP} ${pillClass('py-2', 'rounded-[9px]')({ isA
 const ACCOUNT_LINK = pillClass('py-2.5', 'rounded-[9px]', 'text-[11px] leading-[16px]');
 
 /**
- * THE ACCOUNT IS THE BAND'S LAST ROW, above the version's line: the address, the profile's link,
+ * THE ACCOUNT IS THE BAND'S LAST ROW, above the links line: the address, the profile's link,
  * then «Вийти» in Settings' recipe. Signed out, the status and «Увійти», a plain `Link`:
  * `/sign-in/x` falls into the shell, where a `NavLink` would mark it current.
  */

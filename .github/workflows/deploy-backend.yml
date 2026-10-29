@@ -201,7 +201,9 @@ jobs:
             if (typeof a.handler !== 'function') throw new Error('handler missing from applications bundle');
             const asked = [];
             const client = { query: async (text, values) => { asked.push({ text, values }); return { rows: [] }; } };
-            const submit = (email) => ({ body: JSON.stringify({ email, botCheck: 'XXXX.DUMMY.TOKEN.XXXX' }), isBase64Encoded: false });
+            // The terms version the bundle publishes, so the smoke carries no copy of it.
+            const termsVersion = a.REQUEST_BODY.content['application/json'].schema.properties.termsVersion.enum[0];
+            const submit = (email) => ({ body: JSON.stringify({ email, botCheck: 'XXXX.DUMMY.TOKEN.XXXX', termsVersion }), isBase64Encoded: false });
             Promise.all([
               a.applications(client, submit('New@Quirenote.com')),
               // Escaped rather than typed, because the character is the point — a capital I
@@ -211,18 +213,24 @@ jobs:
               a.applications(client, submit(String.fromCharCode(304) + 'REN@quirenote.com')),
               // THE DEPLOYED HANDLER, with no token: refused before the secret, siteverify or the
               // cluster, so it needs none of them here.
-              a.handler({ body: JSON.stringify({ email: 'new@quirenote.com' }), isBase64Encoded: false }),
-            ]).then(([ok, bad, untoken]) => {
+              a.handler({ body: JSON.stringify({ email: 'new@quirenote.com', termsVersion }), isBase64Encoded: false }),
+              // Terms the bundle does not hold: refused by their own code, before the cluster.
+              a.applications(client, { body: JSON.stringify({ email: 'new@quirenote.com', botCheck: 'XXXX.DUMMY.TOKEN.XXXX', termsVersion: '1970-01-01' }), isBase64Encoded: false }),
+            ]).then(([ok, bad, untoken, stale]) => {
               if (ok.statusCode !== 202) throw new Error('valid address not accepted: ' + ok.statusCode);
               if (bad.statusCode !== 400) throw new Error('bad address not refused: ' + bad.statusCode);
               if (untoken.statusCode !== 403) throw new Error('no token not refused: ' + untoken.statusCode);
-              // One statement for two submissions: the refusal never reached the cluster, and
+              if (stale.body !== '{\"error\":\"terms_outdated\"}') throw new Error('stale terms not refused: ' + stale.body);
+              // One statement for three submissions: the refusals never reached the cluster, and
               // the acceptance was bound rather than interpolated.
               if (asked.length !== 1) throw new Error('cluster asked ' + asked.length + ' times, wanted 1');
               if (asked[0].values[0] !== 'new@quirenote.com') {
                 throw new Error('address not folded: ' + asked[0].values[0]);
               }
-              console.log('applications bundle loads, accepts one address, refuses the other and refuses no token');
+              if (asked[0].values[1] !== termsVersion) {
+                throw new Error('terms version not recorded: ' + asked[0].values[1]);
+              }
+              console.log('applications bundle loads, accepts one address, refuses the other, stale terms and no token');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # Both refusals land BEFORE any Cognito call — which would spend a monthly active user

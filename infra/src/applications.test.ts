@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PGlite } from '@electric-sql/pglite';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import ts from 'typescript';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -52,8 +53,13 @@ const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeo
 
 const TOKEN = 'XXXX.DUMMY.TOKEN.XXXX';
 const raw = (body?: string): ApiEvent => ({ body, isBase64Encoded: false });
-const submit = (email: unknown, botCheck: unknown = TOKEN): ApiEvent =>
-  raw(JSON.stringify({ email, botCheck }));
+/** `termsVersion: undefined` leaves the key out, as `JSON.stringify` does. */
+const submit = (
+  email: unknown,
+  botCheck: unknown = TOKEN,
+  termsVersion: unknown = TERMS_VERSION,
+): ApiEvent => raw(JSON.stringify({ email, botCheck, termsVersion }));
+const VERSIONED = `"termsVersion":"${TERMS_VERSION}"`;
 
 /** Records what the handler asked the cluster for, and answers nothing back. */
 const spy = (thrown?: Error) => {
@@ -137,10 +143,48 @@ describe('a submission writes one pending row', () => {
   });
 
   it('reads a base64-encoded body', async () => {
-    const body = Buffer.from('{"email":"New@quirenote.com"}').toString('base64');
+    const body = Buffer.from(`{"email":"New@quirenote.com",${VERSIONED}}`).toString('base64');
     const res = await applications(db, { body, isBase64Encoded: true });
     expect(res.statusCode).toBe(202);
     expect((await rows()).map((r) => r.email)).toEqual(['new@quirenote.com']);
+  });
+
+  // The record clickwrap rests on: the version the form showed, and when, by the cluster's clock.
+  it('records the terms version the form showed, accepted when it applied', async () => {
+    await applications(db, submit('new@quirenote.com'));
+    const { rows: terms } = await db.query<{ version: string; same: boolean }>(
+      `SELECT terms_version::text AS version, terms_accepted_at = applied_at AS same
+         FROM app_user`,
+    );
+    expect(terms).toEqual([{ version: TERMS_VERSION, same: true }]);
+  });
+
+  // THE FIRST ACCEPTANCE STANDS: applying again writes nothing, so this route never writes a row
+  // approval has read. A pending applicant's newer acceptance is not recorded, and one made before
+  // the terms keeps none for #553 to ask: the owner's ruling on #515, after review round 3.
+  it.each([
+    ['a pending application', "'pending', NULL, NULL, '2026-09-01', '2026-09-01T10:00:00Z'"],
+    ['a pending application made before the terms', "'pending', NULL, NULL, NULL, NULL"],
+    [
+      'an account',
+      "'active', now(), '11111111-1111-4111-8111-111111111111', '2026-09-01', '2026-09-01T10:00:00Z'",
+    ],
+  ])('writes nothing on %s when its address applies again', async (_what, values) => {
+    await db.exec(`INSERT INTO app_user (user_id, email, applied_at, role, status, decided_at,
+                                         decided_by, terms_version, terms_accepted_at)
+                     VALUES ('11111111-1111-4111-8111-111111111111', 'new@quirenote.com',
+                             '2026-09-01T10:00:00Z', 'user', ${values});`);
+    // `xmin` moves on any write, a no-op `DO UPDATE` included; the row text is every column.
+    const row = async () =>
+      (
+        await db.query<{ x: string; row: string }>(
+          'SELECT xmin::text AS x, app_user::text AS row FROM app_user',
+        )
+      ).rows;
+    const before = await row();
+    const res = await applications(db, submit('new@quirenote.com'));
+    expect(res.body).toBe('{"status":"received"}');
+    expect(await row()).toEqual(before);
   });
 
   // Nothing here may mint a second role; `app_user_role_ck` is what would refuse it.
@@ -181,11 +225,11 @@ describe('an address the cluster would refuse never reaches it', () => {
     ['a JSON array', '[]'],
     ['a JSON string', '"new@quirenote.com"'],
     ['an object with no email', '{"address":"new@quirenote.com"}'],
-    ['an email that is not a string', '{"email":42}'],
+    ['an email that is not a string', `{"email":42,${VERSIONED}}`],
     // EXACT-KEY, as the published schema's `additionalProperties: false` says.
     [
       'a key the route does not read',
-      `{"email":"new@quirenote.com","botCheck":"${TOKEN}","role":"admin"}`,
+      `{"email":"new@quirenote.com","botCheck":"${TOKEN}",${VERSIONED},"role":"admin"}`,
     ],
   ];
 
@@ -194,6 +238,33 @@ describe('an address the cluster would refuse never reaches it', () => {
       const { client, asked } = spy();
       const res = await applications(client, raw(body));
       expect(res.statusCode).toBe(400);
+      expect(asked).toEqual([]);
+    });
+  }
+
+  // Acceptance is of the version the form showed, and only the current one is shown. Other terms
+  // are answered by their own code, so a form that knows it can ask for a reload, not an address.
+  const stale: [string, unknown][] = [
+    ['no terms version', undefined],
+    ['another terms version', '2026-10-28'],
+    ['a terms version that is not a string', 20261029],
+  ];
+
+  // The address first: an old form's bad address is still a bad address.
+  it('answers a bad address with stale terms as a bad address', async () => {
+    const { client, asked } = spy();
+    const res = await applications(client, submit('no-at-sign', TOKEN, '2026-10-28'));
+    expect([res.statusCode, res.body]).toEqual([400, '{"error":"invalid_request"}']);
+    expect(asked).toEqual([]);
+  });
+
+  for (const [what, version] of stale) {
+    it(`answers ${what} as outdated terms without asking the cluster anything`, async () => {
+      const { client, asked } = spy();
+      // Built whole: `submit`'s default would fill an `undefined` version back in.
+      const body = { email: 'new@quirenote.com', botCheck: TOKEN, termsVersion: version };
+      const res = await applications(client, raw(JSON.stringify(body)));
+      expect([res.statusCode, res.body]).toEqual([400, '{"error":"terms_outdated"}']);
       expect(asked).toEqual([]);
     });
   }
@@ -284,7 +355,7 @@ describe('a submission costs one parameterised statement and no mail', () => {
     const { client, asked } = spy();
     await applications(client, submit('New@quirenote.com'));
     expect(asked).toHaveLength(1);
-    expect(asked[0].values).toEqual(['new@quirenote.com']);
+    expect(asked[0].values).toEqual(['new@quirenote.com', TERMS_VERSION]);
     expect(asked[0].text).toContain('$1');
     expect(asked[0].text.toLowerCase()).not.toContain('quirenote.com');
   });
@@ -301,7 +372,7 @@ describe('a submission costs one parameterised statement and no mail', () => {
   // secret, siteverify or the cluster is reached, whatever the environment holds.
   it('refuses an application with no token without reaching for a connection', async () => {
     vi.mocked(connect).mockClear();
-    const res = await handler(raw('{"email":"new@quirenote.com"}'));
+    const res = await handler(raw(`{"email":"new@quirenote.com",${VERSIONED}}`));
     expect([res.statusCode, res.body]).toEqual([403, '{"error":"bot_check_failed"}']);
     expect(connect).not.toHaveBeenCalled();
   });
@@ -338,7 +409,7 @@ describe('the bot check stands before the cluster', () => {
     const res = await gated(verdict('passed'), connect)(submit('New@quirenote.com'));
     expect([res.statusCode, res.body]).toEqual([202, '{"status":"received"}']);
     expect(asked).toHaveLength(1);
-    expect(asked[0].values).toEqual(['new@quirenote.com']);
+    expect(asked[0].values).toEqual(['new@quirenote.com', TERMS_VERSION]);
   });
 
   it('refuses a token the check refuses, and opens no connection', async () => {
@@ -357,9 +428,9 @@ describe('the bot check stands before the cluster', () => {
   });
 
   for (const [what, body] of [
-    ['no token', '{"email":"new@quirenote.com"}'],
-    ['a token that is not text', '{"email":"new@quirenote.com","botCheck":42}'],
-    ['an empty token', '{"email":"new@quirenote.com","botCheck":""}'],
+    ['no token', `{"email":"new@quirenote.com",${VERSIONED}}`],
+    ['a token that is not text', `{"email":"new@quirenote.com","botCheck":42,${VERSIONED}}`],
+    ['an empty token', `{"email":"new@quirenote.com","botCheck":"",${VERSIONED}}`],
   ] as const) {
     it(`hands the check an empty token for ${what}`, async () => {
       const verify = verdict('refused');
@@ -373,6 +444,16 @@ describe('the bot check stands before the cluster', () => {
     const verify = verdict('passed');
     const { connect } = opened();
     const res = await gated(verify, connect)(submit('no-at-sign'));
+    expect(res.statusCode).toBe(400);
+    expect(verify).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  // So is the version: a stale form spends no token.
+  it('refuses another terms version before asking the check anything', async () => {
+    const verify = verdict('passed');
+    const { connect } = opened();
+    const res = await gated(verify, connect)(submit('new@quirenote.com', TOKEN, '2026-10-28'));
     expect(res.statusCode).toBe(400);
     expect(verify).not.toHaveBeenCalled();
     expect(connect).not.toHaveBeenCalled();

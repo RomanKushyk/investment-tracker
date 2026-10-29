@@ -26,6 +26,7 @@ function sentence(t: Dict, reason: Reason): string {
   return {
     emailMissing: t.auth.emailMissing,
     emailInvalid: t.auth.emailInvalid,
+    termsOutdated: t.auth.apply.termsOutdated,
     botCheck: t.auth.botCheck.failed,
     botCheckFailed: t.auth.botCheck.failed,
     botCheckUnavailable: t.auth.botCheck.unavailable,
@@ -89,6 +90,20 @@ export function Apply() {
 
   const botCheck = check.props && <BotCheck {...check.props} action="apply" />;
 
+  /** A link in one of the form's two texts: it opens a new tab, so what was typed here stays. */
+  const newTab = (label: string, href: string, key: number) => (
+    <Link
+      key={key}
+      to={href}
+      target="_blank"
+      rel="noopener"
+      className="text-accent underline underline-offset-2"
+    >
+      {label}
+      <span className="sr-only"> {t.privacy.newTab}</span>
+    </Link>
+  );
+
   const fieldError = said && ON_THE_FIELD.includes(said.reason) ? said : undefined;
   const stepError = said && !ON_THE_FIELD.includes(said.reason) ? said : undefined;
 
@@ -116,6 +131,11 @@ export function Apply() {
               )}
             </Field>
             {botCheck}
+            {/* Acceptance by pressing the button it names (Civil Code Art. 205 ч. 2), directly above
+                it, apart from the privacy notice's first layer under it (WP260 ¶8). */}
+            <p className="mt-3 text-[12px] leading-[18px] text-muted">
+              {rich(t.terms.accept, newTab)}
+            </p>
             <Button type="submit" className="mt-2 w-full" disabled={busy} disabledTone="busy">
               {busy ? t.auth.apply.busy : t.auth.apply.submit}
             </Button>
@@ -123,18 +143,7 @@ export function Apply() {
             {/* The notice's first layer, at collection (WP260 ¶36), asking for no agreement. Its
                 link opens a new tab, as the widget's own do, so what was typed here stays. */}
             <p className="mt-3 text-[12px] leading-[18px] text-muted">
-              {rich(t.privacy.firstLayer, (label, href, key) => (
-                <Link
-                  key={key}
-                  to={href}
-                  target="_blank"
-                  rel="noopener"
-                  className="text-accent underline underline-offset-2"
-                >
-                  {label}
-                  <span className="sr-only"> {t.privacy.newTab}</span>
-                </Link>
-              ))}
+              {rich(t.privacy.firstLayer, newTab)}
             </p>
           </form>
           <Foot prompt={t.auth.apply.signInPrompt} to="/sign-in">

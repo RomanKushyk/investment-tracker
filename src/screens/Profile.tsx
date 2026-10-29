@@ -239,6 +239,20 @@ function DataCard({ me }: { me: MeData | undefined }) {
           />
         )}
       </SettingRow>
+      <Divider />
+      <SettingRow title={t.profile.terms.title} helper={t.profile.terms.helper}>
+        {me ? (
+          <Link to="/terms" className={buttonVariants({ variant: 'outline' })}>
+            {t.profile.terms.open}
+            <ChevronRight size={16} aria-hidden />
+          </Link>
+        ) : (
+          <Block
+            kind="link"
+            className="h-10 w-[107px] rounded-[10px] max-md:h-11 max-md:rounded-[11px]"
+          />
+        )}
+      </SettingRow>
     </>
   );
 }

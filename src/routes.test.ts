@@ -29,6 +29,7 @@ const { SignIn } = await import('./screens/sign-in/SignIn');
 const { Apply } = await import('./screens/sign-in/Apply');
 const { GoogleCallback } = await import('./screens/sign-in/GoogleCallback');
 const { Privacy } = await import('./screens/privacy/Privacy');
+const { Terms } = await import('./screens/legal/Terms');
 
 const typeOf = (element: RouteObject['element']): unknown =>
   isValidElement(element) ? element.type : undefined;
@@ -135,6 +136,7 @@ describe('the routes that exist', () => {
     ['/auth/callback', GoogleCallback],
     // A page with no portfolio behind it, for every reader, signed in or not (*Legal documents*).
     ['/privacy', Privacy],
+    ['/terms', Terms],
   ] as [string, ComponentType][])('%s still renders outside the shell', (path, Screen) => {
     const walked = chain(path);
     expect(walked).toHaveLength(2);

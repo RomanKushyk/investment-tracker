@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // `/privacy` and the ways in to it, through the real router and shells: under the signed-out card,
-// on the version's line in the panel and the drawer, and in the profile's «Ваші дані»
+// on the links line in the panel and the drawer, and in the profile's «Ваші дані»
 // (`design/extensions/privacy-notice.dc.html`).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
@@ -221,12 +221,13 @@ describe('under the signed-out card', () => {
   });
 });
 
-describe('the version’s line', () => {
+describe('the links line', () => {
   it('carries the link in the panel, and it reaches the notice', async () => {
     const { page, router } = await open('/settings');
     const [link] = privacyLinks(page.querySelector('#app-sidebar')!);
     expect(link?.textContent).toBe(uk.privacy.link);
-    expect(link?.parentElement?.textContent).toContain('v0.0.0');
+    // The links take a line of their own over the version (`terms-of-use.dc.html` T3).
+    expect(link?.parentElement?.nextElementSibling?.textContent).toBe('v0.0.0');
     expect(await follow(link!, router)).toBe('/privacy');
   });
 

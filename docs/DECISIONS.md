@@ -713,12 +713,12 @@ header carries the figure, which a 56px shell cannot hold. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
 portfolio behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
-failed, and `/privacy` for every reader, signed in or not — mounts NEITHER: a top bar with the mark
-and the language control over one top-anchored card and the privacy notice's link under it, `md`
-still its only breakpoint.
+failed, and `/privacy` and `/terms` for every reader, signed in or not — mounts NEITHER: a top bar
+with the mark and the language control over one top-anchored card and the privacy notice's and the
+terms' links under it, `md` still its only breakpoint.
 THE ACCOUNT IS EVERY FOOTER BAND'S LAST ROW, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
-in the panel and the drawer two rows above the version's line, which carries the privacy notice's
-link (*Legal documents*), the second a pill in Settings' recipe; in
+in the panel and the drawer two rows above the links line, which carries the privacy notice's and
+the terms' links over the version's line (*Legal documents*), the second a pill in Settings' recipe; in
 the rail two items, the rail's foot reading in the panel's order — currency, Settings, profile,
 account. Signed in the rows are the address and «Вийти», the address a NAV LINK to `/profile` named
 «Профіль: » and the address, at the row's height with the pill's states, current there where
@@ -1754,7 +1754,7 @@ the bundle's own G cropped to its box.
 Registration is an APPLICATION,
 not an open door, and THE DOOR CARRIES A BOT CHECK OF ITS OWN, Cognito's threat protection being a
 paid tier: `/apply` holds a Cloudflare Turnstile widget in Managed mode, and the route verifies its
-token with siteverify, the caller's IP address as `remoteip`, before the cluster is asked. A missing,
+token with siteverify, once the body names the current terms version (*Legal documents*), the caller's IP address as `remoteip`, before the cluster is asked. A missing,
 refused or replayed token, or a pass solved for another form or host, answers one 403; a siteverify
 that cannot answer admits nobody. SIGN-IN CARRIES ONE TOO, because Cognito's lockout is per account
 and credential stuffing tries many accounts once each, which it never sees; NIST SP 800-63B-4
@@ -2123,37 +2123,70 @@ commit — and the reads stay read-only transactions. · A timestamp per part so
 in parallel: the manifest row is what makes a late part conflict with the commit and the collector.
 
 ## Legal documents
-**Decision.** THE PRIVACY NOTICE LIVES WHOLE AT `/privacy` AND IN FIRST LAYER AT COLLECTION.
-`/privacy` is one public route in the signed-out shell for every reader, signed in or not, so it waits
-on no session, reads no data and swaps no shell; signed in, a language chosen there is the
-account's. «До Quirenote» leads back to `/`. Under `/apply`'s
-button stand two sentences naming Quirenote, the purpose and Cloudflare's check, with the link;
-there is no checkbox and no "you agree", and the link opens a new tab, so what was typed stays. The
-link also stands under every signed-out card (under a refused caller's answer it opens a new tab:
-the answer may hold a sign-out still running, which leaving would lose), on the version's line in the panel and the drawer,
-and as a row in the profile's «Ваші дані»; the collapsed rail has none, the panel being one press
-away. The notice is written under Law 2297-VI and gives every GDPR Art. 13 item; the controller is
-named, Роман Кушик, a private individual, with no street address or city, and support@ is the
-contact. Ukrainian prevails and the English says no more; a test fails if a mapped item is missing
-or empty, or if the English holds a section the Ukrainian lacks. The periods it states are the
-code's: a declined application is deleted when declined (*User schema and deletes*), erased data
+**Decision.** THE PRIVACY NOTICE LIVES WHOLE AT `/privacy` AND IN FIRST LAYER AT COLLECTION; THE
+TERMS OF USE LIVE WHOLE AT `/terms` AND ARE ACCEPTED BY PRESSING «ПОДАТИ ЗАЯВКУ». `/privacy` is one
+public route in the signed-out shell for every reader, signed in or not, so it waits on no session,
+reads no data and swaps no shell; signed in, a language chosen there is the account's. «До
+Quirenote» leads back to `/`. Under `/apply`'s button stand two sentences naming Quirenote, the
+purpose and Cloudflare's check, with the link; they ask no agreement to the processing and carry no
+checkbox, and the link opens a new tab, so what was typed stays. The link also stands under every
+signed-out card (under a refused caller's answer it opens a new tab: the answer may hold a sign-out
+still running, which leaving would lose), on the links line over the version in the panel and the
+drawer, and as a row in the profile's «Ваші дані»; the collapsed rail has none, the panel being one
+press away. The notice is written under Law 2297-VI and gives every GDPR Art. 13 item; the
+controller is named, Роман Кушик, a private individual, with no street address or city, and support@
+is the contact. Ukrainian prevails and the English says no more; a test fails if a mapped item is
+missing or empty, or if the English holds a section the Ukrainian lacks. The periods it states are
+the code's: a declined application is deleted when declined (*User schema and deletes*), erased data
 leaves the working database within 30 days, backups keep 35, function logs 30, CloudTrail's event
 history 90. CORRESPONDENCE, which no code holds, is kept while the account exists and deleted with
 it; a message from someone with no account is deleted once answered.
+`/terms` shares `/privacy`'s frame. «Умови» stands beside «Конфіденційність» under every signed-out
+card and on the panel's and the drawer's links line, and as its own row after the privacy row in the
+profile's «Ваші дані». The operator is a private individual, so the terms are a free contract of
+adhesion under the Civil Code and NO PUBLIC OFFER: Law 675-VIII is not claimed to apply, and an
+offer waits for a paid plan. One sentence DIRECTLY ABOVE «Подати заявку» names that button and links
+`/terms` alone, in a new tab; there is no checkbox, and the privacy first layer stays a text of its
+own under the button. THE VERSION IS THE EFFECTIVE DATE THE PAGE PRINTS, one constant in
+`packages/core` that `/apply` posts and `POST /applications` accepts alone: a body with a valid
+address and any other version, or none, is answered `terms_outdated`; the row stores it with the
+time of acceptance, and approval carries both across. An address applying again records nothing: the
+first application's acceptance stands, and an application made before the terms holds none. An
+account with none, whose application predates the terms or which came through open registration,
+records nothing until #553 asks it at sign-in. The terms make five commitments no code holds: a
+notice in the app before material changes take effect, a notice in the app before the service
+closes, a letter before a breach closes an account unless the breach threatens the service or other
+users, the user's data used only to provide the service, and a dispute tried by correspondence
+before a court.
 **Why.** GDPR Art. 13 and 2297-VI Art. 12(2) ask for the information "at the time when personal data
 are obtained"; WP260 rev.01 ¶36 wants a first layer shown as the form is filled, ¶17 "one single
 place or one complete document", and ¶11 a link "clearly visible on each page". EDPB 2/2019 ¶20
-keeps a contract's necessity apart from consent, so nothing asks to agree. Law 2704-VIII Art. 27(6)
-lets a translation say no more than the Ukrainian. Linear, Notion and GitHub serve their policies
-outside the app, and Mastodon puts its link beside the version in its sidebar. Retention is periods
-the code enforces first (GDPR Art. 5(1)(e), recital 39; 2297-VI Art. 6(8)). The sources and the
-item-by-item mapping are in brief #497 and `design/extensions/privacy-notice.dc.html`.
+keeps a contract's necessity apart from consent, so the notice asks no agreement. Law 2704-VIII Art.
+27(6) lets a translation say no more than the Ukrainian. Linear, Notion and GitHub serve their
+policies outside the app, and Mastodon puts its link by the version in its sidebar. Retention is
+periods the code enforces first (GDPR Art. 5(1)(e), recital 39; 2297-VI Art. 6(8)). The sources and
+the item-by-item mapping are in brief #497 and `design/extensions/privacy-notice.dc.html`. The terms
+rest on Civil Code Art. 205 ч. 2 (conduct shows the will), Art. 207 ч. 1 (a reference to another
+document) and Art. 634 (adhesion); Art. 50 ч. 2 and Art. 633 keep a public contract to a registered
+entrepreneur. Courts hold a line "directly above or below the action button" (*Oberstein v. Live
+Nation*, 9th Cir. 2023) and fail one off to the side or whose words miss the button (*Chabolla v.
+ClassPass*, 9th Cir. 2025); WP260 ¶8 keeps privacy information apart from "general terms of use".
+Enforcement rests on "the exact version of terms presented to the user at the time of acceptance";
+Mastodon keys its terms by a `date` `effective_date` and Google archives its terms by date.
+Liability rests on Art. 906 ч. 2's cap for a free service, Art. 614 ч. 3 and Art. 617, no further,
+as Art. 634 ч. 2 lets a joining party contest more. The sources and the mapping are in brief #514
+and `design/extensions/terms-of-use.dc.html`.
 **Rejected.** An Art. 27 representative: the app targets no EU market (recital 23; EDPB 3/2018,
 Example 10). · The first layer collapsed behind «Детальніше»: collapsed text reads as unseen under
 ¶36. · A rail item: it lifted the rail's foot for a link seldom sought there. · A footer on every
 route: under long lists it turns into "whack-a-mole" (NN/g). · The app shell on `/privacy` when
 signed in: the page would wait on the session and swap shells. · A cookie banner: every cookie and
-storage entry is strictly necessary.
+storage entry is strictly necessary. · A checkbox for the terms: pressing the named button is the
+act. · The terms and the notice in one sentence under the button (Vercel, Linear, Notion): WP260 ¶8.
+· An integer version counter (GitLab): a printed date and an id would be two values to keep in step.
+· A public offer, or opting into Law 675-VIII: a free service admitted by approval is neither. · A
+pending application taking the terms again when its address applies again: approval reads the row
+before its Cognito calls, so a write there is lost or races it.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only

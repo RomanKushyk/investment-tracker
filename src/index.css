@@ -457,9 +457,9 @@
     overscroll-behavior-y: contain;
   }
 
-  /* The privacy notice's contents scroll to their section smoothly; on the root, because that
+  /* A legal document's contents scroll to their section smoothly; on the root, because that
      is where `scroll-behavior` reaches the viewport. Reduced motion below makes it instant. */
-  :root:has([data-privacy]) {
+  :root:has([data-document]) {
     scroll-behavior: smooth;
   }
 

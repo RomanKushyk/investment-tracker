@@ -314,3 +314,70 @@ describe('the first layer of the privacy notice', () => {
     expect(screen.queryByRole('link', { name: /Політиці конфіденційності/ })).toBeNull();
   });
 });
+
+// The terms' acceptance by action (`terms-of-use.dc.html` T2): one sentence directly above the
+// button, naming it, with no checkbox; the privacy first layer stays a text of its own under it.
+describe('the acceptance line of the terms', () => {
+  const line = () =>
+    screen.getByText(
+      (_, el) => el?.tagName === 'P' && el.querySelector('a[href="/terms"]') !== null,
+    );
+
+  it('stands directly above the button and names it', () => {
+    mount();
+    expect(button().previousElementSibling).toBe(line());
+    expect(line().textContent).toContain(`«${uk.auth.apply.submit}»`);
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('links the terms alone, apart from the first layer', () => {
+    mount();
+    expect([...line().querySelectorAll('a')].map((a) => a.getAttribute('href'))).toEqual([
+      '/terms',
+    ]);
+    const layer = screen.getByText(
+      (_, el) => el?.tagName === 'P' && el.querySelector('a[href="/privacy"]') !== null,
+    );
+    expect(layer).not.toBe(line());
+    expect(layer.querySelector('a[href="/terms"]')).toBeNull();
+  });
+
+  it('opens the terms in a new tab, and its name says so', () => {
+    mount();
+    const link = line().querySelector('a')!;
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+    expect(link.textContent!.endsWith(uk.privacy.newTab)).toBe(true);
+  });
+
+  it('keeps naming the button while it is busy', async () => {
+    hold.apply.mockReturnValue(new Promise(() => {}));
+    mount();
+    type(ADDRESS);
+    await emit((w) => w.onToken('token-1'));
+    await press();
+    expect(button().textContent).toBe(uk.auth.apply.busy);
+    expect(line().textContent).toContain(`«${uk.auth.apply.submit}»`);
+  });
+
+  it('goes with the form once the application is recorded', async () => {
+    hold.apply.mockResolvedValue(recorded);
+    mount();
+    expect(document.querySelector('a[href="/terms"]')).not.toBeNull();
+    type(ADDRESS);
+    await emit((w) => w.onToken('token-1'));
+    await press();
+    expect(document.querySelector('a[href="/terms"]')).toBeNull();
+  });
+
+  // Not the address's fault: a form built since the terms, holding older ones, asks for a reload.
+  it('says the terms changed when the route refuses the version', async () => {
+    hold.apply.mockResolvedValue(refused('termsOutdated'));
+    mount();
+    await emit((w) => w.onToken('token-1'));
+    type(ADDRESS);
+    await press();
+    expect(screen.getByRole('alert').textContent).toBe(uk.auth.apply.termsOutdated);
+    expect(screen.getByRole('textbox').getAttribute('aria-invalid')).not.toBe('true');
+  });
+});
