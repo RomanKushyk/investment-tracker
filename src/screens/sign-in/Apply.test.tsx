@@ -296,6 +296,14 @@ describe('the first layer of the privacy notice', () => {
     expect(layer().textContent).not.toMatch(/agree|погодж/i);
   });
 
+  // Law 2297-VI Art. 12 ч. 2: the application records the terms version and its time, so the layer
+  // told at collection names that record and its purpose.
+  it('names the terms record it collects, and its purpose', () => {
+    mount();
+    expect(layer().textContent).toContain('яку версію Умов і коли ви прийняли');
+    expect(layer().textContent).toContain('щоб зберігати запис договору з вами');
+  });
+
   it('opens the notice in a new tab, and its name says so', () => {
     mount();
     const link = screen.getByRole('link', { name: /Політиці конфіденційності/ });

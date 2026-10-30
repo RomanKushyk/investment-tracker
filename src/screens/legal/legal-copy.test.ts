@@ -172,7 +172,7 @@ describe('the privacy notice names the terms record', () => {
   });
 
   // Law 2297-VI Art. 12 ч. 2 asks the purpose at collection: the contract purpose names the record,
-  // and the step's first layer states it in the same words (#554).
+  // and both first layers that collect it, the step's and `/apply`'s, state it in the same words.
   it.each([
     [
       'en',
@@ -190,6 +190,15 @@ describe('the privacy notice names the terms record', () => {
     const [, contract] = at(dict, 'privacy.sections.purposes.body.0') as string[];
     expect(contract).toContain(purpose);
     expect(dict.terms.step.firstLayer).toContain(layer);
+    expect(dict.privacy.firstLayer).toContain(layer);
+  });
+
+  it.each([
+    ['en', en, 'which version of the terms you accepted and when'],
+    ['uk', uk, 'яку версію Умов і коли ви прийняли'],
+  ] as const)('%s: both first layers name the record itself', (_language, dict, record) => {
+    expect(dict.terms.step.firstLayer).toContain(record);
+    expect(dict.privacy.firstLayer).toContain(record);
   });
 });
 

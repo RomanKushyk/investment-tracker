@@ -1271,7 +1271,7 @@ export const en = {
       ),
     },
     firstLayer:
-      'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. Who handles your address, where it is kept and your rights: the [Privacy policy](/privacy).',
+      'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. With your application, Quirenote records which version of the terms you accepted and when, to keep a record of the agreement with you. Who handles this data, where it is kept and your rights: the [Privacy policy](/privacy).',
   },
   // `terms-of-use.dc.html` T1 and T7 (brief #514): the Ukrainian prevails and the English says no
   // more. A section's title is bare, and the page numbers it.
@@ -2735,7 +2735,7 @@ export const uk: Dict = {
       ),
     },
     firstLayer:
-      'Quirenote використовує адресу, щоб розглянути заявку й надіслати запрошення, а Cloudflare перевіряє, що форму надсилає людина. Хто обробляє адресу, де її зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
+      'Quirenote використовує адресу, щоб розглянути заявку й надіслати запрошення, а Cloudflare перевіряє, що форму надсилає людина. Разом із заявкою Quirenote записує, яку версію Умов і коли ви прийняли, щоб зберігати запис договору з вами. Хто обробляє ці дані, де їх зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
   },
   terms: {
     link: 'Умови',

@@ -2128,9 +2128,9 @@ TERMS OF USE LIVE WHOLE AT `/terms` AND ARE ACCEPTED BY PRESSING «ПОДАТИ 
 УМОВИ» ON THE STEP. `/privacy` is one
 public route in the signed-out shell for every reader, signed in or not, so it waits on no session,
 reads no data and swaps no shell; signed in, a language chosen there is the account's. «До
-Quirenote» leads back to `/`. Under `/apply`'s button stand two sentences naming Quirenote, the
-purpose and Cloudflare's check, with the link; they ask no agreement to the processing and carry no
-checkbox, and the link opens a new tab, so what was typed stays. The link also stands under every
+Quirenote» leads back to `/`. Under `/apply`'s button stand three sentences naming Quirenote, the
+purpose, Cloudflare's check and the record of the accepted terms with its purpose, with the link;
+they ask no agreement to the processing and carry no checkbox, and the link opens a new tab, so what was typed stays. The link also stands under every
 signed-out card (under a refused caller's answer it opens a new tab: the answer may hold a sign-out
 still running, which leaving would lose), on the links line over the version in the panel and the
 drawer, and as a row in the profile's «Ваші дані»; the collapsed rail has none, the panel being one
@@ -2161,8 +2161,8 @@ that asked, as it shows the other answers. The step's line stands directly above
 and names it, its privacy first layer under the buttons; accepting posts the current version, which
 the route records with the time unless the row already holds one, and the route that asked opens
 with no second sign-in; «Відхилити й вийти» signs out. Another version, or none, is answered
-`terms_outdated`. The contract purpose on `/privacy`, and the step's first layer, name the record of
-the accepted version and its time. The terms make five commitments no code holds: a
+`terms_outdated`. The contract purpose on `/privacy`, and the first layers of the step and of
+`/apply`, name the record of the accepted version and its time, in the same words. The terms make five commitments no code holds: a
 notice in the app before material changes take effect, a notice in the app before the service
 closes, a letter before a breach closes an account unless the breach threatens the service or other
 users, the user's data used only to provide the service, and a dispute tried by correspondence
