@@ -1804,12 +1804,12 @@ Until the app offers a deletion of its own, the operator erases an account on re
 APPLICATION IS THE APP'S
 OWN FORM, `/apply`, one address posted with no cookie, since its route reads none; the endpoint
 answers every address with one constant, so the form can say only that it was recorded. A CALLER THE
-API REFUSES on a route every user may call — pending, rejected, no application, forbidden — sees that
+API REFUSES on a route every user may call — pending, rejected, no application, forbidden, terms — sees that
 answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out; an
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
 not read that way. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which the
 repository calls. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
-each answer back as a typed reply: the four refusals apart; a 304 and a 412, a 409 for a write still running,
+each answer back as a typed reply: the five refusals apart; a 304 and a 412, a 409 for a write still running,
 a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
 own; any other answer by its status and body. A body goes as the text it was given, under
 `application/json` unless its caller names a type, as `PATCH /me/settings` must. Nothing is sent where
@@ -1915,9 +1915,9 @@ client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no 
 `@types/node` at run time. · Passkey autofill (conditional UI): it needs a challenge before anyone
 types, and this pool gives none without a username. · Build-time settings for the relay and the
 pool: a build can disagree with the host serving it, and the host cannot. · A who-am-I route to learn
-the four answers: every authenticated route reads the same row and answers them, so the first read
+the answers: every authenticated route reads the same row and answers them, so the first read
 the app makes serves, and a route of its own would cost an invocation on every sign-in. `GET /me` is
-no such route: a screen that shows the account reads it, and the four answers still come from the
+no such route: a screen that shows the account reads it, and the answers still come from the
 first read the app makes. · The
 signed-out confirmation as a toast: it leaves on a timer, and a toast here
 reports on the page the user stays on. · Deciding the offer from the address step's answer, a
@@ -2053,8 +2053,8 @@ commit that landed under the error; a stale `If-Match` is 412, never 409, and ne
 being live before the schema — except a table no deployed code writes, which may be recreated in the
 merge that switches its reader, the reader failing until the migration applies. A migration that
 drops a table refuses first while it holds a row. A version cut carries every merge since the last
-one, so production meets each window at once: approval, the bootstrap and an open gate there wait
-for the cut's migrations.
+one, so production meets each window at once: approval, the bootstrap and the gate, which reads the
+terms on every signed-in route, wait there for the cut's migrations.
 **Why.** Generated DDL carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
 file that fails partway cannot be retried — the retry dies on the first statement, which already
 exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, while
@@ -2124,7 +2124,8 @@ in parallel: the manifest row is what makes a late part conflict with the commit
 
 ## Legal documents
 **Decision.** THE PRIVACY NOTICE LIVES WHOLE AT `/privacy` AND IN FIRST LAYER AT COLLECTION; THE
-TERMS OF USE LIVE WHOLE AT `/terms` AND ARE ACCEPTED BY PRESSING «ПОДАТИ ЗАЯВКУ». `/privacy` is one
+TERMS OF USE LIVE WHOLE AT `/terms` AND ARE ACCEPTED BY PRESSING «ПОДАТИ ЗАЯВКУ», OR «ПРИЙНЯТИ
+УМОВИ» ON THE STEP. `/privacy` is one
 public route in the signed-out shell for every reader, signed in or not, so it waits on no session,
 reads no data and swaps no shell; signed in, a language chosen there is the account's. «До
 Quirenote» leads back to `/`. Under `/apply`'s button stand two sentences naming Quirenote, the
@@ -2151,9 +2152,17 @@ own under the button. THE VERSION IS THE EFFECTIVE DATE THE PAGE PRINTS, one con
 `packages/core` that `/apply` posts and `POST /applications` accepts alone: a body with a valid
 address and any other version, or none, is answered `terms_outdated`; the row stores it with the
 time of acceptance, and approval carries both across. An address applying again records nothing: the
-first application's acceptance stands, and an application made before the terms holds none. An
-account with none, whose application predates the terms or which came through open registration,
-records nothing until #553 asks it at sign-in. The terms make five commitments no code holds: a
+first application's acceptance stands, and an application made before the terms holds none. AN
+ACCOUNT WHOSE ROW HOLDS NO VERSION MEETS THE STEP: its application predates the terms, or it came
+through open registration, or it is the bootstrap super-admin, and no role is exempt. THE REFUSAL IS
+THE SERVER'S: the gate answers such a caller `terms` on every route but `POST /me/terms`, after
+every status, so a pending applicant never meets it; the app shows the step in place of the route
+that asked, as it shows the other answers. The step's line stands directly above «Прийняти умови»
+and names it, its privacy first layer under the buttons; accepting posts the current version, which
+the route records with the time unless the row already holds one, and the route that asked opens
+with no second sign-in; «Відхилити й вийти» signs out. Another version, or none, is answered
+`terms_outdated`. The contract purpose on `/privacy`, and the step's first layer, name the record of
+the accepted version and its time. The terms make five commitments no code holds: a
 notice in the app before material changes take effect, a notice in the app before the service
 closes, a letter before a breach closes an account unless the breach threatens the service or other
 users, the user's data used only to provide the service, and a dispute tried by correspondence
@@ -2175,7 +2184,16 @@ Enforcement rests on "the exact version of terms presented to the user at the ti
 Mastodon keys its terms by a `date` `effective_date` and Google archives its terms by date.
 Liability rests on Art. 906 ч. 2's cap for a free service, Art. 614 ч. 3 and Art. 617, no further,
 as Art. 634 ч. 2 lets a joining party contest more. The sources and the mapping are in brief #514
-and `design/extensions/terms-of-use.dc.html`.
+and `design/extensions/terms-of-use.dc.html`. The step follows GitLab, whose "existing users must
+accept the terms on their next GitLab interaction" and are signed out on declining, and whose API
+refuses a user who has not accepted ("must accept the Terms of Service in order to perform this
+action"): a gate in the app alone would leave the API open to a caller who never saw the terms.
+Terms shown at the next sign-in, with no way further without assent, were upheld in *Plazza v.
+Airbnb* (S.D.N.Y. 2018). The terms apply from approval or from acceptance on the step (Civil Code
+Art. 640 ч. 1, Art. 631 ч. 2). The write is a POST, as GitLab's accept and Mastodon's acceptance
+are: a PUT would replace a version already held (RFC 9110 §9.3.4), and "POST must be used if the
+method has side effects" (AIP-136). The sources are in brief #554 and
+`design/extensions/terms-acceptance-step.dc.html`.
 **Rejected.** An Art. 27 representative: the app targets no EU market (recital 23; EDPB 3/2018,
 Example 10). · The first layer collapsed behind «Детальніше»: collapsed text reads as unseen under
 ¶36. · A rail item: it lifted the rail's foot for a link seldom sought there. · A footer on every
@@ -2184,7 +2202,10 @@ signed in: the page would wait on the session and swap shells. · A cookie banne
 storage entry is strictly necessary. · A checkbox for the terms: pressing the named button is the
 act. · The terms and the notice in one sentence under the button (Vercel, Linear, Notion): WP260 ¶8.
 · An integer version counter (GitLab): a printed date and an id would be two values to keep in step.
-· A public offer, or opting into Law 675-VIII: a free service admitted by approval is neither. · A
+· A public offer, or opting into Law 675-VIII: the terms keep the right to refuse an account, so
+they propose no contract «з кожним, хто звернеться» (Civil Code Art. 641 ч. 1 абз. 3, Art. 633,
+Art. 627). · A role exempt from the step: it costs one press, and an exemption is one more branch
+in the gate. · A
 pending application taking the terms again when its address applies again: approval reads the row
 before its Cognito calls, so a write there is lost or races it.
 

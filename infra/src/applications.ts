@@ -16,16 +16,13 @@ import {
   verifyWith,
 } from './bot-check';
 import { connect } from './dsql';
-import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
+import { INTERNAL, INVALID, TERMS_OUTDATED, type ApiEvent, type ApiResult, json } from './http';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
 
 // EVERY ANSWER IS FIXED TEXT: a body carrying the cluster's message would repeat a
 // constraint name to a stranger, and one varying with the row would be a directory of applicants.
 const RECEIVED = json(202, '{"status":"received"}');
-/** Terms other than the route's: their own code, so a form that knows it asks for a reload, not an
- *  address. */
-const TERMS_OUTDATED = json(400, '{"error":"terms_outdated"}');
 
 /** What this route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `openapi.test.ts` catches a constant added above and not added to it. */

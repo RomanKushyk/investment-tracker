@@ -1393,6 +1393,11 @@ describe('the gate', () => {
     ]);
   });
 
+  it('asks a caller whose row holds no terms version to accept them, on either route', async () => {
+    await db.query('UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL');
+    await both('terms');
+  });
+
   it('refuses the demo as a non-caller, on either route', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     const mutated = await post([addTx(deposit(1))], {

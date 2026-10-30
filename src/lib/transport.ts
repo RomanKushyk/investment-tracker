@@ -23,7 +23,7 @@ export interface Call {
 
 /** What a call came to. `notModified` is a 304: the caller's `If-None-Match` named what the API
  *  would have sent, and no body comes with it. `conflict` is a 412: the caller re-reads the tag and
- *  decides, since the precondition is doing its work. `answer` is one of the four 403s, shown in
+ *  decides, since the precondition is doing its work. `answer` is one of the gate's 403s, shown in
  *  place of the route when the route is a user's own and neither a sign-out began nor the account
  *  changed meanwhile. `failed` is any other answer, the status and body as they came, for the caller
  *  that knows its route. `stale` is a `derivation-id` that differs from this build's: reported,

@@ -404,36 +404,40 @@ Interactions to verify:
 
 ## `/terms` — Terms of use
 
-The terms of use, whole (*Legal documents*), in `/privacy`'s frame: the same page for every reader, signed in or not, with no data request and nothing waiting on the session. Reached from «Умови» under every signed-out card (an answer's in a new tab), the links line in the panel and the drawer, the profile's «Ваші дані», `/apply`'s acceptance line (in a new tab), or by its URL.
+The terms of use, whole (*Legal documents*), in `/privacy`'s frame: the same page for every reader, signed in or not, with no data request and nothing waiting on the session. Reached from «Умови» under every signed-out card (an answer's in a new tab), the links line in the panel and the drawer, the profile's «Ваші дані», `/apply`'s acceptance line and the terms step's (each in a new tab), or by its URL. The intro names both «Подати заявку» and «Прийняти умови».
 
 At 1280, in either theme (every colour a token):
 - `/privacy`'s card, 680 wide, 2608 tall in Ukrainian: «До Quirenote», the title "Terms of use" («Умови користування»), "Last updated: dd.MM.yyyy" — the date is the version an application records — two intro paragraphs, «Зміст» over a numbered list of the twelve sections' links.
 - Twelve numbered sections 28 apart, ids `operator`, `service`, `advice`, `sources`, `account`, `data`, `use`, `availability`, `liability`, `termination`, `changes`, `law`; bulleted lists in `sources`, `account`, `data` and `use`. The data section's link opens `/privacy` in the app.
 - «Умови» under the card names the page (`aria-current="page"`).
 
-At 360: the card 336 wide, 3941,5 tall in Ukrainian and 3826 in English; nothing passes the viewport's width.
+At 360: the card 336 wide, 3961 tall in Ukrainian and 3865 in English; nothing passes the viewport's width.
 
 Interactions to verify:
 1. A contents link scrolls to its section smoothly, its title 16 below the viewport's top; with reduced motion the jump is instant.
 2. Signed in and signed out the page is the same; it sends no data request.
 3. Switching the language swaps the whole text; the Ukrainian prevails, and the English has the same sections.
 
-## The four answers — a refused caller
+## The five answers — a refused caller
 
-Not a route. When a request every signed-in user may make answers `403` with `pending`, `rejected`, `no_application` or `forbidden`, the answer replaces whatever route asked, in `/sign-in`'s shell and card, and the URL stays. It is held in memory, so a reload forgets it. Every portfolio load asks `/view`, so a user the API answers so sees one there; to see any of the four without one, on the dev server, right after reloading any route, show it from the console by importing the module URL that load recorded (after an edit Vite serves it as `app.ts?t=…`, a bare path is another instance with its own store, and a page left open can stop recording the modules it loads): `(await import(performance.getEntriesByType('resource').findLast((e) => e.name.includes('/src/auth/app.ts')).name)).showAnswer({ answer: 'pending', email: 'name@example.com' })`, where `answer` is `pending`, `rejected`, `noApplication` or `forbidden`.
+Not a route. When a request every signed-in user may make answers `403` with `pending`, `rejected`, `no_application`, `forbidden` or `terms`, the answer replaces whatever route asked, in `/sign-in`'s shell and card, and the URL stays. It is held in memory, so a reload forgets it. Every portfolio load asks `/view`, so a user the API answers so sees one there; to see any of the four without one, on the dev server, right after reloading any route, show it from the console by importing the module URL that load recorded (after an edit Vite serves it as `app.ts?t=…`, a bare path is another instance with its own store, and a page left open can stop recording the modules it loads): `(await import(performance.getEntriesByType('resource').findLast((e) => e.name.includes('/src/auth/app.ts')).name)).showAnswer({ answer: 'pending', email: 'name@example.com' })`, where `answer` is `pending`, `rejected`, `noApplication`, `forbidden` or `terms`.
 
 At 1280 and 360, in either theme:
-- A 24px glyph in `muted` — clock, ban, file-question-mark, lock — 16 above the title, which takes focus. No colour tells them apart; none is `neg`.
+- A 24px glyph in `muted` — clock, ban, file-question-mark, lock, scroll-text — 16 above the title, which takes focus. No colour tells them apart; none is `neg`.
 - **pending:** "Your application is being reviewed" / "Access opens once it's approved. There's nothing else to do."
 - **rejected:** "Your account is disabled" / "Access to it is closed. To ask why, write to support@quirenote.com."
 - **no application:** "No application for this account", on two lines / "Sign out, then apply with the address you'll use."
 - **forbidden:** "No access" / "This account has no access to Quirenote." — and no address.
-- Under the lead of the first three, "Signed in as <address>" (13px `muted`); then an outline "Sign out", full width. No application stacks a primary "Sign out and apply" above it, 10 apart, at both widths. None offers "Sign in".
+- **terms:** «Прийміть умови користування» / "Accept the terms of use", "To open Quirenote, accept the terms it runs on." — the step (`terms-acceptance-step.dc.html`), below.
+- Under the lead of every answer but forbidden, "Signed in as <address>" (13px `muted`); then an outline "Sign out", full width. No application stacks a primary "Sign out and apply" above it, 10 apart, at both widths. None offers "Sign in".
+
+**The terms step**, an active account whose row holds no terms version, a super-admin included. Under "Signed in as", 22 below it, the acceptance line (12/18 `muted`) naming «Прийняти умови» and linking `/terms` alone in a new tab; 8 under it the primary «Прийняти умови» / "Accept terms", then 10 under that the outline «Відхилити й вийти» / "Decline and sign out" in place of "Sign out"; 12 under it the privacy first layer (12/18 `muted`), linking `/privacy` in a new tab. At 1280 «Прийняти умови» stands at 411,5 and «Відхилити й вийти» at 461,5, both 40 tall; at 360 at 357,5 and 411,5, both 44 tall; neither moves in any state. To see it on the dev server, stub `/relay/auth/refresh` with an ID token and answer `/relay/view` `403 {"error":"terms"}` in an init-script `fetch` wrapper.
 
 Interactions to verify:
 1. Signed in, "Sign out" → 70 % while it runs, one `POST …/auth/sign-out`, then `/sign-in`, signed out and the answer gone, saying "You’re signed out." (`/sign-in` interaction 8). "Sign out and apply" → the same, landing on `/apply`, which says nothing of it.
 2. A sign-out the relay could not complete leaves the answer on screen and the button pressable again.
-3. With Google on, either sign-out leaves through Cognito's logout; Back that restores the page from the back/forward cache, the sign-out finished, shows no answer and no "Signed in as": the route that asked renders signed out in its place, the shell's slot reading "Not signed in" and "Sign in". A restore still signed in, of a page left by other means, keeps the answer and its buttons. A Stop while that logout loads leaves the page in place with the pressed button busy; the next route change — Back or Forward, the screen offering no links — drops the answer, and the route that asked renders signed out, the shell's slot reading "Not signed in" and "Sign in". A route change while the sign-out still runs drops nothing: the answer goes only at one after the redirect set out.
+3. The terms step: «Прийняти умови» reads «Приймаємо…» in the busy tone while one `POST …/me/terms` runs, and a press on «Відхилити й вийти» meanwhile does nothing; answered 204, the step goes and the route that asked reads `/view` again, with no `auth/refresh` and no sign-in. A refused write leaves both buttons where they were and pressable, an alert 12 under «Відхилити й вийти» (11/16,5 `neg`) and the first layer moved down under it: `400 terms_outdated` "The terms of use have changed. Reload the page to read them, then accept them again.", a 429 after the transport's retries "Too many requests right now. Try again in a moment.", anything else "Couldn’t accept the terms. Try again.". «Відхилити й вийти» is interaction 1's "Sign out", and a press on «Прийняти умови» while it runs does nothing.
+4. With Google on, either sign-out leaves through Cognito's logout; Back that restores the page from the back/forward cache, the sign-out finished, shows no answer and no "Signed in as": the route that asked renders signed out in its place, the shell's slot reading "Not signed in" and "Sign in". A restore still signed in, of a page left by other means, keeps the answer and its buttons. A Stop while that logout loads leaves the page in place with the pressed button busy; the next route change — Back or Forward, the screen offering no links — drops the answer, and the route that asked renders signed out, the shell's slot reading "Not signed in" and "Sign in". A route change while the sign-out still runs drops nothing: the answer goes only at one after the redirect set out.
 
 ## Not found and failures
 

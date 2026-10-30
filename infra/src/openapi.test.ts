@@ -15,6 +15,7 @@ import { parseDocument } from 'yaml';
 import { ADDRESS, MAX_ADDRESS } from '@quirenote/core/address';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { SETTING_NAMES } from '@quirenote/core/settings';
+import { REQUEST_BODY as TERMS_BODY, RESPONSES as TERMS_RESPONSES } from './accept-terms';
 import {
   LIST_ROUTE,
   PARAMETERS as LIST_PARAMETERS,
@@ -249,6 +250,7 @@ describe('the document is regenerated, never typed', () => {
     // about why it does NOT go through `export-api`, and none of that reasoning is a dependency.
     const imports = [...generator.matchAll(/from '([^']+)';/g)].map((m) => m[1]);
     expect(imports.sort()).toEqual([
+      './accept-terms',
       './admin-users',
       './applications',
       './approve',
@@ -343,6 +345,7 @@ const DECLARED = {
   ...IMPORT_RESPONSES,
   ...SETTINGS_RESPONSES,
   ...ME_RESPONSES,
+  ...TERMS_RESPONSES,
 };
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
@@ -422,6 +425,7 @@ describe('each operation publishes its own route’s answers', () => {
       [PART_ROUTE, PART_BODY],
       // The settings route as a literal here and below, not `SETTINGS_ROUTE`: an oracle of its own.
       ['PATCH /me/settings', SETTINGS_BODY],
+      ['POST /me/terms', TERMS_BODY],
     ]);
   });
 
@@ -499,7 +503,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the thirty routes and no others', () => {
+  it('declares the thirty-one routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -523,6 +527,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         ABORT_ROUTE,
         'PATCH /me/settings',
         ME_ROUTE,
+        'POST /me/terms',
       ].sort(),
     );
   });
@@ -564,6 +569,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ABORT_ROUTE,
       'PATCH /me/settings',
       ME_ROUTE,
+      'POST /me/terms',
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }

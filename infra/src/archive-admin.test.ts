@@ -2,6 +2,7 @@
 // the capture function, whose answer passes through unchanged.
 import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { freshDb } from './__fixtures__/pglite';
@@ -79,9 +80,11 @@ const insert = (userId: string, email: string, status: string, role = 'user') =>
   status === 'pending'
     ? `INSERT INTO app_user (user_id, email, status, role, applied_at)
          VALUES ('${userId}', '${email}', '${status}', '${role}', '2026-08-01T09:00:00Z');`
-    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
+    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by,
+                             terms_version, terms_accepted_at)
          VALUES ('${userId}', '${email}', '${status}', '${role}', '2026-08-01T09:00:00Z', now(),
-                 '${ADMIN}');`;
+                 '${ADMIN}',
+                 '${TERMS_VERSION}', now());`;
 
 let db: PGlite;
 
@@ -146,6 +149,18 @@ describe('the gate refuses before the capture function is invoked', () => {
         return read(token(OUTSIDER, OUTSIDER_EMAIL));
       },
       '{"error":"rejected"}',
+    ],
+    [
+      'a super-admin whose row holds no terms version',
+      async () => {
+        await db.exec(insert(OUTSIDER, OUTSIDER_EMAIL, 'active', 'super_admin'));
+        await db.query(
+          `UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL WHERE user_id = $1`,
+          [OUTSIDER],
+        );
+        return read(token(OUTSIDER, OUTSIDER_EMAIL));
+      },
+      '{"error":"terms"}',
     ],
     [
       'a caller with no application at all',

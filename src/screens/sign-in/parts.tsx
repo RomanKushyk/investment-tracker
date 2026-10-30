@@ -258,6 +258,22 @@ export function Foot({
   );
 }
 
+/** A link in a step's text: it opens a new tab, so what the step holds stays. */
+export function NewTabLink({ label, href }: { label: string; href: string }) {
+  const t = useT();
+  return (
+    <Link
+      to={href}
+      target="_blank"
+      rel="noopener"
+      className="text-accent underline underline-offset-2"
+    >
+      {label}
+      <span className="sr-only"> {t.privacy.newTab}</span>
+    </Link>
+  );
+}
+
 /** A sentence about the whole step, below its button; a new `n` re-inserts it, so a repeat is
  *  announced again. */
 export function StepAlert({ n, children }: { n: number; children: ReactNode }) {

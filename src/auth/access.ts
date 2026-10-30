@@ -1,7 +1,7 @@
-/** The four 403s `infra/src/authorize.ts` gives a signed-in caller; none is a 401, since a sign-in
+/** The five 403s `infra/src/authorize.ts` gives a signed-in caller; none is a 401, since a sign-in
  *  would succeed and change nothing. An admin route also answers `forbidden` to an active user who is
  *  not a super-admin, so only a route every user may call is read this way. */
-export type Answer = 'pending' | 'rejected' | 'noApplication' | 'forbidden';
+export type Answer = 'pending' | 'rejected' | 'noApplication' | 'forbidden' | 'terms';
 
 // A Map, not an object: `constructor` and `toString` are keys every object literal answers to.
 const ANSWERS = new Map<unknown, Answer>([
@@ -9,6 +9,7 @@ const ANSWERS = new Map<unknown, Answer>([
   ['rejected', 'rejected'],
   ['no_application', 'noApplication'],
   ['forbidden', 'forbidden'],
+  ['terms', 'terms'],
 ]);
 
 /** The answer a response carries, or `undefined` for any other refusal: the relay's own 403

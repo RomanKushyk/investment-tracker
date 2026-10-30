@@ -19,7 +19,7 @@ import {
   type ServedRows,
 } from '@quirenote/core/view/serve';
 
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, authorize } from './authorize';
+import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
 import { connect, connectAsArchiveReader } from './dsql';
 import {
   INTERNAL,
@@ -144,7 +144,15 @@ const INVALID_DATE = derived({
 
 /** What the route can answer, and the only list of it — `openapi.ts` builds the document from here,
  *  and `view.test.ts` proves it against what the route really answers. */
-const READ = [PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, PRECONDITION_FAILED, INTERNAL] as const;
+const READ = [
+  PENDING,
+  REJECTED,
+  NO_APPLICATION,
+  FORBIDDEN,
+  TERMS,
+  PRECONDITION_FAILED,
+  INTERNAL,
+] as const;
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [ROUTE]: [VIEWED, UNCHANGED_VIEW, ...READ],
   [SERIES_ROUTE]: [SERIES, UNCHANGED, INVALID_QUERY, ...READ],

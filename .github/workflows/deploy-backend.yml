@@ -251,7 +251,7 @@ jobs:
               query: async (text) => ({
                 rows: text.includes('applied_at')
                   ? [{ user_id: DEMO, email: 'demo@quirenote.com', status: 'active', role: 'demo', applied_at: new Date(), decided_at: null }]
-                  : [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }],
+                  : [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role, terms_version: '2026-10-29' }],
               }),
             });
             const event = {
@@ -283,7 +283,7 @@ jobs:
             const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
             const sent = [];
             const capture = { invoke: async (input) => { sent.push(input); return { Payload: new TextEncoder().encode('{\"mode\":\"diagnose\"}') }; } };
-            const client = (role) => ({ query: async () => ({ rows: [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }] }) });
+            const client = (role) => ({ query: async () => ({ rows: [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role, terms_version: '2026-10-29' }] }) });
             const event = {
               routeKey: 'GET /admin/archive/diagnosis',
               requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: ADMIN, email: 'owner@quirenote.com' } } } },
@@ -305,7 +305,7 @@ jobs:
             const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
             const started = [];
             const sfn = { start: async (input) => { started.push(input); } };
-            const client = (role) => ({ query: async () => ({ rows: [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }] }) });
+            const client = (role) => ({ query: async () => ({ rows: [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role, terms_version: '2026-10-29' }] }) });
             const event = {
               routeKey: 'POST /admin/archive/operations',
               body: JSON.stringify({ mode: 'importFundHistory', refs: ['inzhur-reit'] }),
@@ -481,7 +481,7 @@ jobs:
                   rows: text.includes('data_version')
                     ? [{ data_version: '0' }]
                     : text.includes('FROM app_user')
-                      ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: JSON.stringify({ period: '3m' }) }]
+                      ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: JSON.stringify({ period: '3m' }), terms_version: '2026-10-29' }]
                       : [],
                 }),
               },
@@ -548,7 +548,7 @@ jobs:
                     rows: text.includes('data_version')
                       ? [{ data_version: '0' }]
                       : text.includes('FROM app_user')
-                        ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: null }]
+                        ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: null, terms_version: '2026-10-29' }]
                         : granting ? [{ token: TOKEN }] : [],
                   };
                 },

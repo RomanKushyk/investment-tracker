@@ -8,6 +8,11 @@
 import { readFileSync } from 'node:fs';
 import { parseDocument } from 'yaml';
 
+import {
+  REQUEST_BODY as TERMS_BODY,
+  RESPONSES as TERMS_RESPONSES,
+  TERMS_ROUTE,
+} from './accept-terms';
 import { PARAMETERS as LIST_PARAMETERS, RESPONSES as LIST_RESPONSES } from './admin-users';
 import {
   REQUEST_BODY,
@@ -90,13 +95,14 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'archive-operations.handler': OPERATION_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
   'view.handler': VIEW_RESPONSES,
-  // The write, the export, the staged import, the settings and the account's own read share one
-  // function.
+  // The write, the export, the staged import, the settings, the account's own read and the terms'
+  // acceptance share one function.
   'mutations.handler': {
     ...MUTATIONS_RESPONSES,
     ...IMPORT_RESPONSES,
     ...SETTINGS_RESPONSES,
     ...ME_RESPONSES,
+    ...TERMS_RESPONSES,
   },
 };
 
@@ -117,6 +123,7 @@ const BODIES: Record<string, unknown> = {
   [BEGIN_ROUTE]: BEGIN_BODY,
   [PART_ROUTE]: PART_BODY,
   [SETTINGS_ROUTE]: SETTINGS_BODY,
+  [TERMS_ROUTE]: TERMS_BODY,
 };
 
 /** One group per first path segment, in Swagger UI and in a generated client. [*API shape*] */
@@ -130,7 +137,7 @@ export const TAGS: Record<string, string> = {
   state: 'The raw export of the stored portfolio.',
   imports:
     'The staged import: a dataset too large for one transaction, in parts that one commit moves.',
-  me: 'The caller’s own account and what it holds, read by the screens that show it, and its settings, written as a merge patch.',
+  me: 'The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, and its acceptance of the terms of use.',
 };
 
 type Operation = {
@@ -284,7 +291,7 @@ const parameters = (path: string) =>
     schema: { type: 'string' },
   }));
 
-/** One status may carry SEVERAL BODIES — the gate's four 403s — and OpenAPI 3.0 allows one
+/** One status may carry SEVERAL BODIES — the gate's 403s — and OpenAPI 3.0 allows one
  *  response object per status, so they become named `examples` rather than one winning. */
 const nameOf = (body: string): string => {
   const parsed = JSON.parse(body) as { error?: string; status?: string };

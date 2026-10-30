@@ -104,7 +104,7 @@ export const apply = createApply({
 /** This host's Turnstile widget, or none where no environment is keyed. */
 export const botCheckSitekey = botCheckSitekeyFor(location.hostname, location.search);
 
-/** One of the four refusals `answerOf` reads, and the address the caller signed in with. */
+/** One of the refusals `answerOf` reads, and the address the caller signed in with. */
 export interface HeldAnswer {
   answer: Answer;
   email?: string;

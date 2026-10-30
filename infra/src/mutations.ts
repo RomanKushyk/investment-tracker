@@ -1,5 +1,6 @@
 // `POST /mutations` and `GET /state` (*Cloud target*, *User schema and deletes*), and the function's
-// other routes: the staged import, `PATCH /me/settings` and the account's own `GET /me`.
+// other routes: the staged import, `PATCH /me/settings`, `POST /me/terms` and the account's own
+// `GET /me`.
 //
 // A write is ONE TRANSACTION of ordered ops under a strong `If-Match`, after a claim on its
 // idempotency key committed on its own: the effect, the version bump and the stored response then
@@ -19,7 +20,7 @@ import {
 } from '@quirenote/core/valuation';
 
 import { deleteAsset, pruneAsset } from './asset-delete';
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, authorize } from './authorize';
+import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
 import { collect, once } from './collect';
 import { codeOf, connect } from './dsql';
 import {
@@ -54,6 +55,7 @@ import {
 } from './ledger';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
+import { TERMS_ROUTE, acceptTerms } from './accept-terms';
 import { IMPORT_ROUTES, imports, type ImportDeps } from './imports';
 import { ME_ROUTE, identityReader, me } from './me';
 import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
@@ -139,6 +141,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     REJECTED,
     NO_APPLICATION,
     FORBIDDEN,
+    TERMS,
     INTERNAL,
   ],
   [STATE_ROUTE]: [
@@ -148,6 +151,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     REJECTED,
     NO_APPLICATION,
     FORBIDDEN,
+    TERMS,
     PRECONDITION_FAILED,
     INTERNAL,
   ],
@@ -830,6 +834,7 @@ export async function handler(
     if (event.routeKey === MUTATIONS_ROUTE) return await mutations(deps, event);
     if (IMPORT_ROUTES.includes(event.routeKey ?? '')) return await imports(deps, event);
     if (event.routeKey === SETTINGS_ROUTE) return await settings(deps, event);
+    if (event.routeKey === TERMS_ROUTE) return await acceptTerms(deps, event);
     if (event.routeKey === ME_ROUTE) {
       return await me(
         { user, identity: identityReader, userPoolId: process.env.USER_POOL_ID },

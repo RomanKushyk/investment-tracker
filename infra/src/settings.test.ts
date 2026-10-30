@@ -414,6 +414,11 @@ describe('the gate', () => {
     await refuses('no_application', { sub: TWIN, email: TWIN_EMAIL });
   });
 
+  it('asks a caller whose row holds no terms version to accept them', async () => {
+    await db.query('UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL');
+    await refuses('terms');
+  });
+
   it('refuses the demo as a non-caller', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     await refuses('forbidden', { sub: TWIN, email: DEMO_USER_EMAIL });

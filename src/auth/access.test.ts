@@ -8,6 +8,7 @@ describe('what a refused caller is told', () => {
     [{ error: 'rejected' }, 'rejected'],
     [{ error: 'no_application' }, 'noApplication'],
     [{ error: 'forbidden' }, 'forbidden'],
+    [{ error: 'terms' }, 'terms'],
   ])('reads a 403 %j as %s', (body, expected) => {
     expect(answerOf(403, body)).toBe(expected);
   });

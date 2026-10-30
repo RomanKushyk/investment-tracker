@@ -1,5 +1,5 @@
 // A fake of the user API for the client's tests: the reads `GET /view` and its three siblings, the
-// account's `GET /me`, the export, `POST /mutations`, `PATCH /me/settings` and the staged import, served as `fetch` answers over
+// account's `GET /me`, the export, `POST /mutations`, `PATCH /me/settings`, `POST /me/terms` and the staged import, served as `fetch` answers over
 // rows held in memory. It applies the ops with core's own schemas and merge patch, and the settings
 // with core's own, so a client that sends the wrong op, the wrong tag or the wrong bytes is refused
 // as the API refuses it. The relay's refresh answers too, so a page can sign in through it, and its
@@ -15,6 +15,7 @@ import { ledgerUnits } from '@quirenote/core/derive';
 import { mergePatch, opIssues, opSchema, type Op } from '@quirenote/core/ops';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { patchSettings, settingsOf } from '@quirenote/core/settings';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import type { Passkey } from '../auth/relay';
 import type { ArchiveDiagnosis, ArchiveOperation } from '../lib/repository';
@@ -82,6 +83,9 @@ export interface FakeApi {
   settings: string | null;
   /** The row's role, which `GET /me` serves. */
   role: 'user' | 'super_admin';
+  /** Whether the row holds a terms version: while it holds none, every data route but
+   *  `POST /me/terms` answers `terms`, as the gate does. */
+  termsAccepted: boolean;
   /** What the super-admin's `GET /admin/archive/diagnosis` answers: the body, or the route's
    *  502 or 504. Anyone else is refused `forbidden`, as `superAdminOnly` refuses them. */
   diagnosis: ArchiveDiagnosis | 'capture_failed' | 'capture_timeout';
@@ -140,6 +144,7 @@ export function fakeApi(
     notModified: 0,
     settings: null,
     role: 'user',
+    termsAccepted: true,
     diagnosis: { size: { rows: '0', total_bytes: '0' }, bySource: [], observations: [], sample: [] },
     operations: [],
     starts: [],
@@ -584,6 +589,13 @@ export function fakeApi(
       body: await original.text(),
     };
     api.seen.push(request);
+    if (request.method === 'POST' && path === '/me/terms') {
+      const { termsVersion } = JSON.parse(request.body) as { termsVersion?: unknown };
+      if (termsVersion !== TERMS_VERSION) return json({ error: 'terms_outdated' }, 400);
+      api.termsAccepted = true;
+      return new Response(null, { status: 204 });
+    }
+    if (!api.termsAccepted) return json({ error: 'terms' }, 403);
     if (request.method === 'GET' && path === '/state') {
       return json(api.rows, 200, { etag: api.tag() });
     }

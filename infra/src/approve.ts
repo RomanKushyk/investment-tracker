@@ -27,6 +27,7 @@ import {
   NO_APPLICATION,
   PENDING,
   REJECTED as REJECTED_APPLICANT,
+  TERMS,
   authorize,
   superAdminOnly,
 } from './authorize';
@@ -86,7 +87,7 @@ const ALREADY_DECIDED = json(409, '{"error":"already_decided"}');
 // hold. Its own refusal because the repair is outside this API — the account has to go.
 const UNCLAIMED_IDENTITY = json(409, '{"error":"unclaimed_identity"}');
 
-const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN] as const;
+const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN, TERMS] as const;
 
 /** WHAT EACH ROUTE CAN ANSWER, and the only list of it — `openapi.ts` builds the document from
  *  here, and `openapi.test.ts` catches a constant added above and not added to it. The two differ

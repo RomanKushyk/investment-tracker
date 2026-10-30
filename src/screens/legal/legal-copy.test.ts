@@ -134,6 +134,28 @@ describe('the terms name the button that accepts them', () => {
     const button = quoted(dict.auth.apply.submit);
     expect(dict.terms.accept).toContain(button);
     expect(dict.terms.intro[0]).toContain(button);
+    // The step accepts them too, and its line and the intro name its button as it reads.
+    const step = quoted(dict.terms.step.submit);
+    expect(dict.terms.step.accept).toContain(step);
+    expect(dict.terms.intro[0]).toContain(step);
+  });
+});
+
+// #554's rewrite: the terms hold for an account that accepts on the step and for one made while
+// registration is open, so they no longer say an account is given by application.
+describe('the terms hold for an account that never applied', () => {
+  it.each([
+    ['en', en, /from the moment you accepted them/, /we may refuse to give an account/],
+    ['uk', uk, /з моменту прийняття/, /ми можемо відмовити в обліковому записі/],
+  ] as const)('%s', (_language, dict, fromAcceptance, refuse) => {
+    expect(dict.terms.intro[0]).toMatch(fromAcceptance);
+    const [, operator] = at(dict, 'terms.sections.operator.body') as string[];
+    expect(operator).toMatch(refuse);
+    expect(operator).toMatch(/633/);
+    expect(operator).toMatch(/641/);
+    expect(JSON.stringify(at(dict, 'terms.sections'))).not.toMatch(
+      /Обліковий запис дають за заявкою|Accounts are given by application|розглядаємо кожну заявку|review every application/,
+    );
   });
 });
 
@@ -147,6 +169,27 @@ describe('the privacy notice names the terms record', () => {
     const [application, account] = at(dict, 'privacy.sections.data.body.0') as string[];
     expect(application).toMatch(record);
     expect(account).toMatch(record);
+  });
+
+  // Law 2297-VI Art. 12 ч. 2 asks the purpose at collection: the contract purpose names the record,
+  // and the step's first layer states it in the same words (#554).
+  it.each([
+    [
+      'en',
+      en,
+      'keep a record of our agreement (which version of the terms of use you accepted and when)',
+      'to keep a record of the agreement with you',
+    ],
+    [
+      'uk',
+      uk,
+      'зберігати запис договору (яку версію Умов користування ви прийняли й коли)',
+      'щоб зберігати запис договору з вами',
+    ],
+  ] as const)('%s names it as a purpose, as the step does', (_language, dict, purpose, layer) => {
+    const [, contract] = at(dict, 'privacy.sections.purposes.body.0') as string[];
+    expect(contract).toContain(purpose);
+    expect(dict.terms.step.firstLayer).toContain(layer);
   });
 });
 

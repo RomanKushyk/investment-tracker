@@ -1,10 +1,12 @@
-// ONE VERSION, read by both ends: the form posts the terms version `/terms` prints, and the route
-// accepts that version alone (*Legal documents*). Two copies would let the form send a version the
-// route refuses, or the route record one no page showed.
+// ONE VERSION, read by both ends: the form and the step post the terms version `/terms` prints, and
+// each route accepts that version alone (*Legal documents*). Two copies would let a client send a
+// version the route refuses, or the route record one no page showed.
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createApply } from '../../src/auth/apply';
+import { ACCEPTANCE } from '../../src/lib/terms-acceptance';
+import { REQUEST_BODY as TERMS_BODY } from './accept-terms';
 import { REQUEST_BODY } from './applications';
 
 describe('the terms version', () => {
@@ -26,5 +28,16 @@ describe('the terms version', () => {
     await createApply({ base: '', fetch })('new@quirenote.com', 'token');
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(String(init.body)).termsVersion).toBe(TERMS_VERSION);
+  });
+
+  it('is the one value the acceptance route publishes and requires', () => {
+    const { schema } = TERMS_BODY.content['application/json'];
+    expect(schema.required).toEqual(['termsVersion']);
+    expect(schema.properties.termsVersion.enum).toEqual([TERMS_VERSION]);
+  });
+
+  it('is the value the step posts', () => {
+    expect(ACCEPTANCE).toMatchObject({ method: 'POST', path: '/me/terms' });
+    expect(JSON.parse(ACCEPTANCE.body)).toEqual({ termsVersion: TERMS_VERSION });
   });
 });

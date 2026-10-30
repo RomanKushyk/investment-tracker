@@ -6,12 +6,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PGlite } from '@electric-sql/pglite';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
-import { type Gate, authorize, superAdminOnly } from './authorize';
+import { type Gate, TERMS, authorize, superAdminOnly } from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
@@ -60,12 +61,16 @@ const spy = () => {
 
 let db: PGlite;
 
-const row = (userId: string, email: string, status: string, role = 'user') =>
+/** An active row holds the terms unless `accepted` says otherwise: the case every other test is
+ *  about is a caller the terms do not stop. */
+const row = (userId: string, email: string, status: string, role = 'user', accepted = true) =>
   status === 'pending'
     ? `INSERT INTO app_user (user_id, email, status, role, applied_at)
          VALUES ('${userId}', '${email}', 'pending', '${role}', now());`
-    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
-         VALUES ('${userId}', '${email}', '${status}', '${role}', now(), now(), '${userId}');`;
+    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by,
+                             terms_version, terms_accepted_at)
+         VALUES ('${userId}', '${email}', '${status}', '${role}', now(), now(), '${userId}',
+                 ${accepted ? `'${TERMS_VERSION}', now()` : 'NULL, NULL'});`;
 
 const rows = async () =>
   (
@@ -294,12 +299,88 @@ describe('three refusals, and they are three', () => {
   });
 });
 
+describe('the terms, asked after every status', () => {
+  for (const role of ['user', 'super_admin']) {
+    it(`refuses an active ${role} whose row holds no terms version with terms`, async () => {
+      await db.exec(row(SUB, EMAIL, 'active', role, false));
+      const gate = await authorize(db, token());
+      expect(gate).toEqual({ refusal: TERMS });
+      expect(TERMS).toEqual(
+        expect.objectContaining({ statusCode: 403, body: '{"error":"terms"}' }),
+      );
+      expect(superAdminOnly(gate)).toEqual({ refusal: TERMS });
+    });
+
+    it(`admits an active ${role} whose row holds a version`, async () => {
+      await db.exec(row(SUB, EMAIL, 'active', role));
+      expect(await authorize(db, token())).toEqual({
+        caller: { userId: SUB, email: EMAIL, role, settings: null },
+      });
+    });
+  }
+
+  // A pending applicant never meets the step: the terms would apply before any approval.
+  it('keeps pending, rejected and no-application ahead of terms', async () => {
+    const said = async () => (await authorize(db, token())) as { refusal: { body: string } };
+    expect((await said()).refusal.body).toBe('{"error":"no_application"}');
+    await db.exec(row(SUB, EMAIL, 'pending'));
+    expect((await said()).refusal.body).toBe('{"error":"pending"}');
+    await db.exec(`UPDATE app_user SET status = 'rejected', decided_at = now(),
+                                       decided_by = '${SUB}' WHERE user_id = '${SUB}';`);
+    expect((await said()).refusal.body).toBe('{"error":"rejected"}');
+  });
+
+  it('keeps the address held under another id ahead of terms', async () => {
+    await db.exec(row(OTHER, EMAIL, 'active', 'user', false));
+    const watched = watchConsole();
+    try {
+      expect(await authorize(db, token())).toEqual({
+        refusal: expect.objectContaining({ body: '{"error":"forbidden"}' }),
+      });
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // The one route that records the acceptance is the one a caller with none may reach.
+  it('admits a caller with no version when the route asks for no terms', async () => {
+    await db.exec(row(SUB, EMAIL, 'active', 'user', false));
+    expect(await authorize(db, token(), { terms: 'optional' })).toEqual({
+      caller: { userId: SUB, email: EMAIL, role: 'user', settings: null },
+    });
+  });
+
+  it('still answers every status first when the route asks for no terms', async () => {
+    await db.exec(row(SUB, EMAIL, 'pending'));
+    const gate = await authorize(db, token(), { terms: 'optional' });
+    expect((gate as { refusal: { body: string } }).refusal.body).toBe('{"error":"pending"}');
+  });
+
+  it('reads the terms in the statement that reads the row', async () => {
+    await db.exec(row(SUB, EMAIL, 'active', 'user', false));
+    const sent: string[] = [];
+    const client: SqlClient = {
+      query: <R>(text: string, values?: unknown[]) => {
+        sent.push(text);
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    await authorize(client, token());
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatch(/\bterms_version\b/);
+  });
+});
+
 describe('open registration is the only thing that writes a row here', () => {
-  it('gives a valid token with no row one, active, keyed by its own sub', async () => {
+  // Active, and holding no terms: nobody accepted them at sign-up, so the call that wrote the row
+  // is answered with the step, and so is the next.
+  it('gives a valid token with no row one, active, keyed by its own sub, and asks for the terms', async () => {
     vi.stubEnv('OPEN_REGISTRATION', 'true');
-    const gate = await authorize(db, token());
-    expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
+    expect(await authorize(db, token())).toEqual({ refusal: TERMS });
+    expect(await authorize(db, token())).toEqual({ refusal: TERMS });
     expect(await rows()).toEqual([{ user_id: SUB, email: EMAIL, status: 'active', role: 'user' }]);
+    const { rows: terms } = await db.query('SELECT terms_version, terms_accepted_at FROM app_user');
+    expect(terms).toEqual([{ terms_version: null, terms_accepted_at: null }]);
     // Self-decided, the only truthful shape `app_user_decided_ck` leaves open: it exempts
     // `role = 'demo'` alone, so an active row must carry both halves and the deploy is what ruled.
     expect(await pair(SUB)).toEqual({ decided: true, decided_by: SUB });

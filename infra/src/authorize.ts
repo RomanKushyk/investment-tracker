@@ -20,16 +20,19 @@ export type Caller = { userId: string; email: string; role: string; settings: st
 /** Either the caller or the answer that refuses them — never both, and never a bare boolean. */
 export type Gate = { caller: Caller } | { refusal: ApiResult };
 
-// THREE REFUSALS FOR THREE SITUATIONS, AND THEY ARE THREE ON PURPOSE: a `pending` applicant has
-// to be told to wait, a `rejected` one to stop trying, and a caller with no application at all is
-// a different case again. None is a 401, which would say "you are not signed in" — false, and it
-// sends the reader back through a sign-in that succeeds and changes nothing. `FORBIDDEN` is
-// deliberately NOT a fourth situation: its causes must not be told apart, because telling them
-// apart describes the system to somebody it just turned away.
+// ONE REFUSAL PER SITUATION, AND EACH SAYS WHAT TO DO: a `pending` applicant has to be told to
+// wait, a `rejected` one to stop trying, a caller with no application at all is a different case
+// again, and an account that holds no terms version is asked to accept them. None is a 401, which
+// would say "you are not signed in" — false, and it sends the reader back through a sign-in that
+// succeeds and changes nothing. `FORBIDDEN` is deliberately NOT a situation: its causes must not be
+// told apart, because telling them apart describes the system to somebody it just turned away.
 export const PENDING = json(403, '{"error":"pending"}');
 export const REJECTED = json(403, '{"error":"rejected"}');
 export const NO_APPLICATION = json(403, '{"error":"no_application"}');
 export const FORBIDDEN = json(403, '{"error":"forbidden"}');
+/** The server's refusal, not only the app's: a caller who never saw the terms reaches no route but
+ *  the one that records them (*Legal documents*). */
+export const TERMS = json(403, '{"error":"terms"}');
 
 // THE EXACT STRING, the rule `pre-signup.ts` states: the value arrives as text and
 // `Boolean('false')` is `true`, so everything else must mean closed. Read per call.
@@ -38,7 +41,7 @@ const registrationIsOpen = () => process.env.OPEN_REGISTRATION === 'true';
 /** By `user_id` is the ordinary case; by `email` is the one that would otherwise be a unique
  *  violation, since the address may already hold a row under a placeholder — somebody applied,
  *  registration was opened, they signed up. */
-const LOOK = `SELECT user_id, email, status, role, settings FROM app_user
+const LOOK = `SELECT user_id, email, status, role, settings, terms_version FROM app_user
               WHERE user_id = $1 OR email = $2`;
 
 /**
@@ -59,9 +62,13 @@ type Row = {
   status: string;
   role: string;
   settings: string | null;
+  terms_version: unknown;
 };
 
-function answer(row: Row, sub: string): Gate {
+/** `optional` is the acceptance route's alone: the one a caller who holds no version may reach. */
+export type GateOptions = { terms?: 'required' | 'optional' };
+
+function answer(row: Row, sub: string, { terms = 'required' }: GateOptions): Gate {
   // THE DEMO IS NOT AN APPLICATION AND NEVER BECOMES ONE: no token can carry its `sub`, so this
   // is reachable only through the address. Refused as a non-caller rather than as a status.
   if (row.role === 'demo') return { refusal: FORBIDDEN };
@@ -75,6 +82,9 @@ function answer(row: Row, sub: string): Gate {
     console.error(`authorize: the address of ${sub} is active under ${row.user_id}`);
     return { refusal: FORBIDDEN };
   }
+  // After every status, so a pending applicant never meets the step: the terms apply from approval.
+  // Absent counts as none, so a row read without the column cannot pass for one that holds it.
+  if (terms === 'required' && row.terms_version == null) return { refusal: TERMS };
   return {
     caller: { userId: row.user_id, email: row.email, role: row.role, settings: row.settings },
   };
@@ -85,7 +95,11 @@ async function look(client: SqlClient, sub: string, email: string): Promise<Row 
   return rows.find((r) => r.user_id === sub) ?? rows.find((r) => r.email === email);
 }
 
-export async function authorize(client: SqlClient, event: ApiEvent): Promise<Gate> {
+export async function authorize(
+  client: SqlClient,
+  event: ApiEvent,
+  options: GateOptions = {},
+): Promise<Gate> {
   const claims = event.requestContext?.authorizer?.jwt?.claims;
 
   // AN ID TOKEN, AND THE CHECK IS NOT PEDANTRY: there is no standard way to tell an access token
@@ -104,7 +118,7 @@ export async function authorize(client: SqlClient, event: ApiEvent): Promise<Gat
   if (email === undefined) return { refusal: FORBIDDEN };
 
   const found = await look(client, sub, email);
-  if (found !== undefined) return answer(found, sub);
+  if (found !== undefined) return answer(found, sub, options);
 
   // NO ROW, AND THIS IS WHERE THE DOOR IS. Closed is the default and the only safe state: a valid
   // token for an identity this system never approved is what a federated sign-in mints on its own.
@@ -132,7 +146,7 @@ export async function authorize(client: SqlClient, event: ApiEvent): Promise<Gat
 
   const created = await look(client, sub, email);
   if (created === undefined) return { refusal: INTERNAL };
-  return answer(created, sub);
+  return answer(created, sub, options);
 }
 
 /** `role` is the ROW's — a token claiming super-admin against a `user` row changes nothing. */

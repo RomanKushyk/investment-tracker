@@ -1,8 +1,9 @@
 // The list a ruling starts from. Served by the admin function behind the same gate approve and
 // reject stand behind, so every call here goes through `approve()` rather than the module alone:
-// the gate's four refusals are part of what the route answers.
+// the gate's refusals are part of what the route answers.
 import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { freshDb } from './__fixtures__/pglite';
@@ -76,9 +77,11 @@ const insert = (userId: string, email: string, status: string, appliedAt: string
   status === 'pending' || role === 'demo'
     ? `INSERT INTO app_user (user_id, email, status, role, applied_at)
          VALUES ('${userId}', '${email}', '${status}', '${role}', '${appliedAt}');`
-    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
+    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by,
+                             terms_version, terms_accepted_at)
          VALUES ('${userId}', '${email}', '${status}', '${role}', '${appliedAt}', now(),
-                 '${ADMIN}');`;
+                 '${ADMIN}',
+                 '${TERMS_VERSION}', now());`;
 
 type Listed = {
   id: string;
@@ -299,7 +302,7 @@ describe('the cursor: a page holds limit rows, and following next visits every r
   });
 });
 
-describe('the gate: the same four refusals approve and reject give', () => {
+describe('the gate: the same refusals approve and reject give', () => {
   it('refuses an ordinary active caller', async () => {
     await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'active', SAME_DAY));
     const res = await approve(db, idp, list(undefined, token(OUTSIDER, 'outsider@quirenote.com')));
@@ -321,6 +324,16 @@ describe('the gate: the same four refusals approve and reject give', () => {
   it('refuses a caller with no application at all', async () => {
     const res = await approve(db, idp, list(undefined, token(OUTSIDER, 'nobody@quirenote.com')));
     expect([res.statusCode, res.body]).toEqual([403, '{"error":"no_application"}']);
+  });
+
+  it('asks a super-admin whose row holds no terms version to accept them', async () => {
+    await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'active', SAME_DAY, 'super_admin'));
+    await db.query(
+      `UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL WHERE user_id = $1`,
+      [OUTSIDER],
+    );
+    const res = await approve(db, idp, list(undefined, token(OUTSIDER, 'outsider@quirenote.com')));
+    expect([res.statusCode, res.body]).toEqual([403, '{"error":"terms"}']);
   });
 });
 

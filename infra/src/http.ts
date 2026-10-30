@@ -58,6 +58,9 @@ export const PRECONDITION_FAILED = json(412, '{"error":"precondition_failed"}');
 /** RFC 6585 §3: a write that names no state it expects; `*` matches whatever exists, so it is
  *  none. */
 export const PRECONDITION_REQUIRED = json(428, '{"error":"precondition_required"}');
+/** Terms other than the route's, or none, on either route that records an acceptance: their own
+ *  code, so a client that knows it asks for a reload. */
+export const TERMS_OUTDATED = json(400, '{"error":"terms_outdated"}');
 /** A body past core's `MAX_BODY_BYTES`, which the routes that take one share. */
 export const TOO_LARGE = json(413, '{"error":"payload_too_large","max":1048576}');
 

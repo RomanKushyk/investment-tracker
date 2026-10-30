@@ -1082,6 +1082,11 @@ describe('the gate, on every import route', () => {
     );
   });
 
+  it('asks a caller whose row holds no terms version to accept them', async () => {
+    await db.query('UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL');
+    expect(await everyRoute()).toEqual(Array(4).fill({ error: 'terms' }));
+  });
+
   it('refuses the demo as a non-caller', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     expect(await everyRoute({ sub: TWIN, email: DEMO_USER_EMAIL })).toEqual(

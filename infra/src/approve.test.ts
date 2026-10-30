@@ -201,9 +201,11 @@ const insert = (userId: string, email: string, status: string, role = 'user') =>
   status === 'pending'
     ? `INSERT INTO app_user (user_id, email, status, role, applied_at)
          VALUES ('${userId}', '${email}', 'pending', '${role}', '${APPLIED}');`
-    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
+    : `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by,
+                             terms_version, terms_accepted_at)
          VALUES ('${userId}', '${email}', '${status}', '${role}', '${APPLIED}', now(),
-                 '${userId}');`;
+                 '${userId}',
+                 '${TERMS_VERSION}', now());`;
 
 type Row = {
   user_id: string;
@@ -1128,6 +1130,22 @@ describe('both routes meet the gate, and reject reads its argument like approve 
         call(route, PLACEHOLDER, token(OUTSIDER, 'nobody@quirenote.com')),
       );
       expect([route, res.statusCode, res.body]).toEqual([route, 403, '{"error":"no_application"}']);
+    });
+
+    it(`asks a super-admin whose row holds no terms version to accept them, on ${route}`, async () => {
+      await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'active', 'super_admin'));
+      await db.query(
+        `UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL WHERE user_id = $1`,
+        [OUTSIDER],
+      );
+      const { idp, created } = spy();
+      const res = await approve(
+        db,
+        idp,
+        call(route, PLACEHOLDER, token(OUTSIDER, 'outsider@quirenote.com')),
+      );
+      expect([route, res.statusCode, res.body]).toEqual([route, 403, '{"error":"terms"}']);
+      expect(created).toEqual([]);
     });
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import { apply } from '../../auth/app';
@@ -9,7 +9,7 @@ import type { Dict } from '../../i18n/messages';
 import { rich } from '../../i18n/rich';
 import { useT } from '../../i18n/useT';
 import { BotCheck } from './BotCheck';
-import { EmailInput, Field, FocusedTitle, Foot, StepAlert, Title } from './parts';
+import { EmailInput, Field, FocusedTitle, Foot, NewTabLink, StepAlert, Title } from './parts';
 import { afterPass, useBotCheck } from './useBotCheck';
 import { useSelfXssWarning } from './useSelfXssWarning';
 
@@ -90,18 +90,8 @@ export function Apply() {
 
   const botCheck = check.props && <BotCheck {...check.props} action="apply" />;
 
-  /** A link in one of the form's two texts: it opens a new tab, so what was typed here stays. */
   const newTab = (label: string, href: string, key: number) => (
-    <Link
-      key={key}
-      to={href}
-      target="_blank"
-      rel="noopener"
-      className="text-accent underline underline-offset-2"
-    >
-      {label}
-      <span className="sr-only"> {t.privacy.newTab}</span>
-    </Link>
+    <NewTabLink key={key} label={label} href={href} />
   );
 
   const fieldError = said && ON_THE_FIELD.includes(said.reason) ? said : undefined;

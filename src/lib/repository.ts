@@ -15,6 +15,7 @@ import type { BalancesBody, DayQuotes, SeriesBody, ViewBody } from '@quirenote/c
 
 import { abortImport, exportState, replaceDataset, type ExportedState } from './backup';
 import type { SettingsCopy } from './settings-copy';
+import { ACCEPTANCE } from './terms-acceptance';
 import type { Reply, Transport } from './transport';
 import {
   type CouponReopen,
@@ -34,6 +35,9 @@ import {
 } from './writes';
 
 export type Refusal = Exclude<Reply, { kind: 'ok' }>;
+/** What the step's write came to: `outdated` is a step held open across a release, whose terms the
+ *  route no longer takes. */
+export type TermsOutcome = 'accepted' | 'outdated' | 'throttled' | 'failed';
 export type { CouponReopen };
 
 /** What the API said when it did not do what was asked. */
@@ -425,6 +429,20 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
         body: JSON.stringify(fields),
       });
       if (reply.kind !== 'ok') throw new ApiError(reply);
+    },
+
+    /** The terms accepted on the step. It throws nothing: the step says why under its buttons. A
+     *  second press records nothing more, so the transport's retries are safe. */
+    async acceptTerms(): Promise<TermsOutcome> {
+      const reply = await begun()(ACCEPTANCE);
+      if (reply.kind === 'ok') return 'accepted';
+      if (reply.kind === 'throttled') return 'throttled';
+      const outdated =
+        reply.kind === 'failed' &&
+        reply.status === 400 &&
+        isObject(reply.body) &&
+        reply.body.error === 'terms_outdated';
+      return outdated ? 'outdated' : 'failed';
     },
 
     /** The dataset as the API holds it now, with the tag it is at. It moves no tag of this tab: a

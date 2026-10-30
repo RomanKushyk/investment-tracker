@@ -229,6 +229,7 @@ describe('a refusal', () => {
     ['rejected', 'rejected'],
     ['no_application', 'noApplication'],
     ['forbidden', 'forbidden'],
+    ['terms', 'terms'],
   ] as const)('reaches the caller as %s, and the screen', async (error, answer) => {
     server.use(http.get(`${API}/view`, () => answering(403, { error })));
     const { call, showAnswer } = await transport();

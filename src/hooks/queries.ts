@@ -36,9 +36,12 @@ import {
   type MeData,
   type SeriesData,
   type StartReply,
+  type TermsOutcome,
   type ViewData,
 } from '../lib/repository';
 import { useToday } from './useToday';
+
+export type { TermsOutcome };
 
 // THE READS. Every screen and form takes its slice of ONE query, `GET /view`'s body, through a
 // selector made at module level (`slices.ts`): `select` runs again only when the data or the
@@ -188,6 +191,17 @@ export function useMe(): MeData | undefined {
  *  only the super-admin sees, and three cards of the browser's own are not replaced over it. */
 export function useRole(): MeData['role'] | undefined {
   return useQuery(meQuery).data?.role;
+}
+
+/** The terms accepted on the step. Recorded, every read the refusal left behind is reset, so the
+ *  route that asked reads them again as it mounts, under the session it already has. */
+export function useAcceptTerms(): () => Promise<TermsOutcome> {
+  const qc = useQueryClient();
+  return async () => {
+    const outcome = await repo.acceptTerms();
+    if (outcome === 'accepted') await qc.resetQueries();
+    return outcome;
+  };
 }
 
 export const archiveDiagnosisKey = ['admin', 'archive', 'diagnosis'] as const;

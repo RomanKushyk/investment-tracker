@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
+import { TERMS_ROUTE } from './accept-terms';
 import { LIST_ROUTE } from './admin-users';
 // The route key is matched by string equality in three places and nothing validates them against
 // each other. Renamed on one side alone, every suite here stays green and admin calls answer 400.
@@ -224,7 +225,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('ViewLogGroup').RetentionInDays).toBe(30);
   });
 
-  it('puts the write, the export, the import, the settings and the account’s own read on this API, each naming the authorizer', () => {
+  it('puts the write, the export, the import, the settings, the account’s own read and the terms’ acceptance on this API, each naming the authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'MutationsFunction');
     expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [MUTATIONS_ROUTE, 'PublicApi', AUTHORIZER],
@@ -236,6 +237,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
       // A literal, not `SETTINGS_ROUTE`, so the template is held to the route on its own.
       ['PATCH /me/settings', 'PublicApi', AUTHORIZER],
       [ME_ROUTE, 'PublicApi', AUTHORIZER],
+      [TERMS_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');
     expect(user.Resources.MutationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');

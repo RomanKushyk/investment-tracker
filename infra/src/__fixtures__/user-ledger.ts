@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { COLOR_KEYS } from '@quirenote/core/colors';
 import type { Asset, Transaction, TxType } from '@quirenote/core/types';
+import { TERMS_VERSION } from '@quirenote/core/terms';
 import type { PriceRow } from '@quirenote/core/valuation';
 
 import { MIGRATIONS, statementsOf } from '../migrate';
@@ -32,19 +33,25 @@ export async function applyUserSchema(db: PGlite): Promise<void> {
   }
 }
 
-/** A row the gate reads; a decided one carries the decision pair `app_user_decided_ck` asks for. */
+/** A row the gate reads; a decided one carries the decision pair `app_user_decided_ck` asks for,
+ *  and holds the terms unless `terms` is false, since only the terms gate's own tests want one that
+ *  does not. */
 export async function insertUser(
   db: PGlite,
   userId: string,
   email: string,
   status = 'active',
   role = 'user',
+  { terms = true }: { terms?: boolean } = {},
 ): Promise<void> {
   const decided = status !== 'pending';
+  const accepted = decided && terms;
   await db.query(
-    `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by)
-     VALUES ($1, $2, $3, $4, now(), ${decided ? 'now()' : 'NULL'}, ${decided ? '$1' : 'NULL'})`,
-    [userId, email, status, role],
+    `INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at, decided_by,
+                           terms_version, terms_accepted_at)
+     VALUES ($1, $2, $3, $4, now(), ${decided ? 'now()' : 'NULL'}, ${decided ? '$1' : 'NULL'},
+             ${accepted ? '$5::date, now()' : 'NULL, NULL'})`,
+    accepted ? [userId, email, status, role, TERMS_VERSION] : [userId, email, status, role],
   );
 }
 

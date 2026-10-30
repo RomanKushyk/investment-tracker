@@ -8,6 +8,7 @@ import {
   NO_APPLICATION,
   PENDING,
   REJECTED,
+  TERMS,
   authorize,
   superAdminOnly,
 } from './authorize';
@@ -76,6 +77,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     REJECTED,
     NO_APPLICATION,
     FORBIDDEN,
+    TERMS,
     CAPTURE_FAILED,
     CAPTURE_TIMEOUT,
     INTERNAL,

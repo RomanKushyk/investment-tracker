@@ -1157,6 +1157,10 @@ export const en = {
       title: 'No access',
       lead: 'This account has no access to Quirenote.',
     },
+    terms: {
+      title: 'Accept the terms of use',
+      lead: 'To open Quirenote, accept the terms it runs on.',
+    },
   },
   // The privacy notice (`privacy-notice.dc.html`, brief #497); the Ukrainian prevails and this
   // says no more. A list is an array of its items; `[text](href)` is a link inside its sentence;
@@ -1194,7 +1198,7 @@ export const en = {
         'Why, and on what basis',
         [
           'To review your application and send the invitation — steps before a contract, at your request (Law, Article 11(1)(3); GDPR Article 6(1)(b)).',
-          'To sign you in, keep, compute and show your portfolio, and answer your messages — performing the contract (the same articles).',
+          'To sign you in, keep, compute and show your portfolio, keep a record of our agreement (which version of the terms of use you accepted and when), and answer your messages — performing the contract (the same articles).',
           'To protect the service from bots and abuse: Cloudflare’s check, logs, backups — our legitimate interest in network and information security (Law, Article 11(1)(6); GDPR Article 6(1)(f) and Recital 49).',
         ],
         'We do not ask for consent, because no processing rests on it. We send no advertising, build no profiles and make no automated decisions with legal effects on you: Cloudflare only checks that a person is sending the form, and a person reviews the application.',
@@ -1276,14 +1280,14 @@ export const en = {
     title: 'Terms of use',
     updated: (date: string) => `Last updated: ${date}`,
     intro: [
-      'These terms are an agreement between you and the owner of Quirenote about using the service. You accept them whole when you press “Apply”, as a contract of adhesion (Civil Code of Ukraine, Article 634), and they start to apply to you when the application is approved.',
+      'These terms are an agreement between you and the owner of Quirenote about using the service. You accept them whole, as a contract of adhesion (Civil Code of Ukraine, Article 634), when you press “Apply” or “Accept terms”. They start to apply to you when the application is approved, or, if you accepted them with “Accept terms”, from the moment you accepted them.',
       'The page is in Ukrainian and English. Where the two differ, the Ukrainian version applies.',
     ],
     sections: {
       operator: section(
         'Who provides the service',
         'Quirenote is provided by Roman Kushyk, a private individual in Ukraine (“we”). Write to support@quirenote.com.',
-        'The service is free, and we do not provide it as a business. So these terms are not a public contract and not a public offer (Civil Code, Articles 633 and 641): we review every application and may decline it.',
+        'The service is free, and we do not provide it as a business. So these terms are not a public contract and not a public offer (Civil Code, Articles 633 and 641): we may refuse to give an account.',
       ),
       service: section(
         'What Quirenote is',
@@ -1304,7 +1308,7 @@ export const en = {
         'We show this data as we received or computed it: it may be late, incomplete or inaccurate. We do not check what you enter yourself.',
       ),
       account: section('Your account', [
-        'Accounts are given by application. A declined application is deleted, and we do not give a reason.',
+        'A declined application is deleted, and we do not give a reason.',
         'A password cannot be reset in the app. Keep your device, passkeys and password safe: whoever holds them signs in to your account.',
         'If you lose access or see a sign-in that is not yours, write to support@quirenote.com.',
       ]),
@@ -1347,6 +1351,18 @@ export const en = {
     },
     // `terms-of-use.dc.html` T2: directly above the button, naming it.
     accept: 'By pressing “Apply”, you accept the [Terms of use](/terms).',
+    // `terms-acceptance-step.dc.html` T7: the step an account with no recorded version meets.
+    step: {
+      accept: 'By pressing “Accept terms”, you accept the [Terms of use](/terms).',
+      submit: 'Accept terms',
+      busy: 'Accepting…',
+      decline: 'Decline and sign out',
+      failed: 'Couldn’t accept the terms. Try again.',
+      outdated:
+        'The terms of use have changed. Reload the page to read them, then accept them again.',
+      firstLayer:
+        'Quirenote records on your account which version of the terms you accepted and when, to keep a record of the agreement with you. Who handles this data, where it is kept and your rights: the [Privacy policy](/privacy).',
+    },
   },
   transaction: {
     title: 'Transaction',
@@ -2610,6 +2626,10 @@ export const uk: Dict = {
       title: 'Немає доступу',
       lead: 'Цей обліковий запис не має доступу до Quirenote.',
     },
+    terms: {
+      title: 'Прийміть умови користування',
+      lead: 'Щоб відкрити Quirenote, прийміть умови, на яких він працює.',
+    },
   },
   privacy: {
     link: 'Конфіденційність',
@@ -2644,7 +2664,7 @@ export const uk: Dict = {
         'Навіщо й на якій підставі',
         [
           'Розглянути заявку й надіслати запрошення — дії перед укладенням договору на ваше прохання (пункт 3 частини першої статті 11 Закону; стаття 6(1)(b) GDPR).',
-          'Дати вам вхід, зберігати, рахувати й показувати портфель і відповідати на звернення — виконання договору (ті самі статті).',
+          'Дати вам вхід, зберігати, рахувати й показувати портфель, зберігати запис договору (яку версію Умов користування ви прийняли й коли) і відповідати на звернення — виконання договору (ті самі статті).',
           'Захищати сервіс від ботів і зловживань: перевірка Cloudflare, журнали, резервні копії — наш законний інтерес у безпеці мережі й інформації (пункт 6 частини першої статті 11 Закону; стаття 6(1)(f) і пункт 49 преамбули GDPR).',
         ],
         'Згоди ми не просимо, бо не обробляємо даних на її підставі. Ми не надсилаємо реклами, не будуємо профілів і не ухвалюємо автоматизованих рішень, які мають для вас правові наслідки: Cloudflare лише перевіряє, що форму надсилає людина, а заявку розглядає людина.',
@@ -2722,14 +2742,14 @@ export const uk: Dict = {
     title: 'Умови користування',
     updated: (date: string) => `Останнє оновлення: ${date}`,
     intro: [
-      'Ці умови — договір між вами й власником Quirenote про користування сервісом. Ви приймаєте їх цілком, коли натискаєте «Подати заявку», як договір приєднання (стаття 634 Цивільного кодексу України), а діяти для вас вони починають, коли заявку схвалено.',
+      'Ці умови — договір між вами й власником Quirenote про користування сервісом. Ви приймаєте їх цілком, як договір приєднання (стаття 634 Цивільного кодексу України), коли натискаєте «Подати заявку» чи «Прийняти умови». Діяти для вас вони починають, коли заявку схвалено, а якщо ви прийняли їх кнопкою «Прийняти умови» — з моменту прийняття.',
       'Сторінка є українською й англійською. Якщо версії розходяться, чинна українська.',
     ],
     sections: {
       operator: section(
         'Хто надає сервіс',
         'Quirenote надає Роман Кушик, фізична особа, Україна (далі — «ми»). Пишіть на support@quirenote.com.',
-        'Сервіс безоплатний, і ми надаємо його не як підприємницьку діяльність. Тому ці умови — не публічний договір і не публічна оферта (статті 633 і 641 Цивільного кодексу): ми розглядаємо кожну заявку й можемо її відхилити.',
+        'Сервіс безоплатний, і ми надаємо його не як підприємницьку діяльність. Тому ці умови — не публічний договір і не публічна оферта (статті 633 і 641 Цивільного кодексу): ми можемо відмовити в обліковому записі.',
       ),
       service: section(
         'Що таке Quirenote',
@@ -2750,7 +2770,7 @@ export const uk: Dict = {
         'Ці дані ми показуємо такими, як їх отримали чи розрахували: вони можуть запізнюватися, бути неповними чи неточними. Те, що ви вносите самі, ми не перевіряємо.',
       ),
       account: section('Обліковий запис', [
-        'Обліковий запис дають за заявкою. Відхилену заявку видаляємо, а причину не повідомляємо.',
+        'Відхилену заявку видаляємо, а причину не повідомляємо.',
         'Пароль у застосунку відновити не можна. Бережіть пристрій, ключі доступу й пароль: хто ними володіє, той входить у ваш обліковий запис.',
         'Якщо втратили доступ чи помітили чужий вхід, напишіть на support@quirenote.com.',
       ]),
@@ -2792,6 +2812,17 @@ export const uk: Dict = {
       ),
     },
     accept: 'Натискаючи «Подати заявку», ви приймаєте [Умови користування](/terms).',
+    step: {
+      accept: 'Натискаючи «Прийняти умови», ви приймаєте [Умови користування](/terms).',
+      submit: 'Прийняти умови',
+      busy: 'Приймаємо…',
+      decline: 'Відхилити й вийти',
+      failed: 'Не вдалося прийняти умови. Спробуйте ще раз.',
+      outdated:
+        'Умови користування змінилися. Перезавантажте сторінку, щоб прочитати їх, і прийміть їх ще раз.',
+      firstLayer:
+        'Quirenote записує в обліковому записі, яку версію Умов і коли ви прийняли, щоб зберігати запис договору з вами. Хто обробляє ці дані, де їх зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
+    },
   },
   transaction: {
     title: 'Транзакція',

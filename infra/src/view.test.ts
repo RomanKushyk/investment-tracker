@@ -820,6 +820,12 @@ describe.each(ROUTES)('the gate of %s', (route) => {
     expect([res.statusCode, res.body]).toEqual([403, '{"error":"no_application"}']);
   });
 
+  it('asks a caller whose row holds no terms version to accept them', async () => {
+    await db.query('UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL');
+    const res = (await view(deps(), on(route))) as ApiResult;
+    expect([res.statusCode, res.body]).toEqual([403, '{"error":"terms"}']);
+  });
+
   it('refuses the demo as a non-caller', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     const res = (await view(deps(), on(route, undefined, {}, TWIN, DEMO_USER_EMAIL))) as ApiResult;

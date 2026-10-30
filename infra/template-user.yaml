@@ -523,6 +523,9 @@ Resources:
         'GET /me':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'POST /me/terms':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # THE ORIGINS ARE THE DEPLOYED HOSTS `src/auth/environment.ts` MAPS: a host it does not map
       # sends nothing to the API, and `localhost` reaches the relay same-origin through the dev
       # server's proxy. THE `!If` IS ON THE
@@ -1235,9 +1238,9 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # `POST /mutations`, `GET /state`, `PATCH /me/settings` and `GET /me`, the write, the export, the
-  # settings write and the account's own read (`src/mutations.ts`, *Cloud target*). This stack's
-  # cluster alone: nothing here reads the archive.
+  # `POST /mutations`, `GET /state`, `PATCH /me/settings`, `GET /me` and `POST /me/terms`: the write,
+  # the export, the settings write, the account's own read and the terms' acceptance
+  # (`src/mutations.ts`, *Cloud target*). This stack's cluster alone: nothing here reads the archive.
   MutationsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1342,6 +1345,15 @@ Resources:
             ApiId: !Ref PublicApi
             Method: GET
             Path: /me
+            Auth:
+              Authorizer: CognitoJwt
+        # The terms accepted on the step (`accept-terms.ts`), the one route the terms gate leaves open.
+        Terms:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /me/terms
             Auth:
               Authorizer: CognitoJwt
 

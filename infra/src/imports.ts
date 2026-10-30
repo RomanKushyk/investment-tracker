@@ -12,7 +12,7 @@ import {
 import { targetsAsset, type Asset, type Transaction } from '@quirenote/core/types';
 import type { PriceRow } from '@quirenote/core/valuation';
 
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, authorize } from './authorize';
+import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
 import { IDLE_LIMIT, collect, once } from './collect';
 import { codeOf } from './dsql';
 import {
@@ -107,7 +107,7 @@ const MANIFEST_MISMATCH = derived({
   example: { error: 'manifest_mismatch', field: 'part', expected: 2, actual: 3 },
 });
 
-const GATE = [PENDING, REJECTED, NO_APPLICATION, FORBIDDEN];
+const GATE = [PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, TERMS];
 
 /** What each route can answer, and the only list of it, as `mutations.ts`'s is. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
