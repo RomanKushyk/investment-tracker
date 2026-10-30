@@ -15,6 +15,11 @@ import {
 } from './accept-terms';
 import { PARAMETERS as LIST_PARAMETERS, RESPONSES as LIST_RESPONSES } from './admin-users';
 import {
+  DELETION_ROUTE,
+  REQUEST_BODY as DELETION_BODY,
+  RESPONSES as DELETION_RESPONSES,
+} from './deletion';
+import {
   REQUEST_BODY,
   RESPONSES as APPLICATION_RESPONSES,
   ROUTE as APPLY_ROUTE,
@@ -94,6 +99,7 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'archive-admin.handler': ARCHIVE_RESPONSES,
   'archive-operations.handler': OPERATION_RESPONSES,
   'auth-relay.handler': RELAY_RESPONSES,
+  'deletion.handler': DELETION_RESPONSES,
   'view.handler': VIEW_RESPONSES,
   // The write, the export, the staged import, the settings, the account's own read and the terms'
   // acceptance share one function.
@@ -124,6 +130,7 @@ const BODIES: Record<string, unknown> = {
   [PART_ROUTE]: PART_BODY,
   [SETTINGS_ROUTE]: SETTINGS_BODY,
   [TERMS_ROUTE]: TERMS_BODY,
+  [DELETION_ROUTE]: DELETION_BODY,
 };
 
 /** One group per first path segment, in Swagger UI and in a generated client. [*API shape*] */
@@ -137,7 +144,7 @@ export const TAGS: Record<string, string> = {
   state: 'The raw export of the stored portfolio.',
   imports:
     'The staged import: a dataset too large for one transaction, in parts that one commit moves.',
-  me: 'The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, and its acceptance of the terms of use.',
+  me: 'The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, its acceptance of the terms of use, and its deletion behind a sign-in under five minutes old.',
 };
 
 type Operation = {

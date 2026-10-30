@@ -1797,10 +1797,20 @@ The row delete is the point of no return, DSQL letting the earliest commit win a
 a racing approve, and the one step nothing undoes comes after it, where the Saga pattern puts it and
 where Mastodon suspends and GitLab blocks before they delete. A delete that fails answers 500 and
 leaves an identity no row admits and no call can retry, the row being gone: an operator deletes it. Rejecting an `active` account stays a status and a disable, the account
-owning a dataset, and is the one `rejected` row. ANY OTHER IDENTITY IS DELETED BY HAND OR NOT AT
-ALL: `DeleteUser` takes an access token no page holds. Cognito fires no trigger on a deletion, so whoever deletes an identity clears its
-`app_user` row, as Auth0, Okta and Entra keep deletion on the backend, and nothing watches for one.
-Until the app offers a deletion of its own, the operator erases an account on request. THE
+owning a dataset, and is the one `rejected` row. AN ACCOUNT HOLDER DELETES THEIR OWN ACCOUNT through
+`POST /me/deletion`, behind a sign-in under five minutes old, read from the ID token's `auth_time`
+and refused at five minutes as sign-out everywhere refuses. The backend owns it, as Auth0, Okta and
+Entra keep deletion, `DeleteUser` taking an access token no page holds; a function of its own serves
+it, so the one behind every portfolio write holds no delete. The deletion ends every session first,
+`AdminUserGlobalSignOut` on the local account and on each Google profile under the address, so no
+other device takes a fresh token while the rows go; an ID token already issued is turned away by
+the row's absence once it is gone, while registration is closed: an open window's gate would
+provision that token a fresh row, the gap #577 closes. THE IDENTITY GOES LAST, after the row: while it stands its holder
+can sign in and ask again, and a deletion that stopped between the two is finished by the same
+route. It asks for no terms, erasure waiting on no acceptance. The only active super-admin is
+refused, no path back in existing without one, and `GET /me` names them so the page refuses before any press. Cognito fires
+no trigger on a deletion, so whoever deletes an identity by hand clears its `app_user` row too, and
+nothing watches for one; the operator erases on request only what the route cannot reach. THE
 APPLICATION IS THE APP'S
 OWN FORM, `/apply`, one address posted with no cookie, since its route reads none; the endpoint
 answers every address with one constant, so the form can say only that it was recorded. A CALLER THE
@@ -2008,7 +2018,9 @@ also carries `user_id`, held to the dataset's owner by a key of its own. EVERY S
 THREE, OR OVER AN IMPORT'S MANIFEST AND PARTS, JOINS ONE OF THE CALLER'S GENERATIONS ITSELF: the
 live pointer — `JOIN app_user u ON u.dataset_id = … WHERE u.user_id = $1` — or, from the import's
 module and the collector alone, the staging pointer `u.import_dataset_id`, or, from the collector
-alone, a dataset of the caller's that neither names, each stated `IS DISTINCT FROM`. A guard over
+alone, a dataset of the caller's that neither names, each stated `IS DISTINCT FROM`, or, from the
+account's deletion alone, every dataset of the caller's, tied to the caller's row and to nothing
+else. A guard over
 `infra/src`'s modules, reading PostgreSQL's parse tree, refuses one whose own conditions — `WHERE`
 and inner-join conjuncts and `=` key-sets — do not tie each data table to one of those, that reaches
 two, or that reads a data table's own `user_id`; each such statement also has a test against a
@@ -2038,6 +2050,20 @@ column. `app_user.terms_version`, a date, and `terms_accepted_at` hold the terms
 and when; both nullable, NULL until a version is accepted, and `app_user_terms_ck` refuses one
 without the other. An archive operation a super-admin starts is a row of `archive_operation`, keyed
 by a random id because no user owns it, its starter an audit note no key names, as `decided_by` is.
+AN ACCOUNT IS DELETED BY AN APPLICATION CASCADE TOO, over every table that holds its data —
+`app_user`, `account`, `dataset`, `asset`, `transaction`, `user_price`, `mutation_key`,
+`import_manifest` and `import_part` — and a census test holds every table the user cluster's
+migrations make to that list or to the list of tables that hold nobody's data, so a table added
+later fails until it is placed. One core, `account-delete.ts`, deletes whichever account it is
+given: every session first; then each data table in bounded batches over every generation the
+account holds, the live one and a staging included, children first, each batch a statement of its
+own under the row ceiling; then, in one transaction, the pointers, the datasets, the account and the
+row, so no request between them finds a row to provision a dataset for; the identity last. Every
+step finds done what an earlier call did, so a deletion cut short at any step completes when asked
+again. THE ROWS LEAVE THE WORKING DATABASE WITHIN THE REQUEST, not through the sweep, so the
+backups' retention runs from the deletion and not from a collection weeks later. The address then
+applies again as any new one. The demo row and the only active super-admin are refused before
+anything is touched.
 EVERY `POST /mutations` CARRIES AN `Idempotency-Key`, a UUID unique per user and
 read lowercased; one missing or malformed is 400, and the bounds and its format are checked before
 anything is claimed. A CLAIM COMMITS FIRST, in a transaction of its own, under a token of the

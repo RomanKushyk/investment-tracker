@@ -16,6 +16,7 @@ import { ADDRESS, MAX_ADDRESS } from '@quirenote/core/address';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { SETTING_NAMES } from '@quirenote/core/settings';
 import { REQUEST_BODY as TERMS_BODY, RESPONSES as TERMS_RESPONSES } from './accept-terms';
+import { REQUEST_BODY as DELETION_BODY, RESPONSES as DELETION_RESPONSES } from './deletion';
 import {
   LIST_ROUTE,
   PARAMETERS as LIST_PARAMETERS,
@@ -257,6 +258,7 @@ describe('the document is regenerated, never typed', () => {
       './archive-admin',
       './archive-operations',
       './auth-relay',
+      './deletion',
       './http',
       './imports',
       './me',
@@ -346,6 +348,7 @@ const DECLARED = {
   ...SETTINGS_RESPONSES,
   ...ME_RESPONSES,
   ...TERMS_RESPONSES,
+  ...DELETION_RESPONSES,
 };
 
 /** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
@@ -426,6 +429,7 @@ describe('each operation publishes its own route’s answers', () => {
       // The settings route as a literal here and below, not `SETTINGS_ROUTE`: an oracle of its own.
       ['PATCH /me/settings', SETTINGS_BODY],
       ['POST /me/terms', TERMS_BODY],
+      ['POST /me/deletion', DELETION_BODY],
     ]);
   });
 
@@ -503,7 +507,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the thirty-one routes and no others', () => {
+  it('declares the thirty-two routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -528,6 +532,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         'PATCH /me/settings',
         ME_ROUTE,
         'POST /me/terms',
+        'POST /me/deletion',
       ].sort(),
     );
   });
@@ -570,6 +575,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       'PATCH /me/settings',
       ME_ROUTE,
       'POST /me/terms',
+      'POST /me/deletion',
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }

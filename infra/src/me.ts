@@ -14,6 +14,7 @@ import {
 import { kyivDateIso } from '@quirenote/core/dates';
 import { SETTINGS_DEFAULTS, settingsOf } from '@quirenote/core/settings';
 
+import { soleSuperAdmin } from './account-delete';
 import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
 import {
   INTERNAL,
@@ -131,12 +132,14 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
     // carries it, so one without it is refused as the gate refuses a token it cannot read.
     const username = claim(event.requestContext?.authorizer?.jwt?.claims, 'cognito:username');
     if (username === undefined) return FORBIDDEN;
-    const [member, held, moved, pooled, factors] = await Promise.all([
+    const [member, held, moved, pooled, factors, sole] = await Promise.all([
       deps.user.query<{ decided_at: string }>(MEMBER, [userId]),
       deps.user.query<{ assets: number }>(ASSETS, [userId]),
       deps.user.query<Moved>(TRANSACTIONS, [userId]),
       deps.identity.adminGetUser({ UserPoolId, Username: username }),
       deps.identity.adminGetUserAuthFactors({ UserPoolId, Username: username }),
+      // Only a super-admin can be the only one, so nobody else's read pays for the question.
+      role === 'super_admin' && soleSuperAdmin(deps.user, userId),
     ]);
     const { transactions, first_transaction: first } = moved.rows[0];
     const text = JSON.stringify({
@@ -149,6 +152,8 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
       assets: held.rows[0].assets,
       transactions,
       ...(first === null ? {} : { firstTransaction: first }),
+      // The deletion's refusal, shown before any press (#572).
+      ...(sole ? { soleSuperAdmin: true } : {}),
       settings: settingsOf(settings),
     });
     const etag = `W/"${createHash('sha256').update(text, 'utf8').digest('base64url')}"`;

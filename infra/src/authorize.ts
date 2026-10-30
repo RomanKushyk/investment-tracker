@@ -65,6 +65,10 @@ type Row = {
   terms_version: unknown;
 };
 
+/** Whether the provider asserts it checked the address: what a caller with no row must show. */
+export const assertsVerified = (claims: Record<string, string | string[]> | undefined): boolean =>
+  claim(claims, 'email_verified') === 'true';
+
 /** `optional` is the acceptance route's alone: the one a caller who holds no version may reach. */
 export type GateOptions = { terms?: 'required' | 'optional' };
 
@@ -128,7 +132,7 @@ export async function authorize(
   // plus a careless IdP is a row for a mailbox its holder does not own, and the real owner's
   // later application is then absorbed by `app_user_email_uq`. ONLY ON THIS PATH: an existing row
   // is not re-litigated, or a pool that stopped asserting the claim would lock everybody out.
-  if (claim(claims, 'email_verified') !== 'true') {
+  if (!assertsVerified(claims)) {
     console.warn(`authorize: not creating a row, address not asserted verified (${sub})`);
     return { refusal: NO_APPLICATION };
   }

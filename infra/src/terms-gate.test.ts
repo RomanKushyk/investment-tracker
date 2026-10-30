@@ -1,5 +1,6 @@
 // Every route behind the authorizer answers `terms` to an active caller whose row holds no terms
-// version, except the one that records the acceptance (*Legal documents*). WRITTEN OUT, and held
+// version, except the one that records the acceptance and the account's deletion, which waits on no
+// acceptance (*Legal documents*). WRITTEN OUT, and held
 // equal to the template: a route added there fails here until it is placed in one list or the other.
 // Driven through each function's bundled handler, so a handler that skips the gate fails too.
 import { readFileSync } from 'node:fs';
@@ -12,6 +13,7 @@ import { applyUserSchema, insertUser } from './__fixtures__/user-ledger';
 import { handler as approve } from './approve';
 import { handler as archiveAdmin } from './archive-admin';
 import { handler as archiveOperations } from './archive-operations';
+import { handler as deletion } from './deletion';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult, EmptyResult } from './http';
 import { handler as mutations } from './mutations';
@@ -43,7 +45,7 @@ const REFUSED = [
   'PATCH /me/settings',
   'GET /me',
 ];
-const EXEMPT = ['POST /me/terms'];
+const EXEMPT = ['POST /me/terms', 'POST /me/deletion'];
 
 type Event = {
   Type?: string;
@@ -103,6 +105,7 @@ const HANDLERS: Record<string, (event: ApiEvent) => Promise<ApiResult | EmptyRes
   approve,
   'archive-admin': archiveAdmin,
   'archive-operations': archiveOperations,
+  deletion,
   mutations,
   view,
 };

@@ -526,6 +526,9 @@ Resources:
         'POST /me/terms':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'POST /me/deletion':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # THE ORIGINS ARE THE DEPLOYED HOSTS `src/auth/environment.ts` MAPS: a host it does not map
       # sends nothing to the API, and `localhost` reaches the relay same-origin through the dev
       # server's proxy. THE `!If` IS ON THE
@@ -1361,6 +1364,57 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${MutationsFunction}
+      RetentionInDays: 30
+
+  # `POST /me/deletion`: the caller deletes their own account (`deletion.ts`, *Auth model*). A
+  # function of its own, so the one that serves every portfolio write holds no delete.
+  DeleteAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: deletion.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      # The archive routes' ceiling under the API's 30: a dataset deleted in batches takes what it
+      # takes, and one cut short goes on when asked again.
+      Timeout: 29
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          USER_POOL_ID: !Ref UserPool
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+            # Every session the account holds ends, then every identity under its address goes.
+            - Sid: DeleteTheCallersAccount
+              Effect: Allow
+              Action:
+                - cognito-idp:AdminUserGlobalSignOut
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:ListUsers
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Deletion:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /me/deletion
+            Auth:
+              Authorizer: CognitoJwt
+
+  DeleteAccountLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${DeleteAccountFunction}
       RetentionInDays: 30
 
   # THE OTHER HALF OF THE TAG DECISION ON `UserCluster`. Both existing checks read the ARCHIVE

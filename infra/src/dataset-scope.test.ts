@@ -5,7 +5,8 @@
 // the caller is `app_user.user_id = $1`. A generation is the leading key, never a filter beside
 // `user_id`, so a statement that skips the binding reads every generation the user has (#390,
 // #391, *User schema and deletes*). Only the import's module and the collector reach a staged
-// generation, and only the collector a dead one. Read off PostgreSQL's own parse tree, so a qualified name, `ONLY` or
+// generation, only the collector a dead one, and only the account's deletion EVERY generation of
+// the caller, a dataset tied to the caller's row and to nothing else. Read off PostgreSQL's own parse tree, so a qualified name, `ONLY` or
 // a comma join is still a relation, and only a chain of equalities among the statement's own
 // conditions binds one — never a condition under an OR, a NOT or an EXISTS. A backstop over
 // `infra/src`'s modules: each statement it finds also has a behavioural test against a second
@@ -159,6 +160,7 @@ function scope(stmt: Tree): unknown[] {
 /** The modules allowed to reach a generation no live pointer names. */
 const STAGED_IN = new Set(['imports.ts', 'collect.ts']);
 const DEAD_IN = new Set(['collect.ts']);
+const EVERY_IN = new Set(['account-delete.ts']);
 
 /** What a statement over a data table in `file` owes; empty when it pays all of it. */
 async function owed(sql: string, file: string): Promise<string[]> {
@@ -210,6 +212,7 @@ async function owed(sql: string, file: string): Promise<string[]> {
   const LIVE = '@live';
   const STAGED = '@staged';
   const DEAD = '@dead';
+  const EVERY = '@every';
   const parent = new Map<string, string>();
   const find = (x: string): string => {
     const p = parent.get(x) ?? x;
@@ -256,6 +259,42 @@ async function owed(sql: string, file: string): Promise<string[]> {
       link(g, DEAD);
     }
   }
+  // EVERY generation of the caller: a `dataset` whose every condition is one of the two ties —
+  // to the caller's row by `user_id`, and to a data row by `dataset_id` — so a pointer compared
+  // any other way, or under an OR, leaves it bound to nothing. A key-set's own conditions are
+  // already terms, so the key-set is not read again.
+  const tie = (term: unknown, g: string) => {
+    if (!isTree(term) || !isTree(term.A_Expr) || term.A_Expr.kind !== 'AEXPR_OP') return false;
+    const op = (term.A_Expr.name as Tree[])[0];
+    if (!isTree(op.String) || op.String.sval !== '=') return false;
+    const pair = [fieldsOf(term.A_Expr.lexpr), fieldsOf(term.A_Expr.rexpr)];
+    const at = (side: string[] | undefined, rel: string | undefined, col: string) =>
+      side?.length === 2 && side[0] === rel && side[1] === col;
+    return pair.some((side, i) => {
+      const other = pair[1 - i];
+      if (at(side, g, 'user_id')) return at(other, pointer, 'user_id');
+      return (
+        at(side, g, 'id') &&
+        other?.length === 2 &&
+        other[0] !== pointer &&
+        other[1] === 'dataset_id'
+      );
+    });
+  };
+  const mentions = (term: unknown, g: string) =>
+    [...entries(term)].some(
+      ([key, value]) => key === 'ColumnRef' && fieldsOf({ ColumnRef: value })?.[0] === g,
+    );
+  for (const g of generations) {
+    if (find(g) === find(DEAD)) continue;
+    const said = terms.filter((term) => !isKeySet(term) && mentions(term, g));
+    if (
+      said.some((term) => tie(term, g) && mentions(term, pointer ?? '')) &&
+      said.every((term) => tie(term, g))
+    ) {
+      link(g, EVERY);
+    }
+  }
   // A key-set `(dataset_id, …) IN (SELECT x.dataset_id, …)` binds the outer relation to `x`.
   for (const term of terms) {
     if (!isKeySet(term)) continue;
@@ -280,7 +319,7 @@ async function owed(sql: string, file: string): Promise<string[]> {
   }
   const reached = new Set<string>();
   for (const rel of data) {
-    const modes = [LIVE, STAGED, DEAD].filter((m) => find(m) === find(nameOf(rel)));
+    const modes = [LIVE, STAGED, DEAD, EVERY].filter((m) => find(m) === find(nameOf(rel)));
     if (modes.length === 0) out.push(`binds ${nameOf(rel)} to no pointer`);
     for (const m of modes) reached.add(m);
   }
@@ -289,6 +328,7 @@ async function owed(sql: string, file: string): Promise<string[]> {
     out.push(`reaches a staged generation from ${file}`);
   }
   if (reached.has(DEAD) && !DEAD_IN.has(file)) out.push(`reaches a dead generation from ${file}`);
+  if (reached.has(EVERY) && !EVERY_IN.has(file)) out.push(`reaches every generation from ${file}`);
 
   // A data table's own `user_id` spans every generation the user has.
   const dataNames = new Set(data.map(nameOf));
@@ -324,9 +364,10 @@ describe('every statement over a data table reads the live dataset', () => {
   it('finds exactly the statements it guards, in the modules allowed to hold them', () => {
     // EXACT, not a floor: a scanner gone blind makes the count go DOWN. Update it in the commit
     // that adds or removes a statement; a new module joins the set by name.
-    expect(statements).toHaveLength(36);
+    expect(statements).toHaveLength(41);
     expect(new Set(statements.map((s) => s.file))).toEqual(
       new Set([
+        'account-delete.ts',
         'asset-delete.ts',
         'collect.ts',
         'imports.ts',
@@ -473,7 +514,7 @@ describe('every statement over a data table reads the live dataset', () => {
 // own module and read by the collector's expiry; a DEAD one is a dataset of the caller that NEITHER
 // pointer names, which only the collector reaches. Each is held as the live one is: by the
 // statement's own conjuncts, read off the parse tree.
-describe('a staged or a dead generation is reached only from its own module', () => {
+describe('a staged, a dead or every generation is reached only from its own module', () => {
   const STAGE_PART = `INSERT INTO import_part (dataset_id, part, digest)
     SELECT u.import_dataset_id, $2, $3 FROM app_user u WHERE u.user_id = $1`;
   const STAGE_ASSETS = `INSERT INTO asset (dataset_id, id)
@@ -497,6 +538,14 @@ describe('a staged or a dead generation is reached only from its own module', ()
          JOIN dataset g ON g.id = p.dataset_id JOIN app_user u ON ${join}
         WHERE u.user_id = $1 AND ${cond} LIMIT $2)`;
 
+  /** The account deletion's batch over `user_price`, with `join` as the pointer row's and
+   *  `cond` beside the caller. */
+  const EVERY = (join = 'u.user_id = g.user_id', cond = 'true') =>
+    `DELETE FROM user_price WHERE (dataset_id, asset_id, as_of) IN (
+       SELECT p.dataset_id, p.asset_id, p.as_of FROM user_price p
+         JOIN dataset g ON g.id = p.dataset_id JOIN app_user u ON ${join}
+        WHERE u.user_id = $1 AND ${cond} LIMIT $2)`;
+
   it.each([
     ['imports.ts', STAGE_PART],
     ['imports.ts', STAGE_ASSETS],
@@ -504,6 +553,7 @@ describe('a staged or a dead generation is reached only from its own module', ()
     ['imports.ts', COUNT_STAGED],
     ['collect.ts', EXPIRE],
     ['collect.ts', DEAD()],
+    ['account-delete.ts', EVERY()],
   ])('accepts from %s: %s', async (file, sql) => {
     expect(await owed(sql, file)).toEqual([]);
   });
@@ -513,6 +563,8 @@ describe('a staged or a dead generation is reached only from its own module', ()
     ['ledger.ts', COUNT_STAGED, 'reaches a staged generation from ledger.ts'],
     ['imports.ts', DEAD(), 'reaches a dead generation from imports.ts'],
     ['mutations.ts', DEAD(), 'reaches a dead generation from mutations.ts'],
+    ['collect.ts', EVERY(), 'reaches every generation from collect.ts'],
+    ['mutations.ts', EVERY(), 'reaches every generation from mutations.ts'],
   ])('refuses from %s: %s', async (file, sql, why) => {
     expect(await owed(sql, file)).toContain(why);
   });
@@ -538,6 +590,15 @@ describe('a staged or a dead generation is reached only from its own module', ()
     ['ties the dataset to something other than its owner', DEAD(DEAD_CONDS, 'u.user_id = g.id')],
   ])('refuses a dead generation that %s', async (_, sql) => {
     expect(await owed(sql, 'collect.ts')).toContain('binds p to no pointer');
+  });
+
+  it.each([
+    ['names no owner of the dataset', EVERY('u.user_id = $1')],
+    ['ties the dataset to something other than its owner', EVERY('u.user_id = g.id')],
+    ['says something else of the dataset', EVERY(undefined, 'g.id IS DISTINCT FROM u.dataset_id')],
+    ['ties it under an OR', EVERY('(u.user_id = g.user_id OR true)')],
+  ])('refuses every generation where it %s', async (_, sql) => {
+    expect(await owed(sql, 'account-delete.ts')).toContain('binds p to no pointer');
   });
 
   it('refuses one statement reaching two generations', async () => {

@@ -90,7 +90,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead sweep archive-reader-grant view mutations; do
+          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead sweep archive-reader-grant view mutations deletion; do
             pnpm exec esbuild "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -111,7 +111,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/sweep.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/sweep.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js infra/dist/deletion.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -602,6 +602,53 @@ jobs:
               if (barred.statusCode !== 403 || JSON.parse(barred.body).error !== 'pending') throw new Error('a pending caller patched settings');
               if (sent.some((s) => s.includes('UPDATE app_user SET settings'))) throw new Error('a refused or empty patch wrote the column');
               console.log('mutations bundle loads, exports under a strong tag no cache keeps, answers it 304, refuses a write with no or a * precondition before claiming its key, refuses a pending caller, and refuses a settings patch of another type or naming a theme, answers an empty one with the defaults and writes nothing');
+            })().catch((e) => { console.error(e); process.exit(1); });
+          "
+          # A sign-in five minutes old is refused before the pool is asked; a fresh one ends the
+          # sessions before the rows go and deletes the identity after them; the only super-admin
+          # is refused, the pool never asked.
+          node -e "
+            const d = require('./deletion.js');
+            if (typeof d.handler !== 'function') throw new Error('handler missing from deletion bundle');
+            const SUB = '9f1e2d3c-0000-4000-8000-0000000000d4';
+            const EMAIL = 'owner@quirenote.com';
+            const NOW = 1790000000;
+            const order = [];
+            const deps = (sole) => ({
+              user: {
+                query: async (text) => {
+                  if (text.includes('AS sole')) return { rows: [{ sole: sole }] };
+                  if (/^\s*DELETE FROM app_user/.test(text)) order.push('row');
+                  if (/^\s*SELECT .* FROM app_user/.test(text)) {
+                    return { rows: [{ user_id: SUB, email: EMAIL, status: 'active', role: 'user', settings: null, terms_version: '2026-10-29' }] };
+                  }
+                  return { rows: [] };
+                },
+              },
+              identity: {
+                adminUserGlobalSignOut: async () => { order.push('signOut'); return {}; },
+                adminDeleteUser: async () => { order.push('deleteUser'); return {}; },
+                listUsers: async () => ({ Users: [] }),
+              },
+              userPoolId: 'eu-north-1_EXAMPLE',
+              now: () => NOW * 1000,
+            });
+            const ask = (authTime) => ({
+              routeKey: 'POST /me/deletion',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ timing: 'now' }),
+              requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: SUB, email: EMAIL, auth_time: String(authTime) } } } },
+            });
+            (async () => {
+              const stale = await d.deleteOwnAccount(deps(false), ask(NOW - 300));
+              if (stale.statusCode !== 401 || JSON.parse(stale.body).error !== 'insufficient_user_authentication') throw new Error('a sign-in five minutes old was not refused: ' + JSON.stringify(stale));
+              const sole = await d.deleteOwnAccount(deps(true), ask(NOW - 10));
+              if (sole.statusCode !== 409 || JSON.parse(sole.body).error !== 'sole_super_admin') throw new Error('the only super-admin was not refused: ' + JSON.stringify(sole));
+              if (order.length) throw new Error('a refusal reached the pool or the rows: ' + order.join());
+              const done = await d.deleteOwnAccount(deps(false), ask(NOW - 10));
+              if (done.statusCode !== 200 || JSON.parse(done.body).status !== 'deleted') throw new Error('a fresh sign-in did not delete: ' + JSON.stringify(done));
+              if (order.join() !== 'signOut,row,deleteUser') throw new Error('the steps ran out of order: ' + order.join());
+              console.log('deletion bundle loads, refuses a sign-in five minutes old and the only super-admin before anything, and ends the sessions, deletes the row, then the identity');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
 

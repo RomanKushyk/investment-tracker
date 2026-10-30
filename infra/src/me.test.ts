@@ -170,6 +170,31 @@ describe("the caller's own account", () => {
     expect(answer(await read())[1]).toMatchObject({ role: 'super_admin' });
   });
 
+  it('names the only super-admin, whom a deletion refuses', async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    expect(answer(await read())[1]).toMatchObject({ soleSuperAdmin: true });
+  });
+
+  it('does not ask for an ordinary user', async () => {
+    const sent: string[] = [];
+    const watched = {
+      query: (text: string, values?: unknown[]) => {
+        sent.push(text);
+        return db.query(text, values);
+      },
+    } as unknown as SqlClient;
+    const res = await read({}, deps({ user: watched }));
+    expect(res.statusCode).toBe(200);
+    expect(sent.filter((t) => t.includes('AS sole'))).toEqual([]);
+  });
+
+  it('omits it while another super-admin is active, and for a user', async () => {
+    expect(answer(await read())[1]).not.toHaveProperty('soleSuperAdmin');
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    await insertUser(db, TWIN, TWIN_EMAIL, 'active', 'super_admin');
+    expect(answer(await read())[1]).not.toHaveProperty('soleSuperAdmin');
+  });
+
   it('serves the settings sanitised, an unknown or invalid field dropped', async () => {
     await db.query(
       `UPDATE app_user SET settings = '{"theme":"dark","period":"1y","language":"en"}' WHERE user_id = $1`,

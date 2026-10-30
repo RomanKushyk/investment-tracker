@@ -129,7 +129,7 @@ describe('no log line in infra/src names an address or a federated username', ()
   it('finds exactly the console calls it guards, in the modules that hold them', () => {
     // EXACT, not a floor: a scanner gone blind makes the count go DOWN. Update it in the commit
     // that adds or removes a call; a new module joins the set by name.
-    expect(calls).toHaveLength(130);
+    expect(calls).toHaveLength(134);
     expect(new Set(calls.map((c) => c.file))).toEqual(
       new Set([
         'accept-terms.ts',
@@ -147,6 +147,7 @@ describe('no log line in infra/src names an address or a federated username', ()
         'backup-wake.ts',
         'capture.ts',
         'collect.ts',
+        'deletion.ts',
         'dsql.ts',
         'imports.ts',
         'me.ts',

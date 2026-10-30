@@ -53,6 +53,15 @@ export const json = (statusCode: number, body: string): ApiResult =>
 // The point of a fixed answer is that it is the same everywhere, never one naming a constraint.
 export const INVALID = json(400, '{"error":"invalid_request"}');
 export const INTERNAL = json(500, '{"error":"internal"}');
+/** How recent a sign-in sign-out everywhere and a deletion take, by `auth_time`, which a refresh
+ *  never resets: Firebase's server check takes a sign-in only "in the last 5 minutes". */
+export const REAUTHENTICATED_SECONDS = 300;
+/** RFC 9470 §3's error code, in the body as every refusal is: a good token whose sign-in "does not
+ *  meet the authentication requirements". */
+export const INSUFFICIENT_USER_AUTHENTICATION = json(
+  401,
+  '{"error":"insufficient_user_authentication"}',
+);
 /** RFC 9110 §15.5.13, a precondition the request carried that the current state fails. */
 export const PRECONDITION_FAILED = json(412, '{"error":"precondition_failed"}');
 /** RFC 6585 §3: a write that names no state it expects; `*` matches whatever exists, so it is

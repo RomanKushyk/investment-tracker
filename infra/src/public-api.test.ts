@@ -30,6 +30,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { ANSWER_MS, SECRET_MS } from './bot-check';
+import { DELETION_ROUTE } from './deletion';
 import { envVars, grantAt, intrinsicAt, tagAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { ME_ROUTE } from './me';
@@ -242,6 +243,16 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');
     expect(user.Resources.MutationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('MutationsLogGroup').RetentionInDays).toBe(30);
+  });
+
+  it('puts the account’s deletion on this API, in a function of its own, naming the authorizer', () => {
+    const routes = declaredRoutes().filter((r) => r.fn === 'DeleteAccountFunction');
+    expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
+      [DELETION_ROUTE, 'PublicApi', AUTHORIZER],
+    ]);
+    expect(props('DeleteAccountFunction').Handler).toBe('deletion.handler');
+    expect(user.Resources.DeleteAccountLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('DeleteAccountLogGroup').RetentionInDays).toBe(30);
   });
 });
 
@@ -709,6 +720,56 @@ describe('the approval handler holds exactly two grants, and they are different 
   it('carries a log group of its own, retained like the others', () => {
     expect(user.Resources.ApproveLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('ApproveLogGroup').RetentionInDays).toBe(30);
+  });
+});
+
+describe('the deletion holds exactly two grants, and the function behind the writes holds no delete', () => {
+  const policies = props('DeleteAccountFunction').Policies as [
+    { Statement: Record<string, unknown>[] },
+  ];
+  const deletion = ['Resources', 'DeleteAccountFunction', 'Properties', 'Policies', 0, 'Statement'];
+
+  // Every session the account holds ends, then every identity under its address goes: the three
+  // calls the core makes, on ONE pool, and nothing else. [*Auth model*]
+  it('may end the sessions of, find and delete a user in ONE pool, and nothing else', () => {
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(2);
+    expect(
+      grantAt(doc, deletion, [
+        'cognito-idp:AdminUserGlobalSignOut',
+        'cognito-idp:AdminDeleteUser',
+        'cognito-idp:ListUsers',
+      ]),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
+  });
+
+  it('may connect to the user cluster and to no other', () => {
+    expect(grantAt(doc, deletion, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+  });
+
+  it('reads the pool and the cluster from the stack, and no registration switch', () => {
+    const vars = (
+      props('DeleteAccountFunction').Environment as { Variables?: Record<string, unknown> }
+    )?.Variables;
+    expect(intrinsicAt(doc, ...envVars('DeleteAccountFunction'), 'USER_POOL_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPool',
+    });
+    expect(intrinsicAt(doc, ...envVars('DeleteAccountFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
+    // The gate makes no row on this route, so the switch would be read by nothing.
+    expect(vars).not.toHaveProperty('OPEN_REGISTRATION');
+  });
+
+  it('leaves the function behind every portfolio write without a delete', () => {
+    const granted = JSON.stringify(props('MutationsFunction').Policies);
+    expect(granted).not.toContain('AdminDeleteUser');
+    expect(granted).not.toContain('AdminUserGlobalSignOut');
   });
 });
 

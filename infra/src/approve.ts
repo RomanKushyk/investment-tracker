@@ -21,6 +21,7 @@ import {
   ListUsersCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
+import { deleteIdentities } from './account-delete';
 import { LIST_ROUTE, listUsers } from './admin-users';
 import {
   FORBIDDEN,
@@ -376,17 +377,7 @@ async function rejectRow(
   // THE ONE STEP NOTHING UNDOES COMES LAST, once the row delete has ruled out a racing approve. The
   // alias reaches a local account; a Google profile made in an open window answers only the filter.
   try {
-    await deleteIdentity(idp, UserPoolId, row.email);
-    const { Users = [] } = await idp.listUsers({
-      UserPoolId,
-      Filter: `email = "${row.email}"`,
-      Limit: 60,
-    });
-    for (const { Username, UserStatus } of Users) {
-      if (UserStatus === 'EXTERNAL_PROVIDER' && Username) {
-        await deleteIdentity(idp, UserPoolId, Username);
-      }
-    }
+    await deleteIdentities(idp, UserPoolId, row.email);
   } catch (err) {
     // NO CALL CAN RETRY THIS, the row being gone: an operator deletes what is left (*Auth model*).
     console.error(`approve: row ${row.user_id} is deleted and an identity under it is not: ${err}`);
@@ -394,12 +385,6 @@ async function rejectRow(
   }
   return REJECTED;
 }
-
-/** One already gone counts as deleted. */
-const deleteIdentity = (idp: IdentityClient, UserPoolId: string, Username: string) =>
-  idp.adminDeleteUser({ UserPoolId, Username }).catch((err: unknown) => {
-    if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
-  });
 
 export async function approve(
   client: SqlClient,

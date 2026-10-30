@@ -42,8 +42,10 @@ import {
   withBypass,
 } from './bot-check';
 import {
+  INSUFFICIENT_USER_AUTHENTICATION,
   INTERNAL,
   INVALID,
+  REAUTHENTICATED_SECONDS,
   type ApiEvent,
   type ApiResult,
   type Declared,
@@ -196,10 +198,6 @@ const CHALLENGE_KEYS = {
 /** THE ONE SELECTION ADMITTED. AWS: "The Password option is always available", so a plain password
  *  is refused here or nowhere. */
 const SELECTABLE = 'PASSWORD_SRP';
-
-/** HOW RECENT A SIGN-IN SIGN-OUT EVERYWHERE TAKES, against the token's `auth_time`, which a refresh
- *  never resets: Firebase's server check processes a sign-in only "in the last 5 minutes". */
-const REAUTHENTICATED_SECONDS = 300;
 
 /** What the client lists and the Google provider maps; Cognito ignores a scope it does not list. */
 const SCOPE = 'openid email profile';
@@ -394,9 +392,6 @@ const CREATION_OPTIONS = derived({
 const REGISTERED = json(200, '{"status":"registered"}');
 
 const NOT_AUTHORIZED = json(401, '{"error":"not_authorized"}');
-/** RFC 9470 §3's error code, in the body as every relay refusal is: a good token whose sign-in
- *  "does not meet the authentication requirements". */
-const INSUFFICIENT_USER_AUTHENTICATION = json(401, '{"error":"insufficient_user_authentication"}');
 /** A re-authentication that came back as another account: its flow is spent, and this browser keeps
  *  the session it had. */
 const ANOTHER_ACCOUNT = derived({

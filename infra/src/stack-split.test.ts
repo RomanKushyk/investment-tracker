@@ -724,6 +724,7 @@ describe('the user stacks reach the archive through a read-only role the archive
       'ArchiveOperationsFunction',
       'ArchiveRecorderFunction',
       'BackupWakeFunction',
+      'DeleteAccountFunction',
       'MigrateFunction',
       'MutationsFunction',
       'RateAheadFunction',
@@ -812,7 +813,7 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval, the archive read, its operations and their recorder, the relay, the view, the write, two watches, the wake, the rate job and the sweep', () => {
+  it('holds the runner, the trigger, the application, the approval, the archive read, its operations and their recorder, the relay, the view, the write, the deletion, two watches, the wake, the rate job and the sweep', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
@@ -822,6 +823,7 @@ describe('the user stack holds user data and nothing else', () => {
       'auth-relay.handler',
       'backup-freshness.handler',
       'backup-wake.handler',
+      'deletion.handler',
       'migrate.handler',
       'mutations.handler',
       'pool-usage.handler',
@@ -2140,6 +2142,7 @@ describe('what reaches a role besides its own policies', () => {
       'AuthRelayFunction',
       'ViewFunction',
       'MutationsFunction',
+      'DeleteAccountFunction',
       'BackupFreshnessFunction',
       'BackupWakeFunction',
       'PoolUsageFunction',

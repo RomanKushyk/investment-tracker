@@ -51,7 +51,7 @@
     },
     {
       "name": "me",
-      "description": "The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, and its acceptance of the terms of use."
+      "description": "The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, its acceptance of the terms of use, and its deletion behind a sign-in under five minutes old."
     }
   ],
   "paths": {
@@ -5065,6 +5065,153 @@
                   "forbidden": {
                     "value": {
                       "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "payload_too_large": {
+                    "value": {
+                      "error": "payload_too_large",
+                      "max": 1048576
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/deletion": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "postMeDeletion",
+        "summary": "POST /me/deletion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "timing"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "timing": {
+                    "type": "string",
+                    "enum": [
+                      "now"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "deleted": {
+                    "value": {
+                      "status": "deleted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "insufficient_user_authentication": {
+                    "value": {
+                      "error": "insufficient_user_authentication"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "sole_super_admin": {
+                    "value": {
+                      "error": "sole_super_admin"
                     }
                   }
                 }
