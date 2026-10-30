@@ -126,10 +126,11 @@
 // with a row fetch per row. This resolves the tension the two applied
 // migrations sit on either side of: `001_price_capture.sql` keys on a random
 // UUID to spread writes across the key range, per DSQL's own guidance;
-// `002_price_observation.sql` keys naturally because its read contract
-// serves whole years. Leading with `user_id` gets both — a Cognito `sub` is
-// itself a random UUID, so writes still spread, while one user's rows stay
-// contiguous for the read that matters.
+// `002_price_observation.sql` keys naturally because its planned read contract
+// will serve whole years (its contract 1).
+// Leading with `user_id` gets both — a Cognito `sub` is itself a random UUID,
+// so writes still spread, while one user's rows stay contiguous for the read
+// that matters.
 import { sql } from 'drizzle-orm';
 import {
   check,

@@ -48,8 +48,8 @@ describe('inzhurObservationRows', () => {
   // The rates and the status are facts about the INSTRUMENT-DAY, not about one
   // basis, so every row of that day carries them. A `sell` row read on its own
   // then answers "what yield explained this price" without a join back to the
-  // `buy` row — and the read contract serves whole year files, where that join
-  // would be across the file.
+  // `buy` row — and the planned read contract will serve whole year files (002's
+  // contract 1), where that join would be across the file.
   it('repeats the instrument-day facts on every basis row', () => {
     const rows = inzhurObservationRows(bond({ navUAH: 1000 }));
     expect(rows).toHaveLength(3);

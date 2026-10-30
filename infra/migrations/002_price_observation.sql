@@ -18,10 +18,12 @@
 -- used which version.
 --
 --   1. NATURAL KEY = (as_of, instrument_ref, basis, source).
---      Order matters, not just membership: `as_of` leads because the pinned
---      read contract serves whole YEARS (`/v1/prices/{YYYY}.ndjson`) and the
---      key is index-organized. Per-instrument access is served by the
---      secondary index below, not by the key.
+--      Order matters, not just membership: `as_of` leads because the planned
+--      read contract will serve whole YEARS (`GET /prices/{YYYY}.ndjson`, in
+--      docs/superpowers/specs/2026-08-04-data-model.md, *Corrections,
+--      payloads, and the read contract*) and the key is index-organized.
+--      Per-instrument access is served by the secondary index below, not by
+--      the key.
 --
 --   2. as_of is PER SOURCE, unchanged from `price_capture`: Inzhur's is the
 --      Kyiv date of the run, its endpoint being live; NBU's is that date - 1,

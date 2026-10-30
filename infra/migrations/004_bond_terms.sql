@@ -23,9 +23,9 @@
 -- 1. KEY = (as_of, ref), and it is IMMUTABLE. Changing it on DSQL is a
 --    DROP/CREATE of a live archive, not a migration — the same rule 002 states
 --    for `price_observation`, and the reason this file exists before the table
---    does. `as_of` leads for the same reason it leads there: the read contract
---    serves whole years, and "this instrument over time" gets its own index
---    below rather than a different key.
+--    does. `as_of` leads for the same reason it leads there (002's contract 1):
+--    the planned read contract will serve whole years, and "this instrument
+--    over time" gets its own index below rather than a different key.
 --
 -- 2. WRITTEN EVERY RUN, one row per bond per day, repeating unchanged terms.
 --    This applies the owner's write-every-day ruling for `price_observation`

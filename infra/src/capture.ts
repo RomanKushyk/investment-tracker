@@ -278,8 +278,8 @@ async function ensureSchema(client: Client): Promise<void> {
       observed_at TIMESTAMPTZ NOT NULL, parser_version TEXT NOT NULL,
       PRIMARY KEY (as_of, ref))`);
 
-  // The primary key leads with `as_of` because the read contract serves whole years, so "this
-  // instrument over time" needs its own leading column.
+  // The primary key leads with `as_of` because the planned read contract will serve whole years
+  // (002's contract 1), so "this instrument over time" needs its own leading column.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS price_observation_ref_as_of
        ON price_observation (instrument_ref, as_of)`,
