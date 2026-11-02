@@ -7,6 +7,7 @@
 // It is the same reason a group in a token cannot carry the role: removing somebody from a
 // super-admin group would change nothing until their token refreshed, and the row is read anyway.
 import { canonicalAddress } from '@quirenote/core/address';
+import { deleteRows } from './account-delete';
 import { INTERNAL, type ApiEvent, type ApiResult, canonicalUuid, claim, json } from './http';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
@@ -55,6 +56,44 @@ const CREATE = `INSERT INTO app_user (user_id, email, status, role, applied_at,
                                       decided_at, decided_by)
                 VALUES ($1, $2, 'active', 'user', now(), now(), $1)
                 ON CONFLICT (user_id) DO NOTHING`;
+
+/** The pool's one read the gate makes: the user under a username, and its attributes. */
+type ReadUser = (input: {
+  UserPoolId: string;
+  Username: string;
+}) => Promise<{ UserAttributes?: { Name?: string; Value?: string }[]; Enabled?: boolean }>;
+
+/** THE SDK LOADS ON THE FIRST PROVISIONING, which no other request makes; a failed load is not
+ *  kept, as `bot-check.ts` keeps none. */
+let reader: Promise<ReadUser> | undefined;
+const connect = (): Promise<ReadUser> => {
+  if (reader) return reader;
+  const loading = import('@aws-sdk/client-cognito-identity-provider').then(
+    ({ CognitoIdentityProviderClient, AdminGetUserCommand }): ReadUser => {
+      const client = new CognitoIdentityProviderClient({});
+      return (input) => client.send(new AdminGetUserCommand(input));
+    },
+  );
+  reader = loading;
+  loading.catch(() => {
+    if (reader === loading) reader = undefined;
+  });
+  return loading;
+};
+
+/** An enabled user under the token's username with the token's `sub`: a re-created Google profile
+ *  keeps its username, and a declined one is disabled before it goes. Only not-found is an answer. */
+async function poolHolds(UserPoolId: string, Username: string, sub: string): Promise<boolean> {
+  const read = await connect();
+  try {
+    const { UserAttributes = [], Enabled } = await read({ UserPoolId, Username });
+    if (Enabled === false) return false;
+    return canonicalUuid(UserAttributes.find((a) => a.Name === 'sub')?.Value) === sub;
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'UserNotFoundException') return false;
+    throw err;
+  }
+}
 
 type Row = {
   user_id: string;
@@ -137,6 +176,17 @@ export async function authorize(
     return { refusal: NO_APPLICATION };
   }
 
+  // AND THE IDENTITY MUST STILL BE THE POOL'S: a deleted account's ID token still verifies, and
+  // would provision it again (*Auth model*). By username, which a `sub` is for local users only.
+  const username = claim(claims, 'cognito:username');
+  if (username === undefined) return { refusal: FORBIDDEN };
+  const UserPoolId = process.env.USER_POOL_ID;
+  if (!UserPoolId) {
+    console.error('authorize: USER_POOL_ID is not set on this function');
+    return { refusal: INTERNAL };
+  }
+  if (!(await poolHolds(UserPoolId, username, sub))) return { refusal: NO_APPLICATION };
+
   // THE ACCOUNT IS PART OF THE ROW, not a later step: `transaction.account_id` is NOT NULL, so a
   // caller admitted here without one is somebody this gate lets in and every write refuses. Both
   // land or neither does, which is what makes the read below the settlement it already claims to be.
@@ -146,6 +196,19 @@ export async function authorize(
     // Not swallowed and not returned: a concurrent request is the only way here, and the read
     // below settles it.
     console.error('authorize: could not create the row for an open registration', loggable(err));
+  }
+
+  // ASKED AGAIN AFTER THE WRITE (CWE-367): a deletion's last pass may have run before it landed.
+  // Unanswered, the row goes whoever wrote it: a new caller's next request provisions it again.
+  const holds = await poolHolds(UserPoolId, username, sub).catch(async (err: unknown) => {
+    await deleteRows(client, sub).catch((undone: unknown) => {
+      console.error('authorize: could not take back an unconfirmed row', loggable(undone));
+    });
+    throw err;
+  });
+  if (!holds) {
+    await deleteRows(client, sub);
+    return { refusal: NO_APPLICATION };
   }
 
   const created = await look(client, sub, email);

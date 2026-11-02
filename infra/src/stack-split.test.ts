@@ -1638,11 +1638,16 @@ describe('the user stack serves the derived read', () => {
     'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/quirenote-backend-archive-reader';
   const grants = ['Resources', 'ViewFunction', 'Properties', 'Policies', 0, 'Statement'];
 
-  it('connects to this stack’s cluster and assumes the archive reader, and holds no other grant', () => {
-    expect(inlineStatements(user, 'ViewFunction')).toHaveLength(2);
+  // The pool read is the one an open window's gate owes (#577).
+  it('connects to this stack’s cluster, reads a user in its pool and assumes the archive reader, and holds no other grant', () => {
+    expect(inlineStatements(user, 'ViewFunction')).toHaveLength(3);
     expect(grantAt(userDoc, grants, 'dsql:DbConnectAdmin')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
+    });
+    expect(grantAt(userDoc, grants, 'cognito-idp:AdminGetUser')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
     });
     expect(grantAt(userDoc, grants, 'sts:AssumeRole')).toEqual({ tag: '!Sub', value: READER_ARN });
     // The name the archive gives the role it owns.
@@ -1652,8 +1657,9 @@ describe('the user stack serves the derived read', () => {
   });
 
   // `connectAsArchiveReader()` reads the two archive names; the gate reads the switch, and without
-  // it reads closed, so a first visit under open registration would be refused for good.
-  it('is told both clusters, the reader role and the registration switch, and nothing else', () => {
+  // it reads closed, so a first visit under open registration would be refused for good, and the
+  // pool it asks before it provisions.
+  it('is told both clusters, the reader role, the registration switch and its pool, and nothing else', () => {
     const vars = user.Resources.ViewFunction.Properties?.Environment?.Variables ?? {};
     expect(Object.keys(vars).sort()).toEqual([
       'ARCHIVE_ENDPOINT',
@@ -1662,6 +1668,7 @@ describe('the user stack serves the derived read', () => {
       'DSQL_ENDPOINT',
       'NODE_OPTIONS',
       'OPEN_REGISTRATION',
+      'USER_POOL_ID',
     ]);
     expect(intrinsicAt(userDoc, ...envVars('ViewFunction'), 'DSQL_ENDPOINT')).toEqual({
       tag: '!GetAtt',

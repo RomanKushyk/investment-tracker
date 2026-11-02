@@ -22,6 +22,7 @@ import {
 import { applications } from './applications';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { SqlClient } from './migrate';
+import { provision } from './provision';
 
 const POOL = 'eu-north-1_EXAMPLE';
 const ALICE = '9f1e2d3c-0000-4000-8000-0000000000a1';
@@ -277,7 +278,32 @@ describe('deleting an account', () => {
 
     await deleteAccount(watched, logged, POOL, { userId: BOB, email: BOB_EMAIL });
 
-    expect(order).toEqual(['signOut', 'data', 'app_user', 'deleteUser']);
+    expect(order).toEqual(['signOut', 'data', 'app_user', 'deleteUser', 'app_user']);
+  });
+
+  // ANOTHER TAB'S REQUEST LANDS AFTER THE ROW TRANSACTION, while the identity still stands, so
+  // an open window's gate provisions it a fresh row; the pass after the identity takes it (#577).
+  it('takes a row provisioned between its row transaction and its identity deletion', async () => {
+    await seed(BOB, BOB_EMAIL, 1_000);
+    const { idp } = pool({ [BOB_EMAIL]: { email: BOB_EMAIL } });
+    let raced: string[] = [];
+    const racing: AccountIdentity = {
+      ...idp,
+      adminDeleteUser: async (input) => {
+        if (raced.length === 0) {
+          await provision(cluster, BOB, () => insertUser(db, BOB, BOB_EMAIL));
+          raced = await datasetsOf(BOB);
+        }
+        return idp.adminDeleteUser(input);
+      },
+    };
+
+    expect(await deleteAccount(cluster, racing, POOL, { userId: BOB, email: BOB_EMAIL })).toBe(
+      'deleted',
+    );
+
+    expect(raced).toHaveLength(1);
+    expect(await held(BOB, raced)).toEqual(nothing);
   });
 
   it('lets the address apply again, as a pending application like any new one', async () => {
@@ -412,7 +438,8 @@ describe('a deletion cut short completes when asked again', () => {
       expect(users.size).toBe(0);
     }
     expect(cuts).toBeGreaterThan(20);
-  });
+    // A seeded account and two deletions at every step outgrow the default timeout under load.
+  }, 15_000);
 });
 
 describe('the refusals, asked before anything is touched', () => {

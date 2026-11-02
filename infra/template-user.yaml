@@ -737,12 +737,19 @@ Resources:
           CAPTURE_FUNCTION_NAME: !Ref CaptureFunctionName
           # The gate writes a row for somebody who got in while the door was open, as approve's does.
           OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+          USER_POOL_ID: !Ref UserPool
       Policies:
         - Statement:
             - Sid: ConnectToDsqlAsAdmin
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
+            # The gate asks the pool whether a token with no row still has its identity before an
+            # open window provisions it, and again after (*Auth model*).
+            - Sid: ReadTheCallersIdentity
+              Effect: Allow
+              Action: cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
             - Sid: InvokeArchiveCapture
               Effect: Allow
               Action: lambda:InvokeFunction
@@ -786,6 +793,7 @@ Resources:
           NODE_OPTIONS: --enable-source-maps
           # The gate writes a row for somebody who got in while the door was open, as approve's does.
           OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+          USER_POOL_ID: !Ref UserPool
           # Production's alone: dev starts nothing, and its start route says so.
           STATE_MACHINE_ARN:
             !If [IsProd, !GetAtt ArchiveOperationsStateMachine.Arn, !Ref AWS::NoValue]
@@ -795,6 +803,12 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
+            # The gate asks the pool whether a token with no row still has its identity before an
+            # open window provisions it, and again after (*Auth model*).
+            - Sid: ReadTheCallersIdentity
+              Effect: Allow
+              Action: cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
       Events:
         Start:
           Type: HttpApi
@@ -1156,6 +1170,7 @@ Resources:
           # THE FOURTH CONSUMER OF THE ONE SWITCH, for the approve handler's reason: the gate writes
           # the row of somebody who got in while the door was open.
           OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+          USER_POOL_ID: !Ref UserPool
       Policies:
         - Statement:
             # The only database role this cluster has is `admin`; the handler bounds the reach.
@@ -1163,6 +1178,12 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
+            # The gate asks the pool whether a token with no row still has its identity before an
+            # open window provisions it, and again after (*Auth model*).
+            - Sid: ReadTheCallersIdentity
+              Effect: Allow
+              Action: cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
             # The archive's one way in: the role signs a `DbConnect` token for `archive_reader`.
             - Sid: AssumeTheArchiveReader
               Effect: Allow

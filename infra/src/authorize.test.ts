@@ -10,11 +10,21 @@ import { TERMS_VERSION } from '@quirenote/core/terms';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { UserNotFoundException } from '@aws-sdk/client-cognito-identity-provider';
+
 import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
-import { type Gate, TERMS, authorize, superAdminOnly } from './authorize';
+import {
+  FORBIDDEN,
+  type Gate,
+  NO_APPLICATION,
+  TERMS,
+  authorize,
+  superAdminOnly,
+} from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
+import { provision } from './provision';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 
 // The DML files are excluded: the demo row and its account would sit under every count below, and
@@ -32,6 +42,32 @@ const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 const SUB = '9f1e2d3c-0000-4000-8000-0000000000a1';
 const OTHER = '9f1e2d3c-0000-4000-8000-0000000000b2';
 const EMAIL = 'applicant@quirenote.com';
+const POOL = 'eu-north-1_EXAMPLE';
+
+/** What the gate asked the pool, and what the pool answers next: a user under the username whose
+ *  `sub` is SUB unless a test queues otherwise. Nothing reaches AWS. */
+const pool = vi.hoisted(() => ({
+  asked: [] as unknown[],
+  answers: [] as (unknown | Error)[],
+}));
+vi.mock('@aws-sdk/client-cognito-identity-provider', async (actual) => {
+  const real = await actual<typeof import('@aws-sdk/client-cognito-identity-provider')>();
+  return {
+    ...real,
+    CognitoIdentityProviderClient: vi.fn(function () {
+      return {
+        send: async (command: { input: unknown }) => {
+          pool.asked.push(command.input);
+          const answer = pool.answers.length > 0 ? pool.answers.shift() : held(SUB);
+          if (answer instanceof Error) throw answer;
+          return answer;
+        },
+      };
+    }),
+  };
+});
+const held = (sub: string) => ({ UserAttributes: [{ Name: 'sub', Value: sub }] });
+const gone = () => new UserNotFoundException({ message: 'User does not exist.', $metadata: {} });
 
 /**
  * An ID TOKEN's claims, which is what this API takes. `token_use` is stamped by Cognito and is the
@@ -41,7 +77,14 @@ const token = (claims: Record<string, string | string[]> = {}): ApiEvent => ({
   requestContext: {
     authorizer: {
       jwt: {
-        claims: { token_use: 'id', sub: SUB, email: EMAIL, email_verified: 'true', ...claims },
+        claims: {
+          token_use: 'id',
+          sub: SUB,
+          'cognito:username': SUB,
+          email: EMAIL,
+          email_verified: 'true',
+          ...claims,
+        },
       },
     },
   },
@@ -110,6 +153,9 @@ beforeEach(async () => {
     });
   }
   vi.stubEnv('OPEN_REGISTRATION', 'false');
+  vi.stubEnv('USER_POOL_ID', POOL);
+  pool.asked.length = 0;
+  pool.answers.length = 0;
 });
 
 afterEach(() => {
@@ -480,6 +526,167 @@ describe('open registration is the only thing that writes a row here', () => {
       expect(await rows()).toEqual([]);
     });
   }
+});
+
+// A DELETED ACCOUNT'S ID TOKEN OUTLIVES IT by up to an hour, and Cognito's revocation does not
+// reach a token verified by signature and expiry (#577). Provisioning is the one path that writes
+// for a token with no row, so it asks the pool, before the write and again after it (CWE-367).
+describe('open registration provisions only an identity the pool still holds', () => {
+  const datasets = async () => (await db.query('SELECT id FROM dataset')).rows;
+  const nothingWritten = async () => {
+    expect(await rows()).toEqual([]);
+    expect(await accounts()).toEqual([]);
+    expect(await datasets()).toEqual([]);
+  };
+  /** The cluster, recording every statement sent: "writes nothing" is no INSERT at all, which a
+   *  write taken back afterwards would not pass. */
+  const recording = () => {
+    const sent: string[] = [];
+    const client: SqlClient = {
+      query: <R>(text: string, values?: unknown[]) => {
+        sent.push(text);
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    return { client, inserts: () => sent.filter((t) => /^\s*INSERT\b/i.test(t)) };
+  };
+
+  it('answers no_application to a token whose identity the pool no longer holds, and writes nothing', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(gone());
+    const { client, inserts } = recording();
+    expect(await authorize(client, token())).toEqual({ refusal: NO_APPLICATION });
+    expect(inserts()).toEqual([]);
+    await nothingWritten();
+  });
+
+  // A Google profile deleted and signed in again keeps its `google_…` username under a new `sub`.
+  it('answers no_application when the username is held under another sub, and writes nothing', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(held(OTHER));
+    const { client, inserts } = recording();
+    expect(await authorize(client, token())).toEqual({ refusal: NO_APPLICATION });
+    expect(inserts()).toEqual([]);
+    await nothingWritten();
+  });
+
+  it('provisions an identity the pool holds, asking by the pool username before and after the write', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    expect(await authorize(db, token({ 'cognito:username': 'google_1234567890' }))).toEqual({
+      refusal: TERMS,
+    });
+    expect(await rows()).toEqual([{ user_id: SUB, email: EMAIL, status: 'active', role: 'user' }]);
+    expect(await accounts()).toHaveLength(1);
+    expect(await datasets()).toHaveLength(1);
+    expect(pool.asked).toEqual([
+      { UserPoolId: POOL, Username: 'google_1234567890' },
+      { UserPoolId: POOL, Username: 'google_1234567890' },
+    ]);
+  });
+
+  // The deletion deleted the identity and ran its second pass between this gate's check and its
+  // write; the check after the write is what finds it.
+  it('takes back what it wrote when the identity is gone by the time the write lands', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(held(SUB), gone());
+    expect(await authorize(db, token())).toEqual({ refusal: NO_APPLICATION });
+    await nothingWritten();
+  });
+
+  // A declined application's identity is disabled before its row goes and deleted after: a token
+  // arriving between the two finds no row and an identity that is off.
+  it('answers no_application to an identity the pool holds disabled, and writes nothing', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push({ ...held(SUB), Enabled: false });
+    const { client, inserts } = recording();
+    expect(await authorize(client, token())).toEqual({ refusal: NO_APPLICATION });
+    expect(inserts()).toEqual([]);
+    await nothingWritten();
+  });
+
+  it('takes back what it wrote when the pool cannot answer the second time, and fails', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(held(SUB), new Error('Rate exceeded'));
+    await expect(authorize(db, token())).rejects.toThrow('Rate exceeded');
+    await nothingWritten();
+  });
+
+  // FAIL-SAFE, WHOEVER WROTE IT: an unanswered recheck cannot tell a new caller from a deleted one,
+  // so the row goes even when another request wrote it, and the next request provisions it again.
+  it('takes back a row another request wrote when the pool cannot answer the second time', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(held(SUB), new Error('Rate exceeded'));
+    let first = true;
+    const racing: SqlClient = {
+      query: async <R>(text: string, values?: unknown[]) => {
+        if (first && text === 'BEGIN') {
+          first = false;
+          await db.exec(row(SUB, EMAIL, 'active'));
+          await provision(db, SUB, async () => undefined);
+        }
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    await expect(authorize(racing, token())).rejects.toThrow('Rate exceeded');
+    await nothingWritten();
+    expect(await authorize(db, token())).toEqual({ refusal: TERMS });
+    expect(await accounts()).toHaveLength(1);
+  });
+
+  // The pool's failure is the one an operator needs; the take-back's own is logged beside it.
+  it('reports the pool failure, not a take-back that failed after it', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(held(SUB), new Error('Rate exceeded'));
+    const watched = watchConsole();
+    try {
+      await expect(authorize(failingOn('DELETE FROM user_price'), token())).rejects.toThrow(
+        'Rate exceeded',
+      );
+      expect(watched.lines()).toEqual([expect.stringContaining('could not take back')]);
+    } finally {
+      watched.restore();
+    }
+  });
+
+  it('answers internal and writes nothing on a function not told its pool', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    vi.stubEnv('USER_POOL_ID', '');
+    const watched = watchConsole();
+    try {
+      expect(await authorize(db, token())).toEqual({
+        refusal: expect.objectContaining({ statusCode: 500 }),
+      });
+      expect(watched.lines()).toEqual([expect.stringContaining('USER_POOL_ID is not set')]);
+    } finally {
+      watched.restore();
+    }
+    expect(pool.asked).toEqual([]);
+    await nothingWritten();
+  });
+
+  it('writes nothing when the pool cannot answer, and does not take its failure for an answer', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    pool.answers.push(new Error('Rate exceeded'));
+    await expect(authorize(db, token())).rejects.toThrow('Rate exceeded');
+    await nothingWritten();
+  });
+
+  it('refuses a token with no pool username without asking the pool', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    expect(await authorize(db, token({ 'cognito:username': '' }))).toEqual({
+      refusal: FORBIDDEN,
+    });
+    expect(pool.asked).toEqual([]);
+    await nothingWritten();
+  });
+
+  it('asks the pool nothing while registration is closed, or of a caller who has a row', async () => {
+    await authorize(db, token());
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    await db.exec(row(SUB, EMAIL, 'active'));
+    await authorize(db, token());
+    expect(pool.asked).toEqual([]);
+  });
 });
 
 describe('a token this gate cannot read never reaches the cluster', () => {

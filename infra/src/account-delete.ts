@@ -67,6 +67,23 @@ const LAST = [
   `DELETE FROM app_user WHERE user_id = $1`,
 ];
 
+/** Every row the user owns, then its `app_user` row: what a deletion takes, and what an open
+ *  window's gate takes back when the identity it provisioned for is gone (`authorize.ts`). */
+export async function deleteRows(client: SqlClient, userId: string): Promise<void> {
+  for (const sql of BATCHES) {
+    while ((await client.query(sql, [userId, BATCH_ROWS])).rows.length > 0);
+  }
+
+  try {
+    await client.query('BEGIN');
+    for (const sql of LAST) await client.query(sql, [userId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw err;
+  }
+}
+
 /** Whether `userId` is the only active super-admin. */
 export async function soleSuperAdmin(client: SqlClient, userId: string): Promise<boolean> {
   return (await client.query<{ sole: boolean }>(SOLE, [userId])).rows[0].sole;
@@ -136,25 +153,17 @@ export async function deleteAccount(
   if (await soleSuperAdmin(client, userId)) return 'sole_super_admin';
 
   // SESSIONS FIRST (ASVS 5.0.0 7.4.2); an ID token already issued is turned away by the row's
-  // absence once it is gone, while registration is closed (#577).
+  // absence once it is gone, and an open window's gate asks the pool before it provisions one.
   for (const Username of new Set([email, ...(await federated(idp, UserPoolId, email)), ...also])) {
     await idp.adminUserGlobalSignOut({ UserPoolId, Username }).catch(ignoringGone);
   }
 
-  for (const sql of BATCHES) {
-    while ((await client.query(sql, [userId, BATCH_ROWS])).rows.length > 0);
-  }
-
-  try {
-    await client.query('BEGIN');
-    for (const sql of LAST) await client.query(sql, [userId]);
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK').catch(() => undefined);
-    throw err;
-  }
+  await deleteRows(client, userId);
 
   // THE IDENTITY LAST: while it stands, its holder can sign in and ask again.
   await deleteIdentities(idp, UserPoolId, email, also);
+  // AND THE ROWS ONCE MORE, for an open window's gate that provisioned between the two; one that
+  // writes after this pass finds the identity gone and takes its write back (`authorize.ts`).
+  await deleteRows(client, userId);
   return 'deleted';
 }

@@ -1790,7 +1790,7 @@ Cognito write and a row REPLACEMENT, a DSQL primary key being immutable. A DECLI
 DELETED AT THE DECISION, ITS IDENTITY WITH IT: a `pending` row owns no account and no dataset, so
 neither outlives it, and the address may apply again, as Mastodon and Lemmy let a deleted applicant.
 While a registration window is open a decline keeps nobody out, the gate admitting any verified
-address that holds no row.
+address that holds no row and whose identity the pool still holds enabled.
 Reject disables the identity under the address, deletes the row guarded on `pending`, then deletes
 the identity and any Google profile `ListUsers` finds under the address, which the alias misses.
 The row delete is the point of no return, DSQL letting the earliest commit win against
@@ -1804,8 +1804,19 @@ Entra keep deletion, `DeleteUser` taking an access token no page holds; a functi
 it, so the one behind every portfolio write holds no delete. The deletion ends every session first,
 `AdminUserGlobalSignOut` on the local account and on each Google profile under the address, so no
 other device takes a fresh token while the rows go; an ID token already issued is turned away by
-the row's absence once it is gone, while registration is closed: an open window's gate would
-provision that token a fresh row, the gap #577 closes. THE IDENTITY GOES LAST, after the row: while it stands its holder
+the row's absence once it is gone. AN OPEN WINDOW'S GATE ASKS THE POOL BEFORE IT PROVISIONS AND
+AGAIN AFTER, `AdminGetUser` by the token's `cognito:username`, matched on its `sub`: Cognito's
+revoked tokens still pass a check of signature and expiry, which is the authorizer's, and a Google
+profile signed in again keeps its username under a new `sub`. A token whose identity is gone, or
+disabled, as a declined application's local account is before its row goes, is answered
+`no_application`; a write its identity did not outlive is taken back, CWE-367's recheck after the
+use, and so is a write the pool cannot confirm afterwards, whoever made it: fail-safe, the next
+request of a caller who does exist provisions again, where leaving it could strand a row no
+identity can delete. The deletion deletes the rows once more after the identity, so a gate that
+wrote between the two is caught by that pass and one that wrote after it by its own recheck. The
+check runs on the one path that writes for a row-less token, and only while a window is open; ASVS 5.0 7.4.1's
+other answers, a list of terminated tokens or a per-user cutoff, would refuse nothing the row's
+absence does not already refuse elsewhere. THE IDENTITY GOES LAST, after the row: while it stands its holder
 can sign in and ask again, and a deletion that stopped between the two is finished by the same
 route. It asks for no terms, erasure waiting on no acceptance. The only active super-admin is
 refused, no path back in existing without one, and `GET /me` names them so the page refuses before any press. Cognito fires
@@ -2058,7 +2069,9 @@ later fails until it is placed. One core, `account-delete.ts`, deletes whichever
 given: every session first; then each data table in bounded batches over every generation the
 account holds, the live one and a staging included, children first, each batch a statement of its
 own under the row ceiling; then, in one transaction, the pointers, the datasets, the account and the
-row, so no request between them finds a row to provision a dataset for; the identity last. Every
+row, so no request between them finds a row to provision a dataset for; the identity; then the
+rows once more, which an open window's gate provisioned if it found the identity still standing
+between the two (*Auth model*). Every
 step finds done what an earlier call did, so a deletion cut short at any step completes when asked
 again. THE ROWS LEAVE THE WORKING DATABASE WITHIN THE REQUEST, not through the sweep, so the
 backups' retention runs from the deletion and not from a collection weeks later. The address then

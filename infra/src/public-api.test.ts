@@ -796,11 +796,15 @@ describe('the archive diagnosis is a super-admin read, served in every environme
     expect(user.Resources.ArchiveAdminFunction).not.toHaveProperty('Condition');
   });
 
-  // The function gates on the user cluster and invokes the capture, and holds nothing else: the
-  // invoke is the one grant the read adds to the stack.
-  it('may connect to the user cluster and invoke the capture function it is given, and nothing else', () => {
+  // The function gates on the user cluster and invokes the capture: the invoke is the one grant
+  // the read adds to the stack, the pool read the one its gate owes an open window (#577).
+  it('may connect to the user cluster, read a user in the pool and invoke the capture function it is given, and nothing else', () => {
     expect(policies).toHaveLength(1);
-    expect(policies[0].Statement).toHaveLength(2);
+    expect(policies[0].Statement).toHaveLength(3);
+    expect(grantAt(doc, statements, 'cognito-idp:AdminGetUser')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
     expect(grantAt(doc, statements, 'dsql:DbConnectAdmin')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
@@ -854,11 +858,15 @@ describe('the archive operations are super-admin routes, served in every environ
   });
 
   // The start's grant stands apart under production's condition; the function's own policies hold
-  // the cluster alone.
-  it('may connect to the user cluster, and its own policies grant nothing else', () => {
+  // the cluster and the pool read its gate owes an open window (#577).
+  it('may connect to the user cluster and read a user in the pool, and its own policies grant nothing else', () => {
     const policies = props(FN).Policies as [{ Statement: unknown[] }];
     expect(policies).toHaveLength(1);
-    expect(policies[0].Statement).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(2);
+    expect(grantAt(doc, statements, 'cognito-idp:AdminGetUser')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
     expect(grantAt(doc, statements, 'dsql:DbConnectAdmin')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
@@ -900,4 +908,52 @@ describe('the archive operations are super-admin routes, served in every environ
     expect(user.Resources.ArchiveOperationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('ArchiveOperationsLogGroup').RetentionInDays).toBe(30);
   });
+});
+
+// AN OPEN WINDOW'S GATE ASKS THE POOL before it provisions and again after (#577), so every function
+// that runs the gate and carries the switch reads a user in its own pool. The trigger carries the
+// switch and runs no gate.
+describe('every function whose gate can provision reads a user in this stack’s pool', () => {
+  const carriers = Object.keys(user.Resources).filter(
+    (id) =>
+      id !== 'PreSignUpFunction' &&
+      (props(id).Environment as { Variables?: Record<string, unknown> } | undefined)?.Variables
+        ?.OPEN_REGISTRATION !== undefined,
+  );
+
+  it('names the five functions that run the gate under the switch', () => {
+    expect(carriers.sort()).toEqual([
+      'ApproveFunction',
+      'ArchiveAdminFunction',
+      'ArchiveOperationsFunction',
+      'MutationsFunction',
+      'ViewFunction',
+    ]);
+  });
+
+  for (const id of [
+    'ApproveFunction',
+    'ArchiveAdminFunction',
+    'ArchiveOperationsFunction',
+    'MutationsFunction',
+    'ViewFunction',
+  ]) {
+    it(`gives ${id} the pool by reference and AdminGetUser on that pool alone`, () => {
+      expect(intrinsicAt(doc, ...envVars(id), 'USER_POOL_ID')).toEqual({
+        tag: '!Ref',
+        value: 'UserPool',
+      });
+      const path = ['Resources', id, 'Properties', 'Policies', 0, 'Statement'];
+      const statements = (props(id).Policies as [{ Statement: { Action: unknown }[] }])[0]
+        .Statement;
+      const reading = statements.flatMap((st, i) =>
+        ([] as unknown[]).concat(st.Action).includes('cognito-idp:AdminGetUser') ? [i] : [],
+      );
+      expect(reading).toHaveLength(1);
+      expect(intrinsicAt(doc, ...path, reading[0], 'Resource')).toEqual({
+        tag: '!GetAtt',
+        value: 'UserPool.Arn',
+      });
+    });
+  }
 });
