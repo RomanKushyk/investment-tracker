@@ -22,3 +22,13 @@ allowBuilds:
 # tree is back to three copies, silently. `pnpm why esbuild` should report two, not three.
 overrides:
   '@esbuild-kit/core-utils>esbuild': '^0.28.1'
+
+# Accepted as it stands: the fix is minimatch 11.0.1, and no parent's range reaches it. The 3.x line
+# (eslint 9) does not contain the vulnerable code. The 10.x line (typescript-estree) has it only
+# behind `optimizationLevel >= 2`, and its one caller takes the default 1 and runs only for
+# `projectService`/`allowDefaultProject`, which `eslint.config.js` does not set. REMOVE THIS ENTRY
+# once `pnpm why minimatch -r` lists only 11.0.1 or later: pnpm drops the GHSA on every version
+# line, so its audit never marks that moment.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-g3hv-75wg-m249
