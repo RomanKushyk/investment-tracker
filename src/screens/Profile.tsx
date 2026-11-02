@@ -3,7 +3,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 
 import { tabStorage, useGoogle, useSessionStatus } from '../auth/app';
-import { arrivedReauthentication, forgetReauthentication } from '../auth/google';
+import {
+  arrivedPurpose,
+  arrivedReauthentication,
+  forgetReauthentication,
+  type ReauthPurpose,
+} from '../auth/google';
 import type { PasskeyList } from '../auth/passkey';
 import { Block, Dash, PlaceholderScreen } from '../components/loading/Placeholder';
 import { Button } from '../components/ui/Button';
@@ -17,20 +22,34 @@ import { usePasskeys } from '../hooks/usePasskeys';
 import { useT } from '../i18n/useT';
 import type { MeData } from '../lib/repository';
 import { usedUp } from '../auth/signed-out';
-import { SignOutEverywhere, type Ways } from './profile/SignOutEverywhere';
+import { DeleteAccount } from './profile/DeleteAccount';
+import type { Ways } from './profile/Reauthentication';
+import { SignOutEverywhere } from './profile/SignOutEverywhere';
 import { Divider, SectionLabel, SettingRow } from './Settings';
 
 // THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T4 and T6), read on demand from
 // `GET /me`; the passkeys are the relay's list. Signed out, or before the session is known, the
 // shell stands alone and nothing is asked, as a screen behind the view.
 type Arrived = ReturnType<typeof arrivedReauthentication>;
+/** Back from Google: what the trip was for, and how it came back. */
+type Back = { arrived: NonNullable<Arrived>; purpose: ReauthPurpose };
+type Opened = { n: number; open: boolean; email: string; ways: Ways; arrived?: Arrived };
+const CLOSED: Opened = {
+  n: 0,
+  open: false,
+  email: '',
+  ways: { password: true, google: false, passkey: false },
+};
 
 export function Profile() {
   const signedIn = useSessionStatus() === 'signedIn';
   const location = useLocation();
   const navigate = useNavigate();
   // BACK FROM GOOGLE, read at mount and the entry used up at once, so a reload opens nothing (T10).
-  const [arrived, setArrived] = useState(() => arrivedReauthentication(location.state));
+  const [back, setBack] = useState<Back | undefined>(() => {
+    const arrived = arrivedReauthentication(location.state);
+    return arrived && { arrived, purpose: arrivedPurpose(location.state) };
+  });
   useEffect(() => {
     if (arrivedReauthentication(location.state)) void navigate(...usedUp(location));
   }, [location, navigate]);
@@ -39,22 +58,22 @@ export function Profile() {
   useEffect(() => forgetReauthentication(tabStorage()), []);
   // Held here, outside the account: signing out everywhere empties the page before it leaves, and
   // the dialog stays busy meanwhile. A fresh key per open resets it while a closed one exits.
-  const [everywhere, setEverywhere] = useState<{
-    n: number;
-    open: boolean;
-    email: string;
-    ways: Ways;
-    arrived?: Arrived;
-  }>({ n: 0, open: false, email: '', ways: { password: true, google: false, passkey: false } });
+  const [everywhere, setEverywhere] = useState<Opened>(CLOSED);
+  const [deletion, setDeletion] = useState<Opened & { timing?: 'now' | 'later' }>(CLOSED);
   return (
     <>
       {signedIn && (
         <Account
-          arrived={arrived}
+          back={back}
           onSignOutEverywhere={(email, ways, from) => {
-            setArrived(undefined);
+            setBack(undefined);
             setEverywhere(({ n }) => ({ n: n + 1, open: true, email, ways, arrived: from }));
           }}
+          onDelete={(email, ways, from, timing) => {
+            setBack(undefined);
+            setDeletion(({ n }) => ({ n: n + 1, open: true, email, ways, arrived: from, timing }));
+          }}
+          onBackSpent={() => setBack(undefined)}
         />
       )}
       {everywhere.n > 0 && (
@@ -65,6 +84,17 @@ export function Profile() {
           ways={everywhere.ways}
           arrived={everywhere.arrived}
           onClose={closeEverywhere}
+        />
+      )}
+      {deletion.n > 0 && (
+        <DeleteAccount
+          key={deletion.n}
+          open={deletion.open}
+          email={deletion.email}
+          ways={deletion.ways}
+          arrived={deletion.arrived}
+          timing={deletion.timing}
+          onClose={() => setDeletion((was) => (was.open ? { ...was, open: false } : was))}
         />
       )}
     </>
@@ -78,11 +108,15 @@ export function Profile() {
 const CARD = 'animate-in p-[22px] duration-300 fade-in slide-in-from-bottom-1';
 
 function Account({
-  arrived,
+  back,
   onSignOutEverywhere,
+  onDelete,
+  onBackSpent,
 }: {
-  arrived: Arrived;
+  back: Back | undefined;
   onSignOutEverywhere: (email: string, ways: Ways, arrived?: Arrived) => void;
+  onDelete: (email: string, ways: Ways, arrived?: Arrived, timing?: 'now' | 'later') => void;
+  onBackSpent: () => void;
 }) {
   const t = useT();
   const answered = useMe();
@@ -96,9 +130,15 @@ function Account({
   });
   // The dialog reopens once the account and its list have landed, which its first state reads.
   useEffect(() => {
-    if (arrived && answered !== undefined && passkeys !== undefined) {
+    if (back === undefined || answered === undefined || passkeys === undefined) return;
+    const { arrived, purpose } = back;
+    if (purpose === 'signOutEverywhere')
       onSignOutEverywhere(answered.email, ways(answered), arrived);
-    }
+    // The only super-admin's card offers no deletion, so a return from Google opens none, and is
+    // spent so a later read that no longer names them opens none either.
+    else if (answered.soleSuperAdmin) onBackSpent();
+    else
+      onDelete(answered.email, ways(answered), arrived, purpose === 'delete:now' ? 'now' : 'later');
   });
   // Nothing new for 300 ms, then every box held, and held for a while once shown: a page that
   // flashes reads slower than it is.
@@ -149,6 +189,32 @@ function Account({
           )}
           {/* Held until the account lands, whatever the list has answered. */}
           <Passkeys list={me === undefined ? undefined : passkeys} held={me === undefined} />
+        </Card>
+        {/* Fifth and last (`account-deletion.dc.html` T1): the list above it may still move it. */}
+        <Card radius={24} className={`${CARD} delay-300`}>
+          <SectionLabel>{t.profile.sections.delete}</SectionLabel>
+          {/* The only super-admin is refused before any press, in the helper's place. */}
+          <SettingRow
+            title={t.profile.deleteAccount.title}
+            helper={
+              me?.soleSuperAdmin
+                ? t.profile.deleteAccount.superAdmin
+                : t.profile.deleteAccount.helper
+            }
+          >
+            {me === undefined ? (
+              <Block
+                kind="link"
+                className="h-10 w-[225px] rounded-[10px] max-md:h-11 max-md:rounded-[11px]"
+              />
+            ) : (
+              !me.soleSuperAdmin && (
+                <Button variant="outlineDanger" onClick={() => onDelete(me.email, ways(me))}>
+                  {t.profile.deleteAccount.open}
+                </Button>
+              )
+            )}
+          </SettingRow>
         </Card>
       </div>
     </div>

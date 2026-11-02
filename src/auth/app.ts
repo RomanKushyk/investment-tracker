@@ -13,7 +13,7 @@ import { type PasskeyDeps, hasPasskey } from './passkey';
 import { createRelay } from './relay';
 import { createSession } from './session';
 import type { SignInDeps } from './sign-in';
-import { carrySignedOut, throughLogout } from './signed-out';
+import { carrySignedOut, throughLogout, type SignedOutCause } from './signed-out';
 
 const environment = environmentFor(location.hostname);
 const relay = createRelay({ base: environment?.relay, fetch: (input, init) => fetch(input, init) });
@@ -87,10 +87,14 @@ export function tabStorage(): Storage | undefined {
 /** A SIGN-OUT WHILE GOOGLE IS ON LEAVES THROUGH COGNITO'S LOGOUT, the only way its session cookie
  *  is cleared, to land on `to` on the listed site. False where there is no logout, no site, or a
  *  logout that is no URL. */
-export function leaveThroughLogout(logout: string | undefined, to: '/sign-in' | '/apply'): boolean {
+export function leaveThroughLogout(
+  logout: string | undefined,
+  to: '/sign-in' | '/apply',
+  cause?: SignedOutCause,
+): boolean {
   const leaving = throughLogout(logout, environment?.site, location.origin, to);
   if (leaving === undefined) return false;
-  if (leaving.carry) carrySignedOut(tabStorage());
+  if (leaving.carry) carrySignedOut(tabStorage(), cause);
   location.assign(leaving.url);
   return true;
 }
@@ -104,10 +108,13 @@ export const apply = createApply({
 /** This host's Turnstile widget, or none where no environment is keyed. */
 export const botCheckSitekey = botCheckSitekeyFor(location.hostname, location.search);
 
-/** One of the refusals `answerOf` reads, and the address the caller signed in with. */
+/** One of the refusals `answerOf` reads, and the address the caller signed in with. A deletion's
+ *  window names its last day, and whether this sign-in may cancel it (*Auth model*). */
 export interface HeldAnswer {
   answer: Answer;
   email?: string;
+  date?: string;
+  cancellable?: boolean;
 }
 
 let held: HeldAnswer | undefined;

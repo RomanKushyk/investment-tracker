@@ -43,6 +43,18 @@ export async function beginGoogle(
 export const REAUTHENTICATED = { reauthenticated: 'confirmed' } as const;
 export const REAUTHENTICATION_REFUSED = { reauthenticated: 'refused' } as const;
 
+/** What a re-authentication is for: signing out everywhere, or a deletion with its timing
+ *  (`account-deletion.dc.html` T3). */
+export type ReauthPurpose = 'signOutEverywhere' | 'delete:now' | 'delete:later';
+const PURPOSES: readonly ReauthPurpose[] = ['signOutEverywhere', 'delete:now', 'delete:later'];
+
+/** The purpose that state names; any other, sign-out everywhere's, the first one. */
+export function arrivedPurpose(state: unknown): ReauthPurpose {
+  const purpose =
+    typeof state === 'object' && state !== null && 'purpose' in state ? state.purpose : undefined;
+  return PURPOSES.find((p) => p === purpose) ?? 'signOutEverywhere';
+}
+
 export function arrivedReauthentication(state: unknown): 'confirmed' | 'refused' | undefined {
   if (typeof state !== 'object' || state === null || !('reauthenticated' in state))
     return undefined;
@@ -57,20 +69,27 @@ export function arrivedReauthentication(state: unknown): 'confirmed' | 'refused'
 export const REAUTHENTICATING = 'quirenote-reauthenticating';
 type Tab = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
-export function carryReauthentication(tab: Tab | undefined): void {
+// The value names the purpose; sign-out everywhere's is `1`.
+export function carryReauthentication(
+  tab: Tab | undefined,
+  purpose: ReauthPurpose = 'signOutEverywhere',
+): void {
   try {
-    tab?.setItem(REAUTHENTICATING, '1');
+    tab?.setItem(REAUTHENTICATING, purpose === 'signOutEverywhere' ? '1' : purpose);
   } catch {
     // Storage refused: the return reads as a sign-in's, which lands signed in on `/`.
   }
 }
 
-export function reauthenticating(tab: Tab | undefined): boolean {
+/** The purpose this tab's re-authentication is for, or none. */
+export function reauthenticationFor(tab: Tab | undefined): ReauthPurpose | undefined {
+  let value: string | null | undefined;
   try {
-    return tab?.getItem(REAUTHENTICATING) === '1';
+    value = tab?.getItem(REAUTHENTICATING);
   } catch {
-    return false;
+    return undefined;
   }
+  return value === '1' ? 'signOutEverywhere' : PURPOSES.find((p) => p === value);
 }
 
 export function forgetReauthentication(tab: Tab | undefined): void {

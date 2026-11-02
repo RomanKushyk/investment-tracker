@@ -95,7 +95,9 @@ describe('`/sign-in` reads it once and uses it up', () => {
     expect(note, 'the line is not above the title').toBeLessThan(
       step.indexOf('<Title>{t.auth.signIn.title}</Title>'),
     );
-    expect(step, 'the line says something else').toMatch(/\{t\.auth\.signedOut\}<\/SignedOutNote>/);
+    expect(step, 'the line says something else').toMatch(/\{noteText\}<\/SignedOutNote>/);
+    // A sign-out's own words unless a deletion named its cause (`account-deletion.dc.html` T5).
+    expect(signIn).toMatch(/:\s*t\.auth\.signedOut;/);
   });
 
   it('holds the line on submit, and a new step has none', () => {

@@ -11,7 +11,7 @@ import {
   carryReauthentication,
   completeGoogle,
   forgetReauthentication,
-  reauthenticating,
+  reauthenticationFor,
 } from './google';
 import type { RelayAnswer, RelayCall } from './relay';
 
@@ -150,12 +150,12 @@ describe('the re-authentication this tab began', () => {
 
   it('is carried, read and forgotten in the tab', () => {
     const storage = tab();
-    expect(reauthenticating(storage)).toBe(false);
+    expect(reauthenticationFor(storage)).toBeUndefined();
     carryReauthentication(storage);
-    expect(reauthenticating(storage)).toBe(true);
-    expect(reauthenticating(storage)).toBe(true);
+    expect(reauthenticationFor(storage)).toBe('signOutEverywhere');
+    expect(reauthenticationFor(storage)).toBe('signOutEverywhere');
     forgetReauthentication(storage);
-    expect(reauthenticating(storage)).toBe(false);
+    expect(reauthenticationFor(storage)).toBeUndefined();
   });
 
   it('is none where the tab refuses storage', () => {
@@ -171,9 +171,9 @@ describe('the re-authentication this tab began', () => {
       },
     };
     expect(() => carryReauthentication(refusing)).not.toThrow();
-    expect(reauthenticating(refusing)).toBe(false);
+    expect(reauthenticationFor(refusing)).toBeUndefined();
     expect(() => forgetReauthentication(refusing)).not.toThrow();
-    expect(reauthenticating(undefined)).toBe(false);
+    expect(reauthenticationFor(undefined)).toBeUndefined();
   });
 
   it('hands `/profile` its outcome as router state, read from nothing else', () => {

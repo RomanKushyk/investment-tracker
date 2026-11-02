@@ -33,6 +33,8 @@ import {
   type BalancesData,
   type CouponReopen,
   type DayData,
+  type DeletionOutcome,
+  type DeletionTiming,
   type MeData,
   type SeriesData,
   type StartReply,
@@ -200,6 +202,28 @@ export function useAcceptTerms(): () => Promise<TermsOutcome> {
   return async () => {
     const outcome = await repo.acceptTerms();
     if (outcome === 'accepted') await qc.resetQueries();
+    return outcome;
+  };
+}
+
+/** The account deleted, now or once its window ends. Refused as the only super-admin, the account
+ *  is read again, so its card says so in the trigger's place. */
+export function useDeleteAccount(): (timing: DeletionTiming) => Promise<DeletionOutcome> {
+  const qc = useQueryClient();
+  return async (timing) => {
+    const outcome = await repo.deleteAccount(timing);
+    if (outcome.kind === 'sole') await qc.invalidateQueries({ queryKey: meKey });
+    return outcome;
+  };
+}
+
+/** A held deletion cancelled from its gate. Cancelled, every read the gate left behind is reset, so
+ *  the route that asked reads them again under the session it already has. */
+export function useCancelDeletion(): () => Promise<'cancelled' | 'failed'> {
+  const qc = useQueryClient();
+  return async () => {
+    const outcome = await repo.cancelDeletion();
+    if (outcome === 'cancelled') await qc.resetQueries();
     return outcome;
   };
 }

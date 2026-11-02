@@ -1830,21 +1830,25 @@ after the request, read from `auth_time`, which a refresh never resets: an ID to
 is accepted for the rest of its hour, so a tab still holding the older sign-in is told it may not,
 and is signed out rather than offered a cancel that fails. A sign-in in the request's own second
 counts as before it. The cancel asks for no sign-in fresher than that one, and none waiting answers
-204 as a DELETE of nothing does. FROM THE END OF THE LAST DAY THE GATE ANSWERS `no_application`, as
+204 as a DELETE of nothing does. THE PAGE THAT PRESSED SIGNS OUT AT ONCE, before any read can meet
+the gate, and lands on `/sign-in` with the deletion's own sentence, the scheduled one naming the day
+the route stored: the app mails nothing, so that sentence is the notice. FROM THE END OF THE LAST DAY THE GATE ANSWERS `no_application`, as
 it answers a token whose account is gone, so no gate offers a cancel after the day. Cognito fires
 no trigger on a deletion, so whoever deletes an identity by hand clears its `app_user` row too, and
 nothing watches for one; the operator erases on request only what the route cannot reach. THE
 APPLICATION IS THE APP'S
 OWN FORM, `/apply`, one address posted with no cookie, since its route reads none; the endpoint
 answers every address with one constant, so the form can say only that it was recorded. A CALLER THE
-API REFUSES on a route every user may call — pending, rejected, no application, forbidden, terms — sees that
-answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out; an
+API REFUSES on a route every user may call — pending, rejected, no application, forbidden, terms, scheduled — sees that
+answer IN PLACE of the route that asked, held in memory, and every way out it offers is a sign-out but
+two, each the answer's own write after which the route that asked reads again with no sign-in: the
+terms step's acceptance and the window's cancel; an
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
 not read that way. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which the
 repository calls. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
-each answer back as a typed reply: the five refusals apart; a 304 and a 412, a 409 for a write still running,
+each answer back as a typed reply: the six refusals apart, `scheduled` only with the day it names; a 304 and a 412, a 409 for a write still running,
 a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
-own; any other answer by its status and body. A body goes as the text it was given, under
+own, a 401 for a sign-in too old (`insufficient_user_authentication`) marked so; any other answer by its status and body. A body goes as the text it was given, under
 `application/json` unless its caller names a type, as `PATCH /me/settings` must. Nothing is sent where
 the host names no API, nor where the account is signed out or a sign-out is running, the pair held
 meanwhile being the account's that is leaving; the reply to the latter two is a 401's kind. It shows

@@ -1,7 +1,21 @@
 import type { Path } from 'react-router';
 
+import { isDay } from './relay';
+
 /** What a finished sign-out hands `/sign-in` as router state, so the page can say so. */
 export const SIGNED_OUT = { signedOut: true } as const;
+
+/** Why the page is signed out: a sign-out, or the account deleted now or held until `date`'s end
+ *  (`account-deletion.dc.html` T5), whose landing says so in its place. */
+export type SignedOutCause =
+  { kind: 'signedOut' } | { kind: 'deleted' } | { kind: 'scheduled'; date: string };
+
+/** The state a deletion's sign-out navigates with. */
+export function signedOutBy(cause: SignedOutCause) {
+  return cause.kind === 'scheduled'
+    ? { ...SIGNED_OUT, cause: cause.kind, date: cause.date }
+    : { ...SIGNED_OUT, cause: cause.kind };
+}
 
 /** True only for the state a sign-out navigates with. */
 export function arrivedSignedOut(state: unknown): boolean {
@@ -10,25 +24,60 @@ export function arrivedSignedOut(state: unknown): boolean {
   );
 }
 
+/** The cause that state names; any it cannot read in full is a plain sign-out's. */
+export function causeOf(state: unknown): SignedOutCause {
+  if (typeof state !== 'object' || state === null || !('cause' in state)) {
+    return { kind: 'signedOut' };
+  }
+  if (state.cause === 'deleted') return { kind: 'deleted' };
+  const date = 'date' in state ? state.date : undefined;
+  return state.cause === 'scheduled' && isDay(date)
+    ? { kind: 'scheduled', date }
+    : { kind: 'signedOut' };
+}
+
 /** THE FACT ACROSS COGNITO'S LOGOUT, which loads `/sign-in` afresh from another origin where router
  *  state cannot follow. This tab's session storage does; the page forgets it once it has read it. */
 export const RETURNING = 'quirenote-signed-out';
 type Tab = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
-export function carrySignedOut(tab: Tab | undefined): void {
+// The value names the cause: `1` a sign-out's, `deleted`, or `scheduled:<yyyy-MM-dd>`.
+const valueOf = (cause: SignedOutCause) =>
+  cause.kind === 'signedOut'
+    ? '1'
+    : cause.kind === 'deleted'
+      ? 'deleted'
+      : `scheduled:${cause.date}`;
+
+function causeIn(value: string | null | undefined): SignedOutCause | undefined {
+  if (value === '1') return { kind: 'signedOut' };
+  if (value === 'deleted') return { kind: 'deleted' };
+  const date = value?.startsWith('scheduled:') ? value.slice('scheduled:'.length) : undefined;
+  return isDay(date) ? { kind: 'scheduled', date } : undefined;
+}
+
+export function carrySignedOut(
+  tab: Tab | undefined,
+  cause: SignedOutCause = { kind: 'signedOut' },
+): void {
   try {
-    tab?.setItem(RETURNING, '1');
+    tab?.setItem(RETURNING, valueOf(cause));
   } catch {
     // Storage refused (a private window, blocked site data): the page arrives without the line.
   }
 }
 
-export function returnedSignedOut(tab: Tab | undefined): boolean {
+/** The cause the tab carries, or none. */
+export function returnedCause(tab: Tab | undefined): SignedOutCause | undefined {
   try {
-    return tab?.getItem(RETURNING) === '1';
+    return causeIn(tab?.getItem(RETURNING));
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+export function returnedSignedOut(tab: Tab | undefined): boolean {
+  return returnedCause(tab) !== undefined;
 }
 
 export function forgetSignedOut(tab: Tab | undefined): void {

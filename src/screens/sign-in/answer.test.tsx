@@ -273,6 +273,7 @@ describe('the terms step', () => {
     expect(auth.leaveThroughLogout).toHaveBeenCalledExactlyOnceWith(
       'https://auth.test/logout?client_id=c',
       '/sign-in',
+      { kind: 'signedOut' },
     );
   });
 

@@ -78,7 +78,7 @@ export interface Passkey {
 }
 
 // A day the calendar has: `Date` rolls 2026-02-30 over to March, so the date must come back as sent.
-const isDay = (d: unknown): d is string => {
+export const isDay = (d: unknown): d is string => {
   if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
   const t = Date.parse(`${d}T00:00:00Z`);
   return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;

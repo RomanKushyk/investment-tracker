@@ -238,6 +238,56 @@ describe('a refusal', () => {
     expect(showAnswer).toHaveBeenCalledExactlyOnceWith({ answer, email: ADDRESS });
   });
 
+  // THE WINDOW'S GATE carries the day it ends and whether this sign-in may cancel it (#576).
+  it.each([true, false])(
+    'reaches the caller as scheduled, and the screen with its day, cancellable %s',
+    async (cancellable) => {
+      server.use(
+        http.get(`${API}/view`, () =>
+          answering(403, { error: 'scheduled', date: '2026-11-29', cancellable }),
+        ),
+      );
+      const { call, showAnswer } = await transport();
+
+      expect(await call(view)).toEqual({ kind: 'answer', answer: 'scheduled' });
+      expect(showAnswer).toHaveBeenCalledExactlyOnceWith({
+        answer: 'scheduled',
+        email: ADDRESS,
+        date: '2026-11-29',
+        cancellable,
+      });
+    },
+  );
+
+  // Not offered a cancel the API may refuse: only a `true` it said is one.
+  it('takes a scheduled answer that says nothing of cancelling as not cancellable', async () => {
+    server.use(
+      http.get(`${API}/view`, () => answering(403, { error: 'scheduled', date: '2026-11-29' })),
+    );
+    const { call, showAnswer } = await transport();
+
+    await call(view);
+    expect(showAnswer).toHaveBeenCalledExactlyOnceWith({
+      answer: 'scheduled',
+      email: ADDRESS,
+      date: '2026-11-29',
+      cancellable: false,
+    });
+  });
+
+  // The screen's lead names the day; with none to name it, the 403 is no answer.
+  it.each([
+    { error: 'scheduled', cancellable: true },
+    { error: 'scheduled', date: '29.11.2026', cancellable: true },
+    { error: 'scheduled', date: '2026-02-30', cancellable: true },
+  ])('is no answer when a scheduled 403 carries %j', async (body) => {
+    server.use(http.get(`${API}/view`, () => answering(403, body)));
+    const { call, showAnswer } = await transport();
+
+    expect(await call(view)).toEqual({ kind: 'failed', status: 403, body });
+    expect(showAnswer).not.toHaveBeenCalled();
+  });
+
   it('reaches a user from the settings route too, which every user may call', async () => {
     server.use(http.patch(`${API}/me/settings`, () => answering(403, { error: 'rejected' })));
     const { call, showAnswer } = await transport();
@@ -533,6 +583,20 @@ describe('an answer that is not a success', () => {
     expect(reply).toMatchObject(expected);
     if (reply.kind === 'failed') expect(reply.body).toEqual(body);
     expect(sent).toBe(1);
+  });
+
+  // RFC 9470 §3: a sign-in too old for the route, which a fresh one renews; any other 401 is plain.
+  it.each([
+    [{ error: 'insufficient_user_authentication' }, { kind: 'unauthorized', reauthenticate: true }],
+    [{ error: 'not_authorized' }, { kind: 'unauthorized' }],
+    [{ message: 'Unauthorized' }, { kind: 'unauthorized' }],
+  ])('reads a 401 carrying %j as %j', async (body, expected) => {
+    server.use(http.post(`${API}/me/deletion`, () => answering(401, body)));
+    const { call } = await transport();
+
+    expect(await call({ method: 'POST', path: '/me/deletion', body: '{}', once: true })).toEqual(
+      expected,
+    );
   });
 
   it('surfaces a 304 as not modified, with the tag it carries, and sends the request once', async () => {

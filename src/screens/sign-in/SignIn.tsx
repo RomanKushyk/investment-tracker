@@ -25,11 +25,15 @@ import {
 } from '../../auth/sign-in';
 import {
   arrivedSignedOut,
+  causeOf,
   forgetSignedOut,
+  returnedCause,
   returnedSignedOut,
   usedUp,
+  type SignedOutCause,
 } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
+import { useFormat } from '../../hooks/useFormat';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 import { BotCheck } from './BotCheck';
@@ -119,6 +123,21 @@ export function SignIn() {
       ? 'said'
       : undefined,
   );
+  // What became of the account, read with the line: a deletion's landing says so in its place.
+  const [cause] = useState<SignedOutCause | undefined>(() =>
+    arrivedSignedOut(location.state)
+      ? causeOf(location.state)
+      : location.key === 'default'
+        ? returnedCause(tabStorage())
+        : undefined,
+  );
+  const f = useFormat();
+  const noteText =
+    cause?.kind === 'deleted'
+      ? t.auth.signedOutDeleted
+      : cause?.kind === 'scheduled'
+        ? t.auth.signedOutScheduled(f.date(cause.date))
+        : t.auth.signedOut;
   // Busy from the press until the page leaves for Google.
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleSaid, setGoogleSaid] = useState<Said | undefined>(() =>
@@ -395,7 +414,7 @@ export function SignIn() {
       >
         {step.name === 'address' && (
           <>
-            {note && <SignedOutNote held={note === 'held'}>{t.auth.signedOut}</SignedOutNote>}
+            {note && <SignedOutNote held={note === 'held'}>{noteText}</SignedOutNote>}
             <Title>{t.auth.signIn.title}</Title>
             <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">
               {t.auth.signIn.lead}

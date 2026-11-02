@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { carrySignedOut } from '../../auth/signed-out';
+import { carrySignedOut, signedOutBy } from '../../auth/signed-out';
 
 import type { SignInDeps, SignInOutcome } from '../../auth/sign-in';
 import { uk } from '../../i18n/messages';
@@ -129,6 +129,41 @@ describe("the line a sign-out through Cognito's logout carries", () => {
     await settled();
     expect(screen.queryByText(uk.auth.signedOut)).toBeNull();
     expect(hold.tab?.length, 'the visit kept the fact').toBe(0);
+  });
+});
+
+// A DELETION'S LANDING says what became of the account, the scheduled one its day, in place of
+// «Ви вийшли.» (`account-deletion.dc.html` T5, T10), by router state or across Cognito's logout.
+describe('the line a deletion’s landing says', () => {
+  const settled = () => act(() => new Promise((settle) => setTimeout(settle, 200)));
+  const DELETED = 'Обліковий запис видалено.';
+  const SCHEDULED =
+    'Обліковий запис буде видалено після 29.11.2026. Щоб скасувати, увійдіть до кінця цього дня й натисніть «Скасувати видалення».';
+  const cases = [
+    [{ kind: 'deleted' }, DELETED],
+    [{ kind: 'scheduled', date: '2026-11-29' }, SCHEDULED],
+  ] as const;
+
+  it.each(cases)('says %j handed as router state, once', async (cause, line) => {
+    const state = signedOutBy(cause);
+    const router = createMemoryRouter([{ path: '/sign-in', element: <SignIn /> }], {
+      initialEntries: [{ pathname: '/sign-in', state }],
+    });
+    render(<RouterProvider router={router} />);
+    await settled();
+    expect(screen.queryByText(line)).not.toBeNull();
+    expect(screen.queryByText(uk.auth.signedOut)).toBeNull();
+    expect(router.state.location.state, 'the entry kept its state').toBeNull();
+  });
+
+  it.each(cases)('says %j carried across Cognito’s logout', async (cause, line) => {
+    hold.tab = window.sessionStorage;
+    hold.tab.clear();
+    carrySignedOut(hold.tab, cause);
+    mount();
+    await settled();
+    expect(screen.queryByText(line)).not.toBeNull();
+    expect(hold.tab.length, 'the fact outlived its reading').toBe(0);
   });
 });
 

@@ -83,6 +83,21 @@ export interface FakeApi {
   settings: string | null;
   /** The row's role, which `GET /me` serves. */
   role: 'user' | 'super_admin';
+  /** Whether `GET /me` names the caller the only active super-admin. */
+  soleSuperAdmin: boolean;
+  /** What each `POST /me/deletion` answers, one per call, then `done`: the deletion done or held for
+   *  its timing, a sign-in too old, the only super-admin refused, or a fault. Done, every session
+   *  ends, as `infra/src/deletion.ts` ends them. */
+  deletions: ('done' | 'tooOld' | 'sole' | 'failed')[];
+  /** Each `POST /me/deletion` body, as sent. */
+  deletionSent: unknown[];
+  /** The last day a held deletion stores, which its 202 and the gate name. */
+  deletionDate: string;
+  /** A deletion held for its window: while it stands, every data route but the cancel answers the
+   *  gate's `scheduled`, `cancellable` as the sign-in that asks may cancel. */
+  hold?: { date: string; cancellable: boolean };
+  /** What each `DELETE /me/deletion` answers, one per call, then `done`. */
+  cancels: ('done' | 'failed')[];
   /** Whether the row holds a terms version: while it holds none, every data route but
    *  `POST /me/terms` answers `terms`, as the gate does. */
   termsAccepted: boolean;
@@ -144,6 +159,11 @@ export function fakeApi(
     notModified: 0,
     settings: null,
     role: 'user',
+    soleSuperAdmin: false,
+    deletions: [],
+    deletionSent: [],
+    deletionDate: '2026-11-29',
+    cancels: [],
     termsAccepted: true,
     diagnosis: { size: { rows: '0', total_bytes: '0' }, bySource: [], observations: [], sample: [] },
     operations: [],
@@ -446,6 +466,7 @@ export function fakeApi(
       transactions: api.rows.transactions.length,
       ...(first === undefined ? {} : { firstTransaction: first }),
       settings: settingsOf(api.settings),
+      ...(api.soleSuperAdmin ? { soleSuperAdmin: true } : {}),
     });
     const headers = { etag: `W/"${sha(text)}"`, 'cache-control': 'private, no-cache' };
     if (request.headers['if-none-match'] === headers.etag) {
@@ -566,9 +587,10 @@ export function fakeApi(
       api.signedIn = true;
       return json({ idToken, expiresIn: 3600 });
     }
+    // Every sign-out while Google is on names Cognito's logout, as the relay's does.
     if (path === '/auth/sign-out') {
       api.signedIn = false;
-      return json({ status: 'signed_out' });
+      return json({ status: 'signed_out', ...(api.logout === undefined ? {} : { logout: api.logout }) });
     }
     if (path === '/auth/sign-out/global') {
       api.everywhereSent.push(JSON.parse(await original.text()));
@@ -589,6 +611,27 @@ export function fakeApi(
       body: await original.text(),
     };
     api.seen.push(request);
+    // THE WINDOW'S GATE, ahead of the terms as `authorize.ts` reads it; the cancel alone passes.
+    if (api.hold !== undefined) {
+      if (request.method !== 'DELETE' || path !== '/me/deletion' || !api.hold.cancellable) {
+        return json({ error: 'scheduled', ...api.hold }, 403);
+      }
+      if ((api.cancels.shift() ?? 'done') === 'failed') return json({ error: 'internal' }, 500);
+      api.hold = undefined;
+      return new Response(null, { status: 204 });
+    }
+    if (request.method === 'POST' && path === '/me/deletion') {
+      const body = JSON.parse(request.body) as { timing?: unknown };
+      api.deletionSent.push(body);
+      const answer = api.deletions.shift() ?? 'done';
+      if (answer === 'tooOld') return json({ error: 'insufficient_user_authentication' }, 401);
+      if (answer === 'sole') return json({ error: 'sole_super_admin' }, 409);
+      if (answer === 'failed') return json({ error: 'internal' }, 500);
+      api.signedIn = false;
+      if (body.timing === 'now') return json({ status: 'deleted' });
+      api.hold = { date: api.deletionDate, cancellable: false };
+      return json({ status: 'scheduled', date: api.deletionDate }, 202);
+    }
     if (request.method === 'POST' && path === '/me/terms') {
       const { termsVersion } = JSON.parse(request.body) as { termsVersion?: unknown };
       if (termsVersion !== TERMS_VERSION) return json({ error: 'terms_outdated' }, 400);

@@ -940,7 +940,13 @@ export const en = {
   profile: {
     title: 'Profile',
     subtitle: 'Your account, how you sign in, and your data',
-    sections: { account: 'Account', data: 'Your data', sessions: 'Sessions', signIn: 'Sign-in' },
+    sections: {
+      account: 'Account',
+      data: 'Your data',
+      sessions: 'Sessions',
+      signIn: 'Sign-in',
+      delete: 'Deletion',
+    },
     email: 'Address',
     /** Shown for the super-admin alone: a role is named where it names a privilege. */
     role: 'Role',
@@ -1002,6 +1008,35 @@ export const en = {
         busy: 'Signing out…',
         failed: 'Couldn’t sign out everywhere. Try again.',
         confirmedLead: 'You can now sign out on every device, this one included.',
+      },
+    },
+    // `account-deletion.dc.html` T10: the deletion's own lines; `{date}` is the last day it can be
+    // cancelled.
+    deleteAccount: {
+      title: 'Delete your account',
+      helper: 'Your portfolio and your ways to sign in go with it. You confirm it’s you first.',
+      open: 'Delete account…',
+      superAdmin: 'The only super-admin can’t be deleted.',
+      confirm: {
+        title: 'Delete your account?',
+        body: 'Your portfolio — assets, transactions and the prices you entered — and your ways to sign in — password, passkeys, Google sign-in — are deleted. Database backups lose the data within 35 days of the deletion. You can download a copy of your data in [Settings](/settings).',
+        nowMeans: '“Delete now”: this can’t be undone.',
+        laterMeans: (date: string) =>
+          `“Delete in 30 days”: until the end of ${date} you can cancel: sign in and press “Cancel deletion”.`,
+        now: 'Delete now',
+        later: 'Delete in 30 days',
+      },
+      reauth: {
+        lead: 'Before you delete your account, confirm your sign-in.',
+        confirmedLeadNow: 'You can now delete your account.',
+        confirmedLeadLater: (date: string) =>
+          `You can now schedule the deletion for after ${date}.`,
+        actionNow: 'Delete account',
+        actionLater: 'Schedule the deletion',
+        busyNow: 'Deleting…',
+        busyLater: 'Scheduling…',
+        failedNow: 'Couldn’t delete your account. Try again.',
+        failedLater: 'Couldn’t schedule the deletion. Try again.',
       },
     },
   },
@@ -1134,6 +1169,10 @@ export const en = {
     signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
     // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival.
     signedOut: 'You’re signed out.',
+    // A deletion's landing, in the sign-out's place (`account-deletion.dc.html` T5).
+    signedOutDeleted: 'Your account has been deleted.',
+    signedOutScheduled: (date: string) =>
+      `Your account will be deleted after ${date}. To cancel, sign in by the end of that day and press “Cancel deletion”.`,
     // Logged to the console by the auth pages in a production build; the body alone carries the
     // meaning, since the headline's styling reaches no screen reader.
     selfXss: {
@@ -1160,6 +1199,16 @@ export const en = {
     terms: {
       title: 'Accept the terms of use',
       lead: 'To open Quirenote, accept the terms it runs on.',
+    },
+    // The 30-day window's gate (`account-deletion.dc.html` T6, T7): the one answer with a way back.
+    scheduled: {
+      title: 'Your account is scheduled for deletion',
+      lead: (date: string) =>
+        `It will be deleted after ${date}. To keep using Quirenote, cancel the deletion.`,
+      cancel: 'Cancel deletion',
+      busy: 'Cancelling…',
+      failed: 'Couldn’t cancel the deletion. Try again.',
+      cancelled: 'Deletion cancelled',
     },
   },
   // The privacy notice (`privacy-notice.dc.html`, brief #497); the Ukrainian prevails and this
@@ -2433,7 +2482,13 @@ export const uk: Dict = {
   profile: {
     title: 'Профіль',
     subtitle: 'Обліковий запис, вхід і ваші дані',
-    sections: { account: 'Обліковий запис', data: 'Ваші дані', sessions: 'Сеанси', signIn: 'Вхід' },
+    sections: {
+      account: 'Обліковий запис',
+      data: 'Ваші дані',
+      sessions: 'Сеанси',
+      signIn: 'Вхід',
+      delete: 'Видалення',
+    },
     email: 'Адреса',
     role: 'Роль',
     superAdmin: 'Суперадміністратор',
@@ -2490,6 +2545,32 @@ export const uk: Dict = {
         busy: 'Виходимо…',
         failed: 'Не вдалося вийти на всіх пристроях. Спробуйте ще раз.',
         confirmedLead: 'Тепер можна вийти на всіх пристроях, зокрема на цьому.',
+      },
+    },
+    deleteAccount: {
+      title: 'Видалити обліковий запис',
+      helper: 'Разом з ним видаляються портфель і способи входу. Спершу підтвердьте, що це ви.',
+      open: 'Видалити обліковий запис…',
+      superAdmin: 'Єдиного суперадміністратора видалити не можна.',
+      confirm: {
+        title: 'Видалити обліковий запис?',
+        body: 'Видаляться портфель — активи, транзакції й ціни, які ви вводили, — і способи входу: пароль, ключі доступу, вхід через Google. З резервних копій бази дані зникнуть протягом 35 днів після видалення. Копію даних можна завантажити в [Налаштуваннях](/settings).',
+        nowMeans: '«Видалити одразу» — скасувати буде неможливо.',
+        laterMeans: (date: string) =>
+          `«Видалити через 30 днів» — до кінця ${date} видалення можна скасувати: увійдіть і натисніть «Скасувати видалення».`,
+        now: 'Видалити одразу',
+        later: 'Видалити через 30 днів',
+      },
+      reauth: {
+        lead: 'Перш ніж видалити обліковий запис, підтвердьте вхід.',
+        confirmedLeadNow: 'Тепер можна видалити обліковий запис.',
+        confirmedLeadLater: (date: string) => `Тепер можна запланувати видалення після ${date}.`,
+        actionNow: 'Видалити обліковий запис',
+        actionLater: 'Запланувати видалення',
+        busyNow: 'Видаляємо…',
+        busyLater: 'Плануємо видалення…',
+        failedNow: 'Не вдалося видалити обліковий запис. Спробуйте ще раз.',
+        failedLater: 'Не вдалося запланувати видалення. Спробуйте ще раз.',
       },
     },
   },
@@ -2605,6 +2686,9 @@ export const uk: Dict = {
     signInEntry: 'Увійти',
     signOutFailed: 'Не вдалося вийти — ви досі в застосунку. Спробуйте ще раз.',
     signedOut: 'Ви вийшли із застосунку.',
+    signedOutDeleted: 'Обліковий запис видалено.',
+    signedOutScheduled: (date: string) =>
+      `Обліковий запис буде видалено після ${date}. Щоб скасувати, увійдіть до кінця цього дня й натисніть «Скасувати видалення».`,
     selfXss: {
       headline: 'Стоп!',
       body: 'Ця консоль — інструмент браузера для розробників. Якщо хтось попросив вас скопіювати й вставити сюди щось, це шахрайство під назвою Self-XSS, яке віддасть їм ваш обліковий запис Quirenote. Не вводьте й не вставляйте код, якого не розумієте.',
@@ -2629,6 +2713,15 @@ export const uk: Dict = {
     terms: {
       title: 'Прийміть умови користування',
       lead: 'Щоб відкрити Quirenote, прийміть умови, на яких він працює.',
+    },
+    scheduled: {
+      title: 'Обліковий запис буде видалено',
+      lead: (date: string) =>
+        `Видалення відбудеться після ${date}. Щоб і далі користуватися Quirenote, скасуйте його.`,
+      cancel: 'Скасувати видалення',
+      busy: 'Скасовуємо…',
+      failed: 'Не вдалося скасувати видалення. Спробуйте ще раз.',
+      cancelled: 'Видалення скасовано',
     },
   },
   privacy: {

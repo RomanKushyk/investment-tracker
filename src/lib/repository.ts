@@ -13,6 +13,7 @@ import type { AccountSettings } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import type { BalancesBody, DayQuotes, SeriesBody, ViewBody } from '@quirenote/core/view/serve';
 
+import { isDay as isCalendarDay } from '../auth/relay';
 import { abortImport, exportState, replaceDataset, type ExportedState } from './backup';
 import type { SettingsCopy } from './settings-copy';
 import { ACCEPTANCE } from './terms-acceptance';
@@ -35,6 +36,16 @@ import {
 } from './writes';
 
 export type Refusal = Exclude<Reply, { kind: 'ok' }>;
+/** When a deletion runs: at once, or once its window of 30 Kyiv days has ended (#572). */
+export type DeletionTiming = 'now' | 'later';
+/** What a deletion came to: done, held until `date`'s end, a sign-in too old for it, the only
+ *  super-admin refused, or nothing done, which the same proof may ask again. */
+export type DeletionOutcome =
+  | { kind: 'deleted' }
+  | { kind: 'scheduled'; date: string }
+  | { kind: 'reauthenticate' }
+  | { kind: 'sole' }
+  | { kind: 'failed' };
 /** What the step's write came to: `outdated` is a step held open across a release, whose terms the
  *  route no longer takes. */
 export type TermsOutcome = 'accepted' | 'outdated' | 'throttled' | 'failed';
@@ -87,6 +98,8 @@ export interface MeBody {
   transactions: number;
   firstTransaction?: string;
   settings: AccountSettings;
+  /** Present for the only active super-admin, whom a deletion refuses. */
+  soleSuperAdmin?: true;
 }
 export type MeData = Revalidated<MeBody>;
 
@@ -443,6 +456,36 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
         isObject(reply.body) &&
         reply.body.error === 'terms_outdated';
       return outdated ? 'outdated' : 'failed';
+    },
+
+    /** The account deleted, now or once its window ends. Sent once: a retry of a held one meets the
+     *  gate, and the press that asks again carries the same proof (`infra/src/deletion.ts`). */
+    async deleteAccount(timing: DeletionTiming): Promise<DeletionOutcome> {
+      const reply = await begun()({
+        method: 'POST',
+        path: '/me/deletion',
+        body: JSON.stringify({ timing }),
+        once: true,
+      });
+      if (reply.kind === 'ok') {
+        if (timing === 'now') return { kind: 'deleted' };
+        const date = isObject(reply.body) ? reply.body.date : undefined;
+        return isCalendarDay(date) ? { kind: 'scheduled', date } : { kind: 'failed' };
+      }
+      if (reply.kind === 'unauthorized' && reply.reauthenticate) return { kind: 'reauthenticate' };
+      const sole =
+        reply.kind === 'failed' &&
+        reply.status === 409 &&
+        isObject(reply.body) &&
+        reply.body.error === 'sole_super_admin';
+      return sole ? { kind: 'sole' } : { kind: 'failed' };
+    },
+
+    /** A held deletion cancelled, for a sign-in made after it was asked; a second one changes
+     *  nothing, so the transport's retries are safe. */
+    async cancelDeletion(): Promise<'cancelled' | 'failed'> {
+      const reply = await begun()({ method: 'DELETE', path: '/me/deletion' });
+      return reply.kind === 'ok' ? 'cancelled' : 'failed';
     },
 
     /** The dataset as the API holds it now, with the tag it is at. It moves no tag of this tab: a

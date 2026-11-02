@@ -1,7 +1,7 @@
 import { answerOf, type Answer } from '../auth/access';
 import type { HeldAnswer } from '../auth/app';
 import { environmentFor } from '../auth/environment';
-import { ANSWER_MS } from '../auth/relay';
+import { ANSWER_MS, isDay } from '../auth/relay';
 import type { Session } from '../auth/session';
 
 /** The first segment of each route every user may call. `/admin/*` also answers `forbidden` to an
@@ -45,7 +45,7 @@ export type Reply =
   | { kind: 'invalidOp'; index: number; issues: unknown[] }
   | { kind: 'tooLarge' }
   | { kind: 'preconditionRequired' }
-  | { kind: 'unauthorized' }
+  | { kind: 'unauthorized'; reauthenticate?: true }
   | { kind: 'throttled' }
   | { kind: 'offline' }
   | { kind: 'failed'; status?: number; body?: unknown };
@@ -84,8 +84,10 @@ interface Seen {
   body: unknown;
 }
 
-const errorOf = (body: unknown) =>
-  typeof body === 'object' && body !== null && 'error' in body ? body.error : undefined;
+const isObject = (body: unknown): body is Record<string, unknown> =>
+  typeof body === 'object' && body !== null;
+const errorOf = (body: unknown) => (isObject(body) && 'error' in body ? body.error : undefined);
+const dayOf = (body: unknown) => (isObject(body) && isDay(body.date) ? body.date : undefined);
 
 // A 409 for a write still running under its key: sent again unchanged, it finds the stored answer.
 const running = ({ status, body }: Seen) => status === 409 && errorOf(body) === 'request_in_flight';
@@ -156,13 +158,24 @@ export function createTransport({
     if (status === 403) {
       const answer = answerOf(status, body);
       if (answer === undefined) return { kind: 'failed', status, body };
+      // The window's gate names the day its lead says; with none to name, it is no answer.
+      const date = answer === 'scheduled' ? dayOf(body) : undefined;
+      if (answer === 'scheduled' && date === undefined) return { kind: 'failed', status, body };
       const mine = DATA_ROOTS.some((root) => root === call.path.split(/[/?]/)[1]);
       if (mine && !moved()) {
-        showAnswer({ answer, email: session.address() });
+        const email = session.address();
+        // Only a `true` the API said offers a cancel: one it may refuse is never offered.
+        const cancellable = isObject(body) && body.cancellable === true;
+        showAnswer(date === undefined ? { answer, email } : { answer, email, date, cancellable });
       }
       return { kind: 'answer', answer };
     }
-    if (status === 401) return { kind: 'unauthorized' };
+    // RFC 9470 §3: a sign-in too old for the route, which a fresh one renews.
+    if (status === 401) {
+      return error === 'insufficient_user_authentication'
+        ? { kind: 'unauthorized', reauthenticate: true }
+        : { kind: 'unauthorized' };
+    }
     if (status === 412) return { kind: 'conflict' };
     if (status === 413) return { kind: 'tooLarge' };
     if (status === 428) return { kind: 'preconditionRequired' };

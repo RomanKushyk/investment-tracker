@@ -9,7 +9,7 @@ import {
   REAUTHENTICATION_REFUSED,
   completeGoogle,
   forgetReauthentication,
-  reauthenticating,
+  reauthenticationFor,
 } from '../../auth/google';
 import { useT } from '../../i18n/useT';
 import { FocusedTitle } from './parts';
@@ -21,7 +21,7 @@ export function GoogleCallback() {
   const { search } = useLocation();
   const navigate = useNavigate();
   // Read, not taken, at mount: forgotten once the outcome lands, so a pasted callback is a sign-in's.
-  const [again] = useState(() => reauthenticating(tabStorage()));
+  const [again] = useState(() => reauthenticationFor(tabStorage()));
 
   useEffect(() => {
     let current = true;
@@ -30,7 +30,7 @@ export function GoogleCallback() {
       if (again) {
         forgetReauthentication(tabStorage());
         const state = signedIn ? REAUTHENTICATED : REAUTHENTICATION_REFUSED;
-        void navigate('/profile', { replace: true, state });
+        void navigate('/profile', { replace: true, state: { ...state, purpose: again } });
       } else if (signedIn) void navigate('/', { replace: true });
       else void navigate('/sign-in', { replace: true, state: GOOGLE_FAILED });
     });

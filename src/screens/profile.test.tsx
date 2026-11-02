@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
-import { carryReauthentication, reauthenticating } from '../auth/google';
+import { carryReauthentication, reauthenticationFor } from '../auth/google';
 import type { SignInDeps } from '../auth/sign-in';
 import { uk } from '../i18n/messages';
 import type { BotCheckProps } from './sign-in/BotCheck';
@@ -83,16 +83,18 @@ const leaving = vi.hoisted(() => ({
   site: undefined as string | undefined,
   to: [] as string[],
   google: [] as string[],
+  causes: [] as unknown[],
 }));
 vi.mock('../auth/app', async (original) => {
   const { throughLogout } = await import('../auth/signed-out');
   return {
     ...(await original<typeof import('../auth/app')>()),
     useGoogle: () => google.on,
-    leaveThroughLogout: (logout: string | undefined, to: string) => {
+    leaveThroughLogout: (logout: string | undefined, to: string, cause?: unknown) => {
       const out = throughLogout(logout, leaving.site, leaving.site ?? '', to);
       if (out === undefined) return false;
       leaving.to.push(out.url);
+      leaving.causes.push(cause);
       return true;
     },
     leaveFor: (url: string) => void leaving.google.push(url),
@@ -119,7 +121,7 @@ const writeText = vi.fn<(text: string) => Promise<void>>();
 Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
 const { routes } = await import('../routes');
-const { session } = await import('../auth/app');
+const { session, showAnswer } = await import('../auth/app');
 
 beforeEach(async () => {
   api = fakeApi(rowsOfSeed(), { today: TODAY });
@@ -128,6 +130,7 @@ beforeEach(async () => {
   leaving.site = undefined;
   leaving.to = [];
   leaving.google = [];
+  leaving.causes = [];
   sessionStorage.clear();
   check.props = undefined;
   signIn.address.mockReset();
@@ -140,16 +143,19 @@ afterEach(() => {
   vi.useRealTimers();
   held.clear();
   failing.clear();
+  // The held answer is the module's: one a failing case left behind would stand over every next one.
+  showAnswer(undefined);
 });
 
 function mount(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  const client = new QueryClient();
   const view = render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return { view, router, main: () => view.container.querySelector('main')! };
+  return { view, router, client, main: () => view.container.querySelector('main')! };
 }
 
 /** The profile once the account and the passkey list are on it: a slow read keeps their
@@ -903,7 +909,7 @@ describe('signing out everywhere', () => {
       await press(buttonIn(dialog(), G.google));
       await waitFor(() => expect(leaving.google).toHaveLength(1));
       expect(api.googleBegun).toEqual([{ sub: ME_USER_ID }]);
-      expect(reauthenticating(sessionStorage)).toBe(true);
+      expect(reauthenticationFor(sessionStorage)).toBe('signOutEverywhere');
       expect(buttonIn(dialog(), E.cancel)?.getAttribute('aria-disabled')).toBe('true');
       expect(buttonIn(dialog(), G.google)?.getAttribute('aria-disabled')).toBe('true');
     });
@@ -948,7 +954,7 @@ describe('signing out everywhere', () => {
       await waitFor(() => expect(text(dialog()!)).toContain(E.confirmedTitle));
       expect(text(dialog()!)).toContain(E.confirmedLead);
       expect(document.activeElement?.textContent).toBe(E.confirmedTitle);
-      expect(reauthenticating(sessionStorage)).toBe(false);
+      expect(reauthenticationFor(sessionStorage)).toBeUndefined();
       await wait(50);
       expect(api.everywhereSent).toEqual([]);
       await press(buttonIn(dialog(), E.action));
@@ -989,7 +995,7 @@ describe('signing out everywhere', () => {
         expect(text(dialog()!)).toContain(E.title);
         expect(buttonIn(dialog(), G.google)).toBeDefined();
         expect(leaving.to).toEqual([]);
-        expect(reauthenticating(sessionStorage)).toBe(false);
+        expect(reauthenticationFor(sessionStorage)).toBeUndefined();
         expect(session.status()).toBe('signedIn');
       });
     }
@@ -1072,7 +1078,7 @@ describe('signing out everywhere', () => {
           expect(buttonIn(dialog(), E.cancel)?.getAttribute('aria-disabled')).toBeNull(),
         );
         expect(buttonIn(dialog(), G.google)?.getAttribute('aria-disabled')).toBeNull();
-        expect(reauthenticating(sessionStorage)).toBe(false);
+        expect(reauthenticationFor(sessionStorage)).toBeUndefined();
       } finally {
         vi.stubGlobal('navigation', undefined);
       }
@@ -1082,7 +1088,7 @@ describe('signing out everywhere', () => {
     it('forgets a mark the tab still carries when /profile loads', async () => {
       carryReauthentication(sessionStorage);
       await open('/profile');
-      expect(reauthenticating(sessionStorage)).toBe(false);
+      expect(reauthenticationFor(sessionStorage)).toBeUndefined();
     });
 
     // A region in place before its words, so the reminder is announced however late the step lands.
@@ -1119,5 +1125,362 @@ describe('signing out everywhere', () => {
       await waitFor(() => expect(alerts()).toContain(E.failed));
       expect(text(timer()!)).toBe('Залишилося 5\u00a0хв');
     });
+  });
+});
+
+// «Видалити обліковий запис» (`account-deletion.dc.html` T1–T5), the copy character for character
+// (T10). The day a 30-day deletion promises is the device's, the press on 30.10.2026 in Kyiv.
+describe('deleting the account', () => {
+  const D = {
+    section: 'Видалення',
+    title: 'Видалити обліковий запис',
+    helper: 'Разом з ним видаляються портфель і способи входу. Спершу підтвердьте, що це ви.',
+    open: 'Видалити обліковий запис…',
+    superAdmin: 'Єдиного суперадміністратора видалити не можна.',
+    confirmTitle: 'Видалити обліковий запис?',
+    body: 'Видаляться портфель — активи, транзакції й ціни, які ви вводили, — і способи входу: пароль, ключі доступу, вхід через Google. З резервних копій бази дані зникнуть протягом 35 днів після видалення. Копію даних можна завантажити в Налаштуваннях.',
+    nowMeans: '«Видалити одразу» — скасувати буде неможливо.',
+    laterMeans:
+      '«Видалити через 30 днів» — до кінця 29.11.2026 видалення можна скасувати: увійдіть і натисніть «Скасувати видалення».',
+    typeToConfirm: `Введіть ${ME_EMAIL} для підтвердження`,
+    now: 'Видалити одразу',
+    later: 'Видалити через 30 днів',
+    cancel: 'Скасувати',
+    title2: 'Підтвердьте, що це ви',
+    lead: 'Перш ніж видалити обліковий запис, підтвердьте вхід.',
+    confirm: 'Підтвердити',
+    passwordTitle: 'Введіть пароль',
+    confirmedTitle: 'Ви підтвердили, що це ви',
+    confirmedNow: 'Тепер можна видалити обліковий запис.',
+    confirmedLater: 'Тепер можна запланувати видалення після 29.11.2026.',
+    actionNow: 'Видалити обліковий запис',
+    actionLater: 'Запланувати видалення',
+    busyNow: 'Видаляємо…',
+    busyLater: 'Плануємо видалення…',
+    failedNow: 'Не вдалося видалити обліковий запис. Спробуйте ще раз.',
+    failedLater: 'Не вдалося запланувати видалення. Спробуйте ще раз.',
+    deleted: 'Обліковий запис видалено.',
+    scheduled: (date: string) =>
+      `Обліковий запис буде видалено після ${date}. Щоб скасувати, увійдіть до кінця цього дня й натисніть «Скасувати видалення».`,
+    expired: 'Час на підтвердження минув. Підтвердьте ще раз.',
+    google: 'Продовжити з Google',
+  };
+  const LOGOUT = 'https://auth.dev.quirenote.com/logout?client_id=c';
+  const SITE = 'https://dev.quirenote.com';
+
+  const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+  const buttonIn = (root: ParentNode | null, name: string) =>
+    [...(root?.querySelectorAll('button') ?? [])].find((b) => text(b) === name);
+  const press = async (el: HTMLElement | undefined) => {
+    expect(el, 'nothing to press').toBeDefined();
+    el!.focus();
+    await act(async () => void fireEvent.click(el!));
+  };
+  const pass = (token = 'token') => act(() => check.props!.onToken(token));
+  const alerts = () => [...(dialog()?.querySelectorAll('[role="alert"]') ?? [])].map(text);
+  const field = () => dialog()!.querySelector<HTMLInputElement>('input:not([type="password"])')!;
+  /** What the panel shows, without the words only a screen reader hears. */
+  const visible = (el: Element) => {
+    const copy = el.cloneNode(true) as Element;
+    copy.querySelectorAll('.sr-only').forEach((n) => n.remove());
+    return text(copy);
+  };
+  const landed = (view: { view: { container: HTMLElement } }, line: string) =>
+    waitFor(() => expect(text(view.view.container)).toContain(line));
+
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ['Date'],
+      now: new Date('2026-10-30T09:00:00Z'),
+      shouldAdvanceTime: true,
+    });
+  });
+
+  async function toTheConfirmation() {
+    const view = await open();
+    await press(buttonIn(view.main(), D.open));
+    return view;
+  }
+  /** The confirmation armed and one timing pressed, answered with no passkey: the password step. */
+  async function toThePassword(timing: string) {
+    signIn.address.mockResolvedValue({ kind: 'password', email: ME_EMAIL });
+    const view = await toTheConfirmation();
+    fireEvent.change(field(), { target: { value: ME_EMAIL } });
+    await press(buttonIn(dialog(), timing));
+    pass();
+    await press(buttonIn(dialog(), D.confirm));
+    await waitFor(() => expect(text(dialog()!)).toContain(D.passwordTitle));
+    return view;
+  }
+  async function typeAndConfirm(password = 'secret') {
+    signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
+    const input = dialog()!.querySelector<HTMLInputElement>('input[type="password"]')!;
+    fireEvent.change(input, { target: { value: password } });
+    pass();
+    await press(buttonIn(dialog(), D.confirm));
+  }
+
+  it('stands last, in a «Видалення» card, whose outline button opens the confirmation', async () => {
+    const { main } = await open();
+    const page = text(main());
+    expect(page.indexOf(D.section)).toBeGreaterThan(page.indexOf(p.sections.signIn));
+    const card = [...main().querySelectorAll('div')].find(
+      (c) => text(c).startsWith(D.section) && buttonIn(c, D.open),
+    );
+    expect(card, 'no «Видалення» card holds the trigger').toBeDefined();
+    expect(text(card!)).toContain(D.title);
+    expect(text(card!)).toContain(D.helper);
+    expect(dialog()).toBeNull();
+  });
+
+  // T1: the only super-admin is refused before any press, with no trigger.
+  it('refuses the only super-admin in the card, with no button', async () => {
+    api.role = 'super_admin';
+    api.soleSuperAdmin = true;
+    const { main } = await open();
+    expect(text(main())).toContain(D.superAdmin);
+    expect(text(main())).not.toContain(D.helper);
+    expect(buttonIn(main(), D.open)).toBeUndefined();
+  });
+
+  it('offers it to a super-admin who is not the only one', async () => {
+    api.role = 'super_admin';
+    const { main } = await open();
+    expect(buttonIn(main(), D.open)).toBeDefined();
+  });
+
+  // T2: the address arms both timings, as typed whatever its case and edge spaces.
+  it('opens with focus in the field, both timings unarmed until the address is typed', async () => {
+    await toTheConfirmation();
+    const panel = dialog()!;
+    for (const line of [D.confirmTitle, D.body, D.nowMeans, D.laterMeans, D.typeToConfirm]) {
+      expect(visible(panel)).toContain(line);
+    }
+    const link = [...panel.querySelectorAll('a')].find((a) => text(a).startsWith('Налаштуваннях'));
+    expect(link?.getAttribute('href')).toBe('/settings');
+    expect(document.activeElement).toBe(field());
+    expect([...panel.querySelectorAll('button')].map(text)).toEqual([D.now, D.later, D.cancel]);
+    expect(buttonIn(panel, D.now)!.disabled).toBe(true);
+    expect(buttonIn(panel, D.later)!.disabled).toBe(true);
+    fireEvent.change(field(), { target: { value: ME_EMAIL.slice(1) } });
+    expect(buttonIn(panel, D.now)!.disabled).toBe(true);
+    fireEvent.change(field(), { target: { value: `  ${ME_EMAIL.toUpperCase()} ` } });
+    expect(buttonIn(panel, D.now)!.disabled).toBe(false);
+    expect(buttonIn(panel, D.later)!.disabled).toBe(false);
+  });
+
+  it('closes on «Скасувати» and on Escape, sending nothing', async () => {
+    const { main } = await toTheConfirmation();
+    await press(buttonIn(dialog(), D.cancel));
+    await waitFor(() => expect(dialog()).toBeNull());
+    await press(buttonIn(main(), D.open));
+    fireEvent.keyDown(dialog()!, { key: 'Escape' });
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(api.deletionSent).toEqual([]);
+  });
+
+  // T3: either timing reaches the same step, with deletion's own lead.
+  it.each([D.now, D.later])('swaps «%s» to the re-authentication step', async (timing) => {
+    await toTheConfirmation();
+    fireEvent.change(field(), { target: { value: ME_EMAIL } });
+    await press(buttonIn(dialog(), timing));
+    expect(text(dialog()!)).toContain(D.title2);
+    expect(text(dialog()!)).toContain(D.lead);
+    expect(dialog()!.querySelector('[data-bot-check]')).not.toBeNull();
+    expect(api.deletionSent).toEqual([]);
+  });
+
+  // RFC 9470 §3: the proof runs the deletion at once; the landing says what became of it (T5).
+  it('deletes at once once the password proves it, and lands saying so', async () => {
+    const view = await toThePassword(D.now);
+    const release = hold('/me/deletion');
+    await typeAndConfirm();
+    await waitFor(() => expect(buttonIn(dialog(), D.busyNow)).toBeDefined());
+    expect(buttonIn(dialog(), D.busyNow)!.getAttribute('aria-disabled')).toBe('true');
+    // A sent deletion cannot be recalled: Escape is inert while it runs (T4).
+    fireEvent.keyDown(dialog()!, { key: 'Escape' });
+    expect(dialog()).not.toBeNull();
+    release();
+    await waitFor(() => expect(view.router.state.location.pathname).toBe('/sign-in'));
+    await landed(view, D.deleted);
+    expect(api.deletionSent).toEqual([{ timing: 'now' }]);
+    expect(session.status()).toBe('signedOut');
+  });
+
+  // A read answered in the deletion's window, its rows gone and its identity not yet, is held as an
+  // answer; the landing drops it, or it would stand over `/sign-in`, signed out.
+  it.each([
+    [D.now, D.busyNow, D.deleted],
+    [D.later, D.busyLater, D.scheduled('29.11.2026')],
+  ])(
+    'lands «%s» saying so even when a read met the gate while it ran',
+    async (timing, busy, line) => {
+      const view = await toThePassword(timing);
+      const release = hold('/me/deletion');
+      await typeAndConfirm();
+      await waitFor(() => expect(buttonIn(dialog(), busy)).toBeDefined());
+      act(() => showAnswer({ answer: 'noApplication', email: ME_EMAIL }));
+      release();
+      await waitFor(() => expect(view.router.state.location.pathname).toBe('/sign-in'));
+      await landed(view, line);
+      expect(text(view.view.container)).not.toContain(uk.auth.noApplication.title);
+    },
+  );
+
+  // Through Cognito's logout the page sets out from here; a Stop leaves it, and no answer may
+  // stand over it saying who is signed in.
+  it('drops an answer held while the rows went when it leaves through Cognito’s logout', async () => {
+    api.logout = LOGOUT;
+    leaving.site = SITE;
+    const view = await toThePassword(D.now);
+    const release = hold('/me/deletion');
+    await typeAndConfirm();
+    await waitFor(() => expect(buttonIn(dialog(), D.busyNow)).toBeDefined());
+    act(() => showAnswer({ answer: 'noApplication', email: ME_EMAIL }));
+    release();
+    await waitFor(() => expect(leaving.to).toHaveLength(1));
+    await wait(50);
+    expect(text(view.view.container)).not.toContain(uk.auth.noApplication.title);
+  });
+
+  // A 202 whose day no calendar has is no day to promise.
+  it('says a schedule that named no calendar day failed', async () => {
+    api.deletionDate = '2026-02-30';
+    await toThePassword(D.later);
+    await typeAndConfirm();
+    await waitFor(() => expect(alerts()).toContain(D.failedLater));
+  });
+
+  it('schedules it once the password proves it, the landing naming the stored day', async () => {
+    // The landing names the day the API stored, which wins over the device's.
+    api.deletionDate = '2026-12-01';
+    const view = await toThePassword(D.later);
+    const release = hold('/me/deletion');
+    await typeAndConfirm();
+    await waitFor(() => expect(buttonIn(dialog(), D.busyLater)).toBeDefined());
+    release();
+    await waitFor(() => expect(view.router.state.location.pathname).toBe('/sign-in'));
+    await landed(view, D.scheduled('01.12.2026'));
+    expect(api.deletionSent).toEqual([{ timing: 'later' }]);
+    expect(session.status()).toBe('signedOut');
+  });
+
+  // GOOGLE ON: the page leaves through Cognito's logout, the cause carried across it in the tab.
+  it.each([
+    [D.now, { kind: 'deleted' }],
+    [D.later, { kind: 'scheduled', date: '2026-11-29' }],
+  ])('leaves «%s» through Cognito’s logout carrying %j', async (timing, cause) => {
+    api.logout = LOGOUT;
+    leaving.site = SITE;
+    const view = await toThePassword(timing);
+    await typeAndConfirm();
+    await waitFor(() => expect(leaving.to).toHaveLength(1));
+    expect(new URL(leaving.to[0]!).searchParams.get('logout_uri')).toBe(`${SITE}/sign-in`);
+    expect(leaving.causes).toEqual([cause]);
+    expect(view.router.state.location.pathname).toBe('/profile');
+  });
+
+  // T4: a failure keeps the proof; the confirmed state's press asks again with no new one.
+  it.each([
+    [D.now, D.failedNow, D.actionNow, 'now'],
+    [D.later, D.failedLater, D.actionLater, 'later'],
+  ])(
+    'lands a failed «%s» on the confirmed state, whose press asks again',
+    async (timing, failed, action, sent) => {
+      api.deletions = ['failed'];
+      const view = await toThePassword(timing);
+      await typeAndConfirm();
+      await waitFor(() => expect(alerts()).toContain(failed));
+      expect(text(dialog()!)).toContain(D.confirmedTitle);
+      await press(buttonIn(dialog(), action));
+      await waitFor(() => expect(view.router.state.location.pathname).toBe('/sign-in'));
+      expect(api.deletionSent).toEqual([{ timing: sent }, { timing: sent }]);
+      expect(signIn.password).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('returns a sign-in past its five minutes to the first state, saying so', async () => {
+    api.deletions = ['tooOld'];
+    await toThePassword(D.now);
+    await typeAndConfirm();
+    await waitFor(() => expect(text(dialog()!)).toContain(D.expired));
+    expect(text(dialog()!)).toContain(D.lead);
+    expect(session.status()).toBe('signedIn');
+  });
+
+  // The API's refusal stands over the page's read: another super-admin left meanwhile.
+  it('says the only super-admin’s refusal, and reads the account again', async () => {
+    api.role = 'super_admin';
+    api.deletions = ['sole'];
+    await toThePassword(D.now);
+    const reads = () => api.seen.filter((r) => r.method === 'GET' && r.path === '/me').length;
+    const before = reads();
+    await typeAndConfirm();
+    await waitFor(() => expect(alerts()).toContain(D.superAdmin));
+    await waitFor(() => expect(reads()).toBeGreaterThan(before));
+    expect(session.status()).toBe('signedIn');
+  });
+
+  describe('through Google', () => {
+    let codes = 0;
+    const callback = () => `/auth/callback?code=d${++codes}&state=s`;
+    const onlyGoogle = () => {
+      google.on = true;
+      api.googleLinked = true;
+      api.passwordSet = false;
+    };
+
+    it.each([
+      [D.now, 'delete:now'],
+      [D.later, 'delete:later'],
+    ])('leaves for Google from «%s», this tab marked %s', async (timing, mark) => {
+      onlyGoogle();
+      await toTheConfirmation();
+      fireEvent.change(field(), { target: { value: ME_EMAIL } });
+      await press(buttonIn(dialog(), timing));
+      await press(buttonIn(dialog(), D.google));
+      await waitFor(() => expect(leaving.google).toHaveLength(1));
+      expect(reauthenticationFor(sessionStorage)).toBe(mark);
+    });
+
+    // The card refuses the only super-admin before any press, and a return from Google opens nothing.
+    it('opens nothing for the only super-admin back from Google', async () => {
+      onlyGoogle();
+      api.role = 'super_admin';
+      api.soleSuperAdmin = true;
+      carryReauthentication(sessionStorage, 'delete:now');
+      const view = mount(callback());
+      await waitFor(() => expect(view.router.state.location.pathname).toBe('/profile'));
+      await waitFor(() => expect(text(view.main())).toContain(D.superAdmin));
+      await wait(50);
+      expect(dialog()).toBeNull();
+      // The return is spent: an account read later that no longer names them opens nothing.
+      api.soleSuperAdmin = false;
+      await act(() => view.client.invalidateQueries());
+      await waitFor(() => expect(text(view.main())).toContain(D.helper));
+      await wait(50);
+      expect(dialog()).toBeNull();
+    });
+
+    // T3: back on /profile the deletion is confirmed, and nothing runs without the press.
+    it.each([
+      ['delete:now', D.confirmedNow, D.actionNow, 'now'],
+      ['delete:later', D.confirmedLater, D.actionLater, 'later'],
+    ] as const)(
+      'comes back from %s confirmed, deleting only on the press',
+      async (mark, lead, action, sent) => {
+        onlyGoogle();
+        carryReauthentication(sessionStorage, mark);
+        const view = mount(callback());
+        await waitFor(() => expect(view.router.state.location.pathname).toBe('/profile'));
+        await waitFor(() => expect(text(dialog() ?? document.body)).toContain(D.confirmedTitle));
+        expect(text(dialog()!)).toContain(lead);
+        await wait(50);
+        expect(api.deletionSent).toEqual([]);
+        await press(buttonIn(dialog(), action));
+        await waitFor(() => expect(view.router.state.location.pathname).toBe('/sign-in'));
+        expect(api.deletionSent).toEqual([{ timing: sent }]);
+      },
+    );
   });
 });

@@ -1,19 +1,29 @@
-import { Ban, Clock, FileQuestionMark, Lock, ScrollText, type LucideIcon } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  Ban,
+  CalendarClock,
+  Clock,
+  FileQuestionMark,
+  Lock,
+  ScrollText,
+  type LucideIcon,
+} from 'lucide-react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
 import { SignedOutShell } from '../../app/SignedOutShell';
 import type { Answer } from '../../auth/access';
 import { leaveThroughLogout, session, showAnswer, type HeldAnswer } from '../../auth/app';
-import { SIGNED_OUT } from '../../auth/signed-out';
+import { causeOf, SIGNED_OUT, signedOutBy } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
-import { useAcceptTerms, type TermsOutcome } from '../../hooks/queries';
+import { useAcceptTerms, useCancelDeletion, type TermsOutcome } from '../../hooks/queries';
+import { useFormat } from '../../hooks/useFormat';
 import type { Dict } from '../../i18n/messages';
 import { rich } from '../../i18n/rich';
 import { useT } from '../../i18n/useT';
 import { FocusedTitle, NewTabLink, StepAlert } from './parts';
 
-// A glyph in `muted` tells the five apart, so none is told by colour and none takes `neg`: nothing
+// A glyph in `muted` tells the six apart, so none is told by colour and none takes `neg`: nothing
 // here is a mistake the reader made.
 const GLYPH: Record<Answer, LucideIcon> = {
   pending: Clock,
@@ -21,6 +31,7 @@ const GLYPH: Record<Answer, LucideIcon> = {
   noApplication: FileQuestionMark,
   forbidden: Lock,
   terms: ScrollText,
+  scheduled: CalendarClock,
 };
 
 type Refused = Exclude<TermsOutcome, 'accepted'>;
@@ -32,21 +43,28 @@ const sentence = (t: Dict, outcome: Refused) =>
     failed: t.terms.step.failed,
   })[outcome];
 
-/** What a signed-in caller sees when the API refuses them. Each way out it offers is a sign-out,
- *  never a sign-in, which would succeed and change nothing. */
+/** What a signed-in caller sees when the API refuses them. Each way out it offers is a sign-out or
+ *  the answer's own write (the terms accepted, a deletion cancelled), never a sign-in, which would
+ *  succeed and change nothing. */
 export function AnswerScreen({ held }: { held: HeldAnswer }) {
   const t = useT();
+  const f = useFormat();
   const navigate = useNavigate();
   const acceptTerms = useAcceptTerms();
+  const cancelDeletion = useCancelDeletion();
   const { key: route } = useLocation();
   const [leaving, setLeaving] = useState<string>();
   const [accepting, setAccepting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  // A cancel that failed, counted so a repeat is announced again.
+  const [cancelFailed, setCancelFailed] = useState(0);
   // A refusal, and a count that re-inserts its alert so a repeat is announced again.
   const [refused, setRefused] = useState<{ outcome: Refused; n: number }>();
   const refusals = useRef(0);
   // The route the redirect to Cognito's logout set out from, while `leaving` holds for it.
   const [leftFrom, setLeftFrom] = useState<string>();
   const copy = t.auth[held.answer];
+  const lead = typeof copy.lead === 'function' ? copy.lead(f.date(held.date ?? '')) : copy.lead;
   const Glyph = GLYPH[held.answer];
   // `forbidden` names nobody: its causes include an address the rule refused.
   const email = held.answer === 'forbidden' ? undefined : held.email;
@@ -81,7 +99,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
 
   // Only the sign-out that lands on `/sign-in` hands it the fact; `/apply` is about applying.
   async function leave(to: '/sign-in' | '/apply', state?: typeof SIGNED_OUT) {
-    if (leaving || accepting) return;
+    if (leaving || accepting || cancelling) return;
     setLeaving(to);
     // Not revoked keeps both cookies for a retry, so the answer stays and the button comes back.
     const out = await session.signOut();
@@ -91,7 +109,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
     }
     // Through Cognito's logout while Google is on, landing on `to` itself; the page goes, or the
     // next route change finds it still here.
-    if (leaveThroughLogout(out.logout, to)) {
+    if (leaveThroughLogout(out.logout, to, state && causeOf(state))) {
       setLeftFrom(here.current);
       return;
     }
@@ -99,6 +117,36 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
     // would render in the answer's place for a frame and run its effects signed out.
     await navigate(to, { flushSync: true, state });
     showAnswer(undefined);
+  }
+
+  // A TAB WHOSE SIGN-IN CAME BEFORE THE REQUEST is offered no cancel the API would refuse: it is
+  // signed out to the scheduled landing (`account-deletion.dc.html`, #572's amendments 3 and 4).
+  const outOfWindow =
+    held.answer === 'scheduled' && !held.cancellable && held.date !== undefined
+      ? held.date
+      : undefined;
+  const leaveScheduled = useEffectEvent((date: string) =>
+    leave('/sign-in', signedOutBy({ kind: 'scheduled', date })),
+  );
+  const leftScheduled = useRef(false);
+  useEffect(() => {
+    if (outOfWindow === undefined || leftScheduled.current) return;
+    leftScheduled.current = true;
+    void leaveScheduled(outOfWindow);
+  }, [outOfWindow]);
+
+  async function cancel() {
+    if (leaving || cancelling) return;
+    setCancelling(true);
+    const outcome = await cancelDeletion();
+    if (outcome !== 'cancelled') {
+      setCancelling(false);
+      setCancelFailed((n) => n + 1);
+      return;
+    }
+    showAnswer(undefined);
+    // Said once, as «Дані стерто» is: the page the user asked for is the rest of the answer (T7).
+    toast.success(t.auth.scheduled.cancelled);
   }
 
   async function accept() {
@@ -128,7 +176,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
         <Glyph aria-hidden className="mb-4 size-6 flex-none text-muted" strokeWidth={2} />
         <FocusedTitle>{copy.title}</FocusedTitle>
         <p className={`${email ? 'mb-4' : 'mb-[22px]'} text-[13px] leading-[19.5px] text-muted`}>
-          {copy.lead}
+          {lead}
         </p>
         {email && (
           <p className="mb-[22px] text-[13px] leading-[19.5px] break-words text-muted">
@@ -152,6 +200,16 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
               {accepting ? t.terms.step.busy : t.terms.step.submit}
             </Button>
           )}
+          {held.answer === 'scheduled' && held.cancellable && (
+            <Button
+              className="w-full"
+              disabled={cancelling}
+              disabledTone="busy"
+              onClick={() => void cancel()}
+            >
+              {cancelling ? t.auth.scheduled.busy : t.auth.scheduled.cancel}
+            </Button>
+          )}
           {held.answer === 'noApplication' && (
             <Button
               className="w-full"
@@ -173,6 +231,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
           </Button>
         </div>
         {refused && <StepAlert n={refused.n}>{sentence(t, refused.outcome)}</StepAlert>}
+        {cancelFailed > 0 && <StepAlert n={cancelFailed}>{t.auth.scheduled.failed}</StepAlert>}
         {/* The privacy first layer, a paragraph of its own apart from the terms' line (WP260 ¶8). */}
         {terms && (
           <p className="mt-3 text-[12px] leading-[18px] text-muted">

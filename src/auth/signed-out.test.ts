@@ -4,10 +4,14 @@ import { describe, expect, it } from 'vitest';
 import {
   arrivedSignedOut,
   carrySignedOut,
+  causeOf,
   forgetSignedOut,
   logoutFor,
+  RETURNING,
+  returnedCause,
   returnedSignedOut,
   SIGNED_OUT,
+  signedOutBy,
   throughLogout,
   usedUp,
 } from './signed-out';
@@ -39,6 +43,26 @@ describe('the fact a sign-out hands `/sign-in`', () => {
     for (const other of [undefined, null, {}, { signedOut: 'true' }, { signedOut: 1 }, true]) {
       expect(arrivedSignedOut(other), JSON.stringify(other)).toBe(false);
     }
+  });
+
+  // A DELETION'S LANDING names its cause, the scheduled one its day (`account-deletion.dc.html` T5).
+  it('carries a deletion’s cause, and a plain sign-out names none', () => {
+    const deleted = signedOutBy({ kind: 'deleted' });
+    const scheduled = signedOutBy({ kind: 'scheduled', date: '2026-11-29' });
+    expect(arrivedSignedOut(deleted)).toBe(true);
+    expect(arrivedSignedOut(scheduled)).toBe(true);
+    expect(causeOf(SIGNED_OUT)).toEqual({ kind: 'signedOut' });
+    expect(causeOf(deleted)).toEqual({ kind: 'deleted' });
+    expect(causeOf(scheduled)).toEqual({ kind: 'scheduled', date: '2026-11-29' });
+  });
+
+  it.each([
+    { signedOut: true, cause: 'scheduled' },
+    { signedOut: true, cause: 'scheduled', date: '29.11.2026' },
+    { signedOut: true, cause: 'scheduled', date: '2026-02-30' },
+    { signedOut: true, cause: 'gone' },
+  ])('reads %j as a plain sign-out', (state) => {
+    expect(causeOf(state)).toEqual({ kind: 'signedOut' });
   });
 
   it('is said on the arrival a sign-out causes', async () => {
@@ -127,6 +151,31 @@ describe('the fact carried across Cognito’s logout', () => {
     forgetSignedOut(tab);
     expect(returnedSignedOut(tab)).toBe(false);
   });
+
+  // A DELETION'S LANDING says what became of the account (`account-deletion.dc.html` T5).
+  it('carries a deletion’s cause and its day, and a plain sign-out as before', () => {
+    const tab = store();
+    carrySignedOut(tab, { kind: 'scheduled', date: '2026-11-29' });
+    expect(returnedSignedOut(tab)).toBe(true);
+    expect(returnedCause(tab)).toEqual({ kind: 'scheduled', date: '2026-11-29' });
+    carrySignedOut(tab, { kind: 'deleted' });
+    expect(returnedCause(tab)).toEqual({ kind: 'deleted' });
+    carrySignedOut(tab);
+    expect(returnedCause(tab)).toEqual({ kind: 'signedOut' });
+    forgetSignedOut(tab);
+    expect(returnedCause(tab)).toBeUndefined();
+    expect(returnedCause(refusing)).toBeUndefined();
+  });
+
+  it.each(['scheduled:', 'scheduled:29.11.2026', 'scheduled:2026-13-45', 'deleted:x', 'other'])(
+    'reads a carried %j as no fact',
+    (value) => {
+      const tab = store();
+      tab.setItem(RETURNING, value);
+      expect(returnedSignedOut(tab)).toBe(false);
+      expect(returnedCause(tab)).toBeUndefined();
+    },
+  );
 
   it('is never said where the tab keeps no storage, and never throws there', () => {
     expect(() => carrySignedOut(refusing)).not.toThrow();
