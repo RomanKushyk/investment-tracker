@@ -65,6 +65,25 @@ const ME = derived({
     settings: SETTINGS_DEFAULTS,
   },
 });
+// The only active super-admin's answer, a variant of its own: `me`'s example, a plain user, never
+// carries `soleSuperAdmin`. The counts are those of an account that only administers (#55).
+const SOLE = derived({
+  statusCode: 200,
+  name: 'sole_super_admin',
+  headers: ['etag', 'cache-control'],
+  example: {
+    userId: '<the sub>',
+    email: 'owner@quirenote.com',
+    role: 'super_admin',
+    memberSince: '2026-03-02',
+    googleLinked: false,
+    passwordSet: true,
+    assets: 0,
+    transactions: 0,
+    soleSuperAdmin: true,
+    settings: SETTINGS_DEFAULTS,
+  },
+});
 const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
 
 /** What the route can answer, and the only list of it: `openapi.ts` builds the document from here,
@@ -72,6 +91,7 @@ const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-cont
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [ME_ROUTE]: [
     ME,
+    SOLE,
     UNCHANGED,
     PENDING,
     REJECTED,
@@ -179,7 +199,7 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
     if (weakMatch(headerValues(event, 'if-none-match'), etag)) {
       return notModified(UNCHANGED, headers);
     }
-    return respond(ME, headers, text);
+    return respond(sole ? SOLE : ME, headers, text);
   } catch (err) {
     console.error('me failed', loggable(err));
     return INTERNAL;

@@ -5040,6 +5040,31 @@
                         "period": "all"
                       }
                     }
+                  },
+                  "sole_super_admin": {
+                    "value": {
+                      "userId": "<the sub>",
+                      "email": "owner@quirenote.com",
+                      "role": "super_admin",
+                      "memberSince": "2026-03-02",
+                      "googleLinked": false,
+                      "passwordSet": true,
+                      "assets": 0,
+                      "transactions": 0,
+                      "soleSuperAdmin": true,
+                      "settings": {
+                        "defaultCurrency": "UAH",
+                        "language": "uk",
+                        "autoQuoteSuggest": true,
+                        "couponSuggest": true,
+                        "remindersEnabled": true,
+                        "reminderLeadDays": 7,
+                        "dismissedReminders": [],
+                        "collapsedNavGroups": [],
+                        "sidebarCollapsed": false,
+                        "period": "all"
+                      }
+                    }
                   }
                 }
               }

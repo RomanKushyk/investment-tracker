@@ -9,7 +9,7 @@ import { freshDb } from './__fixtures__/pglite';
 import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
-import type { ApiEvent, ApiResult, EmptyResult } from './http';
+import { declarationOf, type ApiEvent, type ApiResult, type EmptyResult } from './http';
 import { ME_ROUTE, RESPONSES, identityReader, me, type IdentityReader, type MeDeps } from './me';
 import type { SqlClient } from './migrate';
 import { handler as rawHandler } from './mutations';
@@ -108,9 +108,27 @@ const event = (o: Caller = {}): ApiEvent => ({
   },
 });
 
+/** Each built body beside the declaration it went out under: the proof matches an answer by status,
+ *  name and headers only, so a key the route adds reaches the document through this list alone. */
+const bodies: { name: string; body: object; example: unknown }[] = [];
+
+/** `record`, keeping the body as well: every answer this file observes goes through here. */
+const observe = <T extends ApiResult | EmptyResult>(e: ApiEvent, res: T): T => {
+  record(e, res);
+  const declared = declarationOf(res);
+  if (declared !== undefined && 'example' in declared && 'body' in res) {
+    bodies.push({
+      name: declared.name,
+      body: JSON.parse(res.body) as object,
+      example: declared.example,
+    });
+  }
+  return res;
+};
+
 const read = async (o: Parameters<typeof event>[0] = {}, d: MeDeps = deps()) => {
   const e = event(o);
-  return record(e, await me(d, e));
+  return observe(e, await me(d, e));
 };
 
 const answer = (res: ApiResult | EmptyResult): [number, unknown] => [
@@ -500,7 +518,7 @@ describe('the function that serves it', () => {
       .spyOn(identityReader, 'adminGetUserAuthFactors')
       .mockResolvedValue({ ConfiguredUserAuthFactors: ['PASSWORD'] });
     const e = event();
-    const res = record(e, (await rawHandler(e)) as ApiResult);
+    const res = observe(e, (await rawHandler(e)) as ApiResult);
     expect(answer(res)).toEqual([200, expect.objectContaining({ passwordSet: true })]);
     expect(pool).toHaveBeenCalledExactlyOnceWith({ UserPoolId: POOL, Username: SUB });
     expect(held).toHaveBeenCalledExactlyOnceWith({ UserPoolId: POOL, Username: SUB });
@@ -513,11 +531,27 @@ describe('the function that serves it', () => {
     // No USER_POOL_ID on the test's environment: the route's own 500 proves it was reached.
     vi.stubEnv('USER_POOL_ID', '');
     const e = event();
-    const res = record(e, (await rawHandler(e)) as ApiResult);
+    const res = observe(e, (await rawHandler(e)) as ApiResult);
     expect(answer(res)).toEqual([500, { error: 'internal' }]);
     expect(vi.mocked(console.error).mock.calls.flat().join(' ')).toContain('USER_POOL_ID');
     expect(ended()).toBe(1);
   });
 });
 
-proveRouteContract({ declared: RESPONSES, observed, minimum: 25 });
+const MINIMUM = 25;
+
+describe('the document', () => {
+  it('shows every key a built answer carries in the example it went out under', () => {
+    if (observed.length < MINIMUM || bodies.length === 0) {
+      throw new Error('this check reads every body the file observed; run the whole file');
+    }
+    const unshown = bodies.flatMap(({ name, body, example }) =>
+      Object.keys(body)
+        .filter((key) => !Object.hasOwn(example as object, key))
+        .map((key) => `${name}: ${key}`),
+    );
+    expect([...new Set(unshown)]).toEqual([]);
+  });
+});
+
+proveRouteContract({ declared: RESPONSES, observed, minimum: MINIMUM });
