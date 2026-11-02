@@ -82,6 +82,10 @@ afterEach(() => {
   useDraft.setState(useDraft.getInitialState(), true);
 });
 
+// Every wait's budget: past the default 1 s a cold first paint on CI can need, and under the 5 s
+// test timeout, so `open()`'s wait fails on its own assertion; a later one may meet the timeout.
+const WAIT = { timeout: 3_000 };
+
 async function open(path: string) {
   const client = new QueryClient();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -91,7 +95,7 @@ async function open(path: string) {
     </QueryClientProvider>,
   );
   // The ledger's rows, not the read's end: a slow read keeps the placeholder up for a while after.
-  await waitFor(() => expect(document.querySelector('[data-delete-row]')).not.toBeNull());
+  await waitFor(() => expect(document.querySelector('[data-delete-row]')).not.toBeNull(), WAIT);
 }
 
 /** The API answers 500 to a write that carries an op `carries` picks out, and serves the rest. */
@@ -122,7 +126,7 @@ async function deletePayout() {
   const glyph = document.querySelector(`[data-delete-row="${PAYOUT}"]`);
   if (glyph === null) throw new Error('the payout has no delete control');
   fireEvent.click(glyph);
-  fireEvent.click(await screen.findByRole('button', { name: uk.transaction.delete.confirm }));
+  fireEvent.click(await screen.findByRole('button', { name: uk.transaction.delete.confirm }, WAIT));
 }
 
 describe('deleting a confirmed coupon', () => {
@@ -131,8 +135,9 @@ describe('deleting a confirmed coupon', () => {
 
     await deletePayout();
 
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(uk.transaction.delete.couponReopenedToast),
+    await waitFor(
+      () => expect(toast.success).toHaveBeenCalledWith(uk.transaction.delete.couponReopenedToast),
+      WAIT,
     );
     expect(posts()).toHaveLength(1);
     expect(held()).toBe(false);
@@ -145,8 +150,9 @@ describe('deleting a confirmed coupon', () => {
 
     await deletePayout();
 
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(uk.transaction.delete.failedToast),
+    await waitFor(
+      () => expect(toast.error).toHaveBeenCalledWith(uk.transaction.delete.failedToast),
+      WAIT,
     );
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
@@ -159,8 +165,9 @@ describe('deleting a confirmed coupon', () => {
     restore();
     fireEvent.click(screen.getByRole('button', { name: uk.transaction.delete.confirm }));
 
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(uk.transaction.delete.couponReopenedToast),
+    await waitFor(
+      () => expect(toast.success).toHaveBeenCalledWith(uk.transaction.delete.couponReopenedToast),
+      WAIT,
     );
     expect(held()).toBe(false);
     expect(nextCoupon()).toBe('2026-02-25');
@@ -177,10 +184,13 @@ describe('deleting a confirmed coupon', () => {
       if (glyph === null) throw new Error(`the ${type} has no delete control`);
 
       fireEvent.click(glyph);
-      fireEvent.click(await screen.findByRole('button', { name: uk.transaction.delete.confirm }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: uk.transaction.delete.confirm }, WAIT),
+      );
 
-      await waitFor(() =>
-        expect(toast.success).toHaveBeenCalledWith(uk.transaction.delete.doneToast),
+      await waitFor(
+        () => expect(toast.success).toHaveBeenCalledWith(uk.transaction.delete.doneToast),
+        WAIT,
       );
       expect(posts()).toHaveLength(1);
       expect(JSON.parse(posts()[0].body)).toEqual({
