@@ -2059,8 +2059,11 @@ generation it stages, and each staged part in `import_part`, keyed by that manif
 on the delete of what it names. The account's settings are `app_user.settings`, one nullable text
 column. `app_user.terms_version`, a date, and `terms_accepted_at` hold the terms an account accepted
 and when; both nullable, NULL until a version is accepted, and `app_user_terms_ck` refuses one
-without the other. An archive operation a super-admin starts is a row of `archive_operation`, keyed
-by a random id because no user owns it, its starter an audit note no key names, as `decided_by` is.
+without the other. `app_user.deletion_due`, a date, and `deletion_requested_at` hold a scheduled
+deletion's last day and when it was asked for; both nullable, NULL while none waits, and
+`app_user_deletion_ck` refuses one without the other. An archive operation a super-admin starts is
+a row of `archive_operation`, keyed by a random id because no user owns it, its starter an audit
+note no key names, as `decided_by` is.
 AN ACCOUNT IS DELETED BY AN APPLICATION CASCADE TOO, over every table that holds its data —
 `app_user`, `account`, `dataset`, `asset`, `transaction`, `user_price`, `mutation_key`,
 `import_manifest` and `import_part` — and a census test holds every table the user cluster's

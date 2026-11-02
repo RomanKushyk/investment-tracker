@@ -225,7 +225,8 @@ export const appUser = pgTable(
     // lands the same way, so read the migrations, not only this file: `010` adds
     // the two dataset pointers and their keys, and the `dataset` table itself;
     // `016` adds `settings`; `018` adds `terms_version`, `terms_accepted_at` and
-    // `app_user_terms_ck`, the rule that pairs them.
+    // `app_user_terms_ck`, the rule that pairs them; `019` adds `deletion_due`,
+    // `deletion_requested_at` and `app_user_deletion_ck`, which pairs those.
     //
     // THE DEMO ROW INVERTS THAT, and it is the reason its address is chosen
     // rather than invented: the database now holds an address Cognito has never

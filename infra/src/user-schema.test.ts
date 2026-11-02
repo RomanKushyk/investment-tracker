@@ -1004,6 +1004,78 @@ describe('app_user terms', () => {
   });
 });
 
+// A scheduled deletion: the last day it can be cancelled, a Kyiv date, and the instant it was
+// asked for, which a sign-in must follow to cancel. Written together or not at all.
+describe('app_user deletion', () => {
+  const deletionOf = async (id: string) => {
+    const { rows } = await db.query<{ due: string | null; requested: string | null }>(
+      `SELECT deletion_due::text AS due,
+              (deletion_requested_at AT TIME ZONE 'UTC')::text AS requested
+         FROM app_user WHERE user_id = ${id}`,
+    );
+    return rows[0];
+  };
+
+  it('are a nullable date and a nullable timestamptz, with no default', async () => {
+    const { rows } = await db.query<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'app_user'
+          AND column_name IN ('deletion_due', 'deletion_requested_at')
+        ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      { column_name: 'deletion_due', data_type: 'date', is_nullable: 'YES', column_default: null },
+      {
+        column_name: 'deletion_requested_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+        column_default: null,
+      },
+    ]);
+  });
+
+  it('read NULL on a row that never named them', async () => {
+    expect(await deletionOf(USER)).toEqual({ due: null, requested: null });
+  });
+
+  it('hold the date and the instant they are given, and refuse a due that is no date', async () => {
+    const id = nextId();
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at,
+                                         decided_by, deletion_due, deletion_requested_at)
+                     VALUES (${id}, 'deletion@x.com', 'active', 'user', now(), now(), ${id},
+                             '2026-11-29', '2026-10-30 21:59:58.123456+00');`);
+    expect(await deletionOf(id)).toEqual({
+      due: '2026-11-29',
+      requested: '2026-10-30 21:59:58.123456',
+    });
+    await refuses(`UPDATE app_user SET deletion_due = 'soon' WHERE user_id = ${id};`);
+  });
+
+  it('refuse a due with no instant, and an instant with no due', async () => {
+    const id = nextId();
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at,
+                                         decided_by)
+                     VALUES (${id}, 'deletion-half@x.com', 'active', 'user', now(), now(), ${id});`);
+    await refuses(`UPDATE app_user SET deletion_due = '2026-11-29' WHERE user_id = ${id};`);
+    await refuses(`UPDATE app_user SET deletion_requested_at = now() WHERE user_id = ${id};`);
+    await accepts(`UPDATE app_user SET deletion_due = '2026-11-29', deletion_requested_at = now()
+                     WHERE user_id = ${id};`);
+    await refuses(`UPDATE app_user SET deletion_requested_at = NULL WHERE user_id = ${id};`);
+    // A cancel clears both at once.
+    await accepts(`UPDATE app_user SET deletion_due = NULL, deletion_requested_at = NULL
+                     WHERE user_id = ${id};`);
+    await refuses(`INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at,
+                                         decided_by, deletion_due)
+                     VALUES (${nextId()}, 'deletion-insert@x.com', 'active', 'user', now(),
+                             now(), ${id}, '2026-11-29');`);
+  });
+});
+
 describe('archive_operation', () => {
   const FINISHED = `now() + interval '5 seconds'`;
   /** A run still going; `over` replaces a column's SQL value. */
