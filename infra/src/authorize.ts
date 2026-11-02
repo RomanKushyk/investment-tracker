@@ -7,8 +7,19 @@
 // It is the same reason a group in a token cannot carry the role: removing somebody from a
 // super-admin group would change nothing until their token refreshed, and the row is read anyway.
 import { canonicalAddress } from '@quirenote/core/address';
+import { deletionWindowOpen } from '@quirenote/core/deletion';
 import { deleteRows } from './account-delete';
-import { INTERNAL, type ApiEvent, type ApiResult, canonicalUuid, claim, json } from './http';
+import {
+  INTERNAL,
+  type ApiEvent,
+  type ApiResult,
+  authTimeOf,
+  canonicalUuid,
+  claim,
+  derived,
+  json,
+  respond,
+} from './http';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { provision } from './provision';
@@ -34,6 +45,16 @@ export const FORBIDDEN = json(403, '{"error":"forbidden"}');
 /** The server's refusal, not only the app's: a caller who never saw the terms reaches no route but
  *  the one that records them (*Legal documents*). */
 export const TERMS = json(403, '{"error":"terms"}');
+/** An account a scheduled deletion holds reaches nothing until its last day ends, and is told the
+ *  day and whether this sign-in may cancel: only one made after the request can (*Auth model*). */
+export const SCHEDULED = derived({
+  statusCode: 403,
+  name: 'scheduled',
+  headers: [],
+  example: { error: 'scheduled', date: '2026-11-29', cancellable: true },
+});
+const scheduled = (date: string, cancellable: boolean): ApiResult =>
+  respond(SCHEDULED, {}, JSON.stringify({ error: 'scheduled', date, cancellable }));
 
 // THE EXACT STRING, the rule `pre-signup.ts` states: the value arrives as text and
 // `Boolean('false')` is `true`, so everything else must mean closed. Read per call.
@@ -42,8 +63,11 @@ const registrationIsOpen = () => process.env.OPEN_REGISTRATION === 'true';
 /** By `user_id` is the ordinary case; by `email` is the one that would otherwise be a unique
  *  violation, since the address may already hold a row under a placeholder — somebody applied,
  *  registration was opened, they signed up. */
-const LOOK = `SELECT user_id, email, status, role, settings, terms_version FROM app_user
-              WHERE user_id = $1 OR email = $2`;
+const LOOK = `SELECT user_id, email, status, role, settings, terms_version,
+                     deletion_due::text AS deletion_due,
+                     to_char(deletion_requested_at AT TIME ZONE 'UTC',
+                             'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS deletion_requested_at
+                FROM app_user WHERE user_id = $1 OR email = $2`;
 
 /**
  * SELF-DECIDED, and it is the only truthful shape available: `app_user_decided_ck` exempts
@@ -102,16 +126,28 @@ type Row = {
   role: string;
   settings: string | null;
   terms_version: unknown;
+  deletion_due?: string | null;
+  deletion_requested_at?: string | null;
 };
 
 /** Whether the provider asserts it checked the address: what a caller with no row must show. */
 export const assertsVerified = (claims: Record<string, string | string[]> | undefined): boolean =>
   claim(claims, 'email_verified') === 'true';
 
-/** `optional` is the acceptance route's alone: the one a caller who holds no version may reach. */
-export type GateOptions = { terms?: 'required' | 'optional' };
+/** `terms: 'optional'` is for the routes a caller who holds no version may reach; `held: 'cancel'`
+ *  is the cancel's alone, the one route a held account may reach. `now` is milliseconds. */
+export type GateOptions = {
+  terms?: 'required' | 'optional';
+  held?: 'refused' | 'cancel';
+  now?: () => number;
+};
 
-function answer(row: Row, sub: string, { terms = 'required' }: GateOptions): Gate {
+function answer(
+  row: Row,
+  sub: string,
+  { terms = 'required', held = 'refused', now = Date.now }: GateOptions,
+  authTime: number | undefined,
+): Gate {
   // THE DEMO IS NOT AN APPLICATION AND NEVER BECOMES ONE: no token can carry its `sub`, so this
   // is reachable only through the address. Refused as a non-caller rather than as a status.
   if (row.role === 'demo') return { refusal: FORBIDDEN };
@@ -124,6 +160,17 @@ function answer(row: Row, sub: string, { terms = 'required' }: GateOptions): Gat
   if (row.user_id !== sub) {
     console.error(`authorize: the address of ${sub} is active under ${row.user_id}`);
     return { refusal: FORBIDDEN };
+  }
+  // THE HOLD, BEFORE ANY READ AND AHEAD OF THE TERMS, so no route reads a held account's data and
+  // none needs a filter for it. Past its last day it answers as the deleted account it is about to
+  // be. A sign-in in the request's own second counts as before it, which fails safe.
+  if (row.deletion_due != null) {
+    if (!deletionWindowOpen(row.deletion_due, new Date(now()))) return { refusal: NO_APPLICATION };
+    const cancellable =
+      authTime !== undefined && authTime * 1000 > Date.parse(row.deletion_requested_at ?? '');
+    if (held !== 'cancel' || !cancellable) {
+      return { refusal: scheduled(row.deletion_due, cancellable) };
+    }
   }
   // After every status, so a pending applicant never meets the step: the terms apply from approval.
   // Absent counts as none, so a row read without the column cannot pass for one that holds it.
@@ -161,7 +208,7 @@ export async function authorize(
   if (email === undefined) return { refusal: FORBIDDEN };
 
   const found = await look(client, sub, email);
-  if (found !== undefined) return answer(found, sub, options);
+  if (found !== undefined) return answer(found, sub, options, authTimeOf(event));
 
   // NO ROW, AND THIS IS WHERE THE DOOR IS. Closed is the default and the only safe state: a valid
   // token for an identity this system never approved is what a federated sign-in mints on its own.
@@ -213,7 +260,7 @@ export async function authorize(
 
   const created = await look(client, sub, email);
   if (created === undefined) return { refusal: INTERNAL };
-  return answer(created, sub, options);
+  return answer(created, sub, options, authTimeOf(event));
 }
 
 /** `role` is the ROW's — a token claiming super-admin against a `user` row changes nothing. */

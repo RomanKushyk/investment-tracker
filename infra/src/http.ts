@@ -56,6 +56,13 @@ export const INTERNAL = json(500, '{"error":"internal"}');
 /** How recent a sign-in sign-out everywhere and a deletion take, by `auth_time`, which a refresh
  *  never resets: Firebase's server check takes a sign-in only "in the last 5 minutes". */
 export const REAUTHENTICATED_SECONDS = 300;
+/** The sign-in's time, from the ID token's `auth_time`, which the HTTP API hands on as text; a number
+ *  is the form the token itself carries. Anything else is no sign-in a route can date. */
+export const authTimeOf = (event: ApiEvent): number | undefined => {
+  const value: unknown = event.requestContext?.authorizer?.jwt?.claims?.auth_time;
+  if (typeof value === 'number') return Number.isInteger(value) ? value : undefined;
+  return typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : undefined;
+};
 /** RFC 9470 §3's error code, in the body as every refusal is: a good token whose sign-in "does not
  *  meet the authentication requirements". */
 export const INSUFFICIENT_USER_AUTHENTICATION = json(

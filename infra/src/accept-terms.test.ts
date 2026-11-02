@@ -174,6 +174,18 @@ describe('the gate', () => {
     });
   }
 
+  it('answers an account a scheduled deletion holds with the date, and records nothing', async () => {
+    await db.query(
+      "UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()",
+    );
+    const res = await post({ termsVersion: TERMS_VERSION });
+    expect([res.statusCode, 'body' in res ? res.body : undefined]).toEqual([
+      403,
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ]);
+    expect(await terms()).toEqual({ version: null, accepted: false });
+  });
+
   it('answers no row with no_application', async () => {
     await db.query('DELETE FROM app_user WHERE user_id = $1', [SUB]);
     expect(answer(await post({ termsVersion: TERMS_VERSION }))).toEqual([

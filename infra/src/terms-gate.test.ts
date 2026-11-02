@@ -45,7 +45,7 @@ const REFUSED = [
   'PATCH /me/settings',
   'GET /me',
 ];
-const EXEMPT = ['POST /me/terms', 'POST /me/deletion'];
+const EXEMPT = ['POST /me/terms', 'POST /me/deletion', 'DELETE /me/deletion'];
 
 type Event = {
   Type?: string;

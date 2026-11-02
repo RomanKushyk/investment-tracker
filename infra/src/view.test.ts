@@ -826,6 +826,17 @@ describe.each(ROUTES)('the gate of %s', (route) => {
     expect([res.statusCode, res.body]).toEqual([403, '{"error":"terms"}']);
   });
 
+  it('answers an account a scheduled deletion holds with the date, and reads nothing', async () => {
+    await db.query(
+      "UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()",
+    );
+    const res = (await view(deps(), on(route))) as ApiResult;
+    expect([res.statusCode, res.body]).toEqual([
+      403,
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ]);
+  });
+
   it('refuses the demo as a non-caller', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     const res = (await view(deps(), on(route, undefined, {}, TWIN, DEMO_USER_EMAIL))) as ApiResult;

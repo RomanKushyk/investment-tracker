@@ -1,6 +1,6 @@
 // `GET /admin/users`: every application but the demo, oldest first, with the id approve and reject
 // take. Keyset-paged from the start (AIP-158), since a flood of applications is when it is read.
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS } from './authorize';
+import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, SCHEDULED, TERMS } from './authorize';
 import { codeOf } from './dsql';
 import {
   INTERNAL,
@@ -42,7 +42,17 @@ const LISTED = derived({
 /** What the route can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `admin-users.test.ts` proves it against what the route really answers. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
-  [LIST_ROUTE]: [LISTED, PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, TERMS, INVALID, INTERNAL],
+  [LIST_ROUTE]: [
+    LISTED,
+    PENDING,
+    REJECTED,
+    NO_APPLICATION,
+    FORBIDDEN,
+    TERMS,
+    SCHEDULED,
+    INVALID,
+    INTERNAL,
+  ],
 };
 
 type Parameter = {

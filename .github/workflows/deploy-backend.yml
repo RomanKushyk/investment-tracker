@@ -90,7 +90,7 @@ jobs:
           # The derivation identifier from the function vite.config.ts reads, so the Lambdas and the
           # SPA built from one commit read one value; printed quoted, as `--define` takes it.
           id=$(node ../scripts/derivation-id.ts)
-          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead sweep archive-reader-grant view mutations deletion; do
+          for entry in capture migrate pre-signup applications approve archive-admin archive-operations archive-recorder auth-relay backup-freshness backup-wake pool-usage rate-ahead sweep archive-reader-grant view mutations deletion purge; do
             pnpm exec esbuild "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -111,7 +111,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE TEMPLATES' HANDLERS BY A TEST, not to the esbuild loop above, because this
           # line is hand-kept: a handler left out of it deploys having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/sweep.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js infra/dist/deletion.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/archive-admin.js infra/dist/archive-operations.js infra/dist/archive-recorder.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/backup-wake.js infra/dist/pool-usage.js infra/dist/rate-ahead.js infra/dist/sweep.js infra/dist/archive-reader-grant.js infra/dist/view.js infra/dist/mutations.js infra/dist/deletion.js infra/dist/purge.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -619,7 +619,7 @@ jobs:
                 query: async (text) => {
                   if (text.includes('AS sole')) return { rows: [{ sole: sole }] };
                   if (/^\s*DELETE FROM app_user/.test(text)) order.push('row');
-                  if (/^\s*SELECT .* FROM app_user/.test(text)) {
+                  if (/^\s*SELECT [\s\S]* FROM app_user/.test(text)) {
                     return { rows: [{ user_id: SUB, email: EMAIL, status: 'active', role: 'user', settings: null, terms_version: '2026-10-29' }] };
                   }
                   return { rows: [] };
@@ -649,6 +649,42 @@ jobs:
               if (done.statusCode !== 200 || JSON.parse(done.body).status !== 'deleted') throw new Error('a fresh sign-in did not delete: ' + JSON.stringify(done));
               if (order.join() !== 'signOut,row,deleteUser,row') throw new Error('the steps ran out of order: ' + order.join());
               console.log('deletion bundle loads, refuses a sign-in five minutes old and the only super-admin before anything, and ends the sessions, deletes the row, then the identity, then the rows once more');
+            })().catch((e) => { console.error(e); process.exit(1); });
+          "
+          # A run with no time left starts no deletion; with time it deletes what is due on Kyiv's
+          # date, the identity before the row, so a failure is still due at the next run.
+          node -e "
+            const p = require('./purge.js');
+            if (typeof p.handler !== 'function') throw new Error('handler missing from purge bundle');
+            const run = async (remaining) => {
+              const sent = [];
+              const order = [];
+              const client = {
+                query: async (text, values) => {
+                  sent.push([text, values]);
+                  if (sent.length === 1) return { rows: [{ user_id: 'u1', email: 'due@quirenote.com' }] };
+                  if (text.includes('AS sole')) return { rows: [{ sole: false }] };
+                  if (/^\s*SELECT role/.test(text)) return { rows: [{ role: 'user' }] };
+                  if (/^\s*DELETE FROM app_user/.test(text)) order.push('row');
+                  return { rows: [] };
+                },
+              };
+              const identity = {
+                adminUserGlobalSignOut: async () => { order.push('signOut'); return {}; },
+                adminDeleteUser: async () => { order.push('deleteUser'); return {}; },
+                listUsers: async () => ({ Users: [] }),
+              };
+              const clean = await p.purge({ user: client, identity, userPoolId: 'eu-north-1_EXAMPLE', now: () => Date.parse('2026-11-29T22:05:00Z') }, () => remaining);
+              return { sent, order, clean };
+            };
+            (async () => {
+              const idle = await run(0);
+              if (idle.sent.length !== 1 || idle.order.length) throw new Error('a purge with no time left started a deletion: ' + idle.order.join());
+              if (idle.sent[0][1][0] !== '2026-11-30') throw new Error('00:05 in Kyiv did not ask for what ended before 30.11: ' + idle.sent[0][1][0]);
+              const timed = await run(120000);
+              if (!timed.clean) throw new Error('a purge that deleted reported a failure');
+              if (timed.order.indexOf('deleteUser') > timed.order.indexOf('row')) throw new Error('the row went before the identity: ' + timed.order.join());
+              console.log('purge bundle loads, starts nothing with no time left, asks for Kyiv’s date, and deletes the identity before the row');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
 

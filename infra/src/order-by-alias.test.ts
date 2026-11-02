@@ -171,7 +171,7 @@ describe('no output alias shadows a sorted column', () => {
     // EXACT, not a floor: a floor cannot catch the scanner going blind, because
     // the count then goes DOWN. Update it deliberately, in the commit that adds
     // or removes a query. The file set is named rather than counted alone.
-    expect(queries.length).toBe(89);
+    expect(queries.length).toBe(91);
     expect(new Set(queries.map((q) => q.file))).toEqual(
       new Set([
         'admin-users.ts',
@@ -183,6 +183,7 @@ describe('no output alias shadows a sorted column', () => {
         'asset-delete.ts',
         'authorize.ts',
         'collect.ts',
+        'deletion.ts',
         'imports.ts',
         'approve.ts',
         'provision.ts',
@@ -193,6 +194,7 @@ describe('no output alias shadows a sorted column', () => {
         'mutations.ts',
         'settings.ts',
         'sweep.ts',
+        'purge.ts',
       ]),
     );
   });

@@ -144,7 +144,7 @@ export const TAGS: Record<string, string> = {
   state: 'The raw export of the stored portfolio.',
   imports:
     'The staged import: a dataset too large for one transaction, in parts that one commit moves.',
-  me: 'The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, its acceptance of the terms of use, and its deletion behind a sign-in under five minutes old.',
+  me: 'The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, its acceptance of the terms of use, and its deletion, at once or in 30 days, behind a sign-in under five minutes old, and the cancel of one scheduled.',
 };
 
 type Operation = {

@@ -30,7 +30,7 @@ import {
   START_ROUTE,
 } from './auth-relay';
 import { ANSWER_MS, SECRET_MS } from './bot-check';
-import { DELETION_ROUTE } from './deletion';
+import { CANCEL_ROUTE, DELETION_ROUTE } from './deletion';
 import { envVars, grantAt, intrinsicAt, tagAt } from './template-intrinsic';
 import { ABORT_ROUTE, BEGIN_ROUTE, COMMIT_ROUTE, PART_ROUTE } from './imports';
 import { ME_ROUTE } from './me';
@@ -245,10 +245,11 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('MutationsLogGroup').RetentionInDays).toBe(30);
   });
 
-  it('puts the account’s deletion on this API, in a function of its own, naming the authorizer', () => {
+  it('puts the account’s deletion and its cancel on this API, in a function of their own, naming the authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'DeleteAccountFunction');
     expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [DELETION_ROUTE, 'PublicApi', AUTHORIZER],
+      [CANCEL_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('DeleteAccountFunction').Handler).toBe('deletion.handler');
     expect(user.Resources.DeleteAccountLogGroup?.Type).toBe('AWS::Logs::LogGroup');

@@ -17,13 +17,13 @@ export type AccountIdentity = {
 
 const ROLE = `SELECT role FROM app_user WHERE user_id = $1`;
 
-/** An active super-admin with no other active one: deleting them leaves no way back in, the
- *  bootstrap refusing an address whose row has no pool user (`migrate.ts`). */
+/** An active super-admin with no other free one, a held one reaching no route: deleting them
+ *  leaves no way back in, the bootstrap refusing a row with no pool user (`migrate.ts`). */
 const SOLE = `SELECT EXISTS (SELECT 1 FROM app_user
                               WHERE user_id = $1 AND role = 'super_admin' AND status = 'active')
                  AND NOT EXISTS (SELECT 1 FROM app_user
                                   WHERE role = 'super_admin' AND status = 'active'
-                                    AND user_id <> $1) AS sole`;
+                                    AND deletion_due IS NULL AND user_id <> $1) AS sole`;
 
 // Children first, over EVERY dataset the user owns, which `dataset-scope.test.ts` lets this module
 // alone reach; each its own transaction under DSQL's row ceiling, a key-set taking the `LIMIT`.
@@ -136,6 +136,19 @@ export async function deleteIdentities(
   }
 }
 
+/** Ends every session under the address, each Google profile it finds and each of `also` (ASVS 5.0.0
+ *  7.4.2); one already gone counts as ended. */
+export async function signOutEverywhere(
+  idp: Pick<AccountIdentity, 'adminUserGlobalSignOut' | 'listUsers'>,
+  UserPoolId: string,
+  email: string,
+  also: string[] = [],
+): Promise<void> {
+  for (const Username of new Set([email, ...(await federated(idp, UserPoolId, email)), ...also])) {
+    await idp.adminUserGlobalSignOut({ UserPoolId, Username }).catch(ignoringGone);
+  }
+}
+
 /** Deletes the account, or answers why it may not, having touched nothing. */
 export async function deleteAccount(
   client: SqlClient,
@@ -154,9 +167,7 @@ export async function deleteAccount(
 
   // SESSIONS FIRST (ASVS 5.0.0 7.4.2); an ID token already issued is turned away by the row's
   // absence once it is gone, and an open window's gate asks the pool before it provisions one.
-  for (const Username of new Set([email, ...(await federated(idp, UserPoolId, email)), ...also])) {
-    await idp.adminUserGlobalSignOut({ UserPoolId, Username }).catch(ignoringGone);
-  }
+  await signOutEverywhere(idp, UserPoolId, email, also);
 
   await deleteRows(client, userId);
 

@@ -2,7 +2,7 @@
 // so a suite that only checked "refused" would pass against a handler answering 401 to all three.
 // PGlite applies the migrations the runner names, because `app_user_decided_ck` refuses a
 // self-approved row with half a decision pair and an assertion written here could not.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PGlite } from '@electric-sql/pglite';
@@ -414,6 +414,122 @@ describe('the terms, asked after every status', () => {
     await authorize(client, token());
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatch(/\bterms_version\b/);
+  });
+});
+
+// A SCHEDULED DELETION HOLDS THE ACCOUNT (#576): the gate refuses it on every route before any
+// read, with the date, and only a sign-in made after the request may cancel.
+describe('a scheduled deletion holds the account', () => {
+  const DUE = '2026-11-29';
+  /** The request, and the instant every test's clock reads unless it says otherwise. */
+  const REQUESTED = Date.UTC(2026, 9, 30, 12, 0, 0);
+  const NOW = Date.UTC(2026, 10, 10, 12, 0, 0);
+  const at = (ms: number) => ({ now: () => ms });
+  const signedIn = (ms: number) => token({ auth_time: String(Math.floor(ms / 1000)) });
+  const hold = async (userId = SUB) =>
+    db.query(
+      `UPDATE app_user SET deletion_due = $2, deletion_requested_at = $3 WHERE user_id = $1`,
+      [userId, DUE, new Date(REQUESTED).toISOString()],
+    );
+  const refusal = (gate: Gate) => {
+    if (!('refusal' in gate)) throw new Error('admitted');
+    return [gate.refusal.statusCode, JSON.parse(gate.refusal.body)];
+  };
+
+  beforeEach(async () => {
+    await db.exec(row(SUB, EMAIL, 'active'));
+    await hold();
+  });
+
+  it('refuses a sign-in made before the request with the date, and no cancel', async () => {
+    const gate = await authorize(db, signedIn(REQUESTED - 60_000), at(NOW));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: false }]);
+  });
+
+  it('refuses a sign-in made after the request too, and says it may cancel', async () => {
+    const gate = await authorize(db, signedIn(REQUESTED + 60_000), at(NOW));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: true }]);
+  });
+
+  it('reads a sign-in in the same second as the request as before it', async () => {
+    const gate = await authorize(db, signedIn(REQUESTED + 999), at(NOW));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: false }]);
+  });
+
+  it('says no cancel to a token that carries no sign-in time', async () => {
+    const gate = await authorize(db, token(), at(NOW));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: false }]);
+  });
+
+  it('admits, on the cancel route alone, a sign-in made after the request', async () => {
+    expect(
+      await authorize(db, signedIn(REQUESTED + 60_000), { ...at(NOW), held: 'cancel' }),
+    ).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
+  });
+
+  it('refuses the cancel route to a sign-in made before the request', async () => {
+    const gate = await authorize(db, signedIn(REQUESTED - 60_000), { ...at(NOW), held: 'cancel' });
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: false }]);
+  });
+
+  it('holds to the last instant of the last day in Kyiv', async () => {
+    const last = Date.parse('2026-11-29T21:59:59.999Z');
+    const gate = await authorize(db, signedIn(REQUESTED + 60_000), at(last));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: true }]);
+  });
+
+  it('answers as deleted once that day has ended, on every route and the cancel one', async () => {
+    const after = Date.parse('2026-11-29T22:00:00Z');
+    for (const held of [undefined, 'cancel'] as const) {
+      const gate = await authorize(db, signedIn(REQUESTED + 60_000), { ...at(after), held });
+      expect(gate).toEqual({ refusal: NO_APPLICATION });
+    }
+  });
+
+  it('is asked before the terms', async () => {
+    await db.query('UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL');
+    const gate = await authorize(db, signedIn(REQUESTED - 60_000), at(NOW));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: false }]);
+  });
+
+  it('is asked of a super-admin as of anyone', async () => {
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    const gate = superAdminOnly(await authorize(db, signedIn(REQUESTED - 60_000), at(NOW)));
+    expect(refusal(gate)).toEqual([403, { error: 'scheduled', date: DUE, cancellable: false }]);
+  });
+
+  it('leaves an account no deletion waits on as it was, on the cancel route too', async () => {
+    await db.query('UPDATE app_user SET deletion_due = NULL, deletion_requested_at = NULL');
+    for (const held of [undefined, 'cancel'] as const) {
+      expect(await authorize(db, signedIn(REQUESTED - 60_000), { ...at(NOW), held })).toEqual({
+        caller: { userId: SUB, email: EMAIL, role: 'user', settings: null },
+      });
+    }
+  });
+
+  it('reads the hold in the statement that reads the row', async () => {
+    const sent: string[] = [];
+    const client: SqlClient = {
+      query: <R>(text: string, values?: unknown[]) => {
+        sent.push(text);
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    await authorize(client, signedIn(REQUESTED - 60_000), at(NOW));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatch(/\bdeletion_due\b/);
+  });
+
+  // NO PORTFOLIO READ GAINS A FILTER FOR THE HOLD, the tombstone's objection (*User schema and
+  // deletes*): the gate refuses before any read, and only the deletion's own modules name it.
+  it('is named in no module but the gate, the deletion route, its core and the purge', () => {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const naming = readdirSync(dir)
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.endsWith('.d.ts'))
+      .filter((f) =>
+        /\bdeletion_(due|requested_at)\b/.test(stripTs(readFileSync(join(dir, f), 'utf8'), f)),
+      );
+    expect(naming.sort()).toEqual(['account-delete.ts', 'authorize.ts', 'deletion.ts', 'purge.ts']);
   });
 });
 

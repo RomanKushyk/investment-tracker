@@ -28,12 +28,21 @@ import {
   NO_APPLICATION,
   PENDING,
   REJECTED as REJECTED_APPLICANT,
+  SCHEDULED,
   TERMS,
   authorize,
   superAdminOnly,
 } from './authorize';
 import { connect } from './dsql';
-import { INTERNAL, INVALID, type ApiEvent, type ApiResult, canonicalUuid, json } from './http';
+import {
+  INTERNAL,
+  INVALID,
+  type ApiEvent,
+  type ApiResult,
+  type Declared,
+  canonicalUuid,
+  json,
+} from './http';
 import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { ACCOUNT, giveDataset } from './provision';
@@ -88,12 +97,12 @@ const ALREADY_DECIDED = json(409, '{"error":"already_decided"}');
 // hold. Its own refusal because the repair is outside this API — the account has to go.
 const UNCLAIMED_IDENTITY = json(409, '{"error":"unclaimed_identity"}');
 
-const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN, TERMS] as const;
+const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN, TERMS, SCHEDULED] as const;
 
 /** WHAT EACH ROUTE CAN ANSWER, and the only list of it — `openapi.ts` builds the document from
  *  here, and `openapi.test.ts` catches a constant added above and not added to it. The two differ
  *  only in the success body and in `unclaimed_identity`, which only approve can reach. */
-export const RESPONSES: Record<string, readonly ApiResult[]> = {
+export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [APPROVE_ROUTE]: [
     APPROVED,
     ...GATE,

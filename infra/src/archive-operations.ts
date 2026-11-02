@@ -14,6 +14,7 @@ import {
   NO_APPLICATION,
   PENDING,
   REJECTED,
+  SCHEDULED,
   TERMS,
   authorize,
   superAdminOnly,
@@ -149,7 +150,7 @@ const LISTED = derived({
 const READ = derived({ statusCode: 200, name: 'operation', headers: [], example: OPERATION });
 const NOT_FOUND = json(404, '{"error":"not_found"}');
 
-const GATE = [PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, TERMS];
+const GATE = [PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, TERMS, SCHEDULED];
 
 /** What the routes can answer, and the only list of it — `openapi.ts` builds the document from
  *  here, and `archive-operations.test.ts` proves it against what the routes really answer. */

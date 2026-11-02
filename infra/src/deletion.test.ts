@@ -9,10 +9,12 @@ import { freshDb } from './__fixtures__/pglite';
 import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
 import type { AccountIdentity } from './account-delete';
 import {
+  CANCEL_ROUTE,
   DELETION_ROUTE,
   REQUEST_BODY,
   RESPONSES,
   type DeletionDeps,
+  cancelDeletion,
   deleteOwnAccount,
   handler as rawHandler,
 } from './deletion';
@@ -36,6 +38,9 @@ const EMAIL = 'leaving@quirenote.com';
 const NOW = Date.UTC(2026, 9, 30, 12, 0, 0);
 const NOW_S = NOW / 1000;
 const NOW_BODY = { timing: 'now' };
+const LATER_BODY = { timing: 'later' };
+/** The last day a press at NOW gives (#572): the 30th Kyiv day after it. */
+const DUE = '2026-11-29';
 
 let db: PGlite;
 let pooled: Set<string>;
@@ -195,10 +200,10 @@ describe('the body names the timing', () => {
     expect(res.statusCode).toBe(413);
   });
 
-  it('publishes the one timing it takes', () => {
+  it('publishes the two timings it takes', () => {
     const { schema } = REQUEST_BODY.content['application/json'];
     expect(schema.required).toEqual(['timing']);
-    expect(schema.properties.timing.enum).toEqual(['now']);
+    expect(schema.properties.timing.enum).toEqual(['now', 'later']);
   });
 });
 
@@ -319,9 +324,212 @@ describe('a deletion that stopped after the row, before the identity', () => {
   });
 });
 
+/** The hold as the row stores it: the last day, and the request's instant to the millisecond. */
+const holdOf = async () =>
+  (
+    await db.query<{ due: string | null; requested: string | null }>(
+      `SELECT deletion_due::text AS due,
+              to_char(deletion_requested_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+                AS requested
+         FROM app_user WHERE email = $1`,
+      [EMAIL],
+    )
+  ).rows[0];
+
+/** Held as a press an hour before NOW left it. */
+const REQUESTED = NOW - 3_600_000;
+const hold = () =>
+  db.query('UPDATE app_user SET deletion_due = $1, deletion_requested_at = $2', [
+    DUE,
+    new Date(REQUESTED).toISOString(),
+  ]);
+
+const cancel = async (o: { c?: Claims; d?: DeletionDeps } = {}) => {
+  const e: ApiEvent = { ...event(undefined, o.c), routeKey: CANCEL_ROUTE, body: undefined };
+  return record(e, await cancelDeletion(o.d ?? deps(), e));
+};
+
+describe('scheduling the deletion for 30 days on', () => {
+  it('holds the account, ends every session and answers the last day, deleting nothing', async () => {
+    expect(answer(await post(LATER_BODY))).toEqual([202, { status: 'scheduled', date: DUE }]);
+    expect(await holdOf()).toEqual({ due: DUE, requested: '2026-10-30T12:00:00.000Z' });
+    expect(await rowOf()).toHaveLength(1);
+    expect((await db.query('SELECT 1 FROM asset')).rows).toHaveLength(1);
+    expect(pooled).toEqual(new Set([EMAIL]));
+    expect(calls).toEqual([`signOut ${EMAIL}`]);
+  });
+
+  it('ends the sessions before it holds the account', async () => {
+    const watched: SqlClient = {
+      query: (text, values) => {
+        if (/SET deletion_due/.test(text)) calls.push('hold');
+        return db.query(text, values);
+      },
+    };
+    await post(LATER_BODY, { d: deps({ user: watched }) });
+    expect(calls).toEqual([`signOut ${EMAIL}`, 'hold']);
+  });
+
+  it("ends the caller's own pool username's sessions too", async () => {
+    pooled = new Set([EMAIL, 'Google_1234567890']);
+    const c = claims({ 'cognito:username': 'Google_1234567890' });
+    expect((await post(LATER_BODY, { c })).statusCode).toBe(202);
+    expect(calls).toEqual([`signOut ${EMAIL}`, 'signOut Google_1234567890']);
+  });
+
+  it('holds nothing when a session cannot be ended, and the next ask holds it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failing: AccountIdentity = {
+      ...identity,
+      adminUserGlobalSignOut: () => Promise.reject(new Error('the pool said no')),
+    };
+    const res = await post(LATER_BODY, { d: deps({ identity: failing }) });
+    expect(answer(res)).toEqual([500, { error: 'internal' }]);
+    expect(await holdOf()).toEqual({ due: null, requested: null });
+    expect((await post(LATER_BODY)).statusCode).toBe(202);
+  });
+
+  it('asks for a sign-in under five minutes old, and holds nothing without one', async () => {
+    const c = claims({ auth_time: String(NOW_S - 300) });
+    expect((await post(LATER_BODY, { c })).statusCode).toBe(401);
+    expect(await holdOf()).toEqual({ due: null, requested: null });
+    expect(calls).toEqual([]);
+  });
+
+  it('refuses the only super-admin, and holds nothing', async () => {
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    expect(answer(await post(LATER_BODY))).toEqual([409, { error: 'sole_super_admin' }]);
+    expect(await holdOf()).toEqual({ due: null, requested: null });
+    expect(calls).toEqual([]);
+  });
+
+  // A held super-admin reaches no route, so counting them would let the last free one leave too.
+  it.each([
+    ['30 days on', LATER_BODY],
+    ['at once', NOW_BODY],
+  ])('counts no super-admin a deletion holds as the other one, asked %s', async (_, body) => {
+    const other = '9f1e2d3c-0000-4000-8000-0000000000f8';
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    await insertUser(db, other, 'other-admin@quirenote.com', 'active', 'super_admin');
+    await db.query(
+      `UPDATE app_user SET deletion_due = '2026-11-29', deletion_requested_at = now()
+        WHERE user_id = $1`,
+      [other],
+    );
+    expect(answer(await post(body))).toEqual([409, { error: 'sole_super_admin' }]);
+    expect(await rowOf()).toHaveLength(1);
+    expect(calls).toEqual([]);
+  });
+
+  it.each([
+    ['30 days on', LATER_BODY],
+    ['at once', NOW_BODY],
+  ])(
+    'answers an account already held, asked %s, with the hold, changing nothing',
+    async (_, body) => {
+      await hold();
+      expect(answer(await post(body))).toEqual([
+        403,
+        { error: 'scheduled', date: DUE, cancellable: true },
+      ]);
+      expect(await holdOf()).toEqual({ due: DUE, requested: '2026-10-30T11:00:00.000Z' });
+      expect(await rowOf()).toHaveLength(1);
+      expect(calls).toEqual([]);
+    },
+  );
+});
+
+describe('cancelling a scheduled deletion', () => {
+  beforeEach(hold);
+
+  it('lifts the hold for a sign-in made after the request', async () => {
+    const res = await cancel();
+    expect(res.statusCode).toBe(204);
+    expect('body' in res).toBe(false);
+    expect(await holdOf()).toEqual({ due: null, requested: null });
+    expect(calls).toEqual([]);
+  });
+
+  it('takes no sign-in fresher than the one that followed the request', async () => {
+    const c = claims({ auth_time: String(Math.floor(REQUESTED / 1000) + 60) });
+    expect((await cancel({ c })).statusCode).toBe(204);
+  });
+
+  it('refuses a sign-in made before the request, and the hold stays', async () => {
+    const c = claims({ auth_time: String(Math.floor(REQUESTED / 1000) - 60) });
+    expect(answer(await cancel({ c }))).toEqual([
+      403,
+      { error: 'scheduled', date: DUE, cancellable: false },
+    ]);
+    expect(await holdOf()).toEqual({ due: DUE, requested: '2026-10-30T11:00:00.000Z' });
+  });
+
+  it('answers as deleted once the last day has ended in Kyiv, and the hold stays', async () => {
+    const d = deps({ now: () => Date.parse('2026-11-29T22:00:00Z') });
+    expect(answer(await cancel({ d }))).toEqual([403, { error: 'no_application' }]);
+    expect(await holdOf()).toEqual({ due: DUE, requested: '2026-10-30T11:00:00.000Z' });
+  });
+
+  it('answers 204 when no deletion waits, as a DELETE of nothing is', async () => {
+    await db.query('UPDATE app_user SET deletion_due = NULL, deletion_requested_at = NULL');
+    expect((await cancel()).statusCode).toBe(204);
+  });
+
+  it('answers a pending row as the gate does', async () => {
+    await db.query(
+      `UPDATE app_user SET status = 'pending', decided_at = NULL, decided_by = NULL,
+                           deletion_due = NULL, deletion_requested_at = NULL`,
+    );
+    expect(answer(await cancel())).toEqual([403, { error: 'pending' }]);
+  });
+
+  it('answers a rejected row as the gate does', async () => {
+    await db.query(
+      `UPDATE app_user SET status = 'rejected', deletion_due = NULL, deletion_requested_at = NULL`,
+    );
+    expect(answer(await cancel())).toEqual([403, { error: 'rejected' }]);
+  });
+
+  it('refuses a token it cannot read, and the hold stays', async () => {
+    expect(answer(await cancel({ c: claims({ token_use: 'access' }) }))).toEqual([
+      403,
+      { error: 'forbidden' },
+    ]);
+    expect((await holdOf()).due).toBe(DUE);
+  });
+
+  it('answers 500 when the cluster fails, and the hold stays', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failing: SqlClient = {
+      query: (text, values) =>
+        /^\s*UPDATE app_user/.test(text)
+          ? Promise.reject(new Error('the cluster said no'))
+          : db.query(text, values),
+    };
+    expect(answer(await cancel({ d: deps({ user: failing }) }))).toEqual([
+      500,
+      { error: 'internal' },
+    ]);
+    expect((await holdOf()).due).toBe(DUE);
+  });
+});
+
 describe('the function that serves it', () => {
-  it('serves the deletion at /me/deletion', () => {
+  it('serves the deletion at /me/deletion, and its cancel as a DELETE of it', () => {
     expect(DELETION_ROUTE).toBe('POST /me/deletion');
+    expect(CANCEL_ROUTE).toBe('DELETE /me/deletion');
+  });
+
+  it('sends a DELETE to the cancel', async () => {
+    await hold();
+    vi.mocked(connect).mockResolvedValue({
+      query: (text: string, values?: unknown[]) => db.query(text, values),
+      end: async () => {},
+    } as unknown as Awaited<ReturnType<typeof connect>>);
+    vi.spyOn(Date, 'now').mockReturnValue(NOW);
+    const e: ApiEvent = { ...event(undefined), routeKey: CANCEL_ROUTE, body: undefined };
+    expect(record(e, await rawHandler(e)).statusCode).toBe(204);
+    expect(await holdOf()).toEqual({ due: null, requested: null });
   });
 
   it('closes its connection after answering', async () => {

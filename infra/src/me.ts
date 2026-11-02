@@ -15,7 +15,15 @@ import { kyivDateIso } from '@quirenote/core/dates';
 import { SETTINGS_DEFAULTS, settingsOf } from '@quirenote/core/settings';
 
 import { soleSuperAdmin } from './account-delete';
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
+import {
+  FORBIDDEN,
+  NO_APPLICATION,
+  PENDING,
+  REJECTED,
+  SCHEDULED,
+  TERMS,
+  authorize,
+} from './authorize';
 import {
   INTERNAL,
   type ApiEvent,
@@ -62,7 +70,17 @@ const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-cont
 /** What the route can answer, and the only list of it: `openapi.ts` builds the document from here,
  *  and `me.test.ts` proves it against what the route really answers. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
-  [ME_ROUTE]: [ME, UNCHANGED, PENDING, REJECTED, NO_APPLICATION, FORBIDDEN, TERMS, INTERNAL],
+  [ME_ROUTE]: [
+    ME,
+    UNCHANGED,
+    PENDING,
+    REJECTED,
+    NO_APPLICATION,
+    FORBIDDEN,
+    TERMS,
+    SCHEDULED,
+    INTERNAL,
+  ],
 };
 
 export const PARAMETERS = {

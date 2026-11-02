@@ -1147,6 +1147,27 @@ describe('both routes meet the gate, and reject reads its argument like approve 
       expect([route, res.statusCode, res.body]).toEqual([route, 403, '{"error":"terms"}']);
       expect(created).toEqual([]);
     });
+
+    it(`answers a super-admin a scheduled deletion holds with the date, on ${route}`, async () => {
+      await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'active', 'super_admin'));
+      await db.query(
+        `UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()
+          WHERE user_id = $1`,
+        [OUTSIDER],
+      );
+      const { idp, created } = spy();
+      const res = await approve(
+        db,
+        idp,
+        call(route, PLACEHOLDER, token(OUTSIDER, 'outsider@quirenote.com')),
+      );
+      expect([route, res.statusCode, res.body]).toEqual([
+        route,
+        403,
+        '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+      ]);
+      expect(created).toEqual([]);
+    });
   }
 
   it('refuses an unparseable id on reject, the way approve does', async () => {

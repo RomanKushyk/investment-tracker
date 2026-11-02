@@ -551,6 +551,19 @@ describe('the gate refuses before anything is recorded or started', () => {
       '{"error":"terms"}',
     ],
     [
+      'a super-admin a scheduled deletion holds',
+      async () => {
+        await db.exec(insert(OUTSIDER, OUTSIDER_EMAIL, 'active', 'super_admin'));
+        await db.query(
+          `UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()
+            WHERE user_id = $1`,
+          [OUTSIDER],
+        );
+        return token(OUTSIDER, OUTSIDER_EMAIL);
+      },
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ],
+    [
       'a caller with no application at all',
       async () => token(OUTSIDER, 'nobody@quirenote.com'),
       '{"error":"no_application"}',

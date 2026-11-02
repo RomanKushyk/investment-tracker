@@ -19,7 +19,15 @@ import {
   type ServedRows,
 } from '@quirenote/core/view/serve';
 
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
+import {
+  FORBIDDEN,
+  NO_APPLICATION,
+  PENDING,
+  REJECTED,
+  SCHEDULED,
+  TERMS,
+  authorize,
+} from './authorize';
 import { connect, connectAsArchiveReader } from './dsql';
 import {
   INTERNAL,
@@ -150,6 +158,7 @@ const READ = [
   NO_APPLICATION,
   FORBIDDEN,
   TERMS,
+  SCHEDULED,
   PRECONDITION_FAILED,
   INTERNAL,
 ] as const;

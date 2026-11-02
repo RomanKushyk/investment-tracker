@@ -419,6 +419,17 @@ describe('the gate', () => {
     await refuses('terms');
   });
 
+  it('answers an account a scheduled deletion holds with the date', async () => {
+    await db.query(
+      "UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()",
+    );
+    const res = await patch({ period: '3m' });
+    expect([res.statusCode, 'body' in res ? res.body : undefined]).toEqual([
+      403,
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ]);
+  });
+
   it('refuses the demo as a non-caller', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     await refuses('forbidden', { sub: TWIN, email: DEMO_USER_EMAIL });

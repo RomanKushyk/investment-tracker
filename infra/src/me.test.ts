@@ -195,6 +195,18 @@ describe("the caller's own account", () => {
     expect(answer(await read())[1]).not.toHaveProperty('soleSuperAdmin');
   });
 
+  // A super-admin a scheduled deletion holds reaches no route, so the one left free is the only one.
+  it('names the only one while every other super-admin is held by a scheduled deletion', async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    await insertUser(db, TWIN, TWIN_EMAIL, 'active', 'super_admin');
+    await db.query(
+      `UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()
+        WHERE user_id = $1`,
+      [TWIN],
+    );
+    expect(answer(await read())[1]).toMatchObject({ soleSuperAdmin: true });
+  });
+
   it('serves the settings sanitised, an unknown or invalid field dropped', async () => {
     await db.query(
       `UPDATE app_user SET settings = '{"theme":"dark","period":"1y","language":"en"}' WHERE user_id = $1`,
@@ -406,6 +418,17 @@ describe('the gate', () => {
   it('asks a caller whose row holds no terms version to accept them', async () => {
     await db.query('UPDATE app_user SET terms_version = NULL, terms_accepted_at = NULL');
     await refuses('terms');
+  });
+
+  it('answers an account a scheduled deletion holds with the date', async () => {
+    await db.query(
+      "UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()",
+    );
+    const res = await read();
+    expect([res.statusCode, 'body' in res ? res.body : undefined]).toEqual([
+      403,
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ]);
   });
 
   it('refuses the demo as a non-caller', async () => {

@@ -529,6 +529,9 @@ Resources:
         'POST /me/deletion':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'DELETE /me/deletion':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # THE ORIGINS ARE THE DEPLOYED HOSTS `src/auth/environment.ts` MAPS: a host it does not map
       # sends nothing to the API, and `localhost` reaches the relay same-origin through the dev
       # server's proxy. THE `!If` IS ON THE
@@ -1387,8 +1390,9 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${MutationsFunction}
       RetentionInDays: 30
 
-  # `POST /me/deletion`: the caller deletes their own account (`deletion.ts`, *Auth model*). A
-  # function of its own, so the one that serves every portfolio write holds no delete.
+  # `POST /me/deletion`: the caller deletes their own account, at once or in 30 days, and
+  # `DELETE /me/deletion` cancels the second (`deletion.ts`, *Auth model*). A function of its own,
+  # so the one that serves every portfolio write holds no delete.
   DeleteAccountFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1428,6 +1432,14 @@ Resources:
           Properties:
             ApiId: !Ref PublicApi
             Method: POST
+            Path: /me/deletion
+            Auth:
+              Authorizer: CognitoJwt
+        CancelDeletion:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: DELETE
             Path: /me/deletion
             Auth:
               Authorizer: CognitoJwt
@@ -2130,6 +2142,150 @@ Resources:
         connection or its admin grant), or a table missing until the migrate job has run.
       Namespace: Quirenote
       MetricName: SweepFailures
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  # THE ACCOUNTS WHOSE SCHEDULED DELETION IS DUE, deleted through the same core as one asked for at
+  # once (`src/purge.ts`, *User schema and deletes*). In both environments, like the sweep; its
+  # watch is prod's alone. The deletion's own three calls on the pool, and nothing else.
+  PurgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: purge.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      # A run this cuts off writes no run line, which is what `PurgeSilenceAlarm` reads; what it
+      # left is still due at the next.
+      Timeout: 120
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          USER_POOL_ID: !Ref UserPool
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+            - Sid: DeleteTheDueAccounts
+              Effect: Allow
+              Action:
+                - cognito-idp:AdminUserGlobalSignOut
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:ListUsers
+              Resource: !GetAtt UserPool.Arn
+
+  PurgeLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PurgeFunction}
+      RetentionInDays: 30
+
+  # HOURLY, ON KYIV'S CLOCK: a last day ends at Kyiv's midnight, so the first run after it is five
+  # minutes into the next, and one that failed is asked again within the hour. The input tells a
+  # firing from a hand run, which sends `{}` as Scheduler does with none.
+  PurgeSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Description: Delete the accounts whose scheduled deletion's last day has ended.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      ScheduleExpression: cron(5 * * * ? *)
+      ScheduleExpressionTimezone: Europe/Kyiv
+      Target:
+        Arn: !GetAtt PurgeFunction.Arn
+        RoleArn: !GetAtt PurgeSchedulerRole.Arn
+        Input: '{"scheduled":true}'
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+          MaximumEventAgeInSeconds: 3600
+
+  PurgeSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokePurge
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt PurgeFunction.Arn
+
+  # THE SCHEDULED RUN'S OWN LINES, as the sweep's: `Invocations` and `Errors` count a hand run too.
+  PurgeRunMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref PurgeLogGroup
+      FilterPattern: '{ $.metric = "purgeRun" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: PurgeRuns
+          MetricValue: $.value
+
+  PurgeRunFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref PurgeLogGroup
+      FilterPattern: '{ $.metric = "purgeRunFailed" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: PurgeFailures
+          MetricValue: $.value
+
+  # `breaching`, because a schedule that never fires writes no line at all. One day, as an hourly
+  # run lands every day whatever minute it lands in.
+  PurgeSilenceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        No scheduled purge finished in a day, so an account whose scheduled deletion is due
+        is not deleted. Check the schedule and its role, then PurgeFunction's log group: a
+        run that threw or ran out of its timeout writes no run line. Expect it on a first
+        deploy too, until the first scheduled run.
+      Namespace: Quirenote
+      MetricName: PurgeRuns
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  PurgeErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The scheduled purge threw, or an account's deletion in it failed or was refused. Read
+        PurgeFunction's log group for the `purge:` line, which names the account by its id:
+        the pool, the cluster, or the only active super-admin. The next run asks again.
+      Namespace: Quirenote
+      MetricName: PurgeFailures
       Statistic: Sum
       Period: 86400
       EvaluationPeriods: 1

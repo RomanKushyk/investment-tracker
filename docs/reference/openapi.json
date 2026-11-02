@@ -51,7 +51,7 @@
     },
     {
       "name": "me",
-      "description": "The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, its acceptance of the terms of use, and its deletion behind a sign-in under five minutes old."
+      "description": "The caller’s own account and what it holds, read by the screens that show it, its settings, written as a merge patch, its acceptance of the terms of use, and its deletion, at once or in 30 days, behind a sign-in under five minutes old, and the cancel of one scheduled."
     }
   ],
   "paths": {
@@ -278,6 +278,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -379,6 +386,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -525,6 +539,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -669,6 +690,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -900,6 +928,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -1105,6 +1140,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -1224,6 +1266,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -2947,6 +2996,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -3131,6 +3187,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -3324,6 +3387,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -3506,6 +3576,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -3704,6 +3781,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -3933,6 +4017,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -4083,6 +4174,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -4269,6 +4367,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -4437,6 +4542,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -4572,6 +4684,13 @@
                   "terms": {
                     "value": {
                       "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
                     }
                   }
                 }
@@ -4768,6 +4887,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -4963,6 +5089,13 @@
                     "value": {
                       "error": "terms"
                     }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
                   }
                 }
               }
@@ -5057,6 +5190,13 @@
                       "error": "rejected"
                     }
                   },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
+                  },
                   "no_application": {
                     "value": {
                       "error": "no_application"
@@ -5124,7 +5264,8 @@
                   "timing": {
                     "type": "string",
                     "enum": [
-                      "now"
+                      "now",
+                      "later"
                     ]
                   }
                 }
@@ -5146,6 +5287,21 @@
                   "deleted": {
                     "value": {
                       "status": "deleted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "scheduled": {
+                    "value": {
+                      "status": "scheduled",
+                      "date": "2026-11-29"
                     }
                   }
                 }
@@ -5195,6 +5351,13 @@
                       "error": "rejected"
                     }
                   },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
+                  },
                   "forbidden": {
                     "value": {
                       "error": "forbidden"
@@ -5227,6 +5390,73 @@
                     "value": {
                       "error": "payload_too_large",
                       "max": 1048576
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "deleteMeDeletion",
+        "summary": "DELETE /me/deletion",
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Accepted"
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
                     }
                   }
                 }

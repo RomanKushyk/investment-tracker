@@ -335,6 +335,20 @@ describe('the gate: the same refusals approve and reject give', () => {
     const res = await approve(db, idp, list(undefined, token(OUTSIDER, 'outsider@quirenote.com')));
     expect([res.statusCode, res.body]).toEqual([403, '{"error":"terms"}']);
   });
+
+  it('answers a super-admin a scheduled deletion holds with the date', async () => {
+    await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'active', SAME_DAY, 'super_admin'));
+    await db.query(
+      `UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()
+        WHERE user_id = $1`,
+      [OUTSIDER],
+    );
+    const res = await approve(db, idp, list(undefined, token(OUTSIDER, 'outsider@quirenote.com')));
+    expect([res.statusCode, res.body]).toEqual([
+      403,
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ]);
+  });
 });
 
 describe('a failing list answers 500 and logs no address', () => {

@@ -995,7 +995,9 @@ one cut off by its timeout logs nothing, no dead-letter queue standing behind a 
 schedule. ITS SILENCE ALARM READS TWO DAYS, as the rate job's does: the sliding window can miss a
 daily run that lands later than the day before, so one day with no run line raises nothing and a
 second does, well inside the thirty days. The job runs in both environments and
-its watch in prod alone. The set overshoots the always-free tier
+its watch in prod alone. THE HOURLY PURGE OF DUE DELETIONS TAKES THE SAME TWO, off its own log
+group, a refused or failed deletion being its failed line; its silence reads one day, which an
+hourly run fills whatever minute it lands. The set overshoots the always-free tier
 knowingly; THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE PER WATCHED VALUE — a check's silence and
 its errors, then one alarm for each published number a threshold can be right for — and `DlqAlarm`
 sits outside that rule, its depth published by SQS rather than by any check here. A REQUEST PATH IS
@@ -1819,7 +1821,17 @@ other answers, a list of terminated tokens or a per-user cutoff, would refuse no
 absence does not already refuse elsewhere. THE IDENTITY GOES LAST, after the row: while it stands its holder
 can sign in and ask again, and a deletion that stopped between the two is finished by the same
 route. It asks for no terms, erasure waiting on no acceptance. The only active super-admin is
-refused, no path back in existing without one, and `GET /me` names them so the page refuses before any press. Cognito fires
+refused, no path back in existing without one, and `GET /me` names them so the page refuses before any press.
+THE SAME PRESS MAY SCHEDULE THE DELETION INSTEAD, behind the same sign-in: every session ends first,
+then the account is held and the route answers 202 with the last day it can be cancelled. A HELD
+ACCOUNT IS REFUSED `scheduled` ON EVERY ROUTE, the deletion's included, a 403 that carries the day
+and whether this sign-in may cancel. `DELETE /me/deletion` cancels, and only for a sign-in made
+after the request, read from `auth_time`, which a refresh never resets: an ID token already issued
+is accepted for the rest of its hour, so a tab still holding the older sign-in is told it may not,
+and is signed out rather than offered a cancel that fails. A sign-in in the request's own second
+counts as before it. The cancel asks for no sign-in fresher than that one, and none waiting answers
+204 as a DELETE of nothing does. FROM THE END OF THE LAST DAY THE GATE ANSWERS `no_application`, as
+it answers a token whose account is gone, so no gate offers a cancel after the day. Cognito fires
 no trigger on a deletion, so whoever deletes an identity by hand clears its `app_user` row too, and
 nothing watches for one; the operator erases on request only what the route cannot reach. THE
 APPLICATION IS THE APP'S
@@ -2079,7 +2091,19 @@ step finds done what an earlier call did, so a deletion cut short at any step co
 again. THE ROWS LEAVE THE WORKING DATABASE WITHIN THE REQUEST, not through the sweep, so the
 backups' retention runs from the deletion and not from a collection weeks later. The address then
 applies again as any new one. The demo row and the only active super-admin are refused before
-anything is touched.
+anything is touched. A DELETION MAY WAIT THIRTY DAYS, the account held by `deletion_due` and
+`deletion_requested_at` until the end of its last day: the 30th Kyiv day, counting the day after the
+press as the first, with no roll past a weekend or holiday (Civil Code arts. 253 and 255), one rule
+in `packages/core` for the page that promises the day and the route that stores it. THE GATE ALONE
+READS THE HOLD of all the requests, in the statement that reads the row, and refuses every route
+before any read, so no read of the portfolio carries a filter for it, which is how the tombstone's
+objection is met: a census holds both columns to the gate, the deletion route, its core and the
+purge. THE PURGE IS A SWEEP: a
+job of its own, in both environments, hourly on Kyiv's clock, deletes each account whose last day
+has ended with the same core's steps, its sessions and identities first and its rows last,
+since nobody asks again and the row is what the next run finds when one fails. A super-admin a
+deletion holds is no other active one, the gate admitting them nowhere, so the last free one is
+refused as the only one. The address stays taken until then.
 EVERY `POST /mutations` CARRIES AN `Idempotency-Key`, a UUID unique per user and
 read lowercased; one missing or malformed is 400, and the bounds and its format are checked before
 anything is claimed. A CLAIM COMMITS FIRST, in a transaction of its own, under a token of the
@@ -2124,7 +2148,10 @@ statement that skips the pointer reads every generation. Garbage is found as git
 reachability, and git's maintenance runs "after they have written data". A user who never writes
 again would keep a cleared dataset for good, and the notice promises a period, so one daily job
 collects what no write reaches, as Mastodon's cleanup scheduler runs once a day and removes
-discarded statuses past thirty days in batches. A dataset is never
+discarded statuses past thirty days in batches. A scheduled deletion is swept the same way:
+Mastodon's suspended-user cleanup reads its deletion requests past their thirty days every minute,
+GitLab's ghost-user worker puts a failed one back in its queue, and a job that finds its work in the
+row can run again safely, which Google's SRE book names as what makes a periodic job safe. A dataset is never
 unreferenced at birth nor referenced again once dropped; a mutation begun before a commit or a clear
 conflicts with it on `app_user`, and a part begun before an abort or a new begin writes the manifest
 row the collector deletes before the dataset, so under DSQL's write-write adjudication the two
@@ -2135,7 +2162,9 @@ ceiling with room for the request's own.
 GitLab creates a table its code needs BEFORE that code deploys; this pipeline has only the
 after-code slot, so the expand takes a deploy of its own.
 **Rejected.** Replacing a dataset in place behind a lock: a failed import leaves the data locked
-and half-replaced. · Tombstones: a `deleted_at` puts a filter in every read that the first forgotten one
+and half-replaced. · A one-time Scheduler schedule per scheduled deletion: the schedule and the row
+would be two records of one fact, creating one takes `iam:PassRole` on the deletion function, and
+its retries stop at 185 attempts or a day, so a sweep would still stand behind it. · Tombstones: a `deleted_at` puts a filter in every read that the first forgotten one
 turns into deleted data rendered as live. · A migration started by the capture function: the
 schedule and the DLQ behind it would each become a starter, and what may start one is the deploy
 that ships it, plus an operator watching. · A required reviewer in front of the apply, built and

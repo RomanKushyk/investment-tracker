@@ -507,7 +507,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the thirty-two routes and no others', () => {
+  it('declares the thirty-three routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -533,6 +533,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         ME_ROUTE,
         'POST /me/terms',
         'POST /me/deletion',
+        'DELETE /me/deletion',
       ].sort(),
     );
   });
@@ -576,6 +577,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ME_ROUTE,
       'POST /me/terms',
       'POST /me/deletion',
+      'DELETE /me/deletion',
     ]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }

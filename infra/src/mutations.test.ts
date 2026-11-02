@@ -1398,6 +1398,19 @@ describe('the gate', () => {
     await both('terms');
   });
 
+  it('answers an account a scheduled deletion holds with the date, on either route', async () => {
+    await db.query(
+      "UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()",
+    );
+    const mutated = await post([addTx(deposit(1))], { ifMatch: tagAt('0') });
+    const read = (await get()) as ApiResult;
+    expect([mutated.statusCode, read.statusCode]).toEqual([403, 403]);
+    expect(['body' in mutated && mutated.body, read.body]).toEqual([
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+      '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
+    ]);
+  });
+
   it('refuses the demo as a non-caller, on either route', async () => {
     await insertUser(db, DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo');
     const mutated = await post([addTx(deposit(1))], {

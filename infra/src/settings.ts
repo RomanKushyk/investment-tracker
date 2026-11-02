@@ -16,7 +16,15 @@ import {
   type SettingsIssue,
 } from '@quirenote/core/settings';
 
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
+import {
+  FORBIDDEN,
+  NO_APPLICATION,
+  PENDING,
+  REJECTED,
+  SCHEDULED,
+  TERMS,
+  authorize,
+} from './authorize';
 import {
   INTERNAL,
   INVALID,
@@ -76,6 +84,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     NO_APPLICATION,
     FORBIDDEN,
     TERMS,
+    SCHEDULED,
     INTERNAL,
   ],
 };

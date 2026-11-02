@@ -20,7 +20,15 @@ import {
 } from '@quirenote/core/valuation';
 
 import { deleteAsset, pruneAsset } from './asset-delete';
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, TERMS, authorize } from './authorize';
+import {
+  FORBIDDEN,
+  NO_APPLICATION,
+  PENDING,
+  REJECTED,
+  SCHEDULED,
+  TERMS,
+  authorize,
+} from './authorize';
 import { collect, once } from './collect';
 import { codeOf, connect } from './dsql';
 import {
@@ -142,6 +150,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     NO_APPLICATION,
     FORBIDDEN,
     TERMS,
+    SCHEDULED,
     INTERNAL,
   ],
   [STATE_ROUTE]: [
@@ -152,6 +161,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     NO_APPLICATION,
     FORBIDDEN,
     TERMS,
+    SCHEDULED,
     PRECONDITION_FAILED,
     INTERNAL,
   ],

@@ -3,7 +3,7 @@
 // as an application made again leaves its own, so a second press writes nothing and answers alike.
 import { TERMS_VERSION } from '@quirenote/core/terms';
 
-import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, authorize } from './authorize';
+import { FORBIDDEN, NO_APPLICATION, PENDING, REJECTED, SCHEDULED, authorize } from './authorize';
 import {
   INTERNAL,
   INVALID,
@@ -35,6 +35,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     TERMS_OUTDATED,
     PENDING,
     REJECTED,
+    SCHEDULED,
     NO_APPLICATION,
     FORBIDDEN,
     INTERNAL,
