@@ -1,5 +1,7 @@
 // `GET /me` over PGlite: the caller's row, its dataset and the gate in one database, and the pool's
 // answer from a stub (*Cloud target*, *Auth model*).
+import { createHash } from 'node:crypto';
+
 import type { PGlite } from '@electric-sql/pglite';
 import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
@@ -10,7 +12,16 @@ import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-le
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import { declarationOf, type ApiEvent, type ApiResult, type EmptyResult } from './http';
-import { ME_ROUTE, RESPONSES, identityReader, me, type IdentityReader, type MeDeps } from './me';
+import {
+  ACCOUNT_ROUTE,
+  ME_ROUTE,
+  RESPONSES,
+  identityReader,
+  me,
+  meAccount,
+  type IdentityReader,
+  type MeDeps,
+} from './me';
 import type { SqlClient } from './migrate';
 import { handler as rawHandler } from './mutations';
 import { proveRouteContract, recorder } from './route-contract';
@@ -88,10 +99,16 @@ const deps = (over: Partial<MeDeps> = {}): MeDeps => ({
 });
 
 /** `username: null` sends a token with no `cognito:username`. */
-type Caller = { sub?: string; email?: string; username?: string | null; ifNoneMatch?: string };
+type Caller = {
+  route?: string;
+  sub?: string;
+  email?: string;
+  username?: string | null;
+  ifNoneMatch?: string;
+};
 // A local user's pool username is its `sub` here, the pool signing in by address.
 const event = (o: Caller = {}): ApiEvent => ({
-  routeKey: ME_ROUTE,
+  routeKey: o.route ?? ME_ROUTE,
   headers: o.ifNoneMatch === undefined ? {} : { 'if-none-match': o.ifNoneMatch },
   isBase64Encoded: false,
   requestContext: {
@@ -128,7 +145,7 @@ const observe = <T extends ApiResult | EmptyResult>(e: ApiEvent, res: T): T => {
 
 const read = async (o: Parameters<typeof event>[0] = {}, d: MeDeps = deps()) => {
   const e = event(o);
-  return observe(e, await me(d, e));
+  return observe(e, await (e.routeKey === ACCOUNT_ROUTE ? meAccount : me)(d, e));
 };
 
 const answer = (res: ApiResult | EmptyResult): [number, unknown] => [
@@ -233,6 +250,37 @@ describe("the caller's own account", () => {
     expect(answer(await read())[1]).toMatchObject({
       settings: { ...SETTINGS_DEFAULTS, language: 'en' },
     });
+  });
+
+  // The tag is a digest of these bytes, so a key moved inside the body moves every client's tag.
+  const digest = (text: string) =>
+    `W/"${createHash('sha256').update(text, 'utf8').digest('base64url')}"`;
+  const settings = JSON.stringify(SETTINGS_DEFAULTS);
+
+  it("keeps a user's keys in one order, the bytes its tag is a digest of", async () => {
+    await writeLedger(db, SUB, {
+      assets: [asset(1)],
+      transactions: [deposit(10, '2026-03-09')],
+      userPrices: [],
+    });
+    const text =
+      `{"userId":"${SUB}","email":"${EMAIL}","role":"user","memberSince":"2026-03-02",` +
+      `"googleLinked":false,"passwordSet":true,"assets":1,"transactions":1,` +
+      `"firstTransaction":"2026-03-09","settings":${settings}}`;
+    const res = await read();
+    expect('body' in res ? res.body : undefined).toBe(text);
+    expect(etagOf(res)).toBe(digest(text));
+  });
+
+  it("keeps the only super-admin's keys in one order, the bytes its tag is a digest of", async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    const text =
+      `{"userId":"${SUB}","email":"${EMAIL}","role":"super_admin","memberSince":"2026-03-02",` +
+      `"googleLinked":false,"passwordSet":true,"assets":0,"transactions":0,` +
+      `"soleSuperAdmin":true,"settings":${settings}}`;
+    const res = await read();
+    expect('body' in res ? res.body : undefined).toBe(text);
+    expect(etagOf(res)).toBe(digest(text));
   });
 
   it('carries no status, application date, decider, version or dataset', async () => {
@@ -412,9 +460,89 @@ describe('the validator', () => {
   });
 });
 
-describe('the gate', () => {
+// The profile's fields at a path of their own, so `/me` can turn light on every load (#600).
+describe("GET /me/account, the profile's fields", () => {
+  const account = (o: Caller = {}) => read({ ...o, route: ACCOUNT_ROUTE });
+  /** `/me`'s answer on the same state, less the identity, the role and the settings. */
+  const profileOfMe = async () => {
+    const { userId, email, role, settings, ...profile } = answer(await read())[1] as Record<
+      string,
+      unknown
+    >;
+    expect([userId, email, role, settings]).not.toContain(undefined);
+    return profile;
+  };
+
+  it('answers every profile field /me answers, and nothing else', async () => {
+    await db.query(`UPDATE app_user SET settings = '{"language":"en"}' WHERE user_id = $1`, [SUB]);
+    await writeLedger(db, SUB, {
+      assets: [asset(1), asset(2)],
+      transactions: [deposit(10, '2026-04-05'), deposit(11, '2026-03-09')],
+      userPrices: [],
+    });
+    attributes.push({ Name: 'identities', Value: linked('Google') });
+    const profile = await profileOfMe();
+    expect(profile).toEqual({
+      memberSince: '2026-03-02',
+      googleLinked: true,
+      passwordSet: true,
+      assets: 2,
+      transactions: 2,
+      firstTransaction: '2026-03-09',
+    });
+    expect(answer(await account())).toEqual([200, profile]);
+  });
+
+  it('omits the first transaction day while there is none, as /me does', async () => {
+    const profile = await profileOfMe();
+    expect(profile).not.toHaveProperty('firstTransaction');
+    expect(answer(await account())).toEqual([200, profile]);
+  });
+
+  it('names the only super-admin, as /me does', async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    const profile = await profileOfMe();
+    expect(profile).toMatchObject({ soleSuperAdmin: true });
+    expect(answer(await account())).toEqual([200, profile]);
+  });
+
+  it('sends a weak tag, kept by the browser alone and revalidated on every use', async () => {
+    const res = await account();
+    expect(etagOf(res)).toMatch(/^W\/"[A-Za-z0-9_-]+"$/);
+    expect(res.headers?.['cache-control']).toBe('private, no-cache');
+  });
+
+  it('answers an unchanged If-None-Match with a 304 and no body', async () => {
+    const etag = etagOf(await account());
+    const res = await account({ ifNoneMatch: etag });
+    expect(res.statusCode).toBe(304);
+    expect('body' in res && res.body !== '').toBe(false);
+    expect(res.headers).toMatchObject({ etag, 'cache-control': 'private, no-cache' });
+  });
+
+  it('moves the tag when the dataset gains a row', async () => {
+    const etag = etagOf(await account());
+    await writeLedger(db, SUB, { assets: [asset(1)], transactions: [], userPrices: [] });
+    expect((await account({ ifNoneMatch: etag })).statusCode).toBe(200);
+  });
+
+  // The settings are no field of it, so their write leaves the profile's read unchanged.
+  it('keeps the tag when only the settings change', async () => {
+    const etag = etagOf(await account());
+    await db.query(`UPDATE app_user SET settings = '{"language":"en"}' WHERE user_id = $1`, [SUB]);
+    expect((await account({ ifNoneMatch: etag })).statusCode).toBe(304);
+  });
+
+  it('refuses a token that names no pool username, and asks the pool nothing', async () => {
+    expect(answer(await account({ username: null }))).toEqual([403, { error: 'forbidden' }]);
+    expect(asked).toEqual([]);
+    expect(factorsAsked).toEqual([]);
+  });
+});
+
+describe.each([ME_ROUTE, ACCOUNT_ROUTE])('the gate, on %s', (route) => {
   const refuses = async (expected: string, o: Parameters<typeof event>[0] = {}) => {
-    expect(answer(await read(o))).toEqual([403, { error: expected }]);
+    expect(answer(await read({ ...o, route }))).toEqual([403, { error: expected }]);
     expect(asked).toEqual([]);
     expect(factorsAsked).toEqual([]);
   };
@@ -442,7 +570,7 @@ describe('the gate', () => {
     await db.query(
       "UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()",
     );
-    const res = await read();
+    const res = await read({ route });
     expect([res.statusCode, 'body' in res ? res.body : undefined]).toEqual([
       403,
       '{"error":"scheduled","date":"2099-12-31","cancellable":false}',
@@ -455,11 +583,14 @@ describe('the gate', () => {
   });
 });
 
-describe('a failure answers rather than throws', () => {
+describe.each([ME_ROUTE, ACCOUNT_ROUTE])('a failure answers rather than throws, on %s', (route) => {
   it('answers a failing database with its own 500', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const broken: SqlClient = { query: () => Promise.reject(new Error('the cluster went away')) };
-    expect(answer(await read({}, deps({ user: broken })))).toEqual([500, { error: 'internal' }]);
+    expect(answer(await read({ route }, deps({ user: broken })))).toEqual([
+      500,
+      { error: 'internal' },
+    ]);
   });
 
   it('answers a failing pool with its own 500', async () => {
@@ -468,7 +599,7 @@ describe('a failure answers rather than throws', () => {
       ...identity,
       adminGetUser: () => Promise.reject(new Error('the pool went away')),
     };
-    expect(answer(await read({}, deps({ identity: failing })))).toEqual([
+    expect(answer(await read({ route }, deps({ identity: failing })))).toEqual([
       500,
       { error: 'internal' },
     ]);
@@ -480,7 +611,7 @@ describe('a failure answers rather than throws', () => {
       ...identity,
       adminGetUserAuthFactors: () => Promise.reject(new Error('the pool went away')),
     };
-    expect(answer(await read({}, deps({ identity: failing })))).toEqual([
+    expect(answer(await read({ route }, deps({ identity: failing })))).toEqual([
       500,
       { error: 'internal' },
     ]);
@@ -488,7 +619,7 @@ describe('a failure answers rather than throws', () => {
 
   it('answers a function with no pool named with its own 500', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(answer(await read({}, deps({ userPoolId: undefined })))).toEqual([
+    expect(answer(await read({ route }, deps({ userPoolId: undefined })))).toEqual([
       500,
       { error: 'internal' },
     ]);
@@ -534,6 +665,32 @@ describe('the function that serves it', () => {
     const res = observe(e, (await rawHandler(e)) as ApiResult);
     expect(answer(res)).toEqual([500, { error: 'internal' }]);
     expect(vi.mocked(console.error).mock.calls.flat().join(' ')).toContain('USER_POOL_ID');
+    expect(ended()).toBe(1);
+  });
+
+  // A 200, not the missing pool's 500, which `/me` answers too: only the body tells the routes apart.
+  it('routes GET /me/account to the account read and closes its connection', async () => {
+    const ended = connected();
+    vi.stubEnv('USER_POOL_ID', POOL);
+    vi.spyOn(identityReader, 'adminGetUser').mockResolvedValue({
+      UserAttributes: [],
+      UserStatus: 'CONFIRMED',
+    });
+    vi.spyOn(identityReader, 'adminGetUserAuthFactors').mockResolvedValue({
+      ConfiguredUserAuthFactors: ['PASSWORD'],
+    });
+    const e = event({ route: ACCOUNT_ROUTE });
+    const res = observe(e, (await rawHandler(e)) as ApiResult);
+    expect(answer(res)).toEqual([
+      200,
+      {
+        memberSince: '2026-03-02',
+        googleLinked: false,
+        passwordSet: true,
+        assets: 0,
+        transactions: 0,
+      },
+    ]);
     expect(ended()).toBe(1);
   });
 });

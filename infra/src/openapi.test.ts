@@ -69,7 +69,7 @@ import {
   PART_ROUTE,
   RESPONSES as IMPORT_RESPONSES,
 } from './imports';
-import { ME_ROUTE, RESPONSES as ME_RESPONSES } from './me';
+import { ACCOUNT_ROUTE, ME_ROUTE, RESPONSES as ME_RESPONSES } from './me';
 import {
   BODY as MUTATIONS_BODY,
   MUTATIONS_ROUTE,
@@ -507,7 +507,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the thirty-three routes and no others', () => {
+  it('declares the thirty-four routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
@@ -531,6 +531,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
         ABORT_ROUTE,
         'PATCH /me/settings',
         ME_ROUTE,
+        ACCOUNT_ROUTE,
         'POST /me/terms',
         'POST /me/deletion',
         'DELETE /me/deletion',
@@ -575,6 +576,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       ABORT_ROUTE,
       'PATCH /me/settings',
       ME_ROUTE,
+      ACCOUNT_ROUTE,
       'POST /me/terms',
       'POST /me/deletion',
       'DELETE /me/deletion',
@@ -729,6 +731,14 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     }
     expect(schema.properties.period.enum).toEqual([...PERIOD_OPTIONS, null]);
     expect(op.parameters).toBeUndefined();
+  });
+
+  // The account's profile read answers 304 to an unchanged tag, so the document offers the header.
+  it('publishes If-None-Match on the account’s profile read', () => {
+    const [method, path] = ACCOUNT_ROUTE.split(' ');
+    expect(spec.paths[path][method.toLowerCase()].parameters).toEqual([
+      { name: 'If-None-Match', in: 'header', required: false, schema: { type: 'string' } },
+    ]);
   });
 
   // THE THREE PARAMETERIZED READS: the period from core's closed list and required, since a stale

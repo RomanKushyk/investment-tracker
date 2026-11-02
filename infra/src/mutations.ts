@@ -1,6 +1,6 @@
 // `POST /mutations` and `GET /state` (*Cloud target*, *User schema and deletes*), and the function's
 // other routes: the staged import, `PATCH /me/settings`, `POST /me/terms` and the account's own
-// `GET /me`.
+// `GET /me` and `GET /me/account`.
 //
 // A write is ONE TRANSACTION of ordered ops under a strong `If-Match`, after a claim on its
 // idempotency key committed on its own: the effect, the version bump and the stored response then
@@ -65,7 +65,7 @@ import { loggable } from './log';
 import type { SqlClient } from './migrate';
 import { TERMS_ROUTE, acceptTerms } from './accept-terms';
 import { IMPORT_ROUTES, imports, type ImportDeps } from './imports';
-import { ME_ROUTE, identityReader, me } from './me';
+import { ACCOUNT_ROUTE, ME_ROUTE, identityReader, me, meAccount } from './me';
 import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
 import { SETTINGS_ROUTE, settings } from './settings';
 
@@ -845,8 +845,9 @@ export async function handler(
     if (IMPORT_ROUTES.includes(event.routeKey ?? '')) return await imports(deps, event);
     if (event.routeKey === SETTINGS_ROUTE) return await settings(deps, event);
     if (event.routeKey === TERMS_ROUTE) return await acceptTerms(deps, event);
-    if (event.routeKey === ME_ROUTE) {
-      return await me(
+    if (event.routeKey === ME_ROUTE || event.routeKey === ACCOUNT_ROUTE) {
+      const read = event.routeKey === ME_ROUTE ? me : meAccount;
+      return await read(
         { user, identity: identityReader, userPoolId: process.env.USER_POOL_ID },
         event,
       );

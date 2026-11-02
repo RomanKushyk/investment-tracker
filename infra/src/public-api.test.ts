@@ -226,7 +226,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(props('ViewLogGroup').RetentionInDays).toBe(30);
   });
 
-  it('puts the write, the export, the import, the settings, the account’s own read and the terms’ acceptance on this API, each naming the authorizer', () => {
+  it('puts the write, the export, the import, the settings, the account’s own two reads and the terms’ acceptance on this API, each naming the authorizer', () => {
     const routes = declaredRoutes().filter((r) => r.fn === 'MutationsFunction');
     expect(routes.map((r) => [r.key, r.api, r.authorizer])).toEqual([
       [MUTATIONS_ROUTE, 'PublicApi', AUTHORIZER],
@@ -238,6 +238,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
       // A literal, not `SETTINGS_ROUTE`, so the template is held to the route on its own.
       ['PATCH /me/settings', 'PublicApi', AUTHORIZER],
       [ME_ROUTE, 'PublicApi', AUTHORIZER],
+      ['GET /me/account', 'PublicApi', AUTHORIZER],
       [TERMS_ROUTE, 'PublicApi', AUTHORIZER],
     ]);
     expect(props('MutationsFunction').Handler).toBe('mutations.handler');

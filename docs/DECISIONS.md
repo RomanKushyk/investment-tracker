@@ -1201,6 +1201,9 @@ leaves the ID selected to copy by hand, where the drawing draws success alone (P
 pattern: "Don't let a copy fail silently"). Its tag is WEAK and a
 DIGEST OF THE BODY (RFC 9110 §8.8.3): a 304 needs the pool's answer as much as a 200 does, so a tag
 composed from inputs would save no read; `private, no-cache`, as `/view`. Nothing writes through it.
+`GET /me/account` answers the profile's fields of it alone, `memberSince` through `soleSuperAdmin`,
+from the same reads behind the same gate and under a weak tag of its own body, which a settings
+write leaves as it was, the settings being no field of it. The app does not read it.
 THE ARCHIVE'S DIAGNOSIS IS `GET /admin/archive/diagnosis`, a super-admin read on this API, served by a
 function of its own: past the gate it invokes the archive's capture function synchronously with the
 `diagnose` event and answers the capture's body unchanged; 502 `capture_failed` when the capture throws
@@ -1560,7 +1563,9 @@ to a caller. · An `Idempotency-Key` on a start: it would fold two deliberate ru
 The document generated from the template (`infra/src/openapi.ts`) tags each operation with its
 first path segment alone, and lists each tag once with a description, in the order its operations
 first appear, which is the order Swagger UI shows its groups in. An `operationId` is camelCase,
-`-` included. A read without a body is a GET; a write takes the method whose semantics it has: POST,
+`-` included. The caller's own singletons are paths under `/me`: `/me/settings`, `/me/terms`,
+`/me/deletion` and `/me/account`, as Microsoft Graph serves `/me/mailboxSettings` beside `/me`.
+A read without a body is a GET; a write takes the method whose semantics it has: POST,
 PUT, PATCH or DELETE. A safe read with a body would be a QUERY (RFC 10008); it is a POST that writes
 nothing instead, because an HTTP API takes no `QUERY` route key, routes a QUERY through an `ANY`
 route, and its CORS cannot admit one that carries cookies (#393). The one such read is

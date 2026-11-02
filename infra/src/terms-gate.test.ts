@@ -44,6 +44,7 @@ const REFUSED = [
   'DELETE /imports/{id}',
   'PATCH /me/settings',
   'GET /me',
+  'GET /me/account',
 ];
 const EXEMPT = ['POST /me/terms', 'POST /me/deletion', 'DELETE /me/deletion'];
 

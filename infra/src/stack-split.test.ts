@@ -1736,7 +1736,8 @@ describe('the user stack purges the accounts whose deletion is due, hourly, in b
 });
 
 // `POST /mutations` and `GET /state`: the caller's rows in this stack's cluster, and nothing of the
-// archive; `GET /me` reads the caller's own user and its sign-in factors in this stack's pool.
+// archive; `GET /me` and `GET /me/account` read the caller's own user and its sign-in factors in
+// this stack's pool.
 // [*Cloud target*]
 describe('the user stack serves the write and the export', () => {
   const grants = ['Resources', 'MutationsFunction', 'Properties', 'Policies', 0, 'Statement'];

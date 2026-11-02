@@ -101,8 +101,8 @@ export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declar
   'auth-relay.handler': RELAY_RESPONSES,
   'deletion.handler': DELETION_RESPONSES,
   'view.handler': VIEW_RESPONSES,
-  // The write, the export, the staged import, the settings, the account's own read and the terms'
-  // acceptance share one function.
+  // The write, the export, the staged import, the settings, the account's own two reads and the
+  // terms' acceptance share one function.
   'mutations.handler': {
     ...MUTATIONS_RESPONSES,
     ...IMPORT_RESPONSES,

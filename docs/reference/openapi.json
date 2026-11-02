@@ -5143,6 +5143,143 @@
         }
       }
     },
+    "/me/account": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "getMeAccount",
+        "summary": "GET /me/account",
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "account": {
+                    "value": {
+                      "memberSince": "2026-03-02",
+                      "googleLinked": false,
+                      "passwordSet": true,
+                      "assets": 4,
+                      "transactions": 25,
+                      "firstTransaction": "2026-03-09"
+                    }
+                  },
+                  "sole_super_admin": {
+                    "value": {
+                      "memberSince": "2026-03-02",
+                      "googleLinked": false,
+                      "passwordSet": true,
+                      "assets": 0,
+                      "transactions": 0,
+                      "soleSuperAdmin": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified",
+            "headers": {
+              "etag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  },
+                  "terms": {
+                    "value": {
+                      "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/terms": {
       "post": {
         "tags": [

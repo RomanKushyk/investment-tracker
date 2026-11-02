@@ -523,6 +523,9 @@ Resources:
         'GET /me':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'GET /me/account':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         'POST /me/terms':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
@@ -1265,8 +1268,9 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # `POST /mutations`, `GET /state`, `PATCH /me/settings`, `GET /me` and `POST /me/terms`: the write,
-  # the export, the settings write, the account's own read and the terms' acceptance
+  # `POST /mutations`, `GET /state`, `PATCH /me/settings`, `GET /me`, `GET /me/account` and
+  # `POST /me/terms`: the write, the export, the settings write, the account's own two reads and the
+  # terms' acceptance
   # (`src/mutations.ts`, *Cloud target*). This stack's cluster alone: nothing here reads the archive.
   MutationsFunction:
     Type: AWS::Serverless::Function
@@ -1296,9 +1300,10 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
-            # `GET /me` reads the caller's own user for the providers linked to it and its status, and
-            # the factors configured on it for a password of its own. Reads, no write; this function is
-            # not in the chain the pool depends on, so naming it builds no cycle.
+            # `GET /me` and `GET /me/account` read the caller's own user for the providers linked to
+            # it and its status, and the factors configured on it for a password of its own. Reads,
+            # no write; this function is not in the chain the pool depends on, so naming it builds no
+            # cycle.
             - Sid: ReadTheCallersUser
               Effect: Allow
               Action:
@@ -1372,6 +1377,15 @@ Resources:
             ApiId: !Ref PublicApi
             Method: GET
             Path: /me
+            Auth:
+              Authorizer: CognitoJwt
+        # The profile's fields of it alone (`me.ts`), the same reads behind the same gate.
+        MeAccount:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: GET
+            Path: /me/account
             Auth:
               Authorizer: CognitoJwt
         # The terms accepted on the step (`accept-terms.ts`), the one route the terms gate leaves open.

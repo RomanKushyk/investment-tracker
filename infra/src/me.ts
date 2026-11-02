@@ -1,6 +1,7 @@
 // `GET /me`: the caller's own account, read by the screens that show it and never at sign-in or on a
 // load, which `/view` serves alone (*Cloud target*, *Auth model*). It carries what a screen shows,
-// and a field it does not hold is omitted rather than null (OIDC Core §5.3.2).
+// and a field it does not hold is omitted rather than null (OIDC Core §5.3.2). `GET /me/account`
+// answers the profile's fields of it alone, behind the same gate and validator.
 //
 // The tag is a digest of the body (RFC 9110 §8.8.3): a 304 needs the pool's answer as much as a 200
 // does, so composing it from inputs would save no read and add a list to keep in step.
@@ -23,6 +24,7 @@ import {
   SCHEDULED,
   TERMS,
   authorize,
+  type Caller,
 } from './authorize';
 import {
   INTERNAL,
@@ -44,45 +46,57 @@ import type { SqlClient } from './migrate';
 import { GOOGLE } from './providers';
 
 export const ME_ROUTE = 'GET /me';
+/** The profile's fields alone, so a settings write leaves this read's tag as it was. */
+export const ACCOUNT_ROUTE = 'GET /me/account';
 
 /** Stored by the browser alone and revalidated on every use, as `/view` is. */
 const CACHE_POLICY = 'private, no-cache';
+
+// The profile's fields, which `/me` carries between the caller and the settings and `/me/account`
+// carries alone, so the two documents cannot drift apart.
+const PROFILE = {
+  memberSince: '2026-03-02',
+  googleLinked: false,
+  passwordSet: true,
+  assets: 4,
+  transactions: 25,
+  firstTransaction: '2026-03-09',
+};
+// The only active super-admin's, a variant of its own: `PROFILE`, a plain user's, never carries
+// `soleSuperAdmin`. The counts are those of an account that only administers (#55).
+const SOLE_PROFILE = {
+  memberSince: '2026-03-02',
+  googleLinked: false,
+  passwordSet: true,
+  assets: 0,
+  transactions: 0,
+  soleSuperAdmin: true,
+};
+const caller = (role: string) => ({ userId: '<the sub>', email: 'owner@quirenote.com', role });
 
 const ME = derived({
   statusCode: 200,
   name: 'me',
   headers: ['etag', 'cache-control'],
-  example: {
-    userId: '<the sub>',
-    email: 'owner@quirenote.com',
-    role: 'user',
-    memberSince: '2026-03-02',
-    googleLinked: false,
-    passwordSet: true,
-    assets: 4,
-    transactions: 25,
-    firstTransaction: '2026-03-09',
-    settings: SETTINGS_DEFAULTS,
-  },
+  example: { ...caller('user'), ...PROFILE, settings: SETTINGS_DEFAULTS },
 });
-// The only active super-admin's answer, a variant of its own: `me`'s example, a plain user, never
-// carries `soleSuperAdmin`. The counts are those of an account that only administers (#55).
 const SOLE = derived({
   statusCode: 200,
   name: 'sole_super_admin',
   headers: ['etag', 'cache-control'],
-  example: {
-    userId: '<the sub>',
-    email: 'owner@quirenote.com',
-    role: 'super_admin',
-    memberSince: '2026-03-02',
-    googleLinked: false,
-    passwordSet: true,
-    assets: 0,
-    transactions: 0,
-    soleSuperAdmin: true,
-    settings: SETTINGS_DEFAULTS,
-  },
+  example: { ...caller('super_admin'), ...SOLE_PROFILE, settings: SETTINGS_DEFAULTS },
+});
+const ACCOUNT = derived({
+  statusCode: 200,
+  name: 'account',
+  headers: ['etag', 'cache-control'],
+  example: PROFILE,
+});
+const SOLE_ACCOUNT = derived({
+  statusCode: 200,
+  name: 'sole_super_admin',
+  headers: ['etag', 'cache-control'],
+  example: SOLE_PROFILE,
 });
 const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
 
@@ -101,13 +115,24 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     SCHEDULED,
     INTERNAL,
   ],
-};
-
-export const PARAMETERS = {
-  [ME_ROUTE]: [
-    { name: 'If-None-Match', in: 'header', required: false, schema: { type: 'string' } },
+  [ACCOUNT_ROUTE]: [
+    ACCOUNT,
+    SOLE_ACCOUNT,
+    UNCHANGED,
+    PENDING,
+    REJECTED,
+    NO_APPLICATION,
+    FORBIDDEN,
+    TERMS,
+    SCHEDULED,
+    INTERNAL,
   ],
 };
+
+const IF_NONE_MATCH = [
+  { name: 'If-None-Match', in: 'header', required: false, schema: { type: 'string' } },
+];
+export const PARAMETERS = { [ME_ROUTE]: IF_NONE_MATCH, [ACCOUNT_ROUTE]: IF_NONE_MATCH };
 
 /** The pool's two reads of the caller's user: its `identities`, naming the providers linked to it,
  *  and its status; and the sign-in factors configured on it. */
@@ -154,36 +179,38 @@ const googleLinked = (attributes: { Name?: string; Value?: string }[] = []): boo
 const passwordSet = (status: string | undefined, factors: string[] = []): boolean =>
   status === 'CONFIRMED' && factors.includes('PASSWORD');
 
-export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
-  // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
-  try {
-    const gate = await authorize(deps.user, event);
-    if ('refusal' in gate) return gate.refusal;
-    const UserPoolId = deps.userPoolId;
-    if (!UserPoolId) {
-      console.error('me: USER_POOL_ID is not set on this function');
-      return INTERNAL;
-    }
-    const { userId, email, role, settings } = gate.caller;
-    // The pool's own username for the caller: a `sub` names a local user only, and a profile an open
-    // registration let in through Google is `<provider>_<id>`, its case Cognito's own. Every ID token
-    // carries it, so one without it is refused as the gate refuses a token it cannot read.
-    const username = claim(event.requestContext?.authorizer?.jwt?.claims, 'cognito:username');
-    if (username === undefined) return FORBIDDEN;
-    const [member, held, moved, pooled, factors, sole] = await Promise.all([
-      deps.user.query<{ decided_at: string }>(MEMBER, [userId]),
-      deps.user.query<{ assets: number }>(ASSETS, [userId]),
-      deps.user.query<Moved>(TRANSACTIONS, [userId]),
-      deps.identity.adminGetUser({ UserPoolId, Username: username }),
-      deps.identity.adminGetUserAuthFactors({ UserPoolId, Username: username }),
-      // Only a super-admin can be the only one, so nobody else's read pays for the question.
-      role === 'super_admin' && soleSuperAdmin(deps.user, userId),
-    ]);
-    const { transactions, first_transaction: first } = moved.rows[0];
-    const text = JSON.stringify({
-      userId,
-      email,
-      role,
+/** The gate, then what both routes answer about the account: a refusal or a 500 as it is. */
+async function readAccount(
+  deps: MeDeps,
+  event: ApiEvent,
+): Promise<ApiResult | { caller: Caller; sole: boolean; account: Record<string, unknown> }> {
+  const gate = await authorize(deps.user, event);
+  if ('refusal' in gate) return gate.refusal;
+  const UserPoolId = deps.userPoolId;
+  if (!UserPoolId) {
+    console.error('me: USER_POOL_ID is not set on this function');
+    return INTERNAL;
+  }
+  const { userId, role } = gate.caller;
+  // The pool's own username for the caller: a `sub` names a local user only, and a profile an open
+  // registration let in through Google is `<provider>_<id>`, its case Cognito's own. Every ID token
+  // carries it, so one without it is refused as the gate refuses a token it cannot read.
+  const username = claim(event.requestContext?.authorizer?.jwt?.claims, 'cognito:username');
+  if (username === undefined) return FORBIDDEN;
+  const [member, held, moved, pooled, factors, sole] = await Promise.all([
+    deps.user.query<{ decided_at: string }>(MEMBER, [userId]),
+    deps.user.query<{ assets: number }>(ASSETS, [userId]),
+    deps.user.query<Moved>(TRANSACTIONS, [userId]),
+    deps.identity.adminGetUser({ UserPoolId, Username: username }),
+    deps.identity.adminGetUserAuthFactors({ UserPoolId, Username: username }),
+    // Only a super-admin can be the only one, so nobody else's read pays for the question.
+    role === 'super_admin' && soleSuperAdmin(deps.user, userId),
+  ]);
+  const { transactions, first_transaction: first } = moved.rows[0];
+  return {
+    caller: gate.caller,
+    sole,
+    account: {
       memberSince: kyivDateIso(new Date(utc(member.rows[0].decided_at))),
       googleLinked: googleLinked(pooled.UserAttributes),
       passwordSet: passwordSet(pooled.UserStatus, factors.ConfiguredUserAuthFactors),
@@ -192,16 +219,47 @@ export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | Emp
       ...(first === null ? {} : { firstTransaction: first }),
       // The deletion's refusal, shown before any press (#572).
       ...(sole ? { soleSuperAdmin: true } : {}),
+    },
+  };
+}
+
+/** The body under a weak tag of its own bytes, or a 304 when the client holds that tag. */
+function tagged(event: ApiEvent, declared: typeof ME, text: string): ApiResult | EmptyResult {
+  const etag = `W/"${createHash('sha256').update(text, 'utf8').digest('base64url')}"`;
+  const headers = { etag, 'cache-control': CACHE_POLICY };
+  if (weakMatch(headerValues(event, 'if-none-match'), etag)) {
+    return notModified(UNCHANGED, headers);
+  }
+  return respond(declared, headers, text);
+}
+
+export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
+  // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
+  try {
+    const read = await readAccount(deps, event);
+    if ('statusCode' in read) return read;
+    const { userId, email, role, settings } = read.caller;
+    const text = JSON.stringify({
+      userId,
+      email,
+      role,
+      ...read.account,
       settings: settingsOf(settings),
     });
-    const etag = `W/"${createHash('sha256').update(text, 'utf8').digest('base64url')}"`;
-    const headers = { etag, 'cache-control': CACHE_POLICY };
-    if (weakMatch(headerValues(event, 'if-none-match'), etag)) {
-      return notModified(UNCHANGED, headers);
-    }
-    return respond(sole ? SOLE : ME, headers, text);
+    return tagged(event, read.sole ? SOLE : ME, text);
   } catch (err) {
     console.error('me failed', loggable(err));
+    return INTERNAL;
+  }
+}
+
+export async function meAccount(deps: MeDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
+  try {
+    const read = await readAccount(deps, event);
+    if ('statusCode' in read) return read;
+    return tagged(event, read.sole ? SOLE_ACCOUNT : ACCOUNT, JSON.stringify(read.account));
+  } catch (err) {
+    console.error('me/account failed', loggable(err));
     return INTERNAL;
   }
 }
