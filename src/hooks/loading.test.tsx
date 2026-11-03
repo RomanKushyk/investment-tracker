@@ -16,7 +16,13 @@ import { ApiError } from '../lib/repository';
 import { PLACEHOLDER_AFTER_MS, PLACEHOLDER_HOLD_MS, usePlaceholder } from './loading';
 
 vi.mock('../lib/api', () => ({
-  repo: { readView: vi.fn(), readSeries: vi.fn(), readBalances: vi.fn(), readDay: vi.fn() },
+  repo: {
+    readMe: vi.fn(async () => ({ userId: 'u', email: 'u@example.com', role: 'user' })),
+    readView: vi.fn(),
+    readSeries: vi.fn(),
+    readBalances: vi.fn(),
+    readDay: vi.fn(),
+  },
 }));
 const { repo } = await import('../lib/api');
 const { viewKey } = await import('./queries');

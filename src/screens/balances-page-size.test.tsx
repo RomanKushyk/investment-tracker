@@ -19,7 +19,13 @@ const TODAY = '2026-07-28';
 
 vi.mock('@quirenote/core/view/balances-page', () => ({ BALANCES_PAGE_SIZE: 4 }));
 // The API's client, whose pages are held back until the test lets them through.
-vi.mock('../lib/api', () => ({ repo: { readView: vi.fn(), readBalances: vi.fn() } }));
+vi.mock('../lib/api', () => ({
+  repo: {
+    readMe: vi.fn(async () => ({ userId: 'u', email: 'u@example.com', role: 'user' })),
+    readView: vi.fn(),
+    readBalances: vi.fn(),
+  },
+}));
 // The chart is not what is measured, and jsdom lays nothing out for it.
 vi.mock('../components/charts/BalancesArea', () => ({ BalancesArea: () => null }));
 vi.mock('../hooks/useIsDesktop', () => ({ useIsDesktop: () => true }));

@@ -11,6 +11,7 @@ import type { PeriodOption } from '@quirenote/core/period';
 import type { BalancesBody, DayQuotes, SeriesBody, ViewBody } from '@quirenote/core/view/serve';
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
 import { balancesOf, dayOf, seriesOf, viewDataOf, viewOf } from '../__fixtures__/stored-view';
+import { meKey } from '../lib/me-key';
 import { selectCapital, selectPayouts, selectPortfolio, selectQuotesForm } from './slices';
 
 // The API's client: its reads answer the seed unless a case says otherwise, and each write resolves.
@@ -19,6 +20,8 @@ vi.mock('../lib/api', () => {
   return {
     repo: {
       readView: vi.fn(),
+      // The caller is a user, whose answer the view waits for.
+      readMe: vi.fn(async () => ({ userId: 'u', email: 'u@example.com', role: 'user' })),
       readSeries: vi.fn(),
       readBalances: vi.fn(),
       readDay: vi.fn(),
@@ -174,6 +177,8 @@ describe('a slice is rendered only when it moves', () => {
     }
     const client = clientOf();
     client.setQueryData(viewKey, bodyOf());
+    // The caller already known, so its answer adds no render to the count.
+    client.setQueryData(meKey, { userId: 'u', email: 'u@example.com', role: 'user', settings: {} });
     const view = render(
       createElement(
         QueryClientProvider,

@@ -65,7 +65,7 @@ const HEADER = stripTs(readFileSync(join(here, 'app', 'AppHeader.tsx'), 'utf8'),
 
 const railLines = (re: RegExp) => RAIL.split('\n').filter((l) => re.test(l));
 
-/** The sheet's table, transcribed — the same twelve `nav-glyphs.test.ts` holds for the
+/** The sheet's table, transcribed — the same thirteen `nav-glyphs.test.ts` holds for the
  *  expanded panel, so both files are pinned against one table and neither drifts alone. */
 const TABLE = [
   ['/', 'CalendarDays'],
@@ -80,6 +80,7 @@ const TABLE = [
   ['/allocation', 'ChartPie'],
   ['/settings', 'Settings'],
   ['/profile', 'CircleUser'],
+  ['/admin/archive', 'Archive'],
 ] as const;
 
 describe('the collapsed shell is a rail, not a masked panel', () => {
@@ -150,7 +151,7 @@ describe('the rail draws what the sheet draws', () => {
     );
   });
 
-  const INLINE = ['/', '/transactions', '/settings', '/profile'];
+  const INLINE = ['/', '/transactions', '/settings', '/profile', '/admin/archive'];
   it.each(TABLE.filter(([r]) => INLINE.includes(r)))(
     'names %s and its glyph itself',
     (route, icon) => {

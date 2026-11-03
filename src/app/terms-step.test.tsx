@@ -78,7 +78,9 @@ describe('an account with no recorded terms version', () => {
     const { page } = await open('/overview');
     expect(page.querySelector('#app-sidebar')).toBeNull();
     expect(screen.getByText(uk.auth.signedInAs(ME_EMAIL))).toBeTruthy();
-    expect(requests()).toContain('GET /view');
+    // `/me` meets the refusal first, and the view, which waits for a role, is never asked.
+    expect(requests()).toContain('GET /me');
+    expect(requests()).not.toContain('GET /view');
   });
 
   it('opens the portfolio once it accepts, with no second sign-in', async () => {

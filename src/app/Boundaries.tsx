@@ -5,9 +5,11 @@ import { Link } from 'react-router';
 import { Button } from '../components/ui/Button';
 import { buttonVariants } from '../components/ui/button-variants';
 import { Card } from '../components/ui/Card';
+import { useRole } from '../hooks/queries';
 import { useDocumentLang } from '../i18n/useDocumentLang';
 import { useT } from '../i18n/useT';
 import { FocusedTitle, Title } from '../screens/sign-in/parts';
+import { ADMIN_HOME } from './admin-home';
 import { SignedOutShell } from './SignedOutShell';
 import { useTheme } from './theme';
 
@@ -67,9 +69,10 @@ function Failed() {
   );
 }
 
-/** The `*` route: moves no focus, as no route change does. */
+/** The `*` route: moves no focus, as no route change does. Its way out is the role's home. */
 export function NotFound() {
   const t = useT();
+  const admin = useRole() === 'super_admin';
   return (
     <InShell>
       <Body
@@ -77,8 +80,8 @@ export function NotFound() {
         title={<Title>{t.boundary.notFound.title}</Title>}
         lead={t.boundary.notFound.lead}
       >
-        <Link to="/" className={buttonVariants({ className: 'w-full' })}>
-          {t.boundary.notFound.home}
+        <Link to={admin ? ADMIN_HOME : '/'} className={buttonVariants({ className: 'w-full' })}>
+          {admin ? t.boundary.notFound.homeAdmin : t.boundary.notFound.home}
         </Link>
       </Body>
     </InShell>

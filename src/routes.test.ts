@@ -10,6 +10,7 @@ afterAll(() => vi.unstubAllGlobals());
 const { routes } = await import('./routes');
 const { Root } = await import('./app/Root');
 const { Layout } = await import('./app/Layout');
+const { PORTFOLIO, RoleGate } = await import('./app/RoleGate');
 const { Loadable } = await import('./components/loading/Loadable');
 const { AppFailure, NotFound, ScreenFailure } = await import('./app/Boundaries');
 const { DailyQuotes } = await import('./screens/DailyQuotes');
@@ -50,11 +51,12 @@ function chain(path: string): RouteObject[] {
   return matches!.map((m) => m.route);
 }
 
-/** The pathless route between `Layout` and the screens, which carries their boundary. */
+/** The pathless route between `Layout` and the screens, which carries their boundary and the gate
+ *  that chooses no screen before the role is known. */
 function isScreenBoundary(route: RouteObject): boolean {
   return (
     route.path === undefined &&
-    route.element === undefined &&
+    typeOf(route.element) === RoleGate &&
     typeOf(route.errorElement) === ScreenFailure
   );
 }
@@ -113,7 +115,7 @@ describe('the routes that exist', () => {
     ['/portfolio', Portfolio],
     ['/allocation', Allocation],
     ['/settings', Settings],
-    ['/settings/archive', ArchiveAdmin],
+    ['/admin/archive', ArchiveAdmin],
     ['/profile', Profile],
   ];
 
@@ -126,7 +128,9 @@ describe('the routes that exist', () => {
     expect(screen).toBe(Screen);
     // Every screen but Settings, the profile and the archive panel reads the view and waits behind
     // it, holding its place meanwhile; the profile holds its own place for `GET /me`.
-    expect(waits).toBe(!['/settings', '/settings/archive', '/profile'].includes(path));
+    expect(waits).toBe(!['/settings', '/admin/archive', '/profile'].includes(path));
+    // The routes that read the portfolio are a user's alone, and the gate knows them by this.
+    expect(walked[3]!.handle === PORTFOLIO, `${path}'s portfolio handle`).toBe(waits);
   });
 
   it.each([

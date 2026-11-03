@@ -90,7 +90,7 @@ export const balancesQuery = (page: number) =>
     ...FRESH,
   });
 
-/** The caller and its settings, read by the shell on every load beside the view (`useAccountRead`):
+/** The caller and its settings, read by the shell on every load before the view (`useAccountRead`):
  *  outside the view's key, so reading the view again asks nothing of it, and held for the view's
  *  window. Neither a write of the dataset nor a settings change invalidates it: the copy holds the
  *  change already. */
@@ -129,8 +129,14 @@ const emptyView = (): ViewBody =>
   });
 const emptyDay = (date: string): DayQuotes => dayQuotes([], { user: [], archive: [] }, date);
 
+/** Whether the view may be read: only once `GET /me` has answered a portfolio's role. A super-admin
+ *  holds no portfolio, and a role still unknown is denied by default (*Not found and failures*). */
+function useViewAllowed(): boolean {
+  return useRole() === 'user';
+}
+
 function useViewRead<T>(select: (body: ViewBody) => T) {
-  return useQuery({ ...viewQuery, select });
+  return useQuery({ ...viewQuery, select, enabled: useViewAllowed() });
 }
 
 /** A slice of the view. Until the read answers it is the slice of an empty portfolio: the screens
@@ -157,7 +163,10 @@ export type ViewGate = 'pending' | 'ready' | 'signedOut';
  *  a caller nobody has signed in asks for none, and gets `signedOut`. */
 export function useViewGate(): ViewGate {
   const { data, status, error } = useViewRead(nothing);
+  const me = useQuery(meQuery);
   if (data !== undefined) return 'ready';
+  // The view waits for `/me`, so a caller nobody has signed in hears it there.
+  if (me.error instanceof ApiError && me.error.signedOut) return 'signedOut';
   if (status === 'error') {
     if (error instanceof ApiError && error.signedOut) return 'signedOut';
     throw error;
@@ -178,7 +187,11 @@ function throwFailedFirstRead(data: unknown, error: Error | null): void {
  *  a portfolio with no snapshots. A period read after another keeps the curve it had until the new
  *  one lands, so the chart does not blank between two periods; one whose read fails is thrown. */
 export function useSeries(period: PeriodOption): SeriesBody | undefined {
-  const { data, error } = useQuery({ ...seriesQuery(period), placeholderData: keepPreviousData });
+  const { data, error } = useQuery({
+    ...seriesQuery(period),
+    placeholderData: keepPreviousData,
+    enabled: useViewAllowed(),
+  });
   throwFailedFirstRead(data, error);
   return data;
 }
@@ -186,7 +199,11 @@ export function useSeries(period: PeriodOption): SeriesBody | undefined {
 /** One page of the Balances table, nothing until the first read answers, and the page it had until
  *  the next lands. A body names its own `page`, which tells the one shown from the one asked for. */
 export function useBalancesPage(page: number): BalancesBody | undefined {
-  const { data, error } = useQuery({ ...balancesQuery(page), placeholderData: keepPreviousData });
+  const { data, error } = useQuery({
+    ...balancesQuery(page),
+    placeholderData: keepPreviousData,
+    enabled: useViewAllowed(),
+  });
   throwFailedFirstRead(data, error);
   return data;
 }
@@ -207,17 +224,30 @@ export function useAccount(): AccountData | undefined {
   return data;
 }
 
-/** `GET /me` on every load, beside the view, so the settings copy takes the account's answer. A
- *  failure throws nothing here: the copy stays as it is, and a screen that shows the caller throws
- *  its own. Mounted once, where the shell is. */
+/** `GET /me` on every load, before the view, so the settings copy takes the account's answer and
+ *  the shell its role. A failure throws nothing here: the shell stays, and `useRoleGate` fails the
+ *  screens. Mounted once, where the shell is. */
 export function useAccountRead(): void {
   useQuery(meQuery);
 }
 
-/** The caller's role, nothing while `GET /me` is out or after it fails. Settings reads it for a card
- *  only the super-admin sees, and three cards of the browser's own are not replaced over it. */
+/** The caller's role, nothing while `GET /me` is out or after it fails. The shell draws by it, and
+ *  draws neither role's items without it. */
 export function useRole(): MeData['role'] | undefined {
   return useQuery(meQuery).data?.role;
+}
+
+export type RoleGate = MeData['role'] | 'pending' | 'signedOut';
+
+/** Where the screens stand with the caller's role: `pending` while `GET /me` is out, `signedOut` for
+ *  a caller nobody has signed in, the role once it answers. A first read that failed is thrown to the
+ *  screens' boundary: with the role unknown, no route's content can be chosen. */
+export function useRoleGate(): RoleGate {
+  const { data, error } = useQuery(meQuery);
+  if (data !== undefined) return data.role;
+  if (error instanceof ApiError && error.signedOut) return 'signedOut';
+  throwFailedFirstRead(data, error);
+  return 'pending';
 }
 
 /** The terms accepted on the step. Recorded, every read the refusal left behind is reset, so the
@@ -431,7 +461,8 @@ function isAbove(listed: ArchiveOperation[], i: number, entry: PendingStart): bo
  *  the last one picked. */
 export function useDayQuotes(date: string, today: DayQuotes): { day: DayQuotes; pending: boolean } {
   const carried = date === today.date;
-  const { data, error } = useQuery({ ...dayQuery(date), enabled: !carried });
+  const allowed = useViewAllowed();
+  const { data, error } = useQuery({ ...dayQuery(date), enabled: allowed && !carried });
   if (!carried) throwFailedFirstRead(data, error);
   const empty = useMemo(() => emptyDay(date), [date]);
   return { day: carried ? today : (data ?? empty), pending: !carried && data === undefined };

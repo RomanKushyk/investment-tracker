@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowDownUp,
   CalendarDays,
   CircleUser,
@@ -6,10 +7,12 @@ import {
   LogOut,
   type LucideIcon,
   Settings,
+  Shield,
 } from 'lucide-react';
 import { Link, NavLink } from 'react-router';
 
 import { useSessionAddress } from '../auth/app';
+import { useRole } from '../hooks/queries';
 import { useSignOut } from '../hooks/useSignOut';
 import { AccountFold, ANALYTICS, Mark } from './Sidebar';
 import { NAV_TRIGGER_ID } from './nav-ids';
@@ -182,9 +185,31 @@ function RailProfile({ rows }: Pick<SignOut, 'rows'>) {
 
 type SignOut = ReturnType<typeof useSignOut>;
 
+/**
+ * The super-admin's band, folded: a strip under the burger, the shield on the rail's axis and the
+ * strip ending at the wall's edge, which stays drawn (`super-admin-shell.dc.html`, T2). The rail
+ * has no room for the word, so a screen reader reads it as the strip's text and a resting pointer
+ * shows it as the items' tooltips show theirs; the strip is no control, so it takes no focus.
+ */
+function RailRoleBand() {
+  const t = useT();
+  return (
+    <Tooltip label={t.nav.superAdmin}>
+      <div className="-ml-2 grid h-10 w-[55px] flex-none place-items-center self-start bg-sb-field pl-px">
+        <Shield size={18} strokeWidth={2} aria-hidden className="text-sb-icon-active" />
+        <span className="sr-only">{t.nav.superAdmin}</span>
+      </div>
+    </Tooltip>
+  );
+}
+
 export function SidebarRail({ onExpand }: { onExpand: () => void }) {
   const t = useT();
   const currency = useSettings((s) => s.currency);
+  // Neither role's items until `GET /me` names one, and none for any other role; meanwhile the foot
+  // is held as a user's, so a user's rail never moves (`super-admin-shell.dc.html`, T4).
+  const role = useRole();
+  const admin = role === 'super_admin';
   // ONE SIGN-OUT FOR THE FOOT: its latch is the hook's, so the profile reads the rows the pressed
   // «Вийти» does and stays the signed-in link while the page leaves.
   const signOut = useSignOut();
@@ -221,6 +246,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
               <span className="h-[2px] rounded-[1px] bg-current" />
             </span>
           </button>
+          {admin && <RailRoleBand />}
         </div>
 
         {/* `overlay` BECAUSE 40 CANNOT SPARE 28. Every other Scroller reserves
@@ -232,15 +258,26 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             minimum is its content, so without it the column cannot shrink. */}
         <div className="min-h-0 min-w-0">
           <Scroller overlay>
-            <div className="flex flex-col gap-[3px]">
-              {ENTRY.map(({ to, key, Icon }) => (
-                <RailItem key={to} to={to} label={t.nav[key]} Icon={Icon} />
-              ))}
-              <div className="mx-auto my-[6px] w-6 border-t border-sb-divider" />
-              {ANALYTICS.map(({ to, key, Icon }) => (
-                <RailItem key={to} to={to} label={t.nav[key]} Icon={Icon} />
-              ))}
-            </div>
+            {role !== 'user' && !admin ? null : (
+              <div
+                key={role}
+                className="flex animate-in flex-col gap-[3px] duration-300 ease-soft fade-in"
+              >
+                {admin ? (
+                  <RailItem to="/admin/archive" label={t.nav.archive} Icon={Archive} />
+                ) : (
+                  <>
+                    {ENTRY.map(({ to, key, Icon }) => (
+                      <RailItem key={to} to={to} label={t.nav[key]} Icon={Icon} />
+                    ))}
+                    <div className="mx-auto my-[6px] w-6 border-t border-sb-divider" />
+                    {ANALYTICS.map(({ to, key, Icon }) => (
+                      <RailItem key={to} to={to} label={t.nav[key]} Icon={Icon} />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
           </Scroller>
         </div>
 
@@ -259,11 +296,16 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
               ARIA-in-HTML forbids naming, so the label was dropped and the box
               announced as a bare glyph. The same idiom the expanded track uses,
               and for the same reason. */}
-          <div className="mx-auto grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-[13px] font-semibold text-ink">
-            {currency === 'UAH' ? '₴' : '$'}
-            <span className="sr-only">{t.nav.currencyShown(currency)}</span>
-          </div>
-          <div className="mt-1.5">
+          {/* The super-admin has no currency, and Settings takes the foot's own inset. */}
+          {!admin && (
+            <div
+              className={`mx-auto grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-[13px] font-semibold text-ink ${role !== 'user' ? 'invisible' : ''}`}
+            >
+              {currency === 'UAH' ? '₴' : '$'}
+              <span className="sr-only">{t.nav.currencyShown(currency)}</span>
+            </div>
+          )}
+          <div className={admin ? '' : 'mt-1.5'}>
             <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
           </div>
           <RailProfile rows={signOut.rows} />

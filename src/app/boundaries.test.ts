@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, createElement, isValidElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
@@ -18,17 +19,20 @@ afterAll(() => vi.unstubAllGlobals());
 const { routes } = await import('../routes');
 const { Root } = await import('./Root');
 const { Layout } = await import('./Layout');
+const { RoleGate } = await import('./RoleGate');
 const { AppFailure, NotFound } = await import('./Boundaries');
 const { uk } = await import('../i18n/messages');
 
 // The real tree with its elements as markers, since `Root` and `Layout` read stores with no server
-// snapshot; a server render runs no boundary, so the throw is handed to the router as its error.
+// snapshot, and the role gate a read a server render never makes; a server render runs no boundary,
+// so the throw is handed to the router as its error.
 function stubbed(route: RouteObject): RouteObject {
   const type = isValidElement(route.element) ? route.element.type : undefined;
   let element = route.element;
   if (type === Root) element = createElement('div', { 'data-stub': 'root' }, createElement(Outlet));
   else if (type === Layout)
     element = createElement('div', { 'data-stub': 'shell' }, createElement(Outlet));
+  else if (type === RoleGate) element = createElement(Outlet);
   else if (element && type !== NotFound) element = createElement('p', { 'data-stub': 'screen' });
   return { ...route, element, children: route.children?.map(stubbed) } as RouteObject;
 }
@@ -44,8 +48,13 @@ async function render(path: string, at?: (walked: RouteObject[]) => RouteObject)
   const errors = at ? { [at(context.matches.map((m) => m.route)).id!]: PROBE } : context.errors;
   const state = { ...context, errors };
   const router = createStaticRouter(handler.dataRoutes, state);
+  // The not-found reads the role for its way out; with none read, it is a user's.
   return renderToStaticMarkup(
-    createElement(StaticRouterProvider, { router, context: state, hydrate: false }),
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(StaticRouterProvider, { router, context: state, hydrate: false }),
+    ),
   );
 }
 

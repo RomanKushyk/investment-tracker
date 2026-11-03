@@ -21,7 +21,13 @@ let gate: Promise<void> | undefined;
 let desktop = true;
 
 // The API's client, whose two wide reads are held back until the test lets them through.
-vi.mock('../lib/api', () => ({ repo: { readSeries: vi.fn(), readBalances: vi.fn() } }));
+vi.mock('../lib/api', () => ({
+  repo: {
+    readMe: vi.fn(async () => ({ userId: 'u', email: 'u@example.com', role: 'user' })),
+    readSeries: vi.fn(),
+    readBalances: vi.fn(),
+  },
+}));
 const { repo } = await import('../lib/api');
 // The charts are not what is measured, and jsdom lays nothing out for them.
 vi.mock('../components/charts/YieldLines', () => ({

@@ -83,7 +83,7 @@ rate a conversion uses is none of them: it is the server's row, which `/view` se
 from a build that kept one, is read past, and the store's next write leaves it out. `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
 `system | light | dark`, `system` by default, and the resolved colour is never stored. THE
 DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which EVERY `GET /me`
-ANSWER overwrites, `/me` being read on every load beside the view, the theme excepted, because a
+ANSWER overwrites, `/me` being read on every load before the view, the theme excepted, because a
 paint comes before that answer: the shell's first render
 reads the rail, and a signed-out page has no account at all, so there the copy is what applies and
 the signed-out bar's language control writes it and nothing else. A CHANGE WRITES THE COPY AT ONCE
@@ -711,18 +711,18 @@ and lopsided as its content grows, which `overlay` does not, being fixed by one 
 `useIsDesktop`, and the two must stay one number. Below it the sidebar is an off-canvas drawer, a
 Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's; at and
 above it the sidebar is a panel in flow or an icon rail, and the choice persists. Collapsed, the
-header carries the figure, which a 56px shell cannot hold. 44 × 44
+header carries the figure, which a 56px shell cannot hold, and for the super-admin the role. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
-portfolio behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
+account's work behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
 failed, and `/privacy` and `/terms` for every reader, signed in or not — mounts NEITHER: a top bar
 with the mark and the language control over one top-anchored card and the privacy notice's and the
 terms' links under it, `md` still its only breakpoint.
 THE ACCOUNT IS EVERY FOOTER BAND'S LAST ROW, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
 in the panel and the drawer two rows above the links line, which carries the privacy notice's and
 the terms' links over the version's line (*Legal documents*), the second a pill in Settings' recipe; in
-the rail two items, the rail's foot reading in the panel's order — currency, Settings, profile,
-account. Signed in the rows are the address and «Вийти», the address a NAV LINK to `/profile` named
+the rail two items, the rail's foot reading in the panel's order — currency, which the super-admin
+has not, Settings, profile, account. Signed in the rows are the address and «Вийти», the address a NAV LINK to `/profile` named
 «Профіль: » and the address, at the row's height with the pill's states, current there where
 Settings is not, and the rail's item the same link with the address in its tooltip; signed out «Ви
 не ввійшли» and «Увійти», a LINK to `/sign-in` with the counterpart of the sign-out's glyph, the
@@ -741,10 +741,20 @@ route change included, and puts the marker back in step once a Stop, Back or a r
 page still here. A Stop is the `navigateerror` no `navigate` follows. «Увійти» there is a plain visit to `/sign-in`; the line that
 says so is a sign-out's own arrival's, the logout's landing included. A logout the relay names that
 is no URL is none: the sign-out goes its own way to `/sign-in`.
+THE ROLE DECIDES WHAT THE SHELL HOLDS (`super-admin-shell.dc.html`), from `GET /me`. A user's holds
+the capital, «Ввід», «Аналітика» and the currency. The super-admin's holds none of them: a band in
+the capital's slot names the role, a shield and «Суперадміністратор», in the panel and the drawer,
+folded to the shield in the rail with the word as its text and tooltip, and inline in the header bar;
+its one group is «Адміністрування» with «Архів цін»; its footer keeps the theme alone, Settings and
+the account. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel holds the capital's slot as
+its empty strip and the footer's track row unseen at a user's layout, the rail holds a user's foot,
+the header bar its height, so a user's shell never moves and the super-admin's band arrives with its
+nav; a failed `/me` keeps the shell so (*Not found and failures*).
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
-past its own control handing the tap to the neighbour. Both shells carry a portfolio — the capital,
-the reminders — that such a caller does not have, and the card is top-anchored
+past its own control handing the tap to the neighbour. Both shells carry an account's work — a
+user's capital and reminders, the super-admin's administration — that such a caller does not have,
+and the card is top-anchored
 because a centred one moves its button under the pointer whenever its height changes. A sign-out
 must be visible and reachable from every page that has a session (OWASP's *Logout Button*, ASVS
 7.4.4), and the owner ruled it last; a footer band is anchored to the bottom and grows upward, so
@@ -765,6 +775,10 @@ and a visitor with no way in reads the app as having no auth at all; the entry i
 visitor's one control there that reaches `/sign-in`, and it offers sign-in alone because the
 sign-in card is one link from the application. It is a link because it goes to a route (APG's link
 pattern), and the status row keeps the slot's shape where a blank row would read as nothing loaded.
+The super-admin administers from an account of its own (NIST SP 800-53 AC-6(2)), and two accounts
+make the wrong one easy to be in: NN/g's *Modes in User Interfaces* asks for at least two indicators
+of the active mode, and WCAG 2.2 SC 1.4.1 for no colour alone, so the band says the role in words
+beside a shield.
 **Rejected.** A theme control in the rail: one glyph cannot show the two states it is not in, where
 currency's box shows the state you are in. · An account menu: a second press for one item, where
 the menus it copies switch accounts. · An avatar: only asset avatars and colour dots are round. ·
@@ -776,7 +790,9 @@ row stands for. · A dialog for unsaved work before a sign-out: once the session
 keep nothing. · Telling a Stop from a push in place of the pause: a close is a real traversal, which
 cancels the logout whatever the listener reads. · The slot's latch as the pause: a route change
 ends it while the logout still loads. · `CloseWatcher` in place of the
-marker: iOS Safari has none, so the marker and its pause stay there.
+marker: iOS Safari has none, so the marker and its pause stay there. · A gear beside the mark for the
+super-admin: the gear is Settings. · A tinted edge for the role: colour alone. · Skeleton nav rows
+while `/me` is out: they misstate one role's count, ten items or one.
 
 ## Not found and failures
 **Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE
@@ -786,23 +802,26 @@ in the signed-out frame, having no shell left to keep, and owns `<html lang>` an
 state, so a screen that throws keeps the sidebar and reaching any route clears it. A `*` among the
 screens catches every other path, `/sign-in/x` too, inside the shell. Each state is an answer's
 block — a muted glyph, the title, the lead, one button — and in the shell its card sits where the
-signed-out card does. The two failures share their words and one reload; not found sends to `/`.
+signed-out card does. The two failures share their words and one reload; not found sends to the
+role's home, `/` for a user and `/admin/archive` for the super-admin until `/status` exists.
 NO STATE SHOWS THE ERROR, a status code or a stack: the router and React log what a boundary
 catches. THE ONE EXCEPTION IS THE SUPER-ADMIN'S ARCHIVE PANEL (`archive-admin.dc.html`), whose
 reads do not throw: a failure there names the route's error key, or the HTTP status where the route
 has none, and reads again, because its one operator decides what to run next from that answer.
 A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
 that failed, and so does one of the wide figures (a curve, a page of the table, a day other than
-the caller's), and so do the profile's `GET /me` and `GET /me/account`, and the failed-screen
-state is what shows, the sidebar kept; an answer already in hand stays on screen when a later read of it fails. BESIDE THE
+the caller's), and so do the profile's `GET /me/account` and the shell's `GET /me`, which every
+screen waits for, and the failed-screen state is what shows, the sidebar kept; an answer already in
+hand stays on screen when a later read of it fails. BESIDE THE
 ARCHIVE PANEL, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
 relay's read, apart from the account above it, so a failure is one sentence in its card that asks
-for a reload, and the account stays on screen. NOR DOES THE SHELL'S `GET /me`, READ ON EVERY LOAD
-beside the view for the settings and the role: a failure leaves the device's copy of the settings as
-it is, and the screens behind the view stand. Settings takes the role from it for the super-admin's
-«Адміністрування» card (`archive-admin.dc.html`, T1), so while it is out or after it fails that card
-is not rendered, nothing takes its place, and the three other cards stand; the archive panel's own
-route still throws a failed `/me`, as the profile does. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
+for a reload, and the account stays on screen. EVERY SCREEN WAITS FOR THE ROLE: `GET /me`, read on
+every load before the view, names it, and until it answers no screen is chosen and the shell draws
+neither role's items (*Two shells, one breakpoint*). A failed first read is the failed-screen state
+on every route, since with the role unknown no route's content can be chosen, and the device's copy
+of the settings stays as it is. THE VIEW IS NOT ASKED FOR UNTIL `/me` HAS NAMED A USER, so every
+other role, and a role still unknown, reads no portfolio: a portfolio route is a user's alone and
+answers any other role not found, the super-admin's `/` excepted, which is `/admin/archive`. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
 shows neither an empty portfolio nor a spinner: the shell alone until the read has been out for a
 while, then every box whose size is known in place for a while at least, a figure as «—», a list as three rows, a chart
 as one block, a form with its title and its fields held, and nothing in it that can be reached; one
@@ -819,11 +838,14 @@ distracting and make the product feel slower than it is", so a warm read shows n
 a Suspense fallback before revealing content for the same reason. Few screen readers honour
 `aria-busy` (Adrian Roselli, *More Accessible Skeletons*), so each block is hidden from them and the
 status line speaks, outside the busy element since WAI-ARIA 1.2 lets assistive technology hold the
-changes of one until its busy period ends. The admin card is a convenience, not the control: OWASP's
-Authorization Cheat Sheet allows a client-side check only "for improving the user experience", the
-API's `superAdminOnly` refuses everyone else, and Mattermost's permission gate likewise renders
-nothing until the roles it holds grant the permission. Throwing would replace three cards over a read
-they do not use, which AWS Well-Architected REL05-BP01 names an anti-pattern.
+changes of one until its busy period ends. The shell's role gate is a convenience, not the control:
+OWASP's Authorization Cheat Sheet allows a client-side check only "for improving the user
+experience", and the API's `superAdminOnly` refuses everyone else. The same sheet's "deny access by
+default" is why the view waits for a named role, at one `/me` round trip on a user's load, the
+waterfall TanStack Query's *Dependent Queries* names; Backstage's `RequirePermission` and
+Mattermost's permission gate likewise render nothing until the roles they hold are known. A
+portfolio route is not found for the super-admin as GitHub answers 404, not 403, for what the caller
+may not see, and RFC 9110 lets a server "hide" a forbidden target so.
 **Rejected.** `HydrateFallback`, `Suspense` and a route loader: the read is a query whose state the
 screen reads itself, and nothing suspends. · A centred spinner, or «—» with no boxes: the layout
 would jump when the data lands, and an empty box reads as an empty portfolio. · A placeholder from
@@ -831,7 +853,11 @@ the first frame, or after a second or two: a warm read answers inside the delay,
 sit on an empty screen for as long as that. · A "Try again" that re-renders in place: a location change is
 the only reset this app's router has, a render that threw usually throws again on the same data, and
 a reload also drops the in-memory caches a re-render keeps. · A real 404 status: the host rewrites
-every app path to the SPA with a 200. · Reporting errors to a service.
+every app path to the SPA with a 200. · Reporting errors to a service. · The view read beside `/me`
+and ignored for the super-admin: every such load would send a portfolio read the server refuses. ·
+The role remembered on the device to keep the two side by side: a stale one reads a portfolio as the
+wrong role. · A portfolio route sending the super-admin home: it hides that the address means nothing
+for that role.
 
 ## Brand
 **Decision.** The product is Quirenote and the domain is `quirenote.com`. The logo is the 5h mark,
@@ -1147,7 +1173,7 @@ landed it answers the current tag. `DELETE /imports/{id}` closes the staging, 20
 past its limit is gone. A price row is written as it stands, a witness time the file leaves out left
 out again.
 THE ACCOUNT'S SETTINGS ARE WRITTEN BY `PATCH /me/settings`, on the write's function and behind the same
-gate, and READ FROM `GET /me`, which every load sends beside `/view`: there is no `GET /me/settings`,
+gate, and READ FROM `GET /me`, which every load sends before `/view`: there is no `GET /me/settings`,
 and `/view` carries none. They are a singleton under the caller, AIP-156's `users/{user}/config` and Microsoft
 Graph's `/me/mailboxSettings`, so they take a path of their own under `/me`, and nothing writes through
 `/me` itself. The body is a JSON merge patch
@@ -1173,7 +1199,7 @@ and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE
 `data_version` lives on, so a settings write and a mutation touching the row at once conflict at
 commit, and the one that loses is retried.
 THE CALLER IS `GET /me`, on the write's function and behind the same gate, READ ON EVERY LOAD
-BESIDE `/view`, the two sent side by side: it answers the row's `userId`, `email` and `role` and
+BEFORE `/view`, which waits for it to name a user (*Not found and failures*): it answers the row's `userId`, `email` and `role` and
 the account's settings, from the gate's read alone, with no pool call and no query of its own. The
 shell needs the role on every load and the device's copy needs the account's settings, so one
 read carries both and `/view` carries neither; GitHub's authenticated user carries `site_admin`,
@@ -1295,13 +1321,15 @@ the commit goes under its tag; a commit refused 412 closes its import and shows 
 again. An export moves no tag of the repository's: a write goes under what the view on screen was
 read at, never under a newer one.
 THE APP READS `/view` THROUGH ONE QUERY. `src/hooks/queries.ts` names the reads (`viewQuery`, and
-`seriesQuery`, `balancesQuery` and `dayQuery` under the same `['view']` key), and each is the
+`seriesQuery`, `balancesQuery` and `dayQuery` under the same `['view']` key), none asked for until
+`GET /me` has named a user, and each is the
 repository's, which sends the validator it last had for that read in `If-None-Match` and hands back
 what it holds when the answer is 304, so a read of an unchanged view moves no body and renders
 nothing. A screen or a form takes its SLICE with `useView(selector)`, the selector bound at module
 level in `src/hooks/slices.ts`; until the read answers, a consumer in the shell is handed the slice
 of an empty portfolio, `viewBody` over no rows, and reads `useViewReady` beside it. A SCREEN THAT
-READS THE PORTFOLIO WAITS BEHIND THE VIEW (`Loadable`): the shell alone until the read has been out
+READS THE PORTFOLIO WAITS BEHIND THE VIEW (`Loadable`), and is the not-found for the super-admin,
+who holds none: the shell alone until the read has been out
 for `PLACEHOLDER_AFTER_MS`, then the screen's drawn placeholders (`src/screens/placeholders.tsx`, from
 `design/extensions/first-paint.dc.html`) for at least `PLACEHOLDER_HOLD_MS`, then the screen; a refetch shows
 none, a first read that failed throws to the failed-screen state (*Not found and failures*), and a

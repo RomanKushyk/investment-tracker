@@ -44,6 +44,11 @@ export const en = {
     portfolio: 'Portfolio',
     allocation: 'Allocation',
     settings: 'Settings',
+    // The super-admin's group and its one route, and the role its band names
+    // (`super-admin-shell.dc.html`).
+    groupAdmin: 'Administration',
+    archive: 'Price archive',
+    superAdmin: 'Super-admin',
     // `navigation` is the drawer's accessible NAME, never drawn: the wordmark is
     // already on screen, so a visible second title would say the same thing twice
     // while a screen reader would still have nothing to announce the dialog by.
@@ -707,7 +712,6 @@ export const en = {
       data: 'Data',
       automation: 'Automation',
       appearance: 'Appearance',
-      admin: 'Administration',
     },
     theme: {
       title: 'Theme',
@@ -772,12 +776,6 @@ export const en = {
       title: 'Last feed parse',
       helper:
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
-    },
-    archive: {
-      title: 'Price archive',
-      helper:
-        'Quote coverage by source, two archive repairs and the run log. Only the super-admin sees this card.',
-      open: 'Open',
     },
   },
   // `design/extensions/archive-admin.dc.html`, T9.
@@ -1618,6 +1616,8 @@ export const en = {
       title: 'Page not found',
       lead: 'If you typed the address, check it is correct. If you pasted it, check you copied all of it.',
       home: 'Go to Daily quotes',
+      // The super-admin's home, until `/status` exists.
+      homeAdmin: 'Go to Price archive',
     },
     failed: {
       title: 'This page couldn’t be shown',
@@ -1670,9 +1670,10 @@ export const en = {
     settings: {
       title: 'Settings',
       subtitle: 'Preferences, data and automation',
+      // The super-admin's, whose Settings has Appearance alone.
+      subtitleAdmin: 'Theme and language',
     },
     archive: {
-      back: 'Settings',
       title: 'Price archive',
       subtitle: 'Quote coverage, archive repairs and the run log',
     },
@@ -1696,6 +1697,9 @@ export const uk: Dict = {
     portfolio: 'Портфель', // ✎
     allocation: 'Розподіл', // ✎
     settings: 'Налаштування', // ✎
+    groupAdmin: 'Адміністрування',
+    archive: 'Архів цін',
+    superAdmin: 'Суперадміністратор',
     navigation: 'Навігація', // ✎
     openNav: 'Відкрити навігацію', // ✎
     closeNav: 'Закрити навігацію', // ✎
@@ -2260,7 +2264,6 @@ export const uk: Dict = {
       data: 'Дані',
       automation: 'Автоматизація',
       appearance: 'Вигляд',
-      admin: 'Адміністрування',
     },
     theme: {
       title: 'Тема', // ✎
@@ -2323,12 +2326,6 @@ export const uk: Dict = {
       title: 'Останній розбір стрічки',
       helper:
         'Що останнє отримання з Inzhur змогло і не змогло прочитати. Записи, які не вдалося прочитати, пропускаються, а не вгадуються — решта стрічки завантажується.',
-    },
-    archive: {
-      title: 'Архів цін',
-      helper:
-        'Покриття котирувань за джерелами, два ремонти архіву й журнал запусків. Цю картку бачить лише суперадміністратор.',
-      open: 'Відкрити',
     },
   },
   archive: {
@@ -3086,6 +3083,7 @@ export const uk: Dict = {
       title: 'Сторінку не знайдено',
       lead: 'Якщо ви вводили адресу, перевірте, чи вона правильна. Якщо вставляли — чи скопіювали її повністю.',
       home: 'Перейти до щоденних котирувань',
+      homeAdmin: 'Перейти до архіву цін',
     },
     failed: {
       title: 'Не вдалося показати сторінку',
@@ -3137,9 +3135,9 @@ export const uk: Dict = {
     settings: {
       title: 'Налаштування',
       subtitle: 'Уподобання, дані та автоматизація',
+      subtitleAdmin: 'Тема й мова',
     },
     archive: {
-      back: 'Налаштування',
       title: 'Архів цін',
       subtitle: 'Покриття котирувань, ремонт архіву і журнал запусків',
     },

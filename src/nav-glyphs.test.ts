@@ -76,14 +76,26 @@ const TABLE = [
   // The account's address is the profile's link (`own-account.dc.html`, T5); signed out the same
   // glyph labels the status row.
   ['/profile', 'CircleUser'],
+  // The super-admin's one route, under «Адміністрування» (`super-admin-shell.dc.html`, T1).
+  ['/admin/archive', 'Archive'],
 ] as const;
 
 /** The glyphs that wear none of the routes. A chevron folds a group or collapses the shell and the
  *  theme track's three are segments — controls, which is why `parchment-5h.dc.html` keeps group
  *  headers glyphless; the account's two label its sign-out and its sign-in entry, whose link
- *  `sidebar-structure.test.ts` pins (`sign-out.dc.html`, `sign-in-entry.dc.html`). Listed so the
+ *  `sidebar-structure.test.ts` pins (`sign-out.dc.html`, `sign-in-entry.dc.html`); the shield marks
+ *  the super-admin's band, a state and no route (`super-admin-shell.dc.html`, T1). Listed so the
  *  import assertion can tell them from a route's icon. */
-const CONTROLS = ['ChevronDown', 'ChevronLeft', 'LogIn', 'LogOut', 'Monitor', 'Moon', 'Sun'];
+const CONTROLS = [
+  'ChevronDown',
+  'ChevronLeft',
+  'LogIn',
+  'LogOut',
+  'Monitor',
+  'Moon',
+  'Shield',
+  'Sun',
+];
 
 /** Matched TO ITS OWN `/>` rather than the first `>`: an arbitrary variant may hold one
  *  (`[&>path]:…`), and a tag cut short there fails the anatomy checks on correct markup
@@ -156,7 +168,7 @@ function mapped(): string {
 }
 
 describe('every route wears the glyph the sheet gave it', () => {
-  it('imports the twelve the table names, and no glyph it does not', () => {
+  it('imports the thirteen the table names, and no glyph it does not', () => {
     expect(
       imported()
         .filter((n) => !CONTROLS.includes(n))
@@ -172,7 +184,7 @@ describe('every route wears the glyph the sheet gave it', () => {
 
   // ATTACHED, not merely imported: an icon on the wrong route is the defect a name-only
   // check cannot see.
-  it('attaches all twelve to their own routes', () => {
+  it('attaches all thirteen to their own routes', () => {
     expect(
       pairs()
         .map((p) => p.join(' '))

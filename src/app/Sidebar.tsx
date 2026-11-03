@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowDownUp,
   CalendarDays,
   CalendarRange,
@@ -15,6 +16,7 @@ import {
   Monitor,
   Moon,
   Settings,
+  Shield,
   Sun,
   Table,
   Tags,
@@ -25,6 +27,7 @@ import { Children, Fragment, isValidElement, type ReactNode, useEffect, useRef }
 import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import { useSessionAddress } from '../auth/app';
+import { useRole } from '../hooks/queries';
 import { useSignOut } from '../hooks/useSignOut';
 import { useT } from '../i18n/useT';
 import type { accountRows } from './account-rows';
@@ -218,6 +221,53 @@ function NavGroup({
   );
 }
 
+/** A user's two groups. */
+function PortfolioNav() {
+  const t = useT();
+  return (
+    <>
+      {/* THE RETIRED `"settings"` KEY can still sit in a returning user's
+          `collapsedNavGroups`, inert, so do not reuse the name. */}
+      <NavGroup groupKey="entry" label={t.nav.groupEntry}>
+        <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+          {({ isActive }) => (
+            <NavItem Icon={CalendarDays} label={t.nav.dailyQuotes} isActive={isActive} />
+          )}
+        </NavLink>
+        <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+          {({ isActive }) => (
+            <NavItem Icon={ArrowDownUp} label={t.nav.transactions} isActive={isActive} />
+          )}
+        </NavLink>
+      </NavGroup>
+
+      {/* A caption says a group begins; this says the one above it ENDED, which a
+          gap cannot. A border and never an SVG — see `Mark`. */}
+      <div className="mx-3.5 my-2 border-t border-sb-divider" />
+
+      <NavGroup groupKey="analytics" label={t.nav.groupAnalytics}>
+        {ANALYTICS.map(({ to, key, Icon }) => (
+          <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
+            {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
+          </NavLink>
+        ))}
+      </NavGroup>
+    </>
+  );
+}
+
+/** The super-admin's group, in the recipe of Settings and the eight Analytics routes. */
+function AdminNav() {
+  const t = useT();
+  return (
+    <NavGroup groupKey="admin" label={t.nav.groupAdmin}>
+      <NavLink to="/admin/archive" className={pillClass('py-2', 'rounded-[9px]')}>
+        {({ isActive }) => <NavItem Icon={Archive} label={t.nav.archive} isActive={isActive} />}
+      </NavLink>
+    </NavGroup>
+  );
+}
+
 /** The theme track's three glyphs, keyed by the value each writes. These are CONTROLS —
  *  nothing here names a route, and `nav-glyphs.test.ts` holds that record. */
 const THEME_GLYPH: Record<Theme, LucideIcon> = {
@@ -246,6 +296,11 @@ function SidebarPanel({
   // differ: `setCurrency` writes the session value only, so reading one KPI in `$` is
   // gone on reload, while `setTheme` writes the field the Appearance card writes.
   const { currency, setCurrency, theme, setTheme } = useSettings();
+  // NEITHER ROLE'S ITEMS UNTIL `GET /me` NAMES ONE, and none for any other role, so no role sees the
+  // other's arrive or leave (`super-admin-shell.dc.html`, T4). The super-admin holds no portfolio:
+  // no capital, no currency.
+  const role = useRole();
+  const admin = role === 'super_admin';
   const panel = variant === 'panel';
   const index = THEME_ORDER.indexOf(theme);
   const band = useBandHeight(!panel);
@@ -263,8 +318,16 @@ function SidebarPanel({
           </span>
         </div>
         {/* THE CAPITAL IS THE PANEL'S ALONE — below the breakpoint the header bar
-            carries it, and both read the same hook so they cannot disagree. */}
-        {panel && <CapitalBand onCollapse={onCollapse} />}
+            carries it, and both read the same hook so they cannot disagree. The super-admin
+            has the role in its slot, in the drawer too, which covers the header bar that names
+            it; while the role is unknown the panel holds the slot empty. */}
+        {admin ? (
+          <RoleBand onCollapse={onCollapse} />
+        ) : !panel ? null : role === 'user' ? (
+          <CapitalBand onCollapse={onCollapse} />
+        ) : (
+          <HeadStrip onCollapse={onCollapse} />
+        )}
       </div>
 
       {/* ── band 2 — the navigation, the only part that scrolls ─────────── */}
@@ -272,34 +335,14 @@ function SidebarPanel({
           hit regions tile — no overlap handing a tap to the wrong route and no dead
           strip. It is tap-target.ts's second case. */}
       <Scroller>
-        <div className="flex flex-col gap-[3px] max-md:gap-2">
-          {/* THE RETIRED `"settings"` KEY can still sit in a returning user's
-              `collapsedNavGroups`, inert, so do not reuse the name. */}
-          <NavGroup groupKey="entry" label={t.nav.groupEntry}>
-            <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-              {({ isActive }) => (
-                <NavItem Icon={CalendarDays} label={t.nav.dailyQuotes} isActive={isActive} />
-              )}
-            </NavLink>
-            <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-              {({ isActive }) => (
-                <NavItem Icon={ArrowDownUp} label={t.nav.transactions} isActive={isActive} />
-              )}
-            </NavLink>
-          </NavGroup>
-
-          {/* A caption says a group begins; this says the one above it ENDED, which a
-              gap cannot. A border and never an SVG — see `Mark`. */}
-          <div className="mx-3.5 my-2 border-t border-sb-divider" />
-
-          <NavGroup groupKey="analytics" label={t.nav.groupAnalytics}>
-            {ANALYTICS.map(({ to, key, Icon }) => (
-              <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
-                {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
-              </NavLink>
-            ))}
-          </NavGroup>
-        </div>
+        {role !== 'user' && !admin ? null : (
+          <div
+            key={role}
+            className="flex animate-in flex-col gap-[3px] duration-300 ease-soft fade-in max-md:gap-2"
+          >
+            {admin ? <AdminNav /> : <PortfolioNav />}
+          </div>
+        )}
       </Scroller>
 
       {/* ── band 3 — the footer band, pinned ───────────────────────────── */}
@@ -320,7 +363,11 @@ function SidebarPanel({
             two overlays that both reach need `w + gap >= 44` across: the real box
             tap-target.ts names when the gap cannot be made, and it moves no radius.
             AND THE ROW WRAPS, because the five fit the drawer exactly. */}
-        <div className="mb-2 flex gap-2 max-md:mb-4 max-md:flex-wrap max-md:gap-y-[22px]">
+        {/* Held at a user's layout, unseen, while the role is unknown; the super-admin's theme
+            track alone takes the row. */}
+        <div
+          className={`mb-2 flex gap-2 max-md:mb-4 max-md:flex-wrap max-md:gap-y-[22px] ${role !== 'user' && !admin ? 'invisible' : ''}`}
+        >
           {/* A RADIOGROUP and the currency track is not — three mutually exclusive
               values are radios, two states of one view a pressed pair. The idle glyph
               takes NO HOVER: it is the glyph rank, the symbol beside it the label. */}
@@ -354,34 +401,36 @@ function SidebarPanel({
               );
             })}
           </div>
-          <div className="relative flex flex-1 gap-px rounded-[8px] bg-sb-item-active-bg p-0.5">
-            <div
-              aria-hidden
-              data-owns-motion
-              className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2.5px)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
-              style={{
-                transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 1px))',
-              }}
-            />
-            {/* The ISO code rides beside the symbol for a screen reader, `sr-only` and
+          {!admin && (
+            <div className="relative flex flex-1 gap-px rounded-[8px] bg-sb-item-active-bg p-0.5">
+              <div
+                aria-hidden
+                data-owns-motion
+                className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2.5px)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
+                style={{
+                  transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 1px))',
+                }}
+              />
+              {/* The ISO code rides beside the symbol for a screen reader, `sr-only` and
                 not `aria-label` so the name CONTAINS the visible label (2.5.3). */}
-            <button
-              type="button"
-              aria-pressed={currency === 'UAH'}
-              onClick={() => setCurrency('UAH')}
-              className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
-            >
-              ₴<span className="sr-only"> UAH</span>
-            </button>
-            <button
-              type="button"
-              aria-pressed={currency === 'USD'}
-              onClick={() => setCurrency('USD')}
-              className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
-            >
-              $<span className="sr-only"> USD</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                aria-pressed={currency === 'UAH'}
+                onClick={() => setCurrency('UAH')}
+                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+              >
+                ₴<span className="sr-only"> UAH</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={currency === 'USD'}
+                onClick={() => setCurrency('USD')}
+                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+              >
+                $<span className="sr-only"> USD</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Settings keeps the nav's pill recipe: the eleventh route reads like ten. */}
@@ -536,16 +585,59 @@ function useBandHeight(publish: boolean) {
 }
 
 /**
+ * The head's strip: the capital's slot, the super-admin's band in it, or the slot held empty while
+ * the role is unknown, so nothing moves when it lands. A STRIP, NOT A CARD — it bleeds through the
+ * panel's padding to the shell's edges, and a full-bleed bar takes square corners. *Shape system*
+ */
+function HeadStrip({ onCollapse, children }: { onCollapse?: () => void; children?: ReactNode }) {
+  const t = useT();
+  return (
+    <div className="-mr-4 mb-[14px] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] flex h-14 items-center gap-2.5 bg-sb-field pl-[calc(max(16px,env(safe-area-inset-left))+18px)]">
+      {children}
+      {onCollapse !== undefined && (
+        // UNBOXED, AND THE INK IS THE OBJECT: a stroke here reads as a badge. The glyph
+        // fills its box to 2.5.8's floor, which is what lets the box carry no paint.
+        <button
+          type="button"
+          id={SIDEBAR_COLLAPSE_ID}
+          onClick={onCollapse}
+          aria-label={t.nav.collapseNav}
+          className="-mr-px ml-auto grid size-[26px] flex-none cursor-pointer place-items-center text-sb-item transition hover:text-sb-item-hover active:scale-[.97]"
+        >
+          <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The super-admin's band, in the capital's slot this role leaves empty: the role in words beside a
+ * shield, never colour alone (WCAG 1.4.1), and never a gear, which is Settings
+ * (`super-admin-shell.dc.html`, T1).
+ */
+function RoleBand({ onCollapse }: { onCollapse?: () => void }) {
+  const t = useT();
+  return (
+    <HeadStrip onCollapse={onCollapse}>
+      <Shield size={18} strokeWidth={2} aria-hidden className="flex-none text-sb-icon-active" />
+      <span className="min-w-0 flex-1 truncate font-display text-[14px] font-semibold tracking-[-.01em] text-ink">
+        {t.nav.superAdmin}
+      </span>
+    </HeadStrip>
+  );
+}
+
+/**
  * ITS OWN COMPONENT so the hook is gated with the markup: `useCapitalCard` mounts an
  * rAF tween, and called from the panel it ran in the DRAWER variant too, animating a
- * number that is not on screen. A STRIP, NOT A CARD — it bleeds through the panel's
- * padding to the shell's edges, and a full-bleed bar takes square corners. *Shape system*
+ * number that is not on screen.
  */
 function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
   const t = useT();
   const capital = useCapitalCard();
   return (
-    <div className="-mr-4 mb-[14px] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] flex h-14 items-center gap-2.5 bg-sb-field pl-[calc(max(16px,env(safe-area-inset-left))+18px)]">
+    <HeadStrip onCollapse={onCollapse}>
       <div className="flex min-w-0 flex-col gap-[3px]">
         <div className="text-[9.5px] tracking-[.12em] text-sb-label uppercase">
           {t.sidebar.totalCapital}
@@ -571,20 +663,7 @@ function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
           </div>
         </div>
       </div>
-      {onCollapse !== undefined && (
-        // UNBOXED, AND THE INK IS THE OBJECT: a stroke here reads as a badge. The glyph
-        // fills its box to 2.5.8's floor, which is what lets the box carry no paint.
-        <button
-          type="button"
-          id={SIDEBAR_COLLAPSE_ID}
-          onClick={onCollapse}
-          aria-label={t.nav.collapseNav}
-          className="-mr-px ml-auto grid size-[26px] flex-none cursor-pointer place-items-center text-sb-item transition hover:text-sb-item-hover active:scale-[.97]"
-        >
-          <ChevronLeft size={24} strokeWidth={2} aria-hidden />
-        </button>
-      )}
-    </div>
+    </HeadStrip>
   );
 }
 

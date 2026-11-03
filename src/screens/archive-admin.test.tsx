@@ -139,10 +139,10 @@ const ANSWER: ArchiveDiagnosis = {
 
 const r = uk.archive.read;
 
-describe('/settings/archive', () => {
+describe('/admin/archive', () => {
   it('is the panel for the super-admin, and reads the run log alone on arrival', async () => {
     api.role = 'super_admin';
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(uk.archive.runs.empty));
     expect(page.main()).toContain('Прочитати архів');
     expect(page.main()).not.toContain(uk.boundary.notFound.title);
@@ -152,16 +152,33 @@ describe('/settings/archive', () => {
   });
 
   it('is the app’s not-found for any other signed-in user', async () => {
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(uk.boundary.notFound.title));
     expect(page.main()).not.toContain('Архів цін');
     expect(api.seen.some((s) => s.path.startsWith('/admin/'))).toBe(false);
   });
 
+  it('has no way back to Settings, the route no longer sitting under it', async () => {
+    api.role = 'super_admin';
+    const page = mount('/admin/archive');
+    await waitFor(() => expect(page.main()).toContain(uk.archive.runs.empty));
+    expect(document.querySelector('main a[href="/settings"]')).toBeNull();
+  });
+
+  it('leaves /settings/archive the not-found for every role', async () => {
+    for (const role of ['super_admin', 'user'] as const) {
+      api.role = role;
+      const page = mount('/settings/archive');
+      await waitFor(() => expect(page.main()).toContain(uk.boundary.notFound.title));
+      expect(page.main()).not.toContain('Прочитати архів');
+      cleanup();
+    }
+  });
+
   it('reads on a press, holds its boxes meanwhile, then draws the answer', async () => {
     api.role = 'super_admin';
     api.diagnosis = ANSWER;
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain('UA4000207518'));
@@ -185,7 +202,7 @@ describe('/settings/archive', () => {
   it('marks a missing captured day on its group’s strip', async () => {
     api.role = 'super_admin';
     api.diagnosis = ANSWER;
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain('UA4000207518'));
@@ -199,7 +216,7 @@ describe('/settings/archive', () => {
   ] as const)('names a first read’s %s and offers to read again', async (key, sentence) => {
     api.role = 'super_admin';
     api.diagnosis = key;
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain(r.failed));
@@ -214,7 +231,7 @@ describe('/settings/archive', () => {
   it('keeps the answer in hand when a refresh fails, and says so in the slot', async () => {
     api.role = 'super_admin';
     api.diagnosis = ANSWER;
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain('UA4000207518'));
@@ -228,7 +245,7 @@ describe('/settings/archive', () => {
 
   it('is the not-found once the diagnosis refuses the caller', async () => {
     api.role = 'super_admin';
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     api.role = 'user';
     page.press(r.start);
@@ -238,7 +255,7 @@ describe('/settings/archive', () => {
   it('takes focus to the retry when a first read fails, the slot it was in gone', async () => {
     api.role = 'super_admin';
     api.diagnosis = 'capture_failed';
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain(r.failed));
@@ -269,7 +286,7 @@ describe('/settings/archive', () => {
         },
       ],
     };
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain('UA4000238976'));
@@ -279,13 +296,13 @@ describe('/settings/archive', () => {
   it('moves no focus for a failure it finds on arrival', async () => {
     api.role = 'super_admin';
     api.diagnosis = 'capture_failed';
-    const page = mount('/settings/archive');
+    const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(r.start));
     page.press(r.start);
     await waitFor(() => expect(page.main()).toContain(r.failed));
     (document.activeElement as HTMLElement | null)?.blur();
     await act(async () => void (await page.router.navigate('/settings')));
-    await act(async () => void (await page.router.navigate('/settings/archive')));
+    await act(async () => void (await page.router.navigate('/admin/archive')));
     await waitFor(() => expect(page.main()).toContain(r.failed));
     await act(async () => void (await new Promise((resolve) => setTimeout(resolve, 50))));
     expect(document.activeElement).toBe(document.body);
@@ -307,7 +324,7 @@ describe('/settings/archive', () => {
         last_as_of: '2026-03-10',
       };
       api.diagnosis = { ...ANSWER, observations: [day] };
-      const page = mount('/settings/archive');
+      const page = mount('/admin/archive');
       await waitFor(() => expect(page.main()).toContain(r.start));
       page.press(r.start);
       await waitFor(() => expect(page.main()).toContain('UA4000236475'));

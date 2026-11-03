@@ -1,6 +1,5 @@
-import { Archive, ChevronLeft, RefreshCw, TriangleAlert } from 'lucide-react';
+import { Archive, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
-import { Link } from 'react-router';
 
 import { SOURCES } from '@quirenote/core/archive';
 import { kyivDateIso, kyivTimeHm } from '@quirenote/core/dates';
@@ -9,7 +8,6 @@ import { useSessionStatus } from '../auth/app';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { TAP_44 } from '../components/ui/tap-target';
 import { useArchiveDiagnosis, useArchiveRuns, useMe, type ReadFailure } from '../hooks/queries';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
@@ -19,9 +17,10 @@ import { Repairs } from './archive/Repairs';
 import { RunLog } from './archive/RunLog';
 import { SpotCheck } from './archive/SpotCheck';
 
-// THE SUPER-ADMIN'S ARCHIVE PANEL (`design/extensions/archive-admin.dc.html`, T1–T6). The route is
-// the super-admin's alone: until `GET /me` answers nothing is drawn, so no other role sees it
-// arrive, and anyone else gets the app's not-found. A failed `/me` throws, as the profile's does.
+// THE SUPER-ADMIN'S ARCHIVE PANEL (`design/extensions/archive-admin.dc.html`, T2–T6), under
+// «Адміністрування» (`super-admin-shell.dc.html`). The route is the super-admin's alone: until
+// `GET /me` answers nothing is drawn, so no other role sees it arrive, and anyone else gets the
+// app's not-found. A failed `/me` throws, as the profile's does.
 export function ArchiveAdmin() {
   const signedIn = useSessionStatus() === 'signedIn';
   return signedIn ? <Gate /> : null;
@@ -69,13 +68,6 @@ function Panel({ me }: { me: string }) {
 
   return (
     <div>
-      <Link
-        to="/settings"
-        className={`${TAP_44} mb-1.5 flex w-fit items-center gap-1 text-xs leading-[18px] text-muted transition-colors hover:text-ink`}
-      >
-        <ChevronLeft size={14} aria-hidden />
-        {t.screen.archive.back}
-      </Link>
       <ScreenHeader
         title={t.screen.archive.title}
         subtitle={t.screen.archive.subtitle}

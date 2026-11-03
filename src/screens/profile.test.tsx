@@ -288,7 +288,7 @@ describe('the passkeys', () => {
   // The account first: a list shown under an account still on its way moves the page as it lands.
   it('stays held until the account lands, whatever the list answered', async () => {
     api.passkeys = [{ name: 'Roaming passkey', createdAt: '2026-10-22' }];
-    const release = hold('/me');
+    const release = hold('/me/account');
     const client = new QueryClient();
     const router = createMemoryRouter(routes, { initialEntries: ['/profile'] });
     const view = render(
@@ -320,7 +320,7 @@ describe('the passkeys', () => {
 
 describe('the account read', () => {
   it('shows nothing new for 300 ms, then holds every value and every control', async () => {
-    const release = hold('/me');
+    const release = hold('/me/account');
     const client = new QueryClient();
     const view = render(
       <QueryClientProvider client={client}>
@@ -341,7 +341,7 @@ describe('the account read', () => {
 
   // Once shown, the boxes stay their own while at least, so their fade-in always completes.
   it('keeps the held boxes for a while once shown, even when the read lands at once', async () => {
-    const release = hold('/me');
+    const release = hold('/me/account');
     const view = render(
       <QueryClientProvider client={new QueryClient()}>
         <RouterProvider router={createMemoryRouter(routes, { initialEntries: ['/profile'] })} />

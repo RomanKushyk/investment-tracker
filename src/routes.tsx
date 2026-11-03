@@ -3,6 +3,7 @@ import type { RouteObject } from 'react-router';
 
 import { AppFailure, NotFound, ScreenFailure } from './app/Boundaries';
 import { Layout } from './app/Layout';
+import { PORTFOLIO, RoleGate } from './app/RoleGate';
 import { Root } from './app/Root';
 import { Loadable } from './components/loading/Loadable';
 import { Allocation } from './screens/Allocation';
@@ -60,38 +61,67 @@ export const routes: RouteObject[] = [
         element: <Layout />,
         children: [
           {
-            // Between the shell and the screens, so a screen that throws keeps the sidebar.
+            // Between the shell and the screens, so a screen that throws keeps the sidebar; the
+            // gate chooses no screen until `GET /me` names the role.
+            element: <RoleGate />,
             errorElement: <ScreenFailure />,
             children: [
-              { index: true, element: behindView(<DailyQuotesPlaceholder />, <DailyQuotes />) },
+              {
+                index: true,
+                handle: PORTFOLIO,
+                element: behindView(<DailyQuotesPlaceholder />, <DailyQuotes />),
+              },
               // The Transaction panel left `/` for a route of its own; `/` stays
               // the index, because it is the daily ritual and the app opens on it.
               {
                 path: 'transactions',
+                handle: PORTFOLIO,
                 element: behindView(<TransactionsPlaceholder />, <Transactions />),
               },
-              { path: 'overview', element: behindView(<OverviewPlaceholder />, <Overview />) },
-              { path: 'balances', element: behindView(<BalancesPlaceholder />, <Balances />) },
-              { path: 'payouts', element: behindView(<PayoutsPlaceholder />, <Payouts />) },
-              { path: 'yield', element: behindView(<YieldPlaceholder />, <Yield />) },
+              {
+                path: 'overview',
+                handle: PORTFOLIO,
+                element: behindView(<OverviewPlaceholder />, <Overview />),
+              },
+              {
+                path: 'balances',
+                handle: PORTFOLIO,
+                element: behindView(<BalancesPlaceholder />, <Balances />),
+              },
+              {
+                path: 'payouts',
+                handle: PORTFOLIO,
+                element: behindView(<PayoutsPlaceholder />, <Payouts />),
+              },
+              {
+                path: 'yield',
+                handle: PORTFOLIO,
+                element: behindView(<YieldPlaceholder />, <Yield />),
+              },
               {
                 path: 'attributes',
+                handle: PORTFOLIO,
                 element: behindView(<AttributesPlaceholder />, <Attributes />),
               },
               {
                 path: 'seasonality',
+                handle: PORTFOLIO,
                 element: behindView(<SeasonalityPlaceholder />, <Seasonality />),
               },
-              { path: 'portfolio', element: behindView(<PortfolioPlaceholder />, <Portfolio />) },
+              {
+                path: 'portfolio',
+                handle: PORTFOLIO,
+                element: behindView(<PortfolioPlaceholder />, <Portfolio />),
+              },
               {
                 path: 'allocation',
+                handle: PORTFOLIO,
                 element: behindView(<AllocationPlaceholder />, <Allocation />),
               },
-              // Settings reads no figure of the view, so it waits for nothing.
+              // Settings reads no figure of the view: it waits for the role alone.
               { path: 'settings', element: <Settings /> },
-              // The super-admin's archive panel reads the account and the archive, never the view;
-              // a sibling, not a child, so every screen stays one level below the boundary.
-              { path: 'settings/archive', element: <ArchiveAdmin /> },
+              // The super-admin's archive panel reads the account and the archive, never the view.
+              { path: 'admin/archive', element: <ArchiveAdmin /> },
               // The profile reads the account, not the view, and holds its own place for it.
               { path: 'profile', element: <Profile /> },
               // Every path nothing else matches, `/sign-in/x` too, inside the shell.

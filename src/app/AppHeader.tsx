@@ -1,6 +1,8 @@
+import { Shield } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 
+import { useRole } from '../hooks/queries';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { NAV_TRIGGER_ID } from './nav-ids';
 import { useT } from '../i18n/useT';
@@ -40,8 +42,9 @@ export function AppHeader({
   open: boolean;
 }) {
   const t = useT();
-  const capital = useCapitalCard();
-  const empty = capital.net === undefined;
+  // The capital is a user's; the super-admin's bar names the role in its place, and while the
+  // role is unknown the bar holds its height with neither (`super-admin-shell.dc.html`, T2, T4).
+  const role = useRole();
   // Radix publishes `aria-expanded` on the trigger, so the NAME has to agree with it,
   // or a screen reader reads out the contradiction in full.
   const triggerLabel = open ? t.nav.closeNav : t.nav.openNav;
@@ -67,35 +70,56 @@ export function AppHeader({
     >
       <div className="flex h-14 items-center gap-2.5 px-2.5">
         {trigger}
-        {/* `truncate` ON BOTH LINES: a `min-w-0` block with nothing to clip it overflows
-            the viewport instead of ellipsising. No route may scroll sideways. */}
-        <div className="min-w-0">
-          <div className="truncate text-[9.5px] tracking-[.12em] text-muted uppercase">
-            {t.sidebar.totalCapital}
+        {role === 'user' && <HeaderCapital />}
+        {role === 'super_admin' && (
+          // The band's content on the page plane: the bar refuses the `sb-*` family.
+          <div className="flex min-w-0 animate-in items-center gap-2.5 duration-300 ease-soft fade-in">
+            <Shield size={18} strokeWidth={2} aria-hidden className="flex-none text-accent" />
+            <span className="truncate font-display text-[15px] font-semibold tracking-[-.01em] text-ink">
+              {t.nav.superAdmin}
+            </span>
           </div>
-          <div
-            className={`truncate font-display text-[18px] leading-[1.15] font-bold ${empty ? 'text-faint' : ''}`}
-          >
-            {capital.value}
-          </div>
-        </div>
-        {/* The delta STACKS rather than running on one line as the sidebar card does:
-            at 360 the row has little left after the trigger and the figure,
-            and two lines fit the height the bar already has. */}
-        <div className="ml-auto pr-1 text-right text-[11px] leading-[1.35]">
-          {empty ? (
-            <span className="text-faint">—</span>
-          ) : (
-            <>
-              <span className={`font-semibold ${(capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'}`}>
-                {capital.pct}
-              </span>
-              <br />
-              <span className="text-muted">{capital.counter}</span>
-            </>
-          )}
-        </div>
+        )}
       </div>
     </header>
+  );
+}
+
+/** ITS OWN COMPONENT so `useCapitalCard` and the view it reads mount with a user's figure alone. */
+function HeaderCapital() {
+  const t = useT();
+  const capital = useCapitalCard();
+  const empty = capital.net === undefined;
+  return (
+    <>
+      {/* `truncate` ON BOTH LINES: a `min-w-0` block with nothing to clip it overflows
+            the viewport instead of ellipsising. No route may scroll sideways. */}
+      <div className="min-w-0">
+        <div className="truncate text-[9.5px] tracking-[.12em] text-muted uppercase">
+          {t.sidebar.totalCapital}
+        </div>
+        <div
+          className={`truncate font-display text-[18px] leading-[1.15] font-bold ${empty ? 'text-faint' : ''}`}
+        >
+          {capital.value}
+        </div>
+      </div>
+      {/* The delta STACKS rather than running on one line as the sidebar card does:
+            at 360 the row has little left after the trigger and the figure,
+            and two lines fit the height the bar already has. */}
+      <div className="ml-auto pr-1 text-right text-[11px] leading-[1.35]">
+        {empty ? (
+          <span className="text-faint">—</span>
+        ) : (
+          <>
+            <span className={`font-semibold ${(capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'}`}>
+              {capital.pct}
+            </span>
+            <br />
+            <span className="text-muted">{capital.counter}</span>
+          </>
+        )}
+      </div>
+    </>
   );
 }

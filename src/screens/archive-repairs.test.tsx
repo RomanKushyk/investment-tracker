@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 function mount() {
-  const router = createMemoryRouter(routes, { initialEntries: ['/settings/archive'] });
+  const router = createMemoryRouter(routes, { initialEntries: ['/admin/archive'] });
   const view = render(
     <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={router} />

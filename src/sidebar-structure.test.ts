@@ -216,10 +216,11 @@ describe('Settings leaves the scrolling band, and its caption goes with it', () 
     expect(settings, 'Settings is still inside the scrolling band').toBeGreaterThan(close);
   });
 
-  // Settings leaves the scrolling band, so the third group header goes with it: one item
-  // needs no caption.
-  it('leaves two nav groups, so two captions', () => {
-    expect(linesWith(/<NavGroup\b/).length, 'the nav no longer has exactly two groups').toBe(2);
+  // Settings left the scrolling band and took its group header with it. The three are a user's two
+  // and the super-admin's «Адміністрування», whose one item keeps a caption because the group names
+  // the role's work and «Користувачі» joins it (`super-admin-shell.dc.html`, T1).
+  it('leaves three nav groups, so three captions', () => {
+    expect(linesWith(/<NavGroup\b/).length, 'the nav no longer has exactly three groups').toBe(3);
     expect(SIDEBAR, 'the Settings group caption survived its group').not.toMatch(/groupSettings/);
   });
 

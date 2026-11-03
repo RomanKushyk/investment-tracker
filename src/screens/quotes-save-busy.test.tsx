@@ -21,6 +21,8 @@ vi.mock('sonner', () => ({
 vi.mock('../lib/api', () => ({
   repo: {
     readView: vi.fn(),
+    // The caller is a user, whose answer the view waits for.
+    readMe: vi.fn(async () => ({ userId: 'u', email: 'u@example.com', role: 'user' })),
     readSeries: vi.fn(),
     readBalances: vi.fn(),
     readDay: vi.fn(),

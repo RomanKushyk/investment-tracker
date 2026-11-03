@@ -326,11 +326,13 @@ describe('the not-found and failure states', () => {
       title: 'Page not found',
       lead: 'If you typed the address, check it is correct. If you pasted it, check you copied all of it.',
       home: 'Go to Daily quotes',
+      homeAdmin: 'Go to Price archive',
     });
     expect(uk.boundary.notFound).toEqual({
       title: 'Сторінку не знайдено',
       lead: 'Якщо ви вводили адресу, перевірте, чи вона правильна. Якщо вставляли — чи скопіювали її повністю.',
       home: 'Перейти до щоденних котирувань',
+      homeAdmin: 'Перейти до архіву цін',
     });
     expect(en.boundary.failed).toEqual({
       title: 'This page couldn’t be shown',
@@ -346,7 +348,7 @@ describe('the not-found and failure states', () => {
 
   // GOV.UK rules out "technical jargon like 404" and "informal or humorous words like oops".
   it('name no status code and say no oops', () => {
-    expect(BOUNDARY).toHaveLength(12);
+    expect(BOUNDARY).toHaveLength(14);
     for (const [key, value] of BOUNDARY) {
       expect(String(value), key).not.toMatch(/\b[45]\d\d\b/);
       expect(String(value), key).not.toMatch(/\boops\b|упс/iu);

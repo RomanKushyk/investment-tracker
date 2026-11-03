@@ -23,6 +23,8 @@ vi.mock('../lib/api', () => {
   return {
     repo: {
       readView: vi.fn(),
+      // The caller is a user, whose answer the view waits for.
+      readMe: vi.fn(async () => ({ userId: 'u', email: 'u@example.com', role: 'user' })),
       readSeries: vi.fn(),
       readBalances: vi.fn(),
       readDay: vi.fn(),
@@ -208,6 +210,9 @@ describe('the gate a screen waits behind', () => {
     let answer!: (v: ReturnType<typeof body>) => void;
     vi.mocked(repo.readView).mockImplementation(() => new Promise((r) => (answer = r)));
     const { result } = renderHook(() => useViewGate(), { wrapper: providerOf(clientOf()) });
+    expect(result.current).toBe('pending');
+    // The view is asked for once `GET /me` has named a user.
+    await waitFor(() => expect(repo.readView).toHaveBeenCalled());
     expect(result.current).toBe('pending');
 
     await act(async () => answer(body()));

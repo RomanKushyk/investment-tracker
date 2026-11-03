@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Every route, rendered cold through the real router, shell, client and transport over a fake of the
-// user API, counting the requests the API sees: the view and the account's `GET /me` are read once
-// each, side by side, the settings riding `/me` (#600), and a screen or a form reads no more than that
+// user API, counting the requests the API sees: the account's `GET /me` and then the view are read
+// once each, the settings and the role riding `/me`, and a screen or a form reads no more than that
 // beyond the wide figures it names (*Cloud target*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -146,8 +146,8 @@ const asked = () => {
   };
 };
 
-// The wide figures are reads of their own: the curve by period, the table by page. Settings' card
-// for the super-admin takes its role from the `/me` the shell has read.
+// The wide figures are reads of their own: the curve by period, the table by page. Settings reads
+// nothing beyond the `/me` the shell has read.
 const READS: [string, { series: number; balances: number }][] = [
   ['/', { series: 0, balances: 0 }],
   ['/transactions', { series: 0, balances: 0 }],
@@ -176,33 +176,21 @@ describe('a cold render', () => {
     });
   });
 
-  // Side by side, not one after the other: no data answer goes out until `/view` and `/me` have
-  // both been asked, or a second has passed. A read sent only once the other is answered is asked
-  // after that second, and so the two never meet inside it.
-  it('asks for /me and the view before either is answered', async () => {
-    const arrived: string[] = [];
-    let late = false;
-    let met = false;
+  // One after the other: the view is asked for only once `/me` has named a user, so a role still
+  // unknown reads no portfolio (*Not found and failures*).
+  it('asks for the view only once /me has answered', async () => {
     let release!: () => void;
-    const together = new Promise<void>((resolve) => {
-      release = resolve;
-      setTimeout(() => {
-        late = true;
-        resolve();
-      }, 1_000);
-    });
+    const answered = new Promise<void>((resolve) => (release = resolve));
     hold = async (path) => {
-      arrived.push(path);
-      if (!late && arrived.includes('/view') && arrived.includes('/me')) {
-        met = true;
-        release();
-      }
-      await together;
+      if (path === '/me') await answered;
     };
-    await open('/overview');
-    expect(met).toBe(true);
-    expect(arrived.slice(0, 2).sort()).toEqual(['/me', '/view']);
-    expect(asked()).toMatchObject({ view: 1, me: 1, total: 2 });
+    const opened = open('/overview');
+    await waitFor(() => expect(asked().me).toBe(1));
+    await act(async () => void (await new Promise((r) => setTimeout(r, 50))));
+    expect(asked()).toMatchObject({ view: 0, me: 1, total: 1 });
+    release();
+    await opened;
+    expect(api.seen.map((r) => r.path.split('?')[0])).toEqual(['/me', '/view']);
   });
 
   it('shows the figures of the view it read', async () => {
