@@ -1,24 +1,20 @@
 // The app's one client of the user API, and the one query client its figures live in. Both are made
 // here, with the session they act for, so that a sign-out reaches the cache and the tag by the same
 // wire wherever it is begun (*Auth model*). The device's copy of the account's settings is made
-// here too: the repository reads the view through it and tells it when the account ends.
+// here too: the repository reads `/me` through it and tells it when the account ends.
 import { QueryClient } from '@tanstack/react-query';
 
 import { session, showAnswer } from '../auth/app';
 import { useSettings } from '../state/settings';
 import { forgetAccount, forgetOnAccountEnd } from './account';
-import { meKey } from './me-key';
 import { createRepository } from './repository';
 import { createSettingsCopy } from './settings-copy';
 import { createTransport } from './transport';
 
 export const settingsCopy = createSettingsCopy({
   store: useSettings,
-  // Looked up when called: the repository and the client are made below, with this copy.
-  patch: (fields) =>
-    repo
-      .patchSettings(fields)
-      .finally(() => void queryClient.invalidateQueries({ queryKey: meKey })),
+  // Looked up when called: the repository is made below, with this copy.
+  patch: (fields) => repo.patchSettings(fields),
 });
 
 export const repo = createRepository(

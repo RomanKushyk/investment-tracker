@@ -24,9 +24,10 @@ import {
 } from '@quirenote/core/view/serve';
 import { useT } from '../i18n/useT';
 import { repo, settingsCopy } from '../lib/api';
-import { meKey } from '../lib/me-key';
+import { accountKey, meKey } from '../lib/me-key';
 import {
   ApiError,
+  type AccountData,
   type ArchiveOperation,
   type ArchiveOperationsPage,
   type ArchiveStart,
@@ -89,12 +90,21 @@ export const balancesQuery = (page: number) =>
     ...FRESH,
   });
 
-/** The account's own read: outside the view's key, so reading the view again asks nothing of it,
- *  and held for the view's window. A write invalidates it, since the counts move with the dataset,
- *  and so does a settings patch (`lib/api.ts`). */
+/** The caller and its settings, read by the shell on every load beside the view (`useAccountRead`):
+ *  outside the view's key, so reading the view again asks nothing of it, and held for the view's
+ *  window. Neither a write of the dataset nor a settings change invalidates it: the copy holds the
+ *  change already. */
 export const meQuery = queryOptions({
   queryKey: meKey,
   queryFn: ({ client }) => repo.readMe(client.getQueryData<MeData>(meKey)),
+  ...FRESH,
+});
+
+/** The profile's fields, held for the view's window. A write invalidates it, since the counts move
+ *  with the dataset. */
+export const accountQuery = queryOptions({
+  queryKey: accountKey,
+  queryFn: ({ client }) => repo.readAccount(client.getQueryData<AccountData>(accountKey)),
   ...FRESH,
 });
 
@@ -181,12 +191,27 @@ export function useBalancesPage(page: number): BalancesBody | undefined {
   return data;
 }
 
-/** The caller's own account, nothing until the read answers. Read by the screen that shows it, so
- *  a load asks for none; one whose first read fails is thrown to the screen's boundary. */
+/** The caller, nothing until the read answers; one whose first read fails is thrown to the screen's
+ *  boundary. */
 export function useMe(): MeData | undefined {
   const { data, error } = useQuery(meQuery);
   throwFailedFirstRead(data, error);
   return data;
+}
+
+/** The profile's fields, nothing until the read answers; one whose first read fails is thrown to
+ *  the screen's boundary. */
+export function useAccount(): AccountData | undefined {
+  const { data, error } = useQuery(accountQuery);
+  throwFailedFirstRead(data, error);
+  return data;
+}
+
+/** `GET /me` on every load, beside the view, so the settings copy takes the account's answer. A
+ *  failure throws nothing here: the copy stays as it is, and a screen that shows the caller throws
+ *  its own. Mounted once, where the shell is. */
+export function useAccountRead(): void {
+  useQuery(meQuery);
 }
 
 /** The caller's role, nothing while `GET /me` is out or after it fails. Settings reads it for a card
@@ -206,13 +231,13 @@ export function useAcceptTerms(): () => Promise<TermsOutcome> {
   };
 }
 
-/** The account deleted, now or once its window ends. Refused as the only super-admin, the account
- *  is read again, so its card says so in the trigger's place. */
+/** The account deleted, now or once its window ends. Refused as the only super-admin, the profile's
+ *  fields are read again, so its card says so in the trigger's place. */
 export function useDeleteAccount(): (timing: DeletionTiming) => Promise<DeletionOutcome> {
   const qc = useQueryClient();
   return async (timing) => {
     const outcome = await repo.deleteAccount(timing);
-    if (outcome.kind === 'sole') await qc.invalidateQueries({ queryKey: meKey });
+    if (outcome.kind === 'sole') await qc.invalidateQueries({ queryKey: accountKey });
     return outcome;
   };
 }
@@ -435,10 +460,10 @@ export function useViewDayRollover(): void {
 // THE WRITES. Each settles only once the view it may have changed has been read again, so a control
 // that waits on its write is never idle beside the figure it had not changed yet. A write refused
 // for a stale tag changed nothing, and says so once, whichever tab or control it came from.
-/** What a write moves: the view, which its control waits for, and the counts the account's own read
+/** What a write moves: the view, which its control waits for, and the counts the profile's read
  *  carries, which it does not. */
 const refreshWritten = (qc: QueryClient) => {
-  void qc.invalidateQueries({ queryKey: meKey });
+  void qc.invalidateQueries({ queryKey: accountKey });
   return qc.invalidateQueries({ queryKey: viewKey });
 };
 const STALE_TOAST = 'stale-write';

@@ -1300,10 +1300,11 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
-            # `GET /me` and `GET /me/account` read the caller's own user for the providers linked to
-            # it and its status, and the factors configured on it for a password of its own. Reads,
-            # no write; this function is not in the chain the pool depends on, so naming it builds no
-            # cycle.
+            # The gate asks the pool whether a token with no row still has its identity before an
+            # open window provisions it, and again after (*Auth model*); and `GET /me/account` reads
+            # the caller's own user for the providers linked to it and its status, and the factors
+            # configured on it for a password of its own. Reads, no write; this function is not in
+            # the chain the pool depends on, so naming it builds no cycle.
             - Sid: ReadTheCallersUser
               Effect: Allow
               Action:

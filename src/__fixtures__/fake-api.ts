@@ -1,9 +1,10 @@
 // A fake of the user API for the client's tests: the reads `GET /view` and its three siblings, the
-// account's `GET /me`, the export, `POST /mutations`, `PATCH /me/settings`, `POST /me/terms` and the staged import, served as `fetch` answers over
-// rows held in memory. It applies the ops with core's own schemas and merge patch, and the settings
-// with core's own, so a client that sends the wrong op, the wrong tag or the wrong bytes is refused
-// as the API refuses it. The relay's refresh answers too, so a page can sign in through it, and its
-// passkey list, so the profile can read one.
+// account's `GET /me` and `GET /me/account`, the export, `POST /mutations`, `PATCH /me/settings`,
+// `POST /me/terms` and the staged import, served as `fetch` answers over rows held in memory. It
+// applies the ops with core's own schemas and merge patch, and the settings with core's own, so a
+// client that sends the wrong op, the wrong tag or the wrong bytes is refused as the API refuses it.
+// The relay's refresh answers too, so a page can sign in through it, and its passkey list, so the
+// profile can read one.
 import { createHash } from 'node:crypto';
 
 import {
@@ -78,12 +79,12 @@ export interface FakeApi {
   seen: Sent[];
   /** How many reads have been answered 304. */
   notModified: number;
-  /** The account's settings as the column holds them: NULL until a first write. `/view` serves them
-   *  and moves its validator when they change, and `PATCH /me/settings` merges onto them. */
+  /** The account's settings as the column holds them: NULL until a first write. `GET /me` serves
+   *  them, and `PATCH /me/settings` merges onto them. */
   settings: string | null;
   /** The row's role, which `GET /me` serves. */
   role: 'user' | 'super_admin';
-  /** Whether `GET /me` names the caller the only active super-admin. */
+  /** Whether `GET /me/account` names the caller the only active super-admin. */
   soleSuperAdmin: boolean;
   /** What each `POST /me/deletion` answers, one per call, then `done`: the deletion done or held for
    *  its timing, a sign-in too old, the only super-admin refused, or a fault. Done, every session
@@ -114,9 +115,9 @@ export interface FakeApi {
   holdStart?: Promise<void>;
   /** Holds each read of the list's answer, its rows already read, until it settles. */
   holdRead?: Promise<void>;
-  /** Whether `GET /me` says a Google identity is linked. */
+  /** Whether `GET /me/account` says a Google identity is linked. */
   googleLinked: boolean;
-  /** Whether `GET /me` says the account holds a password of its own. */
+  /** Whether `GET /me/account` says the account holds a password of its own. */
   passwordSet: boolean;
   /** What the ID token a sign-in hands the page names; none by default. */
   claims: Record<string, string | number>;
@@ -193,9 +194,9 @@ export function fakeApi(
     today,
   });
   /** The weak validator of a read: the dataset's version, the day, the rate and its day, and the
-   *  route with its query. `/view`'s alone also holds the settings it serves. */
+   *  route with its query. */
   const validator = (route: string) =>
-    `W/"${api.version}:${today}:${api.fx?.rate ?? ''}@${api.fx?.date ?? ''}:${route}${route === '/view' ? `:${api.settings ?? ''}` : ''}"`;
+    `W/"${api.version}:${today}:${api.fx?.rate ?? ''}@${api.fx?.date ?? ''}:${route}"`;
   const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), {
       status,
@@ -435,11 +436,7 @@ export function fakeApi(
     }
     const rows = served();
     if (path === '/view') {
-      return json(
-        { ...viewBody({ ...rows, fx: api.fx }), settings: settingsOf(api.settings), etag: api.tag() },
-        200,
-        headers,
-      );
+      return json({ ...viewBody({ ...rows, fx: api.fx }), etag: api.tag() }, 200, headers);
     }
     if (path === '/view/series') {
       const period = PERIOD_OPTIONS.find((p) => p === query.get('period'));
@@ -452,22 +449,23 @@ export function fakeApi(
     return json(dayBody(rows, query.get('date') ?? ''), 200, headers);
   }
 
-  /** `GET /me`: the account and what it holds, tagged by a digest of the body as the route tags it. */
-  function account(request: Sent): Response {
+  /** `GET /me`, the caller from the gate's row, and `GET /me/account`, the profile's fields, each
+   *  tagged by a digest of its body as the routes tag them. */
+  function account(request: Sent, profile: boolean): Response {
     const [first] = api.rows.transactions.map((t) => t.date).sort();
-    const text = JSON.stringify({
-      userId: ME_USER_ID,
-      email: ME_EMAIL,
-      role: api.role,
-      memberSince: today,
-      googleLinked: api.googleLinked,
-      passwordSet: api.passwordSet,
-      assets: api.rows.assets.length,
-      transactions: api.rows.transactions.length,
-      ...(first === undefined ? {} : { firstTransaction: first }),
-      settings: settingsOf(api.settings),
-      ...(api.soleSuperAdmin ? { soleSuperAdmin: true } : {}),
-    });
+    const text = JSON.stringify(
+      profile
+        ? {
+            memberSince: today,
+            googleLinked: api.googleLinked,
+            passwordSet: api.passwordSet,
+            assets: api.rows.assets.length,
+            transactions: api.rows.transactions.length,
+            ...(first === undefined ? {} : { firstTransaction: first }),
+            ...(api.soleSuperAdmin ? { soleSuperAdmin: true } : {}),
+          }
+        : { userId: ME_USER_ID, email: ME_EMAIL, role: api.role, settings: settingsOf(api.settings) },
+    );
     const headers = { etag: `W/"${sha(text)}"`, 'cache-control': 'private, no-cache' };
     if (request.headers['if-none-match'] === headers.etag) {
       api.notModified += 1;
@@ -642,7 +640,8 @@ export function fakeApi(
     if (request.method === 'GET' && path === '/state') {
       return json(api.rows, 200, { etag: api.tag() });
     }
-    if (request.method === 'GET' && path === '/me') return account(request);
+    if (request.method === 'GET' && path === '/me') return account(request, false);
+    if (request.method === 'GET' && path === '/me/account') return account(request, true);
     if (request.method === 'GET' && path === '/admin/archive/diagnosis') {
       if (api.role !== 'super_admin') return json({ error: 'forbidden' }, 403);
       if (api.diagnosis === 'capture_failed') return json({ error: 'capture_failed' }, 502);

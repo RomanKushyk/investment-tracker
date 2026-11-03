@@ -32,7 +32,7 @@ afterAll(() => vi.unstubAllGlobals());
 
 const { queryClient, repo, settingsCopy } = await import('./api');
 const { session } = await import('../auth/app');
-const { viewQuery } = await import('../hooks/queries');
+const { meQuery, viewQuery } = await import('../hooks/queries');
 const { useDraft } = await import('../state/draft');
 const { useSettings } = await import('../state/settings');
 
@@ -110,7 +110,7 @@ describe('a sign-out', () => {
   });
 });
 
-// The device's store holds a copy of the account's settings (*Persistence today*): the view's answer
+// The device's store holds a copy of the account's settings (*Persistence today*): `/me`'s answer
 // overwrites it and a change is sent as a merge patch, through the one client the app is wired with.
 describe('the account’s settings', () => {
   const patches = () => api.seen.filter((r) => r.method === 'PATCH');
@@ -125,11 +125,11 @@ describe('the account’s settings', () => {
   const listening = () => (stop = settingsCopy.start());
   afterEach(() => stop());
 
-  it('overwrite what the view is read with, and the theme is not among them', async () => {
+  it('overwrite what /me is read with, and the theme is not among them', async () => {
     api.settings = JSON.stringify({ period: '3m', language: 'en', sidebarCollapsed: true });
     useSettings.setState({ theme: 'dark', period: 'ytd', defaultCurrency: 'USD' });
 
-    await queryClient.fetchQuery(viewQuery);
+    await queryClient.fetchQuery(meQuery);
 
     expect(useSettings.getState()).toMatchObject({
       period: '3m',
@@ -140,7 +140,7 @@ describe('the account’s settings', () => {
     });
   });
 
-  it('go out as one merge patch for a run of changes, and the view that follows is the same on another device', async () => {
+  it('go out as one merge patch for a run of changes, and the /me that follows is the same on another device', async () => {
     timers();
     listening();
     for (const period of ['1m', '3m', '6m', '12m', 'ytd'] as const) {
@@ -162,7 +162,7 @@ describe('the account’s settings', () => {
     vi.useRealTimers();
     useSettings.setState(useSettings.getInitialState(), true);
     queryClient.clear();
-    await queryClient.fetchQuery(viewQuery);
+    await queryClient.fetchQuery(meQuery);
     expect(useSettings.getState().period).toBe('ytd');
   });
 
@@ -179,7 +179,7 @@ describe('the account’s settings', () => {
     api.settings = null;
     api.seen.length = 0;
     await session.respond({});
-    await queryClient.fetchQuery(viewQuery);
+    await queryClient.fetchQuery(meQuery);
     await vi.advanceTimersByTimeAsync(10 * SETTINGS_PATCH_DELAY_MS);
 
     expect(useSettings.getState().period).toBe('all');
@@ -208,7 +208,7 @@ describe('the account’s settings', () => {
 
     // The shell paints from the copy, and the person opens a group before the answer comes.
     useSettings.getState().toggleNavGroup('analytics');
-    await queryClient.fetchQuery(viewQuery);
+    await queryClient.fetchQuery(meQuery);
     await settle();
 
     expect(patches()).toEqual([]);
@@ -230,9 +230,9 @@ describe('the account’s settings', () => {
     expect(api.settings).toBeNull();
   });
 
-  it('keep the copy when the write is refused, and the next read of the view says the account’s', async () => {
+  it('keep the copy when the write is refused, and the next read of /me says the account’s', async () => {
     api.settings = JSON.stringify({ period: '12m' });
-    await queryClient.fetchQuery(viewQuery);
+    await queryClient.fetchQuery(meQuery);
     expect(useSettings.getState().period).toBe('12m');
 
     timers();
@@ -254,7 +254,7 @@ describe('the account’s settings', () => {
     expect(useSettings.getState().period).toBe('3m');
 
     const unchanged = api.notModified;
-    await queryClient.fetchQuery({ ...viewQuery, staleTime: 0 });
+    await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
 
     // The account never changed, so the answer is a 304 and the copy is still put right.
     expect(api.notModified).toBe(unchanged + 1);

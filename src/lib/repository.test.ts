@@ -10,11 +10,14 @@ import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { importParts, type StagedImport } from '@quirenote/core/backup/parts';
 import { headlineKpis, headlineTotal } from '@quirenote/core/derive';
 import { buildSeedBackup } from '@quirenote/core/seed';
+import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { snapshotsOfPrices } from '@quirenote/core/valuation';
 
 import {
   DERIVATION_ID,
+  ME_EMAIL,
+  ME_USER_ID,
   fakeApi,
   type FakeApi,
   type Rows,
@@ -432,9 +435,11 @@ describe('the reads', () => {
     const api = fakeApi(SEED_ROWS(), { today: TODAY });
     const repo = await tab(api);
     const first = await repo.readMe();
-    expect(first).toMatchObject({
+    expect(first).toEqual({
+      userId: ME_USER_ID,
+      email: ME_EMAIL,
       role: 'user',
-      assets: 4,
+      settings: SETTINGS_DEFAULTS,
       validator: expect.stringMatching(/^W\//),
     });
 
@@ -443,6 +448,25 @@ describe('the reads', () => {
 
     api.role = 'super_admin';
     expect((await repo.readMe(first)).role).toBe('super_admin');
+  });
+
+  it("revalidate the profile's own read, and hand back what they had when it is unchanged", async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const repo = await tab(api);
+    const first = await repo.readAccount();
+    expect(api.seen.at(-1)?.path).toBe('/me/account');
+    expect(first).toMatchObject({
+      assets: 4,
+      transactions: SEED_ROWS().transactions.length,
+      passwordSet: true,
+      validator: expect.stringMatching(/^W\//),
+    });
+
+    expect(await repo.readAccount(first)).toBe(first);
+    expect(api.seen.at(-1)?.headers['if-none-match']).toBe(first.validator);
+
+    api.soleSuperAdmin = true;
+    expect((await repo.readAccount(first)).soleSuperAdmin).toBe(true);
   });
 
   it('send nothing without a token, and say the caller is signed out', async () => {
@@ -667,7 +691,7 @@ describe('the account’s settings', () => {
     expect((refused as ApiError).reply).toMatchObject({ kind: 'failed', status: 422 });
   });
 
-  it('are read through the copy the repository was given, whether the API sent the view or said it is unchanged', async () => {
+  it('are read through the copy the repository was given, whether the API sent /me or said it is unchanged', async () => {
     const api = fakeApi(SEED_ROWS(), { today: TODAY });
     const { copy, reads } = passing();
     const repo = createRepository(
@@ -681,15 +705,34 @@ describe('the account’s settings', () => {
       copy,
     );
 
-    const first = await repo.readView();
-    const again = await repo.readView(first);
+    const first = await repo.readMe();
+    const again = await repo.readMe(first);
 
     expect(again).toBe(first);
     expect(api.notModified).toBe(1);
     expect(reads).toHaveBeenCalledTimes(2);
   });
 
-  it('refuse a view that names none, which would read as the defaults and overwrite the copy', async () => {
+  // The view carries none, so its read leaves the copy alone.
+  it('are not read off the view', async () => {
+    const api = fakeApi(SEED_ROWS(), { today: TODAY });
+    const { copy, reads } = passing();
+    const repo = createRepository(
+      createTransport({
+        hostname: 'dev.quirenote.com',
+        fetch: api.fetch,
+        session: await signedIn(),
+        showAnswer: vi.fn(),
+        derivationId: DERIVATION_ID,
+      }),
+      copy,
+    );
+
+    expect(await repo.readView()).not.toHaveProperty('settings');
+    expect(reads).not.toHaveBeenCalled();
+  });
+
+  it('refuse a /me that names none, which would read as the defaults and overwrite the copy', async () => {
     const api = fakeApi(SEED_ROWS(), { today: TODAY });
     const without = async (input: RequestInfo | URL, init?: RequestInit) => {
       const answered = await api.fetch(input, init);
@@ -699,7 +742,7 @@ describe('the account’s settings', () => {
     };
     const repo = await tab({ ...api, fetch: without });
 
-    const refused = await repo.readView().catch((e: unknown) => e);
+    const refused = await repo.readMe().catch((e: unknown) => e);
 
     expect(refused).toBeInstanceOf(ApiError);
     expect((refused as ApiError).reply).toMatchObject({ kind: 'failed', status: 200 });

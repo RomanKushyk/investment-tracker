@@ -70,7 +70,7 @@ export class ApiError extends Error {
   }
 }
 
-/** What the repository asks of the device's copy of the account's settings: the view is read through
+/** What the repository asks of the device's copy of the account's settings: `/me` is read through
  *  it, so each answer overwrites the copy, and the account ending reaches it. */
 export type AccountCopy = Pick<SettingsCopy, 'read' | 'forget'>;
 const noCopy: AccountCopy = { read: (load) => load(), forget() {} };
@@ -78,18 +78,24 @@ const noCopy: AccountCopy = { read: (load) => load(), forget() {} };
 /** A read's body with the weak validator it came under, which the next read of it sends. */
 export type Revalidated<T> = T & { validator?: string };
 
-/** `GET /view`: the figures and the rows, the account's settings, and the strong tag a write goes
- *  under (the body's `etag`, named `tag` here beside the validator the header gave). */
-export type ViewData = Revalidated<ViewBody> & { tag: string; settings: AccountSettings };
+/** `GET /view`: the figures and the rows, and the strong tag a write goes under (the body's `etag`,
+ *  named `tag` here beside the validator the header gave). */
+export type ViewData = Revalidated<ViewBody> & { tag: string };
 export type SeriesData = Revalidated<SeriesBody>;
 export type BalancesData = Revalidated<BalancesBody>;
 export type DayData = Revalidated<DayQuotes>;
 
-/** `GET /me`: the caller's own account and what it holds. A field the API does not hold is absent. */
+/** `GET /me`: the caller and the account's settings, read on every load beside the view. */
 export interface MeBody {
   userId: string;
   email: string;
   role: 'user' | 'super_admin';
+  settings: AccountSettings;
+}
+export type MeData = Revalidated<MeBody>;
+
+/** `GET /me/account`: the profile's fields. A field the API does not hold is absent. */
+export interface AccountBody {
   memberSince: string;
   googleLinked: boolean;
   /** A password the account set itself; an invitation's, never replaced, is not one. */
@@ -97,11 +103,10 @@ export interface MeBody {
   assets: number;
   transactions: number;
   firstTransaction?: string;
-  settings: AccountSettings;
   /** Present for the only active super-admin, whom a deletion refuses. */
   soleSuperAdmin?: true;
 }
-export type MeData = Revalidated<MeBody>;
+export type AccountData = Revalidated<AccountBody>;
 
 /** One `(instrument_ref, basis, source)` group of `diagnose`'s reconciliation, as
  *  `infra/src/diagnose-reconciliation.ts` maps it: counts are Postgres text, and the measured
@@ -178,28 +183,28 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 
 // The body is the API's own, pinned by the derivation identifier; these keep a misread answer (an
 // error page behind a 200) from reaching a screen as a portfolio.
-const isView = (b: unknown): b is ViewBody & { etag: string; settings: AccountSettings } =>
+const isView = (b: unknown): b is ViewBody & { etag: string } =>
   isObject(b) &&
   typeof b.etag === 'string' &&
   isObject(b.view) &&
   Array.isArray(b.assets) &&
   Array.isArray(b.transactions) &&
   isObject(b.today) &&
-  isObject(b.deleteCounts) &&
-  isObject(b.settings);
+  isObject(b.deleteCounts);
 const isSeries = (b: unknown): b is SeriesBody =>
   isObject(b) && typeof b.period === 'string' && Array.isArray(b.series);
 const isBalances = (b: unknown): b is BalancesBody =>
   isObject(b) && Array.isArray(b.assets) && Array.isArray(b.rows) && typeof b.page === 'number';
 const isDay = (b: unknown): b is DayQuotes =>
   isObject(b) && typeof b.date === 'string' && isObject(b.quotes) && isObject(b.previous);
+// A `/me` with no settings would read as the defaults and overwrite the copy.
 const isMe = (b: unknown): b is MeBody =>
+  isObject(b) && typeof b.userId === 'string' && typeof b.role === 'string' && isObject(b.settings);
+const isAccount = (b: unknown): b is AccountBody =>
   isObject(b) &&
-  typeof b.userId === 'string' &&
-  typeof b.role === 'string' &&
+  typeof b.memberSince === 'string' &&
   typeof b.assets === 'number' &&
-  typeof b.transactions === 'number' &&
-  isObject(b.settings);
+  typeof b.transactions === 'number';
 const isDiagnosis = (b: unknown): b is ArchiveDiagnosis =>
   isObject(b) &&
   isObject(b.size) &&
@@ -334,36 +339,36 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
   }
 
   return {
-    readView: (previous?: ViewData): Promise<ViewData> =>
-      // Through the copy, whether the API sent the view or said it is unchanged: the settings it
-      // holds are the account's either way.
-      copy.read(async () => {
-        // An older read never moves the tag back: one sent before a write of this tab landed is
-        // answered for a dataset that write has changed.
-        const sentAt = landed;
-        const answer = await get('/view', previous?.validator);
-        if (answer.unchanged) {
-          const held = previous as ViewData;
-          if (landed === sentAt) tag = held.tag;
-          return held;
-        }
-        if (!isView(answer.body)) throw misread(answer);
-        const { etag, ...rest } = answer.body;
-        if (landed === sentAt) tag = etag;
-        return {
-          ...rest,
-          tag: etag,
-          ...(answer.validator === undefined ? {} : { validator: answer.validator }),
-        };
-      }),
+    async readView(previous?: ViewData): Promise<ViewData> {
+      // An older read never moves the tag back: one sent before a write of this tab landed is
+      // answered for a dataset that write has changed.
+      const sentAt = landed;
+      const answer = await get('/view', previous?.validator);
+      if (answer.unchanged) {
+        const held = previous as ViewData;
+        if (landed === sentAt) tag = held.tag;
+        return held;
+      }
+      if (!isView(answer.body)) throw misread(answer);
+      const { etag, ...rest } = answer.body;
+      if (landed === sentAt) tag = etag;
+      return {
+        ...rest,
+        tag: etag,
+        ...(answer.validator === undefined ? {} : { validator: answer.validator }),
+      };
+    },
     readSeries: (period: PeriodOption, previous?: SeriesData) =>
       revalidate(`/view/series?period=${period}`, previous, isSeries),
     readBalances: (page: number, previous?: BalancesData) =>
       revalidate(`/view/balances?page=${page}`, previous, isBalances),
     readDay: (date: string, previous?: DayData) =>
       revalidate(`/view/day?date=${date}`, previous, isDay),
-    /** The account's own read, asked for by the screen that shows it and never on a load. */
-    readMe: (previous?: MeData) => revalidate('/me', previous, isMe),
+    /** The caller and its settings, read on every load. Through the copy, whether the API sent them
+     *  or said they are unchanged: the settings held are the account's either way. */
+    readMe: (previous?: MeData) => copy.read(() => revalidate('/me', previous, isMe)),
+    /** The profile's fields, asked for by the profile alone. */
+    readAccount: (previous?: AccountData) => revalidate('/me/account', previous, isAccount),
     /** The super-admin's diagnosis of the price archive, read on a press only and sent once: each
      *  arrival executes the observe window's payloads (`infra/src/capture.ts`, `diagnose`). */
     readArchiveDiagnosis: async (): Promise<ArchiveDiagnosis> => {

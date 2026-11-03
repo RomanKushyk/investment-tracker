@@ -3,7 +3,6 @@
 // The golden ledgers are stored this way, so a screen's figures are held to the composers' own on
 // them, and a body built here stands in for the API's wherever a test needs one.
 import { todayIso } from '@quirenote/core/dates';
-import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { PeriodOption } from '@quirenote/core/period';
 import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { pricesOfSnapshots } from '@quirenote/core/valuation';
@@ -81,11 +80,10 @@ export function viewOf(tables: AllTables, today = todayIso()): ViewBody {
     deleteCounts: storedDeleteCounts(input.assets, input.transactions, tables.snapshots),
   };
 }
-/** The body as the API serves it: the view and the rows, the tag a write goes under, the settings. */
+/** The body as the API serves it: the view and the rows, and the tag a write goes under. */
 export const viewDataOf = (tables: AllTables, today = todayIso()): ViewData => ({
   ...viewOf(tables, today),
   tag: '"0"',
-  settings: SETTINGS_DEFAULTS,
 });
 export function seriesOf(tables: AllTables, period: PeriodOption, today = todayIso()): SeriesBody {
   const { assets, snapshots, transactions } = ledgerAsOf(storedInput(tables, today));

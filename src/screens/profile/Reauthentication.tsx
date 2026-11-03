@@ -45,7 +45,7 @@ import { type BotCheckOf, afterPass, useBotCheck } from '../sign-in/useBotCheck'
 // keeps the proof, and its window shows until it runs out. Sign-out everywhere and the deletion
 // (`account-deletion.dc.html` T3) each bring their own lines and action.
 
-/** The account's ways to prove it, from `GET /me` and the passkey list: Google is offered to an
+/** The account's ways to prove it, from `GET /me/account` and the passkey list: Google is offered to an
  *  account with no password, alone or beside its passkey (T1, T2). */
 export interface Ways {
   password: boolean;

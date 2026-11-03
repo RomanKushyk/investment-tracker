@@ -263,7 +263,7 @@ invitation, not a pool setting.
 **`AdminGetUserAuthFactors` lists what a user holds, not what it can use.** On the dev pool every
 user's `ConfiguredUserAuthFactors` carries `EMAIL_OTP`, though `AllowedFirstAuthFactors` offers no
 OTP, and an invited user still `FORCE_CHANGE_PASSWORD`, its temporary password long expired, lists
-`PASSWORD` like a user who set one. So `GET /me`'s `passwordSet` reads `PASSWORD` with the user's
+`PASSWORD` like a user who set one. So `GET /me/account`'s `passwordSet` reads `PASSWORD` with the user's
 status, `CONFIRMED` (*Cloud target*).
 
 **An address with no account gets an answer keyed on the address, and it repeats.** With

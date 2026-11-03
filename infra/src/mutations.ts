@@ -69,8 +69,8 @@ import { ACCOUNT_ROUTE, ME_ROUTE, identityReader, me, meAccount } from './me';
 import { RETRY_DELAYS_MS, retryable, sleep } from './provision';
 import { SETTINGS_ROUTE, settings } from './settings';
 
-// The function's entry is this module, so the deploy smoke test reaches the settings route here.
-export { settings };
+// The function's entry is this module, so the deploy smoke test reaches these routes here.
+export { me, settings };
 
 export const MUTATIONS_ROUTE = 'POST /mutations';
 export const STATE_ROUTE = 'GET /state';

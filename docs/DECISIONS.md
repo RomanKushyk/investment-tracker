@@ -82,8 +82,9 @@ rate a conversion uses is none of them: it is the server's row, which `/view` se
 (*External sources*), and the store holds none. A `dataset` or `usdRate` key a profile still holds,
 from a build that kept one, is read past, and the store's next write leaves it out. `currency` is the tab's and persists nowhere. THE THEME IS THE PREFERENCE
 `system | light | dark`, `system` by default, and the resolved colour is never stored. THE
-DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which EVERY `/view` ANSWER
-overwrites, the theme excepted, because a paint comes before that answer: the shell's first render
+DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which EVERY `GET /me`
+ANSWER overwrites, `/me` being read on every load beside the view, the theme excepted, because a
+paint comes before that answer: the shell's first render
 reads the rail, and a signed-out page has no account at all, so there the copy is what applies and
 the signed-out bar's language control writes it and nothing else. A CHANGE WRITES THE COPY AT ONCE
 and reaches the account as `PATCH /me/settings` naming only the fields that changed, sent once changes
@@ -91,7 +92,8 @@ have been quiet for `SETTINGS_PATCH_DELAY_MS` and one write at a time (`settings
 screen never waits on it. A FIELD IS THE DEVICE'S, NOT THE ACCOUNT'S, from its change until the answer
 to the write that carried it, and for any read begun before that answer, which may have been
 answered before the write landed and would put back what the person has just chosen. A write that
-fails leaves the copy, and the next answer restores the account's. A LIST CHANGED BEFORE THE ACCOUNT
+fails leaves the copy, and the next answer restores the account's; a write that lands is not read
+back, since the copy holds what it sent. A LIST CHANGED BEFORE THE ACCOUNT
 HAS ANSWERED IS NOT SENT: it goes whole, and would carry the rest of a list that may be the last
 account's, so the answer replaces it. A signed-out page has no token and sends nothing. The end of an
 account, by a sign-out or by a session that turns out to be another account's, leaves the copy and
@@ -102,9 +104,9 @@ move of the rail under focus held in the sidebar, which takes the focused contro
 leaves focus anywhere else where it is. THE ACCOUNT'S SETTINGS ARE ONE NULLABLE
 TEXT COLUMN ON `app_user`, its fields as JSON and NULL reading as their defaults; A WRITE MERGES THE
 FIELDS IT NAMES onto those stored and leaves the rest as they are, `PATCH /me/settings` being that
-write and `/view` the read (*Cloud target*); and the sanitiser of those fields, `migrateSettings`'
+write and `GET /me` the read (*Cloud target*); and the sanitiser of those fields, `migrateSettings`'
 rule for each, is core's (`settings.ts`), so both sides run it: the server on a write and on the
-read `/view` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member is the default currency alone, with no per-device field and no
+read `GET /me` serves, and the app's `migrateSettings` for the account's ten. The backup's `settings` member is the default currency alone, with no per-device field and no
 rate: a restore the person opts into sets it as any other change of it does.
 The JSON backup envelope names no dataset, no database version and no rate, and refuses a newer, an
 older and an unreadable version, A `__proto__` KEY in any object the schemas read — the envelope, settings, a row, its
@@ -791,14 +793,16 @@ reads do not throw: a failure there names the route's error key, or the HTTP sta
 has none, and reads again, because its one operator decides what to run next from that answer.
 A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
 that failed, and so does one of the wide figures (a curve, a page of the table, a day other than
-the caller's), and so does the profile's `GET /me`, and the failed-screen state is what shows, the
-sidebar kept; an answer already in hand stays on screen when a later read of it fails. BESIDE THE
+the caller's), and so do the profile's `GET /me` and `GET /me/account`, and the failed-screen
+state is what shows, the sidebar kept; an answer already in hand stays on screen when a later read of it fails. BESIDE THE
 ARCHIVE PANEL, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
 relay's read, apart from the account above it, so a failure is one sentence in its card that asks
-for a reload, and the account stays on screen. NOR DOES SETTINGS' `GET /me` (`archive-admin.dc.html`,
-T1): it is asked only for the super-admin's «Адміністрування» card, so while it is out or after it
-fails that card is not rendered, nothing takes its place, and the three other cards stand; the
-archive panel's own route still throws a failed `/me`, as the profile does. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
+for a reload, and the account stays on screen. NOR DOES THE SHELL'S `GET /me`, READ ON EVERY LOAD
+beside the view for the settings and the role: a failure leaves the device's copy of the settings as
+it is, and the screens behind the view stand. Settings takes the role from it for the super-admin's
+«Адміністрування» card (`archive-admin.dc.html`, T1), so while it is out or after it fails that card
+is not rendered, nothing takes its place, and the three other cards stand; the archive panel's own
+route still throws a failed `/me`, as the profile does. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
 shows neither an empty portfolio nor a spinner: the shell alone until the read has been out for a
 while, then every box whose size is known in place for a while at least, a figure as «—», a list as three rows, a chart
 as one block, a form with its title and its fields held, and nothing in it that can be reached; one
@@ -1053,9 +1057,8 @@ caller's prices and the archive's, the official rate and its day beside it, and 
 read, which a figure is cut from and a form is not: every asset and every transaction, uncut and in
 the order the composers read them, a row dated after the caller's day included; the quotes the user
 RECORDED on the caller's day, each asset's latest recorded one before it with the day it was
-recorded, and the latest witness time of any price the user recorded; each asset's delete
-counts; and the account's settings, the ten fields with NULL read as their defaults, from the row
-the gate has read. A quote is recorded when a `user_price` row of the user gives it, priced as a stored day is,
+recorded, and the latest witness time of any price the user recorded; and each asset's delete
+counts. The account's settings are no part of it: they ride `GET /me`, read beside it. A quote is recorded when a `user_price` row of the user gives it, priced as a stored day is,
 so a carried grid day and an archive price are none and a price on a day its position holds none
 gives none. The delete counts are what `asset.delete` removes: the asset's transactions and every
 price row of it, a day its position held none included. One core function composes the quotes for
@@ -1072,8 +1075,8 @@ archive is read for the linked refs from a week before the first transaction on 
 caller's day, so the first held day finds the observation before it. TWO VALIDATORS, NEVER ONE:
 the read's tag is WEAK and composed from seven inputs — the caller, the write's strong tag, a digest
 of the sell rows read, a digest of the payment dates served, the rate served with its day, the Kyiv
-day and the derivation identifier — and `/view`'s adds the caller's settings as served, the one boot
-read that carries them (`GET /me` serves them too, under a digest of its body), while a write's precondition is the caller and `data_version` alone, as a strong tag. `If-None-Match`
+day and the derivation identifier — while a write's precondition is the caller and `data_version`
+alone, as a strong tag. `If-None-Match`
 compares weakly and `*` matches;
 `If-Match` on the read compares strongly, so the read's own tag answers 412. The answer is
 `private, no-cache`. STALENESS IS A HEADER: the 200 names its derivation in `derivation-id`, which
@@ -1144,8 +1147,8 @@ landed it answers the current tag. `DELETE /imports/{id}` closes the staging, 20
 past its limit is gone. A price row is written as it stands, a witness time the file leaves out left
 out again.
 THE ACCOUNT'S SETTINGS ARE WRITTEN BY `PATCH /me/settings`, on the write's function and behind the same
-gate, and READ FROM `/view`, the boot copy: there is no `GET /me/settings`, and `GET /me` carries them for
-the account screen. They are a singleton under the caller, AIP-156's `users/{user}/config` and Microsoft
+gate, and READ FROM `GET /me`, which every load sends beside `/view`: there is no `GET /me/settings`,
+and `/view` carries none. They are a singleton under the caller, AIP-156's `users/{user}/config` and Microsoft
 Graph's `/me/mailboxSettings`, so they take a path of their own under `/me`, and nothing writes through
 `/me` itself. The body is a JSON merge patch
 (RFC 7396) of the ten fields *Persistence today* names, sent as `application/merge-patch+json`: a
@@ -1165,19 +1168,21 @@ write is made from the text the row holds and lands only where the row still hol
 made again from what the row holds when it does not, or when the cluster reports a serialization
 failure, so two writers naming different fields keep both; one that changes nothing writes nothing;
 and the stored text may not pass the request's byte bound, 413. A SETTINGS WRITE MOVES NO
-`data_version` and takes no `Idempotency-Key`: a period change costs no `/view` read, no tab's
+`data_version` and takes no `Idempotency-Key`: a period change costs no read, no tab's
 `If-Match` goes stale, and a patch applied twice leaves one state. The text lives on the row
 `data_version` lives on, so a settings write and a mutation touching the row at once conflict at
 commit, and the one that loses is retried.
-THE CALLER'S OWN ACCOUNT IS `GET /me`, on the write's function and behind the same gate, READ ON
-DEMAND by a screen that shows it and never at sign-in or on a load, so a load stays one data
-request; Microsoft Graph serves the signed-in user at `GET /me`, and the products that carry the
-role and the settings in their boot read and read the account apart from it are Grafana, Discourse,
-Sentry and Mastodon. It answers the row's `userId`, `email` and `role`, `memberSince` as the Kyiv
-day of `decided_at`, `googleLinked` from the pool's `identities` on the caller's own user,
-`passwordSet` from the same user and its configured factors, the live dataset's `assets` and
-`transactions` and its `firstTransaction` day, and the settings as `/view` serves them. A FIELD IT
-DOES NOT HOLD IS OMITTED, NEVER NULL (OIDC Core §5.3.2), so an account with no transaction has no
+THE CALLER IS `GET /me`, on the write's function and behind the same gate, READ ON EVERY LOAD
+BESIDE `/view`, the two sent side by side: it answers the row's `userId`, `email` and `role` and
+the account's settings, from the gate's read alone, with no pool call and no query of its own. The
+shell needs the role on every load and the device's copy needs the account's settings, so one
+read carries both and `/view` carries neither; GitHub's authenticated user carries `site_admin`,
+Mastodon's `verify_credentials` its `role`, and Microsoft Graph serves the signed-in user at
+`GET /me` beside `/me/mailboxSettings`. THE PROFILE'S FIELDS ARE `GET /me/account`, read by
+`/profile` alone: `memberSince` as the Kyiv day of `decided_at`, `googleLinked` from the pool's
+`identities` on the caller's own user, `passwordSet` from the same user and its configured factors,
+the live dataset's `assets` and `transactions` and its `firstTransaction` day, and `soleSuperAdmin`
+for the only active super-admin, whom a deletion refuses. A FIELD IT DOES NOT HOLD IS OMITTED, NEVER NULL (OIDC Core §5.3.2), so an account with no transaction has no
 `firstTransaction`; it carries nothing a screen does not use, the minimum ASVS 5.0.0 14.2.6 asks
 for: no status, application, decider, version, dataset, theme or sign-in history. `PASSWORDSET` IS A
 PASSWORD OF THE ACCOUNT'S OWN: `PASSWORD` among `AdminGetUserAuthFactors`' configured factors and
@@ -1198,12 +1203,11 @@ as «Суперадміністратор», since a role is shown where it name
 organization, and so holds no role row while the read is out; and a copy the browser refuses reads
 «Не скопійовано» on its button for the 2 s «Скопійовано» would, is said in the same status line and
 leaves the ID selected to copy by hand, where the drawing draws success alone (Primer's copy
-pattern: "Don't let a copy fail silently"). Its tag is WEAK and a
-DIGEST OF THE BODY (RFC 9110 §8.8.3): a 304 needs the pool's answer as much as a 200 does, so a tag
-composed from inputs would save no read; `private, no-cache`, as `/view`. Nothing writes through it.
-`GET /me/account` answers the profile's fields of it alone, `memberSince` through `soleSuperAdmin`,
-from the same reads behind the same gate and under a weak tag of its own body, which a settings
-write leaves as it was, the settings being no field of it. The app does not read it.
+pattern: "Don't let a copy fail silently"); it takes the address, the ID and the role from the
+load's `GET /me`. EACH TAG IS WEAK and a DIGEST OF ITS BODY (RFC 9110 §8.8.3): the profile's 304
+needs the pool's answer as much as a 200 does, so a tag composed from inputs would save no read;
+`private, no-cache`, as `/view`. A settings write moves `/me`'s tag and leaves `/me/account`'s as it
+was; a write of the dataset moves `/me/account`'s alone. Nothing writes through either.
 THE ARCHIVE'S DIAGNOSIS IS `GET /admin/archive/diagnosis`, a super-admin read on this API, served by a
 function of its own: past the gate it invokes the archive's capture function synchronously with the
 `diagnose` event and answers the capture's body unchanged; 502 `capture_failed` when the capture throws
@@ -1507,16 +1511,16 @@ the history, and the quotes screen reads one day. · The rebuilt series as the s
 quotes: it quotes a carried grid day and an archive price as well. · The settings as an op of
 `/mutations`: it bumps `data_version`, so a period change costs a `/view` read and every other tab's
 write is refused 412. · A `PATCH /me` with a `settings` member: nothing writes through `/me`, and a path of the settings'
-own keeps the write to them. · A `GET /me/settings` beside `/view` and `GET /me`: both already carry the
-settings, so it is a third copy no screen calls. AIP-156 says a singleton "should", not "must", define a
+own keeps the write to them. · A `GET /me/settings` beside `GET /me`: `/me` already carries the
+settings on every load, so it is a second copy no screen calls. AIP-156 says a singleton "should", not "must", define a
 Get; Mastodon's web client reads its settings from its boot payload (`InitialStateSerializer`) and keeps
 `GET /api/v1/preferences` for third-party clients, which this app has none of; and every exposed endpoint
-is one more for the inventory OWASP API9:2023 asks for. · A `GET /me/settings` as the only read, the
-settings off `/view` and `/me`: every load sends a second request, the cost that rejects moving them
-onto `GET /me` below. · A `PUT` of the whole settings
+is one more for the inventory OWASP API9:2023 asks for. · A `GET /me/settings` read on every load,
+with `/me` read only where the account is shown: the shell needs the role on every load, so `/me` is
+read on every load anyway and a load would send three requests. · A `PUT` of the whole settings
 object: it deletes what its sender did not send, such as a field a build that loaded before does not
-know (AIP-134, above). · Moving the settings off `/view` onto `GET /me`, read at every load: a second
-request, preflight and cold function on every load, where only Mattermost reads its `/me` at boot. · Dropping a name that is no setting, as a read does: a client sending a
+know (AIP-134, above). · The settings kept on `/view` beside a light `/me`: two answers of one load
+would each carry them and each overwrite the device's copy. · Dropping a name that is no setting, as a read does: a client sending a
 theme would be answered 200 and find it stored nowhere. · Salvaging a list's strings, as a read
 does: the write would store something other than what was sent and answer 200. · Taking
 `application/json` as a patch as well: the route takes one patch format, and RFC 5789 §2.2 answers
@@ -1582,7 +1586,8 @@ AIP-185, written for APIs with many consumers). Here the only client is the SPA,
 same commit as the API, so a breaking change is a deploy, not a version: Zalando's guidelines forbid
 URL versioning and ask for kebab-case segments. The two deploy in separate workflows, so a renamed
 route answers 404 to one side for the minutes between them, and to a tab still on the old bundle
-until it reloads; that window is accepted rather than paid for with a route kept under both names. Grouping by resource is how Stripe and GitHub
+until it reloads, and so does a body that loses a member the old bundle requires; that
+window is accepted rather than paid for with a route kept under both names. Grouping by resource is how Stripe and GitHub
 organise their references, and each operation already states its security posture on its own.
 **Rejected.** `/v1` on every route: a promise of coexisting versions nothing would keep. · Tags by
 audience (public, user, admin), OAS 3.2's `kind: audience`: the posture is already each
@@ -1826,7 +1831,7 @@ other answers, a list of terminated tokens or a per-user cutoff, would refuse no
 absence does not already refuse elsewhere. THE IDENTITY GOES LAST, after the row: while it stands its holder
 can sign in and ask again, and a deletion that stopped between the two is finished by the same
 route. It asks for no terms, erasure waiting on no acceptance. The only active super-admin is
-refused, no path back in existing without one, and `GET /me` names them so the page refuses before any press.
+refused, no path back in existing without one, and `GET /me/account` names them so the page refuses before any press.
 THE SAME PRESS MAY SCHEDULE THE DELETION INSTEAD, behind the same sign-in: every session ends first,
 then the account is held and the route answers 202 with the last day it can be cancelled. A HELD
 ACCOUNT IS REFUSED `scheduled` ON EVERY ROUTE, the deletion's included, a 403 that carries the day
@@ -1958,9 +1963,9 @@ client. · `cognito-srp-helper`: one maintainer, a bundle far past the port, no 
 types, and this pool gives none without a username. · Build-time settings for the relay and the
 pool: a build can disagree with the host serving it, and the host cannot. · A who-am-I route to learn
 the answers: every authenticated route reads the same row and answers them, so the first read
-the app makes serves, and a route of its own would cost an invocation on every sign-in. `GET /me` is
-no such route: a screen that shows the account reads it, and the answers still come from the
-first read the app makes. · The
+the app makes serves. `GET /me`
+is no such route: it is read on every load for the caller and the settings, and its refusals are
+the gate's, as every other route's. · The
 signed-out confirmation as a toast: it leaves on a timer, and a toast here
 reports on the page the user stays on. · Deciding the offer from the address step's answer, a
 `SELECT_CHALLENGE` without `WEB_AUTHN`: it depends on which way the user reached the password, and no

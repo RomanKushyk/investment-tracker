@@ -1,10 +1,9 @@
-// `GET /me`: the caller's own account, read by the screens that show it and never at sign-in or on a
-// load, which `/view` serves alone (*Cloud target*, *Auth model*). It carries what a screen shows,
-// and a field it does not hold is omitted rather than null (OIDC Core §5.3.2). `GET /me/account`
-// answers the profile's fields of it alone, behind the same gate and validator.
+// `GET /me`: the caller and its settings, read on every load beside `/view` and so answered from the
+// gate's row alone (*Cloud target*, *Auth model*). `GET /me/account` answers the profile's fields,
+// read by `/profile` alone; a field it does not hold is omitted rather than null (OIDC Core §5.3.2).
 //
-// The tag is a digest of the body (RFC 9110 §8.8.3): a 304 needs the pool's answer as much as a 200
-// does, so composing it from inputs would save no read and add a list to keep in step.
+// Each tag is a digest of its body (RFC 9110 §8.8.3): a profile's 304 needs the pool's answer as much
+// as a 200 does, so composing it from inputs would save no read and add a list to keep in step.
 import { createHash } from 'node:crypto';
 
 import {
@@ -24,7 +23,6 @@ import {
   SCHEDULED,
   TERMS,
   authorize,
-  type Caller,
 } from './authorize';
 import {
   INTERNAL,
@@ -46,14 +44,12 @@ import type { SqlClient } from './migrate';
 import { GOOGLE } from './providers';
 
 export const ME_ROUTE = 'GET /me';
-/** The profile's fields alone, so a settings write leaves this read's tag as it was. */
+/** The profile's fields, so a settings write leaves this read's tag as it was. */
 export const ACCOUNT_ROUTE = 'GET /me/account';
 
 /** Stored by the browser alone and revalidated on every use, as `/view` is. */
 const CACHE_POLICY = 'private, no-cache';
 
-// The profile's fields, which `/me` carries between the caller and the settings and `/me/account`
-// carries alone, so the two documents cannot drift apart.
 const PROFILE = {
   memberSince: '2026-03-02',
   googleLinked: false,
@@ -72,19 +68,17 @@ const SOLE_PROFILE = {
   transactions: 0,
   soleSuperAdmin: true,
 };
-const caller = (role: string) => ({ userId: '<the sub>', email: 'owner@quirenote.com', role });
 
 const ME = derived({
   statusCode: 200,
   name: 'me',
   headers: ['etag', 'cache-control'],
-  example: { ...caller('user'), ...PROFILE, settings: SETTINGS_DEFAULTS },
-});
-const SOLE = derived({
-  statusCode: 200,
-  name: 'sole_super_admin',
-  headers: ['etag', 'cache-control'],
-  example: { ...caller('super_admin'), ...SOLE_PROFILE, settings: SETTINGS_DEFAULTS },
+  example: {
+    userId: '<the sub>',
+    email: 'owner@quirenote.com',
+    role: 'user',
+    settings: SETTINGS_DEFAULTS,
+  },
 });
 const ACCOUNT = derived({
   statusCode: 200,
@@ -105,7 +99,6 @@ const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-cont
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [ME_ROUTE]: [
     ME,
-    SOLE,
     UNCHANGED,
     PENDING,
     REJECTED,
@@ -179,11 +172,11 @@ const googleLinked = (attributes: { Name?: string; Value?: string }[] = []): boo
 const passwordSet = (status: string | undefined, factors: string[] = []): boolean =>
   status === 'CONFIRMED' && factors.includes('PASSWORD');
 
-/** The gate, then what both routes answer about the account: a refusal or a 500 as it is. */
+/** The gate, then the profile's fields: a refusal or a 500 as it is. */
 async function readAccount(
   deps: MeDeps,
   event: ApiEvent,
-): Promise<ApiResult | { caller: Caller; sole: boolean; account: Record<string, unknown> }> {
+): Promise<ApiResult | { sole: boolean; account: Record<string, unknown> }> {
   const gate = await authorize(deps.user, event);
   if ('refusal' in gate) return gate.refusal;
   const UserPoolId = deps.userPoolId;
@@ -208,7 +201,6 @@ async function readAccount(
   ]);
   const { transactions, first_transaction: first } = moved.rows[0];
   return {
-    caller: gate.caller,
     sole,
     account: {
       memberSince: kyivDateIso(new Date(utc(member.rows[0].decided_at))),
@@ -236,17 +228,14 @@ function tagged(event: ApiEvent, declared: typeof ME, text: string): ApiResult |
 export async function me(deps: MeDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
   // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
   try {
-    const read = await readAccount(deps, event);
-    if ('statusCode' in read) return read;
-    const { userId, email, role, settings } = read.caller;
-    const text = JSON.stringify({
-      userId,
-      email,
-      role,
-      ...read.account,
-      settings: settingsOf(settings),
-    });
-    return tagged(event, read.sole ? SOLE : ME, text);
+    const gate = await authorize(deps.user, event);
+    if ('refusal' in gate) return gate.refusal;
+    const { userId, email, role, settings } = gate.caller;
+    return tagged(
+      event,
+      ME,
+      JSON.stringify({ userId, email, role, settings: settingsOf(settings) }),
+    );
   } catch (err) {
     console.error('me failed', loggable(err));
     return INTERNAL;

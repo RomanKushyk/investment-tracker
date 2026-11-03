@@ -1,5 +1,5 @@
-// `GET /me` over PGlite: the caller's row, its dataset and the gate in one database, and the pool's
-// answer from a stub (*Cloud target*, *Auth model*).
+// `GET /me` and `GET /me/account` over PGlite: the caller's row, its dataset and the gate in one
+// database, and the pool's answer from a stub (*Cloud target*, *Auth model*).
 import { createHash } from 'node:crypto';
 
 import type { PGlite } from '@electric-sql/pglite';
@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { freshDb } from './__fixtures__/pglite';
 import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { authorize } from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import { declarationOf, type ApiEvent, type ApiResult, type EmptyResult } from './http';
@@ -181,8 +182,28 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("the caller's own account", () => {
-  it('answers a user with its role, address, id, member-since day and settings', async () => {
+/** A client that lists the statements sent through it. */
+const watching = () => {
+  const sent: string[] = [];
+  const watched = {
+    query: (text: string, values?: unknown[]) => {
+      sent.push(text);
+      return db.query(text, values);
+    },
+  } as unknown as SqlClient;
+  return { sent, watched };
+};
+
+const account = (o: Caller = {}, d: MeDeps = deps()) => read({ ...o, route: ACCOUNT_ROUTE }, d);
+
+// The tag is a digest of these bytes, so a key moved inside the body moves every client's tag.
+const digest = (text: string) =>
+  `W/"${createHash('sha256').update(text, 'utf8').digest('base64url')}"`;
+const settings = JSON.stringify(SETTINGS_DEFAULTS);
+
+// Read on every load beside `/view`, so it answers from the gate's row alone (#600).
+describe("GET /me, the caller from the gate's row", () => {
+  it('answers a user with its id, address, role and settings, and nothing else', async () => {
     await db.query(`UPDATE app_user SET settings = '{"language":"en"}' WHERE user_id = $1`, [SUB]);
     expect(answer(await read())).toEqual([
       200,
@@ -190,56 +211,43 @@ describe("the caller's own account", () => {
         userId: SUB,
         email: EMAIL,
         role: 'user',
-        memberSince: '2026-03-02',
-        googleLinked: false,
-        passwordSet: true,
-        assets: 0,
-        transactions: 0,
         settings: { ...SETTINGS_DEFAULTS, language: 'en' },
       },
     ]);
   });
 
-  it('answers a super-admin with its role', async () => {
+  it('answers the only super-admin with its role, and no profile field', async () => {
     await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
-    expect(answer(await read())[1]).toMatchObject({ role: 'super_admin' });
+    expect(answer(await read())).toEqual([
+      200,
+      { userId: SUB, email: EMAIL, role: 'super_admin', settings: SETTINGS_DEFAULTS },
+    ]);
   });
 
-  it('names the only super-admin, whom a deletion refuses', async () => {
+  // The only super-admin is the case that asked the most: the pool twice and the sole query.
+  it('asks the pool nothing and the database nothing beyond the gate, 200 or 304', async () => {
     await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
-    expect(answer(await read())[1]).toMatchObject({ soleSuperAdmin: true });
-  });
+    const gate = watching();
+    expect('caller' in (await authorize(gate.watched, event()))).toBe(true);
+    expect(gate.sent.length).toBeGreaterThan(0);
 
-  it('does not ask for an ordinary user', async () => {
-    const sent: string[] = [];
-    const watched = {
-      query: (text: string, values?: unknown[]) => {
-        sent.push(text);
-        return db.query(text, values);
-      },
-    } as unknown as SqlClient;
-    const res = await read({}, deps({ user: watched }));
+    const fresh = watching();
+    const res = await read({}, deps({ user: fresh.watched }));
     expect(res.statusCode).toBe(200);
-    expect(sent.filter((t) => t.includes('AS sole'))).toEqual([]);
+    expect(fresh.sent).toEqual(gate.sent);
+
+    const again = watching();
+    const unchanged = await read({ ifNoneMatch: etagOf(res) }, deps({ user: again.watched }));
+    expect(unchanged.statusCode).toBe(304);
+    expect(again.sent).toEqual(gate.sent);
+
+    expect(asked).toEqual([]);
+    expect(factorsAsked).toEqual([]);
   });
 
-  it('omits it while another super-admin is active, and for a user', async () => {
-    expect(answer(await read())[1]).not.toHaveProperty('soleSuperAdmin');
-    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
-    await insertUser(db, TWIN, TWIN_EMAIL, 'active', 'super_admin');
-    expect(answer(await read())[1]).not.toHaveProperty('soleSuperAdmin');
-  });
-
-  // A super-admin a scheduled deletion holds reaches no route, so the one left free is the only one.
-  it('names the only one while every other super-admin is held by a scheduled deletion', async () => {
-    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
-    await insertUser(db, TWIN, TWIN_EMAIL, 'active', 'super_admin');
-    await db.query(
-      `UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()
-        WHERE user_id = $1`,
-      [TWIN],
-    );
-    expect(answer(await read())[1]).toMatchObject({ soleSuperAdmin: true });
+  it('answers with no pool named and a token that names no pool username', async () => {
+    const res = await read({ username: null }, deps({ userPoolId: undefined }));
+    expect(res.statusCode).toBe(200);
   });
 
   it('serves the settings sanitised, an unknown or invalid field dropped', async () => {
@@ -252,164 +260,15 @@ describe("the caller's own account", () => {
     });
   });
 
-  // The tag is a digest of these bytes, so a key moved inside the body moves every client's tag.
-  const digest = (text: string) =>
-    `W/"${createHash('sha256').update(text, 'utf8').digest('base64url')}"`;
-  const settings = JSON.stringify(SETTINGS_DEFAULTS);
-
-  it("keeps a user's keys in one order, the bytes its tag is a digest of", async () => {
-    await writeLedger(db, SUB, {
-      assets: [asset(1)],
-      transactions: [deposit(10, '2026-03-09')],
-      userPrices: [],
-    });
-    const text =
-      `{"userId":"${SUB}","email":"${EMAIL}","role":"user","memberSince":"2026-03-02",` +
-      `"googleLinked":false,"passwordSet":true,"assets":1,"transactions":1,` +
-      `"firstTransaction":"2026-03-09","settings":${settings}}`;
+  it('keeps its keys in one order, the bytes its tag is a digest of', async () => {
+    const text = `{"userId":"${SUB}","email":"${EMAIL}","role":"user","settings":${settings}}`;
     const res = await read();
     expect('body' in res ? res.body : undefined).toBe(text);
     expect(etagOf(res)).toBe(digest(text));
   });
-
-  it("keeps the only super-admin's keys in one order, the bytes its tag is a digest of", async () => {
-    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
-    const text =
-      `{"userId":"${SUB}","email":"${EMAIL}","role":"super_admin","memberSince":"2026-03-02",` +
-      `"googleLinked":false,"passwordSet":true,"assets":0,"transactions":0,` +
-      `"soleSuperAdmin":true,"settings":${settings}}`;
-    const res = await read();
-    expect('body' in res ? res.body : undefined).toBe(text);
-    expect(etagOf(res)).toBe(digest(text));
-  });
-
-  it('carries no status, application date, decider, version or dataset', async () => {
-    const [, body] = answer(await read());
-    expect(Object.keys(body as object).sort()).toEqual(
-      [
-        'assets',
-        'email',
-        'googleLinked',
-        'memberSince',
-        'passwordSet',
-        'role',
-        'settings',
-        'transactions',
-        'userId',
-      ].sort(),
-    );
-  });
 });
 
-describe('what the account holds', () => {
-  it('counts the assets and transactions, and names the first transaction day', async () => {
-    await writeLedger(db, SUB, {
-      assets: [asset(1), asset(2)],
-      transactions: [
-        deposit(10, '2026-04-05'),
-        deposit(11, '2026-03-09'),
-        deposit(12, '2027-01-01'),
-      ],
-      userPrices: [],
-    });
-    expect(answer(await read())[1]).toMatchObject({
-      assets: 2,
-      transactions: 3,
-      firstTransaction: '2026-03-09',
-    });
-  });
-
-  it('omits the first transaction day while there is none, never null', async () => {
-    await writeLedger(db, SUB, { assets: [asset(1)], transactions: [], userPrices: [] });
-    const [, body] = answer(await read());
-    expect(body).toMatchObject({ assets: 1, transactions: 0 });
-    expect(body).not.toHaveProperty('firstTransaction');
-  });
-
-  it("counts the caller's dataset, not another user's", async () => {
-    await insertUser(db, TWIN, TWIN_EMAIL);
-    await writeLedger(db, TWIN, {
-      assets: [asset(3)],
-      transactions: [deposit(13, '2025-01-01')],
-      userPrices: [],
-    });
-    const [, body] = answer(await read());
-    expect(body).toMatchObject({ assets: 0, transactions: 0 });
-    expect(body).not.toHaveProperty('firstTransaction');
-  });
-});
-
-describe('Google linked, from the pool', () => {
-  it("asks the pool for the caller's own user, by its pool username", async () => {
-    await read();
-    expect(asked).toEqual([{ UserPoolId: POOL, Username: SUB }]);
-  });
-
-  // An open registration lets a Google sign-in with no local account in as a profile of its own,
-  // whose `sub` names no local user.
-  it('asks for a profile Google made by its own username, and finds Google linked', async () => {
-    attributes.push({ Name: 'identities', Value: linked('Google') });
-    await read({ username: 'Google_1234567890' });
-    expect(asked).toEqual([{ UserPoolId: POOL, Username: 'Google_1234567890' }]);
-    expect(answer(await read({ username: 'Google_1234567890' }))[1]).toMatchObject({
-      googleLinked: true,
-    });
-  });
-
-  it('refuses a token that names no pool username, and asks the pool nothing', async () => {
-    expect(answer(await read({ username: null }))).toEqual([403, { error: 'forbidden' }]);
-    expect(asked).toEqual([]);
-  });
-
-  it('is true when a Google identity is linked to the account', async () => {
-    attributes.push({ Name: 'identities', Value: linked('Google') });
-    expect(answer(await read())[1]).toMatchObject({ googleLinked: true });
-  });
-
-  it('is false when no identity is linked', async () => {
-    expect(answer(await read())[1]).toMatchObject({ googleLinked: false });
-  });
-
-  it('is false when only another provider is linked', async () => {
-    attributes.push({ Name: 'identities', Value: linked('SignInWithApple') });
-    expect(answer(await read())[1]).toMatchObject({ googleLinked: false });
-  });
-});
-
-describe('a password of its own, from the pool', () => {
-  it("asks the pool for the caller's own factors, by its pool username", async () => {
-    await read({ username: 'Google_1234567890' });
-    expect(factorsAsked).toEqual([{ UserPoolId: POOL, Username: 'Google_1234567890' }]);
-  });
-
-  it('is true when PASSWORD is configured on a confirmed user', async () => {
-    expect(answer(await read())[1]).toMatchObject({ passwordSet: true });
-  });
-
-  // An approved account that only ever signs in through Google holds just the invitation's
-  // password, which is not its own (ASVS 5.0.0 6.4.1) and expires unused.
-  it('is false while the invitation password was never changed, though PASSWORD is listed', async () => {
-    status = 'FORCE_CHANGE_PASSWORD';
-    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
-  });
-
-  it('is false when a reset is required', async () => {
-    status = 'RESET_REQUIRED';
-    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
-  });
-
-  it('is false for a confirmed user whose factors lack PASSWORD', async () => {
-    factors = ['WEB_AUTHN', 'EMAIL_OTP'];
-    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
-  });
-
-  it('is false when the pool lists no factor at all', async () => {
-    factors = undefined;
-    expect(answer(await read())[1]).toMatchObject({ passwordSet: false });
-  });
-});
-
-describe('the validator', () => {
+describe('the validator of GET /me', () => {
   it('sends a weak tag, kept by the browser alone and revalidated on every use', async () => {
     const res = await read();
     expect(etagOf(res)).toMatch(/^W\/"[A-Za-z0-9_-]+"$/);
@@ -440,72 +299,196 @@ describe('the validator', () => {
     expect(etagOf(res)).not.toBe(etag);
   });
 
-  it('moves the tag when the dataset gains a row', async () => {
+  // The counts are `/me/account`'s, so a write of the dataset leaves this read unchanged.
+  it('keeps the tag when the dataset gains a row', async () => {
     const etag = etagOf(await read());
     await writeLedger(db, SUB, { assets: [asset(1)], transactions: [], userPrices: [] });
-    expect((await read({ ifNoneMatch: etag })).statusCode).toBe(200);
-  });
-
-  it('moves the tag when a Google identity is linked', async () => {
-    const etag = etagOf(await read());
-    attributes.push({ Name: 'identities', Value: linked('Google') });
-    expect((await read({ ifNoneMatch: etag })).statusCode).toBe(200);
-  });
-
-  it('moves the tag when the account sets its password', async () => {
-    status = 'FORCE_CHANGE_PASSWORD';
-    const etag = etagOf(await read());
-    status = 'CONFIRMED';
-    expect((await read({ ifNoneMatch: etag })).statusCode).toBe(200);
+    expect((await read({ ifNoneMatch: etag })).statusCode).toBe(304);
   });
 });
 
-// The profile's fields at a path of their own, so `/me` can turn light on every load (#600).
+// The profile's fields, read by `/profile` alone.
 describe("GET /me/account, the profile's fields", () => {
-  const account = (o: Caller = {}) => read({ ...o, route: ACCOUNT_ROUTE });
-  /** `/me`'s answer on the same state, less the identity, the role and the settings. */
-  const profileOfMe = async () => {
-    const { userId, email, role, settings, ...profile } = answer(await read())[1] as Record<
-      string,
-      unknown
-    >;
-    expect([userId, email, role, settings]).not.toContain(undefined);
-    return profile;
-  };
-
-  it('answers every profile field /me answers, and nothing else', async () => {
+  it('answers the member-since day, the ways in and the counts, and nothing else', async () => {
     await db.query(`UPDATE app_user SET settings = '{"language":"en"}' WHERE user_id = $1`, [SUB]);
+    expect(answer(await account())).toEqual([
+      200,
+      {
+        memberSince: '2026-03-02',
+        googleLinked: false,
+        passwordSet: true,
+        assets: 0,
+        transactions: 0,
+      },
+    ]);
+  });
+
+  it('names the only super-admin, whom a deletion refuses', async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    expect(answer(await account())[1]).toMatchObject({ soleSuperAdmin: true });
+  });
+
+  it('does not ask for an ordinary user', async () => {
+    const { sent, watched } = watching();
+    const res = await account({}, deps({ user: watched }));
+    expect(res.statusCode).toBe(200);
+    expect(sent.length).toBeGreaterThan(1);
+    expect(sent.filter((t) => t.includes('AS sole'))).toEqual([]);
+  });
+
+  it('omits it while another super-admin is active, and for a user', async () => {
+    expect(answer(await account())[1]).not.toHaveProperty('soleSuperAdmin');
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    await insertUser(db, TWIN, TWIN_EMAIL, 'active', 'super_admin');
+    expect(answer(await account())[1]).not.toHaveProperty('soleSuperAdmin');
+  });
+
+  // A super-admin a scheduled deletion holds reaches no route, so the one left free is the only one.
+  it('names the only one while every other super-admin is held by a scheduled deletion', async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    await insertUser(db, TWIN, TWIN_EMAIL, 'active', 'super_admin');
+    await db.query(
+      `UPDATE app_user SET deletion_due = '2099-12-31', deletion_requested_at = now()
+        WHERE user_id = $1`,
+      [TWIN],
+    );
+    expect(answer(await account())[1]).toMatchObject({ soleSuperAdmin: true });
+  });
+
+  it("keeps a user's keys in one order, the bytes its tag is a digest of", async () => {
     await writeLedger(db, SUB, {
-      assets: [asset(1), asset(2)],
-      transactions: [deposit(10, '2026-04-05'), deposit(11, '2026-03-09')],
+      assets: [asset(1)],
+      transactions: [deposit(10, '2026-03-09')],
       userPrices: [],
     });
-    attributes.push({ Name: 'identities', Value: linked('Google') });
-    const profile = await profileOfMe();
-    expect(profile).toEqual({
-      memberSince: '2026-03-02',
-      googleLinked: true,
-      passwordSet: true,
+    const text =
+      `{"memberSince":"2026-03-02","googleLinked":false,"passwordSet":true,"assets":1,` +
+      `"transactions":1,"firstTransaction":"2026-03-09"}`;
+    const res = await account();
+    expect('body' in res ? res.body : undefined).toBe(text);
+    expect(etagOf(res)).toBe(digest(text));
+  });
+
+  it("keeps the only super-admin's keys in one order, the bytes its tag is a digest of", async () => {
+    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
+    const text =
+      `{"memberSince":"2026-03-02","googleLinked":false,"passwordSet":true,"assets":0,` +
+      `"transactions":0,"soleSuperAdmin":true}`;
+    const res = await account();
+    expect('body' in res ? res.body : undefined).toBe(text);
+    expect(etagOf(res)).toBe(digest(text));
+  });
+});
+
+describe('what the account holds', () => {
+  it('counts the assets and transactions, and names the first transaction day', async () => {
+    await writeLedger(db, SUB, {
+      assets: [asset(1), asset(2)],
+      transactions: [
+        deposit(10, '2026-04-05'),
+        deposit(11, '2026-03-09'),
+        deposit(12, '2027-01-01'),
+      ],
+      userPrices: [],
+    });
+    expect(answer(await account())[1]).toMatchObject({
       assets: 2,
-      transactions: 2,
+      transactions: 3,
       firstTransaction: '2026-03-09',
     });
-    expect(answer(await account())).toEqual([200, profile]);
   });
 
-  it('omits the first transaction day while there is none, as /me does', async () => {
-    const profile = await profileOfMe();
-    expect(profile).not.toHaveProperty('firstTransaction');
-    expect(answer(await account())).toEqual([200, profile]);
+  it('omits the first transaction day while there is none, never null', async () => {
+    await writeLedger(db, SUB, { assets: [asset(1)], transactions: [], userPrices: [] });
+    const [, body] = answer(await account());
+    expect(body).toMatchObject({ assets: 1, transactions: 0 });
+    expect(body).not.toHaveProperty('firstTransaction');
   });
 
-  it('names the only super-admin, as /me does', async () => {
-    await db.query(`UPDATE app_user SET role = 'super_admin' WHERE user_id = $1`, [SUB]);
-    const profile = await profileOfMe();
-    expect(profile).toMatchObject({ soleSuperAdmin: true });
-    expect(answer(await account())).toEqual([200, profile]);
+  it("counts the caller's dataset, not another user's", async () => {
+    await insertUser(db, TWIN, TWIN_EMAIL);
+    await writeLedger(db, TWIN, {
+      assets: [asset(3)],
+      transactions: [deposit(13, '2025-01-01')],
+      userPrices: [],
+    });
+    const [, body] = answer(await account());
+    expect(body).toMatchObject({ assets: 0, transactions: 0 });
+    expect(body).not.toHaveProperty('firstTransaction');
+  });
+});
+
+describe('Google linked, from the pool', () => {
+  it("asks the pool for the caller's own user, by its pool username", async () => {
+    await account();
+    expect(asked).toEqual([{ UserPoolId: POOL, Username: SUB }]);
   });
 
+  // An open registration lets a Google sign-in with no local account in as a profile of its own,
+  // whose `sub` names no local user.
+  it('asks for a profile Google made by its own username, and finds Google linked', async () => {
+    attributes.push({ Name: 'identities', Value: linked('Google') });
+    await account({ username: 'Google_1234567890' });
+    expect(asked).toEqual([{ UserPoolId: POOL, Username: 'Google_1234567890' }]);
+    expect(answer(await account({ username: 'Google_1234567890' }))[1]).toMatchObject({
+      googleLinked: true,
+    });
+  });
+
+  it('refuses a token that names no pool username, and asks the pool nothing', async () => {
+    expect(answer(await account({ username: null }))).toEqual([403, { error: 'forbidden' }]);
+    expect(asked).toEqual([]);
+  });
+
+  it('is true when a Google identity is linked to the account', async () => {
+    attributes.push({ Name: 'identities', Value: linked('Google') });
+    expect(answer(await account())[1]).toMatchObject({ googleLinked: true });
+  });
+
+  it('is false when no identity is linked', async () => {
+    expect(answer(await account())[1]).toMatchObject({ googleLinked: false });
+  });
+
+  it('is false when only another provider is linked', async () => {
+    attributes.push({ Name: 'identities', Value: linked('SignInWithApple') });
+    expect(answer(await account())[1]).toMatchObject({ googleLinked: false });
+  });
+});
+
+describe('a password of its own, from the pool', () => {
+  it("asks the pool for the caller's own factors, by its pool username", async () => {
+    await account({ username: 'Google_1234567890' });
+    expect(factorsAsked).toEqual([{ UserPoolId: POOL, Username: 'Google_1234567890' }]);
+  });
+
+  it('is true when PASSWORD is configured on a confirmed user', async () => {
+    expect(answer(await account())[1]).toMatchObject({ passwordSet: true });
+  });
+
+  // An approved account that only ever signs in through Google holds just the invitation's
+  // password, which is not its own (ASVS 5.0.0 6.4.1) and expires unused.
+  it('is false while the invitation password was never changed, though PASSWORD is listed', async () => {
+    status = 'FORCE_CHANGE_PASSWORD';
+    expect(answer(await account())[1]).toMatchObject({ passwordSet: false });
+  });
+
+  it('is false when a reset is required', async () => {
+    status = 'RESET_REQUIRED';
+    expect(answer(await account())[1]).toMatchObject({ passwordSet: false });
+  });
+
+  it('is false for a confirmed user whose factors lack PASSWORD', async () => {
+    factors = ['WEB_AUTHN', 'EMAIL_OTP'];
+    expect(answer(await account())[1]).toMatchObject({ passwordSet: false });
+  });
+
+  it('is false when the pool lists no factor at all', async () => {
+    factors = undefined;
+    expect(answer(await account())[1]).toMatchObject({ passwordSet: false });
+  });
+});
+
+describe('the validator of GET /me/account', () => {
   it('sends a weak tag, kept by the browser alone and revalidated on every use', async () => {
     const res = await account();
     expect(etagOf(res)).toMatch(/^W\/"[A-Za-z0-9_-]+"$/);
@@ -526,17 +509,24 @@ describe("GET /me/account, the profile's fields", () => {
     expect((await account({ ifNoneMatch: etag })).statusCode).toBe(200);
   });
 
+  it('moves the tag when a Google identity is linked', async () => {
+    const etag = etagOf(await account());
+    attributes.push({ Name: 'identities', Value: linked('Google') });
+    expect((await account({ ifNoneMatch: etag })).statusCode).toBe(200);
+  });
+
+  it('moves the tag when the account sets its password', async () => {
+    status = 'FORCE_CHANGE_PASSWORD';
+    const etag = etagOf(await account());
+    status = 'CONFIRMED';
+    expect((await account({ ifNoneMatch: etag })).statusCode).toBe(200);
+  });
+
   // The settings are no field of it, so their write leaves the profile's read unchanged.
   it('keeps the tag when only the settings change', async () => {
     const etag = etagOf(await account());
     await db.query(`UPDATE app_user SET settings = '{"language":"en"}' WHERE user_id = $1`, [SUB]);
     expect((await account({ ifNoneMatch: etag })).statusCode).toBe(304);
-  });
-
-  it('refuses a token that names no pool username, and asks the pool nothing', async () => {
-    expect(answer(await account({ username: null }))).toEqual([403, { error: 'forbidden' }]);
-    expect(asked).toEqual([]);
-    expect(factorsAsked).toEqual([]);
   });
 });
 
@@ -592,6 +582,11 @@ describe.each([ME_ROUTE, ACCOUNT_ROUTE])('a failure answers rather than throws, 
       { error: 'internal' },
     ]);
   });
+});
+
+// `/me` asks the pool nothing, so only the profile's read can fail on it.
+describe('a failure of the pool answers rather than throws, on GET /me/account', () => {
+  const route = ACCOUNT_ROUTE;
 
   it('answers a failing pool with its own 500', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -648,7 +643,7 @@ describe('the function that serves it', () => {
     const held = vi
       .spyOn(identityReader, 'adminGetUserAuthFactors')
       .mockResolvedValue({ ConfiguredUserAuthFactors: ['PASSWORD'] });
-    const e = event();
+    const e = event({ route: ACCOUNT_ROUTE });
     const res = observe(e, (await rawHandler(e)) as ApiResult);
     expect(answer(res)).toEqual([200, expect.objectContaining({ passwordSet: true })]);
     expect(pool).toHaveBeenCalledExactlyOnceWith({ UserPoolId: POOL, Username: SUB });
@@ -657,18 +652,16 @@ describe('the function that serves it', () => {
   });
 
   it('routes GET /me to the route and closes its connection', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const ended = connected();
-    // No USER_POOL_ID on the test's environment: the route's own 500 proves it was reached.
-    vi.stubEnv('USER_POOL_ID', '');
     const e = event();
     const res = observe(e, (await rawHandler(e)) as ApiResult);
-    expect(answer(res)).toEqual([500, { error: 'internal' }]);
-    expect(vi.mocked(console.error).mock.calls.flat().join(' ')).toContain('USER_POOL_ID');
+    expect(answer(res)).toEqual([
+      200,
+      { userId: SUB, email: EMAIL, role: 'user', settings: SETTINGS_DEFAULTS },
+    ]);
     expect(ended()).toBe(1);
   });
 
-  // A 200, not the missing pool's 500, which `/me` answers too: only the body tells the routes apart.
   it('routes GET /me/account to the account read and closes its connection', async () => {
     const ended = connected();
     vi.stubEnv('USER_POOL_ID', POOL);

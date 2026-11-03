@@ -43,7 +43,11 @@ vi.mock('../hooks/useIsDesktop', async () => {
     subscribeToBreakpoint: subscribe,
   };
 });
-vi.mock('../hooks/queries', () => ({ useSettingsCopy: () => {}, useViewDayRollover: () => {} }));
+vi.mock('../hooks/queries', () => ({
+  useAccountRead: () => {},
+  useSettingsCopy: () => {},
+  useViewDayRollover: () => {},
+}));
 vi.mock('../hooks/useReminders', () => ({ useReminderToast: () => {} }));
 vi.mock('../components/loading/LoadingStatus', () => ({ LoadingStatus: () => null }));
 vi.mock('./SidebarRail', () => ({ SidebarRail: () => null }));

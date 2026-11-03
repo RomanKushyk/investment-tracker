@@ -17,19 +17,21 @@ import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useHold } from '../hooks/loading';
 import { useFormat } from '../hooks/useFormat';
-import { useMe } from '../hooks/queries';
+import { useAccount, useMe } from '../hooks/queries';
 import { usePasskeys } from '../hooks/usePasskeys';
 import { useT } from '../i18n/useT';
-import type { MeData } from '../lib/repository';
+import type { AccountData, MeData } from '../lib/repository';
 import { usedUp } from '../auth/signed-out';
 import { DeleteAccount } from './profile/DeleteAccount';
 import type { Ways } from './profile/Reauthentication';
 import { SignOutEverywhere } from './profile/SignOutEverywhere';
 import { Divider, SectionLabel, SettingRow } from './Settings';
 
-// THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T4 and T6), read on demand from
-// `GET /me`; the passkeys are the relay's list. Signed out, or before the session is known, the
-// shell stands alone and nothing is asked, as a screen behind the view.
+// THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T4 and T6): the caller from the load's
+// `GET /me` and the profile's fields from `GET /me/account`, read on demand; the passkeys are the
+// relay's list. Signed out, or before the session is known, the shell stands alone and nothing is
+// asked, as a screen behind the view.
+type Shown = MeData & AccountData;
 type Arrived = ReturnType<typeof arrivedReauthentication>;
 /** Back from Google: what the trip was for, and how it came back. */
 type Back = { arrived: NonNullable<Arrived>; purpose: ReauthPurpose };
@@ -119,11 +121,14 @@ function Account({
   onBackSpent: () => void;
 }) {
   const t = useT();
-  const answered = useMe();
+  // The caller is the load's `/me`, the rest the profile's own read: shown once both have answered.
+  const caller = useMe();
+  const account = useAccount();
+  const answered: Shown | undefined = caller && account && { ...caller, ...account };
   const passkeys = usePasskeys();
   const google = useGoogle();
   // A list Google's session cannot read counts as no passkey: Google is a proof the account holds.
-  const ways = (me: MeData): Ways => ({
+  const ways = (me: Shown): Ways => ({
     password: me.passwordSet,
     google: google === true && me.googleLinked,
     passkey: passkeys?.kind === 'passkeys' && passkeys.passkeys.length > 0,
@@ -222,7 +227,7 @@ function Account({
   return me === undefined ? <PlaceholderScreen>{page}</PlaceholderScreen> : page;
 }
 
-function AccountCard({ me }: { me: MeData | undefined }) {
+function AccountCard({ me }: { me: Shown | undefined }) {
   const t = useT();
   const f = useFormat();
   return (
@@ -259,7 +264,7 @@ function AccountCard({ me }: { me: MeData | undefined }) {
   );
 }
 
-function DataCard({ me }: { me: MeData | undefined }) {
+function DataCard({ me }: { me: Shown | undefined }) {
   const t = useT();
   const f = useFormat();
   return (

@@ -4,7 +4,7 @@ import { NavigationType, Outlet, useLocation, useNavigationType } from 'react-ro
 
 import { session } from '../auth/app';
 import { LoadingStatus } from '../components/loading/LoadingStatus';
-import { useSettingsCopy, useViewDayRollover } from '../hooks/queries';
+import { useAccountRead, useSettingsCopy, useViewDayRollover } from '../hooks/queries';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
 import { pageLeaving, subscribeToLeaving } from '../hooks/useSignOut';
@@ -32,8 +32,10 @@ export function Layout() {
   useReminderToast();
   // The view is cut at the day, so a tab left open past midnight reads it again.
   useViewDayRollover();
-  // A change to a setting is sent to the account while this shell is mounted (*Persistence today*).
+  // A change to a setting is sent to the account while this shell is mounted, and the account's
+  // answer is read beside the view on every load (*Persistence today*).
   useSettingsCopy();
+  useAccountRead();
   // The footer band offers a sign-out only once the relay says someone is signed in. Asked on
   // every load, the session being the browser's, and again on each route until it answers:
   // once it has, `restore` asks nothing.

@@ -364,13 +364,46 @@ describe('the account read', () => {
     expect(view.container.querySelector('#app-sidebar')).not.toBeNull();
   });
 
+  // The address, the ID and the role are the load's `/me`; the rest is the profile's own read (#600).
+  it('takes the profile’s fields from /me/account, sent once for the visit', async () => {
+    api.role = 'super_admin';
+    const { main } = await open();
+    const reads = (path: string) => api.seen.filter((r) => r.path === path).length;
+    expect([reads('/me'), reads('/me/account')]).toEqual([1, 1]);
+    const page = text(main());
+    expect(page).toContain(ME_EMAIL);
+    expect(page).toContain(ME_USER_ID);
+    expect(page).toContain(p.superAdmin);
+    expect(page).toContain('28.07.2026');
+    expect(page).toContain(String(SEED.assets.length));
+    expect(page).toContain(String(SEED.transactions.length));
+  });
+
+  it('stays held while /me/account is out, though /me has answered', async () => {
+    const release = hold('/me/account');
+    const { main } = mount('/profile');
+    await waitFor(() => expect(api.seen.some((r) => r.path === '/me')).toBe(true));
+    await wait(400);
+    expect(main().querySelectorAll('[data-dash]').length).toBeGreaterThan(0);
+    expect(text(main())).not.toContain(ME_EMAIL);
+    release();
+    await waitFor(() => expect(text(main())).toContain(ME_EMAIL));
+  });
+
+  it('that fails on /me/account shows the failed-screen state inside the shell', async () => {
+    failing.add('/me/account');
+    const { main, view } = mount('/profile');
+    await waitFor(() => expect(text(main())).toContain(uk.boundary.failed.title));
+    expect(view.container.querySelector('#app-sidebar')).not.toBeNull();
+  });
+
   it('is not made, and nothing shows, when nobody is signed in', async () => {
     await session.signOut();
     const { main } = mount('/profile');
     // Past the hold, after which a page that were made would show its held boxes.
     await wait(400);
     expect(text(main())).toBe('');
-    expect(api.seen.filter((r) => r.path === '/me')).toHaveLength(0);
+    expect(api.seen.filter((r) => r.path.startsWith('/me'))).toHaveLength(0);
     expect(api.passkeyLists).toBe(0);
   });
 });
@@ -1413,7 +1446,8 @@ describe('deleting the account', () => {
     api.role = 'super_admin';
     api.deletions = ['sole'];
     await toThePassword(D.now);
-    const reads = () => api.seen.filter((r) => r.method === 'GET' && r.path === '/me').length;
+    const reads = () =>
+      api.seen.filter((r) => r.method === 'GET' && r.path === '/me/account').length;
     const before = reads();
     await typeAndConfirm();
     await waitFor(() => expect(alerts()).toContain(D.superAdmin));

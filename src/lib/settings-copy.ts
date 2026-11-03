@@ -1,5 +1,5 @@
 // The device's copy of the account's settings (*Persistence today*). A paint comes before the
-// account's answer, so the store holds a copy: every `/view` answer overwrites it, a change on the
+// account's answer, so the store holds a copy: every `GET /me` answer overwrites it, a change on the
 // device is written to it at once and sent as `PATCH /me/settings` after a quiet half second. A
 // signed-out page has no token to send under, so there the copy is all there is.
 import { SETTING_NAMES, sanitiseSettings, type AccountSettings } from '@quirenote/core/settings';
@@ -26,7 +26,7 @@ export interface SettingsCopyDeps {
 }
 
 export interface SettingsCopy {
-  /** Runs a read of the view, and puts the settings it answers on the copy. */
+  /** Runs a read of the account, and puts the settings it answers on the copy. */
   read<V extends { settings: AccountSettings }>(load: () => Promise<V>): Promise<V>;
   /** Starts sending the copy's changes; the result stops it and drops what it had not sent. */
   start(): () => void;
@@ -82,7 +82,7 @@ export function createSettingsCopy({ store, patch }: SettingsCopyDeps): Settings
     try {
       await patch(fields);
     } catch {
-      // The copy stays, and the next answer of the view says what the account holds.
+      // The copy stays, and the next answer of `/me` says what the account holds.
     }
     if (accounts !== at) return;
     sending = undefined;

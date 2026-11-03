@@ -166,7 +166,7 @@ the same store as `live` or beside it.
 
 - **Deletion.** `asset.delete` cascade semantics are *User schema and deletes*'; nothing here picks or
   depends on them.
-- **The settings route.** Settled since: `GET /view` carries the account's settings and
+- **The settings route.** Settled since: `GET /me` carries the account's settings and
   `PATCH /me/settings` writes them, moving no `data_version` and so no other device's `If-Match`
   (*Cloud target*); *Persistence today* fixes the column, the merge and which settings follow the
   account.

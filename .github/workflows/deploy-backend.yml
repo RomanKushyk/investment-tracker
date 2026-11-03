@@ -463,10 +463,10 @@ jobs:
               console.log('archive-reader-grant bundle loads, sends the mapping, the default and the table grant, and checks the reader');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # Six periods, the editors' rows and the account's settings, the stored ones over the
-          # defaults, under a weak tag, a 304 to it stripped of its W/, a day's quotes under a tag of
-          # its own, a date that is no day refused by name, a pending caller refused, no archive opened
-          # for a ledger linking nothing, and the identifier the bundle step defined.
+          # Six periods and the editors' rows under a weak tag, a 304 to it stripped of its W/, a
+          # day's quotes under a tag of its own, a date that is no day refused by name, a pending
+          # caller refused, no archive opened for a ledger linking nothing, and the identifier the
+          # bundle step defined.
           node -e "
             const v = require('./view.js');
             if (typeof v.handler !== 'function') throw new Error('handler missing from view bundle');
@@ -481,7 +481,7 @@ jobs:
                   rows: text.includes('data_version')
                     ? [{ data_version: '0' }]
                     : text.includes('FROM app_user')
-                      ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: JSON.stringify({ period: '3m' }), terms_version: '2026-10-29' }]
+                      ? [{ user_id: SUB, email: EMAIL, status: status, role: 'user', settings: null, terms_version: '2026-10-29' }]
                       : [],
                 }),
               },
@@ -506,9 +506,7 @@ jobs:
               const periods = Object.keys(JSON.parse(ok.body).view.periods).sort().join();
               if (periods !== '12m,1m,3m,6m,all,ytd') throw new Error('periods: ' + periods);
               const keys = Object.keys(JSON.parse(ok.body)).join();
-              if (keys !== 'view,fx,assets,transactions,today,deleteCounts,settings,etag') throw new Error('body keys: ' + keys);
-              const served = JSON.parse(ok.body).settings;
-              if (served.period !== '3m' || served.language !== 'uk') throw new Error('the settings are not the stored ones over the defaults: ' + JSON.stringify(served));
+              if (keys !== 'view,fx,assets,transactions,today,deleteCounts,etag') throw new Error('body keys: ' + keys);
               const again = await v.view(deps('active'), event({ 'if-none-match': tag.slice(2) }));
               if (again.statusCode !== 304 || 'body' in again || 'content-type' in again.headers || again.headers.etag !== tag) {
                 throw new Error('the repeat was not a bare 304: ' + JSON.stringify(again));
@@ -523,14 +521,14 @@ jobs:
               const pending = await v.view(deps('pending'), event({}));
               if (pending.statusCode !== 403 || JSON.parse(pending.body).error !== 'pending') throw new Error('a pending caller was admitted');
               if (opened !== 0) throw new Error('the archive was opened for a ledger that links nothing');
-              console.log('view bundle loads, serves six periods, the editors rows and the stored settings under a weak tag, answers it 304 compared weakly, serves a day under a tag of its own and refuses a date that is no day, refuses a pending caller and opens no archive');
+              console.log('view bundle loads, serves six periods and the editors rows under a weak tag, answers it 304 compared weakly, serves a day under a tag of its own and refuses a date that is no day, refuses a pending caller and opens no archive');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
           # The export under a strong tag that names its account and no cache keeps, a bare 304 to
           # it, a write with no or a `*` precondition refused before its key is claimed, and a
-          # pending caller refused; and the settings patch: a type other than a merge patch refused,
+          # pending caller refused; the settings patch: a type other than a merge patch refused,
           # a theme refused by name, an empty patch answered with the defaults and writing nothing,
-          # a pending caller refused.
+          # a pending caller refused; and `/me` serving the stored settings over the defaults.
           node -e "
             const m = require('./mutations.js');
             if (typeof m.handler !== 'function') throw new Error('handler missing from mutations bundle');
@@ -601,7 +599,14 @@ jobs:
               const barred = await m.settings(deps('pending'), patch({ 'content-type': MERGE }, '{}'));
               if (barred.statusCode !== 403 || JSON.parse(barred.body).error !== 'pending') throw new Error('a pending caller patched settings');
               if (sent.some((s) => s.includes('UPDATE app_user SET settings'))) throw new Error('a refused or empty patch wrote the column');
-              console.log('mutations bundle loads, exports under a strong tag no cache keeps, answers it 304, refuses a write with no or a * precondition before claiming its key, refuses a pending caller, and refuses a settings patch of another type or naming a theme, answers an empty one with the defaults and writes nothing');
+              if (typeof m.me !== 'function') throw new Error('me missing from mutations bundle');
+              const stored = { user: { query: async (text) => ({ rows: text.includes('FROM app_user') ? [{ user_id: SUB, email: EMAIL, status: 'active', role: 'user', settings: JSON.stringify({ period: '3m' }), terms_version: '2026-10-29' }] : [] }) } };
+              const mine = await m.me(stored, { routeKey: 'GET /me', headers: {}, requestContext: claims });
+              if (mine.statusCode !== 200 || !mine.headers.etag.startsWith('W/')) throw new Error('/me was not served under a weak tag: ' + JSON.stringify(mine));
+              const me = JSON.parse(mine.body);
+              if (Object.keys(me).join() !== 'userId,email,role,settings') throw new Error('/me keys: ' + Object.keys(me).join());
+              if (me.settings.period !== '3m' || me.settings.language !== 'uk') throw new Error('/me serves settings other than the stored ones over the defaults: ' + JSON.stringify(me.settings));
+              console.log('mutations bundle loads, exports under a strong tag no cache keeps, answers it 304, refuses a write with no or a * precondition before claiming its key, refuses a pending caller, refuses a settings patch of another type or naming a theme, answers an empty one with the defaults and writes nothing, and serves /me the stored settings over the defaults');
             })().catch((e) => { console.error(e); process.exit(1); });
           "
           # A sign-in five minutes old is refused before the pool is asked; a fresh one ends the

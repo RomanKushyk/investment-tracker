@@ -8,7 +8,6 @@ import type { PGlite } from '@electric-sql/pglite';
 import { importParts } from '@quirenote/core/backup/parts';
 import { PERIOD_OPTIONS } from '@quirenote/core/period';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
-import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { Transaction } from '@quirenote/core/types';
 import { rebuildSnapshots, type PriceRow } from '@quirenote/core/valuation';
 import { buildView } from '@quirenote/core/view/build';
@@ -294,7 +293,6 @@ describe('a signed-in caller gets every figure in one answer', () => {
       transactions,
       today: dayQuotes(transactions, { user: witnessed, archive }, TODAY),
       deleteCounts: deleteCounts(assets, transactions, user),
-      settings: SETTINGS_DEFAULTS,
       etag: dataTag(SUB, '0'),
     };
     expect(numbers(expected).every(Number.isFinite)).toBe(true);
@@ -465,74 +463,26 @@ describe('the read’s validator', () => {
   });
 });
 
-describe('the account’s settings ride the read', () => {
-  const served = async (e = event()) =>
-    (JSON.parse(((await view(deps(), e)) as ApiResult).body) as { settings: unknown }).settings;
+// The settings ride `GET /me`, read beside this on every load, so no read here carries them (#600).
+describe('the account’s settings are no part of the read', () => {
   const store = (text: string | null) =>
     db.query('UPDATE app_user SET settings = $2 WHERE user_id = $1', [SUB, text]);
+  const routes = [undefined, SERIES_ROUTE, BALANCES_ROUTE, DAY_ROUTE];
+  const eventOf = (route?: string) => (route === undefined ? event() : on(route));
 
-  it('answers the defaults while the column is NULL', async () => {
-    expect(await served()).toEqual(SETTINGS_DEFAULTS);
-  });
-
-  it('answers the stored fields over the defaults, and drops what is no setting', async () => {
-    await store('{"period":"3m","language":"en","theme":"dark","usdRate":1,"reminderLeadDays":99}');
-    expect(await served()).toEqual({ ...SETTINGS_DEFAULTS, period: '3m', language: 'en' });
-  });
-
-  it.each(['', 'not json', '[]', 'null'])('answers the defaults for the text %j', async (text) => {
-    await store(text);
-    expect(await served()).toEqual(SETTINGS_DEFAULTS);
-  });
-
-  it('answers each caller their own', async () => {
-    await insertUser(db, TWIN, TWIN_EMAIL);
-    await writeLedger(db, TWIN, LEDGER);
-    await store('{"language":"en"}');
-    expect(await served(event({}, TWIN, TWIN_EMAIL))).toEqual(SETTINGS_DEFAULTS);
-    expect(await served()).toEqual({ ...SETTINGS_DEFAULTS, language: 'en' });
-  });
-
-  it('moves the tag with a setting', async () => {
-    const before = await tagOf();
-    await store('{"period":"3m"}');
-    const after = await tagOf();
-    expect(after).not.toBe(before);
-    await store('{"period":"6m"}');
-    expect(await tagOf()).not.toBe(after);
-  });
-
-  it('answers a tag from before the change in full, with the new settings', async () => {
-    const before = await tagOf();
-    await store('{"sidebarCollapsed":true}');
-    const res = (await view(deps(), event({ 'if-none-match': before }))) as ApiResult;
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body).settings.sidebarCollapsed).toBe(true);
-  });
-
-  it('keeps the tag while the settings served stay as they were', async () => {
-    const before = await tagOf();
-    // The same settings by other text: none stored, an empty object, a field that is no setting, a
-    // value the sanitiser reads as the default, and a stored field at its own default.
-    for (const text of ['{}', '{"theme":"dark"}', '{"period":"1y"}', '{"period":"all"}']) {
-      await store(text);
-      expect([text, await tagOf()]).toEqual([text, before]);
+  it('carries no settings in any of the four bodies, stored ones included', async () => {
+    await store('{"period":"3m","language":"en"}');
+    for (const route of routes) {
+      const body = JSON.parse(((await view(deps(), eventOf(route))) as ApiResult).body);
+      expect([route, Object.keys(body)]).toEqual([route, expect.not.arrayContaining(['settings'])]);
     }
   });
 
-  it('is no part of the three reads whose bodies carry none', async () => {
-    const tags = async () => [
-      await tagOf(deps(), on(SERIES_ROUTE)),
-      await tagOf(deps(), on(BALANCES_ROUTE)),
-      await tagOf(deps(), on(DAY_ROUTE)),
-    ];
+  it('keeps every tag when a setting changes', async () => {
+    const tags = async () => Promise.all(routes.map((route) => tagOf(deps(), eventOf(route))));
     const before = await tags();
     await store('{"period":"3m"}');
     expect(await tags()).toEqual(before);
-    for (const route of [SERIES_ROUTE, BALANCES_ROUTE, DAY_ROUTE]) {
-      const body = JSON.parse(((await view(deps(), on(route))) as ApiResult).body);
-      expect([route, Object.keys(body)]).toEqual([route, expect.not.arrayContaining(['settings'])]);
-    }
   });
 
   // The deploy smoke test keeps the body's keys by hand, in a step only the post-merge deploy runs.
@@ -647,16 +597,7 @@ describe('the rows and facts the editors read', () => {
   });
 
   it('lists the body’s keys exactly, as the published example does', async () => {
-    const keys = [
-      'view',
-      'fx',
-      'assets',
-      'transactions',
-      'today',
-      'deleteCounts',
-      'settings',
-      'etag',
-    ];
+    const keys = ['view', 'fx', 'assets', 'transactions', 'today', 'deleteCounts', 'etag'];
     const body = await answer();
     expect(Object.keys(body)).toEqual(keys);
     expect(Object.keys(body.today)).toEqual(['date', 'quotes', 'previous', 'savedAt']);

@@ -1,11 +1,16 @@
-// The device's copy of the account's settings (*Persistence today*): every `/view` answer overwrites
-// it, a change on the device is written to it at once and sent as `PATCH /me/settings` after a
-// quiet half second, naming only the fields that changed, and a signed-out page keeps it alone.
+// The device's copy of the account's settings (*Persistence today*): every `GET /me` answer
+// overwrites it, a change on the device is written to it at once and sent as `PATCH /me/settings`
+// after a quiet half second, naming only the fields that changed, and a signed-out page keeps it alone.
 import { createStore } from 'zustand/vanilla';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SETTING_NAMES, SETTINGS_DEFAULTS, type AccountSettings } from '@quirenote/core/settings';
+import { DERIVATION_ID, fakeApi, type FakeApi } from '../__fixtures__/fake-api';
+import type { RelayAnswer, RelayCall } from '../auth/relay';
+import { createSession, type Locks } from '../auth/session';
+import { createRepository } from './repository';
 import { SETTINGS_PATCH_DELAY_MS, createSettingsCopy } from './settings-copy';
+import { createTransport } from './transport';
 
 // What the device holds beside the account's ten: the tab's currency glance and the theme.
 type Device = AccountSettings & { currency: 'UAH' | 'USD'; theme: 'light' | 'dark' | 'system' };
@@ -36,8 +41,8 @@ const ACCOUNT: AccountSettings = {
   period: '12m',
 };
 
-function harness(device: Partial<Device> = {}) {
-  const store = createStore<Device>()(() => ({
+const deviceStore = (device: Partial<Device> = {}) =>
+  createStore<Device>()(() => ({
     ...SETTINGS_DEFAULTS,
     dismissedReminders: [],
     collapsedNavGroups: [],
@@ -45,6 +50,9 @@ function harness(device: Partial<Device> = {}) {
     theme: 'system',
     ...device,
   }));
+
+function harness(device: Partial<Device> = {}) {
+  const store = deviceStore(device);
   const state = { fails: false, gate: undefined as Promise<void> | undefined };
   const sent: Partial<AccountSettings>[] = [];
   const patch = vi.fn(async (fields: Partial<AccountSettings>) => {
@@ -461,5 +469,62 @@ describe('the account ends', () => {
     await quiet();
 
     expect(sent).toEqual([{ period: '6m' }, { sidebarCollapsed: true }]);
+  });
+});
+
+// The settings follow the account from device to device: what one sends, another's next load reads
+// off `GET /me`, the read every load sends beside the view (#600).
+describe('another device', () => {
+  const TOKENS: RelayAnswer = { kind: 'tokens', tokens: { idToken: 'h.e30.s', expiresIn: 3600 } };
+  const noLocks = { request: (_: string, run: () => unknown) => run() } as unknown as Locks;
+
+  /** A device signed in to the account: its own store, copy, session and repository. */
+  async function device(api: FakeApi) {
+    const store = deviceStore();
+    const session = createSession({ relay: vi.fn<RelayCall>(async () => TOKENS), locks: noLocks });
+    await session.restore();
+    // Looked up when called, as `lib/api.ts` wires it: the repository is made below, with this copy.
+    const copy = createSettingsCopy({ store, patch: (fields) => repo.patchSettings(fields) });
+    const repo = createRepository(
+      createTransport({
+        hostname: 'dev.quirenote.com',
+        fetch: api.fetch,
+        session,
+        showAnswer: vi.fn(),
+        derivationId: DERIVATION_ID,
+      }),
+      copy,
+    );
+    return { store, copy, repo };
+  }
+
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows a change made on one at the next load of the other, from GET /me', async () => {
+    const api = fakeApi({ assets: [], transactions: [], prices: [] }, { today: '2026-07-28' });
+    const [first, second] = [await device(api), await device(api)];
+    await first.repo.readMe();
+    await second.repo.readMe();
+    const stop = first.copy.start();
+
+    first.store.setState({ period: '3m', language: 'en', reminderLeadDays: 14 });
+    await vi.waitFor(() => expect(api.seen.filter((r) => r.method === 'PATCH')).toHaveLength(1), {
+      timeout: 3_000,
+    });
+    stop();
+    expect(second.store.getState()).toMatchObject({ period: 'all', language: 'uk' });
+
+    const before = api.seen.length;
+    await second.repo.readMe();
+
+    expect(api.seen.slice(before).map((r) => r.path)).toEqual(['/me']);
+    expect(second.store.getState()).toMatchObject({
+      period: '3m',
+      language: 'en',
+      reminderLeadDays: 14,
+      theme: 'system',
+    });
   });
 });

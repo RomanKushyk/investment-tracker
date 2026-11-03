@@ -1,6 +1,7 @@
-// `GET /view`, `buildView` for six periods, the day's rate, the rows the editors read and the
-// account's settings, and its three siblings, the yield curve and the Balances table, too wide to
-// send whole, and the quotes of a day other than the caller's: one gate and one read (*Cloud target*).
+// `GET /view`, `buildView` for six periods, the day's rate and the rows the editors read, and its
+// three siblings, the yield curve and the Balances table, too wide to send whole, and the quotes of a
+// day other than the caller's: one gate and one read (*Cloud target*). The account's settings ride
+// `GET /me`, read beside it.
 //
 // The tag is WEAK, a wall-clock day being an input (RFC 9110 §8.8.3), so no `If-Match` accepts it;
 // COMPOSED, since under `no-cache` a body hash would rebuild the body to answer a 304.
@@ -9,7 +10,6 @@ import { createHash } from 'node:crypto';
 import { priceRowSchema } from '@quirenote/core/backup/json';
 import { kyivDateIso } from '@quirenote/core/dates';
 import { PERIOD_OPTIONS, type PeriodOption } from '@quirenote/core/period';
-import { SETTINGS_DEFAULTS, settingsOf, type AccountSettings } from '@quirenote/core/settings';
 import {
   archiveSpan,
   balancesBody,
@@ -85,7 +85,6 @@ const VIEWED = derived({
       savedAt: '2026-10-06T08:15:00',
     },
     deleteCounts: { '<asset id>': { transactions: 3, quoteDays: 174 } },
-    settings: SETTINGS_DEFAULTS,
     etag: '"<digest of the account and its data_version>"',
   },
 });
@@ -323,10 +322,8 @@ const unchanged = (etag: string) => notModified(UNCHANGED, { etag, 'cache-contro
 export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
   switch (event.routeKey) {
     case ROUTE:
-      return read(deps, event, (settings) => ({
-        // The account's settings as served, so another device is answered in full after a change
-        // and a write that serves the same ones moves nothing.
-        variant: [settings],
+      return read(deps, event, () => ({
+        variant: [],
         unchanged: (etag) =>
           notModified(UNCHANGED_VIEW, { etag, 'cache-control': CACHE_POLICY, vary: VARY }),
         answer: (rows, fx, writeTag, headers) => {
@@ -334,11 +331,7 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
             VIEWED,
             { ...headers, vary: VARY },
             // The strong tag a write sends back, beside this read's weak one (*Cloud target*).
-            JSON.stringify({
-              ...viewBody({ ...rows, fx }),
-              settings,
-              etag: writeTag,
-            }),
+            JSON.stringify({ ...viewBody({ ...rows, fx }), etag: writeTag }),
           );
           // Coded in the handler: the HTTP API compresses nothing, and no proxy sits in front.
           const coding = codingOf(event);
@@ -388,18 +381,17 @@ export async function view(deps: ViewDeps, event: ApiEvent): Promise<ApiResult |
 }
 
 /** The read the four routes share, each precondition answered before the route builds its body.
- *  The route's query is checked once the gate admits the caller (AIP-211), before the ledger. The
- *  gate's read hands the route the caller's settings, which only `/view` carries. */
+ *  The route's query is checked once the gate admits the caller (AIP-211), before the ledger. */
 async function read(
   deps: ViewDeps,
   event: ApiEvent,
-  routeOf: (settings: AccountSettings) => Route | ApiResult,
+  routeOf: () => Route | ApiResult,
 ): Promise<ApiResult | EmptyResult> {
   // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
   try {
     const gate = await authorize(deps.user, event);
     if ('refusal' in gate) return gate.refusal;
-    const route = routeOf(settingsOf(gate.caller.settings));
+    const route = routeOf();
     if ('statusCode' in route) return route;
 
     const today = kyivDateIso(new Date(deps.now()));
