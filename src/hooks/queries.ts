@@ -22,6 +22,7 @@ import {
   type SeriesBody,
   type ViewBody,
 } from '@quirenote/core/view/serve';
+import { session } from '../auth/app';
 import { useT } from '../i18n/useT';
 import { repo, settingsCopy } from '../lib/api';
 import { accountKey, meKey } from '../lib/me-key';
@@ -98,6 +99,10 @@ export const meQuery = queryOptions({
   queryKey: meKey,
   queryFn: ({ client }) => repo.readMe(client.getQueryData<MeData>(meKey)),
   ...FRESH,
+  // A reader that mounts on a signed-out answer reads it again only once someone has signed in: the
+  // read resets the gate to pending, which remounts the screens and their readers without end.
+  retryOnMount: ({ state }) =>
+    !(state.error instanceof ApiError && state.error.signedOut && session.status() === 'signedOut'),
 });
 
 /** The profile's fields, held for the view's window. A write invalidates it, since the counts move

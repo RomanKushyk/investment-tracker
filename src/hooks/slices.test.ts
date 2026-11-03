@@ -20,8 +20,9 @@ import { balancesOf, dayOf, seriesOf, viewOf } from '../__fixtures__/stored-view
 import * as slices from './slices';
 import { remindersOf } from './useReminders';
 
-// The reminders sit beside the hooks that read the view; nothing here reads the API.
+// The reminders sit beside the hooks that read the view; nothing here reads the API or the session.
 vi.mock('../lib/api', () => ({ repo: {} }));
+vi.mock('../auth/app', () => ({}));
 
 // BEFORE AND AFTER. Before: the composers each screen called, over the rows the device stored, cut
 // to today as `useLedgerAsOfToday` cut them. After: the slice that screen reads of the view the

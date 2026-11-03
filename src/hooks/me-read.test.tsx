@@ -6,7 +6,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
@@ -42,7 +42,7 @@ const { useSettings } = await import('../state/settings');
 const { SETTINGS_PATCH_DELAY_MS } = await import('../lib/settings-copy');
 const { session } = await import('../auth/app');
 const { meKey } = await import('../lib/me-key');
-const { useAccount, useDeleteTransaction, useMe, viewKey, VIEW_STALE_MS } =
+const { useAccount, useDeleteTransaction, useMe, useRole, useRoleGate, viewKey, VIEW_STALE_MS } =
   await import('./queries');
 
 const wrapper = ({ children }: { children: ReactNode }) =>
@@ -168,6 +168,53 @@ describe("the account's own read", () => {
     await waitFor(() => expect(result.current).toBeUndefined());
     expect(queryClient.getQueryData(meKey)).toBeUndefined();
     // A caller nobody has signed in sends no data request.
+    expect(reads()).toBe(1);
+  });
+});
+
+describe('signed out', () => {
+  // Every reader of the role, as RoleGate is one, with each value it rendered.
+  const mountGate = async () => {
+    const seen: string[] = [];
+    const hook = renderHook(
+      () => {
+        const gate = useRoleGate();
+        seen.push(gate);
+        return gate;
+      },
+      { wrapper },
+    );
+    await waitFor(() => expect(hook.result.current).toBe('signedOut'));
+    return { hook, seen };
+  };
+
+  beforeEach(async () => {
+    expect(await session.signOut()).not.toBe(false);
+  });
+
+  it('a reader mounted after the signed-out answer reads /me no more, and the gate stays signedOut', async () => {
+    const { hook, seen } = await mountGate();
+    const asked = vi.spyOn(repo, 'readMe');
+    onTestFinished(() => asked.mockRestore());
+    const answered = seen.length;
+
+    renderHook(() => useRole(), { wrapper });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(asked).not.toHaveBeenCalled();
+    expect(seen.slice(answered)).not.toContain('pending');
+    expect(hook.result.current).toBe('signedOut');
+  });
+
+  it('after a sign-in, a mounting reader reads /me again and answers the role', async () => {
+    const { hook } = await mountGate();
+    hook.unmount();
+
+    await session.respond({});
+    const { result } = await mount();
+
+    expect(result.current?.role).toBe('user');
     expect(reads()).toBe(1);
   });
 });
