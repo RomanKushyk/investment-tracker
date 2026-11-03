@@ -24,7 +24,7 @@ import {
   ListUsersCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { deleteIdentities, deleteRows, signOutEverywhere } from './account-delete';
+import { deleteIdentities, deleteRows, keyedBySub, signOutEverywhere } from './account-delete';
 import { LIST_ROUTE, listUsers } from './admin-users';
 import {
   FORBIDDEN,
@@ -421,20 +421,7 @@ async function deleteUser(
   // WHO DELETES WHOM, before anything irreversible: the rows go, and the pool's trail names this
   // function. Ids, never the address (*Deployment*).
   console.log(`approve: ${callerId} is deleting the account of row ${row.user_id}`);
-  // BY `sub` TOO, a Google profile's address being mapped again at each sign-in; read to the last
-  // page, one coming back short before the end (`pre-signup.ts`).
-  const also: string[] = [];
-  let PaginationToken: string | undefined;
-  do {
-    const page = await idp.listUsers({
-      UserPoolId,
-      Filter: `sub = "${row.user_id}"`,
-      Limit: 60,
-      ...(PaginationToken === undefined ? {} : { PaginationToken }),
-    });
-    for (const { Username } of page.Users ?? []) if (Username) also.push(Username);
-    PaginationToken = page.PaginationToken;
-  } while (PaginationToken);
+  const also = await keyedBySub(idp, UserPoolId, row.user_id);
   await signOutEverywhere(idp, UserPoolId, row.email, also);
   await deleteIdentities(idp, UserPoolId, row.email, also);
   await deleteRows(client, row.user_id);

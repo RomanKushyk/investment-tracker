@@ -2156,8 +2156,10 @@ objection is met: a census holds both columns to the gate, the deletion route, i
 purge. THE PURGE IS A SWEEP: a
 job of its own, in both environments, hourly on Kyiv's clock, deletes each account whose last day
 has ended with the same core's steps, its sessions and identities first and its rows last,
-since nobody asks again and the row is what the next run finds when one fails. A super-admin a
-deletion holds is no other active one, the gate admitting them nowhere, so the last free one is
+since nobody asks again and the row is what the next run finds when one fails. The identities are
+those under the address and those the row's `sub` keys, which the admin deletion reaches too:
+Cognito maps a Google profile's address again at each sign-in, so the address alone can miss it.
+A super-admin a deletion holds is no other active one, the gate admitting them nowhere, so the last free one is
 refused as the only one. The address stays taken until then.
 EVERY `POST /mutations` CARRIES AN `Idempotency-Key`, a UUID unique per user and
 read lowercased; one missing or malformed is 400, and the bounds and its format are checked before

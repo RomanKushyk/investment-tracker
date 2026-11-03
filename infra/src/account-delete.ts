@@ -136,6 +136,28 @@ export async function deleteIdentities(
   }
 }
 
+/** Every username keyed by `sub`, which a profile whose address moved answers alone: Cognito maps a
+ *  federated address again at each sign-in. Read to the last page, as `federated` reads. */
+export async function keyedBySub(
+  idp: Pick<AccountIdentity, 'listUsers'>,
+  UserPoolId: string,
+  sub: string,
+): Promise<string[]> {
+  const found: string[] = [];
+  let PaginationToken: string | undefined;
+  do {
+    const page = await idp.listUsers({
+      UserPoolId,
+      Filter: `sub = "${sub}"`,
+      Limit: 60,
+      ...(PaginationToken === undefined ? {} : { PaginationToken }),
+    });
+    for (const { Username } of page.Users ?? []) if (Username) found.push(Username);
+    PaginationToken = page.PaginationToken;
+  } while (PaginationToken);
+  return found;
+}
+
 /** Ends every session under the address, each Google profile it finds and each of `also` (ASVS 5.0.0
  *  7.4.2); one already gone counts as ended. */
 export async function signOutEverywhere(

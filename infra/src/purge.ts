@@ -13,6 +13,7 @@ import {
   type AccountIdentity,
   deleteIdentities,
   deleteRows,
+  keyedBySub,
   signOutEverywhere,
   soleSuperAdmin,
 } from './account-delete';
@@ -53,8 +54,9 @@ export async function purge(deps: PurgeDeps, remainingMs: () => number): Promise
       }
       // THE ROWS AFTER THE IDENTITIES, unlike a deletion asked for: nobody asks again, and the row
       // is what the next run finds, so it goes last and a failure anywhere before it resumes.
-      await signOutEverywhere(deps.identity, deps.userPoolId, email);
-      await deleteIdentities(deps.identity, deps.userPoolId, email);
+      const also = await keyedBySub(deps.identity, deps.userPoolId, userId);
+      await signOutEverywhere(deps.identity, deps.userPoolId, email, also);
+      await deleteIdentities(deps.identity, deps.userPoolId, email, also);
       await deleteRows(deps.user, userId);
     } catch (err) {
       console.error(`purge: ${userId} failed`, loggable(err));

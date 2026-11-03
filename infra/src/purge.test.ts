@@ -39,6 +39,8 @@ const PLENTY = () => 60_000;
 
 let db: PGlite;
 let pooled: Set<string>;
+/** Username to `sub`, for the profiles only the `sub` filter finds. */
+let keyed: Map<string, string>;
 let calls: string[];
 
 const missing = () =>
@@ -54,7 +56,14 @@ const identity: AccountIdentity = {
     if (!pooled.delete(Username)) throw missing();
     return {};
   },
-  listUsers: async () => ({ Users: [] }),
+  listUsers: async ({ Filter }) => {
+    const sub = /^sub = "(.*)"$/.exec(Filter)?.[1];
+    return {
+      Users: [...keyed]
+        .filter(([username, of]) => of === sub && pooled.has(username))
+        .map(([Username]) => ({ Username, UserStatus: 'EXTERNAL_PROVIDER' })),
+    };
+  },
 };
 
 const deps = (over: Partial<PurgeDeps> = {}): PurgeDeps => ({
@@ -104,6 +113,7 @@ beforeEach(async () => {
   await insertUser(db, BOB, BOB_EMAIL);
   await hold(ALICE);
   pooled = new Set([ALICE_EMAIL, BOB_EMAIL]);
+  keyed = new Map();
   calls = [];
   vi.stubEnv('OPEN_REGISTRATION', 'false');
   vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -151,6 +161,9 @@ describe('the purge', () => {
     await insertUser(db, '9f1e2d3c-0000-4000-8000-0000000000c3', 'carol@quirenote.com');
     await hold('9f1e2d3c-0000-4000-8000-0000000000c3');
     pooled.add('carol@quirenote.com');
+    // A Google profile under a moved address, which only the row's `sub` reaches.
+    pooled.add('google_9');
+    keyed.set('google_9', ALICE);
     const failing: AccountIdentity = {
       ...identity,
       adminDeleteUser: (input) =>
@@ -169,17 +182,54 @@ describe('the purge', () => {
     expect(pooled).toEqual(new Set([BOB_EMAIL]));
   });
 
+  // COGNITO MAPS A FEDERATED PROFILE'S ADDRESS AGAIN AT EACH SIGN-IN, and the gate finds the row
+  // by `sub` first, so the row's address no longer reaches a profile whose address moved.
+  it('deletes the profile the row is keyed by when its address has moved', async () => {
+    pooled.delete(ALICE_EMAIL);
+    pooled.add('google_9');
+    keyed.set('google_9', ALICE);
+    expect(await purge(deps(), PLENTY)).toBe(true);
+    expect(await rows()).toEqual([BOB]);
+    expect(pooled).toEqual(new Set([BOB_EMAIL]));
+    expect(calls).toContain('signOut google_9');
+  });
+
+  // A PAGE MAY COME BACK SHORT BEFORE THE END, as the ListUsers reference says of `Limit`.
+  it('reads every page of the sub lookup, a short first one included', async () => {
+    pooled.delete(ALICE_EMAIL);
+    pooled.add('google_9');
+    keyed.set('google_9', ALICE);
+    const short: AccountIdentity = {
+      ...identity,
+      listUsers: async (input) =>
+        input.Filter.startsWith('sub') && input.PaginationToken === undefined
+          ? { Users: [], PaginationToken: 'next' }
+          : identity.listUsers(input),
+    };
+    expect(await purge(deps({ identity: short }), PLENTY)).toBe(true);
+    expect(pooled).toEqual(new Set([BOB_EMAIL]));
+  });
+
   it('answers false and keeps the account when it is the only super-admin', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await db.query("UPDATE app_user SET role = 'super_admin' WHERE user_id = $1", [ALICE]);
-    expect(await purge(deps(), PLENTY)).toBe(false);
+    let listed = 0;
+    const counting: AccountIdentity = {
+      ...identity,
+      listUsers: async (input) => {
+        listed += 1;
+        return identity.listUsers(input);
+      },
+    };
+    expect(await purge(deps({ identity: counting }), PLENTY)).toBe(false);
     expect(await rows()).toEqual([ALICE, BOB]);
-    expect(calls).toEqual([]);
+    // REFUSED BEFORE THE POOL IS ASKED anything, its lookups included.
+    expect([calls, listed]).toEqual([[], 0]);
   });
 
   // Its own steps, once each: the sessions, the identities, then the rows, with no second pass of
   // the core over what it has just done, inside a run's bounded time.
-  it('asks the pool for the address’s profiles once to end the sessions and once to delete', async () => {
+  it('asks the pool for the profiles its sub keys once, and for the address’s once to end the sessions and once to delete', async () => {
     let listed = 0;
     const counting: AccountIdentity = {
       ...identity,
@@ -189,7 +239,7 @@ describe('the purge', () => {
       },
     };
     expect(await purge(deps({ identity: counting }), PLENTY)).toBe(true);
-    expect(listed).toBe(2);
+    expect(listed).toBe(3);
     expect(calls).toEqual([`signOut ${ALICE_EMAIL}`, `delete ${ALICE_EMAIL}`]);
     expect(await rows()).toEqual([BOB]);
   });
