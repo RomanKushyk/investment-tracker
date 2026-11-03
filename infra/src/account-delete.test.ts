@@ -1,18 +1,21 @@
 // The account deletion core over PGlite (#573): every row the account owns, its `app_user` row,
 // then its identity, for whichever account it is given (*User schema and deletes*, *Auth model*).
-import { randomUUID } from 'node:crypto';
-
 import type { PGlite } from '@electric-sql/pglite';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { freshDb } from './__fixtures__/pglite';
 import {
-  applyUserSchema,
-  insertUser,
-  writeLedger,
-  type LedgerRows,
-} from './__fixtures__/user-ledger';
+  PER_USER,
+  datasetsOf as datasetsIn,
+  held as heldIn,
+  ledger,
+  nothing,
+  pool,
+  seedAccount,
+  u,
+} from './__fixtures__/account-rows';
+import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
 import {
   type AccountIdentity,
   deleteAccount,
@@ -29,156 +32,19 @@ const ALICE = '9f1e2d3c-0000-4000-8000-0000000000a1';
 const ALICE_EMAIL = 'alice@quirenote.com';
 const BOB = '9f1e2d3c-0000-4000-8000-0000000000b2';
 const BOB_EMAIL = 'bob@quirenote.com';
-/** SHA-256 in canonical base64, as the manifest's check asks. */
-const DIGEST = `${'A'.repeat(42)}A=`;
 
 /** EVERY TABLE `MIGRATIONS` MAKES, IN ONE OF TWO LISTS, and a table in neither fails the census
  *  below: a table added later is deleted with the account or said to hold nobody's data. The
  *  archive's tables are another cluster's, provider data shared by every environment (`migrate.ts`). */
-const PER_USER = [
-  'account',
-  'app_user',
-  'asset',
-  'dataset',
-  'import_manifest',
-  'import_part',
-  'mutation_key',
-  'transaction',
-  'user_price',
-];
 const SHARED = ['archive_operation', 'official_rate'];
-
-const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-
-/** One asset, a deposit and `prices` daily prices of it, numbered from `n`. */
-const ledger = (n: number, prices = 2): LedgerRows => ({
-  assets: [
-    {
-      id: u(n),
-      name: 'REIT',
-      code: 'RE',
-      colorKey: 'reit',
-      yieldType: 'dividends',
-      expectedPct: 10,
-      targetPct: 25,
-      payoutSchedule: 'monthly',
-      firstPurchase: '2026-03-02',
-      createdAt: '2026-03-02T09:00:00',
-    },
-  ],
-  transactions: [{ id: u(n + 1), date: '2026-03-01', type: 'deposit', assetId: '', amount: 1_000 }],
-  userPrices: Array.from({ length: prices }, (_, i) => ({
-    assetId: u(n),
-    asOf: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10),
-    price: 5,
-  })),
-});
 
 let db: PGlite;
 const cluster: SqlClient = { query: (text, values) => db.query(text, values) };
 
-/** A user with rows in every per-user table: a live dataset, a cleared one the sweep has not
- *  reached, a staged import with a part in, and an idempotency key. */
-const seed = async (userId: string, email: string, n: number, prices = 2) => {
-  await insertUser(db, userId, email);
-  await writeLedger(db, userId, ledger(n, prices));
-  const dead = randomUUID();
-  await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
-    userId,
-    dead,
-  ]);
-  await writeLedger(db, userId, ledger(n + 100), dead);
-  const staged = randomUUID();
-  await db.query('INSERT INTO dataset (user_id, id, created_at) VALUES ($1, $2, now())', [
-    userId,
-    staged,
-  ]);
-  await writeLedger(db, userId, ledger(n + 200), staged);
-  await db.query(
-    `INSERT INTO import_manifest (dataset_id, digest, assets, transactions, prices, staged_at)
-     VALUES ($1, $2, 1, 1, 2, now())`,
-    [staged, DIGEST],
-  );
-  await db.query('INSERT INTO import_part (dataset_id, part, digest) VALUES ($1, 1, $2)', [
-    staged,
-    DIGEST,
-  ]);
-  await db.query('UPDATE app_user SET import_dataset_id = $2 WHERE user_id = $1', [userId, staged]);
-  await db.query(
-    `INSERT INTO mutation_key (user_id, key, fingerprint, token, claimed_at, in_progress_until,
-                               expires_at)
-     VALUES ($1, gen_random_uuid(), $2, gen_random_uuid(), now(), now() + interval '20 seconds',
-             now() + interval '24 hours')`,
-    [userId, 'a'.repeat(64)],
-  );
-};
-
-/** The dataset ids a user owns, read before the deletion takes the `dataset` rows away. */
-const datasetsOf = async (userId: string) =>
-  (await db.query<{ id: string }>('SELECT id FROM dataset WHERE user_id = $1', [userId])).rows.map(
-    (r) => r.id,
-  );
-
-/** What each per-user table holds of the user, found by the column the table keys its owner by:
- *  `user_id`, or `dataset_id` for the tables a generation keys. */
-const held = async (userId: string, datasets: string[]) => {
-  const counts: Record<string, number> = {};
-  for (const table of PER_USER) {
-    const { rows } = await db.query<{ column_name: string }>(
-      `SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = $1
-          AND column_name IN ('user_id', 'dataset_id')`,
-      [table],
-    );
-    const columns = rows.map((r) => r.column_name);
-    const sql = columns.includes('user_id')
-      ? `SELECT count(*)::int AS n FROM "${table}" WHERE user_id = $1`
-      : `SELECT count(*)::int AS n FROM "${table}" WHERE dataset_id = ANY($1::uuid[])`;
-    if (columns.length === 0) throw new Error(`${table} names no owner column`);
-    counts[table] = (
-      await db.query<{ n: number }>(sql, [columns.includes('user_id') ? userId : datasets])
-    ).rows[0].n;
-  }
-  return counts;
-};
-
-const nothing = Object.fromEntries(PER_USER.map((t) => [t, 0]));
-
-type Profile = { email: string; external?: boolean };
-
-/** A pool that holds `profiles`, keyed by the username an admin call takes: the address for a
- *  local account, which the API accepts as an alias, and `google_…` for a federated profile. Every
- *  call is logged in order. */
-const pool = (profiles: Record<string, Profile>) => {
-  const users = new Map(Object.entries(profiles));
-  const log: string[] = [];
-  const missing = () =>
-    Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
-  const idp: AccountIdentity = {
-    adminUserGlobalSignOut: async ({ Username }) => {
-      log.push(`signOut ${Username}`);
-      if (!users.has(Username)) throw missing();
-      return {};
-    },
-    adminDeleteUser: async ({ Username }) => {
-      log.push(`delete ${Username}`);
-      if (!users.delete(Username)) throw missing();
-      return {};
-    },
-    listUsers: async ({ Filter }) => {
-      const email = /^email = "(.*)"$/.exec(Filter)?.[1];
-      return {
-        Users: [...users]
-          .filter(([, p]) => p.email === email)
-          .map(([Username, p]) => ({
-            Username,
-            UserStatus: p.external ? 'EXTERNAL_PROVIDER' : 'CONFIRMED',
-          })),
-      };
-    },
-  };
-  return { idp, users, log };
-};
+const seed = (userId: string, email: string, n: number, prices = 2) =>
+  seedAccount(db, userId, email, n, { prices });
+const datasetsOf = (userId: string) => datasetsIn(db, userId);
+const held = (userId: string, datasets: string[]) => heldIn(db, userId, datasets);
 
 beforeEach(async () => {
   db = await freshDb();

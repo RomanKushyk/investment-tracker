@@ -441,6 +441,9 @@ Resources:
         'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'DELETE /admin/users/{id}':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         # ONE A SECOND: each read holds this function and the capture at once, out of the account's
         # shared concurrency, so a burst here is a burst of two.
         'GET /admin/archive/diagnosis':
@@ -653,11 +656,11 @@ Resources:
       MemorySize: 256
       Tracing: Active
       PermissionsBoundary: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/quirenote-backend-boundary-${Environment}'
-      # LONGER THAN THE APPLICATION'S 5 for the extra round trip, not extra work: `AdminCreateUser`
-      # sends an email before it answers. What bounds the concurrency is the ROUTES' throttles, not
-      # the role check — that runs HERE, after the connection, so a `pending` applicant reaches this
-      # function exactly as often as they care to ask.
-      Timeout: 10
+      # THE DELETION'S CEILING UNDER THE API'S 30, as the self-service one's: an account deleted in
+      # batches takes what it takes, and one cut short goes on when asked again. What bounds the
+      # concurrency is the ROUTES' throttles, not the role check — that runs HERE, after the
+      # connection, so a `pending` applicant reaches this function exactly as often as they ask.
+      Timeout: 29
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
@@ -675,7 +678,8 @@ Resources:
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
             # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S: this function can mint an identity,
-            # take one away, and find and delete those under a declined application (*Auth model*).
+            # take one away, find and delete those under a declined application, and end the
+            # sessions of an account it deletes on request (*Auth model*).
             - Sid: RuleOnApplications
               Effect: Allow
               Action:
@@ -684,6 +688,7 @@ Resources:
                 - cognito-idp:AdminDisableUser
                 - cognito-idp:AdminEnableUser
                 - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminUserGlobalSignOut
                 - cognito-idp:ListUsers
               Resource: !GetAtt UserPool.Arn
       Events:
@@ -710,6 +715,15 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /admin/users/{id}/reject
+            Auth:
+              Authorizer: CognitoJwt
+        # An account deleted on request, its rows last (`approve.ts`).
+        Delete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: DELETE
+            Path: /admin/users/{id}
             Auth:
               Authorizer: CognitoJwt
 

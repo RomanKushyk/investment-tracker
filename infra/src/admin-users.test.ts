@@ -60,6 +60,7 @@ const idp: IdentityClient = {
   adminDisableUser: async () => ({}),
   adminEnableUser: async () => ({}),
   adminDeleteUser: async () => ({}),
+  adminUserGlobalSignOut: async () => ({}),
   listUsers: async () => ({}),
 };
 

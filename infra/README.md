@@ -18,7 +18,7 @@ relay for the session: asked once on every portfolio load, and to sign in and ou
 | `src/asset-delete.ts` | Deleting an asset inside the caller's transaction: children before the parent, refused with the rows it needs when they pass the caller's budget, and a prune that takes as many as the budget leaves, prices first and then transactions newest first, every statement scoped through the caller's live dataset pointer — what the `ON DELETE RESTRICT` keys deliberately refuse to do |
 | `src/pre-signup.ts` | The pre-sign-up trigger. Links a federated identity to the local account already holding the address — only when the provider asserts it verified, and only in one direction, so the account owning the portfolio is not the one absorbed. Its grant is a policy of its own in the template, because the pool names the function and nothing the pool depends on may name the pool |
 | `src/authorize.ts` | The gate every authenticated route calls. Answers `status` and `role` from the `app_user` row — never `cognito:groups`, which is stamped at issue time and stays stamped until the token expires. Three distinguishable refusals and none of them a 401: a `pending` caller is signed in and may not act yet. The same read hands back the row's `settings` text, which `GET /me` serves and `settings.ts` merges onto. An account a scheduled deletion holds is refused `scheduled` on every route before any read, with its last day and whether this sign-in may cancel, and answered `no_application` once that day has ended in Kyiv |
-| `src/approve.ts` | `POST /admin/users/{id}/approve` and `/reject`. Approve calls `AdminCreateUser` and replaces the application row with one keyed by the returned `sub` — a DSQL primary key is immutable, so it is a delete and an insert in one transaction. Reject disables an identity only where one exists, before the row changes. For an `active` account it then sets `rejected`, and a failure is retryable. For a `pending` application it deletes the row, then every identity under the address; a failed identity delete answers 500 and is left to an operator, the row being gone |
+| `src/approve.ts` | `POST /admin/users/{id}/approve` and `/reject`, and `DELETE /admin/users/{id}`. Approve calls `AdminCreateUser` and replaces the application row with one keyed by the returned `sub` — a DSQL primary key is immutable, so it is a delete and an insert in one transaction. Reject disables an identity only where one exists, before the row changes. For an `active` account it then sets `rejected`, and a failure is retryable. For a `pending` application it deletes the row, then every identity under the address; a failed identity delete answers 500 and is left to an operator, the row being gone. Delete takes an `active` or `rejected` account through `account-delete.ts`: its sessions, every identity under its address or keyed by its `sub`, then its rows, last, so a deletion cut short goes on when asked again |
 | `src/admin-users.ts` | `GET /admin/users`, the list a ruling starts from: every application but the demo, oldest first, each with the `id` approve and reject take. Filtered by `status`, paged by a keyset `cursor` with `limit` 1–100. Served by the admin function past the same gate |
 | `src/archive-admin.ts` | `GET /admin/archive/diagnosis`, the super-admin's read of the archive's `diagnose`: past the gate it invokes the capture function synchronously with `{"diagnose":true}` and answers its body unchanged, 502 when the capture throws or cannot be invoked, 504 when it outruns the invoke's timeout. The function's name arrives as the `CaptureFunctionName` deploy parameter, read off the archive's `FunctionName` output; its own function, so the invoke grant sits on no other role |
 | `src/archive-operations.ts` | `POST /admin/archive/operations`, `GET /admin/archive/operations` and `GET /admin/archive/operations/{id}`: the capture's `observe` and `importFundHistory` started as 202 operations for the super-admin. A start is checked against one schema built from the capture's own source and fund tables, recorded in `archive_operation`, and handed to the production state machine under the operation's id; the list (newest first, keyset-paged) and the read answer its state and the mode's own result, a run past its deadline as failed. In dev, which deploys no state machine, a start answers 405 |
@@ -117,7 +117,7 @@ relay for the session: asked once on every portfolio load, and to sign in and ou
 
 ## An admin ID token from the command line
 
-`POST /admin/*` takes a Cognito **ID** token: `authorize.ts` refuses an access token, which carries no
+`/admin/*` takes a Cognito **ID** token: `authorize.ts` refuses an access token, which carries no
 `email`. The app client is CONFIDENTIAL, so each sign-in call carries a `SECRET_HASH`, and reading
 the secret takes `cognito-idp:DescribeUserPoolClient` — run this wherever an identity holding it is
 signed in, **AWS CloudShell** among them. The two sign-in calls themselves need no credentials.
@@ -154,6 +154,18 @@ ends, each failing with a message that points elsewhere:
   naming a preference means supplying its credential in the same call.
 - `ChallengeName: PASSWORD` on the second answers `Challenge type not supported`: the session's
   challenge is `SELECT_CHALLENGE`, and the choice goes in `ANSWER`.
+
+### Deleting an account on request
+
+With the token above, `curl -H "authorization: Bearer $TOKEN" 'https://api.dev.quirenote.com/admin/users?status=active'`
+(or `?status=rejected`) gives the account's `id`, and
+`curl -X DELETE -H "authorization: Bearer $TOKEN" https://api.dev.quirenote.com/admin/users/<id>`
+deletes it: `200 {"status":"deleted"}` means every session, every identity under the address or
+keyed by the `id`, and every row it owned are gone. A 500 is asked again and goes on from where it stopped; the row goes
+last, so an `id` the list no longer shows is a deletion that finished. The route refuses the
+caller's own row (`self`), the demo (`demo`) and a pending application (`undecided`), which reject
+declines instead. The app sends no mail: tell the person by hand that the account is deleted,
+within the time the privacy notice promises.
 
 ## Signing in from an automated browser
 

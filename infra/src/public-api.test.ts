@@ -9,7 +9,7 @@ import { TERMS_ROUTE } from './accept-terms';
 import { LIST_ROUTE } from './admin-users';
 // The route key is matched by string equality in three places and nothing validates them against
 // each other. Renamed on one side alone, every suite here stays green and admin calls answer 400.
-import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
+import { APPROVE_ROUTE, DELETE_ROUTE, REJECT_ROUTE } from './approve';
 import { DIAGNOSIS_ROUTE } from './archive-admin';
 import {
   OPERATIONS_ROUTE,
@@ -201,10 +201,10 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(conditional).toEqual([]);
   });
 
-  it('puts the list, approve and reject on this API, each naming the authorizer', () => {
+  it('puts the list, approve, reject and the deletion on this API, each naming the authorizer', () => {
     const admin = declaredRoutes().filter((r) => r.fn === 'ApproveFunction');
     expect(admin.map((r) => r.key).sort()).toEqual(
-      [LIST_ROUTE, APPROVE_ROUTE, REJECT_ROUTE].sort(),
+      [LIST_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE].sort(),
     );
     for (const route of admin) {
       expect([route.key, route.api]).toEqual([route.key, 'PublicApi']);
@@ -677,11 +677,12 @@ describe('the approval handler holds exactly two grants, and they are different 
   const approve = ['Resources', 'ApproveFunction', 'Properties', 'Policies', 0, 'Statement'];
 
   // This function can mint an identity, disable one and delete one, so the pool is named, never
-  // wildcarded, and the actions are the six the handler makes and no seventh. `AdminEnableUser`
+  // wildcarded, and the actions are the seven the handler makes and no eighth. `AdminEnableUser`
   // undoes this file's own disable and grants no access by itself: an enabled identity with no
   // `active` row is refused by every route. `AdminDeleteUser` and `ListUsers` are a declined
-  // application's identities going with its row. [*Auth model*]
-  it('may create, read, disable, re-enable, find and delete a user in ONE pool, and nothing else', () => {
+  // application's identities going with its row, and with `AdminUserGlobalSignOut` an account
+  // deleted on request. [*Auth model*]
+  it('may create, read, disable, re-enable, sign out, find and delete a user in ONE pool, and nothing else', () => {
     expect(policies).toHaveLength(1);
     expect(policies[0].Statement).toHaveLength(2);
     expect(
@@ -691,6 +692,7 @@ describe('the approval handler holds exactly two grants, and they are different 
         'cognito-idp:AdminDisableUser',
         'cognito-idp:AdminEnableUser',
         'cognito-idp:AdminGetUser',
+        'cognito-idp:AdminUserGlobalSignOut',
         'cognito-idp:ListUsers',
       ]),
     ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });

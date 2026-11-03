@@ -19,11 +19,21 @@ import { TERMS_VERSION } from '@quirenote/core/terms';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  datasetsOf,
+  held,
+  nothing,
+  pool,
+  seedAccount,
+  u,
+  type Profile,
+} from './__fixtures__/account-rows';
 import { ADDRESS, watchConsole } from './__fixtures__/console';
 import { freshDb } from './__fixtures__/pglite';
 import { applications } from './applications';
 import {
   APPROVE_ROUTE,
+  DELETE_ROUTE,
   REJECT_ROUTE,
   RESPONSES,
   approve as approveRoute,
@@ -87,7 +97,12 @@ const spy = (existing?: string, UserStatus = 'FORCE_CHANGE_PASSWORD', Enabled = 
   const disabled: { Username: string }[] = [];
   const enabled: { Username: string }[] = [];
   const deleted: { Username: string }[] = [];
+  const signedOut: { Username: string }[] = [];
   const idp = {
+    adminUserGlobalSignOut: async (input: { UserPoolId: string; Username: string }) => {
+      signedOut.push(input);
+      return {};
+    },
     adminCreateUser: async (input: { UserPoolId: string; Username: string }) => {
       created.push(input as { Username: string });
       if (existing !== undefined) {
@@ -117,7 +132,7 @@ const spy = (existing?: string, UserStatus = 'FORCE_CHANGE_PASSWORD', Enabled = 
       Users: [],
     }),
   };
-  return { idp, created, fetched, disabled, enabled, deleted };
+  return { idp, created, fetched, disabled, enabled, deleted, signedOut };
 };
 
 /**
@@ -959,7 +974,7 @@ describe('every admin route reads the caller off the row', () => {
     ['a pending applicant', 'pending'],
   ];
 
-  for (const route of [APPROVE_ROUTE, REJECT_ROUTE]) {
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE]) {
     for (const [what, kind] of callers) {
       it(`refuses ${what} on ${route}`, async () => {
         await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
@@ -1016,7 +1031,7 @@ describe('every admin route reads the caller off the row', () => {
   // Nobody rules on their own row, because the state it makes has no repair in code. SPELLED BOTH
   // WAYS, and the second spelling is the whole test: a `uuid` column compares canonically, so
   // capitals are the same row to the cluster and a different string to `===`.
-  for (const route of [APPROVE_ROUTE, REJECT_ROUTE]) {
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE]) {
     for (const [spelling, id] of [
       ['as it is stored', ADMIN],
       ['in capitals', ADMIN.toUpperCase()],
@@ -1107,12 +1122,12 @@ describe('the one mail in this flow is Cognito’s own', () => {
   });
 });
 
-// The answers the two routes share, driven through both. The gate's own refusals are covered in
+// The answers the routes share, driven through each. The gate's own refusals are covered in
 // `authorize.test.ts`.
-describe('both routes meet the gate, and reject reads its argument like approve does', () => {
+describe('every route meets the gate, and reject reads its argument like approve does', () => {
   const OUTSIDER = '9f1e2d3c-0000-4000-8000-0000000000f7';
 
-  for (const route of [APPROVE_ROUTE, REJECT_ROUTE]) {
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE]) {
     it(`refuses a caller whose own row was rejected, on ${route}`, async () => {
       await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'rejected'));
       const res = await approve(
@@ -1184,6 +1199,224 @@ describe('both routes meet the gate, and reject reads its argument like approve 
     await db.exec(insert(DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo'));
     const res = await approve(db, spy().idp, call(REJECT_ROUTE, DEMO_USER_ID));
     expect([res.statusCode, res.body]).toEqual([409, '{"error":"demo"}']);
+  });
+});
+
+/** The deletion's pool behind the rest of approve's client: the three calls a deletion makes act
+ *  on `profiles`, and the others answer as `spy` does. */
+const holding = (profiles: Record<string, Profile>) => {
+  const fake = pool(profiles);
+  return { ...fake, idp: { ...spy().idp, ...fake.idp } };
+};
+
+/** The account a super-admin is asked to delete, keyed by the sub approval minted for it. */
+const LEAVING = '9f1e2d3c-0000-4000-8000-0000000000e8';
+const LEAVING_EMAIL = 'leaving@quirenote.com';
+
+describe('deleting an account on request', () => {
+  for (const status of ['active', 'rejected']) {
+    it(`leaves no row of the ${status} account and no identity under its address, ending its sessions first`, async () => {
+      await seedAccount(db, LEAVING, LEAVING_EMAIL, 1_000, { status });
+      const datasets = await datasetsOf(db, LEAVING);
+      const { idp, users, log } = holding({
+        [LEAVING_EMAIL]: { email: LEAVING_EMAIL },
+        google_1: { email: LEAVING_EMAIL, external: true },
+      });
+
+      const res = await approve(db, idp, call(DELETE_ROUTE, LEAVING));
+
+      expect([res.statusCode, res.body]).toEqual([200, '{"status":"deleted"}']);
+      expect(await held(db, LEAVING, datasets)).toEqual(nothing);
+      expect(users.size).toBe(0);
+      const firstDelete = log.findIndex((l) => l.startsWith('delete'));
+      expect(log.slice(0, firstDelete).filter((l) => l.startsWith('signOut'))).toEqual(
+        expect.arrayContaining([`signOut ${LEAVING_EMAIL}`, 'signOut google_1']),
+      );
+      expect(await rows(ADMIN_EMAIL)).toHaveLength(1);
+    });
+  }
+
+  // THE ADDRESS CAN MOVE: a Google profile's is mapped again at each sign-in, and the gate finds the
+  // row by `sub` first, so the profile the row was written for answers the `sub` filter alone.
+  it('deletes the profile the row is keyed by when its address has moved', async () => {
+    await seedAccount(db, LEAVING, LEAVING_EMAIL, 1_000);
+    const { idp, users, log } = holding({
+      google_9: { email: 'moved@quirenote.com', external: true, sub: LEAVING },
+    });
+
+    const res = await approve(db, idp, call(DELETE_ROUTE, LEAVING));
+
+    expect([res.statusCode, res.body]).toEqual([200, '{"status":"deleted"}']);
+    expect(log).toContain('signOut google_9');
+    expect(users.size).toBe(0);
+  });
+
+  // NAMED BEFORE ANYTHING IRREVERSIBLE, so a deletion nobody asks again still says who began it.
+  it('logs who deletes whom, by id, before the first call to the pool', async () => {
+    await seedAccount(db, LEAVING, LEAVING_EMAIL, 1_000);
+    const { idp } = holding({ [LEAVING_EMAIL]: { email: LEAVING_EMAIL } });
+    const failing: typeof idp = {
+      ...idp,
+      listUsers: async () => {
+        throw new Error('TooManyRequestsException');
+      },
+    };
+    const watched = watchConsole();
+    try {
+      const res = await approve(db, failing, call(DELETE_ROUTE, LEAVING));
+      expect(res.statusCode).toBe(500);
+      const said = watched.lines().filter((l) => l.includes('is deleting'));
+      expect(said).toEqual([`approve: ${ADMIN} is deleting the account of row ${LEAVING}`]);
+      expect(watched.lines().join('\n')).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // A PAGE MAY COME BACK SHORT BEFORE THE END, as the ListUsers reference says of `Limit`.
+  it('reads every page of the sub lookup, a short first one included', async () => {
+    await seedAccount(db, LEAVING, LEAVING_EMAIL, 1_000);
+    const { idp, users, log } = holding({
+      google_9: { email: 'moved@quirenote.com', external: true, sub: LEAVING },
+    });
+    const short: typeof idp = {
+      ...idp,
+      listUsers: async (input) =>
+        input.Filter.startsWith('sub') && input.PaginationToken === undefined
+          ? { Users: [], PaginationToken: 'next' }
+          : idp.listUsers(input),
+    };
+
+    const res = await approve(db, short, call(DELETE_ROUTE, LEAVING));
+
+    expect([res.statusCode, res.body]).toEqual([200, '{"status":"deleted"}']);
+    expect(log).toContain('signOut google_9');
+    expect(users.size).toBe(0);
+  });
+
+  // THE ROW GOES LAST, so a row already gone is a deletion that finished.
+  it('answers not_found for a row that is not there, and asks the pool nothing', async () => {
+    const { idp, log } = holding({ [LEAVING_EMAIL]: { email: LEAVING_EMAIL } });
+
+    const res = await approve(db, idp, call(DELETE_ROUTE, LEAVING));
+
+    expect([res.statusCode, res.body]).toEqual([404, '{"error":"not_found"}']);
+    expect(log).toEqual([]);
+  });
+
+  it('lets the deleted address apply again, as a fresh application', async () => {
+    await seedAccount(db, LEAVING, LEAVING_EMAIL, 1_000);
+    const { idp } = holding({ [LEAVING_EMAIL]: { email: LEAVING_EMAIL } });
+    const gone = await approve(db, idp, call(DELETE_ROUTE, LEAVING));
+    expect(gone.statusCode).toBe(200);
+
+    const res = await applications(db, {
+      body: JSON.stringify({
+        email: LEAVING_EMAIL,
+        botCheck: 'token',
+        termsVersion: TERMS_VERSION,
+      }),
+    });
+
+    expect(res.statusCode).toBe(202);
+    const again = await rows(LEAVING_EMAIL);
+    expect(again).toEqual([expect.objectContaining({ status: 'pending', decided: false })]);
+    expect(again[0].user_id).not.toBe(LEAVING);
+  });
+});
+
+describe('what the deletion refuses, touching nothing', () => {
+  it("refuses the caller's own row", async () => {
+    const { idp, log } = holding({ [ADMIN_EMAIL]: { email: ADMIN_EMAIL } });
+    const res = await approve(db, idp, call(DELETE_ROUTE, ADMIN));
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"self"}']);
+    expect(log).toEqual([]);
+    expect(await rows(ADMIN_EMAIL)).toHaveLength(1);
+  });
+
+  it('refuses the demo row', async () => {
+    await db.exec(insert(DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo'));
+    const { idp, log } = holding({});
+    const res = await approve(db, idp, call(DELETE_ROUTE, DEMO_USER_ID));
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"demo"}']);
+    expect(log).toEqual([]);
+    expect(await rows(DEMO_USER_EMAIL)).toHaveLength(1);
+  });
+
+  // A DECLINE ALREADY DELETES ONE. The key is not the gate's `pending`, which the app reads as the
+  // caller's own application.
+  it('refuses a pending application with a key of its own', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, log } = holding({ [EMAIL]: { email: EMAIL } });
+    const res = await approve(db, idp, call(DELETE_ROUTE, PLACEHOLDER));
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"undecided"}']);
+    expect(log).toEqual([]);
+    expect((await rows())[0].status).toBe('pending');
+  });
+
+  it('refuses an id that is not a uuid', async () => {
+    const { idp, log } = holding({});
+    const res = await approve(db, idp, call(DELETE_ROUTE, 'not-a-uuid'));
+    expect([res.statusCode, res.body]).toEqual([400, '{"error":"invalid_request"}']);
+    expect(log).toEqual([]);
+  });
+});
+
+describe('a deletion cut short completes when asked again', () => {
+  /** Fails the `at`-th call of either kind, once, and counts every call it sees. */
+  const failingAt = (at: number, idp: ReturnType<typeof holding>['idp']) => {
+    let calls = 0;
+    const tick = () => {
+      calls += 1;
+      if (calls === at) throw new Error('cut short');
+    };
+    const client: SqlClient = {
+      query: async <R>(text: string, values?: unknown[]) => {
+        tick();
+        return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+      },
+    };
+    const identity: typeof idp = {
+      ...idp,
+      adminUserGlobalSignOut: async (input) => (tick(), idp.adminUserGlobalSignOut(input)),
+      adminDeleteUser: async (input) => (tick(), idp.adminDeleteUser(input)),
+      listUsers: async (input) => (tick(), idp.listUsers(input)),
+    };
+    return { client, identity, calls: () => calls };
+  };
+
+  it('from a cut at every step it takes, the row standing until the last one', async () => {
+    let cuts = 0;
+    let rowGone = 0;
+    for (let at = 1; ; at += 1) {
+      const userId = u(900_000 + at);
+      const email = `cut-${at}@quirenote.com`;
+      await seedAccount(db, userId, email, at * 1_000);
+      const datasets = await datasetsOf(db, userId);
+      const { idp, users } = holding({
+        [email]: { email },
+        [`google_${at}`]: { email: `moved-${at}@quirenote.com`, external: true, sub: userId },
+      });
+      const cut = failingAt(at, idp);
+
+      const first = await approve(cut.client, cut.identity, call(DELETE_ROUTE, userId));
+      if (first.statusCode === 200) {
+        // Past the last call: the cut never landed, and every earlier one did.
+        expect(cut.calls()).toBe(at - 1);
+        break;
+      }
+      expect([at, first.statusCode]).toEqual([at, 500]);
+      cuts += 1;
+      if ((await rows(email)).length === 0) rowGone += 1;
+
+      const again = await approve(db, idp, call(DELETE_ROUTE, userId));
+      expect([at, again.statusCode]).toEqual([at, 200]);
+      expect(await held(db, userId, datasets)).toEqual(nothing);
+      expect(users.size).toBe(0);
+    }
+    expect(cuts).toBeGreaterThan(20);
+    // THE ROW IS WHAT ASKING AGAIN FINDS: no cut leaves the account without it.
+    expect(rowGone).toBe(0);
   });
 });
 

@@ -1873,7 +1873,13 @@ the gate, and lands on `/sign-in` with the deletion's own sentence, the schedule
 the route stored: the app mails nothing, so that sentence is the notice. FROM THE END OF THE LAST DAY THE GATE ANSWERS `no_application`, as
 it answers a token whose account is gone, so no gate offers a cancel after the day. Cognito fires
 no trigger on a deletion, so whoever deletes an identity by hand clears its `app_user` row too, and
-nothing watches for one; the operator erases on request only what the route cannot reach. THE
+nothing watches for one. AN OPERATOR DELETES AN ACCOUNT ON REQUEST through `DELETE /admin/users/{id}`,
+behind the super-admin gate: an `active` or `rejected` one, never the caller's own, the demo or a
+pending application, which a decline deletes and which answers `undecided`, not the gate's
+`pending`. It runs the deletion's core in purge's order, sessions, identities, then the rows last,
+because the operator's next ask is what finishes a deletion cut short and the row is what that ask
+finds; a row already gone is a deletion that finished. The app mails nothing, so the operator tells
+the person. THE
 APPLICATION IS THE APP'S
 OWN FORM, `/apply`, one address posted with no cookie, since its route reads none; the endpoint
 answers every address with one constant, so the form can say only that it was recorded. A CALLER THE

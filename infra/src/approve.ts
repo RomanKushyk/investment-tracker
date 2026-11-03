@@ -1,4 +1,5 @@
-// `POST /admin/users/{id}/approve` and `/reject` — the two routes a super-admin rules with.
+// `POST /admin/users/{id}/approve` and `/reject` — the two routes a super-admin rules with — and
+// `DELETE /admin/users/{id}`, the deletion an account holder asks the operator for.
 //
 // APPROVE IS A COGNITO WRITE, NOT A STATUS FLIP. `user_id` holds the Cognito `sub` and the row was
 // written before any identity existed, so approval MINTS the identity and REKEYS the row onto it —
@@ -7,7 +8,8 @@
 // where the monthly active user is spent and the one invitation goes out, which is what makes
 // approval the verification step (*Auth model*). REJECT DEPENDS ON THE ROW: an `active` account,
 // which owns a dataset, is a status and a disable; a `pending` application is deleted, and the
-// identity under its address with it.
+// identity under its address with it. DELETE TAKES A DECIDED ACCOUNT through the deletion's core
+// (`account-delete.ts`) in purge's order, the row last.
 //
 // The list a ruling starts from, `GET /admin/users`, is `admin-users.ts`'s, served from this
 // function past the same gate.
@@ -17,11 +19,12 @@ import {
   AdminDisableUserCommand,
   AdminEnableUserCommand,
   AdminGetUserCommand,
+  AdminUserGlobalSignOutCommand,
   CognitoIdentityProviderClient,
   ListUsersCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { deleteIdentities } from './account-delete';
+import { deleteIdentities, deleteRows, signOutEverywhere } from './account-delete';
 import { LIST_ROUTE, listUsers } from './admin-users';
 import {
   FORBIDDEN,
@@ -49,6 +52,7 @@ import { ACCOUNT, giveDataset } from './provision';
 
 export const APPROVE_ROUTE = 'POST /admin/users/{id}/approve';
 export const REJECT_ROUTE = 'POST /admin/users/{id}/reject';
+export const DELETE_ROUTE = 'DELETE /admin/users/{id}';
 
 type UserAttribute = { Name?: string; Value?: string };
 
@@ -72,15 +76,19 @@ export type IdentityClient = {
   adminDisableUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
   adminEnableUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
   adminDeleteUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
+  adminUserGlobalSignOut(input: { UserPoolId: string; Username: string }): Promise<unknown>;
   listUsers(input: {
     UserPoolId: string;
     Filter: string;
     Limit: number;
-  }): Promise<{ Users?: { Username?: string; UserStatus?: string }[] }>;
+    PaginationToken?: string;
+  }): Promise<{ Users?: { Username?: string; UserStatus?: string }[]; PaginationToken?: string }>;
 };
 
 const APPROVED = json(200, '{"status":"approved"}');
 const REJECTED = json(200, '{"status":"rejected"}');
+/** As the self-service deletion answers; RFC 9110 §9.3.5 lets a DELETE say what it did. */
+const DELETED = json(200, '{"status":"deleted"}');
 const NOT_FOUND = json(404, '{"error":"not_found"}');
 // NOBODY RULES ON THEIR OWN ROW, because the state has no way back in code: rejecting yourself
 // disables your account and sets your row `rejected`, after which the gate refuses you, approve
@@ -92,6 +100,9 @@ const SELF = json(409, '{"error":"self"}');
 // cleared. The role makes that structural rather than a screen's habit.
 const DEMO = json(409, '{"error":"demo"}');
 const ALREADY_DECIDED = json(409, '{"error":"already_decided"}');
+// A DECLINE DELETES A PENDING APPLICATION ALREADY. Not the gate's `pending`, which the app reads as
+// the caller's own application.
+const UNDECIDED = json(409, '{"error":"undecided"}');
 // AN UNCONFIRMED ACCOUNT CLAIMED THE ADDRESS AND NEVER PROVED IT: Cognito holds a username as
 // taken even for a sign-up nobody confirmed, so an open window lets anyone take one they do not
 // hold. Its own refusal because the repair is outside this API — the account has to go.
@@ -100,8 +111,9 @@ const UNCLAIMED_IDENTITY = json(409, '{"error":"unclaimed_identity"}');
 const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN, TERMS, SCHEDULED] as const;
 
 /** WHAT EACH ROUTE CAN ANSWER, and the only list of it — `openapi.ts` builds the document from
- *  here, and `openapi.test.ts` catches a constant added above and not added to it. The two differ
- *  only in the success body and in `unclaimed_identity`, which only approve can reach. */
+ *  here, and `openapi.test.ts` catches a constant added above and not added to it. The three differ
+ *  in the success body, in `unclaimed_identity`, which only approve can reach, and in the delete's
+ *  `undecided` where the rulings answer `already_decided`. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [APPROVE_ROUTE]: [
     APPROVED,
@@ -115,6 +127,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
     INTERNAL,
   ],
   [REJECT_ROUTE]: [REJECTED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, ALREADY_DECIDED, INTERNAL],
+  [DELETE_ROUTE]: [DELETED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, UNDECIDED, INTERNAL],
 };
 
 /** The stamps AS TEXT, because pg's Date keeps milliseconds and they hold microseconds. */
@@ -395,6 +408,39 @@ async function rejectRow(
   return REJECTED;
 }
 
+/** Sessions, identities, then THE ROWS LAST, as `purge.ts` orders them: the row is what asking
+ *  again finds, so a deletion cut short goes on from there, and a row already gone finished. */
+async function deleteUser(
+  client: SqlClient,
+  idp: IdentityClient,
+  UserPoolId: string,
+  row: Target,
+  callerId: string,
+): Promise<ApiResult> {
+  if (row.status === 'pending') return UNDECIDED;
+  // WHO DELETES WHOM, before anything irreversible: the rows go, and the pool's trail names this
+  // function. Ids, never the address (*Deployment*).
+  console.log(`approve: ${callerId} is deleting the account of row ${row.user_id}`);
+  // BY `sub` TOO, a Google profile's address being mapped again at each sign-in; read to the last
+  // page, one coming back short before the end (`pre-signup.ts`).
+  const also: string[] = [];
+  let PaginationToken: string | undefined;
+  do {
+    const page = await idp.listUsers({
+      UserPoolId,
+      Filter: `sub = "${row.user_id}"`,
+      Limit: 60,
+      ...(PaginationToken === undefined ? {} : { PaginationToken }),
+    });
+    for (const { Username } of page.Users ?? []) if (Username) also.push(Username);
+    PaginationToken = page.PaginationToken;
+  } while (PaginationToken);
+  await signOutEverywhere(idp, UserPoolId, row.email, also);
+  await deleteIdentities(idp, UserPoolId, row.email, also);
+  await deleteRows(client, row.user_id);
+  return DELETED;
+}
+
 export async function approve(
   client: SqlClient,
   idp: IdentityClient,
@@ -410,7 +456,9 @@ export async function approve(
 
     const routeKey = event.routeKey;
     if (routeKey === LIST_ROUTE) return await listUsers(client, event);
-    if (routeKey !== APPROVE_ROUTE && routeKey !== REJECT_ROUTE) return INVALID;
+    if (routeKey !== APPROVE_ROUTE && routeKey !== REJECT_ROUTE && routeKey !== DELETE_ROUTE) {
+      return INVALID;
+    }
 
     // FOLDED BEFORE IT IS COMPARED TO ANYTHING, and the guard below is why: a `uuid` column
     // compares canonically, so unfolded the self check is skipped by an id typed in capitals.
@@ -429,9 +477,12 @@ export async function approve(
     const { rows } = await client.query<Target>(TARGET, [id]);
     const row = rows[0];
     if (row === undefined) return NOT_FOUND;
-    // ASKED BEFORE ANYTHING IRREVERSIBLE, approve's mint and reject's delete alike.
+    // ASKED BEFORE ANYTHING IRREVERSIBLE, approve's mint and the deletes alike.
     if (row.role === 'demo') return DEMO;
 
+    if (routeKey === DELETE_ROUTE) {
+      return await deleteUser(client, idp, UserPoolId, row, gate.caller.userId);
+    }
     return routeKey === APPROVE_ROUTE
       ? await approveRow(client, idp, UserPoolId, row, gate.caller.userId)
       : await rejectRow(client, idp, UserPoolId, row, gate.caller.userId);
@@ -449,6 +500,7 @@ const sdk: IdentityClient = {
   adminDisableUser: (input) => identityClient.send(new AdminDisableUserCommand(input)),
   adminEnableUser: (input) => identityClient.send(new AdminEnableUserCommand(input)),
   adminDeleteUser: (input) => identityClient.send(new AdminDeleteUserCommand(input)),
+  adminUserGlobalSignOut: (input) => identityClient.send(new AdminUserGlobalSignOutCommand(input)),
   listUsers: (input) => identityClient.send(new ListUsersCommand(input)),
 };
 

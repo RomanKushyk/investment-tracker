@@ -36,7 +36,7 @@ import {
   RESPONSES as APPLICATION_RESPONSES,
   ROUTE as APPLY_ROUTE,
 } from './applications';
-import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
+import { APPROVE_ROUTE, DELETE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
 import {
   CSRF_HEADER,
   GOOGLE_BEGIN_BODY,
@@ -507,13 +507,14 @@ describe('the routes, the authorizer, and the routes outside it', () => {
     PASSKEY_COMPLETE_ROUTE,
   ];
 
-  it('declares the thirty-four routes and no others', () => {
+  it('declares the thirty-five routes and no others', () => {
     expect(specRoutes(spec).sort()).toEqual(
       [
         APPLY_ROUTE,
         LIST_ROUTE,
         APPROVE_ROUTE,
         REJECT_ROUTE,
+        DELETE_ROUTE,
         DIAGNOSIS_ROUTE,
         OPERATION_START_ROUTE,
         OPERATIONS_ROUTE,
@@ -560,6 +561,7 @@ describe('the routes, the authorizer, and the routes outside it', () => {
       LIST_ROUTE,
       APPROVE_ROUTE,
       REJECT_ROUTE,
+      DELETE_ROUTE,
       DIAGNOSIS_ROUTE,
       OPERATION_START_ROUTE,
       OPERATIONS_ROUTE,
