@@ -21,6 +21,7 @@ import {
   TERMS,
   authorize,
   superAdminOnly,
+  userOnly,
 } from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
@@ -222,6 +223,16 @@ describe('the row is what authorizes, on every request', () => {
     const gate = await authorize(db, token({ 'cognito:groups': ['super_admin'] }));
     expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user', settings: null } });
     expect(superAdminOnly(gate)).toEqual({ refusal: expect.objectContaining({ statusCode: 403 }) });
+  });
+
+  it('opens the portfolio to the user role alone, and passes a refusal through', () => {
+    const as = (role: string): Gate => ({
+      caller: { userId: SUB, email: EMAIL, role, settings: null },
+    });
+    expect(userOnly(as('user'))).toEqual(as('user'));
+    expect(userOnly(as('super_admin'))).toEqual({ refusal: FORBIDDEN });
+    expect(userOnly(as('auditor'))).toEqual({ refusal: FORBIDDEN });
+    expect(userOnly({ refusal: TERMS })).toEqual({ refusal: TERMS });
   });
 
   // The row's `user_id` is canonical and `answer()` compares with `===`, so the fold happens here.

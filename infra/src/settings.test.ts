@@ -435,6 +435,13 @@ describe('the gate', () => {
     await refuses('forbidden', { sub: TWIN, email: DEMO_USER_EMAIL });
   });
 
+  // The account's own settings, not a portfolio's: the language and the nav groups the shell keeps.
+  it('answers an active super-admin and stores the patch', async () => {
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    expect(answer(await patch({ language: 'en' }))).toEqual([200, { ...DEFAULTS, language: 'en' }]);
+    expect(await stored()).toBe('{"language":"en"}');
+  });
+
   it('is asked before the media type and the body', async () => {
     await db.query("UPDATE app_user SET status = 'rejected'");
     const res = await patch('not json', { type: 'text/plain' });

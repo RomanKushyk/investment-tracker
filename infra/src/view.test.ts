@@ -783,6 +783,12 @@ describe.each(ROUTES)('the gate of %s', (route) => {
     const res = (await view(deps(), on(route, undefined, {}, TWIN, DEMO_USER_EMAIL))) as ApiResult;
     expect([res.statusCode, res.body]).toEqual([403, '{"error":"forbidden"}']);
   });
+
+  it('refuses an active super-admin, whose account administers and holds no portfolio', async () => {
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    const res = (await view(deps(), on(route))) as ApiResult;
+    expect([res.statusCode, res.body]).toEqual([403, '{"error":"forbidden"}']);
+  });
 });
 
 describe('a failure answers rather than throws', () => {

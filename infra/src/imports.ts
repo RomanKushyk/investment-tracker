@@ -20,6 +20,7 @@ import {
   SCHEDULED,
   TERMS,
   authorize,
+  userOnly,
 } from './authorize';
 import { IDLE_LIMIT, collect, once } from './collect';
 import { codeOf } from './dsql';
@@ -670,7 +671,7 @@ export const IMPORT_ROUTES = Object.keys(ROUTES);
 export async function imports(deps: ImportDeps, event: ApiEvent): Promise<ApiResult | EmptyResult> {
   // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
   try {
-    const gate = await authorize(deps.user, event);
+    const gate = userOnly(await authorize(deps.user, event));
     if ('refusal' in gate) return gate.refusal;
     const userId = gate.caller.userId;
     const route = ROUTES[event.routeKey ?? ''];

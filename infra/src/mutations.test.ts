@@ -1424,6 +1424,11 @@ describe('the gate', () => {
       { error: 'forbidden' },
     ]);
   });
+
+  it('refuses an active super-admin, whose account holds no portfolio, on either route', async () => {
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    await both('forbidden');
+  });
 });
 
 describe('a failure answers rather than throws', () => {

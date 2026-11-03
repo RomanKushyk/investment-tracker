@@ -28,6 +28,7 @@ import {
   SCHEDULED,
   TERMS,
   authorize,
+  userOnly,
 } from './authorize';
 import { collect, once } from './collect';
 import { codeOf, connect } from './dsql';
@@ -764,7 +765,7 @@ async function sweep(client: SqlClient, userId: string) {
 export async function mutations(deps: MutationDeps, event: ApiEvent): Promise<ApiResult> {
   // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
   try {
-    const gate = await authorize(deps.user, event);
+    const gate = userOnly(await authorize(deps.user, event));
     if ('refusal' in gate) return gate.refusal;
     // RFC 9110 §13.2.1: the request's own checks first, the precondition just before the content.
     const body = readBody(event);
@@ -803,7 +804,7 @@ export async function state(
   event: ApiEvent,
 ): Promise<ApiResult | EmptyResult> {
   try {
-    const gate = await authorize(deps.user, event);
+    const gate = userOnly(await authorize(deps.user, event));
     if ('refusal' in gate) return gate.refusal;
     const ledger = await readLedger(deps.user, gate.caller.userId);
     const etag = dataTag(gate.caller.userId, ledger.dataVersion);

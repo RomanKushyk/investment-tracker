@@ -27,6 +27,7 @@ import {
   SCHEDULED,
   TERMS,
   authorize,
+  userOnly,
 } from './authorize';
 import { connect, connectAsArchiveReader } from './dsql';
 import {
@@ -389,7 +390,7 @@ async function read(
 ): Promise<ApiResult | EmptyResult> {
   // THE WHOLE BODY IS INSIDE THE CATCH, THE GATE INCLUDED, as `approve.ts` says why.
   try {
-    const gate = await authorize(deps.user, event);
+    const gate = userOnly(await authorize(deps.user, event));
     if ('refusal' in gate) return gate.refusal;
     const route = routeOf();
     if ('statusCode' in route) return route;

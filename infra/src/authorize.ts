@@ -268,3 +268,10 @@ export function superAdminOnly(gate: Gate): Gate {
   if ('refusal' in gate) return gate;
   return gate.caller.role === 'super_admin' ? gate : { refusal: FORBIDDEN };
 }
+
+/** The portfolio routes' gate. It admits `user` rather than refusing `super_admin`, so a role added
+ *  later reads no portfolio until somebody says why it may (OWASP: deny by default). */
+export function userOnly(gate: Gate): Gate {
+  if ('refusal' in gate) return gate;
+  return gate.caller.role === 'user' ? gate : { refusal: FORBIDDEN };
+}

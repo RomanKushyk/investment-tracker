@@ -1102,6 +1102,11 @@ describe('the gate, on every import route', () => {
       Array(4).fill({ error: 'forbidden' }),
     );
   });
+
+  it('refuses an active super-admin, whose account holds no portfolio, on every route', async () => {
+    await db.query("UPDATE app_user SET role = 'super_admin'");
+    expect(await everyRoute()).toEqual(Array(4).fill({ error: 'forbidden' }));
+  });
 });
 
 // DSQL can answer a serialization failure for a transaction that committed: each route is sent

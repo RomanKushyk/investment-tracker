@@ -1882,7 +1882,12 @@ answer IN PLACE of the route that asked, held in memory, and every way out it of
 two, each the answer's own write after which the route that asked reads again with no sign-in: the
 terms step's acceptance and the window's cancel; an
 admin route also answers `forbidden` to an active user who is not a super-admin, so its `forbidden` is
-not read that way. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which the
+not read that way. A PORTFOLIO ROUTE ANSWERS `forbidden` TO A SUPER-ADMIN (`userOnly`), who
+administers from an account of its own (NIST SP 800-53 AC-6(2)) and whose shell sends no such read.
+The gate admits `user` rather than refusing `super_admin`, OWASP's "deny access by default", so a role
+added later reads no portfolio until somebody says why it may. The account's own routes stay open to
+it, `/me`, `/me/account`, `/me/settings` and `/me/terms`, and `user-only.test.ts` holds every other
+route on the view and mutations functions to the rule. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which the
 repository calls. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
 each answer back as a typed reply: the six refusals apart, `scheduled` only with the day it names; a 304 and a 412, a 409 for a write still running,
 a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
@@ -2106,7 +2111,9 @@ at the first run after the clear, and an idle import's at the first after its li
 at most. Nothing collects on a read or on a settings write.
 Every account holder
 has a dataset: a backfill gave the ones provisioned before the switch theirs, and provisioning
-writes one with the account. A write's idempotency keys live in `mutation_key`, one row per user
+writes one with the account. No portfolio route reads or writes the super-admin's, which the
+bootstrap writes, since every one refuses that role (*Auth model*); `GET /me/account` still counts
+its rows for the profile. A write's idempotency keys live in `mutation_key`, one row per user
 and key, restricted on the user's delete; a row holds a claim's token and window, and its stored
 response whole or not at all. An import's manifest lives in `import_manifest`, keyed by the
 generation it stages, and each staged part in `import_part`, keyed by that manifest, each restricted
