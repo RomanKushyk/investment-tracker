@@ -1,5 +1,6 @@
-// `POST /admin/users/{id}/approve` and `/reject` — the two routes a super-admin rules with — and
-// `DELETE /admin/users/{id}`, the deletion an account holder asks the operator for.
+// `POST /admin/users/{id}/approve` and `/reject` — the two routes a super-admin rules with —
+// `/enable`, which undoes an account's rejection, and `DELETE /admin/users/{id}`, the deletion an
+// account holder asks the operator for.
 //
 // APPROVE IS A COGNITO WRITE, NOT A STATUS FLIP. `user_id` holds the Cognito `sub` and the row was
 // written before any identity existed, so approval MINTS the identity and REKEYS the row onto it —
@@ -7,9 +8,9 @@
 // delete and an insert. A pending row owns nothing, so that disturbs no foreign key. It is also
 // where the monthly active user is spent and the one invitation goes out, which is what makes
 // approval the verification step (*Auth model*). REJECT DEPENDS ON THE ROW: an `active` account,
-// which owns a dataset, is a status and a disable; a `pending` application is deleted, and the
-// identity under its address with it. DELETE TAKES A DECIDED ACCOUNT through the deletion's core
-// (`account-delete.ts`) in purge's order, the row last.
+// which owns a dataset, is a status, a disable and a sign-out; a `pending` application is
+// deleted, and the identity under its address with it. DELETE TAKES A DECIDED ACCOUNT through the
+// deletion's core (`account-delete.ts`) in purge's order, the row last.
 //
 // The list a ruling starts from, `GET /admin/users`, is `admin-users.ts`'s, served from this
 // function past the same gate.
@@ -53,6 +54,7 @@ import { ACCOUNT, giveDataset } from './provision';
 export const APPROVE_ROUTE = 'POST /admin/users/{id}/approve';
 export const REJECT_ROUTE = 'POST /admin/users/{id}/reject';
 export const DELETE_ROUTE = 'DELETE /admin/users/{id}';
+export const ENABLE_ROUTE = 'POST /admin/users/{id}/enable';
 
 type UserAttribute = { Name?: string; Value?: string };
 
@@ -89,10 +91,10 @@ const APPROVED = json(200, '{"status":"approved"}');
 const REJECTED = json(200, '{"status":"rejected"}');
 /** As the self-service deletion answers; RFC 9110 §9.3.5 lets a DELETE say what it did. */
 const DELETED = json(200, '{"status":"deleted"}');
+const ENABLED = json(200, '{"status":"enabled"}');
 const NOT_FOUND = json(404, '{"error":"not_found"}');
-// NOBODY RULES ON THEIR OWN ROW, because the state has no way back in code: rejecting yourself
-// disables your account and sets your row `rejected`, after which the gate refuses you, approve
-// refuses a non-pending row, and the bootstrap refuses an address it already holds a row for.
+// NOBODY RULES ON THEIR OWN ROW: rejecting yourself sets your row `rejected`, after which the gate
+// refuses you, so only another super-admin's enable could undo it, and a sole one has nobody.
 const SELF = json(409, '{"error":"self"}');
 // Its own refusal rather than folded into "already decided", because the reason is different in
 // kind and the caller has to tell them apart: approving a demo row would call `AdminCreateUser` on
@@ -100,8 +102,8 @@ const SELF = json(409, '{"error":"self"}');
 // cleared. The role makes that structural rather than a screen's habit.
 const DEMO = json(409, '{"error":"demo"}');
 const ALREADY_DECIDED = json(409, '{"error":"already_decided"}');
-// A DECLINE DELETES A PENDING APPLICATION ALREADY. Not the gate's `pending`, which the app reads as
-// the caller's own application.
+// A DECLINE DELETES A PENDING APPLICATION ALREADY, and approval, not enable, admits one. Not the
+// gate's `pending`, which the app reads as the caller's own application.
 const UNDECIDED = json(409, '{"error":"undecided"}');
 // AN UNCONFIRMED ACCOUNT CLAIMED THE ADDRESS AND NEVER PROVED IT: Cognito holds a username as
 // taken even for a sign-up nobody confirmed, so an open window lets anyone take one they do not
@@ -111,9 +113,10 @@ const UNCLAIMED_IDENTITY = json(409, '{"error":"unclaimed_identity"}');
 const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN, TERMS, SCHEDULED] as const;
 
 /** WHAT EACH ROUTE CAN ANSWER, and the only list of it — `openapi.ts` builds the document from
- *  here, and `openapi.test.ts` catches a constant added above and not added to it. The three differ
- *  in the success body, in `unclaimed_identity`, which only approve can reach, and in the delete's
- *  `undecided` where the rulings answer `already_decided`. */
+ *  here, and `openapi.test.ts` catches a constant added above and not added to it. They differ
+ *  in the success body, in `unclaimed_identity`, which only approve can reach, and in `undecided`,
+ *  the pending row delete and enable refuse. Enable also answers `already_decided`, as the rulings
+ *  do, for an account already on. */
 export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   [APPROVE_ROUTE]: [
     APPROVED,
@@ -128,6 +131,17 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
   ],
   [REJECT_ROUTE]: [REJECTED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, ALREADY_DECIDED, INTERNAL],
   [DELETE_ROUTE]: [DELETED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, UNDECIDED, INTERNAL],
+  [ENABLE_ROUTE]: [
+    ENABLED,
+    ...GATE,
+    INVALID,
+    SELF,
+    NOT_FOUND,
+    DEMO,
+    UNDECIDED,
+    ALREADY_DECIDED,
+    INTERNAL,
+  ],
 };
 
 /** The stamps AS TEXT, because pg's Date keeps milliseconds and they hold microseconds. */
@@ -156,6 +170,12 @@ const REPLACE = `INSERT INTO app_user (user_id, email, status, role, applied_at,
 const DECIDE = `UPDATE app_user SET status = 'rejected', decided_at = now(), decided_by = $2
                 WHERE user_id = $1 AND status = $3
                 RETURNING user_id`;
+
+/** Guarded on `rejected`, as `DECIDE` is on the status it read. The decision pair names whoever
+ *  ruled last, as a reject's does. */
+const REINSTATE = `UPDATE app_user SET status = 'active', decided_at = now(), decided_by = $2
+                   WHERE user_id = $1 AND status = 'rejected'
+                   RETURNING user_id`;
 
 /** Read BY ADDRESS rather than by id, because the row this call was rekeying may now be keyed by
  *  another approve's `sub`, or be gone, deleted by a decline. */
@@ -330,6 +350,21 @@ async function approveRow(
   return APPROVED;
 }
 
+/** Every session of a rejected account (ASVS 5.0.0 7.4.2), a Google profile left unlinked included,
+ *  which the disable misses. Past the decision: a failure is reported, rejecting again retries. */
+async function endSessions(idp: IdentityClient, UserPoolId: string, row: Target): Promise<boolean> {
+  try {
+    const also = await keyedBySub(idp, UserPoolId, row.user_id);
+    await signOutEverywhere(idp, UserPoolId, row.email, also);
+    return true;
+  } catch (err) {
+    console.error(
+      `approve: row ${row.user_id} is rejected and its sessions may not have ended: ${err}`,
+    );
+    return false;
+  }
+}
+
 async function rejectRow(
   client: SqlClient,
   idp: IdentityClient,
@@ -368,10 +403,12 @@ async function rejectRow(
   }
 
   // A ROW ALREADY `rejected` IS A REPAIR RATHER THAN A NO-OP, which makes "rule again" an answer
-  // to every way an enabled identity can outlive a rejection. What does not repeat is the
-  // DECISION: `decided_at` and `decided_by` go on naming whoever ruled first. Such a row is a
+  // to every way an enabled identity or a session can outlive a rejection. What does not repeat is
+  // the DECISION: `decided_at` and `decided_by` go on naming whoever ruled first. Such a row is a
   // suspended account, a declined application leaving none.
-  if (row.status === 'rejected') return ALREADY_DECIDED;
+  if (row.status === 'rejected') {
+    return (await endSessions(idp, UserPoolId, row)) ? ALREADY_DECIDED : INTERNAL;
+  }
 
   // THE WRITE REPORTS ITSELF, or a reject that matched nothing answers success having changed
   // nothing. AND IT FAILS IN TWO SHAPES, so the repair hangs off the failure rather than one: DSQL
@@ -394,7 +431,7 @@ async function rejectRow(
     if (live) await restore(client, idp, UserPoolId, row);
     return ALREADY_DECIDED;
   }
-  if (!pending) return REJECTED;
+  if (!pending) return (await endSessions(idp, UserPoolId, row)) ? REJECTED : INTERNAL;
 
   // THE ONE STEP NOTHING UNDOES COMES LAST, once the row delete has ruled out a racing approve. The
   // alias reaches a local account; a Google profile made in an open window answers only the filter.
@@ -406,6 +443,27 @@ async function rejectRow(
     return INTERNAL;
   }
   return REJECTED;
+}
+
+/** Undoes an `active` account's rejection, THE IDENTITY FIRST: a row write failing after it leaves
+ *  an enabled identity every route still refuses, and enabling again finishes the job. */
+async function enableRow(
+  client: SqlClient,
+  idp: IdentityClient,
+  UserPoolId: string,
+  row: Target,
+  decidedBy: string,
+): Promise<ApiResult> {
+  // An application is approved, not enabled.
+  if (row.status === 'pending') return UNDECIDED;
+  if (row.status !== 'rejected') return ALREADY_DECIDED;
+  // Enabling an account already on succeeds in Cognito, so a retry needs no read first.
+  await idp.adminEnableUser({ UserPoolId, Username: row.email }).catch((err: unknown) => {
+    if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
+    console.log(`approve: ${row.user_id} is being enabled with no local identity to turn on`);
+  });
+  const { rows } = await client.query<{ user_id: string }>(REINSTATE, [row.user_id, decidedBy]);
+  return rows.length === 0 ? ALREADY_DECIDED : ENABLED;
 }
 
 /** Sessions, identities, then THE ROWS LAST, as `purge.ts` orders them: the row is what asking
@@ -443,7 +501,12 @@ export async function approve(
 
     const routeKey = event.routeKey;
     if (routeKey === LIST_ROUTE) return await listUsers(client, event);
-    if (routeKey !== APPROVE_ROUTE && routeKey !== REJECT_ROUTE && routeKey !== DELETE_ROUTE) {
+    if (
+      routeKey !== APPROVE_ROUTE &&
+      routeKey !== REJECT_ROUTE &&
+      routeKey !== DELETE_ROUTE &&
+      routeKey !== ENABLE_ROUTE
+    ) {
       return INVALID;
     }
 
@@ -469,6 +532,9 @@ export async function approve(
 
     if (routeKey === DELETE_ROUTE) {
       return await deleteUser(client, idp, UserPoolId, row, gate.caller.userId);
+    }
+    if (routeKey === ENABLE_ROUTE) {
+      return await enableRow(client, idp, UserPoolId, row, gate.caller.userId);
     }
     return routeKey === APPROVE_ROUTE
       ? await approveRow(client, idp, UserPoolId, row, gate.caller.userId)

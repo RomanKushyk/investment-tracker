@@ -444,6 +444,9 @@ Resources:
         'DELETE /admin/users/{id}':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        'POST /admin/users/{id}/enable':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
         # ONE A SECOND: each read holds this function and the capture at once, out of the account's
         # shared concurrency, so a burst here is a burst of two.
         'GET /admin/archive/diagnosis':
@@ -724,6 +727,15 @@ Resources:
             ApiId: !Ref PublicApi
             Method: DELETE
             Path: /admin/users/{id}
+            Auth:
+              Authorizer: CognitoJwt
+        # A rejected account turned back on (`approve.ts`).
+        Enable:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /admin/users/{id}/enable
             Auth:
               Authorizer: CognitoJwt
 

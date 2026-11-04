@@ -34,6 +34,7 @@ import { applications } from './applications';
 import {
   APPROVE_ROUTE,
   DELETE_ROUTE,
+  ENABLE_ROUTE,
   REJECT_ROUTE,
   RESPONSES,
   approve as approveRoute,
@@ -968,13 +969,204 @@ describe('rejecting turns the identity off before the row changes', () => {
   });
 });
 
+/** `holding`, with the disable and the enable written to the same log as the pool's own calls, so
+ *  their order against the sign-out is visible. An enable finds only a profile the pool holds. */
+const ruling = (profiles: Record<string, Profile>) => {
+  const held = holding(profiles);
+  return {
+    ...held,
+    idp: {
+      ...held.idp,
+      adminDisableUser: async ({ Username }: { UserPoolId: string; Username: string }) => {
+        held.log.push(`disable ${Username}`);
+        return {};
+      },
+      adminEnableUser: async ({ Username }: { UserPoolId: string; Username: string }) => {
+        held.log.push(`enable ${Username}`);
+        if (!held.users.has(Username)) {
+          throw Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
+        }
+        return {};
+      },
+    },
+  };
+};
+
+const MOVED = { email: 'moved@quirenote.com', external: true, sub: SUB };
+
+describe('rejecting an active account ends its sessions everywhere (ASVS 5.0.0 7.4.2)', () => {
+  it('disables the account, then signs out its address, its Google profiles and its sub', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp, log } = ruling({
+      [EMAIL]: { email: EMAIL },
+      google_1: { email: EMAIL, external: true },
+      google_2: MOVED,
+    });
+
+    const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
+
+    expect([res.statusCode, res.body]).toEqual([200, '{"status":"rejected"}']);
+    expect(log.filter((l) => !l.startsWith('list'))).toEqual([
+      `disable ${EMAIL}`,
+      `signOut ${EMAIL}`,
+      'signOut google_1',
+      'signOut google_2',
+    ]);
+    expect((await rows())[0].status).toBe('rejected');
+  });
+
+  it('answers a failure and keeps the row rejected when the sign-out fails, naming the row', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp } = ruling({ [EMAIL]: { email: EMAIL } });
+    const failing = {
+      ...idp,
+      adminUserGlobalSignOut: async () => {
+        throw new Error('TooManyRequestsException');
+      },
+    };
+    const watched = watchConsole();
+    try {
+      const res = await approve(db, failing, call(REJECT_ROUTE, SUB));
+      expect([res.statusCode, res.body]).toEqual([500, '{"error":"internal"}']);
+      expect((await rows())[0].status).toBe('rejected');
+      const lines = watched.lines();
+      expect(lines.some((line) => line.includes(SUB))).toBe(true);
+      for (const line of lines) expect(line).not.toMatch(ADDRESS);
+    } finally {
+      watched.restore();
+    }
+  });
+
+  // THE REPAIR FOR THE FAILURE ABOVE: rejecting again is how the sign-out is retried.
+  it('signs the account out again when it is rejected again', async () => {
+    await db.exec(insert(SUB, EMAIL, 'rejected'));
+    const { idp, log } = ruling({ [EMAIL]: { email: EMAIL } });
+    const off = { ...idp, adminGetUser: async () => ({ Enabled: false }) };
+
+    const res = await approve(db, off, call(REJECT_ROUTE, SUB));
+
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"already_decided"}']);
+    expect(log.filter((l) => !l.startsWith('list'))).toEqual([`signOut ${EMAIL}`]);
+  });
+
+  it('signs nothing out when the reject lost the row to another decision', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp, log } = ruling({ [EMAIL]: { email: EMAIL } });
+
+    const res = await approve(swallowing('UPDATE app_user'), idp, call(REJECT_ROUTE, SUB));
+
+    expect(res.statusCode).toBe(409);
+    expect(log.filter((l) => l.startsWith('signOut'))).toEqual([]);
+  });
+});
+
+describe('enabling turns a rejected account back on, its identity first', () => {
+  it('re-enables the identity and the row, the caller now named as deciding it', async () => {
+    await db.exec(insert(SUB, EMAIL, 'rejected'));
+    const { idp, log } = ruling({ [EMAIL]: { email: EMAIL } });
+
+    const res = await approve(db, idp, call(ENABLE_ROUTE, SUB));
+
+    expect([res.statusCode, res.body]).toEqual([200, '{"status":"enabled"}']);
+    expect(log).toEqual([`enable ${EMAIL}`]);
+    const [row] = await rows();
+    expect([row.status, row.decided_by, row.decided]).toEqual(['active', ADMIN, true]);
+  });
+
+  it('turns the row back on when the pool holds no local identity for it', async () => {
+    await db.exec(insert(SUB, EMAIL, 'rejected'));
+    const { idp } = ruling({});
+
+    const res = await approve(db, idp, call(ENABLE_ROUTE, SUB));
+
+    expect([res.statusCode, res.body]).toEqual([200, '{"status":"enabled"}']);
+    expect((await rows())[0].status).toBe('active');
+  });
+
+  it('leaves the row rejected when the pool cannot enable the identity', async () => {
+    await db.exec(insert(SUB, EMAIL, 'rejected'));
+    const { idp } = ruling({ [EMAIL]: { email: EMAIL } });
+    const failing = {
+      ...idp,
+      adminEnableUser: async () => {
+        throw new Error('TooManyRequestsException');
+      },
+    };
+
+    const res = await approve(db, failing, call(ENABLE_ROUTE, SUB));
+
+    expect(res.statusCode).toBe(500);
+    expect((await rows())[0].status).toBe('rejected');
+  });
+
+  // An enabled identity under a `rejected` row is refused by every route, and enabling again
+  // finishes the job.
+  it('leaves the row rejected when its write fails, and enabling again completes it', async () => {
+    await db.exec(insert(SUB, EMAIL, 'rejected'));
+    const { idp } = ruling({ [EMAIL]: { email: EMAIL } });
+
+    const first = await approve(failingOn('UPDATE app_user'), idp, call(ENABLE_ROUTE, SUB));
+    expect(first.statusCode).toBe(500);
+    expect((await rows())[0].status).toBe('rejected');
+
+    const again = await approve(db, idp, call(ENABLE_ROUTE, SUB));
+    expect([again.statusCode, (await rows())[0].status]).toEqual([200, 'active']);
+  });
+
+  it('does not report an enable that changed nothing', async () => {
+    await db.exec(insert(SUB, EMAIL, 'rejected'));
+    const { idp } = ruling({ [EMAIL]: { email: EMAIL } });
+
+    const res = await approve(swallowing('UPDATE app_user'), idp, call(ENABLE_ROUTE, SUB));
+
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"already_decided"}']);
+  });
+});
+
+describe('what enable refuses, touching nothing', () => {
+  for (const [what, status, body] of [
+    ['a pending application, with a key of its own', 'pending', '{"error":"undecided"}'],
+    ['an account that is already on', 'active', '{"error":"already_decided"}'],
+  ] as const) {
+    it(`refuses ${what}`, async () => {
+      await db.exec(insert(status === 'pending' ? PLACEHOLDER : SUB, EMAIL, status));
+      const { idp, log } = ruling({ [EMAIL]: { email: EMAIL } });
+      const id = status === 'pending' ? PLACEHOLDER : SUB;
+
+      const res = await approve(db, idp, call(ENABLE_ROUTE, id));
+
+      expect([res.statusCode, res.body]).toEqual([409, body]);
+      expect(log).toEqual([]);
+      expect((await rows())[0].status).toBe(status);
+    });
+  }
+
+  it('refuses the demo row, as its own answer', async () => {
+    await db.exec(insert(DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo'));
+    const { idp, log } = ruling({});
+    const res = await approve(db, idp, call(ENABLE_ROUTE, DEMO_USER_ID));
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"demo"}']);
+    expect(log).toEqual([]);
+  });
+
+  it('answers not_found for a row that is not there', async () => {
+    const res = await approve(db, ruling({}).idp, call(ENABLE_ROUTE, SUB));
+    expect([res.statusCode, res.body]).toEqual([404, '{"error":"not_found"}']);
+  });
+
+  it('refuses an id that is not a uuid', async () => {
+    const res = await approve(db, ruling({}).idp, call(ENABLE_ROUTE, 'not-a-uuid'));
+    expect([res.statusCode, res.body]).toEqual([400, '{"error":"invalid_request"}']);
+  });
+});
+
 describe('every admin route reads the caller off the row', () => {
   const callers: [string, string][] = [
     ['an ordinary user', 'user'],
     ['a pending applicant', 'pending'],
   ];
 
-  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE]) {
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE, ENABLE_ROUTE]) {
     for (const [what, kind] of callers) {
       it(`refuses ${what} on ${route}`, async () => {
         await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
@@ -1031,7 +1223,7 @@ describe('every admin route reads the caller off the row', () => {
   // Nobody rules on their own row, because the state it makes has no repair in code. SPELLED BOTH
   // WAYS, and the second spelling is the whole test: a `uuid` column compares canonically, so
   // capitals are the same row to the cluster and a different string to `===`.
-  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE]) {
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE, ENABLE_ROUTE]) {
     for (const [spelling, id] of [
       ['as it is stored', ADMIN],
       ['in capitals', ADMIN.toUpperCase()],
@@ -1127,7 +1319,7 @@ describe('the one mail in this flow is Cognito’s own', () => {
 describe('every route meets the gate, and reject reads its argument like approve does', () => {
   const OUTSIDER = '9f1e2d3c-0000-4000-8000-0000000000f7';
 
-  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE]) {
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE, DELETE_ROUTE, ENABLE_ROUTE]) {
     it(`refuses a caller whose own row was rejected, on ${route}`, async () => {
       await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'rejected'));
       const res = await approve(

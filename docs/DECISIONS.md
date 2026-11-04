@@ -1837,7 +1837,14 @@ The row delete is the point of no return, DSQL letting the earliest commit win a
 a racing approve, and the one step nothing undoes comes after it, where the Saga pattern puts it and
 where Mastodon suspends and GitLab blocks before they delete. A delete that fails answers 500 and
 leaves an identity no row admits and no call can retry, the row being gone: an operator deletes it. Rejecting an `active` account stays a status and a disable, the account
-owning a dataset, and is the one `rejected` row. AN ACCOUNT HOLDER DELETES THEIR OWN ACCOUNT through
+owning a dataset, and is the one `rejected` row. Once the row is decided it signs the account out
+everywhere (ASVS 5.0 7.4.2), as the deletion does: the disable already revoked the local profile's
+tokens, so the sign-out reaches a Google profile left unlinked. A failed sign-out answers 500 with
+the row rejected, and rejecting again retries it, past the Saga pattern's point of no return.
+`POST /admin/users/{id}/enable` undoes it, the identity first and then the row back to `active`,
+refusing a pending application with `undecided`, as Okta and Mastodon keep approve and unsuspend
+apart, and an account already on with `already_decided`, AIP-216 making a transition from the
+wrong state an error. AN ACCOUNT HOLDER DELETES THEIR OWN ACCOUNT through
 `POST /me/deletion`, behind a sign-in under five minutes old, read from the ID token's `auth_time`
 and refused at five minutes as sign-out everywhere refuses. The backend owns it, as Auth0, Okta and
 Entra keep deletion, `DeleteUser` taking an access token no page holds; a function of its own serves

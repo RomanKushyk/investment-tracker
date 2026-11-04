@@ -753,6 +753,158 @@
         }
       }
     },
+    "/admin/users/{id}/enable": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "postAdminUsersIdEnable",
+        "summary": "POST /admin/users/{id}/enable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "enabled": {
+                    "value": {
+                      "status": "enabled"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  },
+                  "terms": {
+                    "value": {
+                      "error": "terms"
+                    }
+                  },
+                  "scheduled": {
+                    "value": {
+                      "error": "scheduled",
+                      "date": "2026-11-29",
+                      "cancellable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "error": "not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "self": {
+                    "value": {
+                      "error": "self"
+                    }
+                  },
+                  "demo": {
+                    "value": {
+                      "error": "demo"
+                    }
+                  },
+                  "undecided": {
+                    "value": {
+                      "error": "undecided"
+                    }
+                  },
+                  "already_decided": {
+                    "value": {
+                      "error": "already_decided"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/archive/diagnosis": {
       "get": {
         "tags": [

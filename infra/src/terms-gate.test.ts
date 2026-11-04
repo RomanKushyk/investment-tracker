@@ -29,6 +29,7 @@ const REFUSED = [
   'POST /admin/users/{id}/approve',
   'POST /admin/users/{id}/reject',
   'DELETE /admin/users/{id}',
+  'POST /admin/users/{id}/enable',
   'GET /admin/archive/diagnosis',
   'POST /admin/archive/operations',
   'GET /admin/archive/operations',
