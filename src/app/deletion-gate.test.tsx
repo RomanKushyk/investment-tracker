@@ -4,12 +4,14 @@
 // with no second sign-in (`design/extensions/account-deletion.dc.html` T6, T7, T10).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { flushSync } from 'react-dom';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { toast } from 'sonner';
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
 import { uk } from '../i18n/messages';
+import { SIDEBAR_ID } from './nav-ids';
 
 let api: FakeApi;
 // `hold` keeps a route's answer back until the test lets it go.
@@ -88,13 +90,37 @@ afterEach(() => {
 /** Mounted on the app's own query client, as `main.tsx` mounts it. */
 async function open(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
+  // `react-router/dom`'s provider, as `main.tsx` mounts it, is this one handed React DOM's
+  // `flushSync`; without it a way out commits in a transition, the portfolio shell first.
   const view = render(
     <QueryClientProvider client={queryClient as QueryClient}>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />
     </QueryClientProvider>,
   );
   await waitFor(() => expect(screen.queryByText(G.title)).not.toBeNull());
   return { page: view.container, router };
+}
+
+/** Whether the portfolio shell mounted from now on: a sign-out reaches `/sign-in` without it. */
+function watchShell(): () => boolean {
+  let mounted = false;
+  const note = (records: MutationRecord[]) => {
+    for (const { addedNodes } of records)
+      for (const node of addedNodes)
+        if (
+          node instanceof Element &&
+          (node.id === SIDEBAR_ID || node.querySelector(`#${SIDEBAR_ID}`))
+        )
+          mounted = true;
+  };
+  const observer = new MutationObserver(note);
+  observer.observe(document.body, { childList: true, subtree: true });
+  // Disconnected however the test ends, a timed-out `waitFor` included.
+  onTestFinished(() => observer.disconnect());
+  return () => {
+    note(observer.takeRecords());
+    return mounted;
+  };
 }
 
 const requests = () => api.seen.map((r) => `${r.method} ${r.path.split('?')[0]}`);
@@ -156,18 +182,22 @@ describe('an account a deletion holds', () => {
     const release = hold('/auth/sign-out');
     const { router } = await open('/overview');
     expect(button(G.cancel)).toBeNull();
+    const shellMounted = watchShell();
     release();
     await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
     await waitFor(() => expect(screen.queryByText(G.landing)).not.toBeNull());
+    expect(shellMounted(), 'the portfolio shell mounted on the way out').toBe(false);
     expect(session.status()).toBe('signedOut');
     expect(requests()).not.toContain('DELETE /me/deletion');
   });
 
   it('signs out to the plain landing on «Вийти»', async () => {
     const { router } = await open('/overview');
+    const shellMounted = watchShell();
     await press(uk.auth.signOut);
     await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
     await waitFor(() => expect(screen.queryByText(uk.auth.signedOut)).not.toBeNull());
+    expect(shellMounted(), 'the portfolio shell mounted on the way out').toBe(false);
     expect(session.status()).toBe('signedOut');
     expect(api.hold).toBeDefined();
   });
