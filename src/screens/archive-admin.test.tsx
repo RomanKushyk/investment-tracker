@@ -140,15 +140,19 @@ const ANSWER: ArchiveDiagnosis = {
 const r = uk.archive.read;
 
 describe('/admin/archive', () => {
-  it('is the panel for the super-admin, and reads the run log alone on arrival', async () => {
+  it('is the panel for the super-admin, and reads the run log alone of the archive on arrival', async () => {
     api.role = 'super_admin';
     const page = mount('/admin/archive');
     await waitFor(() => expect(page.main()).toContain(uk.archive.runs.empty));
     expect(page.main()).toContain('Прочитати архів');
     expect(page.main()).not.toContain(uk.boundary.notFound.title);
-    expect(api.seen.filter((s) => s.path.startsWith('/admin/')).map((s) => s.path)).toEqual([
-      '/admin/archive/operations?limit=10',
-    ]);
+    // The nav's count of the applications waiting is the shell's read (`admin-users.dc.html`, T2).
+    expect(
+      api.seen
+        .filter((s) => s.path.startsWith('/admin/'))
+        .map((s) => s.path)
+        .sort(),
+    ).toEqual(['/admin/archive/operations?limit=10', '/admin/users?status=pending&limit=100']);
   });
 
   it('is the app’s not-found for any other signed-in user', async () => {

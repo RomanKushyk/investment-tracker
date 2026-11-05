@@ -202,9 +202,10 @@
   --color-logo-pill-a: #b07a52;
   --color-logo-pill-b: #5c3a26;
   /* THE WALL AND ITS FURNITURE, and the wall follows the theme: a step deeper
-     than the canvas rather than a dark plane inside a light app. Three names have
-     no consumer and are kept rather than trimmed, each for a reason the sheet
-     gives: `sb-badge`/`-badge-bg` for a count badge the app does not draw, and
+     than the canvas rather than a dark plane inside a light app. `sb-badge-bg`
+     is the tint under the nav's count, whose figure is `ink`, since `sb-badge`
+     on that tint fails SC 1.4.3 (`admin-users.dc.html`, T2). Two names have no
+     consumer and are kept rather than trimmed: `sb-badge` for that reason, and
      `sb-border` for furniture on a wall whose boundary is the control-boundary
      rank. */
   --color-sb-bg: #e8e1d6;

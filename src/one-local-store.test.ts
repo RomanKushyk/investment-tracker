@@ -43,7 +43,11 @@ const ALLOWED: Record<string, Partial<Record<Needle, number>>> = {
   'packages/core/src/ops.ts': { dataset: 2 },
   // The staged import replaces the dataset the server holds for the account.
   'src/lib/backup.ts': { dataset: 1 },
-  'src/lib/repository.ts': { dataset: 2 },
+  // The ruling routes' `demo` key, a 409 for the server's demo row (`infra/src/approve.ts`), and the
+  // users page's sentence for it in both languages.
+  'src/lib/repository.ts': { dataset: 2, demo: 1 },
+  'src/screens/admin-users/ConfirmRuling.tsx': { demo: 1 },
+  'src/i18n/messages.ts': { demo: 3, демо: 1 },
 };
 
 const scriptKind = (name: string) => (/x$/.test(name) ? ts.ScriptKind.TSX : ts.ScriptKind.TS);

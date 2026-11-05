@@ -199,7 +199,7 @@ function FailureSentence({ failure }: { failure: ReadFailure | undefined }) {
   return <>{r.offline}</>;
 }
 
-function ReadCard({
+export function ReadCard({
   glyph,
   title,
   lead,

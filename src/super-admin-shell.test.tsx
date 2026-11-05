@@ -199,6 +199,7 @@ describe('the super-admin shell, once GET /me answers super_admin', () => {
       '/',
       ...PORTFOLIO_ROUTES,
       '/settings',
+      '/admin/users',
       '/admin/archive',
       '/settings/archive',
       '/profile',
@@ -215,12 +216,13 @@ describe('the super-admin shell, once GET /me answers super_admin', () => {
     }
   });
 
-  it('lands on /admin/archive from /', async () => {
+  it('lands on /admin/users from /', async () => {
     const page = mount('/');
-    await waitFor(() => expect(page.router.state.location.pathname).toBe('/admin/archive'));
+    await waitFor(() => expect(page.router.state.location.pathname).toBe('/admin/users'));
   });
 
-  it('gets the not-found on a portfolio route, whose button goes to /admin/archive', async () => {
+  // The owner's ruling on #543: the landing moved, the not-found's way out did not.
+  it('gets the not-found on a portfolio route, whose button still goes to /admin/archive', async () => {
     const page = mount('/overview');
     await waitFor(() => expect(page.main()).toContain(uk.boundary.notFound.title));
     expect(page.main()).toContain(HOME_ADMIN);

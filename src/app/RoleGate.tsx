@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation, useMatches } from 'react-router';
 
 import { useRoleGate } from '../hooks/queries';
 import { NotFound } from './Boundaries';
-import { ADMIN_HOME } from './admin-home';
+import { ADMIN_LANDING } from './admin-home';
 
 /** The `handle` of a route whose screen reads the portfolio. */
 export const PORTFOLIO = { portfolio: true } as const;
@@ -18,7 +18,7 @@ export function RoleGate() {
   const { pathname } = useLocation();
   const portfolio = useMatches().some((match) => isPortfolio(match.handle));
   if (role === 'pending') return null;
-  if (role === 'super_admin' && pathname === '/') return <Navigate to={ADMIN_HOME} replace />;
+  if (role === 'super_admin' && pathname === '/') return <Navigate to={ADMIN_LANDING} replace />;
   if (portfolio && role !== 'user' && role !== 'signedOut') return <NotFound />;
   return <Outlet />;
 }

@@ -20,6 +20,7 @@ import {
   Sun,
   Table,
   Tags,
+  Users,
   Wallet,
 } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
@@ -32,6 +33,7 @@ import { useSignOut } from '../hooks/useSignOut';
 import { useT } from '../i18n/useT';
 import type { accountRows } from './account-rows';
 import { LEGAL_LINKS } from './legal-links';
+import { usePendingBadge, usersName } from './pending-count';
 import { SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { THEME_ORDER, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
@@ -113,10 +115,13 @@ function NavItem({
   Icon,
   label,
   isActive,
+  count,
 }: {
   Icon: LucideIcon;
   label: string;
   isActive: boolean;
+  /** A number at the pill's right edge, `aria-hidden`: the link's name carries it. */
+  count?: string;
 }) {
   return (
     <span className="flex items-center gap-2.5">
@@ -127,6 +132,15 @@ function NavItem({
         className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
       />
       <span className="flex-1 truncate">{label}</span>
+      {count !== undefined && (
+        // `ink` on the tint: `sb-badge` on it is under 4,5 : 1 in light (`admin-users.dc.html`, T2).
+        <span
+          aria-hidden
+          className="grid h-[18px] min-w-5 flex-none animate-in place-items-center rounded-[5px] bg-sb-badge-bg px-[5px] text-[11px] leading-[11px] font-bold text-ink duration-300 fade-in"
+        >
+          {count}
+        </span>
+      )}
     </span>
   );
 }
@@ -256,11 +270,22 @@ function PortfolioNav() {
   );
 }
 
-/** The super-admin's group, in the recipe of Settings and the eight Analytics routes. */
+/** The super-admin's group, in the recipe of Settings and the eight Analytics routes:
+ *  «Користувачі» with the applications waiting, then «Архів цін». */
 function AdminNav() {
   const t = useT();
+  const badge = usePendingBadge();
   return (
     <NavGroup groupKey="admin" label={t.nav.groupAdmin}>
+      <NavLink
+        to="/admin/users"
+        aria-label={usersName(t, badge)}
+        className={pillClass('py-2', 'rounded-[9px]')}
+      >
+        {({ isActive }) => (
+          <NavItem Icon={Users} label={t.nav.users} isActive={isActive} count={badge?.shown} />
+        )}
+      </NavLink>
       <NavLink to="/admin/archive" className={pillClass('py-2', 'rounded-[9px]')}>
         {({ isActive }) => <NavItem Icon={Archive} label={t.nav.archive} isActive={isActive} />}
       </NavLink>

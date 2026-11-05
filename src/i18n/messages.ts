@@ -48,6 +48,13 @@ export const en = {
     // (`super-admin-shell.dc.html`).
     groupAdmin: 'Administration',
     archive: 'Price archive',
+    // «Користувачі» and the applications waiting, which the link's and the trigger's names carry
+    // since the drawn number is hidden (`admin-users.dc.html`, T2).
+    users: 'Users',
+    usersCount: (n: number) => `Users, ${n}`,
+    usersCountOver: 'Users, over 99',
+    openWithCount: (count: string) => `Open navigation, applications: ${count}`,
+    countOver: 'over 99',
     superAdmin: 'Super-admin',
     // `navigation` is the drawer's accessible NAME, never drawn: the wordmark is
     // already on screen, so a visible second title would say the same thing twice
@@ -934,6 +941,76 @@ export const en = {
       failedLead: (cause: string) => `${cause} Runs go on without it.`,
     },
   },
+  // `design/extensions/admin-users.dc.html`, T7; the refusals are T5's, one per key and action.
+  users: {
+    filter: {
+      label: 'Show',
+      pending: 'Applications',
+      active: 'Active',
+      disabled: 'Disabled',
+    },
+    order: 'Oldest first',
+    col: { email: 'Address', applied: 'Applied', decided: 'Decided' },
+    you: 'You',
+    action: {
+      approve: 'Approve',
+      decline: 'Decline',
+      disable: 'Disable',
+      enable: 'Enable',
+      delete: 'Delete',
+    },
+    actionAria: (action: string, email: string) => `${action} ${email}`,
+    empty: { pending: 'No new applications.', disabled: 'No disabled accounts.' },
+    failed: 'Couldn’t read the list',
+    retry: 'Try again',
+    cancel: 'Cancel',
+    stale: (time: string) => `The list did not refresh at ${time}.`,
+    confirm: {
+      approve: {
+        title: 'Approve the application?',
+        body: (email: string) => `${email} will be able to sign in and keep a portfolio.`,
+      },
+      decline: {
+        title: 'Decline the application?',
+        body: (email: string) =>
+          `The application from ${email} is deleted; that address can apply again.`,
+      },
+      disable: {
+        title: 'Disable the account?',
+        body: (email: string) =>
+          `${email} can no longer sign in, and every session ends. The data stays; you can enable it at any time.`,
+      },
+      enable: {
+        title: 'Enable the account?',
+        body: (email: string) => `${email} can sign in again.`,
+      },
+      delete: {
+        title: 'Delete the account?',
+        body: (email: string) =>
+          `The account ${email} and its whole portfolio are deleted for good. The app sends no mail, so tell the person yourself.`,
+      },
+    },
+    refused: {
+      self: 'Your own account cannot be changed here.',
+      demo: 'The demo record is not changed from here.',
+      not_found: 'This record is gone.',
+      already_decided_application: 'This application was already decided.',
+      already_decided_disable: 'The account is already disabled.',
+      already_decided_enable: 'The account is already enabled.',
+      unclaimed_identity:
+        'An unconfirmed Cognito sign-up holds this address. Remove it in the console, then approve again.',
+      undecided: 'This is still an application: approve or decline it.',
+      invalid_request: 'The server did not accept the request.',
+      internal: 'The server failed. Try again.',
+      internal_disable:
+        'The server failed. If the record is already among the disabled ones, its sessions may still be open.',
+      internal_decline:
+        'The server failed. If the application is no longer listed, its Cognito sign-up has to be removed in the console.',
+      internal_delete: 'The deletion did not finish. Delete again and it resumes where it stopped.',
+      throttled: 'Too many actions at once. Try again in a moment.',
+      network: 'The server did not answer. The action may have landed; check the list.',
+    },
+  },
   // `design/extensions/own-account.dc.html`, T9; the copy's failure is the owner's ruling on #192.
   profile: {
     title: 'Profile',
@@ -1677,6 +1754,10 @@ export const en = {
       title: 'Price archive',
       subtitle: 'Quote coverage, archive repairs and the run log',
     },
+    users: {
+      title: 'Users',
+      subtitle: 'Access applications and accounts',
+    },
   },
 };
 
@@ -1699,6 +1780,11 @@ export const uk: Dict = {
     settings: 'Налаштування', // ✎
     groupAdmin: 'Адміністрування',
     archive: 'Архів цін',
+    users: 'Користувачі',
+    usersCount: (n) => `Користувачі, ${n}`,
+    usersCountOver: 'Користувачі, понад 99',
+    openWithCount: (count) => `Відкрити навігацію, заявок: ${count}`,
+    countOver: 'понад 99',
     superAdmin: 'Суперадміністратор',
     navigation: 'Навігація', // ✎
     openNav: 'Відкрити навігацію', // ✎
@@ -2476,6 +2562,75 @@ export const uk: Dict = {
       failedLead: (cause) => `${cause} Запуски тривають і без журналу.`,
     },
   },
+  users: {
+    filter: {
+      label: 'Показати',
+      pending: 'Заявки',
+      active: 'Активні',
+      disabled: 'Вимкнені',
+    },
+    order: 'Від найстаріших',
+    col: { email: 'Адреса', applied: 'Подано', decided: 'Рішення' },
+    you: 'Ви',
+    action: {
+      approve: 'Схвалити',
+      decline: 'Відхилити',
+      disable: 'Вимкнути',
+      enable: 'Увімкнути',
+      delete: 'Видалити',
+    },
+    actionAria: (action, email) => `${action} ${email}`,
+    empty: { pending: 'Нових заявок немає.', disabled: 'Вимкнених облікових записів немає.' },
+    failed: 'Не вдалося прочитати список',
+    retry: 'Спробувати ще раз',
+    cancel: 'Скасувати',
+    stale: (time) => `Список не оновився о ${time}.`,
+    confirm: {
+      approve: {
+        title: 'Схвалити заявку?',
+        body: (email) => `${email} зможе ввійти й вести портфель.`,
+      },
+      decline: {
+        title: 'Відхилити заявку?',
+        body: (email) => `Заявку ${email} буде видалено; з цієї адреси можна буде подати нову.`,
+      },
+      disable: {
+        title: 'Вимкнути обліковий запис?',
+        body: (email) =>
+          `${email} не зможе ввійти, і всі сеанси завершаться. Дані лишаються, увімкнути можна будь-коли.`,
+      },
+      enable: {
+        title: 'Увімкнути обліковий запис?',
+        body: (email) => `${email} знову зможе ввійти.`,
+      },
+      delete: {
+        title: 'Видалити обліковий запис?',
+        body: (email) =>
+          `Обліковий запис ${email} і весь його портфель буде видалено назавжди. Застосунок не надсилає листів — повідомте людину самі.`,
+      },
+    },
+    refused: {
+      self: 'Свій обліковий запис тут не змінити.',
+      demo: 'Демо-запис звідси не змінюють.',
+      not_found: 'Цього запису вже немає.',
+      already_decided_application: 'Цю заявку вже розглянуто.',
+      already_decided_disable: 'Обліковий запис уже вимкнено.',
+      already_decided_enable: 'Обліковий запис уже ввімкнено.',
+      unclaimed_identity:
+        'Цю адресу тримає непідтверджена реєстрація в Cognito. Видаліть її в консолі, тоді схваліть знову.',
+      undecided: 'Це ще заявка: її схвалюють або відхиляють.',
+      invalid_request: 'Сервер не прийняв запит.',
+      internal: 'Сервер не впорався. Спробуйте ще раз.',
+      internal_disable:
+        'Сервер не впорався. Якщо запис уже серед вимкнених, його сеанси могли лишитися відкритими.',
+      internal_decline:
+        'Сервер не впорався. Якщо заявки вже немає в списку, її реєстрацію в Cognito треба видалити в консолі.',
+      internal_delete:
+        'Видалення не завершилося. Видаліть ще раз — воно продовжиться з місця зупинки.',
+      throttled: 'Забагато дій поспіль. Спробуйте за мить.',
+      network: 'Сервер не відповів. Дія могла дійти — перевірте список.',
+    },
+  },
   profile: {
     title: 'Профіль',
     subtitle: 'Обліковий запис, вхід і ваші дані',
@@ -3140,6 +3295,10 @@ export const uk: Dict = {
     archive: {
       title: 'Архів цін',
       subtitle: 'Покриття котирувань, ремонт архіву і журнал запусків',
+    },
+    users: {
+      title: 'Користувачі',
+      subtitle: 'Заявки на доступ і облікові записи',
     },
   },
 };

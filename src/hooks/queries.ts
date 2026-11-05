@@ -5,6 +5,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -29,6 +30,7 @@ import { accountKey, meKey } from '../lib/me-key';
 import {
   ApiError,
   type AccountData,
+  type AdminUsersPage,
   type ArchiveOperation,
   type ArchiveOperationsPage,
   type ArchiveStart,
@@ -38,9 +40,12 @@ import {
   type DeletionOutcome,
   type DeletionTiming,
   type MeData,
+  type Ruling,
+  type RulingReply,
   type SeriesData,
   type StartReply,
   type TermsOutcome,
+  type UserStatus,
   type ViewData,
 } from '../lib/repository';
 import { useToday } from './useToday';
@@ -293,16 +298,19 @@ export const archiveDiagnosisKey = ['admin', 'archive', 'diagnosis'] as const;
 // THE PANEL NAMES ITS FAILURES (*Not found and failures*, the archive panel's exception): the
 // route's own error key, or the HTTP status where the route has none. A 403 is the router's
 // not-found, which no other role may tell apart from a missing route.
-export type ReadFailure =
+export type ReadFailure<K extends string = ArchiveReadKey> =
   | { kind: 'refused' }
-  | { kind: 'key'; key: 'capture_failed' | 'capture_timeout' }
+  | { kind: 'key'; key: K }
   | { kind: 'status'; status: number }
   | { kind: 'offline' };
 
 const READ_KEYS = ['capture_failed', 'capture_timeout'] as const;
-const isReadKey = (v: unknown): v is (typeof READ_KEYS)[number] => READ_KEYS.some((k) => k === v);
+type ArchiveReadKey = (typeof READ_KEYS)[number];
+/** The keys the users list names on a failed read (`RESPONSES` in `infra/src/admin-users.ts`). */
+const USERS_READ_KEYS = ['invalid_request', 'internal'] as const;
+export type UsersReadKey = (typeof USERS_READ_KEYS)[number];
 
-function failureOf(error: Error): ReadFailure {
+function failureOf<K extends string>(error: Error, keys: readonly K[]): ReadFailure<K> {
   if (!(error instanceof ApiError)) return { kind: 'offline' };
   const reply = error.reply;
   switch (reply.kind) {
@@ -318,7 +326,10 @@ function failureOf(error: Error): ReadFailure {
         typeof reply.body === 'object' && reply.body !== null && 'error' in reply.body
           ? reply.body.error
           : undefined;
-      return isReadKey(key) ? { kind: 'key', key } : { kind: 'status', status: reply.status };
+      const named = keys.find((k) => k === key);
+      return named === undefined
+        ? { kind: 'status', status: reply.status }
+        : { kind: 'key', key: named };
     }
     default:
       return { kind: 'offline' };
@@ -340,7 +351,7 @@ export function useArchiveDiagnosis() {
   return {
     data: query.data,
     at: query.dataUpdatedAt,
-    failure: query.error === null ? undefined : failureOf(query.error),
+    failure: query.error === null ? undefined : failureOf(query.error, READ_KEYS),
     fetching: query.isFetching,
     read: () => void query.refetch(),
   };
@@ -414,7 +425,7 @@ export function useArchiveRuns() {
   return {
     pending,
     runs,
-    failure: failed ? failureOf(query.error) : undefined,
+    failure: failed ? failureOf(query.error, READ_KEYS) : undefined,
     /** A read again failed with rows in hand: the stale line over them, and when. */
     stale: failed && merged !== undefined && !moreFailed,
     failedAt: query.errorUpdatedAt,
@@ -430,6 +441,86 @@ export function useArchiveRuns() {
     loadingMore: query.isFetchingNextPage,
     read: () => void query.refetch(),
     start,
+  };
+}
+
+const adminUsersKey = ['admin', 'users'] as const;
+const usersListKey = (status: UserStatus) => [...adminUsersKey, 'list', status] as const;
+const pendingCountKey = [...adminUsersKey, 'count'] as const;
+/** The count's one page: no route counts the applications, so a full page reads «99+». */
+export const COUNT_PAGE = 100;
+
+/** How many applications wait, read as one page of `COUNT_PAGE` once for the shell and again after
+ *  every ruling; a read that fails keeps the last count (`admin-users.dc.html`, T2). */
+export function usePendingCount(enabled: boolean): number | undefined {
+  return useQuery({
+    queryKey: pendingCountKey,
+    queryFn: async () => (await repo.readAdminUsers('pending', { limit: COUNT_PAGE })).users.length,
+    enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: false,
+    networkMode: 'always',
+  }).data;
+}
+
+/** One filter's list, oldest first, paged by «Показати ще», as the run log's is. */
+export function useAdminUsers(status: UserStatus) {
+  // When «Показати ще»'s read failed, so its error is told from a read again's.
+  const [moreFailedAt, setMoreFailedAt] = useState<number>();
+  const query = useInfiniteQuery({
+    queryKey: usersListKey(status),
+    queryFn: ({ pageParam }) => repo.readAdminUsers(status, { cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next,
+    refetchOnWindowFocus: false,
+    retry: false,
+    networkMode: 'always',
+  });
+  const rows = query.data?.pages.flatMap((page) => page.users);
+  const failed = query.error !== null;
+  const moreFailed = failed && moreFailedAt === query.errorUpdatedAt;
+  return {
+    rows,
+    failure: failed ? failureOf(query.error, USERS_READ_KEYS) : undefined,
+    /** A read again failed with rows in hand: the stale line over them, and when. */
+    stale: failed && rows !== undefined && !moreFailed,
+    failedAt: query.errorUpdatedAt,
+    moreFailed,
+    loading: query.isPending && query.isFetching,
+    more: query.hasNextPage
+      ? () =>
+          void query
+            .fetchNextPage()
+            .then((r) => setMoreFailedAt(r.isFetchNextPageError ? r.errorUpdatedAt : undefined))
+      : undefined,
+    loadingMore: query.isFetchingNextPage,
+    read: () => void query.refetch(),
+  };
+}
+
+/** A ruling, then every list read again from its first page, since approve rekeys the row the
+ *  cursor walks by (`infra/src/admin-users.ts`); a ruled row leaves at once, so it cannot be ruled
+ *  on twice while the read is out. */
+export function useRuleOnUser(): (ruling: Ruling, id: string) => Promise<RulingReply> {
+  const client = useQueryClient();
+  return async (ruling, id) => {
+    const reply = await repo.ruleOnUser(ruling, id);
+    if (reply.kind === 'gate') return reply;
+    const ruled = (page: AdminUsersPage) =>
+      reply.kind === 'done' ? { ...page, users: page.users.filter((u) => u.id !== id) } : page;
+    for (const status of ['pending', 'active', 'rejected'] as const) {
+      client.setQueryData<InfiniteData<AdminUsersPage, string | undefined>>(
+        usersListKey(status),
+        (data) =>
+          data && {
+            pages: data.pages.slice(0, 1).map(ruled),
+            pageParams: data.pageParams.slice(0, 1),
+          },
+      );
+    }
+    void client.invalidateQueries({ queryKey: adminUsersKey });
+    return reply;
   };
 }
 

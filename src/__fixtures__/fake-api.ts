@@ -36,6 +36,18 @@ export interface Rows {
   prices: PriceRow[];
 }
 
+/** A row of `app_user` as `GET /admin/users` serves it (`infra/src/admin-users.ts`). */
+export interface FakeUser {
+  id: string;
+  email: string;
+  status: 'pending' | 'active' | 'rejected';
+  appliedAt: string;
+  decidedAt: string | null;
+}
+
+/** A canned answer: a status and its body, or no answer at all. */
+export type Canned = { status: number; body: unknown } | 'offline';
+
 export interface Sent {
   method: string;
   /** The route and its query, without the relay's prefix. */
@@ -115,6 +127,17 @@ export interface FakeApi {
   holdStart?: Promise<void>;
   /** Holds each read of the list's answer, its rows already read, until it settles. */
   holdRead?: Promise<void>;
+  /** The accounts and applications `GET /admin/users` lists, in any order: the route serves them
+   *  oldest first. */
+  users: FakeUser[];
+  /** What each `GET /admin/users` answers, one per read, before it reads the rows. */
+  userReads: Canned[];
+  /** What each ruling answers, one per call, before it is applied. */
+  rulings: Canned[];
+  /** Holds a ruling's answer, the ruling already applied, until it settles. */
+  holdRuling?: Promise<void>;
+  /** Holds each `GET /admin/users` answer, canned or its rows already read, until it settles. */
+  holdUsersRead?: Promise<void>;
   /** Whether `GET /me/account` says a Google identity is linked. */
   googleLinked: boolean;
   /** Whether `GET /me/account` says the account holds a password of its own. */
@@ -169,6 +192,9 @@ export function fakeApi(
     diagnosis: { size: { rows: '0', total_bytes: '0' }, bySource: [], observations: [], sample: [] },
     operations: [],
     starts: [],
+    users: [],
+    userReads: [],
+    rulings: [],
     googleLinked: false,
     passwordSet: true,
     claims: {},
@@ -546,6 +572,94 @@ export function fakeApi(
     return json(run, 202, { location: `/admin/archive/operations/${run.id}` });
   }
 
+  const answered = (canned: Canned): Response => {
+    if (canned === 'offline') throw new TypeError('Failed to fetch');
+    return json(canned.body, canned.status);
+  };
+
+  /** `GET /admin/users`: one status's rows, oldest first, keyset-paged on `applied_at, user_id`
+   *  with a cursor that names its status, as `infra/src/admin-users.ts` pages them. */
+  async function listing(query: URLSearchParams): Promise<Response> {
+    if (api.role !== 'super_admin') return json({ error: 'forbidden' }, 403);
+    const canned = api.userReads.shift();
+    if (canned !== undefined) {
+      await api.holdUsersRead;
+      return answered(canned);
+    }
+    const status = query.get('status') ?? '';
+    const limit = Number(query.get('limit') ?? 50);
+    if (!['pending', 'active', 'rejected'].includes(status) || !(limit >= 1 && limit <= 100)) {
+      return json({ error: 'invalid_request' }, 400);
+    }
+    const cursor = query.get('cursor');
+    const [at, id, of] =
+      cursor === null ? [] : Buffer.from(cursor, 'base64url').toString().split('|');
+    if (cursor !== null && of !== status) return json({ error: 'invalid_request' }, 400);
+    const before = (a: FakeUser, b: { appliedAt: string; id: string }) =>
+      a.appliedAt < b.appliedAt || (a.appliedAt === b.appliedAt && a.id < b.id);
+    const ordered = api.users
+      .filter((u) => u.status === status)
+      .sort((a, b) => (before(a, b) ? -1 : 1));
+    const rest = cursor === null ? ordered : ordered.filter((u) => before({ ...u, appliedAt: at, id }, u));
+    const users = rest.slice(0, limit);
+    await api.holdUsersRead;
+    const last = users.at(-1);
+    const next =
+      rest.length > limit && last !== undefined
+        ? Buffer.from(`${last.appliedAt}|${last.id}|${status}`).toString('base64url')
+        : undefined;
+    return json({ users, ...(next === undefined ? {} : { next }) });
+  }
+
+  /** The four rulings of `infra/src/approve.ts`, in its order of checks: approve rekeys the row,
+   *  reject deletes an application and disables an account, enable undoes that, delete removes an
+   *  account. */
+  async function ruling(method: string, path: string): Promise<Response> {
+    if (api.role !== 'super_admin') return json({ error: 'forbidden' }, 403);
+    const canned = api.rulings.shift();
+    if (canned !== undefined) {
+      await api.holdRuling;
+      return answered(canned);
+    }
+    const [, , , id, verb] = path.split('/');
+    const act = method === 'DELETE' && verb === undefined ? 'delete' : verb;
+    if (!/^[0-9a-f-]{36}$/i.test(id ?? '')) return json({ error: 'invalid_request' }, 400);
+    if (id.toLowerCase() === ME_USER_ID) return json({ error: 'self' }, 409);
+    const row = api.users.find((u) => u.id === id.toLowerCase());
+    let reply: Response;
+    const stamp = new Date().toISOString().replace('Z', '000Z');
+    if (row === undefined) reply = json({ error: 'not_found' }, 404);
+    else if (act === 'approve') {
+      if (row.status !== 'pending') reply = json({ error: 'already_decided' }, 409);
+      else {
+        Object.assign(row, { id: crypto.randomUUID(), status: 'active', decidedAt: stamp });
+        reply = json({ status: 'approved' });
+      }
+    } else if (act === 'reject') {
+      if (row.status === 'rejected') reply = json({ error: 'already_decided' }, 409);
+      else {
+        if (row.status === 'pending') api.users = api.users.filter((u) => u !== row);
+        else Object.assign(row, { status: 'rejected', decidedAt: stamp });
+        reply = json({ status: 'rejected' });
+      }
+    } else if (act === 'enable') {
+      if (row.status === 'pending') reply = json({ error: 'undecided' }, 409);
+      else if (row.status === 'active') reply = json({ error: 'already_decided' }, 409);
+      else {
+        Object.assign(row, { status: 'active', decidedAt: stamp });
+        reply = json({ status: 'enabled' });
+      }
+    } else if (act === 'delete') {
+      if (row.status === 'pending') reply = json({ error: 'undecided' }, 409);
+      else {
+        api.users = api.users.filter((u) => u !== row);
+        reply = json({ status: 'deleted' });
+      }
+    } else reply = json({ error: 'invalid_request' }, 400);
+    await api.holdRuling;
+    return reply;
+  }
+
   /** Whether `a` lists before `b`, in the route's order. */
   const newer = (a: { startedAt: string; id: string }, b: { startedAt: string; id: string }) =>
     a.startedAt > b.startedAt || (a.startedAt === b.startedAt && a.id > b.id);
@@ -649,6 +763,13 @@ export function fakeApi(
       return json(api.diagnosis);
     }
     if (path === '/admin/archive/operations') return operating(request, url.searchParams);
+    if (request.method === 'GET' && path === '/admin/users') return listing(url.searchParams);
+    if (
+      (request.method === 'POST' && /^\/admin\/users\/[^/]+\/(approve|reject|enable)$/.test(path)) ||
+      (request.method === 'DELETE' && /^\/admin\/users\/[^/]+$/.test(path))
+    ) {
+      return ruling(request.method, path);
+    }
     if (request.method === 'GET' && /^\/view(\/series|\/balances|\/day)?$/.test(path)) {
       return read(request, path, url.searchParams);
     }

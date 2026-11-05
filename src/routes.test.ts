@@ -24,6 +24,7 @@ const { Seasonality } = await import('./screens/Seasonality');
 const { Portfolio } = await import('./screens/Portfolio');
 const { Allocation } = await import('./screens/Allocation');
 const { Settings } = await import('./screens/Settings');
+const { AdminUsers } = await import('./screens/AdminUsers');
 const { ArchiveAdmin } = await import('./screens/ArchiveAdmin');
 const { Profile } = await import('./screens/Profile');
 const { SignIn } = await import('./screens/sign-in/SignIn');
@@ -94,7 +95,7 @@ describe('the boundaries', () => {
     const boundary = layout.children![0]!;
     expect(isScreenBoundary(boundary)).toBe(true);
     const leaves = boundary.children!;
-    expect(leaves).toHaveLength(14);
+    expect(leaves).toHaveLength(15);
     for (const leaf of leaves) {
       expect(leaf.children, `${leaf.path} nests further`).toBeUndefined();
       expect(leaf.errorElement, `${leaf.path} catches its own throw`).toBeUndefined();
@@ -116,6 +117,7 @@ describe('the routes that exist', () => {
     ['/allocation', Allocation],
     ['/settings', Settings],
     ['/admin/archive', ArchiveAdmin],
+    ['/admin/users', AdminUsers],
     ['/profile', Profile],
   ];
 
@@ -126,9 +128,9 @@ describe('the routes that exist', () => {
     expect(isScreenBoundary(walked[2]!)).toBe(true);
     const { screen, waits } = screenOf(walked[3]!.element);
     expect(screen).toBe(Screen);
-    // Every screen but Settings, the profile and the archive panel reads the view and waits behind
+    // Every screen but Settings, the profile and the two admin pages reads the view and waits behind
     // it, holding its place meanwhile; the profile holds its own place for `GET /me`.
-    expect(waits).toBe(!['/settings', '/admin/archive', '/profile'].includes(path));
+    expect(waits).toBe(!['/settings', '/admin/archive', '/admin/users', '/profile'].includes(path));
     // The routes that read the portfolio are a user's alone, and the gate knows them by this.
     expect(walked[3]!.handle === PORTFOLIO, `${path}'s portfolio handle`).toBe(waits);
   });

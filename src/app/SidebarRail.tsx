@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   Settings,
   Shield,
+  Users,
 } from 'lucide-react';
 import { Link, NavLink } from 'react-router';
 
@@ -16,6 +17,8 @@ import { useRole } from '../hooks/queries';
 import { useSignOut } from '../hooks/useSignOut';
 import { AccountFold, ANALYTICS, Mark } from './Sidebar';
 import { NAV_TRIGGER_ID } from './nav-ids';
+import { CornerBadge } from './CornerBadge';
+import { usePendingBadge, usersName } from './pending-count';
 import { Scroller } from '../components/ui/Scroller';
 import { Tooltip, TooltipProvider } from '../components/ui/Tooltip';
 import { TAP_RAIL } from '../components/ui/tap-target';
@@ -72,17 +75,20 @@ function RailItem({
   label,
   tooltip = label,
   Icon,
+  badge,
 }: {
   to: string;
   label: string;
   /** The tooltip's words, where they are not the name. */
   tooltip?: string;
   Icon: LucideIcon;
+  /** A number at the box's corner, where no label shows; the name carries it. */
+  badge?: string;
 }) {
   return (
     <Tooltip label={tooltip}>
       <NavLink to={to} aria-label={label} className="block rounded-[9px]">
-        {({ isActive }) => <RailBox Icon={Icon} isActive={isActive} />}
+        {({ isActive }) => <RailBox Icon={Icon} isActive={isActive} badge={badge} />}
       </NavLink>
     </Tooltip>
   );
@@ -94,14 +100,16 @@ function RailBox({
   Icon,
   isActive = false,
   still = false,
+  badge,
 }: {
   Icon: LucideIcon;
   isActive?: boolean;
   still?: boolean;
+  badge?: string;
 }) {
   return (
     <span
-      className={`mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition ${
+      className={`relative mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition ${
         isActive
           ? 'bg-sb-item-active-bg shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
           : still
@@ -115,7 +123,27 @@ function RailBox({
         aria-hidden
         className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
       />
+      {/* Inside the box, since the rail clips past its wall (`admin-users.dc.html`, T2). */}
+      {badge !== undefined && <CornerBadge shown={badge} top="top-[2px]" />}
     </span>
+  );
+}
+
+/** The super-admin's group folded: «Користувачі», its count at the corner, then «Архів цін». */
+function AdminRail() {
+  const t = useT();
+  const badge = usePendingBadge();
+  return (
+    <>
+      <RailItem
+        to="/admin/users"
+        label={usersName(t, badge) ?? t.nav.users}
+        tooltip={t.nav.users}
+        Icon={Users}
+        badge={badge?.shown}
+      />
+      <RailItem to="/admin/archive" label={t.nav.archive} Icon={Archive} />
+    </>
   );
 }
 
@@ -264,7 +292,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
                 className="flex animate-in flex-col gap-[3px] duration-300 ease-soft fade-in"
               >
                 {admin ? (
-                  <RailItem to="/admin/archive" label={t.nav.archive} Icon={Archive} />
+                  <AdminRail />
                 ) : (
                   <>
                     {ENTRY.map(({ to, key, Icon }) => (

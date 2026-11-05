@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { useRole } from '../hooks/queries';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { NAV_TRIGGER_ID } from './nav-ids';
+import { CornerBadge } from './CornerBadge';
+import { openNavName, usePendingBadge } from './pending-count';
 import { useT } from '../i18n/useT';
 
 /** The trigger's DRAWN box. It does not grow below the breakpoint: the pressable region
@@ -20,7 +22,7 @@ function MenuGlyph() {
 }
 
 const TRIGGER_CLASS =
-  'grid size-11 flex-none cursor-pointer place-items-center rounded-[11px] text-ink transition hover:opacity-85 active:scale-[.97]';
+  'relative grid size-11 flex-none cursor-pointer place-items-center rounded-[11px] text-ink transition hover:opacity-85 active:scale-[.97]';
 
 /**
  * The sidebar's stand-in, mounted whenever the sidebar is not on screen: always below
@@ -47,7 +49,9 @@ export function AppHeader({
   const role = useRole();
   // Radix publishes `aria-expanded` on the trigger, so the NAME has to agree with it,
   // or a screen reader reads out the contradiction in full.
-  const triggerLabel = open ? t.nav.closeNav : t.nav.openNav;
+  // The applications waiting ride the name while the drawer is shut; open, its link carries them.
+  const badge = usePendingBadge();
+  const triggerLabel = open ? t.nav.closeNav : openNavName(t, badge);
 
   const trigger: ReactNode = desktop ? null : (
     // `asChild`, so the button IS the trigger and Radix returns focus to it. Its ARIA
@@ -56,6 +60,9 @@ export function AppHeader({
     <RadixDialog.Trigger asChild>
       <button type="button" id={NAV_TRIGGER_ID} aria-label={triggerLabel} className={TRIGGER_CLASS}>
         <MenuGlyph />
+        {/* The super-admin's count is the one `sb-*` mark here: the rail's own badge, which the
+            burger stands in for (`admin-users.dc.html`, T2). */}
+        {badge !== undefined && <CornerBadge shown={badge.shown} top="top-1" />}
       </button>
     </RadixDialog.Trigger>
   );

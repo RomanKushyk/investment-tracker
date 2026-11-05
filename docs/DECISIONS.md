@@ -745,8 +745,11 @@ THE ROLE DECIDES WHAT THE SHELL HOLDS (`super-admin-shell.dc.html`), from `GET /
 the capital, «Ввід», «Аналітика» and the currency. The super-admin's holds none of them: a band in
 the capital's slot names the role, a shield and «Суперадміністратор», in the panel and the drawer,
 folded to the shield in the rail with the word as its text and tooltip, and inline in the header bar;
-its one group is «Адміністрування» with «Архів цін»; its footer keeps the theme alone, Settings and
-the account. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel holds the capital's slot as
+its one group is «Адміністрування» with «Користувачі» and «Архів цін»; its footer keeps the theme
+alone, Settings and the account. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT
+(`admin-users.dc.html`, T2): one page of the pending list, «99+» when full, on the pill, at the
+corner of the rail's box and of the burger, the visible figure hidden and the link's or the
+trigger's name saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel holds the capital's slot as
 its empty strip and the footer's track row unseen at a user's layout, the rail holds a user's foot,
 the header bar its height, so a user's shell never moves and the super-admin's band arrives with its
 nav; a failed `/me` keeps the shell so (*Not found and failures*).
@@ -802,18 +805,21 @@ in the signed-out frame, having no shell left to keep, and owns `<html lang>` an
 state, so a screen that throws keeps the sidebar and reaching any route clears it. A `*` among the
 screens catches every other path, `/sign-in/x` too, inside the shell. Each state is an answer's
 block — a muted glyph, the title, the lead, one button — and in the shell its card sits where the
-signed-out card does. The two failures share their words and one reload; not found sends to the
-role's home, `/` for a user and `/admin/archive` for the super-admin until `/status` exists.
+signed-out card does. The two failures share their words and one reload; not found sends a user to
+`/` and the super-admin to `/admin/archive` until `/status` exists, though the super-admin's `/`
+lands on `/admin/users`: the not-found keeps the way out its drawings show (the owner's ruling).
 NO STATE SHOWS THE ERROR, a status code or a stack: the router and React log what a boundary
-catches. THE ONE EXCEPTION IS THE SUPER-ADMIN'S ARCHIVE PANEL (`archive-admin.dc.html`), whose
-reads do not throw: a failure there names the route's error key, or the HTTP status where the route
-has none, and reads again, because its one operator decides what to run next from that answer.
+catches. THE ONE EXCEPTION IS THE SUPER-ADMIN'S TWO PAGES, THE ARCHIVE PANEL AND THE USERS PAGE
+(`archive-admin.dc.html`, `admin-users.dc.html`), whose reads do not throw: a failure there names
+the route's error key, or the HTTP status where the route has none, and reads again, because their
+one operator decides what to do next from that answer; a ruling's refusal is said in its
+confirmation, with the key.
 A READ THAT FAILS IS A THROW: a screen behind the view throws the error of a first read
 that failed, and so does one of the wide figures (a curve, a page of the table, a day other than
 the caller's), and so do the profile's `GET /me/account` and the shell's `GET /me`, which every
 screen waits for, and the failed-screen state is what shows, the sidebar kept; an answer already in
 hand stays on screen when a later read of it fails. BESIDE THE
-ARCHIVE PANEL, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
+SUPER-ADMIN'S PAGES, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
 relay's read, apart from the account above it, so a failure is one sentence in its card that asks
 for a reload, and the account stays on screen. EVERY SCREEN WAITS FOR THE ROLE: `GET /me`, read on
 every load before the view, names it, and until it answers no screen is chosen and the shell draws
@@ -821,7 +827,7 @@ neither role's items (*Two shells, one breakpoint*). A failed first read is the 
 on every route, since with the role unknown no route's content can be chosen, and the device's copy
 of the settings stays as it is. THE VIEW IS NOT ASKED FOR UNTIL `/me` HAS NAMED A USER, so every
 other role, and a role still unknown, reads no portfolio: a portfolio route is a user's alone and
-answers any other role not found, the super-admin's `/` excepted, which is `/admin/archive`. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
+answers any other role not found, the super-admin's `/` excepted, which is `/admin/users`. A SCREEN WAITS FOR ITS FIRST READ WITH ITS BOXES HELD, and
 shows neither an empty portfolio nor a spinner: the shell alone until the read has been out for a
 while, then every box whose size is known in place for a while at least, a figure as «—», a list as three rows, a chart
 as one block, a form with its title and its fields held, and nothing in it that can be reached; one

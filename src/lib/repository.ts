@@ -178,6 +178,51 @@ export type StartReply =
   | { kind: 'failed'; status: number }
   | { kind: 'offline' };
 
+/** A status `GET /admin/users` filters by; `rejected` holds the accounts disabled after approval,
+ *  since a declined application is deleted. */
+export type UserStatus = 'pending' | 'active' | 'rejected';
+
+/** One row of `GET /admin/users` (`infra/src/admin-users.ts`): stamps in UTC, to the microsecond. */
+export interface AdminUser {
+  id: string;
+  email: string;
+  status: UserStatus;
+  appliedAt: string;
+  decidedAt: string | null;
+}
+
+/** One page of the list, oldest first; `next` only while more follow. */
+export interface AdminUsersPage {
+  users: AdminUser[];
+  next?: string;
+}
+
+/** The five acts of the users page. Decline and disable share `POST …/reject`. */
+export type Ruling = 'approve' | 'decline' | 'disable' | 'enable' | 'delete';
+
+/** Every key the four ruling routes answer beside the gate's (`RESPONSES` in `infra/src/approve.ts`). */
+export const RULING_KEYS = [
+  'invalid_request',
+  'self',
+  'not_found',
+  'demo',
+  'already_decided',
+  'undecided',
+  'unclaimed_identity',
+  'internal',
+] as const;
+export type RulingKey = (typeof RULING_KEYS)[number];
+
+/** What a ruling came to. `gate` is one of the gate's 403s, which the page shows as the not-found;
+ *  `failed` an answer with no key of the route's, a fault the client cannot name. */
+export type RulingReply =
+  | { kind: 'done' }
+  | { kind: 'refused'; key: RulingKey }
+  | { kind: 'gate' }
+  | { kind: 'throttled' }
+  | { kind: 'failed' }
+  | { kind: 'offline' };
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -220,6 +265,35 @@ const isOperation = (b: unknown): b is ArchiveOperation =>
   isObject(b.parameters);
 const isOperationsPage = (b: unknown): b is ArchiveOperationsPage =>
   isObject(b) && Array.isArray(b.operations) && b.operations.every(isOperation);
+const isAdminUser = (b: unknown): b is AdminUser =>
+  isObject(b) &&
+  typeof b.id === 'string' &&
+  typeof b.email === 'string' &&
+  typeof b.status === 'string' &&
+  typeof b.appliedAt === 'string';
+const isUsersPage = (b: unknown): b is AdminUsersPage =>
+  isObject(b) && Array.isArray(b.users) && b.users.every(isAdminUser);
+const isRulingKey = (v: unknown): v is RulingKey => RULING_KEYS.some((k) => k === v);
+
+/** A ruling's refusal, from the route's own keys; a gate's 403 is the not-found. */
+function rulingReplyOf(reply: Refusal): RulingReply {
+  if (reply.kind === 'answer') return { kind: 'gate' };
+  if (reply.kind === 'throttled') return { kind: 'throttled' };
+  if (reply.kind === 'offline' || (reply.kind === 'failed' && reply.status === undefined)) {
+    return { kind: 'offline' };
+  }
+  const key = reply.kind === 'failed' && isObject(reply.body) ? reply.body.error : undefined;
+  return isRulingKey(key) ? { kind: 'refused', key } : { kind: 'failed' };
+}
+
+const RULING_CALL: Record<Ruling, (id: string) => { method: 'POST' | 'DELETE'; path: string }> = {
+  approve: (id) => ({ method: 'POST', path: `/admin/users/${id}/approve` }),
+  decline: (id) => ({ method: 'POST', path: `/admin/users/${id}/reject` }),
+  disable: (id) => ({ method: 'POST', path: `/admin/users/${id}/reject` }),
+  enable: (id) => ({ method: 'POST', path: `/admin/users/${id}/enable` }),
+  delete: (id) => ({ method: 'DELETE', path: `/admin/users/${id}` }),
+};
+
 const isIssue = (v: unknown): v is { field: string; code: string } =>
   isObject(v) && typeof v.field === 'string' && typeof v.code === 'string';
 
@@ -401,6 +475,26 @@ export function createRepository(call: Transport, copy: AccountCopy = noCopy) {
       // A 2xx the client cannot read may still have recorded the run: as no answer, check the log.
       if (!isOperation(reply.body)) return { kind: 'offline' };
       return { kind: 'started', operation: reply.body };
+    },
+    /** One page of one status's accounts and applications, oldest first, from `cursor` on. */
+    readAdminUsers: async (
+      status: UserStatus,
+      { limit = 50, cursor }: { limit?: number; cursor?: string } = {},
+    ): Promise<AdminUsersPage> => {
+      const query = cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`;
+      const reply = await begun()({
+        method: 'GET',
+        path: `/admin/users?status=${status}&limit=${limit}${query}`,
+      });
+      if (reply.kind !== 'ok') throw new ApiError(reply);
+      if (!isUsersPage(reply.body)) throw misread(reply);
+      return reply.body;
+    },
+    /** A ruling on one row, sent once: a retry is the operator's, after the refusal names why. A
+     *  refusal comes back for the confirmation, never thrown. */
+    ruleOnUser: async (ruling: Ruling, id: string): Promise<RulingReply> => {
+      const reply = await begun()({ ...RULING_CALL[ruling](encodeURIComponent(id)), once: true });
+      return reply.kind === 'ok' ? { kind: 'done' } : rulingReplyOf(reply);
     },
 
     /** Replaces the day's quotes with the drafts: a quote the day holds that they left out is

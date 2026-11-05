@@ -7,6 +7,7 @@ import { PORTFOLIO, RoleGate } from './app/RoleGate';
 import { Root } from './app/Root';
 import { Loadable } from './components/loading/Loadable';
 import { Allocation } from './screens/Allocation';
+import { AdminUsers } from './screens/AdminUsers';
 import { ArchiveAdmin } from './screens/ArchiveAdmin';
 import { Attributes } from './screens/Attributes';
 import { Balances } from './screens/Balances';
@@ -122,6 +123,8 @@ export const routes: RouteObject[] = [
               { path: 'settings', element: <Settings /> },
               // The super-admin's archive panel reads the account and the archive, never the view.
               { path: 'admin/archive', element: <ArchiveAdmin /> },
+              // The super-admin's users page, the same: the account and the users list alone.
+              { path: 'admin/users', element: <AdminUsers /> },
               // The profile reads the account, not the view, and holds its own place for it.
               { path: 'profile', element: <Profile /> },
               // Every path nothing else matches, `/sign-in/x` too, inside the shell.

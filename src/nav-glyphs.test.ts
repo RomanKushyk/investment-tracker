@@ -76,7 +76,9 @@ const TABLE = [
   // The account's address is the profile's link (`own-account.dc.html`, T5); signed out the same
   // glyph labels the status row.
   ['/profile', 'CircleUser'],
-  // The super-admin's one route, under «Адміністрування» (`super-admin-shell.dc.html`, T1).
+  // The super-admin's two routes, under «Адміністрування» (`super-admin-shell.dc.html`, T1;
+  // `admin-users.dc.html`, T2).
+  ['/admin/users', 'Users'],
   ['/admin/archive', 'Archive'],
 ] as const;
 
@@ -168,7 +170,7 @@ function mapped(): string {
 }
 
 describe('every route wears the glyph the sheet gave it', () => {
-  it('imports the thirteen the table names, and no glyph it does not', () => {
+  it('imports the fourteen the table names, and no glyph it does not', () => {
     expect(
       imported()
         .filter((n) => !CONTROLS.includes(n))
@@ -184,7 +186,7 @@ describe('every route wears the glyph the sheet gave it', () => {
 
   // ATTACHED, not merely imported: an icon on the wrong route is the defect a name-only
   // check cannot see.
-  it('attaches all thirteen to their own routes', () => {
+  it('attaches all fourteen to their own routes', () => {
     expect(
       pairs()
         .map((p) => p.join(' '))
