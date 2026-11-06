@@ -269,7 +269,8 @@ async function ensureSchema(client: Client): Promise<void> {
       PRIMARY KEY (ref))`);
 
   // The ONLY surviving copy of a bond's schedule once the provider stops listing it — see
-  // `bond-terms.ts`. Same key shape as `price_observation`, and for the same reason.
+  // `bond-terms.ts`. Same key shape as `price_observation`; the pair is the daily insert's
+  // `ON CONFLICT` target, and the per-bond read is what `bond_terms_ref_as_of` below is for.
   await client.query(`
     CREATE TABLE IF NOT EXISTS bond_terms (
       as_of DATE NOT NULL, ref TEXT NOT NULL,
