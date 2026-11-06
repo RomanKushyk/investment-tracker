@@ -130,10 +130,12 @@ depends on a model that may be revised. Storing a judgment in an immutable colum
 whole investigation exists to avoid, which is also why **computed bond values are never stored**: the
 premises are captured forever, the conclusion never is, and a stale provider value is stored as the
 observed fact. For consumers, **levels carry forward; changes never do** — a zero delta and an unknown
-delta must never render the same. `instrument` needs both `listed_from` and `retired_at`, or a missing
-row cannot be told apart from "the instrument did not exist yet", which is what the cron-silence alarm
-depends on, and `instrument_ref` is **permanently allocated, never reused, never renamed** with no FK
-protecting that. **`as_of` semantics, pinned, and there are TWO**, the two endpoints differing in kind:
+delta must never render the same. `instrument` stores `listed_from` and `last_seen_on`: a day before
+`listed_from` is read as the instrument not existing yet, and a day between the two with no row as
+unobserved; retirement is a judgment, not stored but left to read time, which compares `last_seen_on`
+with the latest date the ref's own sources published. `instrument_ref` is **permanently allocated, never
+reused, never renamed** with no FK protecting that. **`as_of` semantics, pinned, and there are TWO**,
+the two endpoints differing in kind:
 Inzhur's `as_of` is the Kyiv date of the run, its live endpoint serving the price struck for that date,
 published at `INZHUR_REFRESH_HOUR` (`packages/core/src/inzhur/parse.ts`) Kyiv the day before; NBU's is
 that date − 1, its URL naming a date's file that NBU writes later on that date than the 01:00 run, so
