@@ -3,9 +3,10 @@
 // the form's answer to one of them (`bot-check.dc.html` T1, T4).
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../../__fixtures__/router';
 import type { ApplyOutcome } from '../../auth/apply';
 import { uk } from '../../i18n/messages';
 import type { BotCheckProps } from './BotCheck';

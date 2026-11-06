@@ -3,9 +3,10 @@
 // item and the drawer's copy of the panel (`design/extensions/own-account.dc.html`, T5).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
 import { uk } from '../i18n/messages';
 import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from './nav-ids';

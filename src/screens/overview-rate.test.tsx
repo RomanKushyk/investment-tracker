@@ -4,13 +4,14 @@
 // none, never a number made up (*Language, numbers, fonts*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, waitFor, within } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeFormat } from '@quirenote/core/money';
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { viewBody } from '@quirenote/core/view/serve';
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, type FakeApi } from '../__fixtures__/fake-api';
 import { en, uk } from '../i18n/messages';
 

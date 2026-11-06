@@ -3,7 +3,7 @@
 // (`design/extensions/admin-users.dc.html`, T1–T5 and T7).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -14,6 +14,7 @@ import {
   type FakeApi,
   type FakeUser,
 } from '../__fixtures__/fake-api';
+import { RouterProvider } from '../__fixtures__/router';
 import { uk } from '../i18n/messages';
 
 let api: FakeApi;

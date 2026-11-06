@@ -4,12 +4,12 @@
 // and relay against the fake API; the bot check and the sign-in calls are stubbed, as in
 // `SignIn.test.tsx`, and the calls sign in through the real session.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { flushSync } from 'react-dom';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { RouteObject } from 'react-router';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
 import type { SignInDeps, SignInOutcome } from '../auth/sign-in';
 import { uk } from '../i18n/messages';
@@ -133,9 +133,7 @@ function open(routes: RouteObject[], path: string) {
   });
   render(
     <QueryClientProvider client={new QueryClient()}>
-      {/* Handed React DOM's `flushSync`, as `react-router/dom`'s provider in `main.tsx` is: without
-          it a sign-out's way out commits in a transition, a frame production never renders. */}
-      <RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   );
   return router;

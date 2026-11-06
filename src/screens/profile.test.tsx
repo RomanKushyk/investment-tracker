@@ -2,13 +2,13 @@
 // The profile, rendered through the real router, shell, client and relay over a fake of the user API
 // and the relay's passkey list (`design/extensions/own-account.dc.html`, T1–T3 and T6).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { flushSync } from 'react-dom';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
 import { carryReauthentication, reauthenticationFor } from '../auth/google';
 import type { SignInDeps } from '../auth/sign-in';
@@ -153,9 +153,7 @@ function mount(path: string) {
   const client = new QueryClient();
   const view = render(
     <QueryClientProvider client={client}>
-      {/* Handed React DOM's `flushSync`, as `react-router/dom`'s provider in `main.tsx` is: without
-          it a sign-out's way out commits in a transition, a frame production never renders. */}
-      <RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   );
   return { view, router, client, main: () => view.container.querySelector('main')! };

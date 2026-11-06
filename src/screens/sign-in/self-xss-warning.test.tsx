@@ -3,9 +3,10 @@
 // behind the real routes.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../../__fixtures__/router';
 import { fakeApi, type FakeApi } from '../../__fixtures__/fake-api';
 import { en, uk } from '../../i18n/messages';
 

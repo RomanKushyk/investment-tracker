@@ -4,9 +4,10 @@
 // the session is the module's and only a fresh one has not been asked yet.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, type FakeApi } from '../__fixtures__/fake-api';
 import { uk } from '../i18n/messages';
 

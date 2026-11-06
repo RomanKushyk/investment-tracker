@@ -4,11 +4,11 @@
 // with no second sign-in (`design/extensions/account-deletion.dc.html` T6, T7, T10).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { flushSync } from 'react-dom';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { toast } from 'sonner';
 import { afterAll, afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
 import { uk } from '../i18n/messages';
 import { SIDEBAR_ID } from './nav-ids';
@@ -90,11 +90,9 @@ afterEach(() => {
 /** Mounted on the app's own query client, as `main.tsx` mounts it. */
 async function open(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  // `react-router/dom`'s provider, as `main.tsx` mounts it, is this one handed React DOM's
-  // `flushSync`; without it a way out commits in a transition, the portfolio shell first.
   const view = render(
     <QueryClientProvider client={queryClient as QueryClient}>
-      <RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   );
   await waitFor(() => expect(screen.queryByText(G.title)).not.toBeNull());

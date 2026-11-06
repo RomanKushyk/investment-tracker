@@ -4,10 +4,11 @@
 // that holds it on the sticky bar (*Cloud target*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TEST_LEDGERS } from '@quirenote/core/view/test-ledgers';
+import { RouterProvider } from '../__fixtures__/router';
 import { dayOf, viewDataOf } from '../__fixtures__/stored-view';
 import { uk } from '../i18n/messages';
 import { ApiError, type Refusal } from '../lib/repository';

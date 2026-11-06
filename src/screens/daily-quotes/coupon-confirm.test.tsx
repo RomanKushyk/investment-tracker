@@ -4,12 +4,13 @@
 // all. The card is driven through the real route and client, over a fake of the user API.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Op } from '@quirenote/core/ops';
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
+import { RouterProvider } from '../../__fixtures__/router';
 import { fakeApi, type FakeApi } from '../../__fixtures__/fake-api';
 import { uk } from '../../i18n/messages';
 

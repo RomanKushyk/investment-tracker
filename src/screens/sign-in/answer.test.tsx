@@ -2,10 +2,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { type ReactNode, useSyncExternalStore } from 'react';
-import { flushSync } from 'react-dom';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../../__fixtures__/router';
 import type { Answer } from '../../auth/access';
 import type { HeldAnswer } from '../../auth/app';
 import { uk } from '../../i18n/messages';
@@ -75,12 +75,10 @@ function mount(answer: Answer) {
     [{ path: '/', element: <Root />, children: [{ path: '*', element: <p>the route</p> }] }],
     { initialEntries: ['/overview'] },
   );
-  // `react-router/dom`'s provider, as `main.tsx` mounts it, is this one handed React DOM's
-  // `flushSync`; without it a way out commits in a transition.
   const client = new QueryClient();
   render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />
+      <RouterProvider router={router} />
     </QueryClientProvider>,
   );
   return Object.assign(router, { client });

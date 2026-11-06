@@ -3,9 +3,10 @@
 // (`account-way-in-and-out.dc.html` T5), then lands where the answer sends it.
 import { act, cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../../__fixtures__/router';
 import { arrivedGoogleFailed } from '../../auth/google';
 import { carriedFrom, carryReturn } from '../../auth/return-to';
 import type { RelayAnswer } from '../../auth/relay';

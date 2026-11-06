@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { createBrowserRouter, RouterProvider, useLocation } from 'react-router';
+import { createBrowserRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../__fixtures__/router';
 import { useEditMode } from '../hooks/useEditMode';
 
 vi.mock('sonner', () => ({

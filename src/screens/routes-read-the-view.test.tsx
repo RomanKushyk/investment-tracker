@@ -5,13 +5,14 @@
 // beyond the wide figures it names (*Cloud target*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { inputValue, makeFormat } from '@quirenote/core/money';
 import { buildSeedBackup } from '@quirenote/core/seed';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { viewBody } from '@quirenote/core/view/serve';
+import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, type FakeApi } from '../__fixtures__/fake-api';
 import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from '../app/nav-ids';
 import { uk } from '../i18n/messages';

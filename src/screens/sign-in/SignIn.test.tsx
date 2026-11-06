@@ -4,9 +4,10 @@
 // `bot-check-steps.dc.html` T1–T4).
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../../__fixtures__/router';
 import { carrySignedOut, signedOutBy } from '../../auth/signed-out';
 
 import type { SignInDeps, SignInOutcome } from '../../auth/sign-in';

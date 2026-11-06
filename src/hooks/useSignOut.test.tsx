@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from '@testing-library/react';
 import { useEffect, useSyncExternalStore } from 'react';
-import { flushSync } from 'react-dom';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter } from 'react-router';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RouterProvider } from '../__fixtures__/router';
 import type { SessionStatus } from '../auth/session';
 import { throughLogout } from '../auth/signed-out';
 
@@ -116,9 +116,7 @@ function mount(at: string, into = seen) {
     ],
     { initialEntries: [at] },
   );
-  // `react-router/dom`'s provider, as `main.tsx` mounts it, is this one handed React DOM's
-  // `flushSync`; without it the way out commits in a transition, after the hook has moved on.
-  render(<RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />);
+  render(<RouterProvider router={router} />);
   return router;
 }
 
