@@ -202,6 +202,43 @@ describe('the privacy notice names the terms record', () => {
   });
 });
 
+// #575: the account is deleted in Profile, at once or in 30 days that can be cancelled, and support@
+// mail keeps a period of its own, since a self-service deletion tells the operator nothing.
+describe('the legal pages send a deletion to Profile', () => {
+  it.each([
+    {
+      language: 'en',
+      dict: en,
+      profile: /You can delete (it|your account) in Profile/,
+      window: /at once, or in 30 days, and until then the deletion can be cancelled/,
+      mail: /^Correspondence — 12 months after the last message; deleted sooner on request from the same address\./,
+      asked: /ask for your account to be deleted/,
+    },
+    {
+      language: 'uk',
+      dict: uk,
+      profile: /Видалити (його|обліковий запис) можна в Профілі/,
+      window: /одразу або через 30 днів, а до того видалення можна скасувати/,
+      mail: /^Листування — 12 місяців після останнього листа; на запит з тієї самої адреси видаляємо раніше\./,
+      asked: /попросити видалити/,
+    },
+  ])('$language', ({ dict, profile, window, mail, asked }) => {
+    const retention = at(dict, 'privacy.sections.retention.body.0') as string[];
+    const account = retention.find((line) => profile.test(line));
+    expect(account, 'no retention line names Profile').toBeDefined();
+    expect(account).toMatch(window);
+    expect(retention.filter((line) => mail.test(line))).toHaveLength(1);
+    expect(JSON.stringify(retention)).not.toContain('support@');
+
+    const data = at(dict, 'terms.sections.data.body.0') as string[];
+    expect(data.filter((line) => profile.test(line))).toHaveLength(1);
+    expect(JSON.stringify(data)).not.toContain('support@');
+    for (const id of ['termination', 'changes']) {
+      expect(JSON.stringify(at(dict, `terms.sections.${id}.body`))).not.toMatch(asked);
+    }
+  });
+});
+
 describe('the English notice says no more than the Ukrainian', () => {
   const sections = (dict: unknown) => Object.keys((at(dict, 'privacy.sections') ?? {}) as object);
 

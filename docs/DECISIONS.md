@@ -2279,10 +2279,15 @@ press away. The notice is written under Law 2297-VI and gives every GDPR Art. 13
 controller is named, Роман Кушик, a private individual, with no street address or city, and support@
 is the contact. Ukrainian prevails and the English says no more; a test fails if a mapped item is
 missing or empty, or if the English holds a section the Ukrainian lacks. The periods it states are
-the code's: a declined application is deleted when declined (*User schema and deletes*), erased data
-leaves the working database within 30 days, backups keep 35, function logs 30, CloudTrail's event
-history 90. CORRESPONDENCE, which no code holds, is kept while the account exists and deleted with
-it; a message from someone with no account is deleted once answered.
+the code's: a declined application is deleted when declined, and an account deleted in Profile goes
+at once or after its 30 days, which can be cancelled until then (*User schema and deletes*); erased
+data leaves the working database within 30 days, backups keep 35, function logs 30, CloudTrail's
+event history 90. Profile is named, not linked: `/profile` needs a session and the page has readers
+without one. CORRESPONDENCE, which no code holds, is kept 12 months after a thread's last message
+and deleted sooner on request from the same address, out of the Trash the same day; a message from
+an address that holds no account when it writes is deleted by hand once answered, and everything
+else waits for the sweep. A deletion in Profile tells the mailbox nothing, so the period runs from
+the mail alone.
 `/terms` shares `/privacy`'s frame. «Умови» stands beside «Конфіденційність» under every signed-out
 card and on the panel's and the drawer's links line, and as its own row after the privacy row in the
 profile's «Ваші дані». The operator is a private individual, so the terms are a free contract of
@@ -2307,14 +2312,25 @@ with no second sign-in; «Відхилити й вийти» signs out. Another 
 notice in the app before material changes take effect, a notice in the app before the service
 closes, a letter before a breach closes an account unless the breach threatens the service or other
 users, the user's data used only to provide the service, and a dispute tried by correspondence
-before a court.
+before a court. The notice makes one: a daily Apps Script trigger in the owner's Gmail trashes
+every thread under the label a filter on `to:support@quirenote.com` gives the forwarded mail whose
+last message is over 330 days old, so with the Trash's 30 days nothing outlives 12 months. Nothing
+in this repository watches the trigger.
 **Why.** GDPR Art. 13 and 2297-VI Art. 12(2) ask for the information "at the time when personal data
 are obtained"; WP260 rev.01 ¶36 wants a first layer shown as the form is filled, ¶17 "one single
 place or one complete document", and ¶11 a link "clearly visible on each page". EDPB 2/2019 ¶20
 keeps a contract's necessity apart from consent, so the notice asks no agreement. Law 2704-VIII Art.
 27(6) lets a translation say no more than the Ukrainian. Linear, Notion and GitHub serve their
 policies outside the app, and Mastodon puts its link by the version in its sidebar. Retention is
-periods the code enforces first (GDPR Art. 5(1)(e), recital 39; 2297-VI Art. 6(8)). The sources and
+periods the code enforces first (GDPR Art. 5(1)(e), recital 39; 2297-VI Art. 6(8)). Art. 13(2)(a)
+asks for "the period for which the personal data will be stored", and WP260's annex finds it "not
+sufficient for the data controller to generically state that personal data will be kept as long as
+necessary", so the account's 30 days stand on the page. Recital 39 wants "time limits ... for
+erasure or for a periodic review" and the ICO accepts that "Automated systems can flag records for
+review, or delete information after a pre-determined period"; the sweep reads
+`GmailThread.getLastMessageDate()`, and Gmail deletes a message for good 30 days into the Trash.
+WP260 ¶11 accepts "clearly signposting" a route as well as linking it; Discord names "the User
+Settings menu" unlinked. The sources and
 the item-by-item mapping are in brief #497 and `design/extensions/privacy-notice.dc.html`. The terms
 rest on Civil Code Art. 205 ч. 2 (conduct shows the will), Art. 207 ч. 1 (a reference to another
 document) and Art. 634 (adhesion); Art. 50 ч. 2 and Art. 633 keep a public contract to a registered
@@ -2348,7 +2364,11 @@ they propose no contract «з кожним, хто звернеться» (Civil
 Art. 627). · A role exempt from the step: it costs one press, and an exemption is one more branch
 in the gate. · A
 pending application taking the terms again when its address applies again: approval reads the row
-before its Cognito calls, so a write there is lost or races it.
+before its Cognito calls, so a write there is lost or races it. · Correspondence kept while the
+account exists, by a monthly comparison of the mailbox against live accounts: a skipped check makes
+the notice false. · Correspondence deleted on request alone: it states no period. · A monthly sweep
+by hand: Gmail's `older_than:` cannot see a thread's last message, and a skipped month or a Trash
+left full outlives 12 months.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only

@@ -1344,11 +1344,11 @@ export const en = {
       ),
       retention: section('How long we keep it', [
         'An application — until it is reviewed. A declined one is deleted when it is declined.',
-        'Your account and portfolio — as long as the account exists. To delete it, write to support@quirenote.com.',
+        'Your account and portfolio — as long as the account exists. You can delete it in Profile: at once, or in 30 days, and until then the deletion can be cancelled.',
         'Data removed with “Erase data” leaves the working database within 30 days.',
         'Database backups are kept 35 days, so deleted data leaves them within 35 days of leaving the working database.',
         'Service logs — 30 days. The AWS account’s event history (CloudTrail), which shows Google sign-ins with the IP address and browser details, and account actions by ID — 90 days; AWS does not let it be shortened.',
-        'Correspondence — as long as your account exists; deleted with it. A message from someone with no account is deleted once it is answered.',
+        'Correspondence — 12 months after the last message; deleted sooner on request from the same address. A message from someone with no account is deleted once it is answered.',
         'Cookies and browser entries — as in “Cookies and browser storage”.',
       ]),
       rights: section(
@@ -1441,7 +1441,7 @@ export const en = {
         [
           'The data you enter is yours. We use it only to provide the service to you.',
           'A JSON copy of your portfolio and CSV tables are in Settings, under Data; the “Erase data” button there erases the portfolio.',
-          'To delete your account, write to support@quirenote.com.',
+          'You can delete your account in Profile.',
           'We back up the database, but we advise you to keep a copy of your own too.',
         ],
         'How we handle personal data is set out in the [Privacy policy](/privacy).',
@@ -1462,11 +1462,11 @@ export const en = {
       ),
       termination: section(
         'Ending the agreement',
-        'You can stop using the service at any time and ask for your account to be deleted (section 6). We may disable or delete an account that breaches these terms; we write to you first, unless the breach threatens the service or other users. Before an account is deleted, save a copy of your data.',
+        'You can stop using the service at any time and delete your account (section 6). We may disable or delete an account that breaches these terms; we write to you first, unless the breach threatens the service or other users. Before an account is deleted, save a copy of your data.',
       ),
       changes: section(
         'Changes to these terms',
-        'The date of the last update is at the top, and it is how we record which version you accepted. We announce material changes in the app before they take effect. If you do not agree with new terms, you can stop using the service and ask for your account to be deleted (section 6).',
+        'The date of the last update is at the top, and it is how we record which version you accepted. We announce material changes in the app before they take effect. If you do not agree with new terms, you can stop using the service and delete your account (section 6).',
       ),
       law: section(
         'Law and disputes',
@@ -2931,11 +2931,11 @@ export const uk: Dict = {
       ),
       retention: section('Скільки ми зберігаємо', [
         'Заявку — доки її не розглянуто. Відхилену видаляємо в момент відхилення.',
-        'Обліковий запис і портфель — доки існує обліковий запис. Щоб видалити його, напишіть на support@quirenote.com.',
+        'Обліковий запис і портфель — доки існує обліковий запис. Видалити його можна в Профілі: одразу або через 30 днів, а до того видалення можна скасувати.',
         'Дані, стерті кнопкою «Стерти дані», зникають з робочої бази протягом 30 днів.',
         'Резервні копії бази зберігаються 35 днів, тож видалене зникає з них протягом 35 днів після того, як зникло з робочої бази.',
         'Журнали сервісу — 30 днів. Журнал подій облікового запису AWS (CloudTrail), де видно вхід через Google з IP-адресою й даними браузера та дії з обліковими записами за ідентифікатором, — 90 днів; AWS не дає його скоротити.',
-        'Листування — доки існує ваш обліковий запис; видаляємо разом з ним. Лист від того, хто облікового запису не має, видаляємо, щойно на нього відповіли.',
+        'Листування — 12 місяців після останнього листа; на запит з тієї самої адреси видаляємо раніше. Лист від того, хто облікового запису не має, видаляємо, щойно на нього відповіли.',
         'Cookie й записи в браузері — як у розділі «Cookie та сховище браузера».',
       ]),
       rights: section(
@@ -3024,7 +3024,7 @@ export const uk: Dict = {
         [
           'Дані, які ви вносите, — ваші. Ми використовуємо їх лише для того, щоб надавати вам сервіс.',
           'Копія портфеля у JSON і таблиці CSV є в Налаштуваннях, у розділі «Дані»; там само кнопка «Стерти дані» стирає портфель.',
-          'Щоб видалити обліковий запис, напишіть на support@quirenote.com.',
+          'Видалити обліковий запис можна в Профілі.',
           'Ми робимо резервні копії бази, але радимо зберігати й власну копію.',
         ],
         'Як ми обробляємо персональні дані, сказано в [Політиці конфіденційності](/privacy).',
@@ -3045,11 +3045,11 @@ export const uk: Dict = {
       ),
       termination: section(
         'Припинення',
-        'Ви можете будь-коли перестати користуватися сервісом і попросити видалити обліковий запис (розділ 6). Ми можемо вимкнути чи видалити обліковий запис, якщо ви порушуєте ці умови; спершу ми вам напишемо, крім випадків, коли порушення загрожує сервісу чи іншим користувачам. Перш ніж обліковий запис видалять, збережіть копію даних.',
+        'Ви можете будь-коли перестати користуватися сервісом і видалити обліковий запис (розділ 6). Ми можемо вимкнути чи видалити обліковий запис, якщо ви порушуєте ці умови; спершу ми вам напишемо, крім випадків, коли порушення загрожує сервісу чи іншим користувачам. Перш ніж обліковий запис видалять, збережіть копію даних.',
       ),
       changes: section(
         'Зміни умов',
-        'Дату останнього оновлення вказано вгорі, і за нею ми записуємо, яку версію ви прийняли. Про суттєві зміни ми повідомимо в застосунку, перш ніж вони наберуть чинності. Якщо ви не згодні з новими умовами, можете припинити користування й попросити видалити обліковий запис (розділ 6).',
+        'Дату останнього оновлення вказано вгорі, і за нею ми записуємо, яку версію ви прийняли. Про суттєві зміни ми повідомимо в застосунку, перш ніж вони наберуть чинності. Якщо ви не згодні з новими умовами, можете припинити користування й видалити обліковий запис (розділ 6).',
       ),
       law: section(
         'Право й суперечки',

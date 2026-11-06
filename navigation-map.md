@@ -439,11 +439,11 @@ Interactions to verify:
 The terms of use, whole (*Legal documents*), in `/privacy`'s frame: the same page for every reader, signed in or not, with no data request and nothing waiting on the session. Reached from «Умови» under every signed-out card (an answer's in a new tab), the links line in the panel and the drawer, the profile's «Ваші дані», `/apply`'s acceptance line and the terms step's (each in a new tab), or by its URL. The intro names both «Подати заявку» and «Прийняти умови».
 
 At 1280, in either theme (every colour a token):
-- `/privacy`'s card, 680 wide, 2608 tall in Ukrainian: «До Quirenote», the title "Terms of use" («Умови користування»), "Last updated: dd.MM.yyyy" — the date is the version an application records — two intro paragraphs, «Зміст» over a numbered list of the twelve sections' links.
+- `/privacy`'s card, 680 wide, 2588,5 tall in Ukrainian: «До Quirenote», the title "Terms of use" («Умови користування»), "Last updated: dd.MM.yyyy" — the date is the version an application records — two intro paragraphs, «Зміст» over a numbered list of the twelve sections' links.
 - Twelve numbered sections 28 apart, ids `operator`, `service`, `advice`, `sources`, `account`, `data`, `use`, `availability`, `liability`, `termination`, `changes`, `law`; bulleted lists in `sources`, `account`, `data` and `use`. The data section's link opens `/privacy` in the app.
 - «Умови» under the card names the page (`aria-current="page"`).
 
-At 360: the card 336 wide, 3961 tall in Ukrainian and 3865 in English; nothing passes the viewport's width.
+At 360: the card 336 wide, 3961 tall in Ukrainian and 3845,5 in English; nothing passes the viewport's width.
 
 Interactions to verify:
 1. A contents link scrolls to its section smoothly, its title 16 below the viewport's top; with reduced motion the jump is instant.
