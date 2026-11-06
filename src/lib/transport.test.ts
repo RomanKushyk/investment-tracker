@@ -57,7 +57,7 @@ async function transport(hostname = HOST, ...later: (RelayAnswer | Promise<Relay
     showAnswer,
     derivationId: BUILD,
   });
-  return { call, session, showAnswer };
+  return { call, session, showAnswer, relay };
 }
 
 const view = { method: 'GET', path: '/view' } as const;
@@ -550,7 +550,6 @@ describe('an answer that is not a success', () => {
   });
 
   it.each([
-    [401, { message: 'Unauthorized' }, { kind: 'unauthorized' }],
     [413, { error: 'payload_too_large', max: 1048576 }, { kind: 'tooLarge' }],
     [428, { error: 'precondition_required' }, { kind: 'preconditionRequired' }],
     [422, { error: 'key_reused' }, { kind: 'keyReused' }],
@@ -585,14 +584,15 @@ describe('an answer that is not a success', () => {
     expect(sent).toBe(1);
   });
 
-  // RFC 9470 §3: a sign-in too old for the route, which a fresh one renews; any other 401 is plain.
+  // RFC 9470 §3: a sign-in too old for the route, which a fresh one renews; any other 401 is plain,
+  // and one the relay then refuses is a session that ended.
   it.each([
     [{ error: 'insufficient_user_authentication' }, { kind: 'unauthorized', reauthenticate: true }],
     [{ error: 'not_authorized' }, { kind: 'unauthorized' }],
     [{ message: 'Unauthorized' }, { kind: 'unauthorized' }],
   ])('reads a 401 carrying %j as %j', async (body, expected) => {
     server.use(http.post(`${API}/me/deletion`, () => answering(401, body)));
-    const { call } = await transport();
+    const { call } = await transport(HOST, { kind: 'refused', reason: 'notAuthorized' });
 
     expect(await call({ method: 'POST', path: '/me/deletion', body: '{}', once: true })).toEqual(
       expected,
@@ -630,6 +630,236 @@ describe('an answer that is not a success', () => {
       kind: 'ok',
       body: undefined,
     });
+  });
+});
+
+// RFC 6750 §3.1: a token the API refused, which the client MAY renew and send again. API Gateway's JWT
+// authorizer gives every plain 401 before any handler runs, so even a call sent once may go again.
+describe('a 401 the authorizer gave', () => {
+  const RENEWED_TOKEN = jwt({ sub: 'u1', email: ADDRESS, renewed: true });
+  const RENEWED: RelayAnswer = {
+    kind: 'tokens',
+    tokens: { idToken: RENEWED_TOKEN, expiresIn: 3600 },
+  };
+  const REFUSED: RelayAnswer = { kind: 'refused', reason: 'notAuthorized' };
+  const refused = () => answering(401, { message: 'Unauthorized' });
+
+  it('renews the pair once and sends the read again with it, its answer returned', async () => {
+    const bearers: (string | null)[] = [];
+    server.use(
+      http.get(`${API}/view`, ({ request }) => {
+        bearers.push(request.headers.get('authorization'));
+        return bearers.length === 1 ? refused() : answering(200, { view: {} });
+      }),
+    );
+    const { call, relay } = await transport(HOST, RENEWED);
+
+    expect(await call(view)).toMatchObject({ kind: 'ok', status: 200, body: { view: {} } });
+    expect(bearers).toEqual([`Bearer ${ID_TOKEN}`, `Bearer ${RENEWED_TOKEN}`]);
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['a keyed write', write, `${API}/mutations`],
+    [
+      'a call sent once',
+      { method: 'POST', path: '/me/deletion', body: '{}', once: true, keyed: true } as const,
+      `${API}/me/deletion`,
+    ],
+  ])('sends %s again one time, under the same key', async (_, request, url) => {
+    const sent: { key: string | null; bearer: string | null; body: string }[] = [];
+    server.use(
+      http.post(url, async ({ request: seen }) => {
+        sent.push({
+          key: seen.headers.get('idempotency-key'),
+          bearer: seen.headers.get('authorization'),
+          body: await seen.text(),
+        });
+        return sent.length === 1 ? refused() : answering(200, {});
+      }),
+    );
+    const { call } = await transport(HOST, RENEWED);
+
+    expect(await call(request)).toMatchObject({ kind: 'ok' });
+    expect(sent).toHaveLength(2);
+    expect(sent[0].key).not.toBeNull();
+    expect(sent[1].key).toBe(sent[0].key);
+    expect(sent[1].body).toBe(sent[0].body);
+    expect(sent[1].bearer).toBe(`Bearer ${RENEWED_TOKEN}`);
+  });
+
+  it('fails a call refused again under the renewed pair, sent no third time', async () => {
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, () => {
+        sent += 1;
+        return answering(401, { message: 'Unauthorized' });
+      }),
+    );
+    const { call, relay, session } = await transport(HOST, RENEWED, RENEWED);
+
+    expect(await call(view)).toEqual({
+      kind: 'failed',
+      status: 401,
+      body: { message: 'Unauthorized' },
+    });
+    expect(sent).toBe(2);
+    expect(relay).toHaveBeenCalledTimes(2);
+    expect(session.status()).toBe('signedIn');
+  });
+
+  it('ends the call as signed out when the relay refuses the renewal, sending nothing more', async () => {
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, () => {
+        sent += 1;
+        return refused();
+      }),
+    );
+    const { call, session } = await transport(HOST, REFUSED);
+
+    expect(await call(view)).toEqual({ kind: 'unauthorized' });
+    expect(sent).toBe(1);
+    expect(session.status()).toBe('signedOut');
+    expect(session.ended()).toBe(true);
+  });
+
+  it('asks again for a renewal the relay could not answer, on the same schedule, then sends', async () => {
+    vi.useFakeTimers();
+    const bearers: (string | null)[] = [];
+    server.use(
+      http.get(`${API}/view`, ({ request }) => {
+        bearers.push(request.headers.get('authorization'));
+        return bearers.length === 1 ? refused() : answering(200, { view: {} });
+      }),
+    );
+    const lost: RelayAnswer = { kind: 'refused', reason: 'offline' };
+    const { call, relay } = await transport(HOST, lost, RENEWED);
+
+    const reply = call(view);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await reply).toMatchObject({ kind: 'ok' });
+    expect(bearers).toEqual([`Bearer ${ID_TOKEN}`, `Bearer ${RENEWED_TOKEN}`]);
+    expect(relay).toHaveBeenCalledTimes(3);
+  });
+
+  it('reads a renewal the relay never answered as a lost connection once the retries are spent', async () => {
+    vi.useFakeTimers();
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, () => {
+        sent += 1;
+        return refused();
+      }),
+    );
+    const lost: RelayAnswer = { kind: 'refused', reason: 'offline' };
+    const { call, relay, session } = await transport(HOST, lost, lost, lost, lost, lost, RENEWED);
+
+    const reply = call(view);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await reply).toEqual({ kind: 'offline' });
+    expect(sent).toBe(1);
+    // The restore, the renewal and its four retries.
+    expect(relay).toHaveBeenCalledTimes(6);
+    expect(session.status()).toBe('signedIn');
+  });
+
+  it('renews once for calls refused together, each sent again with the new pair', async () => {
+    const bearers: (string | null)[] = [];
+    server.use(
+      http.get(`${API}/view`, ({ request }) => {
+        const bearer = request.headers.get('authorization');
+        bearers.push(bearer);
+        return bearer === `Bearer ${ID_TOKEN}` ? refused() : answering(200, { view: {} });
+      }),
+    );
+    const { call, relay } = await transport(HOST, RENEWED, RENEWED);
+
+    const replies = await Promise.all([call(view), call(view)]);
+    expect(replies).toMatchObject([{ kind: 'ok' }, { kind: 'ok' }]);
+    expect(bearers.filter((b) => b === `Bearer ${RENEWED_TOKEN}`)).toHaveLength(2);
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks no renewal for a 401 that lands once a sign-out has begun', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, async () => {
+        sent += 1;
+        await held;
+        return refused();
+      }),
+    );
+    const leaving = new Promise<RelayAnswer>(() => {});
+    const { call, relay, session } = await transport(HOST, leaving);
+
+    const reply = call(view);
+    await vi.waitFor(() => expect(sent).toBe(1));
+    void session.signOut();
+    release();
+
+    expect(await reply).toEqual({ kind: 'unauthorized' });
+    // The restore and the sign-out, and no refresh after it.
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends nothing more when the renewal names another account', async () => {
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, () => {
+        sent += 1;
+        return refused();
+      }),
+    );
+    const other: RelayAnswer = {
+      kind: 'tokens',
+      tokens: { idToken: jwt({ sub: 'u2', email: 'other@example.com' }), expiresIn: 3600 },
+    };
+    const { call } = await transport(HOST, other);
+
+    expect(await call(view)).toEqual({ kind: 'unauthorized' });
+    expect(sent).toBe(1);
+  });
+
+  it('ends the call when a sign-out begins while the renewal is out, whatever it answers', async () => {
+    let sent = 0;
+    server.use(
+      http.get(`${API}/view`, () => {
+        sent += 1;
+        return refused();
+      }),
+    );
+    let land: (answer: RelayAnswer) => void = () => {};
+    const renewal = new Promise<RelayAnswer>((resolve) => (land = resolve));
+    const { call, session, relay } = await transport(HOST, renewal);
+
+    const reply = call(view);
+    await vi.waitFor(() => expect(relay).toHaveBeenCalledTimes(2));
+    void session.signOut();
+    land({ kind: 'refused', reason: 'offline' });
+
+    expect(await reply).toEqual({ kind: 'unauthorized' });
+    expect(sent).toBe(1);
+  });
+
+  it('asks no renewal for a sign-in too old for the route', async () => {
+    let sent = 0;
+    server.use(
+      http.post(`${API}/me/deletion`, () => {
+        sent += 1;
+        return answering(401, { error: 'insufficient_user_authentication' });
+      }),
+    );
+    const { call, relay } = await transport(HOST, RENEWED);
+
+    expect(await call({ method: 'POST', path: '/me/deletion', body: '{}', once: true })).toEqual({
+      kind: 'unauthorized',
+      reauthenticate: true,
+    });
+    expect(sent).toBe(1);
+    expect(relay).toHaveBeenCalledTimes(1);
   });
 });
 

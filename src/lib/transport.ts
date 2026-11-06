@@ -59,6 +59,7 @@ export interface TransportDeps {
   session: Pick<
     Session,
     | 'getIdToken'
+    | 'renew'
     | 'address'
     | 'signOuts'
     | 'accountChanges'
@@ -88,6 +89,9 @@ const isObject = (body: unknown): body is Record<string, unknown> =>
   typeof body === 'object' && body !== null;
 const errorOf = (body: unknown) => (isObject(body) && 'error' in body ? body.error : undefined);
 const dayOf = (body: unknown) => (isObject(body) && isDay(body.date) ? body.date : undefined);
+
+// RFC 9470 §3's code for a sign-in too old for the route: a re-authentication, never a refresh.
+const TOO_OLD = 'insufficient_user_authentication';
 
 // A 409 for a write still running under its key: sent again unchanged, it finds the stored answer.
 const running = ({ status, body }: Seen) => status === 409 && errorOf(body) === 'request_in_flight';
@@ -170,11 +174,10 @@ export function createTransport({
       }
       return { kind: 'answer', answer };
     }
-    // RFC 9470 §3: a sign-in too old for the route, which a fresh one renews.
-    if (status === 401) {
-      return error === 'insufficient_user_authentication'
-        ? { kind: 'unauthorized', reauthenticate: true }
-        : { kind: 'unauthorized' };
+    // RFC 9470 §3: a sign-in too old for the route, which a fresh one renews. Any other 401 reaches
+    // here only after a renewed pair was refused too: a failure, not a signed-out caller.
+    if (status === 401 && error === TOO_OLD) {
+      return { kind: 'unauthorized', reauthenticate: true };
     }
     if (status === 412) return { kind: 'conflict' };
     if (status === 413) return { kind: 'tooLarge' };
@@ -200,6 +203,7 @@ export function createTransport({
     // The pair held while a sign-out runs is the account's that is leaving.
     if (session.signingOut()) return { kind: 'unauthorized' };
     const key = call.keyed ? crypto.randomUUID() : undefined;
+    let renewed = false;
     for (let retry = 0; ; retry += 1) {
       const idToken = await session.getIdToken();
       // A sign-out or an account change since the call began ends it: this token may be another
@@ -210,6 +214,25 @@ export function createTransport({
         return { kind: 'unauthorized' };
       }
       const seen = idToken === undefined ? undefined : await attempt(call, idToken, key);
+      // RFC 6750 §3.1: a token the authorizer refused, before any handler ran, so even a call marked
+      // once goes again, one time, under its key and a pair renewed past the refused one.
+      const refused = seen?.status === 401 && errorOf(seen.body) !== TOO_OLD;
+      if (refused && idToken !== undefined && !renewed) {
+        renewed = true;
+        // A sign-out begun meanwhile cleared the cookies: a refresh now would ask for nobody's.
+        if (moved()) return { kind: 'unauthorized' };
+        const ended = () => session.status() === 'signedOut' && !session.unanswered();
+        let next = await session.renew(idToken);
+        // A renewal the relay could not answer is asked again on a token's schedule.
+        for (let lost = 0; next === undefined && !ended() && lost < RETRIES; lost += 1) {
+          await backoff(lost);
+          if (moved()) return { kind: 'unauthorized' };
+          next = await session.renew(idToken);
+        }
+        if (moved()) return { kind: 'unauthorized' };
+        if (next === undefined) return ended() ? { kind: 'unauthorized' } : { kind: 'offline' };
+        continue;
+      }
       // A pass with no token sent nothing, so even a call marked once waits for one.
       const again = seen === undefined || seen.status === 429 || running(seen);
       if (again && (!call.once || idToken === undefined) && retry < RETRIES) {

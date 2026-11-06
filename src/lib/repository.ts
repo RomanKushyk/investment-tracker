@@ -63,8 +63,8 @@ export class ApiError extends Error {
     return this.reply.kind === 'conflict';
   }
 
-  /** No ID token to send, one the API refused, or an account that changed under the call: the
-   *  caller is not signed in as the account it asked for. */
+  /** No ID token to send, a renewal the relay refused, or an account that changed under the call:
+   *  the caller is not signed in as the account it asked for. */
   get signedOut(): boolean {
     return this.reply.kind === 'unauthorized';
   }

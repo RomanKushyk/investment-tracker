@@ -234,6 +234,65 @@ describe('a session that ends while the tab is open', { timeout: 60_000 }, () =>
   });
 });
 
+// A TOKEN THE API REFUSED WHILE THE RELAY STILL HONOURS THE SESSION: the clock jumped back, or a pair
+// was held past its expiry. One renewal and one resend, never an empty `main`.
+describe('a 401 from the API while the relay honours the session', { timeout: 60_000 }, () => {
+  /** The authorizer refuses the pair the load's refresh gave, on every route; each refresh after it
+   *  gives another pair, or none once `relayEnds`. `meRefusesAll` refuses every pair at `GET /me`. */
+  function refuseLoadPair({ relayEnds = false, meRefusesAll = false } = {}) {
+    const stale = `Bearer h.${Buffer.from(JSON.stringify(api.claims)).toString('base64url')}.s`;
+    const reach = api.fetch;
+    api.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost');
+      if (url.pathname.startsWith('/relay/auth/')) {
+        const response = await reach(input, init);
+        api.claims = { ...api.claims, renewed: 1 };
+        if (relayEnds) api.signedIn = false;
+        return response;
+      }
+      const bearer = new Headers(init?.headers).get('authorization');
+      if (bearer === stale || (meRefusesAll && url.pathname === '/relay/me')) {
+        return new Response(JSON.stringify({ message: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return reach(input, init);
+    };
+  }
+  const main = () => document.querySelector('main');
+
+  it('shows the screen once the renewed pair is sent again', async () => {
+    const { routes } = await load();
+    refuseLoadPair();
+    // A screen behind the view, which a read taken as signed out leaves empty.
+    open(routes, '/balances');
+    await waitFor(() => expect(main()?.textContent).toContain(uk.screen.balances.subtitle));
+    expect(document.getElementById('app-sidebar')).not.toBeNull();
+  });
+
+  it('moves the tab to /sign-in, saying the session ended, when the relay refuses the renewal', async () => {
+    const { routes, session } = await load();
+    refuseLoadPair({ relayEnds: true });
+    const router = open(routes, '/yield?period=1y#chart');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(session.ended()).toBe(true);
+    // The line waits for its region to settle, which counts from the screen's mount, not the move.
+    expect(await screen.findByText(ENDED)).not.toBeNull();
+    expect(router.state.location.state).toMatchObject({ from: '/yield?period=1y#chart' });
+  });
+
+  it('shows the failed screen with the shell kept when the renewed pair is refused too', async () => {
+    const { routes } = await load();
+    refuseLoadPair({ meRefusesAll: true });
+    const router = open(routes, '/balances');
+    await waitFor(() => expect(main()?.textContent).toContain(uk.boundary.failed.title));
+    expect(document.getElementById('app-sidebar')).not.toBeNull();
+    expect(router.state.location.pathname).toBe('/balances');
+  });
+});
+
 describe('a sign-in from that /sign-in', { timeout: 60_000 }, () => {
   const continueTo = new RegExp(uk.auth.signIn.continue);
   const submit = new RegExp(`^${uk.auth.password.submit}$`);

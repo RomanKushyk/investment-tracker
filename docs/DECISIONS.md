@@ -1923,8 +1923,8 @@ it, `/me`, `/me/account`, `/me/settings` and `/me/terms`, and `user-only.test.ts
 route on the view and mutations functions to the rule. THE DATA ROUTES HAVE ONE TRANSPORT, `src/lib/transport.ts`, which the
 repository calls. It sends the ID token as a bearer, and no cookie, to the API the page's host names, and hands
 each answer back as a typed reply: the six refusals apart, `scheduled` only with the day it names; a 304 and a 412, a 409 for a write still running,
-a 422 for an invalid op or for a reused key, a 413, a 428, a 401 and a 429 each as a kind of its
-own, a 401 for a sign-in too old (`insufficient_user_authentication`) marked so; any other answer by its status and body. A body goes as the text it was given, under
+a 422 for an invalid op or for a reused key, a 413, a 428 and a 429 each as a kind of its
+own, a 401 for a sign-in too old (`insufficient_user_authentication`) as a 401's kind marked so; any other answer by its status and body. A body goes as the text it was given, under
 `application/json` unless its caller names a type, as `PATCH /me/settings` must. Nothing is sent where
 the host names no API, nor where the account is signed out or a sign-out is running, the pair held
 meanwhile being the account's that is leaving; the reply to the latter two is a 401's kind. It shows
@@ -1934,7 +1934,15 @@ a sign-out when it begins, because its status changes only once the relay answer
 change when a signed-in answer names another account than the one held with no sign-out between,
 the cookie another tab replaced. A sign-out that begins, or an account change, during a call ends it
 before its next send, since the next token may be another account's and a write would carry the
-first one's tag. A 412 is never sent again.
+first one's tag. A 412 is never sent again. ANY OTHER 401 IS A TOKEN API GATEWAY'S JWT AUTHORIZER
+REFUSED before a handler ran, which RFC 6750 §3.1 lets the client renew and send again: the
+session asks the relay for a pair past the refused one, one refresh shared by every call refused
+together and none where another call has replaced it already, and the call goes again one time
+under the same `Idempotency-Key`, a call marked once included. A relay that refuses ends the
+session, a 401's kind, and the shell lands on `/sign-in` saying so; a renewal the relay could not
+answer is asked again on a token's schedule and then returned as a lost connection; none is asked
+once a sign-out has begun; a renewed pair the API refuses too is a failure by its status, the failed-screen
+state with the shell kept, never an empty screen.
 A 429, a lost connection and a 409 for a write still running are sent again after a Full Jitter wait
 drawn from up to half a second and doubled at each retry, at most four times, and are then returned
 as they stand. A token the relay could not be reached for, a refresh the network lost or a load it

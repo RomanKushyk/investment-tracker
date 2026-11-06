@@ -900,3 +900,76 @@ describe('a session that ended', () => {
     expect(session.ended()).toBe(false);
   });
 });
+
+// A PAIR THE API REFUSED, which the relay may still renew (RFC 6750 §3.1): one refresh past it, shared
+// by every call that met the same refusal, and none for a call whose pair was already replaced.
+describe('renewing a pair the API refused', () => {
+  const scripted = (...answers: RelayAnswer[]) =>
+    vi.fn<RelayCall>(async () => answers.shift() ?? REFUSED('failed'));
+
+  it('refreshes past a pair that has not reached its early refresh', async () => {
+    const relay = scripted(TOKENS('1'), TOKENS('2'));
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+
+    expect(await session.renew('id.1')).toBe('id.2');
+    expect(relay).toHaveBeenCalledTimes(2);
+    expect(await session.getIdToken()).toBe('id.2');
+  });
+
+  it('asks the relay once for every call refused together', async () => {
+    const relay = scripted(TOKENS('1'), TOKENS('2'), TOKENS('3'));
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+
+    expect(await Promise.all([session.renew('id.1'), session.renew('id.1')])).toEqual([
+      'id.2',
+      'id.2',
+    ]);
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks nothing for a refused pair another call has already replaced', async () => {
+    const relay = scripted(TOKENS('1'), TOKENS('2'), TOKENS('3'));
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+
+    expect(await session.renew('id.1')).toBe('id.2');
+    expect(await session.renew('id.1')).toBe('id.2');
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives no token when the network lost the refresh, and the session stays', async () => {
+    const session = createSession({
+      relay: scripted(TOKENS('1'), REFUSED('offline')),
+      locks: webLocks(),
+    });
+    await session.restore();
+
+    expect(await session.renew('id.1')).toBeUndefined();
+    expect(session.status()).toBe('signedIn');
+    expect(session.ended()).toBe(false);
+  });
+
+  it('gives no token when the relay refuses, and the session has ended', async () => {
+    const session = createSession({
+      relay: scripted(TOKENS('1'), REFUSED('notAuthorized')),
+      locks: webLocks(),
+    });
+    await session.restore();
+
+    expect(await session.renew('id.1')).toBeUndefined();
+    expect(session.status()).toBe('signedOut');
+    expect(session.ended()).toBe(true);
+  });
+
+  it('asks nothing once signed out', async () => {
+    const relay = scripted(TOKENS('1'), { kind: 'signedOut' });
+    const session = createSession({ relay, locks: webLocks() });
+    await session.restore();
+    await session.signOut();
+
+    expect(await session.renew('id.1')).toBeUndefined();
+    expect(relay).toHaveBeenCalledTimes(2);
+  });
+});

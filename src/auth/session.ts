@@ -48,6 +48,10 @@ export interface Session {
    *  saw a different count when it asked holds what is the earlier account's. */
   accountChanges(): number;
   getIdToken(): Promise<string | undefined>;
+  /** A new ID token past `refused`, one the API would not take: one refresh, shared by every call
+   *  refused together, and none where another call has replaced it already. Undefined when the
+   *  relay refused or could not be reached, which `status()` tells apart. */
+  renew(refused: string): Promise<string | undefined>;
   /** The `sub` of the same pair: each passkey call names it, so the relay acts only for the account
    *  this tab shows. */
   getAccount(): Promise<string | undefined>;
@@ -253,6 +257,16 @@ export function createSession({
     signingOut: () => leaving !== undefined || everywhere !== undefined,
     accountChanges: () => changes,
     getIdToken: async () => (await fresh())?.idToken,
+    async renew(refused) {
+      const before = held;
+      if (before && before.idToken !== refused && before.until - now() >= EARLY_MS) {
+        return before.idToken;
+      }
+      if (status === 'signedOut' && !unanswered) return undefined;
+      await refresh();
+      // Only a pair the refresh replaced is new: a lost one leaves the refused pair held.
+      return held !== before && held && held.until > now() ? held.idToken : undefined;
+    },
     getAccount: freshAccount,
   };
 }
