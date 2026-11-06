@@ -1,7 +1,8 @@
 # Data model — Quirenote cloud backend
 
 What is stored after the cloud move, and why; stack and cost are in `2026-08-04-cloud-stack-and-cost.md`.
-**The ledger half is settled**, the price-archive half waiting on the archive-scaling investigation.
+**The ledger half and the archive's layout are settled**; the correction overlay and the public read
+contract are still planned (*Corrections, payloads, and the read contract*).
 
 ## Principle
 
@@ -9,10 +10,12 @@ What is stored after the cloud move, and why; stack and cost are in `2026-08-04-
 recorded, and in particular it **never calculates tax** — a withholding is something Inzhur really
 performed. Rates change, ОВДП coupons are exempt while ІСІ dividends are taxed at 14% (9% ПДФО + 5%
 військовий збір), and a computed figure would eventually be wrong where a recorded one cannot be. Two
-things are stored, **transactions** and the **price archive**; there is no stored daily snapshot. Still
-open are the archive's layout and API contract, how captured prices become portfolio history without
-violating the suggest-only rule, and `netResult`, which has no `sold` term — a latent sign inversion
-that maturity will trigger.
+things are stored, **transactions** and the **price archive**; there is no stored daily snapshot. The
+archive's layout is fixed by the contracts pinned in `infra/migrations/` 001, 002 and 004
+(`docs/DECISIONS.md`, *The price archive*). Captured prices become portfolio history at read time,
+the latest observation at or before a date from either source, so nothing is written
+(*Derived figures and the seed*). `netResult` carries a `sold` term, pinned in
+`packages/core/src/derive.test.ts`.
 
 ## The ledger
 
