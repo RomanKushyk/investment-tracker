@@ -41,8 +41,9 @@ export function inzhurObservationRows(quote: InzhurQuote): ObservationRow[] {
   // ZERO IS THE PROVIDER'S NULL FOR `nav`, AND ONLY FOR `nav`: every BOND carries `"nav": 0`
   // because a bond has no net asset value and the feed fills the field rather than omitting it.
   // A sentinel is not a measurement: written, it would put a zero NAV on every bond-day, and no
-  // code deletes an archive row. Not generalised to `buy` or `sell`, where a zero is an
-  // observation until something measures otherwise.
+  // code deletes an archive row. A `sell` of zero never reaches here: the parser skips it as no
+  // quote (*External sources*). Not generalised to `buy`, where a zero is an observation until
+  // something measures otherwise.
   if (quote.navUAH != null && quote.navUAH > 0) {
     rows.push({ ref: quote.ref, basis: BASIS_NAV, price: quote.navUAH, ...shared });
   }

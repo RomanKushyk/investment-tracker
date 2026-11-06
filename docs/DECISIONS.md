@@ -960,8 +960,13 @@ user's click, its bond offer page, which the capture reads, its price files and 
 list that names them, its app's fund charts, and the National Bank — daily fair-value files and
 the official rate. The
 offer page carries the dealer quote: the catalogue in the page's serialized state, decoded with
-`devalue`, the site's own serializer, and the bonds' schedules in one island's props, the state
-carrying them empty. The page names a fund by its core id alone, so a fund is keyed through the
+`devalue`, the site's own serializer, and the bonds' schedules in the CMS zone entry
+`assets.bond-units`, found by that UID in whichever island's props hold it, the state carrying them
+empty. They are compared as the parser reads them: two that read differently for a bond, or one
+it cannot read in full, leave the bond with no schedule, and one listing it with no rows says
+nothing. A sell price that is not
+above zero is no quote: the entry is skipped as `no_price`, so it is neither observed nor held to a
+schedule. The page names a fund by its core id alone, so a fund is keyed through the
 id/slug pairs the asset feed published, and an id outside them is skipped by name. The price files
 are listed in the provider's CMS, `api.inzhur.reit/cms`, one document category per fund, which each
 fund's offer page requests to render its documents. The import sends the page's own request for a
@@ -995,7 +1000,13 @@ fail loudly, it stops anyone looking again. RFC 9309 binds the URI requested and
 reached by a redirect; Scrapy, Nutch and Heritrix each check the target before requesting it. The
 offer page serves every price, rate and schedule the feed served for the instruments it listed,
 and reshaped into the feed's entries it is read by the feed's own parser, so the archive keeps one
-basis across the switch. NBU Board Resolution 148 sets a date's official rate on the working day
+basis across the switch. Strapi, the CMS behind the page, keys every dynamic-zone entry by
+`__component`, the component's UID, and the UID outlives the island the page renders it in. Of two
+entries that disagree, either could be the stale one, and a guessed schedule reaches `bond_terms`
+as a revision where a missing one is refused and counted. A matured bond leaves quotation (ASX
+removes a bond from Official Quotation following its maturity), and price validation treats a zero
+price as an error to raise, not a value (Infront Data Manager's Zero Price Check); the provider
+has listed a matured bond as `active` at 0. NBU Board Resolution 148 sets a date's official rate on the working day
 before it takes effect, and weekends and holidays keep the last one, so every date answers and a
 stored row is final. A Lambda's module scope cannot hold the day's rate, each concurrent request
 running in an environment of its own, so it is a row. Serving the last good rate on a failure is
@@ -1014,7 +1025,11 @@ published — the document list and the chart are read because the provider's ow
 app, send those requests. · The chart as a nightly source, or the archive rebuilt from it: it
 carries no `sell`, the one basis `/view` reads, prices two instruments where the page prices every
 listed bond and fund, and restates past days the capture observed. · A
-hand-written decoder for the page's state: the site's serializer reads it exactly. · The rate in
+hand-written decoder for the page's state: the site's serializer reads it exactly. · Naming the
+island that holds the schedules: its export is the generic `default` and its URL carries a build
+hash, so the next re-layout breaks it again. · A regex over the page text for `paymentSchedule`: it
+reads a schedule without the ISIN it belongs to. · Exempting a matured bond from the schedule rule
+instead: its 0 would still be archived as a price. · The rate in
 the archive: a user stack cannot write it, and the archive keeps the provider's conversion out on
 purpose. · A rate fetched live per request and cached in memory: the next concurrent request runs
 where that memory is not. · A rate the person types, or fetches from the browser on a press and

@@ -36,11 +36,16 @@ the script is decoded with `devalue.unflatten` and never read by regex. Its key
   those pairs. A fund's own offer page names its id too, as `assetId` in its island props.
 - **Bonds carry `nav: 0`**, as they did in the feed, so a parser that ratios across the catalogue
   divides by it.
+- **A matured bond can be listed `active` with every price 0**, an empty schedule and no segment
+  in the zone entry below. A price of 0 is no quote, and the parser skips it as `no_price`.
 
-## The schedules sit in an island's props
+## The schedules sit in a zone entry, in whichever island holds it
 
-The `OffersWelcome` island's `props` attribute carries each bond's schedule, under
-`data.Sections[].bondSegments.data[].attributes`: the ISIN at `asset.data.attributes.isin`, beside
+The bonds' schedules are the Strapi dynamic-zone entry whose `__component` is `assets.bond-units`,
+under its `bondSegments.data[].attributes`. Which island's props carry it, and at what path, is the
+page's layout and changes with it, so the entry is found by its UID alone; another island may carry
+the same UID with no segments. Each segment holds the ISIN at
+`asset.data.attributes.isin`, beside
 `paymentSchedule: [{id, date, amount}]` — amounts in kopecks as strings, dates as instants. The
 encoding is Astro's, not devalue's: every value is a `[type, value]` pair (`PROP_TYPE` in astro's
 `runtime/server/serialize.ts`), 0 for a value or an object of pairs and 1 for an array, inside an

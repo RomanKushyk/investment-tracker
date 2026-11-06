@@ -64,8 +64,9 @@ export interface SkippedEntry {
    * `not_an_array` — the payload was not a list, so nothing else can be said.
    * `shape` — validation failed; `fields` names what.
    * `no_ref` — it validated but carries neither ISIN nor slug.
+   * `no_price` — its sell price is not above zero, which is no quote.
    */
-  reason: 'not_an_array' | 'shape' | 'no_ref';
+  reason: 'not_an_array' | 'shape' | 'no_ref' | 'no_price';
   fields?: string[];
 }
 
@@ -136,7 +137,7 @@ function feedDate(raw: string): string | undefined {
   return Number.isNaN(ms) ? undefined : kyivDateIso(new Date(ms));
 }
 
-function pickSchedule(rows: unknown[] | undefined): InzhurPayment[] {
+export function pickSchedule(rows: unknown[] | undefined): InzhurPayment[] {
   const payments: InzhurPayment[] = [];
   for (const row of rows ?? []) {
     const parsed = paymentSchema.safeParse(row);
@@ -199,6 +200,11 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
     const ref = isin !== '' ? isin : (slug?.trim() ?? '');
     if (ref === '') {
       skipped.push({ ref: labelOf(raw, index), reason: 'no_ref' });
+      return;
+    }
+    // A price of nothing is no quote: the provider lists a matured bond at 0 (*External sources*).
+    if (!(details.prices.sellUAH > 0)) {
+      skipped.push({ ref, reason: 'no_price' });
       return;
     }
     const maturity =

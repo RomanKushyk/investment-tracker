@@ -343,6 +343,34 @@ describe('tolerance — a bad entry never kills the parse', () => {
     expect(parsed.skipped[0].fields).toContain('assetDetails.prices.sellUAH');
   });
 
+  // A price of nothing is no quote: the provider lists a matured bond at 0 (*External sources*).
+  it('skips an entry priced at zero or below as no_price, bond or fund, and keeps the rest', () => {
+    const cheap = { slug: 'cheap', assetDetails: { prices: { sellUAH: 0.01 } } };
+    const parsed = parseAssetsFeed([
+      {
+        assetDetails: {
+          isin: 'UA4000227490',
+          maturityDate: '2026-02-18T00:00:00.000Z',
+          prices: { sellUAH: 0, buyUAH: 0, navUAH: 0 },
+          paymentSchedule: [],
+        },
+      },
+      { slug: 'inzhur-miltech', assetDetails: { prices: { sellUAH: 0 } } },
+      { assetDetails: { isin: 'UA0000000001', prices: { sellUAH: -1057.67 } } },
+      cheap,
+      ...fixture,
+    ]);
+    expect(parsed.skipped).toEqual([
+      { ref: 'UA4000227490', reason: 'no_price' },
+      { ref: 'inzhur-miltech', reason: 'no_price' },
+      { ref: 'UA0000000001', reason: 'no_price' },
+    ]);
+    expect(parsed.entries).toEqual([
+      { kind: 'fund', ref: 'cheap', sellUAH: 0.01, paymentSchedule: [] },
+      ...feed.entries,
+    ]);
+  });
+
   it('deduplicates repeated paths so one rename reads as one problem', () => {
     const parsed = parseAssetsFeed([{ slug: 'x', assetDetails: { prices: {} } }]);
     const fields = parsed.skipped[0].fields ?? [];

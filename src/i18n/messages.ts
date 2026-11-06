@@ -310,6 +310,7 @@ export const en = {
       not_an_array: 'the response was not a list of assets',
       shape: 'unreadable fields',
       no_ref: 'no ISIN or slug to identify it',
+      no_price: 'no price above zero',
     },
     allClean: (entries: number, at: string) => `All ${entries} feed entries read cleanly · ${at}`,
     failed: (count: number) =>
@@ -2035,6 +2036,7 @@ export const uk: Dict = {
       not_an_array: 'відповідь не була списком активів',
       shape: 'нечитабельні поля',
       no_ref: 'немає ISIN чи слаґа, щоб упізнати запис',
+      no_price: 'немає ціни понад нуль',
     },
     allClean: (entries: number, at: string) =>
       `Усі ${entries} ${plural(entries, 'запис', 'записи', 'записів')} стрічки прочитано чисто · ${at}`,

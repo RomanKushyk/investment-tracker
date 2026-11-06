@@ -28,6 +28,14 @@ const PAGE = readFileSync(
   ),
   'utf8',
 );
+// The schedules' zone entry in another island, and a matured bond listed at zero.
+const MOVED = readFileSync(
+  new URL(
+    '../../packages/core/src/inzhur/__fixtures__/offer-ovdp-2026-11-06.html',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 /** The page without one element, counted first so a pattern that matched nothing cannot pass. */
 function without(pattern: RegExp): string {
@@ -140,28 +148,59 @@ describe('observe reads each stored payload by the parser that wrote it', () => 
   });
 });
 
-describe('a capture of a page missing what it reads is a recorded failure', () => {
-  const AS_OF = '2026-09-25';
+const AS_OF = '2026-09-25';
 
-  async function captureOf(body: string) {
-    await schema();
-    // NBU settled for the day, so the run asks only the provider under test.
-    await store('nbu_fv', AS_OF, '', '1');
-    vi.stubEnv('FEED_URL', await provider(body));
-    const raised = await handler({ asOf: AS_OF }).catch((err: unknown) => err);
-    const { rows } = await db.query<{
-      ok: boolean;
-      error: string | null;
-      payload_bytes: number;
-      parser_version: string;
-    }>(
-      `SELECT ok, error, payload_bytes, parser_version
-         FROM price_capture WHERE source = 'inzhur' AND as_of = $1`,
+async function captureOf(body: string) {
+  await schema();
+  // NBU settled for the day, so the run asks only the provider under test.
+  await store('nbu_fv', AS_OF, '', '1');
+  vi.stubEnv('FEED_URL', await provider(body));
+  const raised = await handler({ asOf: AS_OF }).catch((err: unknown) => err);
+  const { rows } = await db.query<{
+    ok: boolean;
+    error: string | null;
+    payload_bytes: number;
+    parser_version: string;
+    skipped_refs: string | null;
+  }>(
+    `SELECT ok, error, payload_bytes, parser_version, skipped_refs
+       FROM price_capture WHERE source = 'inzhur' AND as_of = $1`,
+    [AS_OF],
+  );
+  return { raised, rows };
+}
+
+describe('a capture of the page once its schedules moved island', () => {
+  it('records no error, writes every bond’s terms, and names the bond listed at zero', async () => {
+    const { raised, rows } = await captureOf(MOVED);
+    expect(raised).not.toBeInstanceOf(Error);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ ok: true, error: null, parser_version: '2' });
+    expect(rows[0].skipped_refs).toBe('UA4000227490:no_price');
+
+    const terms = await db.query<{ ref: string }>(
+      `SELECT ref FROM bond_terms WHERE as_of = $1 ORDER BY ref`,
       [AS_OF],
     );
-    return { raised, rows };
-  }
+    expect(terms.rows).toHaveLength(27);
+    expect(terms.rows.map((t) => t.ref)).not.toContain('UA4000227490');
+    const zero = await db.query(`SELECT 1 FROM price_observation WHERE instrument_ref = $1`, [
+      'UA4000227490',
+    ]);
+    expect(zero.rows).toEqual([]);
+  });
 
+  it('still names every bond when neither island carries the zone entry', async () => {
+    const islands = /<astro-island\b[\s\S]*?<\/astro-island>/g;
+    expect(MOVED.match(islands)).toHaveLength(2);
+    const { rows } = await captureOf(MOVED.replace(islands, ''));
+    expect(rows[0]).toMatchObject({ ok: false });
+    expect(rows[0].error).toMatch(/^schedule absent: /);
+    expect(rows[0].error?.split(',')).toHaveLength(27);
+  });
+});
+
+describe('a capture of a page missing what it reads is a recorded failure', () => {
   it('names the bonds when the page carries no schedules, and keeps the page', async () => {
     const body = without(/<astro-island\b[\s\S]*?<\/astro-island>/);
     const { raised, rows } = await captureOf(body);

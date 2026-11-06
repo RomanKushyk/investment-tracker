@@ -3,7 +3,7 @@
 // into the feed's own entries, so `parseAssetsFeed` stays the one reader of both.
 import { unflatten } from 'devalue';
 
-import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from './parse';
+import { parseAssetsFeed, pickSchedule, type ParsedFeed, type SkippedEntry } from './parse';
 
 /** The slug the feed published beside each fund's core id: the page names a fund by id alone. An
  *  id missing here is skipped with the id named, never keyed by a guess. */
@@ -20,8 +20,11 @@ const STATE =
   /<script\b(?=[^>]*\bclass="it-astro-state")(?=[^>]*\btype="application\/json\+devalue")[^>]*>([\s\S]*?)<\/script>/;
 const CATALOGUE = '@inox-tools/request-nanostores:assets';
 
-/** The one island whose props carry the bonds' schedules: the catalogue carries them empty. */
-const SCHEDULES = /<astro-island\b[^>]*\bcomponent-export="OffersWelcome"[^>]*\bprops="([^"]*)"/;
+// Every island's props: the page moves the schedules' zone entry between islands, and the
+// catalogue carries them empty.
+const ISLAND_PROPS = /<astro-island\b[^>]*\sprops="([^"]*)"/g;
+/** The CMS's UID for the zone entry holding the schedules, its identity wherever it sits. */
+const BOND_UNITS = 'assets.bond-units';
 
 const ENTITY = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|(quot|amp|lt|gt|apos));/g;
 const NAMED: Readonly<Record<string, string>> = {
@@ -105,26 +108,63 @@ function plain(v: unknown): unknown {
   return out;
 }
 
-function readSchedules(html: string): Map<string, unknown[]> {
-  const schedules = new Map<string, unknown[]>();
-  const attr = SCHEDULES.exec(html)?.[1];
-  if (attr === undefined) return schedules;
-  let props: unknown;
-  try {
-    props = JSON.parse(unescapeAttribute(attr));
-  } catch {
-    // No schedules rather than a throw, which would cost the day's prices too: the missing
-    // schedules are the capture's to report.
-    return schedules;
+/** Pushes every `assets.bond-units` entry under `v`, at any depth of Astro's pairs, onto `found`. */
+function bondUnits(v: unknown, found: unknown[]): void {
+  const e = encoded(v);
+  if (e?.[0] === 1 && Array.isArray(e[1])) {
+    for (const x of e[1]) bondUnits(x, found);
+  } else if (e?.[0] === 0 && e[1] !== null && typeof e[1] === 'object' && !Array.isArray(e[1])) {
+    if (plain(field(v, '__component')) === BOND_UNITS) found.push(v);
+    for (const x of Object.values(e[1])) bondUnits(x, found);
   }
-  const data = (props as { data?: unknown } | null)?.data;
-  for (const section of items(field(data, 'Sections'))) {
-    for (const segment of items(field(field(section, 'bondSegments'), 'data'))) {
+}
+
+const UNREADABLE = 'unreadable';
+
+/** What the parser reads of a schedule, whole or nothing: `UNREADABLE` when it drops any row. */
+function reading(rows: unknown): string {
+  if (!Array.isArray(rows)) return UNREADABLE;
+  const payments = pickSchedule(rows);
+  return payments.length === rows.length ? JSON.stringify(payments) : UNREADABLE;
+}
+
+function readSchedules(html: string): Map<string, unknown[]> {
+  const entries: unknown[] = [];
+  for (const [, attr] of html.matchAll(ISLAND_PROPS)) {
+    try {
+      const props: unknown = JSON.parse(unescapeAttribute(attr));
+      const found: unknown[] = [];
+      for (const v of Object.values(props as object)) bondUnits(v, found);
+      entries.push(...found);
+    } catch {
+      // An island unparsed or too deep to walk reads as none, not a throw costing the day's
+      // prices: a missing schedule is the capture's to report.
+    }
+  }
+
+  const schedules = new Map<string, unknown[]>();
+  const said = new Map<string, string>();
+  for (const entry of entries) {
+    for (const segment of items(field(field(entry, 'bondSegments'), 'data'))) {
       const attributes = field(segment, 'attributes');
       const asset = field(field(field(attributes, 'asset'), 'data'), 'attributes');
       const isin = plain(field(asset, 'isin'));
-      const rows = plain(field(attributes, 'paymentSchedule'));
-      if (typeof isin === 'string' && Array.isArray(rows)) schedules.set(isin.trim(), rows);
+      if (typeof isin !== 'string') continue;
+      const key = isin.trim();
+      const raw = field(attributes, 'paymentSchedule');
+      const rows = plain(raw);
+      const read = reading(rows);
+      // No field, a null one or no rows says nothing about the bond's schedule.
+      if (raw === undefined || rows === null || read === '[]') continue;
+      const seen = said.get(key);
+      // Compared as the parser reads them; a disagreement or an unreadable copy leaves none, since
+      // a guess reaches `bond_terms` as a revision where a missing schedule is refused and counted.
+      if (seen === undefined) {
+        said.set(key, read);
+        schedules.set(key, read === UNREADABLE ? [] : (rows as unknown[]));
+      } else if (seen !== read) {
+        schedules.set(key, []);
+      }
     }
   }
   return schedules;

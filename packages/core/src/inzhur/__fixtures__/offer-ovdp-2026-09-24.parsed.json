@@ -1,0 +1,1364 @@
+{
+  "entries": [
+    {
+      "kind": "fund",
+      "ref": "inzhur-miltech",
+      "sellUAH": 1021.9377,
+      "buyUAH": 1027.0731,
+      "navUAH": 1027.0731,
+      "paymentSchedule": [],
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000234223",
+      "sellUAH": 1053.7,
+      "buyUAH": 1055.53,
+      "navUAH": 0,
+      "maturity": "2027-06-09",
+      "paymentSchedule": [
+        {
+          "date": "2025-12-10",
+          "amount": 81
+        },
+        {
+          "date": "2026-06-10",
+          "amount": 81
+        },
+        {
+          "date": "2026-12-09",
+          "amount": 81
+        },
+        {
+          "date": "2027-06-09",
+          "amount": 81
+        },
+        {
+          "date": "2027-06-09",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.4,
+        "sell": 15.7
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000233712",
+      "sellUAH": 1075.92,
+      "buyUAH": 1077.32,
+      "navUAH": 0,
+      "maturity": "2027-11-03",
+      "paymentSchedule": [
+        {
+          "date": "2025-11-05",
+          "amount": 82.3
+        },
+        {
+          "date": "2026-05-06",
+          "amount": 82.3
+        },
+        {
+          "date": "2026-11-04",
+          "amount": 82.3
+        },
+        {
+          "date": "2027-05-05",
+          "amount": 82.3
+        },
+        {
+          "date": "2027-11-03",
+          "amount": 82.3
+        },
+        {
+          "date": "2027-11-03",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.65,
+        "sell": 15.8
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000235196",
+      "sellUAH": 1107.09,
+      "buyUAH": 1110.88,
+      "navUAH": 0,
+      "maturity": "2028-04-12",
+      "paymentSchedule": [
+        {
+          "date": "2025-10-15",
+          "amount": 89
+        },
+        {
+          "date": "2026-04-15",
+          "amount": 89
+        },
+        {
+          "date": "2026-10-14",
+          "amount": 89
+        },
+        {
+          "date": "2027-04-14",
+          "amount": 89
+        },
+        {
+          "date": "2027-10-13",
+          "amount": 89
+        },
+        {
+          "date": "2028-04-12",
+          "amount": 89
+        },
+        {
+          "date": "2028-04-12",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.05,
+        "sell": 16.35
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000235782",
+      "sellUAH": 1084.77,
+      "buyUAH": 1090.69,
+      "navUAH": 0,
+      "maturity": "2028-11-29",
+      "paymentSchedule": [
+        {
+          "date": "2025-12-03",
+          "amount": 89
+        },
+        {
+          "date": "2026-06-03",
+          "amount": 89
+        },
+        {
+          "date": "2026-12-02",
+          "amount": 89
+        },
+        {
+          "date": "2027-06-03",
+          "amount": 89
+        },
+        {
+          "date": "2027-12-01",
+          "amount": 89
+        },
+        {
+          "date": "2028-05-31",
+          "amount": 89
+        },
+        {
+          "date": "2028-11-29",
+          "amount": 89
+        },
+        {
+          "date": "2028-11-29",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.45,
+        "sell": 16.8
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000239008",
+      "sellUAH": 1040.16,
+      "buyUAH": 1045.45,
+      "navUAH": 0,
+      "maturity": "2028-06-14",
+      "paymentSchedule": [
+        {
+          "date": "2026-06-17",
+          "amount": 78.9
+        },
+        {
+          "date": "2026-12-16",
+          "amount": 78.9
+        },
+        {
+          "date": "2027-06-16",
+          "amount": 78.9
+        },
+        {
+          "date": "2027-12-15",
+          "amount": 78.9
+        },
+        {
+          "date": "2028-06-14",
+          "amount": 78.9
+        },
+        {
+          "date": "2028-06-14",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.21,
+        "sell": 16.6
+      },
+      "status": "active"
+    },
+    {
+      "kind": "fund",
+      "ref": "ocean-plaza",
+      "sellUAH": 4088.78,
+      "buyUAH": 4088.78,
+      "navUAH": 0,
+      "paymentSchedule": [],
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000237804",
+      "sellUAH": 1024.46,
+      "buyUAH": 1028.12,
+      "navUAH": 0,
+      "maturity": "2028-03-22",
+      "paymentSchedule": [
+        {
+          "date": "2026-03-25",
+          "amount": 87.5
+        },
+        {
+          "date": "2026-09-23",
+          "amount": 87.5
+        },
+        {
+          "date": "2027-03-24",
+          "amount": 87.5
+        },
+        {
+          "date": "2027-09-22",
+          "amount": 87.5
+        },
+        {
+          "date": "2028-03-22",
+          "amount": 87.5
+        },
+        {
+          "date": "2028-03-22",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16,
+        "sell": 16.3
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000230809",
+      "sellUAH": 1084.58,
+      "buyUAH": 1084.58,
+      "navUAH": 0,
+      "maturity": "2026-03-18",
+      "paymentSchedule": [
+        {
+          "date": "2026-03-18",
+          "amount": 85
+        },
+        {
+          "date": "2026-03-18",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.1,
+        "sell": 14.25
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000238281",
+      "sellUAH": 1045.84,
+      "buyUAH": 1045.84,
+      "navUAH": 0,
+      "maturity": "2026-12-16",
+      "paymentSchedule": [
+        {
+          "date": "2025-12-17",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-06-17",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-12-16",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-12-16",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.1,
+        "sell": 15.1
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000235865",
+      "sellUAH": 1081.32,
+      "buyUAH": 1081.33,
+      "navUAH": 0,
+      "maturity": "2026-09-16",
+      "paymentSchedule": [
+        {
+          "date": "2025-09-17",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-03-18",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-09-16",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-09-16",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.2,
+        "sell": 14.5
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000233332",
+      "sellUAH": 1075.57,
+      "buyUAH": 1075.58,
+      "navUAH": 0,
+      "maturity": "2026-04-29",
+      "paymentSchedule": [
+        {
+          "date": "2025-04-30",
+          "amount": 76
+        },
+        {
+          "date": "2025-10-29",
+          "amount": 76
+        },
+        {
+          "date": "2026-04-29",
+          "amount": 76
+        },
+        {
+          "date": "2026-04-29",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.25,
+        "sell": 14.75
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "fund",
+      "ref": "zhytniy",
+      "sellUAH": 1021.45,
+      "buyUAH": 1021.45,
+      "navUAH": 0,
+      "paymentSchedule": [],
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000230635",
+      "sellUAH": 1080.74,
+      "buyUAH": 1080.77,
+      "navUAH": 0,
+      "maturity": "2025-04-30",
+      "paymentSchedule": [
+        {
+          "date": "2025-04-30",
+          "amount": 81.2
+        },
+        {
+          "date": "2025-04-30",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.57,
+        "sell": 15.57
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000231195",
+      "sellUAH": 1032.79,
+      "buyUAH": 1035.38,
+      "navUAH": 0,
+      "maturity": "2027-08-25",
+      "paymentSchedule": [
+        {
+          "date": "2026-08-26",
+          "amount": 87.5
+        },
+        {
+          "date": "2027-02-24",
+          "amount": 87.5
+        },
+        {
+          "date": "2027-08-25",
+          "amount": 87.5
+        },
+        {
+          "date": "2027-08-25",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.47,
+        "sell": 15.8
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000239016",
+      "sellUAH": 1027.9,
+      "buyUAH": 1027.9,
+      "navUAH": 0,
+      "maturity": "2027-07-21",
+      "paymentSchedule": [
+        {
+          "date": "2026-07-22",
+          "amount": 75.75
+        },
+        {
+          "date": "2027-01-20",
+          "amount": 75.75
+        },
+        {
+          "date": "2027-07-21",
+          "amount": 75.75
+        },
+        {
+          "date": "2027-07-21",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.5,
+        "sell": 15.5
+      },
+      "status": "active"
+    },
+    {
+      "kind": "fund",
+      "ref": "inzhur-energy",
+      "sellUAH": 6617.9051,
+      "buyUAH": 6634.4499,
+      "navUAH": 6617.9051,
+      "paymentSchedule": [],
+      "status": "active"
+    },
+    {
+      "kind": "fund",
+      "ref": "inzhur-reit",
+      "sellUAH": 11.5866,
+      "buyUAH": 11.6156,
+      "navUAH": 11.5866,
+      "paymentSchedule": [],
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000229264",
+      "sellUAH": 1088.6,
+      "buyUAH": 1088.62,
+      "navUAH": 0,
+      "maturity": "2025-10-15",
+      "paymentSchedule": [
+        {
+          "date": "2025-04-16",
+          "amount": 89
+        },
+        {
+          "date": "2025-10-15",
+          "amount": 89
+        },
+        {
+          "date": "2025-10-15",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 12.75,
+        "sell": 13.5
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000236475",
+      "sellUAH": 1121.47,
+      "buyUAH": 1121.47,
+      "navUAH": 0,
+      "maturity": "2028-09-27",
+      "paymentSchedule": [
+        {
+          "date": "2025-10-01",
+          "amount": 88.85
+        },
+        {
+          "date": "2026-04-01",
+          "amount": 88.85
+        },
+        {
+          "date": "2026-09-30",
+          "amount": 88.85
+        },
+        {
+          "date": "2027-03-31",
+          "amount": 88.85
+        },
+        {
+          "date": "2027-09-29",
+          "amount": 88.85
+        },
+        {
+          "date": "2028-03-29",
+          "amount": 88.85
+        },
+        {
+          "date": "2028-09-27",
+          "amount": 88.85
+        },
+        {
+          "date": "2028-09-27",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.3,
+        "sell": 16.3
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000236624",
+      "sellUAH": 1073.16,
+      "buyUAH": 1073.34,
+      "navUAH": 0,
+      "maturity": "2026-10-14",
+      "paymentSchedule": [
+        {
+          "date": "2026-04-15",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-10-14",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-10-14",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.3,
+        "sell": 14.6
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000234413",
+      "sellUAH": 1035.8,
+      "buyUAH": 1037.61,
+      "navUAH": 0,
+      "maturity": "2027-01-13",
+      "paymentSchedule": [
+        {
+          "date": "2026-01-14",
+          "amount": 83.05
+        },
+        {
+          "date": "2026-07-15",
+          "amount": 83.05
+        },
+        {
+          "date": "2027-01-13",
+          "amount": 83.05
+        },
+        {
+          "date": "2027-01-13",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.4,
+        "sell": 15
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000238992",
+      "sellUAH": 1064.52,
+      "buyUAH": 1071.95,
+      "navUAH": 0,
+      "maturity": "2029-04-25",
+      "paymentSchedule": [
+        {
+          "date": "2026-04-29",
+          "amount": 80.8
+        },
+        {
+          "date": "2026-10-28",
+          "amount": 80.8
+        },
+        {
+          "date": "2027-04-28",
+          "amount": 80.8
+        },
+        {
+          "date": "2027-10-27",
+          "amount": 80.8
+        },
+        {
+          "date": "2028-04-26",
+          "amount": 80.8
+        },
+        {
+          "date": "2028-10-25",
+          "amount": 80.8
+        },
+        {
+          "date": "2029-04-25",
+          "amount": 80.8
+        },
+        {
+          "date": "2029-04-25",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.51,
+        "sell": 16.9
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000232599",
+      "sellUAH": 1072.85,
+      "buyUAH": 1072.88,
+      "navUAH": 0,
+      "maturity": "2025-10-01",
+      "paymentSchedule": [
+        {
+          "date": "2025-10-01",
+          "amount": 73.25
+        },
+        {
+          "date": "2025-10-01",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 12.75,
+        "sell": 13.75
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000236228",
+      "sellUAH": 1012.75,
+      "buyUAH": 1014.05,
+      "navUAH": 0,
+      "maturity": "2027-03-10",
+      "paymentSchedule": [
+        {
+          "date": "2026-03-11",
+          "amount": 85.5
+        },
+        {
+          "date": "2026-09-09",
+          "amount": 85.5
+        },
+        {
+          "date": "2027-03-10",
+          "amount": 85.5
+        },
+        {
+          "date": "2027-03-10",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.4,
+        "sell": 15.7
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000237416",
+      "sellUAH": 1058.31,
+      "buyUAH": 1059.24,
+      "navUAH": 0,
+      "maturity": "2026-11-18",
+      "paymentSchedule": [
+        {
+          "date": "2025-11-19",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-05-20",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-11-18",
+          "amount": 81.75
+        },
+        {
+          "date": "2026-11-18",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.1,
+        "sell": 14.7
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000239115",
+      "sellUAH": 1002.02,
+      "buyUAH": 1003.57,
+      "navUAH": 0,
+      "maturity": "2027-09-15",
+      "paymentSchedule": [
+        {
+          "date": "2026-09-16",
+          "amount": 75.9
+        },
+        {
+          "date": "2027-03-17",
+          "amount": 75.9
+        },
+        {
+          "date": "2027-09-15",
+          "amount": 75.9
+        },
+        {
+          "date": "2027-09-15",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.76,
+        "sell": 15.95
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000233704",
+      "sellUAH": 1076.53,
+      "buyUAH": 1078.7,
+      "navUAH": 0,
+      "maturity": "2027-04-14",
+      "paymentSchedule": [
+        {
+          "date": "2025-04-16",
+          "amount": 80.85
+        },
+        {
+          "date": "2025-10-15",
+          "amount": 80.85
+        },
+        {
+          "date": "2026-04-15",
+          "amount": 80.85
+        },
+        {
+          "date": "2026-10-14",
+          "amount": 80.85
+        },
+        {
+          "date": "2027-04-14",
+          "amount": 80.85
+        },
+        {
+          "date": "2027-04-14",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.4,
+        "sell": 15.85
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000228910",
+      "sellUAH": 1090.33,
+      "buyUAH": 1090.38,
+      "navUAH": 0,
+      "maturity": "2025-07-23",
+      "paymentSchedule": [
+        {
+          "date": "2025-07-23",
+          "amount": 90.75
+        },
+        {
+          "date": "2025-07-23",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 12.5,
+        "sell": 14
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000237556",
+      "sellUAH": 1091.25,
+      "buyUAH": 1098.43,
+      "navUAH": 0,
+      "maturity": "2028-11-15",
+      "paymentSchedule": [
+        {
+          "date": "2025-11-19",
+          "amount": 89
+        },
+        {
+          "date": "2026-05-20",
+          "amount": 89
+        },
+        {
+          "date": "2026-11-18",
+          "amount": 89
+        },
+        {
+          "date": "2027-05-19",
+          "amount": 89
+        },
+        {
+          "date": "2027-11-17",
+          "amount": 89
+        },
+        {
+          "date": "2028-05-17",
+          "amount": 89
+        },
+        {
+          "date": "2028-11-15",
+          "amount": 89
+        },
+        {
+          "date": "2028-11-15",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.37,
+        "sell": 16.8
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000239040",
+      "sellUAH": 1064.95,
+      "buyUAH": 1069.39,
+      "navUAH": 0,
+      "maturity": "2028-04-26",
+      "paymentSchedule": [
+        {
+          "date": "2026-10-28",
+          "amount": 79.25
+        },
+        {
+          "date": "2027-04-28",
+          "amount": 79.25
+        },
+        {
+          "date": "2027-10-27",
+          "amount": 79.25
+        },
+        {
+          "date": "2028-04-26",
+          "amount": 79.25
+        },
+        {
+          "date": "2028-04-26",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.1,
+        "sell": 16.45
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000238976",
+      "sellUAH": 1004.2,
+      "buyUAH": 1004.2,
+      "navUAH": 0,
+      "maturity": "2027-03-24",
+      "paymentSchedule": [
+        {
+          "date": "2026-03-25",
+          "amount": 78.4
+        },
+        {
+          "date": "2026-09-23",
+          "amount": 78.4
+        },
+        {
+          "date": "2027-03-24",
+          "amount": 78.4
+        },
+        {
+          "date": "2027-03-24",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.9,
+        "sell": 14.9
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA40002312K7",
+      "sellUAH": 1073.19,
+      "buyUAH": 1073.23,
+      "navUAH": 0,
+      "maturity": "2025-09-10",
+      "paymentSchedule": [
+        {
+          "date": "2025-03-12",
+          "amount": 73.6
+        },
+        {
+          "date": "2025-09-10",
+          "amount": 73.6
+        },
+        {
+          "date": "2025-09-10",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 12.75,
+        "sell": 14
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000235378",
+      "sellUAH": 1081.22,
+      "buyUAH": 1081.23,
+      "navUAH": 0,
+      "maturity": "2026-08-19",
+      "paymentSchedule": [
+        {
+          "date": "2026-02-18",
+          "amount": 81.65
+        },
+        {
+          "date": "2026-08-19",
+          "amount": 81.65
+        },
+        {
+          "date": "2026-08-19",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.15,
+        "sell": 14.6
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000207518",
+      "sellUAH": 998.99,
+      "buyUAH": 1001.5,
+      "navUAH": 0,
+      "maturity": "2027-05-26",
+      "paymentSchedule": [
+        {
+          "date": "2025-11-26",
+          "amount": 48.95
+        },
+        {
+          "date": "2026-05-27",
+          "amount": 48.95
+        },
+        {
+          "date": "2026-11-25",
+          "amount": 48.95
+        },
+        {
+          "date": "2027-05-26",
+          "amount": 48.95
+        },
+        {
+          "date": "2027-05-26",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.3,
+        "sell": 15.75
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000231187",
+      "sellUAH": 1075.81,
+      "buyUAH": 1075.84,
+      "navUAH": 0,
+      "maturity": "2025-06-04",
+      "paymentSchedule": [
+        {
+          "date": "2025-06-04",
+          "amount": 76.25
+        },
+        {
+          "date": "2025-06-04",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.05,
+        "sell": 15.05
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000239107",
+      "sellUAH": 1016.04,
+      "buyUAH": 1021.36,
+      "navUAH": 0,
+      "maturity": "2029-02-07",
+      "paymentSchedule": [
+        {
+          "date": "2027-02-10",
+          "amount": 80.35
+        },
+        {
+          "date": "2027-08-11",
+          "amount": 80.35
+        },
+        {
+          "date": "2028-02-09",
+          "amount": 80.35
+        },
+        {
+          "date": "2028-08-09",
+          "amount": 80.35
+        },
+        {
+          "date": "2029-02-07",
+          "amount": 80.35
+        },
+        {
+          "date": "2029-02-07",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.6,
+        "sell": 16.9
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000233696",
+      "sellUAH": 1075.03,
+      "buyUAH": 1075.04,
+      "navUAH": 0,
+      "maturity": "2026-02-04",
+      "paymentSchedule": [
+        {
+          "date": "2026-02-04",
+          "amount": 75.45
+        },
+        {
+          "date": "2026-02-04",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14,
+        "sell": 14.1
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000230270",
+      "sellUAH": 1062.93,
+      "buyUAH": 1065.66,
+      "navUAH": 0,
+      "maturity": "2027-07-07",
+      "paymentSchedule": [
+        {
+          "date": "2027-01-06",
+          "amount": 92.5
+        },
+        {
+          "date": "2027-07-07",
+          "amount": 92.5
+        },
+        {
+          "date": "2027-07-07",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 15.35,
+        "sell": 15.75
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000239081",
+      "sellUAH": 1004.9,
+      "buyUAH": 1016.34,
+      "navUAH": 0,
+      "maturity": "2030-02-20",
+      "paymentSchedule": [
+        {
+          "date": "2026-08-26",
+          "amount": 82.2
+        },
+        {
+          "date": "2027-02-24",
+          "amount": 82.2
+        },
+        {
+          "date": "2027-08-25",
+          "amount": 82.2
+        },
+        {
+          "date": "2028-02-23",
+          "amount": 82.2
+        },
+        {
+          "date": "2028-08-23",
+          "amount": 82.2
+        },
+        {
+          "date": "2029-02-21",
+          "amount": 82.2
+        },
+        {
+          "date": "2029-08-22",
+          "amount": 82.2
+        },
+        {
+          "date": "2030-02-20",
+          "amount": 82.2
+        },
+        {
+          "date": "2030-02-20",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 17.01,
+        "sell": 17.5
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000228449",
+      "sellUAH": 1091.12,
+      "buyUAH": 1091.15,
+      "navUAH": 0,
+      "maturity": "2025-06-18",
+      "paymentSchedule": [
+        {
+          "date": "2025-06-18",
+          "amount": 91.55
+        },
+        {
+          "date": "2025-06-18",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 13.52,
+        "sell": 14.52
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000238968",
+      "sellUAH": 1039.62,
+      "buyUAH": 1039.62,
+      "navUAH": 0,
+      "maturity": "2029-03-07",
+      "paymentSchedule": [
+        {
+          "date": "2026-03-11",
+          "amount": 87.4
+        },
+        {
+          "date": "2026-09-09",
+          "amount": 87.4
+        },
+        {
+          "date": "2027-03-10",
+          "amount": 87.4
+        },
+        {
+          "date": "2027-09-08",
+          "amount": 87.4
+        },
+        {
+          "date": "2028-03-08",
+          "amount": 87.4
+        },
+        {
+          "date": "2028-09-06",
+          "amount": 87.4
+        },
+        {
+          "date": "2029-03-07",
+          "amount": 87.4
+        },
+        {
+          "date": "2029-03-07",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 16.5,
+        "sell": 16.5
+      },
+      "status": "active"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000234215",
+      "sellUAH": 1075.07,
+      "buyUAH": 1075.08,
+      "navUAH": 0,
+      "maturity": "2026-06-24",
+      "paymentSchedule": [
+        {
+          "date": "2025-06-25",
+          "amount": 75.5
+        },
+        {
+          "date": "2025-12-24",
+          "amount": 75.5
+        },
+        {
+          "date": "2026-06-24",
+          "amount": 75.5
+        },
+        {
+          "date": "2026-06-24",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 14.1,
+        "sell": 14.5
+      },
+      "status": "completed"
+    },
+    {
+      "kind": "bond",
+      "ref": "UA4000230262",
+      "sellUAH": 1087.58,
+      "buyUAH": 1087.61,
+      "navUAH": 0,
+      "maturity": "2026-01-28",
+      "paymentSchedule": [
+        {
+          "date": "2025-07-30",
+          "amount": 88
+        },
+        {
+          "date": "2026-01-28",
+          "amount": 88
+        },
+        {
+          "date": "2026-01-28",
+          "amount": 1000
+        }
+      ],
+      "returnRates": {
+        "buy": 13.25,
+        "sell": 14
+      },
+      "status": "completed"
+    }
+  ],
+  "skipped": [
+    {
+      "ref": "fund#20",
+      "reason": "no_ref"
+    },
+    {
+      "ref": "fund#15",
+      "reason": "no_ref"
+    },
+    {
+      "ref": "fund#19",
+      "reason": "no_ref"
+    },
+    {
+      "ref": "fund#16",
+      "reason": "no_ref"
+    },
+    {
+      "ref": "fund#14",
+      "reason": "no_ref"
+    }
+  ]
+}
