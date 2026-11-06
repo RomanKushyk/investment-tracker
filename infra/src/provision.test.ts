@@ -7,22 +7,12 @@
 // retry is measured against a fabricated one, and DSQL's own behaviour — that `ON CONFLICT DO
 // NOTHING` does not exempt an insert from OCC adjudication — stays recorded in
 // `infra/docs/dsql-constraints.md`.
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { freshDb, refusingFirstCommit } from './__fixtures__/pglite';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import { refusingFirstCommit, userDb } from './__fixtures__/pglite';
+import type { SqlClient } from './migrate';
 import { provision } from './provision';
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const USER = '9f1e2d3c-0000-4000-8000-0000000000a1';
 const EMAIL = 'applicant@quirenote.com';
@@ -58,12 +48,7 @@ const failingOn = (needle: string): SqlClient => ({
 });
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
 });
 
 describe('a user and their account are one write', () => {

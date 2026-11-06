@@ -22,14 +22,8 @@ import {
 import { asPriceRows, LONG_ROWS } from '@quirenote/core/view/test-ledgers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import {
-  applyUserSchema,
-  insertUser,
-  withUuids,
-  writeLedger,
-  type LedgerRows,
-} from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, withUuids, writeLedger, type LedgerRows } from './__fixtures__/user-ledger';
 import { deleteAsset } from './asset-delete';
 import { handler as capture } from './capture';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
@@ -216,18 +210,21 @@ const decoded = (res: ApiResult): unknown => {
   return JSON.parse((coding === 'br' ? brotliDecompressSync(bytes) : gunzipSync(bytes)).toString());
 };
 
-beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
-  // The archive's tables from `ensureSchema` itself, as `sell-observations.test.ts` builds them.
+// The archive's tables from `ensureSchema` itself, as `sell-observations.test.ts` builds them: an
+// observe over an empty archive leaves nothing else, so `userDb` keeps them and empties them.
+const archiveTables = async (cluster: PGlite) => {
   vi.mocked(connect).mockResolvedValue({
     query: (text: string, values?: unknown[]) =>
-      db.query(text.replace(/\bINDEX\s+ASYNC\b/i, 'INDEX'), values),
+      cluster.query(text.replace(/\bINDEX\s+ASYNC\b/i, 'INDEX'), values),
     end: async () => {},
   } as unknown as Awaited<ReturnType<typeof connect>>);
+  await capture({ observe: { source: 'inzhur', from: '2026-09-01', to: '2026-09-01' } });
+};
+
+beforeEach(async () => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  await capture({ observe: { source: 'inzhur', from: '2026-09-01', to: '2026-09-01' } });
+  db = await userDb(archiveTables);
   vi.mocked(connect).mockReset();
   vi.mocked(connect).mockRejectedValue(new Error('no cluster in a test'));
   await insertUser(db, SUB, EMAIL);

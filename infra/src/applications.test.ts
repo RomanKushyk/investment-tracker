@@ -11,7 +11,7 @@ import ts from 'typescript';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ADDRESS, watchConsole } from './__fixtures__/console';
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import {
   ROUTE,
   RESPONSES,
@@ -22,19 +22,8 @@ import {
 import { type Verify, verifyWith } from './bot-check';
 import { connect } from './dsql';
 import type { ApiEvent } from './http';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import type { SqlClient } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
-
-// The DML files are excluded: the demo row and its account would sit under every count below, and
-// the backfill is DML too. `DDL` is derived from `MIGRATIONS` so a new schema file cannot be forgotten here.
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 // THE REAL `connect`, never called: a test that reached it would mint a token against no cluster.
 vi.mock('./dsql', async (actual) => ({
@@ -85,12 +74,7 @@ const rows = async () =>
 
 describe('a submission writes one pending row', () => {
   beforeEach(async () => {
-    db = await freshDb();
-    for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-      await db.exec(stmt).catch((e: Error) => {
-        throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-      });
-    }
+    db = await userDb();
   });
 
   // The accepting twin first: every refusal below is green against a handler refusing everything.

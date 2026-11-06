@@ -5,8 +5,8 @@ import type { PGlite } from '@electric-sql/pglite';
 import { MAX_BODY_BYTES } from '@quirenote/core/ops';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, writeLedger } from './__fixtures__/user-ledger';
 import type { AccountIdentity } from './account-delete';
 import {
   CANCEL_ROUTE,
@@ -120,8 +120,7 @@ const ledger = {
 };
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, SUB, EMAIL);
   await writeLedger(db, SUB, ledger);
   pooled = new Set([EMAIL]);

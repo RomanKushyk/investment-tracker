@@ -29,7 +29,12 @@ export async function applyUserSchema(db: PGlite): Promise<void> {
   const files = MIGRATIONS.filter((f) => !DML.includes(f));
   for (const f of files) {
     const text = readFileSync(new URL(`../../migrations/${f}`, import.meta.url), 'utf8');
-    for (const stmt of statementsOf(text)) await db.exec(stmt);
+    // Named, since every user-schema suite fails on one bad statement.
+    for (const stmt of statementsOf(text)) {
+      await db.exec(stmt).catch((e: Error) => {
+        throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`, { cause: e });
+      });
+    }
   }
 }
 

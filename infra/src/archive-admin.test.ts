@@ -1,11 +1,10 @@
 // The archive's `diagnose` read on the user API: the gate first, then one synchronous invoke of
 // the capture function, whose answer passes through unchanged.
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import {
   type CaptureClient,
   DIAGNOSIS_ROUTE,
@@ -13,7 +12,7 @@ import {
   diagnosis as diagnosisRoute,
 } from './archive-admin';
 import type { ApiEvent } from './http';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import type { SqlClient } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
 
 const { observed, record } = recorder(DIAGNOSIS_ROUTE);
@@ -21,15 +20,6 @@ const { observed, record } = recorder(DIAGNOSIS_ROUTE);
 const diagnosis = async (
   ...args: Parameters<typeof diagnosisRoute>
 ): ReturnType<typeof diagnosisRoute> => record(args[2], await diagnosisRoute(...args));
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const CAPTURE = 'quirenote-backend-CaptureFunction-EXAMPLE';
 const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
@@ -89,12 +79,7 @@ const insert = (userId: string, email: string, status: string, role = 'user') =>
 let db: PGlite;
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
   await db.exec(insert(ADMIN, ADMIN_EMAIL, 'active', 'super_admin'));
   vi.stubEnv('CAPTURE_FUNCTION_NAME', CAPTURE);
   vi.stubEnv('OPEN_REGISTRATION', 'false');

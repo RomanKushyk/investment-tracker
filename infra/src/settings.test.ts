@@ -7,8 +7,8 @@ import { MAX_BODY_BYTES } from '@quirenote/core/ops';
 import { SETTING_NAMES, SETTINGS_DEFAULTS, type AccountSettings } from '@quirenote/core/settings';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, writeLedger } from './__fixtures__/user-ledger';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult } from './http';
@@ -138,8 +138,7 @@ const interfering = (o: {
 };
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, SUB, EMAIL);
   await writeLedger(db, SUB, { assets: [], transactions: [], userPrices: [] });
   vi.stubEnv('OPEN_REGISTRATION', 'false');

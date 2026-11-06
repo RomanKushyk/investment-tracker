@@ -3,23 +3,13 @@
 // WHAT THIS CANNOT PROVE: PGlite is pessimistic, so the race below meets a fabricated `40001`,
 // the repo's precedent for OCC (`provision.test.ts`). What DSQL answers the losing COMMIT, and
 // whether `ON CONFLICT` changes it, is AWS's word and unmeasured (`infra/docs/dsql-constraints.md`).
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { nbuRateUrl } from '@quirenote/core/nbu/rate';
-import { freshDb, refusingFirstCommit } from './__fixtures__/pglite';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import { refusingFirstCommit, userDb } from './__fixtures__/pglite';
+import type { SqlClient } from './migrate';
 import { RATE_FETCH_TIMEOUT_MS, RATE_SPACING_MS, createOfficialRate } from './official-rate';
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 // Noon in Kyiv on 29 September 2026, which is UTC+3 then.
 const NOON = Date.parse('2026-09-29T09:00:00Z');
@@ -29,12 +19,7 @@ const YESTERDAY = '2026-09-28';
 let db: PGlite;
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
 });
 
 afterEach(() => {

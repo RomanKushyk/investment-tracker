@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -6,7 +7,8 @@ import { ESLint } from 'eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { REPO } from '../../../src/repo-root';
-import { bootCount, freshDb, refusingCommit } from './pglite';
+import { bootCount, freshDb, migrationCount, refusingCommit, userDb } from './pglite';
+import { applyUserSchema, insertUser } from './user-ledger';
 
 const HELPER = 'infra/src/__fixtures__/pglite.ts';
 
@@ -245,6 +247,147 @@ describe('freshDb', () => {
   it('runs a second call after the first rather than racing it', async () => {
     const [first, second] = await Promise.all([freshDb(), freshDb()]);
     expect(second).toBe(first);
+  });
+});
+
+describe('userDb', () => {
+  /** The catalogue, and every public column in order: a column added in place moves no count. */
+  const shape = async (db: PGlite) => ({
+    catalogue: await catalogue(db),
+    columns: (
+      await db.query<{ c: string }>(
+        `SELECT string_agg(table_name || '.' || column_name || ':' || data_type, ','
+                           ORDER BY table_name, ordinal_position) AS c
+           FROM information_schema.columns WHERE table_schema = 'public'`,
+      )
+    ).rows[0].c,
+  });
+
+  let migrated: Awaited<ReturnType<typeof shape>>;
+  beforeAll(async () => {
+    const reference = new PGlite();
+    await applyUserSchema(reference);
+    migrated = await shape(reference);
+    await reference.close();
+  });
+
+  const users = async (db: PGlite) =>
+    (await db.query<{ n: number }>('SELECT count(*)::int AS n FROM app_user')).rows[0].n;
+
+  it('empties the rows a test wrote, keeps the schema, and migrates nothing again', async () => {
+    const db = await userDb();
+    await insertUser(db, randomUUID(), 'a@example.com');
+    expect(await users(db)).toBe(1);
+    const runs = migrationCount();
+
+    const next = await userDb();
+    expect(next).toBe(db);
+    expect(await users(next)).toBe(0);
+    expect(migrationCount()).toBe(runs);
+    expect(await shape(next)).toEqual(migrated);
+  });
+
+  it.each([
+    ['adds a column', 'ALTER TABLE app_user ADD COLUMN x int'],
+    ['renames a table', 'ALTER TABLE dataset RENAME TO dataset_renamed'],
+    ['adds a table', 'CREATE TABLE extra (a int)'],
+  ])('migrates again after a test that %s', async (_name, sql) => {
+    await (await userDb()).exec(sql);
+    const runs = migrationCount();
+    const next = await userDb();
+    expect(migrationCount()).toBe(runs + 1);
+    expect(await shape(next)).toEqual(migrated);
+  });
+
+  it('migrates again after a test that left a transaction open', async () => {
+    const db = await userDb();
+    await db.exec('BEGIN');
+    await insertUser(db, randomUUID(), 'a@example.com');
+    const runs = migrationCount();
+    const next = await userDb();
+    expect(migrationCount()).toBe(runs + 1);
+    expect(await users(next)).toBe(0);
+    expect(await shape(next)).toEqual(migrated);
+  });
+
+  it('refuses a role as freshDb does, and migrates clean for the next test', async () => {
+    await (await userDb()).exec('CREATE ROLE app_reader');
+    await expect(userDb()).rejects.toThrow(/pg_authid/);
+    expect(await shape(await userDb())).toEqual(migrated);
+  });
+
+  it('keeps the tables a step made after the migrations, empties them, and migrates nothing again', async () => {
+    const extra = async (db: PGlite) => {
+      await db.exec('CREATE TABLE IF NOT EXISTS extra (a int)');
+    };
+    const db = await userDb(extra);
+    await extra(db);
+    await db.exec('INSERT INTO extra VALUES (1)');
+    const runs = migrationCount();
+
+    const next = await userDb(extra);
+    await extra(next);
+    expect(migrationCount()).toBe(runs);
+    expect((await next.query('SELECT a FROM extra')).rows).toEqual([]);
+
+    // Another step, or none, is another schema.
+    await userDb();
+    expect(migrationCount()).toBe(runs + 1);
+    expect((await next.query(`SELECT to_regclass('public.extra') AS t`)).rows).toEqual([
+      { t: null },
+    ]);
+  });
+
+  it('keeps the rows-only reset after a test that made a temp table', async () => {
+    // A cluster booted anew has no temp schema yet; the first temp table makes it, and it outlives
+    // `DISCARD ALL`.
+    await (await userDb()).close();
+    const db = await userDb();
+    const runs = migrationCount();
+    await db.exec('CREATE TEMP TABLE scratch (a int)');
+    await userDb();
+    expect(migrationCount()).toBe(runs);
+  });
+
+  it('hands the first test after a migration no session state a step set', async () => {
+    const zone = async (db: PGlite) => {
+      await db.exec(`SET TIME ZONE 'Pacific/Kiritimati'`);
+    };
+    const current = async (db: PGlite) =>
+      (await db.query(`SELECT current_setting('TimeZone') AS z`)).rows;
+    const bare = await current(await freshDb());
+    expect(bare).not.toEqual([{ z: 'Pacific/Kiritimati' }]);
+    expect(await current(await userDb(zone))).toEqual(bare);
+  });
+
+  it('leaves a temp table a step made out of the tables it empties', async () => {
+    const temp = async (db: PGlite) => {
+      await db.exec('CREATE TEMP TABLE scratch (a int)');
+    };
+    await freshDb();
+    await userDb(temp);
+    const runs = migrationCount();
+    await expect(userDb(temp)).resolves.toBeDefined();
+    expect(migrationCount()).toBe(runs);
+  });
+
+  it('refuses a step that leaves a transaction open', async () => {
+    const open = async (db: PGlite) => {
+      await db.exec('BEGIN');
+    };
+    await freshDb();
+    await expect(userDb(open)).rejects.toThrow(/transaction open/);
+  });
+
+  it('hands freshDb the bare cluster after a migrated one', async () => {
+    await userDb();
+    const bare = await freshDb();
+    expect((await bare.query(`SELECT to_regclass('public.app_user') AS t`)).rows).toEqual([
+      { t: null },
+    ]);
+    const runs = migrationCount();
+    await userDb();
+    expect(migrationCount()).toBe(runs + 1);
   });
 });
 

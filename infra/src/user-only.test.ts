@@ -5,8 +5,8 @@ import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseDocument } from 'yaml';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser } from './__fixtures__/user-ledger';
 import { TERMS_ROUTE } from './accept-terms';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult, EmptyResult } from './http';
@@ -83,8 +83,7 @@ const call = async ({ key, module }: { key: string; module: string }, sub: strin
 let db: PGlite;
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, ADMIN, ADMIN_EMAIL, 'active', 'super_admin');
   await insertUser(db, USER, USER_EMAIL);
   vi.mocked(connect).mockResolvedValue({

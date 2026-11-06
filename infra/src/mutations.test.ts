@@ -10,8 +10,8 @@ import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { snapshotsOfPrices, type PriceRow } from '@quirenote/core/valuation';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb, refusingCommit } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { refusingCommit, userDb } from './__fixtures__/pglite';
+import { insertUser, writeLedger } from './__fixtures__/user-ledger';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { ApiEvent, ApiResult, EmptyResult } from './http';
@@ -220,8 +220,7 @@ const conflict = (code: string) =>
   Object.assign(new Error('change conflicts with another transaction (OC000)'), { code });
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, SUB, EMAIL);
   await writeLedger(db, SUB, { assets: [], transactions: [], userPrices: [] });
   vi.stubEnv('OPEN_REGISTRATION', 'false');

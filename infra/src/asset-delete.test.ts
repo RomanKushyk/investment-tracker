@@ -5,8 +5,7 @@
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
 import { deleteAsset, pruneAsset } from './asset-delete';
 import type { SqlClient } from './migrate';
 
@@ -96,8 +95,7 @@ const transactionIds = async () =>
   ).rows.map((r) => r.id);
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
 });
 
 describe('deleteAsset', () => {

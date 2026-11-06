@@ -1,21 +1,10 @@
 // The recorder writes how an archive operation ended: the capture's own result, or the reason it
 // failed. It finishes a run still going, and nothing else.
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import { record } from './archive-recorder';
-import { MIGRATIONS, statementsOf as statements } from './migrate';
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const ID = '00000000-0000-4000-8000-0000000000a1';
 const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
@@ -50,9 +39,7 @@ const thrown = (errorMessage: string) => ({
 });
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8'))))
-    await db.exec(stmt);
+  db = await userDb();
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 

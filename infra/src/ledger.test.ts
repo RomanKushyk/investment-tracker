@@ -6,14 +6,8 @@ import type { Asset, Transaction } from '@quirenote/core/types';
 import { asPriceRows } from '@quirenote/core/view/test-ledgers';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import {
-  applyUserSchema,
-  insertUser,
-  withUuids,
-  writeLedger,
-  type LedgerRows,
-} from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, withUuids, writeLedger, type LedgerRows } from './__fixtures__/user-ledger';
 import { SCHEMA_TYPE, dataTag, readLedger, readRows } from './ledger';
 import type { SqlClient } from './migrate';
 
@@ -89,8 +83,7 @@ let db: PGlite;
 const client = () => db as unknown as SqlClient;
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, OWNER, 'owner@quirenote.com');
   await insertUser(db, OTHER, 'other@quirenote.com');
   await writeLedger(db, OWNER, LEDGER);

@@ -4,8 +4,8 @@
 import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, writeLedger } from './__fixtures__/user-ledger';
 import type { AccountIdentity } from './account-delete';
 import { authorize } from './authorize';
 import { connect } from './dsql';
@@ -106,8 +106,7 @@ const rows = async () =>
 const assets = async () => (await db.query('SELECT 1 FROM asset')).rows.length;
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, ALICE, ALICE_EMAIL);
   await writeLedger(db, ALICE, ledger);
   await insertUser(db, BOB, BOB_EMAIL);

@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserNotFoundException } from '@aws-sdk/client-cognito-identity-provider';
 
 import { ADDRESS, watchConsole } from './__fixtures__/console';
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import {
   FORBIDDEN,
   type Gate,
@@ -26,19 +26,7 @@ import {
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
 import { provision } from './provision';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
-
-// The DML files are excluded: the demo row and its account would sit under every count below, and
-// the backfill is DML too. Named, with `DDL` derived from `MIGRATIONS` so a new schema file cannot be forgotten here,
-// exactly as its neighbours derive it.
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
+import type { SqlClient } from './migrate';
 
 const SUB = '9f1e2d3c-0000-4000-8000-0000000000a1';
 const OTHER = '9f1e2d3c-0000-4000-8000-0000000000b2';
@@ -147,12 +135,7 @@ const pair = async (userId: string) =>
   ).rows[0];
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
   vi.stubEnv('OPEN_REGISTRATION', 'false');
   vi.stubEnv('USER_POOL_ID', POOL);
   pool.asked.length = 0;

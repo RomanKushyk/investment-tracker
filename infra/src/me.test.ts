@@ -7,8 +7,8 @@ import { SETTINGS_DEFAULTS } from '@quirenote/core/settings';
 import type { Asset, Transaction } from '@quirenote/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, writeLedger } from './__fixtures__/user-ledger';
 import { authorize } from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
@@ -156,8 +156,7 @@ const answer = (res: ApiResult | EmptyResult): [number, unknown] => [
 const etagOf = (res: ApiResult | EmptyResult) => res.headers?.etag as string;
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, SUB, EMAIL);
   // 22:30 UTC is half past midnight in Kyiv: the day served is Kyiv's, not the instant's UTC date.
   await db.query(`UPDATE app_user SET decided_at = '2026-03-01T22:30:00Z' WHERE user_id = $1`, [

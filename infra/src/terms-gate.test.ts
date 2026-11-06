@@ -8,8 +8,8 @@ import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseDocument } from 'yaml';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser } from './__fixtures__/user-ledger';
 import { handler as approve } from './approve';
 import { handler as archiveAdmin } from './archive-admin';
 import { handler as archiveOperations } from './archive-operations';
@@ -91,8 +91,7 @@ const request = (key: string): ApiEvent => ({
 let db: PGlite;
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   vi.mocked(connect).mockResolvedValue({
     query: (text: string, values?: unknown[]) => db.query(text, values),
     end: async () => {},

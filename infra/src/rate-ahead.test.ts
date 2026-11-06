@@ -1,13 +1,11 @@
 // The scheduled half: what the job asks NBU for, and what it publishes. `dates.test.ts` holds
 // the rule for which dates are due; `official-rate.test.ts` how one is fetched and stored.
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { nbuRateUrl } from '@quirenote/core/nbu/rate';
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import { connect } from './dsql';
-import { MIGRATIONS, statementsOf as statements } from './migrate';
 import { createOfficialRate } from './official-rate';
 import { handler, rateAhead } from './rate-ahead';
 
@@ -33,15 +31,6 @@ vi.mock('./dsql', async (actual) => ({
   connect: vi.fn(),
 }));
 
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
-
 // 29 September 2026 is UTC+3 in Kyiv: 16:00 there is the schedule's first firing, 15:29 is before
 // NBU has to have set tomorrow's rate.
 const FIRING = new Date('2026-09-29T13:00:00Z');
@@ -54,10 +43,7 @@ let db: PGlite;
 let log: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt);
-  }
+  db = await userDb();
   log = vi.spyOn(console, 'log').mockImplementation(() => {});
 });
 

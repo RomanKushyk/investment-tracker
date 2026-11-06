@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser } from './__fixtures__/user-ledger';
 import { statementsOf } from './migrate';
 import { ACCOUNT } from './provision';
 
@@ -47,8 +47,7 @@ const state = async () => {
 };
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, OWNER, 'owner@quirenote.com', 'active', 'super_admin');
   await withAccount(OWNER);
   await insertUser(db, SECOND, 'second@quirenote.com');

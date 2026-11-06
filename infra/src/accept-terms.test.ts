@@ -6,8 +6,8 @@ import { MAX_BODY_BYTES } from '@quirenote/core/ops';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import { applyUserSchema, insertUser } from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser } from './__fixtures__/user-ledger';
 import {
   REQUEST_BODY,
   RESPONSES,
@@ -72,8 +72,7 @@ const terms = async () =>
   ).rows[0];
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   await insertUser(db, SUB, EMAIL, 'active', 'user', { terms: false });
   vi.stubEnv('OPEN_REGISTRATION', 'false');
   vi.mocked(connect).mockRejectedValue(new Error('no cluster in a test'));

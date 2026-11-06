@@ -29,7 +29,7 @@ import {
   type Profile,
 } from './__fixtures__/account-rows';
 import { ADDRESS, watchConsole } from './__fixtures__/console';
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import { applications } from './applications';
 import {
   APPROVE_ROUTE,
@@ -42,7 +42,7 @@ import {
 } from './approve';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import type { SqlClient } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
 
 const { observed, record } = recorder(APPROVE_ROUTE);
@@ -52,15 +52,6 @@ const approve = async (...args: Parameters<typeof approveRoute>): ReturnType<typ
 
 const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeof rawHandler> =>
   record(args[0], await rawHandler(...args));
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const POOL = 'eu-north-1_EXAMPLE';
 /** The super-admin doing the ruling — `decided_by` must end up naming this one. */
@@ -253,12 +244,7 @@ const rows = async (email = EMAIL) =>
   ).rows;
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
   await db.exec(insert(ADMIN, ADMIN_EMAIL, 'active', 'super_admin'));
   askedFor = [];
   vi.stubEnv('USER_POOL_ID', POOL);

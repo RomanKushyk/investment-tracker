@@ -6,13 +6,8 @@ import { randomUUID } from 'node:crypto';
 import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
-import {
-  applyUserSchema,
-  insertUser,
-  writeLedger,
-  type LedgerRows,
-} from './__fixtures__/user-ledger';
+import { userDb } from './__fixtures__/pglite';
+import { insertUser, writeLedger, type LedgerRows } from './__fixtures__/user-ledger';
 import { IDLE_LIMIT } from './collect';
 import { connect } from './dsql';
 import type { SqlClient } from './migrate';
@@ -145,8 +140,7 @@ const cleared = async (user: string, email: string, n: number) => {
 };
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
   vi.mocked(connect).mockRejectedValue(new Error('no cluster in a test'));
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});

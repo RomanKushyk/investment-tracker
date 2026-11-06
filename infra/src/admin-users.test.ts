@@ -1,32 +1,22 @@
 // The list a ruling starts from. Served by the admin function behind the same gate approve and
 // reject stand behind, so every call here goes through `approve()` rather than the module alone:
 // the gate's refusals are part of what the route answers.
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import { LIST_ROUTE, RESPONSES } from './admin-users';
 import { APPROVE_ROUTE, type IdentityClient, approve as approveRoute } from './approve';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import type { SqlClient } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
 
 const { observed, record } = recorder(LIST_ROUTE);
 
 const approve = async (...args: Parameters<typeof approveRoute>): ReturnType<typeof approveRoute> =>
   record(args[2], await approveRoute(...args));
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const POOL = 'eu-north-1_EXAMPLE';
 const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
@@ -96,12 +86,7 @@ type Page = { users: Listed[]; next?: string };
 const page = (body: string): Page => JSON.parse(body) as Page;
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
   await db.exec(insert(ADMIN, ADMIN_EMAIL, 'active', ADMIN_APPLIED, 'super_admin'));
   await db.exec(insert(DEMO_USER_ID, DEMO_USER_EMAIL, 'active', SAME_DAY, 'demo'));
   vi.stubEnv('USER_POOL_ID', POOL);

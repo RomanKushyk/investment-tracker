@@ -1,11 +1,10 @@
 // The archive's operations on the user API: a start recorded and handed to the state machine, then
 // read back, one or the whole list. The gate first; a body the capture would refuse never lands.
-import { readFileSync } from 'node:fs';
 import type { PGlite } from '@electric-sql/pglite';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import {
   DEADLINE_SECONDS,
   type ExecutionClient,
@@ -17,7 +16,7 @@ import {
 } from './archive-operations';
 import { record as recordOutcome } from './archive-recorder';
 import type { ApiEvent, ApiResult } from './http';
-import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import type { SqlClient } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
 
 const { observed, record } = recorder(START_ROUTE);
@@ -25,15 +24,6 @@ const { observed, record } = recorder(START_ROUTE);
 const operations = async (
   ...args: Parameters<typeof operationsRoute>
 ): ReturnType<typeof operationsRoute> => record(args[2], await operationsRoute(...args));
-
-const DML = [
-  '005_demo_user.sql',
-  '008_demo_account.sql',
-  '011_dataset_backfill.sql',
-  '013_dataset_catch_up.sql',
-];
-const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
-const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const MACHINE =
   'arn:aws:states:eu-north-1:123456789012:stateMachine:quirenote-backend-user-prod-archive-operations';
@@ -104,12 +94,7 @@ const bodyOf = (res: ApiResult) => JSON.parse(res.body) as Record<string, unknow
 let db: PGlite;
 
 beforeEach(async () => {
-  db = await freshDb();
-  for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
-    await db.exec(stmt).catch((e: Error) => {
-      throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
-    });
-  }
+  db = await userDb();
   await db.exec(insert(ADMIN, ADMIN_EMAIL, 'active', 'super_admin'));
   vi.stubEnv('STATE_MACHINE_ARN', MACHINE);
   vi.stubEnv('OPEN_REGISTRATION', 'false');

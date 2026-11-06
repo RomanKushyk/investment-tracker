@@ -4,7 +4,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { freshDb } from './__fixtures__/pglite';
+import { userDb } from './__fixtures__/pglite';
 import {
   PER_USER,
   datasetsOf as datasetsIn,
@@ -15,7 +15,7 @@ import {
   seedAccount,
   u,
 } from './__fixtures__/account-rows';
-import { applyUserSchema, insertUser, writeLedger } from './__fixtures__/user-ledger';
+import { insertUser, writeLedger } from './__fixtures__/user-ledger';
 import {
   type AccountIdentity,
   deleteAccount,
@@ -47,8 +47,7 @@ const datasetsOf = (userId: string) => datasetsIn(db, userId);
 const held = (userId: string, datasets: string[]) => heldIn(db, userId, datasets);
 
 beforeEach(async () => {
-  db = await freshDb();
-  await applyUserSchema(db);
+  db = await userDb();
 });
 
 describe('the census: every table the migrations make is classified', () => {

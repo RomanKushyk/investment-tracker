@@ -1,8 +1,10 @@
 // One PGlite per worker, emptied between tests: vitest gives each test file a worker process of its
-// own, and an instance keeps the memory it booted with after `close()`.
+// own, and an instance keeps the memory it booted with after `close()`. `userDb` migrates it once and
+// empties its rows by TRUNCATE while the migrated shape holds, sparing each test the migrations.
 import { PGlite } from '@electric-sql/pglite';
 
 import type { SqlClient } from '../migrate';
+import { applyUserSchema } from './user-ledger';
 
 /** PostgreSQL numbers every object made after `initdb` from here up. */
 const FIRST_NORMAL_OID = 16384;
@@ -18,24 +20,103 @@ interface Cluster {
   measure: string;
   /** Those measures with every schema dropped, taken the moment the cluster booted. */
   baseline: Map<string, string>;
+  /** The measures plus the shape of everything numbered past `initdb`, which a column added in
+   *  place or a rename moves where a count does not. */
+  shape: string;
+  /** What `userDb` left: the snapshot taken right after migrating, and the TRUNCATE that empties it. */
+  migrated?: Migrated;
   /** What the tests registered to hear notifications; the instance, not the database, holds them. */
   listeners: (() => unknown)[];
+}
+
+interface Migrated {
+  snapshot: Map<string, string>;
+  truncate: string;
+  also: Step | undefined;
 }
 
 let cluster: Cluster | undefined;
 let queue: Promise<unknown> = Promise.resolve();
 let boots = 0;
+let migrations = 0;
 
 /** Clusters this worker has booted; `initdb` runs once for each. */
 export const bootCount = (): number => boots;
 
+/** Times this worker has applied the user schema. */
+export const migrationCount = (): number => migrations;
+
 /** The worker's PGlite, emptied for each test. Isolation is per schema: a test that adds, grants or
  *  sets anything outside one fails the next call by catalogue, and a built-in edited in place is shared. */
-export function freshDb(): Promise<PGlite> {
+export const freshDb = (): Promise<PGlite> => queued(ready);
+
+/** The worker's PGlite with the user schema, its rows emptied for each test. A test that changed
+ *  the schema or left a transaction open gets `freshDb`'s reset and the migrations again. */
+export const userDb = (also?: Step): Promise<PGlite> => queued(() => migrated(also));
+
+/** A suite's own tables, made after the migrations and so kept in the shape and emptied with it.
+ *  Matched by identity: a step written inline in a hook is a new one each test, and migrates each. */
+type Step = (db: PGlite) => Promise<unknown>;
+
+function queued(step: () => Promise<PGlite>): Promise<PGlite> {
   // Queued rather than refused: a hook that timed out can still be emptying the cluster.
-  const next = queue.then(ready, ready);
+  const next = queue.then(step, step);
   queue = next.catch(() => {});
   return next;
+}
+
+async function migrated(also: Step | undefined): Promise<PGlite> {
+  const kept = cluster;
+  if (kept?.migrated && kept.migrated.also === also && !kept.db.closed) {
+    try {
+      if (await truncated(kept, kept.migrated)) return kept.db;
+    } catch (err) {
+      cluster = undefined;
+      await kept.db.close().catch(() => {});
+      throw err;
+    }
+  }
+  const db = await ready();
+  await applyUserSchema(db);
+  await also?.(db);
+  const { rows } = await db.query<{ t: string | null }>(
+    `SELECT string_agg(format('%I.%I', schemaname, tablename), ', ') AS t
+       FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+        AND schemaname NOT LIKE 'pg\\_temp\\_%'`,
+  );
+  const truncate = rows[0].t ? `TRUNCATE ${rows[0].t} RESTART IDENTITY CASCADE` : '';
+  // Emptied here too, so a step that writes rows hands every test the same tables.
+  if (truncate) await db.exec(truncate);
+  const now = cluster!;
+  // And the step's session state ended, as every later test finds it.
+  if (!(await discard(now))) throw new Error('the userDb step left a transaction open');
+  now.migrated = { snapshot: await read(db, now.shape), truncate, also };
+  migrations += 1;
+  return db;
+}
+
+/** Empties the rows when nothing else changed; false sends the test to the full reset. */
+async function truncated(kept: Cluster, { snapshot, truncate }: Migrated): Promise<boolean> {
+  if (!(await discard(kept))) return false;
+  const now = await read(kept.db, kept.shape);
+  if ([...snapshot].some(([key, value]) => now.get(key) !== value)) return false;
+  if (truncate) await kept.db.exec(truncate);
+  return true;
+}
+
+/** Ends the session's state and its listeners; false, with nothing ended, when a test left a
+ *  transaction open. */
+async function discard({ db, listeners }: Cluster): Promise<boolean> {
+  try {
+    await db.exec('DISCARD ALL');
+  } catch (err) {
+    if (LEFT_OPEN.has((err as { code?: string }).code ?? '')) return false;
+    throw err;
+  }
+  // After DISCARD's own `UNLISTEN *`, so a stop whose SQL fails changes nothing: PGlite drops the
+  // callback before it sends the query.
+  for (const stop of listeners.splice(0)) await (async () => stop())().catch(() => {});
+  return true;
 }
 
 async function ready(): Promise<PGlite> {
@@ -61,12 +142,12 @@ async function boot(): Promise<Cluster> {
   const db = new PGlite();
   try {
     await db.waitReady;
-    const measure = await measures(db);
+    const { measure, shape } = await measures(db);
     await dropSchemas(db);
     const baseline = await read(db, measure);
     await recreatePublic(db);
     boots += 1;
-    return { db, measure, baseline, listeners: shared(db) };
+    return { db, measure, shape, baseline, listeners: shared(db) };
   } catch (err) {
     await db.close().catch(() => {});
     throw err;
@@ -93,15 +174,13 @@ function shared(db: PGlite): (() => unknown)[] {
   return listeners;
 }
 
-async function empty({ db, measure, baseline, listeners }: Cluster): Promise<void> {
-  await db.exec('DISCARD ALL').catch(async (err: unknown) => {
-    if (!LEFT_OPEN.has((err as { code?: string }).code ?? '')) throw err;
+async function empty(target: Cluster): Promise<void> {
+  const { db, measure, baseline } = target;
+  target.migrated = undefined;
+  if (!(await discard(target))) {
     await db.exec('ROLLBACK');
-    await db.exec('DISCARD ALL');
-  });
-  // After DISCARD's own `UNLISTEN *`, so a stop whose SQL fails changes nothing: PGlite drops the
-  // callback before it sends the query.
-  for (const stop of listeners.splice(0)) await (async () => stop())().catch(() => {});
+    await discard(target);
+  }
   await dropSchemas(db);
   const now = await read(db, measure);
   const changed = [...baseline].filter(([key, value]) => now.get(key) !== value);
@@ -133,7 +212,7 @@ const read = async (db: PGlite, measure: string) =>
 
 /** What a schema drop leaves: objects numbered past `initdb` in every catalogue that numbers them,
  *  the grants on what `initdb` made, and the settings and comments no schema holds. */
-async function measures(db: PGlite): Promise<string> {
+async function measures(db: PGlite): Promise<{ measure: string; shape: string }> {
   const numbered = await db.query<{ relname: string }>(
     `SELECT c.relname FROM pg_class c
        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'oid' AND NOT a.attisdropped
@@ -167,7 +246,28 @@ async function measures(db: PGlite): Promise<string> {
       (relname) => `SELECT '${relname}', ${hash('t::text', 't::text', `pg_catalog.${relname} t`)}`,
     ),
   ];
-  return parts.join('\nUNION ALL\n');
+  // A TRUNCATE gives a table new storage under the same oid, and VACUUM or ANALYZE re-estimate it.
+  const rewritten = `'relfilenode', 'relpages', 'reltuples', 'relallvisible', 'relfrozenxid', 'relminmxid'`;
+  const shape = [
+    ...numbered.rows.map(({ relname }) => {
+      const row = relname === 'pg_class' ? `(to_jsonb(t) - ARRAY[${rewritten}])::text` : 't::text';
+      // A session's temp schema outlives `DISCARD ALL` empty, as in the counts.
+      const temp = relname === 'pg_namespace' ? ` AND ${NOT_TEMP}` : '';
+      return `SELECT 'shape.${relname}', ${hash(row, 't.oid', `pg_catalog.${relname} t`)}
+                WHERE t.oid >= ${FIRST_NORMAL_OID}${temp}`;
+    }),
+    ...[
+      ['pg_attribute', 'attrelid, attnum', 'attrelid'],
+      ['pg_index', 'indexrelid', 'indexrelid'],
+      ['pg_inherits', 'inhrelid, inhseqno', 'inhrelid'],
+    ].map(
+      ([relname, order, key]) =>
+        `SELECT 'shape.${relname}', ${hash('t::text', order, `pg_catalog.${relname} t`)}
+          WHERE ${key} >= ${FIRST_NORMAL_OID}`,
+    ),
+  ];
+  const join = (all: string[]) => all.join('\nUNION ALL\n');
+  return { measure: join(parts), shape: join([...parts, ...shape]) };
 }
 
 /**
