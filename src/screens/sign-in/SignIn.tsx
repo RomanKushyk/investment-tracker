@@ -16,6 +16,7 @@ import {
 import { addressRefusal } from '../../auth/apply';
 import { arrivedGoogleFailed, belowTheForm, forgetReauthentication } from '../../auth/google';
 import { addPasskey } from '../../auth/passkey';
+import { arrivedEnded, carriedFrom, carryReturn, returnTarget } from '../../auth/return-to';
 import {
   type HeldChallenge,
   type SignInDeps,
@@ -119,9 +120,16 @@ export function SignIn() {
   // fact in this tab instead; a visit from within the app is a plain one.
   const [note, setNote] = useState<'said' | 'held' | undefined>(() =>
     arrivedSignedOut(location.state) ||
+    arrivedEnded(location.state) ||
     (location.key === 'default' && returnedSignedOut(tabStorage()))
       ? 'said'
       : undefined,
+  );
+  // A session that ended while the tab held it, which a shell route sent here to say.
+  const [ended] = useState(() => arrivedEnded(location.state));
+  // Where a sign-in from here lands: the place a shell route sent here from, checked, or `/`.
+  const [target] = useState(() =>
+    returnTarget(carriedFrom(location.state), window.location.origin),
   );
   // What became of the account, read with the line: a deletion's landing says so in its place.
   const [cause] = useState<SignedOutCause | undefined>(() =>
@@ -132,8 +140,9 @@ export function SignIn() {
         : undefined,
   );
   const f = useFormat();
-  const noteText =
-    cause?.kind === 'deleted'
+  const noteText = ended
+    ? t.auth.sessionEnded
+    : cause?.kind === 'deleted'
       ? t.auth.signedOutDeleted
       : cause?.kind === 'scheduled'
         ? t.auth.signedOutScheduled(f.date(cause.date))
@@ -157,6 +166,9 @@ export function SignIn() {
   }, [location, navigate]);
   useEffect(() => {
     if (arrivedGoogleFailed(location.state)) void navigate(...usedUp(location));
+  }, [location, navigate]);
+  useEffect(() => {
+    if (arrivedEnded(location.state)) void navigate(...usedUp(location));
   }, [location, navigate]);
   // Forgotten once read, so a reload or Back says nothing.
   useEffect(() => forgetSignedOut(tabStorage()), []);
@@ -213,7 +225,7 @@ export function SignIn() {
     (busy && (step.name === 'password' || step.name === 'newPassword'));
   const leaves = status === 'signedIn' && !holds;
   useSelfXssWarning(!leaves);
-  if (leaves) return <Navigate to="/" replace />;
+  if (leaves) return <Navigate to={target} replace />;
 
   function begin() {
     const mine = ++run.current;
@@ -370,6 +382,7 @@ export function SignIn() {
     if ('url' in begun) {
       // A sign-in's return is no re-authentication's, whatever an abandoned one left in the tab.
       forgetReauthentication(tabStorage());
+      carryReturn(tabStorage(), target);
       window.location.assign(begun.url);
       return;
     }
@@ -392,7 +405,7 @@ export function SignIn() {
   // The run ends at the press: the router commits in a transition, and the step renders once more.
   const toTheApp = () => {
     run.current++;
-    void navigate('/', { replace: true });
+    void navigate(target, { replace: true });
   };
 
   const change = () => {

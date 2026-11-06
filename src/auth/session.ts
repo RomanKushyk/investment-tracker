@@ -18,6 +18,9 @@ export interface Session {
   authTime(): number | undefined;
   /** True while the status is a signed-out the relay never gave: the load went unanswered. */
   unanswered(): boolean;
+  /** True while the page is signed out because the relay refused the session it held, no sign-out
+   *  running: `/sign-in` says the session ended, which a load that never had one does not. */
+  ended(): boolean;
   /** Whether Google is on, as the last refresh said or a redeemed Google code proved; undefined
    *  until then. */
   google(): boolean | undefined;
@@ -95,6 +98,7 @@ export function createSession({
   let changes = 0;
   // A signed-out status the relay never gave: the next reader asks again.
   let unanswered = false;
+  let endedByRelay = false;
   const listeners = new Set<() => void>();
   const tell = () => {
     for (const listener of listeners) listener();
@@ -108,6 +112,13 @@ export function createSession({
     const { auth_time: at, iat } = claims ?? {};
     signedInAt =
       typeof at !== 'number' ? undefined : typeof iat === 'number' ? now() / 1000 - (iat - at) : at;
+    // Read before the status moves: a sign-out sets its own signed-out inside its run.
+    endedByRelay =
+      next === 'signedOut' &&
+      answered &&
+      (status === 'signedIn' || endedByRelay) &&
+      leaving === undefined &&
+      everywhere === undefined;
     status = next;
     unanswered = !answered;
     const sub = tokens && claimOf(tokens.idToken, 'sub');
@@ -152,6 +163,7 @@ export function createSession({
     address: () => address,
     authTime: () => signedInAt,
     unanswered: () => unanswered,
+    ended: () => endedByRelay,
     google: () => google,
     subscribe(listener) {
       listeners.add(listener);

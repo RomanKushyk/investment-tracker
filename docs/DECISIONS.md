@@ -773,10 +773,22 @@ drawer that closes is not a Stop the user chose: a traversal while the logout lo
 must be invoked in the browser to do; a push fires `navigateerror`, the Stop's own signal, then its own `navigate` (HTML,
 *fire a push/replace/reload navigate event*), which is what tells the two apart. A route change
 answers the slot but not the load, which still runs.
-Signed out, a screen behind the portfolio's view mounts the shell over an empty `main`,
-and a visitor with no way in reads the app as having no auth at all; the entry is a signed-out
-visitor's one control there that reaches `/sign-in`, and it offers sign-in alone because the
-sign-in card is one link from the application. It is a link because it goes to a route (APG's link
+Signed out, a portfolio route paints none of the shell. The gate above `Layout` draws nothing
+until the relay has answered, as Auth0's `withAuthenticationRequired` and Clerk's `<Protect>`
+render nothing while auth loads, then sends a definite signed-out answer to `/sign-in` in the
+entry's place, carrying its path, query and hash, as the router's own auth example does; a sign-in
+there returns to it, replacing `/sign-in`'s entry, and Google's round trip carries it in this
+tab's storage. The place is parsed against the origin and refused for another host or a signed-out
+page, never prefix-matched (OWASP's *Unvalidated Redirects and Forwards*). A session that ended
+while the tab held it is said on `/sign-in` (OWASP's *Session Management*: "clear messaging
+explaining the need to reauthenticate"); a load that never had one says nothing. Only a definite
+answer redirects: a load the relay never answered keeps the shell, since a lost connection says
+nothing of the cookie, and a host with no auth environment has nothing to sign in to. A sign-out
+lands itself, with its own line, so the gate is quiet for the shell it was pressed under, whatever
+route that shell is on by then: the shell stands signed out only where a Stop or a restore leaves a
+sign-out's page during Cognito's logout, and the entry is that page's one control that reaches
+`/sign-in`. It offers sign-in alone because
+the sign-in card is one link from the application. It is a link because it goes to a route (APG's link
 pattern), and the status row keeps the slot's shape where a blank row would read as nothing loaded.
 The super-admin administers from an account of its own (NIST SP 800-53 AC-6(2)), and two accounts
 make the wrong one easy to be in: NN/g's *Modes in User Interfaces* asks for at least two indicators
@@ -795,7 +807,9 @@ cancels the logout whatever the listener reads. · The slot's latch as the pause
 ends it while the logout still loads. · `CloseWatcher` in place of the
 marker: iOS Safari has none, so the marker and its pause stay there. · A gear beside the mark for the
 super-admin: the gear is Settings. · A tinted edge for the role: colour alone. · Skeleton nav rows
-while `/me` is out: they misstate one role's count, ten items or one.
+while `/me` is out: they misstate one role's count, ten items or one. · The shell over an empty
+`main` for a signed-out visitor: it reads as an app with no auth, its one way in a footer link. ·
+The shell painted while the relay answers: a signed-out visitor sees it before `/sign-in`.
 
 ## Not found and failures
 **Decision.** The router's own fallback is never shown: three boundaries replace it. THE ROOT ROUTE

@@ -1244,6 +1244,8 @@ export const en = {
     signOutFailed: 'Sign-out couldn’t finish — you’re still signed in. Try again.',
     // The other half of `signOutFailed`: `/sign-in` says it once, on a sign-out's arrival.
     signedOut: 'You’re signed out.',
+    // Where a shell route sends a tab whose session the relay refused: why it is here.
+    sessionEnded: 'Your session ended. Sign in again.',
     // A deletion's landing, in the sign-out's place (`account-deletion.dc.html` T5).
     signedOutDeleted: 'Your account has been deleted.',
     signedOutScheduled: (date: string) =>
@@ -2838,6 +2840,7 @@ export const uk: Dict = {
     signInEntry: 'Увійти',
     signOutFailed: 'Не вдалося вийти — ви досі в застосунку. Спробуйте ще раз.',
     signedOut: 'Ви вийшли із застосунку.',
+    sessionEnded: 'Сеанс завершився. Увійдіть знову.',
     signedOutDeleted: 'Обліковий запис видалено.',
     signedOutScheduled: (date: string) =>
       `Обліковий запис буде видалено після ${date}. Щоб скасувати, увійдіть до кінця цього дня й натисніть «Скасувати видалення».`,

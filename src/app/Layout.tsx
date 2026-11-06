@@ -2,7 +2,6 @@ import { Dialog as RadixDialog } from 'radix-ui';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { NavigationType, Outlet, useLocation, useNavigationType } from 'react-router';
 
-import { session } from '../auth/app';
 import { LoadingStatus } from '../components/loading/LoadingStatus';
 import { useAccountRead, useSettingsCopy, useViewDayRollover } from '../hooks/queries';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
@@ -36,12 +35,6 @@ export function Layout() {
   // answer is read beside the view on every load (*Persistence today*).
   useSettingsCopy();
   useAccountRead();
-  // The footer band offers a sign-out only once the relay says someone is signed in. Asked on
-  // every load, the session being the browser's, and again on each route until it answers:
-  // once it has, `restore` asks nothing.
-  useEffect(() => {
-    void session.restore();
-  }, [pathname]);
 
   // `desktop` is read from the media query rather than expressed only in CSS, because
   // a drawer needs a focus trap and a focus trap has to know which shell is mounted.

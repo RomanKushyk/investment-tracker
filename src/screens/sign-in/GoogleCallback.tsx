@@ -11,33 +11,38 @@ import {
   forgetReauthentication,
   reauthenticationFor,
 } from '../../auth/google';
+import { forgetReturn, returnedTarget } from '../../auth/return-to';
 import { useT } from '../../i18n/useT';
 import { FocusedTitle } from './parts';
 import { useSelfXssWarning } from './useSelfXssWarning';
 
-/** Where Cognito sends Google's code: a status, no form, while the relay redeems it, then `/` or
- *  `/sign-in` saying so, this entry replaced; a re-authentication lands on `/profile` either way. */
+/** Where Cognito sends Google's code: a status while the relay redeems it, then the carried place
+ *  (or `/`) or `/sign-in` saying so, entry replaced; a re-authentication lands on `/profile`. */
 export function GoogleCallback() {
   const { search } = useLocation();
   const navigate = useNavigate();
   // Read, not taken, at mount: forgotten once the outcome lands, so a pasted callback is a sign-in's.
   const [again] = useState(() => reauthenticationFor(tabStorage()));
+  // Read at mount, as the re-authentication is, and forgotten once the outcome lands.
+  const [target] = useState(() => returnedTarget(tabStorage(), window.location.origin));
 
   useEffect(() => {
     let current = true;
     void completeGoogle(search, session).then((signedIn) => {
       if (!current) return;
+      forgetReturn(tabStorage());
       if (again) {
         forgetReauthentication(tabStorage());
         const state = signedIn ? REAUTHENTICATED : REAUTHENTICATION_REFUSED;
         void navigate('/profile', { replace: true, state: { ...state, purpose: again } });
-      } else if (signedIn) void navigate('/', { replace: true });
-      else void navigate('/sign-in', { replace: true, state: GOOGLE_FAILED });
+      } else if (signedIn) void navigate(target, { replace: true });
+      // The place goes back with the refusal, for the next try from `/sign-in`.
+      else void navigate('/sign-in', { replace: true, state: { ...GOOGLE_FAILED, from: target } });
     });
     return () => {
       current = false;
     };
-  }, [search, navigate, again]);
+  }, [search, navigate, again, target]);
 
   return again ? <Confirming /> : <SigningIn />;
 }

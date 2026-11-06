@@ -44,6 +44,7 @@ vi.stubGlobal(
 afterAll(() => vi.unstubAllGlobals());
 
 const { routes } = await import('../routes');
+const { Layout } = await import('./Layout');
 const { session } = await import('../auth/app');
 const { useSettings } = await import('../state/settings');
 
@@ -58,11 +59,16 @@ afterEach(() => {
   useSettings.setState(useSettings.getInitialState(), true);
 });
 
-async function open(path: string) {
+/** The real routes; `signedOut`, the shell alone, which stands signed out only where a Stop leaves a
+ *  sign-out's page in place: a signed-out load of the routes lands on `/sign-in`. */
+async function open(path: string, signedOut = false) {
   const client = new QueryClient();
+  const table = signedOut
+    ? [{ element: <Layout />, children: [{ path: '*', element: null }] }]
+    : routes;
   const view = render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />
+      <RouterProvider router={createMemoryRouter(table, { initialEntries: [path] })} />
     </QueryClientProvider>,
   );
   await waitFor(() => expect(client.isFetching()).toBe(0));
@@ -89,15 +95,15 @@ describe('the panel’s address', () => {
 
   it('is no link while nobody is signed in', async () => {
     await session.signOut();
-    const sidebar = (await open('/settings')).querySelector('#app-sidebar')!;
+    const sidebar = (await open('/settings', true)).querySelector('#app-sidebar')!;
     expect(profileLinks(sidebar)).toHaveLength(0);
     expect(sidebar.textContent).toContain(uk.auth.notSignedIn);
   });
 });
 
 describe('the rail', () => {
-  async function rail(path: string) {
-    const page = await open(path);
+  async function rail(path: string, signedOut = false) {
+    const page = await open(path, signedOut);
     await act(async () => void fireEvent.click(page.querySelector(`#${SIDEBAR_COLLAPSE_ID}`)!));
     return page.querySelector('#app-sidebar')!;
   }
@@ -121,7 +127,7 @@ describe('the rail', () => {
 
   it('signed out, holds the glyph alone, with no link', async () => {
     await session.signOut();
-    const sidebar = await rail('/settings');
+    const sidebar = await rail('/settings', true);
     expect(profileLinks(sidebar)).toHaveLength(0);
     const slot = sidebar.querySelector('[data-rail-profile]');
     expect(slot).not.toBeNull();

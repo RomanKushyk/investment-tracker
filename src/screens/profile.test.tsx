@@ -2,6 +2,7 @@
 // The profile, rendered through the real router, shell, client and relay over a fake of the user API
 // and the relay's passkey list (`design/extensions/own-account.dc.html`, T1–T3 and T6).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { flushSync } from 'react-dom';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -152,7 +153,9 @@ function mount(path: string) {
   const client = new QueryClient();
   const view = render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={router} />
+      {/* Handed React DOM's `flushSync`, as `react-router/dom`'s provider in `main.tsx` is: without
+          it a sign-out's way out commits in a transition, a frame production never renders. */}
+      <RouterProvider router={router} flushSync={(commit) => void flushSync(commit)} />
     </QueryClientProvider>,
   );
   return { view, router, client, main: () => view.container.querySelector('main')! };
@@ -397,12 +400,14 @@ describe('the account read', () => {
     expect(view.container.querySelector('#app-sidebar')).not.toBeNull();
   });
 
-  it('is not made, and nothing shows, when nobody is signed in', async () => {
+  // Signed out, the shell is never drawn: `/sign-in` takes the route's place.
+  it('is not made, and the route goes to /sign-in, when nobody is signed in', async () => {
     await session.signOut();
-    const { main } = mount('/profile');
+    const { view, router } = mount('/profile');
     // Past the hold, after which a page that were made would show its held boxes.
     await wait(400);
-    expect(text(main())).toBe('');
+    expect(router.state.location.pathname).toBe('/sign-in');
+    expect(view.container.querySelector('#app-sidebar')).toBeNull();
     expect(api.seen.filter((r) => r.path.startsWith('/me'))).toHaveLength(0);
     expect(api.passkeyLists).toBe(0);
   });

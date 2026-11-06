@@ -10,6 +10,7 @@ afterAll(() => vi.unstubAllGlobals());
 const { routes } = await import('./routes');
 const { Root } = await import('./app/Root');
 const { Layout } = await import('./app/Layout');
+const { SessionGate } = await import('./app/SessionGate');
 const { PORTFOLIO, RoleGate } = await import('./app/RoleGate');
 const { Loadable } = await import('./components/loading/Loadable');
 const { AppFailure, NotFound, ScreenFailure } = await import('./app/Boundaries');
@@ -67,8 +68,9 @@ describe('an unknown path', () => {
   it.each(['/nope', '/sign-in/x', '/apply/x', '/overview/x', '/profile/x', '/a/b/c'])(
     '%s lands on the not-found route inside the shell',
     (path) => {
-      const [root, layout, boundary, leaf] = chain(path);
+      const [root, gate, layout, boundary, leaf] = chain(path);
       expect(typeOf(root!.element)).toBe(Root);
+      expect(typeOf(gate!.element)).toBe(SessionGate);
       expect(typeOf(layout!.element)).toBe(Layout);
       expect(isScreenBoundary(boundary!), 'the catch-all is not under the screens’ boundary').toBe(
         true,
@@ -87,9 +89,13 @@ describe('the boundaries', () => {
   });
 
   // Below `Layout`, so a screen that throws keeps the sidebar; the shell itself has none, so a
-  // throw in it reaches the root's.
+  // throw in it reaches the root's. The session's gate above it holds the shell alone.
   it('put every screen below one boundary that is itself below Layout', () => {
-    const layout = routes[0]!.children!.find((r) => typeOf(r.element) === Layout)!;
+    const gate = routes[0]!.children!.find((r) => typeOf(r.element) === SessionGate)!;
+    expect(gate.errorElement).toBeUndefined();
+    expect(gate.children).toHaveLength(1);
+    const layout = gate.children![0]!;
+    expect(typeOf(layout.element)).toBe(Layout);
     expect(layout.errorElement).toBeUndefined();
     expect(layout.children).toHaveLength(1);
     const boundary = layout.children![0]!;
@@ -123,16 +129,17 @@ describe('the routes that exist', () => {
 
   it.each(SCREENS)('%s still renders its screen, under the boundary', (path, Screen) => {
     const walked = chain(path);
-    expect(walked).toHaveLength(4);
-    expect(typeOf(walked[1]!.element)).toBe(Layout);
-    expect(isScreenBoundary(walked[2]!)).toBe(true);
-    const { screen, waits } = screenOf(walked[3]!.element);
+    expect(walked).toHaveLength(5);
+    expect(typeOf(walked[1]!.element)).toBe(SessionGate);
+    expect(typeOf(walked[2]!.element)).toBe(Layout);
+    expect(isScreenBoundary(walked[3]!)).toBe(true);
+    const { screen, waits } = screenOf(walked[4]!.element);
     expect(screen).toBe(Screen);
     // Every screen but Settings, the profile and the two admin pages reads the view and waits behind
     // it, holding its place meanwhile; the profile holds its own place for `GET /me`.
     expect(waits).toBe(!['/settings', '/admin/archive', '/admin/users', '/profile'].includes(path));
     // The routes that read the portfolio are a user's alone, and the gate knows them by this.
-    expect(walked[3]!.handle === PORTFOLIO, `${path}'s portfolio handle`).toBe(waits);
+    expect(walked[4]!.handle === PORTFOLIO, `${path}'s portfolio handle`).toBe(waits);
   });
 
   it.each([

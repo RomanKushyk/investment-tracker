@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { arrivedGoogleFailed } from '../../auth/google';
+import { carriedFrom, carryReturn } from '../../auth/return-to';
 import type { RelayAnswer } from '../../auth/relay';
 import { useSettings } from '../../state/settings';
 
@@ -18,11 +19,11 @@ const hold = vi.hoisted(() => {
     setItem: (k: string, v: string) => void kept.set(k, v),
     removeItem: (k: string) => void kept.delete(k),
   } as Storage;
-  return { complete: vi.fn() };
+  return { complete: vi.fn(), tab: undefined as Storage | undefined };
 });
 vi.mock('../../auth/app', () => ({
   session: { complete: hold.complete },
-  tabStorage: () => undefined,
+  tabStorage: () => hold.tab,
 }));
 vi.mock('../../app/SignedOutShell', () => ({
   SignedOutShell: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -50,6 +51,7 @@ function mount(search = `?code=c${++codes}&state=s`) {
 
 beforeEach(() => {
   hold.complete.mockReset();
+  hold.tab = undefined;
   hold.complete.mockImplementation(() => new Promise<RelayAnswer>((land) => (answer = land)));
   useSettings.setState({ language: 'uk' });
 });
@@ -101,5 +103,33 @@ describe('once the relay has answered', () => {
     expect(hold.complete).not.toHaveBeenCalled();
     expect(router.state.location.pathname).toBe('/sign-in');
     expect(arrivedGoogleFailed(router.state.location.state)).toBe(true);
+  });
+});
+
+// THE PLACE A SHELL ROUTE SENT THE VISITOR FROM crosses Google in this tab's storage, and the
+// return lands there instead of `/`.
+describe('a sign-in that set out from a shell route', () => {
+  beforeEach(() => {
+    hold.tab = window.sessionStorage;
+    hold.tab.clear();
+    carryReturn(hold.tab, '/yield?period=1y#chart');
+  });
+
+  it('lands on the carried place, the callback entry replaced, and forgets it', async () => {
+    const router = mount();
+    await act(async () => answer({ kind: 'tokens', tokens: {} } as RelayAnswer));
+    const { pathname, search, hash } = router.state.location;
+    expect(`${pathname}${search}${hash}`).toBe('/yield?period=1y#chart');
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(hold.tab?.length, 'the tab kept the place').toBe(0);
+  });
+
+  it('hands the place back to /sign-in when the relay refuses the code', async () => {
+    const router = mount();
+    await act(async () => answer({ kind: 'refused', reason: 'notAuthorized' } as RelayAnswer));
+    expect(router.state.location.pathname).toBe('/sign-in');
+    expect(arrivedGoogleFailed(router.state.location.state)).toBe(true);
+    expect(carriedFrom(router.state.location.state)).toBe('/yield?period=1y#chart');
+    expect(hold.tab?.length, 'the tab kept the place').toBe(0);
   });
 });

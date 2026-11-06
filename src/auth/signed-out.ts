@@ -1,6 +1,7 @@
 import type { Path } from 'react-router';
 
 import { isDay } from './relay';
+import { carriedFrom } from './return-to';
 
 /** What a finished sign-out hands `/sign-in` as router state, so the page can say so. */
 export const SIGNED_OUT = { signedOut: true } as const;
@@ -116,15 +117,17 @@ export function throughLogout(
   return { url, carry: to === '/sign-in' && origin === site };
 }
 
-/** The same entry carrying nothing. Router state lives in `history.state`, which the browser hands
+/** The same entry carrying only the place a sign-in returns to: the browser hands `history.state`
  *  back on a reload and Back/Forward, so the page replaces its entry the moment it arrives. */
 export function usedUp({
   pathname,
   search,
   hash,
-}: Path): [Partial<Path>, { replace: true; state: null }] {
+  state,
+}: Path & { state?: unknown }): [Partial<Path>, { replace: true; state: null | { from: string } }] {
+  const from = carriedFrom(state);
   return [
     { pathname, search, hash },
-    { replace: true, state: null },
+    { replace: true, state: from === undefined ? null : { from } },
   ];
 }

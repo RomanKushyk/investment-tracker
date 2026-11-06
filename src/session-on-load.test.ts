@@ -51,8 +51,9 @@ function stripTs(source: string, file: string): string {
 const read = (rel: string) => stripTs(readFileSync(join(here, rel), 'utf8'), rel);
 
 describe('the portfolio shell and the session', () => {
+  // The gate above the shell asks, the shell not drawn until the relay answers.
   it('asks on mount and again on each route, which is free once the relay has answered', () => {
-    expect(read('app/Layout.tsx'), 'the shell no longer asks per route').toMatch(
+    expect(read('app/SessionGate.tsx'), 'the shell no longer asks per route').toMatch(
       /useEffect\(\(\) => \{\s*void session\.restore\(\);\s*\}, \[pathname\]\);/,
     );
   });

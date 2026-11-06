@@ -19,12 +19,13 @@ afterAll(() => vi.unstubAllGlobals());
 const { routes } = await import('../routes');
 const { Root } = await import('./Root');
 const { Layout } = await import('./Layout');
+const { SessionGate } = await import('./SessionGate');
 const { RoleGate } = await import('./RoleGate');
 const { AppFailure, NotFound } = await import('./Boundaries');
 const { uk } = await import('../i18n/messages');
 
-// The real tree with its elements as markers, since `Root` and `Layout` read stores with no server
-// snapshot, and the role gate a read a server render never makes; a server render runs no boundary,
+// The real tree with its elements as markers, since `Root`, the session's gate and `Layout` read
+// stores with no server snapshot, and the role gate a read a server render never makes; a server render runs no boundary,
 // so the throw is handed to the router as its error.
 function stubbed(route: RouteObject): RouteObject {
   const type = isValidElement(route.element) ? route.element.type : undefined;
@@ -32,7 +33,7 @@ function stubbed(route: RouteObject): RouteObject {
   if (type === Root) element = createElement('div', { 'data-stub': 'root' }, createElement(Outlet));
   else if (type === Layout)
     element = createElement('div', { 'data-stub': 'shell' }, createElement(Outlet));
-  else if (type === RoleGate) element = createElement(Outlet);
+  else if (type === RoleGate || type === SessionGate) element = createElement(Outlet);
   else if (element && type !== NotFound) element = createElement('p', { 'data-stub': 'screen' });
   return { ...route, element, children: route.children?.map(stubbed) } as RouteObject;
 }
@@ -88,7 +89,8 @@ describe('not found', () => {
 
 describe('a screen that throws', () => {
   it('shows the failed-screen state inside the shell', async () => {
-    const html = await render('/', (walked) => walked[2]!);
+    // The screens' boundary, the route above the screen.
+    const html = await render('/', (walked) => walked.at(-2)!);
     expect(html).toContain('data-stub="shell"');
     expect(html).not.toContain('data-stub="screen"');
     // The title takes focus, so the failure is announced.

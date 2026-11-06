@@ -817,3 +817,86 @@ describe('signing out everywhere', () => {
     expect(session.signOuts()).toBe(1);
   });
 });
+
+// A SESSION THAT ENDED WHILE THE PAGE HELD IT, which `/sign-in` says, apart from a load that never
+// had one and from a sign-out, whose landing says its own line.
+describe('a session that ended', () => {
+  const scripted = (...answers: RelayAnswer[]) =>
+    vi.fn<RelayCall>(async () => answers.shift() ?? REFUSED('failed'));
+  const signedIn = ID_TOKEN(jwt({ sub: 'u-1' }));
+
+  it('ended when a refresh refuses the session the page held', async () => {
+    let clock = 0;
+    const session = createSession({
+      relay: scripted(signedIn, REFUSED('notAuthorized')),
+      locks: webLocks(),
+      now: () => clock,
+    });
+    await session.restore();
+    expect(session.ended()).toBe(false);
+    clock = 3_600_000;
+    expect(await session.getIdToken()).toBeUndefined();
+    expect(session.status()).toBe('signedOut');
+    expect(session.ended()).toBe(true);
+  });
+
+  it('did not end on a load that never had one, or one the relay never answered', async () => {
+    for (const answer of [REFUSED('notAuthorized'), REFUSED('offline'), REFUSED('failed')]) {
+      const session = createSession({ relay: scripted(answer), locks: webLocks() });
+      await session.restore();
+      expect(session.ended()).toBe(false);
+    }
+  });
+
+  it('did not end at a refresh the network lost', async () => {
+    let clock = 0;
+    const session = createSession({
+      relay: scripted(signedIn, REFUSED('offline')),
+      locks: webLocks(),
+      now: () => clock,
+    });
+    await session.restore();
+    clock = 3_600_000;
+    await session.getIdToken();
+    expect(session.ended()).toBe(false);
+  });
+
+  it('did not end at a sign-out, or at signing out everywhere and its own refresh', async () => {
+    const out = createSession({
+      relay: scripted(signedIn, { kind: 'signedOut' }),
+      locks: webLocks(),
+    });
+    await out.restore();
+    await out.signOut();
+    expect(out.status()).toBe('signedOut');
+    expect(out.ended()).toBe(false);
+
+    // A plain refusal asks one refresh, which the relay refuses: the press ended it.
+    const everywhere = createSession({
+      relay: scripted(
+        signedIn,
+        { kind: 'refused', reason: 'notAuthorized' },
+        REFUSED('notAuthorized'),
+      ),
+      locks: webLocks(),
+    });
+    await everywhere.restore();
+    expect(await everywhere.signOutEverywhere()).toEqual({ kind: 'signedOut' });
+    expect(everywhere.ended()).toBe(false);
+  });
+
+  it('is forgotten at the next sign-in', async () => {
+    let clock = 0;
+    const session = createSession({
+      relay: scripted(signedIn, REFUSED('notAuthorized'), signedIn),
+      locks: webLocks(),
+      now: () => clock,
+    });
+    await session.restore();
+    clock = 3_600_000;
+    await session.getIdToken();
+    expect(session.ended()).toBe(true);
+    await session.respond({});
+    expect(session.ended()).toBe(false);
+  });
+});
