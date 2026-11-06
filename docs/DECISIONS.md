@@ -2314,8 +2314,10 @@ closes, a letter before a breach closes an account unless the breach threatens t
 users, the user's data used only to provide the service, and a dispute tried by correspondence
 before a court. The notice makes one: a daily Apps Script trigger in the owner's Gmail trashes
 every thread under the label a filter on `to:support@quirenote.com` gives the forwarded mail whose
-last message is over 330 days old, so with the Trash's 30 days nothing outlives 12 months. Nothing
-in this repository watches the trigger.
+last message is over 330 days old, so with the Trash's 30 days nothing outlives 12 months while the
+trigger runs. The script and its setup are in `docs/reference/SUPPORT-MAIL-SWEEP.md`, whose fence
+`scripts/support-mail-sweep.test.ts` runs against a fake Gmail; nothing in this repository watches
+the trigger.
 **Why.** GDPR Art. 13 and 2297-VI Art. 12(2) ask for the information "at the time when personal data
 are obtained"; WP260 rev.01 ¶36 wants a first layer shown as the form is filled, ¶17 "one single
 place or one complete document", and ¶11 a link "clearly visible on each page". EDPB 2/2019 ¶20
