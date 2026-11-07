@@ -75,8 +75,35 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  deploy:
+  # THE SERVER GOES FIRST: a failed or stale backend fails here with the site unchanged
+  # [*Deployment*]. Reads runs and history alone: no OIDC grant, no environment.
+  backend:
+    name: Wait for the backend
     needs: build
+    runs-on: ubuntu-latest
+    # The hosted runner's ceiling: a queued backend run's pending time counts against no job timeout.
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      # The whole history, for `git log` over the backend paths.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26 # must match local Node
+
+      - run: node scripts/await-backend.ts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+
+  deploy:
+    needs: [build, backend]
     runs-on: ubuntu-latest
     # THE ONE GRANT OF THE TOKEN, and the job runs no dependency code: it checks out the deploy
     # script, downloads what `build` made, and deploys. `contents: read` is restated because a

@@ -299,7 +299,11 @@ build:api-docs`) the workflow skips on `main`, so its absence from production is
 artifact, not of a link or a rule. Fetch a body on both sides, status codes not separating the
 failures: `dev` answers `401` unauthenticated and serves `id="swagger-ui"` with credentials — the
 shell instead means the `html` entry is missing from §3.1 — while production must redirect and never
-serve that marker, `curl -L` following the redirect to whatever answers. **Rollback** is an earlier
+serve that marker, `curl -L` following the redirect to whatever answers. **The frontend waits
+for its backend**: its `Wait for the backend` job holds `deploy` until a backend run on the same
+branch has succeeded, either on the commit or on the newest commit before it that touches a
+backend path, or on a descendant of that one up to the commit. A push the backend's filter skips therefore needs no run of its own,
+and a push touching both sides goes live only after the backend run, `migrate` included. **Rollback** is an earlier
 manual deployment redeployed from the console, or the workflow re-run from the last good commit;
 assets are content-hashed and `index.html` is `no-cache`, so it takes effect on the next load.
 
@@ -313,6 +317,7 @@ assets are content-hashed and `index.html` is `no-cache`, so it takes effect on 
 | A non-root route 404s, or a blank page with `Failed to load module script … MIME type of "text/html"` | missing rewrite (404), or the rewrite matching static assets (blank page) | Re-check §3.1 — type **200**, source the regex, not `/<*>`. `curl -sSI "$BASE/assets/<file>.js" \| grep -i content-type`: anything but `application/javascript` is the MIME bug |
 | Site serves an old build after a green run, or an asset stays wrong after fixing a rule | `index.html` cached, or a broken response cached under `immutable` (§3.2) — query strings do not bust it | **CloudFront:** run any deployment; Amplify invalidates the CDN each time (`X-Cache: Miss` confirms). **Browsers:** hard-reload, or wait for the next code change |
 | `pnpm build` fails in CI on esbuild | `@esbuild/linux-x64` not resolvable from a Windows-generated lockfile | Refresh the lockfile so the Linux optional dependency is present; never drop `--frozen-lockfile` |
+| Frontend run fails at `Wait for the backend`, before `deploy`; the live site is unchanged | the backend run it names failed or was cancelled, or no backend run covers the newest backend-path commit — a `src/`-only push after a failed backend run, or a multi-commit push whose changes cancel out or a push too large for GitHub's filter diff, either of which starts no run. Or the job hit its timeout while the backend run sat queued | Repair the backend first: re-run the named run, push a fix, or `gh workflow run deploy-backend.yml --ref <branch>`, which runs on the branch's head. Then `gh workflow run deploy-frontend.yml --ref <branch>`. Not a re-run of the refused run: it keeps its commit, so a backend run on a later commit never counts for it, and its build artifact is kept one day |
 | Deploy step times out | Amplify job stuck | Check the job in the console and re-run; the bound is `POLL_TIMEOUT_SECONDS` (default 600) |
 
 ## 7. Watched by hand

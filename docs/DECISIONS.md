@@ -2640,6 +2640,13 @@ holds until another of the tag's inputs moves, the Kyiv day at the latest; `infr
 and `infra/src/sell-observations.test.ts` pin the mappings.
 NO STEP GATES THE BACKEND DEPLOY ON WHAT THE PUSH CHANGED: every run the path filter admits
 deploys, once its checks pass, the stacks its branch owns.
+THE FRONTEND GOES LIVE AFTER ITS COMMIT'S BACKEND: a job between the frontend's `build` and
+`deploy`, holding `actions: read` and `contents: read` and no OIDC grant, finds the newest commit at or
+before its own that touches a path the backend's filter admits, and deploys once a backend run on
+its branch of that commit or of a descendant up to its own has succeeded, `migrate` included. It
+waits while such a run is still going, and when none succeeded it fails before `deploy`, naming the
+run, or the commit when no run exists.
+The backend may still run ahead of the SPA, never the SPA ahead of the backend.
 Cloudflare sits in front: the apex, `www` and `dev` are proxied; the
 certificate-validation CNAME and the mail records never are. CLOUDFLARE WEB ANALYTICS IS OFF: the
 zone's `rum` setting is `off`, so the proxy injects no beacon into an HTML answer, and nothing in
@@ -2726,7 +2733,20 @@ the push's own diff is correct only against a watermark of the last commit deplo
 Nx's `nx-set-shas`, which computes that base, states the case — a few failed deployments in a row
 accumulate changes that are not getting deployed, so a retry must include "every commit since the
 last time we deployed successfully" — and reads that commit from the last successful run. A gate
-would have to keep that watermark, and a skipped deploy is worse than a wasted one.
+would have to keep that watermark, and a skipped deploy is worse than a wasted one. The server
+goes first and the client follows: Kubernetes' version-skew policy upgrades `kube-apiserver` before
+any client, which must not be "newer than the existing API server version"; Fowler's parallel
+change expands the interface before it migrates the clients; Vercel names the failure — "Version
+skew occurs when different versions of your application run on client and server" — and solves it
+with version locking Amplify does not offer. The schema already follows the same order under
+*User schema and deletes*. The two workflows start on the same push and nothing else orders them,
+and the backend's path filter starts no run for a push outside it, so the commit to wait for is
+found in the history: GitHub's `*` "does not match slash" in a filter, git's `glob` pathspec is
+fnmatch with `FNM_PATHNAME`, and the job's list is held equal to the filter by a test. Any success in
+that range deploys, because every commit in it carries the same backend code. GitHub's REST guide
+says to "Poll only as often as you need to, on a fixed schedule", and the `GITHUB_TOKEN`'s 1,000
+requests an hour are shared by the repository's workflows, so the job polls on a fixed interval
+well inside that budget.
 **Rejected.** A proxied validation record: the answer becomes the edge's own address and the
 certificate stops renewing. · The security headers in the console: CI has no `UpdateApp`, so
 nothing in the repo could restore them. · `Clear-Site-Data`: it deletes the app's storage. ·
@@ -2754,7 +2774,12 @@ only dev would move, so nothing about it gets harder after the release. · A dep
 identifier: the two builds' always differ. · A commit SHA: the two builds' differ whenever one
 side last deployed without the other. · A hash of each bundle: a Vite output and an esbuild
 output never agree. · A `changed` step gating the backend deploy on the push's diff: correct only
-against a watermark of the last successful deploy.
+against a watermark of the last successful deploy. · A `workflow_run` trigger for the frontend:
+GitHub runs it from the default branch's file with `GITHUB_REF` set to that branch, so a production
+deploy started that way is refused by the `prod` environment. · One workflow with the frontend's
+jobs needing the backend's: the frontend cancels a run in progress and the backend queues and never
+cancels one, and the path filters would have to be re-derived inside one run. · A third-party
+wait action: dependency code in the job, for a call `gh` already makes.
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the
