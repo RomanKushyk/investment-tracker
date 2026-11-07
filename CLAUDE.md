@@ -33,7 +33,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - Nothing is a capsule: standalone radius `round(min(w,h) × 0.26)`, nested `outer = inner + gap`, and a full-bleed band takes square corners. Only avatars and colour dots are round; the mark is drawn geometry. [Shape system]
 - Nothing scrolls with the platform bar: every constrained box goes through `src/components/ui/Scroller.tsx`. [Scrolling]
 - Two shells, one breakpoint: `md` = 768 px, written in Tailwind and in `src/hooks/useIsDesktop.ts` — keep them equal. 44 × 44 is hit area, never geometry. [Two shells, one breakpoint]
-- The logo ships in three places and is drawn in four, all changing together: `src/app/Sidebar.tsx`, `public/favicon.svg`, `public/apple-touch-icon.png` and the script that writes it (`node scripts/build-touch-icon.mjs`). [Brand]
+- The logo ships in three places and is drawn in four, all changing together: `src/app/Sidebar.tsx`, `public/favicon.svg`, `public/apple-touch-icon.png` and the script that writes it (`node scripts/build-touch-icon.mjs`). Mail's mark is the one exception. [Brand]
 - Fonts are Manrope + JetBrains Mono because Ukrainian is the default language. Manrope's figures are proportional, so `body` sets `font-variant-numeric: tabular-nums` — one declaration, and every KPI column depends on it. Number grammar follows the language; tables stay in ₴; dates `dd.MM.yyyy`. [Language, numbers, fonts]
 - Every interaction has fluid, soft motion; `prefers-reduced-motion` is respected. [Interaction rules]
 - Measure in the chrome-devtools MCP, never Playwright's headless Chromium. Calibrate a probe first, disable transitions, check `document.visibilityState`, reload rather than flip the theme, and measure the rendered height — `text-[11px]` sets no line height. [Measurement]
@@ -45,4 +45,4 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - `README.md` what and how to run · `docs/DECISIONS.md` why, current state only · `navigation-map.md` per-route expected values · `docs/reference/` external facts code cannot carry · `docs/superpowers/specs/` live design specs · `infra/README.md` the backend.
 - Decisions are rewritten in place; the history is `git log`. Delete dead documentation, never archive it. A figure lives in a test or not at all; documentation carries no dates and no measurements.
 - A comment says why in one or two lines. Trim history, dates and measurements out of a file's comments when you touch it. Cite decisions by topic heading; old `D<n>` citations resolve through the table at the end of `docs/DECISIONS.md`. No new `D<n>` is ever minted.
-- A merged drawing under `design/` is immutable. New UI gets a brief, a design session, an extension under `design/extensions/`, then code.
+- A merged drawing under `design/` is immutable. New UI gets a brief, a design session, an extension under `design/extensions/`, then code; email's drawing is its spec folder (*Design pipeline*).

@@ -886,7 +886,10 @@ all stroke and no fill, and it SHIPS IN THREE FILES and is DRAWN IN FOUR: `src/a
 generates the raster. Edit the mark and all four move. Its three parts take PER-THEME tokens, so the
 mark inverts with the app; the two that hold the mark as literals, the favicon and the script, copy
 those values, neither having a token to read, and the favicon's light trio is its default branch
-because Safari ignores the colour-scheme query.
+because Safari ignores the colour-scheme query. MAIL IS THE ONE EXCEPTION, ONCE IT SENDS: its mark
+is drawn as the signed refresh's «q» knocked into a plate
+(`docs/superpowers/specs/2026-11-07-email/`), a light and a dark PNG that #585 ships ahead of the
+app's own change, so the mail and the app differ until the refresh lands.
 **Why.** The box is the design sheet's own and is not cropped to the ink: a box measured off the
 geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free.
@@ -2740,7 +2743,9 @@ markup — read it for any exact size or spacing, and ignore `support.js` and `_
 prototype runtime. COLOUR IS THE ONE THING IT NO LONGER OWNS:
 `design/extensions/parchment-5h.dc.html` is the colour reference for BOTH themes and supersedes
 every colour in every merged drawing, geometry and copy in none of them. A merged drawing is
-immutable; a new surface gets its own file under `design/extensions/`. The pipeline is brief → a
+immutable; a new surface gets its own file under `design/extensions/`. Email is the one surface
+drawn outside it: `docs/superpowers/specs/2026-11-07-email/` holds its spec and renders, drawn
+against the signed layout refresh that is to replace `design/` (#611). The pipeline is brief → a
 design session that turns it into an extension → the UI task, which may not start before its
 extension merges; a merged drawing wins a layout dispute, the brief wins copy and behaviour, and
 colours come only from theme tokens. 3 : 1 (WCAG 1.4.11) binds any boundary that identifies a

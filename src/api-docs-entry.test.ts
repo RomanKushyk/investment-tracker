@@ -246,7 +246,7 @@ describe('the API reference is a second build, and production never runs it', ()
     expect(missed(text), '.github/WORKFLOWS.md says it again').toEqual(finders.map(String));
   });
 
-  it('docs/ holds no non-Markdown file but the spec — what keeps docs/** out of the filter cheap', () => {
+  it('docs/ holds no non-Markdown file but the spec and the email renders — what keeps docs/** out of the filter cheap', () => {
     // THIS HOLDS THE PREMISE THAT KEEPS `docs/**`'S ABSENCE FROM THE FILTER CHEAP, and nothing else
     // would notice it changing: every non-Markdown file added under docs/ starts triggering
     // frontend deploys. That is the safe direction — an extra no-op run, never a stale page —
@@ -255,6 +255,11 @@ describe('the API reference is a second build, and production never runs it', ()
       .split(/\r?\n/)
       .filter(Boolean);
     expect(tracked.length).toBeGreaterThan(1);
-    expect(tracked.filter((f) => !f.endsWith('.md'))).toEqual([SPEC]);
+    // The email spec's renders are the one exception, each change a no-op deploy until the deploy
+    // filter learns images.
+    const renders = 'docs/superpowers/specs/2026-11-07-email/renders/';
+    const allowed = (f: string) =>
+      f.endsWith('.md') || (f.startsWith(renders) && f.endsWith('.png'));
+    expect(tracked.filter((f) => !allowed(f))).toEqual([SPEC]);
   });
 });
