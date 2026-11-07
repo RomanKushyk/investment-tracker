@@ -9,7 +9,7 @@ const ANSWERS: [item: string, key: string][] = [
   ['GDPR 13(1)(a) identity and contact', 'privacy.sections.controller.body.0'],
   ['GDPR 13(1)(b) data protection officer', 'privacy.sections.controller.body.1'],
   ['GDPR 13(1)(c) purposes and legal basis', 'privacy.sections.purposes.body.0'],
-  ['GDPR 13(1)(d) legitimate interests', 'privacy.sections.purposes.body.0.2'],
+  ['GDPR 13(1)(d) legitimate interests', 'privacy.sections.purposes.body.0.3'],
   ['GDPR 13(1)(e) recipients', 'privacy.sections.recipients.body.0'],
   ['GDPR 13(1)(e) no one else', 'privacy.sections.recipients.body.1'],
   ['GDPR 13(1)(f) transfers', 'privacy.sections.transfers.body.0'],
@@ -236,6 +236,96 @@ describe('the legal pages send a deletion to Profile', () => {
     for (const id of ['termination', 'changes']) {
       expect(JSON.stringify(at(dict, `terms.sections.${id}.body`))).not.toMatch(asked);
     }
+  });
+});
+
+// #592: after the invitation the app writes about the account (#584's messages), so the notice
+// names that mail, its sender and its purpose, and `/apply` stops saying no other mail comes.
+describe('the legal copy names the mail an account receives', () => {
+  it.each([
+    {
+      language: 'en',
+      dict: en,
+      invitation: /invitation/,
+      notices: /notices about your account/,
+      none: /No other email/,
+      advertising: 'We send no advertising',
+      contract: /performing the contract/,
+      kinds: [
+        /welcome/,
+        /verification codes/,
+        /new passkey/,
+        /disabled/,
+        /active again/,
+        /deletion scheduled, cancelled or done/,
+      ],
+    },
+    {
+      language: 'uk',
+      dict: uk,
+      invitation: /запрошення/,
+      notices: /повідомлення про обліковий запис/,
+      none: /Інших листів не буде/,
+      advertising: 'Ми не надсилаємо реклами',
+      contract: /виконання договору/,
+      kinds: [
+        /вітання/,
+        /коди підтвердження/,
+        /новий ключ доступу/,
+        /вимкнення/,
+        /повторну активацію/,
+        /заплановане, скасоване чи завершене видалення/,
+      ],
+    },
+  ])('$language', ({ dict, invitation, notices, none, advertising, contract, kinds }) => {
+    const [aws] = at(dict, 'privacy.sections.recipients.body.0') as string[];
+    expect(aws).toMatch(/^Amazon Web Services/);
+    expect(aws).toMatch(invitation);
+    expect(aws).toMatch(notices);
+
+    const purposes = at(dict, 'privacy.sections.purposes.body.0') as string[];
+    const mail = purposes.find((line) => kinds.every((kind) => kind.test(line)));
+    expect(mail, 'no purpose names every kind of notice').toBeDefined();
+    expect(mail).toMatch(contract);
+    expect(at(dict, 'privacy.sections.purposes.body.1')).toContain(advertising);
+    // The notices item went in before it, so the ANSWERS entry for 13(1)(d) is pinned by its words.
+    expect(at(dict, 'privacy.sections.purposes.body.0.3')).toMatch(
+      /legitimate interest|законний інтерес/,
+    );
+
+    const recorded = dict.auth.apply.recordedLead('reader@example.com');
+    expect(recorded).not.toMatch(none);
+    expect(recorded).toMatch(invitation);
+    expect(recorded).toMatch(notices);
+  });
+});
+
+// #586 records the page's language with an application; 2297-VI Art. 12(2) asks the composition and
+// purpose at collection, so `/apply`'s first layer and `/privacy` name it (owner's ruling on #586).
+describe('the legal copy names the language an application records', () => {
+  it.each([
+    {
+      language: 'en',
+      dict: en,
+      layer: 'records the language of the page, to write to you in it',
+      data: 'the language of the page you applied on',
+      account: 'the language Quirenote writes to you in',
+      purpose: 'send the invitation in the language of the page you applied on',
+    },
+    {
+      language: 'uk',
+      dict: uk,
+      layer: 'записує мову сторінки, щоб писати вам нею',
+      data: 'мова сторінки, на якій ви подали заявку',
+      account: 'мова, якою Quirenote вам пише',
+      purpose: 'надіслати запрошення мовою сторінки, на якій ви подали заявку',
+    },
+  ])('$language', ({ dict, layer, data, account, purpose }) => {
+    expect(dict.privacy.firstLayer).toContain(layer);
+    expect(at(dict, 'privacy.sections.data.body.0.0')).toContain(data);
+    // Approval carries the language into the account, and later mail is written in it.
+    expect(at(dict, 'privacy.sections.data.body.0.1')).toContain(account);
+    expect(at(dict, 'privacy.sections.purposes.body.0.0')).toContain(purpose);
   });
 });
 

@@ -1220,7 +1220,7 @@ export const en = {
         'The terms of use have changed. Reload the page to read them, then apply again.',
       recordedTitle: 'Application recorded',
       recordedLead: (email: string) =>
-        `If it’s approved, the invitation will go to ${email}. No other email is sent.`,
+        `If it’s approved, the invitation will go to ${email}, and after it only notices about your account: its security, access and deletion.`,
       back: 'Back to sign in',
     },
     /** The Turnstile check under a form's button (`bot-check.dc.html` T5). */
@@ -1312,8 +1312,8 @@ export const en = {
       data: section(
         'What data we handle',
         [
-          'Application: your email address, when you applied, and which version of the terms of use you accepted and when.',
-          'Account: your address, role, the dates you applied and were approved, and which version of the terms of use you accepted and when. Amazon Cognito keeps your password; Quirenote does not keep it. Passkeys: Amazon Cognito keeps their ID, name, device type and creation date; the private key stays on your device.',
+          'Application: your email address, when you applied, the language of the page you applied on, and which version of the terms of use you accepted and when.',
+          'Account: your address, role, the language Quirenote writes to you in, the dates you applied and were approved, and which version of the terms of use you accepted and when. Amazon Cognito keeps your password; Quirenote does not keep it. Passkeys: Amazon Cognito keeps their ID, name, device type and creation date; the private key stays on your device.',
           'Google sign-in: Google gives Amazon Cognito your name, address and profile photo. Only the address, the mark that Google verified it, and your Google account ID are kept.',
           'Portfolio: the accounts, assets, transactions with their notes, prices and settings you enter.',
           'Technical data: the IP address and browser details received by Cloudflare, whose network the site opens through, and by Amazon Web Services, whose servers run the app and the sign-in. To check a form, the server passes your IP address to Cloudflare. The service’s logs name an account by its ID, not its address.',
@@ -1324,8 +1324,9 @@ export const en = {
       purposes: section(
         'Why, and on what basis',
         [
-          'To review your application and send the invitation — steps before a contract, at your request (Law, Article 11(1)(3); GDPR Article 6(1)(b)).',
+          'To review your application and send the invitation in the language of the page you applied on — steps before a contract, at your request (Law, Article 11(1)(3); GDPR Article 6(1)(b)).',
           'To sign you in, keep, compute and show your portfolio, keep a record of our agreement (which version of the terms of use you accepted and when), and answer your messages — performing the contract (the same articles).',
+          'To write to you about your account: a welcome once it is live, verification codes, a new passkey, the account disabled or active again, and its deletion scheduled, cancelled or done — performing the contract (the same articles).',
           'To protect the service from bots and abuse: Cloudflare’s check, logs, backups — our legitimate interest in network and information security (Law, Article 11(1)(6); GDPR Article 6(1)(f) and Recital 49).',
         ],
         'We do not ask for consent, because no processing rests on it. We send no advertising, build no profiles and make no automated decisions with legal effects on you: Cloudflare only checks that a person is sending the form, and a person reviews the application.',
@@ -1333,7 +1334,7 @@ export const en = {
       recipients: section(
         'Who receives your data',
         [
-          'Amazon Web Services stores the data and sends the invitation: region eu-north-1, Stockholm, Sweden.',
+          'Amazon Web Services stores the data and sends the invitation and the notices about your account: region eu-north-1, Stockholm, Sweden.',
           'Cloudflare, Inc. (USA): the network the site opens through, and the check on the application and sign-in forms (Turnstile). Cloudflare also uses the check’s data itself, as a separate controller, to detect bots better: [Cloudflare’s Turnstile notice](https://www.cloudflare.com/turnstile-privacy-policy/).',
           'Google LLC (USA), only if you sign in with Google.',
           'Mail to support@quirenote.com is forwarded by Cloudflare to the owner’s Gmail inbox (Google LLC).',
@@ -1398,7 +1399,7 @@ export const en = {
       ),
     },
     firstLayer:
-      'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. With your application, Quirenote records which version of the terms you accepted and when, to keep a record of the agreement with you. Who handles this data, where it is kept and your rights: the [Privacy policy](/privacy).',
+      'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. With your application, Quirenote records the language of the page, to write to you in it, and which version of the terms you accepted and when, to keep a record of the agreement with you. Who handles this data, where it is kept and your rights: the [Privacy policy](/privacy).',
   },
   // `terms-of-use.dc.html` T1 and T7 (brief #514): the Ukrainian prevails and the English says no
   // more. A section's title is bare, and the page numbers it.
@@ -2825,7 +2826,7 @@ export const uk: Dict = {
         'Умови користування змінилися. Перезавантажте сторінку, щоб прочитати їх, і подайте заявку ще раз.',
       recordedTitle: 'Заявку записано',
       recordedLead: (email: string) =>
-        `Якщо її схвалять, запрошення прийде на ${email}. Інших листів не буде.`,
+        `Якщо її схвалять, запрошення прийде на ${email}, а після нього — лише повідомлення про обліковий запис: про його безпеку, доступ і видалення.`,
       back: 'Повернутися до входу',
     },
     botCheck: {
@@ -2901,8 +2902,8 @@ export const uk: Dict = {
       data: section(
         'Які дані ми обробляємо',
         [
-          'Заявка: адреса електронної пошти, час подання, версія Умов користування, яку ви прийняли, і час її прийняття.',
-          'Обліковий запис: адреса, роль, дати подання заявки й схвалення, версія Умов користування, яку ви прийняли, і час її прийняття. Пароль зберігає Amazon Cognito, Quirenote його не зберігає. Ключі доступу: Amazon Cognito зберігає їхні ідентифікатор, назву, тип пристрою й дату створення; закритий ключ лишається на вашому пристрої.',
+          'Заявка: адреса електронної пошти, час подання, мова сторінки, на якій ви подали заявку, версія Умов користування, яку ви прийняли, і час її прийняття.',
+          'Обліковий запис: адреса, роль, мова, якою Quirenote вам пише, дати подання заявки й схвалення, версія Умов користування, яку ви прийняли, і час її прийняття. Пароль зберігає Amazon Cognito, Quirenote його не зберігає. Ключі доступу: Amazon Cognito зберігає їхні ідентифікатор, назву, тип пристрою й дату створення; закритий ключ лишається на вашому пристрої.',
           'Вхід через Google: Google передає Amazon Cognito ваше ім’я, адресу й фото профілю. Зберігаються лише адреса, позначка, що Google її підтвердив, і ідентифікатор облікового запису Google.',
           'Портфель: рахунки, активи, операції з нотатками, ціни й налаштування, які ви вносите.',
           'Технічні дані: IP-адреса й дані браузера, які отримують Cloudflare, через мережу якого відкривається сайт, і Amazon Web Services, на серверах якого працюють застосунок і вхід. Щоб перевірити форму, сервер передає Cloudflare вашу IP-адресу. У журналах сервісу обліковий запис названо ідентифікатором, а не адресою.',
@@ -2913,8 +2914,9 @@ export const uk: Dict = {
       purposes: section(
         'Навіщо й на якій підставі',
         [
-          'Розглянути заявку й надіслати запрошення — дії перед укладенням договору на ваше прохання (пункт 3 частини першої статті 11 Закону; стаття 6(1)(b) GDPR).',
+          'Розглянути заявку й надіслати запрошення мовою сторінки, на якій ви подали заявку, — дії перед укладенням договору на ваше прохання (пункт 3 частини першої статті 11 Закону; стаття 6(1)(b) GDPR).',
           'Дати вам вхід, зберігати, рахувати й показувати портфель, зберігати запис договору (яку версію Умов користування ви прийняли й коли) і відповідати на звернення — виконання договору (ті самі статті).',
+          'Писати вам про обліковий запис: вітання, коли він запрацює, коди підтвердження, новий ключ доступу, вимкнення облікового запису й повторну активацію, а також заплановане, скасоване чи завершене видалення — виконання договору (ті самі статті).',
           'Захищати сервіс від ботів і зловживань: перевірка Cloudflare, журнали, резервні копії — наш законний інтерес у безпеці мережі й інформації (пункт 6 частини першої статті 11 Закону; стаття 6(1)(f) і пункт 49 преамбули GDPR).',
         ],
         'Згоди ми не просимо, бо не обробляємо даних на її підставі. Ми не надсилаємо реклами, не будуємо профілів і не ухвалюємо автоматизованих рішень, які мають для вас правові наслідки: Cloudflare лише перевіряє, що форму надсилає людина, а заявку розглядає людина.',
@@ -2922,7 +2924,7 @@ export const uk: Dict = {
       recipients: section(
         'Кому передаються дані',
         [
-          'Amazon Web Services зберігає дані й надсилає запрошення: регіон eu-north-1, Стокгольм, Швеція.',
+          'Amazon Web Services зберігає дані й надсилає запрошення та повідомлення про обліковий запис: регіон eu-north-1, Стокгольм, Швеція.',
           'Cloudflare, Inc. (США): мережа, через яку відкривається сайт, і перевірка форм заявки й входу (Turnstile). Дані перевірки Cloudflare також використовує сам, як окремий володілець, щоб краще розпізнавати ботів: [повідомлення Cloudflare про Turnstile](https://www.cloudflare.com/turnstile-privacy-policy/).',
           'Google LLC (США), лише якщо ви входите через Google.',
           'Листи на support@quirenote.com Cloudflare пересилає на поштову скриньку власника в Gmail (Google LLC).',
@@ -2985,7 +2987,7 @@ export const uk: Dict = {
       ),
     },
     firstLayer:
-      'Quirenote використовує адресу, щоб розглянути заявку й надіслати запрошення, а Cloudflare перевіряє, що форму надсилає людина. Разом із заявкою Quirenote записує, яку версію Умов і коли ви прийняли, щоб зберігати запис договору з вами. Хто обробляє ці дані, де їх зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
+      'Quirenote використовує адресу, щоб розглянути заявку й надіслати запрошення, а Cloudflare перевіряє, що форму надсилає людина. Разом із заявкою Quirenote записує мову сторінки, щоб писати вам нею, а також яку версію Умов і коли ви прийняли, щоб зберігати запис договору з вами. Хто обробляє ці дані, де їх зберігають і які у вас права — у [Політиці конфіденційності](/privacy).',
   },
   terms: {
     link: 'Умови',

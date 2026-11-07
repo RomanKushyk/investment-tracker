@@ -2319,7 +2319,8 @@ TERMS OF USE LIVE WHOLE AT `/terms` AND ARE ACCEPTED BY PRESSING «ПОДАТИ 
 public route in the signed-out shell for every reader, signed in or not, so it waits on no session,
 reads no data and swaps no shell; signed in, a language chosen there is the account's. «До
 Quirenote» leads back to `/`. Under `/apply`'s button stand three sentences naming Quirenote, the
-purpose, Cloudflare's check and the record of the accepted terms with its purpose, with the link;
+purpose, Cloudflare's check, and the page's language and the record of the accepted terms, each
+with its purpose, with the link;
 they ask no agreement to the processing and carry no checkbox, and the link opens a new tab, so what was typed stays. The link also stands under every
 signed-out card (under a refused caller's answer it opens a new tab: the answer may hold a sign-out
 still running, which leaving would lose), on the links line over the version in the panel and the
@@ -2327,7 +2328,13 @@ drawer, and as a row in the profile's «Ваші дані»; the collapsed rail 
 press away. The notice is written under Law 2297-VI and gives every GDPR Art. 13 item; the
 controller is named, Роман Кушик, a private individual, with no street address or city, and support@
 is the contact. Ukrainian prevails and the English says no more; a test fails if a mapped item is
-missing or empty, or if the English holds a section the Ukrainian lacks. The periods it states are
+missing or empty, or if the English holds a section the Ukrainian lacks. The application's line
+names the page's language, the invitation's purpose says it is written in it, and the account's
+line names the language mail is written in, which approval carries across. THE NOTICE NAMES
+THE MAIL AN ACCOUNT RECEIVES — the welcome, verification codes, a new passkey, the account disabled
+or active again, its deletion scheduled, cancelled or done — as a contract purpose, and AWS as the
+sender of it and of the invitation; `/apply`'s recorded answer says only notices about the account
+follow the invitation. No advertising is sent, so no consent is asked. The periods it states are
 the code's: a declined application is deleted when declined, and an account deleted in Profile goes
 at once or after its 30 days, which can be cancelled until then (*User schema and deletes*); erased
 data leaves the working database within 30 days, backups keep 35, function logs 30, CloudTrail's
@@ -2370,7 +2377,10 @@ the trigger.
 **Why.** GDPR Art. 13 and 2297-VI Art. 12(2) ask for the information "at the time when personal data
 are obtained"; WP260 rev.01 ¶36 wants a first layer shown as the form is filled, ¶17 "one single
 place or one complete document", and ¶11 a link "clearly visible on each page". EDPB 2/2019 ¶20
-keeps a contract's necessity apart from consent, so the notice asks no agreement. Law 2704-VIII Art.
+keeps a contract's necessity apart from consent, so the notice asks no agreement. Art. 13(1)(c) and
+(e) ask for "the purposes of the processing" and "the recipients", so the account's mail is named in
+both; AhaSend's and Targetsmtp's notices put account and security mail under Art. 6(1)(b), and
+Art. 6(1)(c) would need EU or member-state law, which 2297-VI is not. Law 2704-VIII Art.
 27(6) lets a translation say no more than the Ukrainian. Linear, Notion and GitHub serve their
 policies outside the app, and Mastodon puts its link by the version in its sidebar. Retention is
 periods the code enforces first (GDPR Art. 5(1)(e), recital 39; 2297-VI Art. 6(8)). Art. 13(2)(a)
