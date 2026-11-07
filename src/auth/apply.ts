@@ -1,4 +1,5 @@
 import { canonicalAddress } from '@quirenote/core/address';
+import type { AccountSettings } from '@quirenote/core/settings';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 
 import { ANSWER_MS } from './relay';
@@ -20,10 +21,8 @@ export type ApplyOutcome =
 
 const refused = (reason: ApplyRefusal): ApplyOutcome => ({ kind: 'refused', reason });
 
-// A 400 is the address rule this side already checked, unless it names the terms: then this form and
-// the route hold different versions, which a reload settles once both have deployed; until then a
-// form or route built before the terms reads the other's 400 as the address. The rest of the body
-// is the token, whose refusal is the 403.
+// A 400 is a rule this side already checked (the address, the language) unless it names the terms; a
+// form and route on different builds read each other's 400 as the address until both have deployed.
 const REFUSED: Record<number, ApplyRefusal> = { 400: 'emailInvalid', 429: 'throttled' };
 
 const refusalCode = (body: unknown) =>
@@ -37,7 +36,8 @@ export function addressRefusal(typed: string): 'emailMissing' | 'emailInvalid' |
 
 /** `POST /applications`. Its 202 is one constant for every address, so all it can tell is that
  *  the application was recorded. No cookie: the route reads none, and through the dev server's
- *  proxy the relay's refresh cookie is same-origin and would ride along. */
+ *  proxy the relay's refresh cookie is same-origin and would ride along. `language` is the page's,
+ *  which the route records as the account's language. */
 export function createApply({
   base,
   fetch,
@@ -45,7 +45,11 @@ export function createApply({
   base: string | undefined;
   fetch: typeof globalThis.fetch;
 }) {
-  return async (typed: string, botCheck: string): Promise<ApplyOutcome> => {
+  return async (
+    typed: string,
+    botCheck: string,
+    language: AccountSettings['language'],
+  ): Promise<ApplyOutcome> => {
     const email = canonicalAddress(typed);
     if (!email) return refused(addressRefusal(typed) ?? 'emailInvalid');
     if (base === undefined) return refused('failed');
@@ -57,7 +61,7 @@ export function createApply({
         method: 'POST',
         credentials: 'omit',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, botCheck, termsVersion: TERMS_VERSION }),
+        body: JSON.stringify({ email, botCheck, termsVersion: TERMS_VERSION, language }),
         signal: controller.signal,
       });
       const body: unknown = await response.json().catch(() => undefined);

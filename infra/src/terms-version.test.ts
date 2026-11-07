@@ -25,7 +25,7 @@ describe('the terms version', () => {
     const fetch = vi.fn(
       async () => new Response(JSON.stringify({ status: 'received' }), { status: 202 }),
     );
-    await createApply({ base: '', fetch })('new@quirenote.com', 'token');
+    await createApply({ base: '', fetch })('new@quirenote.com', 'token', 'uk');
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(String(init.body)).termsVersion).toBe(TERMS_VERSION);
   });

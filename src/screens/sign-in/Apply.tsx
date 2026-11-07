@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import type { Dict } from '../../i18n/messages';
 import { rich } from '../../i18n/rich';
 import { useT } from '../../i18n/useT';
+import { useSettings } from '../../state/settings';
 import { BotCheck } from './BotCheck';
 import { EmailInput, Field, FocusedTitle, Foot, NewTabLink, StepAlert, Title } from './parts';
 import { afterPass, useBotCheck } from './useBotCheck';
@@ -68,7 +69,8 @@ export function Apply() {
   });
 
   async function send(botCheck: string) {
-    const outcome = await apply(address, botCheck);
+    // Read at the send, not the press: the language can change while the press waits for a token.
+    const outcome = await apply(address, botCheck, useSettings.getState().language);
     check.spent();
     setBusy(false);
     if (outcome.kind === 'recorded') setRecorded(outcome.email);

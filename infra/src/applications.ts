@@ -5,6 +5,7 @@
 // would already have cost a monthly active user, approved or not. Minting the identity belongs to
 // APPROVAL, which is also what makes approval the verification step (*Auth model*).
 import { ADDRESS, MAX_ADDRESS, canonicalAddress } from '@quirenote/core/address';
+import { LANGUAGES, patchSettings } from '@quirenote/core/settings';
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import {
   BOT_CHECK_FAILED,
@@ -48,6 +49,8 @@ export const REQUEST_BODY = {
           botCheck: TOKEN,
           /** The terms the form showed, accepted by pressing its button; only the current ones. */
           termsVersion: { type: 'string', enum: [TERMS_VERSION] },
+          /** The language the form was shown in, kept as the account's language setting. */
+          language: { type: 'string', enum: LANGUAGES },
         },
       },
     },
@@ -58,9 +61,10 @@ export const RESPONSES: Record<string, readonly ApiResult[]> = {
   [ROUTE]: [RECEIVED, INVALID, TERMS_OUTDATED, BOT_CHECK_FAILED, INTERNAL],
 };
 
-const KEYS = new Set(['email', 'botCheck', 'termsVersion']);
+const KEYS = new Set(['email', 'botCheck', 'termsVersion', 'language']);
 
-type Application = { email: string; botCheck: string };
+/** `settings` is the column's text: the account setting the language becomes, or NULL. */
+type Application = { email: string; botCheck: string; settings: string | null };
 
 /** The address a request carries, already folded, and its token, under the current terms — or the
  *  400 that refuses it. A token that is absent or not text reads as empty, which the bot check
@@ -87,14 +91,26 @@ function applicationOf(event: ApiEvent): Application | ApiResult {
     email: supplied,
     botCheck,
     termsVersion,
-  } = parsed as { email?: unknown; botCheck?: unknown; termsVersion?: unknown };
+    language,
+  } = parsed as { email?: unknown; botCheck?: unknown; termsVersion?: unknown; language?: unknown };
   if (typeof supplied !== 'string') return INVALID;
   const email = canonicalAddress(supplied);
   if (email === undefined) return INVALID;
   // A stale form showed other terms; what it accepted is not what this route would record.
   if (termsVersion !== TERMS_VERSION) return TERMS_OUTDATED;
+  const settings = settingsFor(language);
+  if (settings === undefined) return INVALID;
 
-  return { email, botCheck: tokenOf(botCheck) };
+  return { email, botCheck: tokenOf(botCheck), settings };
+}
+
+/** The `settings` text a language becomes, NULL for none and `undefined` for a refused one; core's
+ *  rule writes it, so the row holds what `PATCH /me/settings` would store. */
+function settingsFor(language: unknown): string | null | undefined {
+  if (language === undefined) return null;
+  if (typeof language !== 'string') return undefined;
+  const patched = patchSettings(null, { language });
+  return 'issues' in patched ? undefined : patched.text;
 }
 
 /**
@@ -108,8 +124,8 @@ function applicationOf(event: ApiEvent): Application | ApiResult {
  * so this route never writes a row approval has read.
  */
 const INSERT = `INSERT INTO app_user (user_id, email, status, role, applied_at,
-                                      terms_version, terms_accepted_at)
-                VALUES (gen_random_uuid(), $1, 'pending', 'user', now(), $2::date, now())
+                                      terms_version, terms_accepted_at, settings)
+                VALUES (gen_random_uuid(), $1, 'pending', 'user', now(), $2::date, now(), $3)
                 ON CONFLICT (email) DO NOTHING`;
 
 /** A SQLSTATE, or nothing — the shape `migrate.ts` reads one in, and for its reasons. */
@@ -131,9 +147,9 @@ const isDuplicateAddress = (err: unknown): boolean =>
   err !== null &&
   (err as { constraint?: unknown }).constraint === 'app_user_email_uq';
 
-async function apply(client: SqlClient, email: string): Promise<ApiResult> {
+async function apply(client: SqlClient, { email, settings }: Application): Promise<ApiResult> {
   try {
-    await client.query(INSERT, [email, TERMS_VERSION]);
+    await client.query(INSERT, [email, TERMS_VERSION, settings]);
   } catch (err) {
     if (isDuplicateAddress(err)) return RECEIVED;
     // LOGGED, NOT RETURNED: whatever the cluster said belongs in CloudWatch.
@@ -146,7 +162,7 @@ async function apply(client: SqlClient, email: string): Promise<ApiResult> {
 /** The cluster's half alone, which the bundle's smoke test drives; the token is the handler's. */
 export async function applications(client: SqlClient, event: ApiEvent): Promise<ApiResult> {
   const application = applicationOf(event);
-  return 'statusCode' in application ? application : apply(client, application.email);
+  return 'statusCode' in application ? application : apply(client, application);
 }
 
 type Connection = SqlClient & { end: () => Promise<void> };
@@ -163,7 +179,6 @@ export const createHandler =
       await verify(application.botCheck, event.requestContext?.http?.sourceIp),
     );
     if (refused) return refused;
-    const { email } = application;
 
     // A connection failure answers rather than throws: an uncaught throw reaches the caller as API
     // Gateway's own 502, a second shape for the same class of event.
@@ -174,7 +189,7 @@ export const createHandler =
     if (client === undefined) return INTERNAL;
 
     try {
-      return await apply(client, email);
+      return await apply(client, application);
     } finally {
       // BELT, NOT COVERAGE: `pg`'s `end()` does not reject today, but the answer is already in
       // hand and a rejection escaping a `finally` would REPLACE it with API Gateway's 502.

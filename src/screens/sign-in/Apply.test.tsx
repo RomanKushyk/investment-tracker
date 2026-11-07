@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // `/apply` with the bot check stubbed: the widget's own events are driven by hand, so each case is
 // the form's answer to one of them (`bot-check.dc.html` T1, T4).
+import type { AccountSettings } from '@quirenote/core/settings';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createMemoryRouter } from 'react-router';
@@ -8,13 +9,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RouterProvider } from '../../__fixtures__/router';
 import type { ApplyOutcome } from '../../auth/apply';
-import { uk } from '../../i18n/messages';
+import { en, uk } from '../../i18n/messages';
+import { useSettings } from '../../state/settings';
 import type { BotCheckProps } from './BotCheck';
 
-const hold = vi.hoisted(() => ({
-  props: undefined as BotCheckProps | undefined,
-  apply: vi.fn<(typed: string, botCheck: string) => Promise<ApplyOutcome>>(),
-}));
+const hold = vi.hoisted(() => {
+  // Before the settings store is imported, which persists to it.
+  const kept = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (k: string) => kept.get(k) ?? null,
+    setItem: (k: string, v: string) => void kept.set(k, v),
+    removeItem: (k: string) => void kept.delete(k),
+  } as Storage;
+  return {
+    props: undefined as BotCheckProps | undefined,
+    apply:
+      vi.fn<
+        (
+          typed: string,
+          botCheck: string,
+          language: AccountSettings['language'],
+        ) => Promise<ApplyOutcome>
+      >(),
+  };
+});
 vi.mock('../../auth/app', () => ({ apply: hold.apply, botCheckSitekey: 'site-key' }));
 vi.mock('./BotCheck', () => ({
   BotCheck: (props: BotCheckProps) => {
@@ -62,6 +80,7 @@ const alert = () => screen.queryByRole('alert')?.textContent;
 beforeEach(() => {
   hold.props = undefined;
   hold.apply.mockReset();
+  useSettings.setState({ language: 'uk' });
 });
 afterEach(cleanup);
 
@@ -97,7 +116,29 @@ describe('a press before the token', () => {
 
     await emit((w) => w.onToken('token-1'));
     expect(hold.apply).toHaveBeenCalledOnce();
-    expect(hold.apply).toHaveBeenCalledWith(ADDRESS, 'token-1');
+    expect(hold.apply).toHaveBeenCalledWith(ADDRESS, 'token-1', 'uk');
+  });
+
+  // The application records the language the page is read in.
+  it('sends the language the page is shown in', async () => {
+    useSettings.setState({ language: 'en' });
+    hold.apply.mockResolvedValue(recorded);
+    mount();
+    fireEvent.change(screen.getByLabelText(en.auth.email), { target: { value: ADDRESS } });
+    await act(async () => void screen.getByRole('button', { name: en.auth.apply.submit }).click());
+    await emit((w) => w.onToken('token-1'));
+    expect(hold.apply).toHaveBeenCalledWith(ADDRESS, 'token-1', 'en');
+  });
+
+  // A press waits for its token; the language is the one shown when it is sent, not when pressed.
+  it('sends the language switched to while the press waited for its token', async () => {
+    hold.apply.mockResolvedValue(recorded);
+    mount();
+    type(ADDRESS);
+    await press();
+    await act(async () => useSettings.setState({ language: 'en' }));
+    await emit((w) => w.onToken('token-1'));
+    expect(hold.apply).toHaveBeenCalledWith(ADDRESS, 'token-1', 'en');
   });
 
   // The wait ends with the widget's answer: a failure returns the step live, with its sentence.
@@ -208,7 +249,7 @@ describe('every answer spends the token', () => {
     await emit((w) => w.onToken('token-1'));
     type(ADDRESS);
     await press();
-    expect(hold.apply).toHaveBeenLastCalledWith(ADDRESS, 'token-1');
+    expect(hold.apply).toHaveBeenLastCalledWith(ADDRESS, 'token-1', 'uk');
     expect(widget().reset).toBeGreaterThan(before);
 
     await press();
@@ -216,7 +257,7 @@ describe('every answer spends the token', () => {
     expect(button().textContent).toBe(uk.auth.apply.busy);
     await emit((w) => w.onToken('token-2'));
     expect(hold.apply).toHaveBeenCalledTimes(2);
-    expect(hold.apply).toHaveBeenLastCalledWith(ADDRESS, 'token-2');
+    expect(hold.apply).toHaveBeenLastCalledWith(ADDRESS, 'token-2', 'uk');
   });
 
   // The form gives way, and the widget with it: its unmount removes it from the page.

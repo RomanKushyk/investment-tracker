@@ -49,6 +49,15 @@ const submit = (
   termsVersion: unknown = TERMS_VERSION,
 ): ApiEvent => raw(JSON.stringify({ email, botCheck, termsVersion }));
 const VERSIONED = `"termsVersion":"${TERMS_VERSION}"`;
+const submitIn = (language: unknown): ApiEvent =>
+  raw(
+    JSON.stringify({
+      email: 'new@quirenote.com',
+      botCheck: TOKEN,
+      termsVersion: TERMS_VERSION,
+      language,
+    }),
+  );
 
 /** Records what the handler asked the cluster for, and answers nothing back. */
 const spy = (thrown?: Error) => {
@@ -176,6 +185,21 @@ describe('a submission writes one pending row', () => {
     await applications(db, submit('new@quirenote.com'));
     expect((await rows()).map((r) => r.role)).toEqual(['user']);
   });
+
+  // The language the applicant read the form in becomes the account's language setting.
+  const settings = async () =>
+    (await db.query<{ settings: string | null }>('SELECT settings FROM app_user')).rows;
+
+  it('records the language the form was shown in as the account setting', async () => {
+    const res = await applications(db, submitIn('en'));
+    expect(res.statusCode).toBe(202);
+    expect(await settings()).toEqual([{ settings: '{"language":"en"}' }]);
+  });
+
+  it('records no settings for an application that names no language', async () => {
+    await applications(db, submit('new@quirenote.com'));
+    expect(await settings()).toEqual([{ settings: null }]);
+  });
 });
 
 describe('an address the cluster would refuse never reaches it', () => {
@@ -225,6 +249,17 @@ describe('an address the cluster would refuse never reaches it', () => {
       expect(asked).toEqual([]);
     });
   }
+
+  // The schema's enum, matched whole: a tag the account setting would not accept is no language.
+  it.each(['fr', 'EN', 'uk-UA', '', 42, null])(
+    'refuses the language %j as the schema does, without asking the cluster anything',
+    async (language) => {
+      const { client, asked } = spy();
+      const res = await applications(client, submitIn(language));
+      expect([res.statusCode, res.body]).toEqual([400, '{"error":"invalid_request"}']);
+      expect(asked).toEqual([]);
+    },
+  );
 
   // Acceptance is of the version the form showed, and only the current one is shown. Other terms
   // are answered by their own code, so a form that knows it can ask for a reload, not an address.
@@ -339,7 +374,7 @@ describe('a submission costs one parameterised statement and no mail', () => {
     const { client, asked } = spy();
     await applications(client, submit('New@quirenote.com'));
     expect(asked).toHaveLength(1);
-    expect(asked[0].values).toEqual(['new@quirenote.com', TERMS_VERSION]);
+    expect(asked[0].values).toEqual(['new@quirenote.com', TERMS_VERSION, null]);
     expect(asked[0].text).toContain('$1');
     expect(asked[0].text.toLowerCase()).not.toContain('quirenote.com');
   });
@@ -393,7 +428,7 @@ describe('the bot check stands before the cluster', () => {
     const res = await gated(verdict('passed'), connect)(submit('New@quirenote.com'));
     expect([res.statusCode, res.body]).toEqual([202, '{"status":"received"}']);
     expect(asked).toHaveLength(1);
-    expect(asked[0].values).toEqual(['new@quirenote.com', TERMS_VERSION]);
+    expect(asked[0].values).toEqual(['new@quirenote.com', TERMS_VERSION, null]);
   });
 
   it('refuses a token the check refuses, and opens no connection', async () => {

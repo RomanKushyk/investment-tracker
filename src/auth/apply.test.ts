@@ -9,21 +9,25 @@ const answer = (status: number, body: unknown) =>
   vi.fn(async () => new Response(JSON.stringify(body), { status }));
 
 describe('an application', () => {
-  it('posts the canonical address and the terms version as JSON, and no cookie', async () => {
+  it('posts the canonical address, the terms version and the language as JSON, and no cookie', async () => {
     const fetch = answer(202, { status: 'received' });
-    await createApply({ base: 'https://api.test', fetch })('  Oksana.Melnyk@Example.com ', TOKEN);
+    await createApply({ base: 'https://api.test', fetch })(
+      '  Oksana.Melnyk@Example.com ',
+      TOKEN,
+      'en',
+    );
     expect(fetch).toHaveBeenCalledWith('https://api.test/applications', {
       method: 'POST',
       credentials: 'omit',
       headers: { 'content-type': 'application/json' },
-      body: `{"email":"oksana.melnyk@example.com","botCheck":"${TOKEN}","termsVersion":"${TERMS_VERSION}"}`,
+      body: `{"email":"oksana.melnyk@example.com","botCheck":"${TOKEN}","termsVersion":"${TERMS_VERSION}","language":"en"}`,
       signal: expect.any(AbortSignal),
     });
   });
 
   it('is recorded under the address the endpoint was sent', async () => {
     const apply = createApply({ base: '', fetch: answer(202, { status: 'received' }) });
-    expect(await apply('Oksana.Melnyk@Example.com', TOKEN)).toEqual({
+    expect(await apply('Oksana.Melnyk@Example.com', TOKEN, 'uk')).toEqual({
       kind: 'recorded',
       email: 'oksana.melnyk@example.com',
     });
@@ -45,12 +49,12 @@ describe('an application', () => {
     [202, 'received', 'failed'],
   ])('reads %i %j as %s', async (status, body, reason) => {
     const apply = createApply({ base: '', fetch: answer(status, body) });
-    expect(await apply('a@b.cd', TOKEN)).toEqual({ kind: 'refused', reason });
+    expect(await apply('a@b.cd', TOKEN, 'uk')).toEqual({ kind: 'refused', reason });
   });
 
   it('reads an answer that is not JSON as failed', async () => {
     const fetch = vi.fn(async () => new Response('<html>', { status: 202 }));
-    expect(await createApply({ base: '', fetch })('a@b.cd', TOKEN)).toEqual({
+    expect(await createApply({ base: '', fetch })('a@b.cd', TOKEN, 'uk')).toEqual({
       kind: 'refused',
       reason: 'failed',
     });
@@ -64,7 +68,7 @@ describe('an application', () => {
     [`${'a'.repeat(243)}@example.com`, 'emailInvalid'],
   ])('refuses %j as %s without a request', async (typed, reason) => {
     const fetch = vi.fn();
-    expect(await createApply({ base: '', fetch })(typed, TOKEN)).toEqual({
+    expect(await createApply({ base: '', fetch })(typed, TOKEN, 'uk')).toEqual({
       kind: 'refused',
       reason,
     });
@@ -89,7 +93,7 @@ describe('an application', () => {
           ),
       );
       let settled: unknown;
-      void createApply({ base: '', fetch })('a@b.cd', TOKEN).then((a) => (settled = a));
+      void createApply({ base: '', fetch })('a@b.cd', TOKEN, 'uk').then((a) => (settled = a));
       await vi.advanceTimersByTimeAsync(29_999);
       expect(settled).toBeUndefined();
       await vi.advanceTimersByTimeAsync(1);
@@ -103,7 +107,7 @@ describe('an application', () => {
     const fetch = vi.fn(async () => {
       throw new TypeError('Failed to fetch');
     });
-    expect(await createApply({ base: '', fetch })('a@b.cd', TOKEN)).toEqual({
+    expect(await createApply({ base: '', fetch })('a@b.cd', TOKEN, 'uk')).toEqual({
       kind: 'refused',
       reason: 'offline',
     });
@@ -111,7 +115,7 @@ describe('an application', () => {
 
   it('refuses without a request where the host has no API', async () => {
     const fetch = vi.fn();
-    expect(await createApply({ base: undefined, fetch })('a@b.cd', TOKEN)).toEqual({
+    expect(await createApply({ base: undefined, fetch })('a@b.cd', TOKEN, 'uk')).toEqual({
       kind: 'refused',
       reason: 'failed',
     });

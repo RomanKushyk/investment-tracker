@@ -309,6 +309,37 @@ describe('approving replaces the placeholder with the sub the create call return
     expect(terms).toEqual([{ version: null, accepted: null }]);
   });
 
+  // The language the application recorded is the account's from its first sign-in.
+  it('carries the language an application recorded into the approved row', async () => {
+    const applied = await applications(db, {
+      body: JSON.stringify({
+        email: EMAIL,
+        botCheck: 'token',
+        termsVersion: TERMS_VERSION,
+        language: 'en',
+      }),
+    });
+    expect(applied.statusCode).toBe(202);
+    const [{ user_id: pending }] = await rows();
+    const res = await approve(db, spy().idp, call(APPROVE_ROUTE, pending));
+    expect(res.statusCode).toBe(200);
+    const { rows: kept } = await db.query<{ user_id: string; settings: string | null }>(
+      'SELECT user_id, settings FROM app_user WHERE email = $1',
+      [EMAIL],
+    );
+    expect(kept).toEqual([{ user_id: SUB, settings: '{"language":"en"}' }]);
+  });
+
+  it('carries no settings across when the application recorded none', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await approve(db, spy().idp, call(APPROVE_ROUTE));
+    const { rows: kept } = await db.query<{ settings: string | null }>(
+      'SELECT settings FROM app_user WHERE email = $1',
+      [EMAIL],
+    );
+    expect(kept).toEqual([{ settings: null }]);
+  });
+
   it('carries the role across rather than assuming one', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending', 'super_admin'));
     await approve(db, spy().idp, call(APPROVE_ROUTE));

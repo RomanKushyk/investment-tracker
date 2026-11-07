@@ -90,7 +90,10 @@ DEVICE'S STORE HOLDS ITS OWN THEME AND A COPY of the account's settings, which E
 ANSWER overwrites, `/me` being read on every load before the view, the theme excepted, because a
 paint comes before that answer: the shell's first render
 reads the rail, and a signed-out page has no account at all, so there the copy is what applies and
-the signed-out bar's language control writes it and nothing else. A CHANGE WRITES THE COPY AT ONCE
+the signed-out bar's language control writes it and nothing else. THE APPLICATION IS THE ONE
+SIGNED-OUT WRITE THE LANGUAGE MAKES: `/apply` sends the page's language, `POST /applications`
+stores it as the pending row's `settings`, and approval carries it into the account, so the
+first sign-in reads the language the applicant chose. A CHANGE WRITES THE COPY AT ONCE
 and reaches the account as `PATCH /me/settings` naming only the fields that changed, sent once changes
 have been quiet for `SETTINGS_PATCH_DELAY_MS` and one write at a time (`settings-copy.ts`), and the
 screen never waits on it. A FIELD IS THE DEVICE'S, NOT THE ACCOUNT'S, from its change until the answer

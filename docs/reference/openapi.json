@@ -91,6 +91,13 @@
                     "enum": [
                       "2026-10-29"
                     ]
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "uk",
+                      "en"
+                    ]
                   }
                 }
               }

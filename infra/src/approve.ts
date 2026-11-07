@@ -147,7 +147,7 @@ export const RESPONSES: Record<string, readonly (ApiResult | Declared)[]> = {
 /** The stamps AS TEXT, because pg's Date keeps milliseconds and they hold microseconds. */
 const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied_at,
                        terms_version::text AS terms_version,
-                       terms_accepted_at::text AS terms_accepted_at
+                       terms_accepted_at::text AS terms_accepted_at, settings
                   FROM app_user WHERE user_id = $1`;
 
 /** `AND status = 'pending'` is not decoration: two approvals racing resolve to the SAME `sub`, so
@@ -156,13 +156,14 @@ const TARGET = `SELECT user_id, email, status, role, applied_at::text AS applied
  *  decline is this delete too, and one that won leaves `REPLACE` a free address. */
 const REMOVE = `DELETE FROM app_user WHERE user_id = $1 AND status = 'pending' RETURNING user_id`;
 
-/** `applied_at` AND THE ACCEPTED TERMS ARE CARRIED OVER rather than restamped: a delete-and-insert
+/** `applied_at`, THE ACCEPTED TERMS AND THE SETTINGS ARE CARRIED OVER rather than restamped: a delete-and-insert
  *  is where what the pending row held that cannot be reconstructed goes missing. ONE STATEMENT
  *  WRITES BOTH HALVES OF THE DECISION PAIR, because `app_user_decided_ck` reads "not both null". */
 const REPLACE = `INSERT INTO app_user (user_id, email, status, role, applied_at,
-                                       decided_at, decided_by, terms_version, terms_accepted_at)
+                                       decided_at, decided_by, terms_version, terms_accepted_at,
+                                       settings)
                  VALUES ($1, $2, 'active', $3, $4::timestamptz, now(), $5, $6::date,
-                         $7::timestamptz)`;
+                         $7::timestamptz, $8)`;
 
 /** GUARDED ON THE STATUS THAT WAS READ, for the reason `REMOVE` is: a reject racing an approve
  *  must not write over the row the approval just made. NO ROWS MEANS THE STATUS MOVED UNDER US, so
@@ -192,6 +193,7 @@ type Target = {
   applied_at: string;
   terms_version: string | null;
   terms_accepted_at: string | null;
+  settings: string | null;
 };
 
 /** `minted` IS WHAT THIS CALL MAY UNDO: an identity created here belongs to this approval and
@@ -338,6 +340,7 @@ async function approveRow(
       decidedBy,
       row.terms_version,
       row.terms_accepted_at,
+      row.settings,
     ]);
     await client.query(ACCOUNT, [sub]);
     await giveDataset(client, sub);
