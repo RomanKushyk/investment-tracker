@@ -23,8 +23,7 @@ export interface CollectedQuotes {
 
 // THE ONE READING OF THE DRAFTS. The save handler, the filled pill and the
 // pending rail all consume this, so a row the schema refuses is named once
-// instead of silently dropped three times — which is how a pasted amount with a
-// currency word used to save an empty day. A blank draft is not an error.
+// instead of silently dropped three times. A blank draft is not an error.
 export function collectQuotes(
   drafts: Record<string, string | undefined>,
   assets: Asset[],
