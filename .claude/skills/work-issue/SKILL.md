@@ -102,7 +102,7 @@ The failing test is committed alone, its red output shown. Then the change, surg
 
 ## Step 7: Gates and evidence
 
-`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`, each read by its own exit code, never through a pipe; `pnpm exec tsc --noEmit -p infra` from the root when `infra/` or `packages/core/` changed. UI: the running dev server (check the port before starting one), the chrome-devtools MCP, desktop and 360, each criterion looked at. Report results as they came out, failures included, with the output or the screenshot; a check that could not run is reported as not run.
+`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`, each read by its own exit code, never through a pipe; `pnpm exec tsc --noEmit -p infra` from the root when `infra/` or `packages/` changed. UI: the running dev server (check the port before starting one), the chrome-devtools MCP, desktop and 360, each criterion looked at. Report results as they came out, failures included, with the output or the screenshot; a check that could not run is reported as not run.
 
 ## Step 8: Review
 

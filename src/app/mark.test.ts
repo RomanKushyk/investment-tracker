@@ -75,6 +75,8 @@ const SCRIPT = stripTs(
   readFileSync(join(here, '..', '..', 'scripts', 'build-touch-icon.mjs'), 'utf8'),
   'build-touch-icon.mjs',
 );
+/** The script's first half, which draws the 5h; the mail's «q» follows from `Q_BOWL` on. */
+const TOUCH_SCRIPT = SCRIPT.slice(0, SCRIPT.indexOf('const Q_BOWL'));
 const ICON = readFileSync(join(here, '..', '..', 'public', 'apple-touch-icon.png'));
 
 /** `index.css` line 5 holds a literal comment opener inside a string, so a plain regex strip
@@ -182,15 +184,20 @@ function scriptPaths(): string[] {
   return [...SCRIPT.matchAll(/^const (?:LOOP|PILL_A|PILL_B) =\s*'([^']+)';$/gm)].map((m) => m[1]);
 }
 
-/** A non-interlaced 8-bit RGB PNG to raw pixels — the five unfiltering cases of the spec,
- *  against a whole image dependency for two questions about one checked-in file. Written
- *  narrow on purpose: anything but the format the script emits throws rather than being
- *  decoded approximately. */
-function decode(png: Buffer): Buffer {
+/** A non-interlaced 8-bit RGB PNG to raw pixels, or RGBA for the mail's mark — the five
+ *  unfiltering cases of the spec, against a whole image dependency for a few questions about
+ *  checked-in files. Written narrow on purpose: anything but the format the script emits
+ *  throws rather than being decoded approximately. */
+function decode(png: Buffer, alpha = false): Buffer {
   const width = png.readUInt32BE(16);
   const height = png.readUInt32BE(20);
   expect(png[24], 'the icon is no longer 8 bits a channel').toBe(8);
-  expect(png[25], 'the icon grew an alpha channel — iOS needs it opaque').toBe(2);
+  expect(
+    png[25],
+    alpha
+      ? 'the mail mark lost its alpha channel — its corners must take the card behind them'
+      : 'the icon grew an alpha channel — iOS needs it opaque',
+  ).toBe(alpha ? 6 : 2);
   expect(png[28], 'the icon is interlaced, which this walk does not undo').toBe(0);
   const idat: Buffer[] = [];
   for (let i = 8; i < png.length;) {
@@ -199,7 +206,7 @@ function decode(png: Buffer): Buffer {
     i += 12 + len;
   }
   const raw = inflateSync(Buffer.concat(idat));
-  const bpp = 3;
+  const bpp = alpha ? 4 : 3;
   const stride = width * bpp + 1;
   const out = Buffer.alloc(width * height * bpp);
   for (let y = 0; y < height; y++) {
@@ -330,14 +337,14 @@ describe('the logo mark is one drawing, kept in three text copies', () => {
     expect(paths(FAVICON)).toEqual(DRAWING);
     expect(scriptPaths()).toEqual(DRAWING);
     expect(
-      paths(SCRIPT),
+      paths(TOUCH_SCRIPT),
       'the template no longer spends those consts in order — the assertions above then ' +
         'agree about a drawing the PNG is not made from',
     ).toEqual(['${LOOP}', '${PILL_A}', '${PILL_B}']);
   });
 
   it('strokes them the same way in all of them', () => {
-    for (const source of [SIDEBAR, FAVICON, SCRIPT]) {
+    for (const source of [SIDEBAR, FAVICON, TOUCH_SCRIPT]) {
       expect(attr(source, 'strokeWidth')).toEqual(WIDTHS);
       // The join is on the LOOP alone — the only path with a corner to turn. A join on a
       // two-point line is inert, so a second one is a copy drifting, not a rendering change.
@@ -518,6 +525,100 @@ describe('each copy keeps what only it can carry', () => {
       expect(
         Math.abs(got - want),
         `the icon's ${side} edge is at ${got}, not the ${want} the mark now needs — regenerate it`,
+      ).toBeLessThanOrEqual(1);
+  });
+});
+
+// THE MAIL'S MARK IS THE ONE COPY THAT IS NOT THE 5H (*Brand*): the signed refresh's «q» on a
+// plate, which mail carries ahead of the app. Its authority is the wave-24 spec, so the geometry
+// below is transcribed from it, and the two PNGs are read back as the touch icon is.
+describe("the mail's mark is the refresh's «q» on its plate, in both themes", () => {
+  /** One `'x y w h r'` rect const out of the script. */
+  const scriptRect = (name: string) => {
+    const m = SCRIPT.match(new RegExp(`^const ${name} = '([\\d ]+)';$`, 'm'));
+    expect(m, `${name} is no longer a rect const in build-touch-icon.mjs`).not.toBeNull();
+    return m![1].split(' ').map(Number);
+  };
+  const THEMES = [
+    ['light', 'MAIL_PLATE_LIGHT', 'MAIL_Q_LIGHT'],
+    ['dark', 'MAIL_PLATE_DARK', 'MAIL_Q_DARK'],
+  ] as const;
+
+  it('draws the signed form: a bowl with its counter cut out, and a stem', () => {
+    expect(scriptRect('Q_BOWL')).toEqual([32, 21, 56, 56, 15]);
+    expect(scriptRect('Q_COUNTER')).toEqual([48, 37, 22, 24, 6]);
+    expect(scriptRect('Q_STEM')).toEqual([70, 49, 18, 50, 5]);
+    expect(SCRIPT).toContain(
+      'd="${roundRect(Q_BOWL)} ${roundRect(Q_COUNTER)}" fill-rule="evenodd"',
+    );
+    expect(SCRIPT).toContain('d="${roundRect(Q_STEM)}"');
+  });
+
+  it('paints the plate in `logo-outline` and the «q» in `card`, per theme', () => {
+    for (const [theme, plate, q] of THEMES) {
+      expect(scriptConst(plate), `${theme} plate`).toBe(declared(theme, 'logo-outline'));
+      expect(scriptConst(q), `${theme} «q»`).toBe(declared(theme, 'card'));
+      expect(SCRIPT).toContain(`['${theme}', ${plate}, ${q}]`);
+    }
+    for (const hole of ['background:${plate}', 'fill="${q}"', 'border-radius:${MAIL_RADIUS}px'])
+      expect(SCRIPT, `the template no longer spends ${hole}`).toContain(hole);
+  });
+
+  it('sizes the 40 plate at 2×, with the shape system’s corner and the «q» at 22/40', () => {
+    const px = scriptNum('MAIL_PX');
+    expect(px).toBe(80);
+    expect(scriptNum('MAIL_RADIUS')).toBe(2 * Math.round(40 * 0.26));
+    expect(scriptNum('MAIL_Q_PX')).toBe((px * 22) / 40);
+  });
+
+  it.each(THEMES)('ships a %s PNG the current script would write', (theme, plateName, qName) => {
+    const png = readFileSync(join(here, '..', '..', 'public', 'email', `mark-${theme}.png`));
+    const size = scriptNum('MAIL_PX');
+    expect(png.readUInt32BE(16)).toBe(size);
+    expect(png.readUInt32BE(20)).toBe(size);
+    const pixels = decode(png, true);
+    const at = (x: number, y: number) => {
+      const i = (y * size + x) * 4;
+      const hex = `#${[0, 1, 2].map((k) => pixels[i + k].toString(16).padStart(2, '0')).join('')}`;
+      return { hex, alpha: pixels[i + 3] };
+    };
+    const plate = scriptConst(plateName);
+    const q = scriptConst(qName);
+    expect(at(0, 0).alpha, 'the corner is painted — it must take the card behind it').toBe(0);
+    expect(at(size - 1, size - 1).alpha).toBe(0);
+    expect(at(size / 2, 4)).toEqual({ hex: plate, alpha: 255 });
+
+    // Where the «q» lands follows from its box, drawn MAIL_Q_PX wide and centred on the plate.
+    const unit = scriptNum('MAIL_Q_PX') / 120;
+    const inset = (size - scriptNum('MAIL_Q_PX')) / 2;
+    const onPlate = (v: number) => v * unit + inset;
+    const [bx, by, bw, bh] = scriptRect('Q_BOWL');
+    const [cx, cy, cw, ch] = scriptRect('Q_COUNTER');
+    const [sx, sy, sw, sh] = scriptRect('Q_STEM');
+    // The counter shows the plate: the even-odd cut is what makes it a «q» and not a block.
+    const counter = at(Math.floor(onPlate(cx + cw / 2)), Math.floor(onPlate(cy + ch / 2)));
+    expect(counter, 'the counter is filled in').toEqual({ hex: plate, alpha: 255 });
+
+    const edge = { minX: size, maxX: -1, minY: size, maxY: -1 };
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const p = at(x, y);
+        if (p.hex !== q || p.alpha !== 255) continue;
+        edge.minX = Math.min(edge.minX, x);
+        edge.maxX = Math.max(edge.maxX, x);
+        edge.minY = Math.min(edge.minY, y);
+        edge.maxY = Math.max(edge.maxY, y);
+      }
+    // One pixel of slack, for the antialiased edge.
+    for (const [side, got, want] of [
+      ['left', edge.minX, onPlate(Math.min(bx, sx))],
+      ['right', edge.maxX + 1, onPlate(Math.max(bx + bw, sx + sw))],
+      ['top', edge.minY, onPlate(Math.min(by, sy))],
+      ['bottom', edge.maxY + 1, onPlate(Math.max(by + bh, sy + sh))],
+    ] as [string, number, number][])
+      expect(
+        Math.abs(got - want),
+        `the «q»'s ${side} edge is at ${got}, not ${want} — regenerate the mail's mark`,
       ).toBeLessThanOrEqual(1);
   });
 });

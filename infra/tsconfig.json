@@ -8,6 +8,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": ["node"],
+    // For `@quirenote/email`'s templates, which reach this project through its imports.
+    "jsx": "react-jsx",
 
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

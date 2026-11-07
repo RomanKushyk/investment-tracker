@@ -5,7 +5,7 @@ Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. 
 ## Commands
 - `pnpm dev` — port and `strictPort` live in `vite.config.ts`, nowhere else. It refuses to boot on a conflict instead of drifting: check what holds the port, attach if it is this app, else `pnpm dev --port N`. The owner usually has one running.
 - Gates, all four before any merge: `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`.
-- Fifth gate when `infra/` or `packages/core/` changes: `pnpm exec tsc --noEmit -p infra` from the root. The root typecheck does not cover `infra/`, and the two configs disagree on purpose — a DOM type in the package passes one and fails the other.
+- Fifth gate when `infra/` or `packages/` changes: `pnpm exec tsc --noEmit -p infra` from the root. The root typecheck does not cover `infra/`, and the two configs disagree on purpose — a DOM type in the package passes one and fails the other.
 
 ## Workflow
 1. Session start: read the Project's `Triage` column (`triage_list`, in the `triage-issue` skill's helper block). Non-empty → run the `triage-issue` skill first. Nothing is coded against an untriaged issue.

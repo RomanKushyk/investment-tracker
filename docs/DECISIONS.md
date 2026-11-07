@@ -12,7 +12,11 @@ each compile the same files and a browser-only type fails one of them. `infra/` 
 member, so ONE INSTALL covers both trees and the backend's handlers bundle the package rather than
 externalising it. The zone is enforced by lint KEYED TO THE PACKAGE PATH, and because a selector
 that stops matching still parses green, a test lints text at a path inside the package rather than
-reading the config back. Pure modules return keys and tokens, never assembled prose. EVERY SCREEN
+reading the config back. Pure modules return keys and tokens, never assembled prose. THE PROSE THE
+APP MAILS LIVES IN `packages/email`, the second package: each message in both languages, rendered
+with React Email to HTML and text, consumed from source the same way and imported by `infra/`,
+whose config therefore compiles JSX. Mail's copy cannot sit in `core`, which returns keys, nor in
+`src/`, which `infra/` never imports. EVERY SCREEN
 TAKES ITS FIGURES FROM `/view`'S BODY through ONE SELECTOR, bound at module level in
 `src/hooks/slices.ts` and handed to `useView`, but for the two figures too wide for it, Yield's curve
 of a period and a page of Balances' table, which `useSeries` and `useBalancesPage` read from
@@ -888,8 +892,10 @@ mark inverts with the app; the two that hold the mark as literals, the favicon a
 those values, neither having a token to read, and the favicon's light trio is its default branch
 because Safari ignores the colour-scheme query. MAIL IS THE ONE EXCEPTION, ONCE IT SENDS: its mark
 is drawn as the signed refresh's «q» knocked into a plate
-(`docs/superpowers/specs/2026-11-07-email/`), a light and a dark PNG that #585 ships ahead of the
-app's own change, so the mail and the app differ until the refresh lands.
+(`docs/superpowers/specs/2026-11-07-email/`), ahead of the app's own change, so the mail and the
+app differ until the refresh lands. It is `public/email/mark-light.png` and `mark-dark.png`, a 2×
+plate per theme with transparent corners, written by the same script and read back by
+`src/app/mark.test.ts` against the spec's geometry and the stylesheet's tokens.
 **Why.** The box is the design sheet's own and is not cropped to the ink: a box measured off the
 geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free.

@@ -13,6 +13,7 @@ on:
       # list of modules fails one way only — an import added to a handler and no deploy
       # triggered, in silence. A superset costs a no-op run; a subset ships nothing.
       - 'packages/core/**'
+      - 'packages/email/**'
       # The derivation identifier's own formula: changed alone, the SPA would deploy a new value
       # and the Lambdas keep the old one. `scripts/derivation-id.test.ts` holds both filters.
       - 'scripts/derivation-id.ts'
