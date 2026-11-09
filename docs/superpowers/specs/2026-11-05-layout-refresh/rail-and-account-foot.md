@@ -94,6 +94,22 @@ The count at «3» and «99+» on the super-admin's rail with its role strip, in
 
 ## Перенесено
 
-Rules of the sign-in entry that no code, test or decision records.
+Rules of the sign-in entry, the sign-out and /profile that no code, test or decision records.
 
 - **Why the entry is «Увійти» and not «Вхід».** «Вхід» is a noun, where the «Вийти» it replaces in the slot is a verb.
+
+The sign-out:
+
+- **No confirmation before signing out.** NN/g: "Do not use confirmation dialogs for routine actions".
+- **A failure of the shell's sign-out is a toast, never a sentence under the control.** The rail has no room for one, and one mechanism serves all three shells.
+- **The failure toast leaves when it is closed or a retry succeeds,** not at the retry's press.
+- **After a Stop the logout is not sent again.** The halt is the user's own act, and the page would leave against it.
+- **No timer ends the busy state.** No clock knows whether a redirect is still loading.
+- **Back to a restored page does not reload it.** The page restored holds no figures to clear.
+
+/profile:
+
+- **The deletion card's shift is accepted** when the passkey list lands above it: a press in it only opens the confirmation.
+- **«Скопійовано» replaces «Копіювати» in place,** with no motion of its own: an exception to *Interaction rules*.
+- **No fact names how the current session signed in.** Cognito's ID-token page says its `amr` claim is rolling out gradually and may not be available to a pool, so the page cannot rely on it. The one place the page names the method is the passkey card's note after a Google sign-in (*Auth model*).
+- **No «Пошта підтверджена» fact.** OIDC makes `email_verified` optional, and the address is a label (*Auth model*).

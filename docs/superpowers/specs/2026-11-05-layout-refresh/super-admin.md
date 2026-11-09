@@ -136,3 +136,18 @@ At 360, light: the same seven frames.
 - NN/g says "Do not use confirmation dialogs for routine actions", yet the users page confirms approve and enable, which can be undone. Its ruling stands.
 - At 360 the header's stamp and «Оновити» wrap under the title with the stamp mid-line, as today.
 - The dark scrim still barely dims (wave 8's finding).
+
+## Перенесено
+
+Rules of the super-admin's shell that no code, test or decision records.
+
+- **«Стан» becomes a second nav group under a divider** once its first page exists.
+- **A failed GET /me adds no failure line to the nav.** The failed-screen state already says it; a second line would say it twice, in a new phrase.
+- **Where the role is not shown,** each with its reason:
+  - a chip beside the wordmark: the mark, the wordmark, the chip and the chevron do not fit the row;
+  - the role in the account row: it stands at the panel's foot, out of the eye's path at its top, and the rail and the header bar have no address row to carry it;
+  - a rail tile: it takes the box every rail item uses, so it reads as one more pressable item;
+  - «СА» letters: an abbreviation nothing else in the app uses;
+  - the capital's caption recipe in the header bar, «Ви увійшли як» over the role: a new phrase for what the role already says;
+  - a chip at the bar's end: it leaves the capital's place empty and reads as a status badge;
+  - the wall's edge with a text chip: the edge repeats the colour that already marks the current route, and no edge reaches the header bar below md.

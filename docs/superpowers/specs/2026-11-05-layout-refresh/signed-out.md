@@ -112,7 +112,7 @@ The same shell serves these, not drawn here:
 
 ## Перенесено
 
-Rules of sign-in, the bot check and the first sign-in that no code, test or decision records.
+Rules of sign-in, the bot check, the first sign-in and the Google callback that no code, test or decision records.
 
 - **The language control has no flags.** Its languages' own names, as on /settings, say what a flag would.
 - **One address box for sign-in and application is refused.** It would branch on whether the address has an account and say so to anybody typing one; `/apply`'s constant answer exists to prevent that.
@@ -125,3 +125,7 @@ Rules of sign-in, the bot check and the first sign-in that no code, test or deci
 - **No privacy line under the widget on /sign-in.** The widget carries its own «Конфіденційність» link. The privacy first layer under `/apply`'s button is the legal notice (*Legal documents*), not the widget's.
 - **The passkey retry's widget slot and link fade in with its sentence,** on StepAlert's 200 ms fade.
 - **The sentence on the new password's rule line fades in over 200 ms on `ease-soft`,** as the rule's own refusal does; nothing slides, since the line's height does not change.
+- **The busy controls of the way in and out owe no contrast minimum at their 70 % dim.** WCAG 1.4.3 and 1.4.11 set none for an inactive component, and each is aria-disabled or disabled while it is drawn so.
+- **/auth/callback is never the bar alone.** It would leave the page blank for seconds on a cold relay, with nothing saying the system is working.
+- **On a sign-in's return, /auth/callback never shows the portfolio's placeholder.** A refused return would show the shell to a caller who is not signed in, then drop to /sign-in.
+- **No spinner on /auth/callback.** The busy state is a word with an ellipsis.

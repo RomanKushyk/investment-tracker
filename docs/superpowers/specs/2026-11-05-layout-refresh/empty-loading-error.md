@@ -116,3 +116,10 @@ At 360:
 - AppFailure. It is the same stack in wave 9's signed glass card.
 - The super-admin's not found, which differs only in its button («Перейти до архіву цін»).
 - The other screens' empty states, which take the same E2 anatomy.
+
+## Перенесено
+
+Rules of not found and the failure states that no code, test or decision records.
+
+- **No Back button.** No link in the app leads to a path that does not exist, so not found is reached by a typed, pasted or stale address, and the history behind it may be another site.
+- **No screen header in the in-shell states.** They take the answer's card, so the failed screen and the failed app are one block.

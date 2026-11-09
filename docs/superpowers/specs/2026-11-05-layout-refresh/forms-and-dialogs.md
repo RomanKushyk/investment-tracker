@@ -132,10 +132,15 @@ Wave 16 settles all three ([dialog-buttons-and-radii.md](dialog-buttons-and-radi
 
 ## Перенесено
 
-Rules of the re-authentication dialog on /profile that no code, test or decision records.
+Rules of the re-authentication and deletion dialogs on /profile that no code, test or decision records.
 
 - **No extend control.** The window is a security limit, which WCAG 2.2.1's essential exception covers, and confirming again is the extension.
 - **The panel's height follows its content at once,** with no height transition: an exception to *Interaction rules*, so the panel's top and each step's row stand still.
 - **The time left is replaced in place,** with no motion of its own: an exception to *Interaction rules*, since it changes on a clock, not on an interaction.
 - **No emailed code** as a way to confirm.
 - **No toast for a refusal.** The sentence stands next to its source.
+- **No radios or option blocks for the deletion's timing.** The button pressed is the timing, so nothing is chosen in advance.
+- **The deletion is confirmed in a dialog,** never on a separate page.
+- **The body's link to Settings is enough for the copy,** so no «Спершу завантажте копію» button stands beside it.
+- **A deletion that stopped part way leaves no marker.** Closed after a failure, /profile is as it stands, and the same trigger asks again.
+- **No mailed reminder before the purge.**
