@@ -129,6 +129,7 @@ beforeEach(() => {
   auth.running = false;
   auth.signOut.mockClear();
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.dismiss).mockClear();
   block = false;
   mounted = 0;
   for (const record of [seen, other]) {
@@ -246,6 +247,59 @@ describe("the shell's account slot", () => {
     auth.answer = Promise.resolve();
     await act(() => other.leave());
     expect(auth.signOut, 'the retry began no sign-out').toHaveBeenCalledTimes(2);
+  });
+
+  // The failure toast stays until it is closed or a retry succeeds, and a second failure replaces
+  // it under a new id, so that it is announced again (`sign-out.dc.html`, T4).
+  const raised = () => vi.mocked(toast.error).mock.calls.map(([, options]) => options?.id);
+
+  it('keeps the failure toast up while a retry runs, and replaces it when the retry fails', async () => {
+    auth.fail = true;
+    mount('/allocation');
+    await act(() => seen.leave());
+    const [first] = raised();
+    let answer = () => {};
+    auth.answer = new Promise<void>((resolve) => (answer = resolve));
+    let leaving: Promise<void> = Promise.resolve();
+    act(() => void (leaving = seen.leave()));
+    expect(toast.dismiss, 'the toast left at the press').not.toHaveBeenCalledWith(first);
+    await act(async () => {
+      answer();
+      await leaving;
+    });
+    const ids = raised();
+    expect(ids, 'the second failure raised no toast').toHaveLength(2);
+    expect(ids[1], "the second toast took the first one's id").not.toBe(first);
+    expect(toast.dismiss, 'the second failure left the first toast up').toHaveBeenCalledWith(first);
+    expect(toast.dismiss, 'the second toast left with the first').not.toHaveBeenCalledWith(ids[1]);
+    const dismissed = vi.mocked(toast.dismiss).mock.calls.findIndex(([id]) => id === first);
+    expect(
+      vi.mocked(toast.dismiss).mock.invocationCallOrder[dismissed],
+      'two failure toasts were up at once',
+    ).toBeLessThan(vi.mocked(toast.error).mock.invocationCallOrder[1]!);
+  });
+
+  it.each([
+    ['the in-app way to /sign-in', undefined],
+    ["the way through Cognito's logout", LOGOUT],
+  ])('dismisses the failure toast when a retry succeeds, on %s', async (_, logout) => {
+    auth.fail = true;
+    mount('/allocation');
+    await act(() => seen.leave());
+    const [first] = raised();
+    auth.fail = false;
+    auth.logout = logout;
+    let answer = () => {};
+    auth.answer = new Promise<void>((resolve) => (answer = resolve));
+    let leaving: Promise<void> = Promise.resolve();
+    act(() => void (leaving = seen.leave()));
+    expect(toast.dismiss, 'the toast left at the press').not.toHaveBeenCalledWith(first);
+    await act(async () => {
+      answer();
+      await leaving;
+    });
+    expect(toast.dismiss, 'the success left the toast up').toHaveBeenCalledWith(first);
+    expect(toast.error, 'the success raised a failure toast').toHaveBeenCalledTimes(1);
   });
 
   // Back from Cognito's logout can restore this page from the back/forward cache, state and all.

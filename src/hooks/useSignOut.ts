@@ -14,8 +14,8 @@ import {
 import { SIGNED_OUT } from '../auth/signed-out';
 import { useT } from '../i18n/useT';
 
-// A NEW ID PER FAILURE: sonner folds a toast into one still leaving under the same id, so a retry
-// that failed as fast as the dismissal would show nothing.
+// A NEW ID PER FAILURE: the old toast is dismissed as the new one is raised, and sonner folds a
+// toast into one still leaving under the same id.
 let failures = 0;
 const failedId = (n: number) => `sign-out-failed-${n}`;
 
@@ -126,8 +126,9 @@ export function useSignOut() {
     // The stores read now, not the last render's: a press joins no sign-out and no way out.
     if (leaving || session.signingOut() || setOutFrom !== undefined) return;
     setLeaving(true);
-    toast.dismiss(failedId(failures));
     const out = await session.signOut();
+    // The failure toast stays while the retry runs: a second failure replaces it, a success ends it.
+    toast.dismiss(failedId(failures));
     if (!out) {
       setLeaving(false);
       toast.error(t.auth.signOutFailed, {
