@@ -290,7 +290,7 @@ switch` is forbidden** (*Git model*): two accounts share one keyring.
 
 **`dev` is continuous, `main` is a release**, promoted by merging `dev` into `main` fast-forward
 only (`docs/reference/VERSIONING.md` defines the bump). The workflow's `paths-ignore` bites hardest
-on `main`: **a release whose every changed file is Markdown deploys nothing and needs a manual run**
+on `main`: **a release whose every changed file is Markdown or a spec's renders deploys nothing and needs a manual run**
 — `docs/**` is deliberately not on that list, so a regenerated `openapi.json` still deploys. A green
 run proves the artifact uploaded, **not that the site works** — a misrouted asset satisfies both the
 status code and the cache header, so fetch an asset and read its `Content-Type` (§6). **The API

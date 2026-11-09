@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, matchesGlob } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
@@ -246,20 +246,22 @@ describe('the API reference is a second build, and production never runs it', ()
     expect(missed(text), '.github/WORKFLOWS.md says it again').toEqual(finders.map(String));
   });
 
-  it('docs/ holds no non-Markdown file but the spec and the email renders — what keeps docs/** out of the filter cheap', () => {
+  it('docs/ holds no file the filter deploys for but the spec — what keeps docs/** out of the filter cheap', () => {
     // THIS HOLDS THE PREMISE THAT KEEPS `docs/**`'S ABSENCE FROM THE FILTER CHEAP, and nothing else
-    // would notice it changing: every non-Markdown file added under docs/ starts triggering
-    // frontend deploys. That is the safe direction — an extra no-op run, never a stale page —
-    // but it stops being free the moment docs/ carries something large.
+    // would notice it changing: a file under docs/ that no entry skips starts triggering frontend
+    // deploys. That is the safe direction — an extra no-op run, never a stale page — but it stops
+    // being free the moment docs/ carries something large, as the specs' renders do.
     const tracked = execFileSync('git', ['ls-files', 'docs'], { cwd: REPO, encoding: 'utf8' })
       .split(/\r?\n/)
       .filter(Boolean);
     expect(tracked.length).toBeGreaterThan(1);
-    // The email spec's renders are the one exception, each change a no-op deploy until the deploy
-    // filter learns images.
-    const renders = 'docs/superpowers/specs/2026-11-07-email/renders/';
-    const allowed = (f: string) =>
-      f.endsWith('.md') || (f.startsWith(renders) && f.endsWith('.png'));
-    expect(tracked.filter((f) => !allowed(f))).toEqual([SPEC]);
+    const ignored = workflow().on?.push?.['paths-ignore'] ?? [];
+    // `matchesGlob` reads a filter as GitHub does only for names, `.`, `-`, `/`, `*` and a
+    // whole-segment `**`, over paths with no dot-named segment; anything else is refused.
+    const modelled = (p: string) => /^[\w./*-]+$/.test(p) && !/[^/]\*\*|\*\*[^/]/.test(p);
+    expect(ignored.filter((p) => !modelled(p))).toEqual([]);
+    expect(tracked.filter((f) => f.split('/').some((s) => s.startsWith('.')))).toEqual([]);
+    const skipped = (f: string) => ignored.some((p) => matchesGlob(f, p));
+    expect(tracked.filter((f) => !skipped(f))).toEqual([SPEC]);
   });
 });

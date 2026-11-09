@@ -5,12 +5,12 @@ on:
     branches: [dev, main]
     # `paths-ignore` skips only when EVERY changed file matches. `docs/**` IS DELIBERATELY
     # ABSENT from it, and that absence is what keeps the API reference fresh: all of docs/ is
-    # Markdown but the email spec's renders (a no-op deploy each) and docs/reference/openapi.json,
-    # which this build compiles the page FROM, so
-    # `**/*.md` covers the rest and listing docs/ would ignore the one file that matters.
-    # `src/api-docs-entry.test.ts` holds both halves.
+    # Markdown or a spec's renders but docs/reference/openapi.json, which this build compiles the
+    # page FROM, so the two entries below cover the rest and listing docs/ would ignore the one
+    # file that matters. `src/api-docs-entry.test.ts` holds both halves.
     paths-ignore:
       - '**/*.md'
+      - 'docs/superpowers/specs/*/renders/**'
       # Separate stack, separate workflow, separate role: nothing under infra/ changes dist/.
       - 'infra/**'
       - '.github/workflows/deploy-backend.yml'
