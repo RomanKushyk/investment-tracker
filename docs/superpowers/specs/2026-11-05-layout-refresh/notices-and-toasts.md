@@ -106,3 +106,9 @@ At 360: the same three frames, plus a toast while «Ще» is open, which moves 
 - The import dialog. Its blocks are held, on the wave-8 dialog.
 - «+N» expanded, and a dismiss mid-collapse. The record's motion is held.
 - A toast over /'s action bar.
+
+## Перенесено
+
+Rules of the reminders that no code, test or decision records.
+
+- **The reminders have no restore control of their own.** Dismissed reminders come back only from Налаштування → Автоматизація → «Повернути відхилені (N)».

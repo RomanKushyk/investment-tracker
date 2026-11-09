@@ -108,3 +108,31 @@ Today's one-line ledger at 360, for comparison: its labels are cut.
 ## Not drawn
 
 - Not decided here: sorting, filtering and search; the Користувачі table (#541); the implementation.
+
+## Перенесено
+
+Rules that no code, test or decision records: of the ledger on /transactions with its rows dated ahead and its withholding line, the record card below md, and Щоденні котирування.
+
+- **Rows dated after today take no group heading.** The date order already groups them at the top, and a heading would add a row and a rule to say what the mark says on every row.
+- **Refused for the rows-ahead mark:**
+  - an asterisk with a footnote, as /balances has: the footnote would sit below a list that scrolls inside its card, or outside the `Scroller`, where it changes the card's height formula; and a footnote is read once, where the mark is on the row;
+  - a date such as «з 12.10»: it says from which day the row counts, but leaves the narrowest English label no room at 360;
+  - a glyph alone: colour and shape without words, where the owner's words name the state;
+  - a hint in the forms: the mark in the list is enough (the owner's ruling).
+- **The amount keeps its width when its weight changes.** It is set in the tabular mono, so nothing on the row moves when the day arrives.
+- **The rows-ahead mark does not react to hover.**
+- **The withholding read-back's refused wordings:** «утримано X ₴ · чистими Y ₴», since «чистими» would be a third word for the sum the dictionary already calls «після податку»; and «утримано X ₴, саме по собі», which drops the net the owner asked for, and stays recorded only as the fallback should a narrower line ever be needed.
+- **The Ukrainian line sets the read-back's width; English never does.**
+- **The read-back never moves onto line 1:** at 360 line 1 has no room left for it.
+- **The read-back adds no motion of its own.**
+- **/transactions has no microlabel over its list:** `ScreenHeader`'s title already names it.
+- **The record card's footer actions sit at the right,** pushed there by `ml-auto`.
+- **Fetch chips survive Save.** They describe the draft, and saving keeps the draft.
+- **The accrual ghost and its tag fade out over 150 ms on the first keystroke.**
+- **The fetch's motion.** On the success flash the label crossfades over 220 ms, and the microcopy's colour crossfades over 220 ms when it changes. A fetch fill fades in the input's text and zooms the chip in over 200 ms, staggered 50 ms per row. The offer to take the fetched value reveals with its height and a fade over 300 ms, and collapses over 220 ms on accept or dismiss.
+- **A coupon card leaves on confirm or skip by collapsing its height with a fade over 300 ms,** and the cards below slide up.
+- **With no assets at all, Щоденні котирування has no rail.**
+- **The pending change prints no date:** its baseline is per asset, so no single date is true of it.
+- **The pending-change figure tweens to its new value over about 300 ms,** as the headline figures on /overview do. Under reduced motion the tween stops and the update stays.
+- **Nothing on Щоденні котирування animates when a breakpoint is crossed or the margins change with the window.** A breakpoint animated smears while the window is dragged, and a margin is a consequence of layout, not an event.
+- **The rail adds no focusable element beyond the yield link and the coupon cards' buttons.**

@@ -132,7 +132,7 @@ Wave 16 settles all three ([dialog-buttons-and-radii.md](dialog-buttons-and-radi
 
 ## Перенесено
 
-Rules of the re-authentication and deletion dialogs on /profile that no code, test or decision records.
+Rules that no code, test or decision records: of the re-authentication and deletion dialogs on /profile, the asset and transaction forms, Settings with its Data card and the import dialog, and the targets on /allocation.
 
 - **No extend control.** The window is a security limit, which WCAG 2.2.1's essential exception covers, and confirming again is the extension.
 - **The panel's height follows its content at once,** with no height transition: an exception to *Interaction rules*, so the panel's top and each step's row stand still.
@@ -144,3 +144,22 @@ Rules of the re-authentication and deletion dialogs on /profile that no code, te
 - **The body's link to Settings is enough for the copy,** so no «Спершу завантажте копію» button stands beside it.
 - **A deletion that stopped part way leaves no marker.** Closed after a failure, /profile is as it stands, and the same trigger asks again.
 - **No mailed reminder before the purge.**
+- **The asset form's motion.** A field's error line fades and slides in over 220 ms, and a field's hover edge changes over 150 ms. A conditional group (the fixed-coupon fields the yield type shows, the Inzhur group its switch shows) reveals with its height as well as the fade and slide, 300 ms soft, and hides the same way.
+- **The Inzhur picker and the manual field swap by a crossfade with a height change,** over 220 ms.
+- **The note takes no character counter.** It would be furniture for a bound the field refuses at by a sentence, and the only character counter in the app.
+- **The note's refusal reads «Нотатка — не більше 100 символів.»**
+- **Automation has no switch for fetching quotes.** A fetch only ever starts from its button, so there is nothing to turn off.
+- **Automation's sub-rows reveal and collapse with their height** as well as the fade and slide, 300 ms soft. The lead time's error fades and slides in over 220 ms.
+- **The erase's typed confirmation in Settings shows no error while it is unarmed.** A word not yet typed out is a step toward arming, not a mistake.
+- **The backup button stays enabled on an empty portfolio:** an empty export is a valid export.
+- **A CSV button shows no spinner,** since the file is built too quickly for one to say anything. **An empty table's button stays enabled:** a header-only file is the honest answer, and a disabled button would look like a bug.
+- **No error shows at the Data card's level;** each belongs to the row that caused it, and an empty portfolio changes nothing in the card.
+- **Dragging a file over the import panel never scrolls the page.**
+- **The import panel's motion.** The rejection line fades and slides in over 220 ms and fades out over 220 ms. A row whose content changes height animates the height with a fade over 220 ms.
+- **At md and up, the import dialog is capped at `calc(100dvh - 48px)`.**
+- **A problem in the import's list is inert but selectable text, with no copy button:** a person copies a line by selecting it.
+- **The import diff's motion.** The rows fade and slide in over 220 ms. The warnings block reveals with its height and a fade over 300 ms.
+- **The targets' error on /allocation fades and slides in over 220 ms.**
+- **A plan that tracked the draft would tell a person to buy something on the strength of a number they have not committed to,** so the rebalance plan reads the saved targets.
+- **While the targets are edited, each row's signed delta re-derives against the draft,** as its target tick does.
+- **One verb puts a page into its edit mode and the other changes one record, and Ukrainian is the language that shows it,** so «Редагувати» and «Змінити» are never unified.
