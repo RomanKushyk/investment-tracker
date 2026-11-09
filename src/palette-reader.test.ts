@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   channels,
+  composite,
   declaredHex,
   luminance,
   ratio,
@@ -41,6 +42,7 @@ const NAMES = new Set([
   'veilOf',
   'channels',
   'rgbHex',
+  'composite',
 ]);
 /** Where a name may be imported from without being a copy: the module, and `node:path`'s
  *  `resolve`, which a read of the stylesheet may use to build its path. */
@@ -327,6 +329,11 @@ const SNIPPETS: [label: string, source: string, offences: string[]][] = [
     ['declares `ruleBody`, at `css`'],
   ],
   ['an arrow property', READ + 'const m = { ratio: () => 1 };\n', ['declares `ratio`, at `m`']],
+  [
+    'a veil composite',
+    READ + 'const composite = (v: V, b: string) => b;\n',
+    ['declares `composite`'],
+  ],
   ['a destructured binding', READ + 'const { resolve } = lib;\n', ['declares `resolve`']],
   [
     'an aliased import',
@@ -547,6 +554,12 @@ describe('the veil reader', () => {
   it('the channel maths round-trips a hex', () => {
     expect(channels('#1c1a19')).toEqual([28, 26, 25]);
     expect(rgbHex([28, 26.4, 24.6])).toBe('#1c1a19');
+  });
+
+  it('composites a veil over an opaque plane, source-over', () => {
+    expect(composite({ ch: [0, 0, 0], alpha: 0.5 }, '#ffffff')).toBe('#808080');
+    // Unequal channels and alpha ≠ 0.5, so swapped weights or a crossed channel cannot pass.
+    expect(composite({ ch: [200, 100, 0], alpha: 0.25 }, '#204080')).toBe('#4a4960');
   });
 });
 

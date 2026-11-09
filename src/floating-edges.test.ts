@@ -4,15 +4,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import {
-  channels,
-  ratio,
-  resolve,
-  rgbHex,
-  stripCss,
-  themeBlocks,
-  veilOf,
-} from './__fixtures__/palette';
+import { composite, ratio, resolve, stripCss, themeBlocks, veilOf } from './__fixtures__/palette';
 
 // THE FLOATING SURFACES' BOUNDARY, ON THE SAME TOKEN AS THE FIELD EDGE (`floating-edges.
 // dc.html` T4). An `AssetForm` `Select` opens INSIDE a `Dialog`, so a `bg-card` popover
@@ -133,13 +125,12 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
   // oklab, but mixing with `transparent` only sets alpha.
   for (const theme of THEMES) {
     it(`${theme}: the panel and the date sheet stay identifiable on their veil`, () => {
-      const { ch, alpha } = veilOf(BLOCKS, theme, overlayOf('components/ui/Dialog.tsx'));
+      const veil = veilOf(BLOCKS, theme, overlayOf('components/ui/Dialog.tsx'));
       const edge = resolve(BLOCKS, theme, 'field-border');
       const fill = resolve(BLOCKS, theme, 'card');
       for (const plane of ['page', 'card', 'panel'] as const) {
-        const behind = channels(resolve(BLOCKS, theme, plane));
-        const veil = rgbHex(ch.map((c, i) => c * alpha + behind[i] * (1 - alpha)));
-        const best = Math.max(ratio(fill, veil), ratio(edge, veil));
+        const ground = composite(veil, resolve(BLOCKS, theme, plane));
+        const best = Math.max(ratio(fill, ground), ratio(edge, ground));
         expect(
           best,
           `neither the panel's fill nor its stroke identifies it over ${plane}`,

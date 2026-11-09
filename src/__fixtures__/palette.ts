@@ -72,9 +72,13 @@ export const themeBlocks = (css: string): Blocks => ({
   dark: ruleBody(css, "[data-theme='dark']"),
 });
 
+export const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+export const rgbHex = (ch: number[]) =>
+  '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
+
 /** sRGB → relative luminance, WCAG 2.x. */
 export function luminance(hex: string): number {
-  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const ch = channels(hex).map((c) => c / 255);
   const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
   return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
 }
@@ -132,10 +136,6 @@ export function resolve(blocks: Blocks, theme: Theme, name: string, seen: string
   return hex;
 }
 
-export const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-export const rgbHex = (ch: number[]) =>
-  '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
-
 /** A translucent token's channels and alpha, through the cascade like `resolve`: a dark block
  *  that omits it renders `@theme`'s, and the one-for-one palette guard is what refuses that. */
 export function veilOf(blocks: Blocks, theme: Theme, name: string): { ch: number[]; alpha: number } {
@@ -143,6 +143,12 @@ export function veilOf(blocks: Blocks, theme: Theme, name: string): { ch: number
   const m = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/);
   expect(m, `--color-${name} is not an rgba(…) veil (got ${value})`).not.toBeNull();
   return { ch: [+m![1], +m![2], +m![3]], alpha: +m![4] };
+}
+
+/** Source-over on an opaque plane (Compositing and Blending L1 §5.1): what a veil renders as. */
+export function composite(veil: { ch: number[]; alpha: number }, behind: string): string {
+  const b = channels(behind);
+  return rgbHex(veil.ch.map((c, i) => c * veil.alpha + b[i] * (1 - veil.alpha)));
 }
 
 /** The literal hex a theme declares; an alias is refused, since this reader's consumers
