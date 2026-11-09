@@ -109,3 +109,19 @@ The same shell serves these, not drawn here:
 - the app-failure page;
 - /auth/callback;
 - privacy and terms when signed out.
+
+## Перенесено
+
+Rules of sign-in, the bot check and the first sign-in that no code, test or decision records.
+
+- **The language control has no flags.** Its languages' own names, as on /settings, say what a flag would.
+- **One address box for sign-in and application is refused.** It would branch on whether the address has an account and say so to anybody typing one; `/apply`'s constant answer exists to prevent that.
+- **No password confirmation field.** The show toggle catches the typo a second field was for.
+- **The page never compares the new password with the temporary one.** The pool's password history is the one rule; a second copy in the page could drift from it.
+- **A refused new password keeps what was typed.** No refusal clears the field.
+- **The app draws no edge around the bot check's frame, and owes none.** The checkbox inside it identifies the control, and WCAG 1.4.11 asks for no boundary around a control whose own content identifies it (Understanding 1.4.11, *Boundaries*).
+- **The compact widget is refused.** It breaks the full-width column the fields and buttons share, and stands taller than the flexible one.
+- **The card keeps its padding for the widget below md.** A narrower padding would move every auth page to fit one control.
+- **No privacy line under the widget on /sign-in.** The widget carries its own «Конфіденційність» link. The privacy first layer under `/apply`'s button is the legal notice (*Legal documents*), not the widget's.
+- **The passkey retry's widget slot and link fade in with its sentence,** on StepAlert's 200 ms fade.
+- **The sentence on the new password's rule line fades in over 200 ms on `ease-soft`,** as the rule's own refusal does; nothing slides, since the line's height does not change.

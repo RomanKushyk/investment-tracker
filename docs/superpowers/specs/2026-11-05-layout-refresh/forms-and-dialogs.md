@@ -129,3 +129,13 @@ Wave 16 settles all three ([dialog-buttons-and-radii.md](dialog-buttons-and-radi
 - Портфель's edit mode at 1440 runs «Приріст капіталу, %» into «Частка» (wave 6's column gap fixes it).
 - At 360 the asset form keeps its field pairs side by side, so «Раз на півроку» truncates. The record says pairs "stack at narrow widths; the form fits 360px unclipped".
 - In dark the scrim (the page colour at 64 %) barely dims a dark page.
+
+## Перенесено
+
+Rules of the re-authentication dialog on /profile that no code, test or decision records.
+
+- **No extend control.** The window is a security limit, which WCAG 2.2.1's essential exception covers, and confirming again is the extension.
+- **The panel's height follows its content at once,** with no height transition: an exception to *Interaction rules*, so the panel's top and each step's row stand still.
+- **The time left is replaced in place,** with no motion of its own: an exception to *Interaction rules*, since it changes on a clock, not on an interaction.
+- **No emailed code** as a way to confirm.
+- **No toast for a refusal.** The sentence stands next to its source.

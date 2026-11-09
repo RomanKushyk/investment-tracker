@@ -6,6 +6,8 @@ Epic #611 makes this folder the only design reference. Until #621 retires `desig
 
 **What is in a file and what is not.** Signed values are spec: sizes, radii, tokens, opacities, timings and copy. Readings measured on the renders, such as contrast ratios, are not; a figure lives in a test. Where a later wave overturns an earlier one, the later wave's file says so, and the overturned line in the earlier file points to it.
 
+**«Перенесено».** Where a file ends with this section, it holds the rules of the old sheets under `design/` that, once checked, no code, test or decision recorded. Each section names the area whose sheets it covers.
+
 **Provenance.** The waves were signed on two private review pages, which also hold every round's variants: [part 1](https://claude.ai/artifact/2885hXysnZCFidJP5gtRoR) for waves 1–14 and [part 2](https://claude.ai/artifact/Bc8Yh9sY1EnR6hE9zS4ZMw) for waves 15–24. The frames here are copied unchanged from each wave's «Final» block, with these exceptions:
 - Waves 4 and 23 have no «Final» frame, so their frames are those of their picks.
 - Wave 19 was signed on players. Its frames are their end states: the arrived screens from the «Final», and the placeholder states from its slow-read player at 1440 and from Step 2's player at 360.

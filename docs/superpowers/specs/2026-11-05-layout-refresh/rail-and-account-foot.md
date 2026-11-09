@@ -91,3 +91,9 @@ The count at «3» and «99+» on the super-admin's rail with its role strip, in
 ## Not drawn
 
 - No new motion: the collapse keeps today's tweens, so none was played.
+
+## Перенесено
+
+Rules of the sign-in entry that no code, test or decision records.
+
+- **Why the entry is «Увійти» and not «Вхід».** «Вхід» is a noun, where the «Вийти» it replaces in the slot is a verb.
