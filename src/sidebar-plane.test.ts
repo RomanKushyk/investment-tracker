@@ -5,12 +5,14 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
-  declared,
+  channels,
   declaredIn,
   ratio,
   resolve,
+  rgbHex,
   stripCss,
   themeBlocks,
+  veilOf,
 } from './__fixtures__/palette';
 
 // THE WALL FOLLOWS THE THEME, AND THE ACTIVE ROUTE IS SAID TWICE. The sidebar is a step
@@ -75,10 +77,6 @@ const CSS = stripCss(read('index.css'), 'index.css');
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
-const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-const rgbHex = (ch: number[]) =>
-  '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
-
 const BLOCKS = themeBlocks(CSS);
 const THEMES = ['light', 'dark'] as const;
 
@@ -86,13 +84,6 @@ const THEMES = ['light', 'dark'] as const;
  *  composites it first. THE BARE WALL FLATTERS THE FIGURE: the active label sits on its own
  *  12 % tint, lighter than the wall in light and darker in dark. The sheet scores it on its
  *  own ground and so does this. */
-function tint(block: string, name: string): { ch: number[]; alpha: number } {
-  const value = declaredIn(block, name) ?? declared(BLOCKS.light, name);
-  const m = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/);
-  expect(m, `--color-${name} is not an rgba(…) — this pin composites a tint`).not.toBeNull();
-  return { ch: [+m![1], +m![2], +m![3]], alpha: +m![4] };
-}
-
 const over = (veil: { ch: number[]; alpha: number }, behind: string) =>
   rgbHex(veil.ch.map((c, i) => c * veil.alpha + channels(behind)[i] * (1 - veil.alpha)));
 
@@ -115,7 +106,10 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
     ['light', 3.88],
     ['dark', 8.283],
   ] as const)('%s: the active label on its own tint, at the ruled value', (theme, expected) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS, theme, 'sb-bg'));
+    const ground = over(
+      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
+      resolve(BLOCKS, theme, 'sb-bg'),
+    );
     expect(
       ratio(resolve(BLOCKS, theme, 'sb-item-active'), ground),
       'the ruled reading moved — a repair and a drift both have to come here and say why',
@@ -137,7 +131,7 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
     expect(
       ratio(
         resolve(BLOCKS, theme, 'sb-item-hover'),
-        over(tint(BLOCKS[theme], 'sb-item-hover-bg'), wall),
+        over(veilOf(BLOCKS, theme, 'sb-item-hover-bg'), wall),
       ),
     ).toBeGreaterThanOrEqual(4.5);
   });
@@ -155,17 +149,23 @@ describe('the rail draws its glyphs alone, so they are held to 1.4.11', () => {
   });
 
   it.each(THEMES)('%s: the active glyph clears 3 : 1 on its tint', (theme) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS, theme, 'sb-bg'));
+    const ground = over(
+      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
+      resolve(BLOCKS, theme, 'sb-bg'),
+    );
     expect(ratio(resolve(BLOCKS, theme, 'sb-icon-active'), ground)).toBeGreaterThanOrEqual(3);
   });
 
   it.each(THEMES)('%s: a hovered rail glyph clears 3 : 1 on its ground', (theme) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-hover-bg'), resolve(BLOCKS, theme, 'sb-bg'));
+    const ground = over(veilOf(BLOCKS, theme, 'sb-item-hover-bg'), resolve(BLOCKS, theme, 'sb-bg'));
     expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), ground)).toBeGreaterThanOrEqual(3);
   });
 
   it.each(THEMES)('%s: the rail currency symbol clears 4.5 : 1 on its tint', (theme) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS, theme, 'sb-bg'));
+    const ground = over(
+      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
+      resolve(BLOCKS, theme, 'sb-bg'),
+    );
     expect(
       ratio(resolve(BLOCKS, theme, 'ink'), ground),
       'the rail currency symbol is unreadable on its tint — it shows a value rather than ' +
@@ -187,7 +187,7 @@ describe('the footer band is a second ground, and the eleventh route reads on it
     ['light', 3.62],
     ['dark', 7.75],
   ] as const)('%s: the active label on its tint over the band, at its value', (theme, expected) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
+    const ground = over(veilOf(BLOCKS, theme, 'sb-item-active-bg'), band(theme));
     expect(ratio(resolve(BLOCKS, theme, 'sb-item-active'), ground)).toBeCloseTo(expected, 2);
   });
 
@@ -220,14 +220,14 @@ describe('the footer band is a second ground, and the eleventh route reads on it
     ['dark', 5.81],
   ] as const)('%s: the idle currency symbol on its track, at its value', (theme, expected) => {
     const track = over(
-      tint(BLOCKS[theme], 'sb-item-active-bg'),
+      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
       resolve(BLOCKS, theme, 'sb-footer-bg'),
     );
     expect(ratio(resolve(BLOCKS, theme, 'sb-item'), track)).toBeCloseTo(expected, 2);
   });
 
   it.each(THEMES)('%s: the selected chip identifies itself on the tinted track', (theme) => {
-    const track = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
+    const track = over(veilOf(BLOCKS, theme, 'sb-item-active-bg'), band(theme));
     expect(ratio(resolve(BLOCKS, theme, 'accent'), track)).toBeGreaterThanOrEqual(3);
     expect(
       ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'accent')),
@@ -239,7 +239,7 @@ describe('the footer band is a second ground, and the eleventh route reads on it
   // GLYPH with no label of its own and 1.4.11 asks 3. A FLOOR rather than the exact value
   // beside it, because this one clears its bar.
   it.each(THEMES)('%s: an idle theme glyph clears 3 : 1 on its track', (theme) => {
-    const track = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
+    const track = over(veilOf(BLOCKS, theme, 'sb-item-active-bg'), band(theme));
     expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), track)).toBeGreaterThanOrEqual(3);
   });
 });
@@ -300,13 +300,13 @@ describe('the drawer over its veil, at the value the owner ruled', () => {
     ['light', 2.936],
     ['dark', 1.029],
   ] as const)('%s: the drawer fill against the composited scrim', (theme, expected) => {
-    const veil = tint(BLOCKS[theme], 'scrim');
+    const veil = veilOf(BLOCKS, theme, 'scrim');
     const ground = over(veil, resolve(BLOCKS, theme, 'page'));
     expect(ratio(resolve(BLOCKS, theme, 'sb-bg'), ground)).toBeCloseTo(expected, 2);
   });
 
   it('keeps the drawer edge on in dark, where the fill cannot identify it', () => {
-    const veil = tint(BLOCKS.dark, 'scrim');
+    const veil = veilOf(BLOCKS, 'dark', 'scrim');
     const ground = over(veil, resolve(BLOCKS, 'dark', 'page'));
     expect(
       ratio(resolve(BLOCKS, 'dark', 'drawer-edge'), ground),

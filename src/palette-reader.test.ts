@@ -4,13 +4,16 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  channels,
   declaredHex,
   luminance,
   ratio,
   resolve,
+  rgbHex,
   ruleBody,
   stripCss,
   themeBlocks,
+  veilOf,
 } from './__fixtures__/palette';
 import { REPO, skipped } from './repo-root';
 
@@ -35,6 +38,9 @@ const NAMES = new Set([
   'declaredIn',
   'declaredHex',
   'themeBlocks',
+  'veilOf',
+  'channels',
+  'rgbHex',
 ]);
 /** Where a name may be imported from without being a copy: the module, and `node:path`'s
  *  `resolve`, which a read of the stylesheet may use to build its path. */
@@ -518,6 +524,29 @@ describe('the two readers', () => {
 
   it('a name neither block declares says so', () => {
     expect(() => resolve(blocks, 'dark', 'absent')).toThrow(/declared in neither dark nor @theme/);
+  });
+});
+
+describe('the veil reader', () => {
+  const blocks = themeBlocks(
+    [
+      '@theme { --color-scrim: rgba(28, 26, 25, 0.5); --color-tint: rgba(1, 2, 3, 0.12); --color-base: #aabbcc; }',
+      "[data-theme='dark'] { --color-tint: rgba(4, 5, 6, 0.14); }",
+    ].join('\n'),
+  );
+
+  it("reads a theme's own veil, and @theme's where the dark block omits it, as the cascade does", () => {
+    expect(veilOf(blocks, 'dark', 'tint')).toEqual({ ch: [4, 5, 6], alpha: 0.14 });
+    expect(veilOf(blocks, 'dark', 'scrim')).toEqual({ ch: [28, 26, 25], alpha: 0.5 });
+  });
+
+  it('refuses a value that is not an rgba(…)', () => {
+    expect(() => veilOf(blocks, 'light', 'base')).toThrow(/not an rgba/);
+  });
+
+  it('the channel maths round-trips a hex', () => {
+    expect(channels('#1c1a19')).toEqual([28, 26, 25]);
+    expect(rgbHex([28, 26.4, 24.6])).toBe('#1c1a19');
   });
 });
 

@@ -4,7 +4,15 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { declared, ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
+import {
+  channels,
+  ratio,
+  resolve,
+  rgbHex,
+  stripCss,
+  themeBlocks,
+  veilOf,
+} from './__fixtures__/palette';
 
 // THE FLOATING SURFACES' BOUNDARY, ON THE SAME TOKEN AS THE FIELD EDGE (`floating-edges.
 // dc.html` T4). An `AssetForm` `Select` opens INSIDE a `Dialog`, so a `bg-card` popover
@@ -63,10 +71,6 @@ const CSS = stripCss(read('index.css'), 'index.css');
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
-const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-const rgbHex = (ch: number[]) =>
-  '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
-
 const BLOCKS = themeBlocks(CSS);
 
 /** TWO GROUPS, not one union. Collapsing them would demand the rank clear the bar on the
@@ -112,14 +116,6 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     return token![1];
   };
 
-  /** The veil's own channels and alpha, from an `rgba(…)` declaration. */
-  const veilOf = (theme: (typeof THEMES)[number], token: string) => {
-    const value = declared(BLOCKS[theme], token);
-    const m = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/);
-    expect(m, `--color-${token} is not an rgba(…) veil (got ${value})`).not.toBeNull();
-    return { ch: [+m![1], +m![2], +m![3]], alpha: +m![4] };
-  };
-
   it('the panel and the date sheet paint one veil, so one reading covers both', () => {
     expect(
       overlayOf('components/ui/Dialog.tsx'),
@@ -137,7 +133,7 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
   // oklab, but mixing with `transparent` only sets alpha.
   for (const theme of THEMES) {
     it(`${theme}: the panel and the date sheet stay identifiable on their veil`, () => {
-      const { ch, alpha } = veilOf(theme, overlayOf('components/ui/Dialog.tsx'));
+      const { ch, alpha } = veilOf(BLOCKS, theme, overlayOf('components/ui/Dialog.tsx'));
       const edge = resolve(BLOCKS, theme, 'field-border');
       const fill = resolve(BLOCKS, theme, 'card');
       for (const plane of ['page', 'card', 'panel'] as const) {
