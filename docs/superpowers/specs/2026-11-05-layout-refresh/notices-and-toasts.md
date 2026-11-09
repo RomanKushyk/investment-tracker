@@ -39,6 +39,7 @@ At 360: the same three frames, plus a toast while «Ще» is open, which moves 
 ## Signed
 
 - **Reminders (R3).** One glass card (wave-4 glass, r24, padding 16 / 22 / 14). It is a `<section>` labelled by «Нагадування», 10 px caps `muted` (new copy, en "Reminders").
+  - *Overturned by wave 18: the label role, 11 px ([type.md](type.md#signed)).*
   - Each row is the glyph at 16 / 2.25 in the tone (Clock `neg` for overdue, CircleAlert `warn`, Info `info`), the sentence 13 / 1.5 in `ink`, the link bold in `ink`, and ✕ 13 at .85.
   - Rows are padded 9 / 10 at r11 and pulled 10 into the card's padding, with zebra on even rows at `ink` 3 %.
   - «+N» is the last line, 12 px `muted`, with no zebra.
@@ -46,6 +47,7 @@ At 360: the same three frames, plus a toast while «Ще» is open, which moves 
   - On /, quote-missing is suppressed and no row carries a link.
   - No live region: the reminders are page content at load.
 - **Chips (C2).** Glyph and word, with no fill, padding or edge. Each chip keeps its own type size, weight and caps; the word is in `ink`. The glyph is 12 px on 10 px chips and 14 px on 12 px pills, stroke 2.25, in the tone:
+  - *Overturned by wave 18: chips are 11 px, the label size ([type.md](type.md#signed)).*
   - «авто»: RefreshCw `info`, with «отримано HH:MM» after it.
   - «станом на»: Clock `warn`.
   - «вручну»: Pencil `muted`.
@@ -56,6 +58,7 @@ At 360: the same three frames, plus a toast while «Ще» is open, which moves 
   - The archive's prodOnly line: Info `info` beside its sentence, with no tint block (role=status kept).
 - **Blocks that stay tinted.** The import dialog's `neg-tint` replace banner and `warn-tint` warnings, on the wave-8 glass dialog. With the strip off its tint, `neg-tint` is now reserved for irreversible-harm blocks alone: the import banner and the danger zone.
 - **Toasts.** Wave-4 glass, a 1 px `field-border` edge, r13, padding 14 / 16, gap 10, 13 / 1.45, the popover shadow. The glyph is 18 / 2:
+  - *Overturned by wave 22: the toast's edge is wave 15's glass edge, and its one action sits under the sentence ([controls-and-overlays.md](controls-and-overlays.md#signed)).*
   - success: circle-check in `ink`;
   - error: circle-alert in `neg`;
   - neutral (N2): bell for the reminder nudge and info for other notices, both in `ink`. A neutral toast has no severity, so it takes no tone.
@@ -64,8 +67,10 @@ At 360: the same three frames, plus a toast while «Ще» is open, which moves 
   - 1440: 356 wide, right 24, bottom 24.
   - 360: 12 a side, 12 above the dock's top edge. Where /'s action bar is taller, the higher of the two decides.
   - With «Ще» open (P1): at the top, 12 from the edges, over the bar. Above the sheet and the top of the screen are the same place. The toast covers the bar for its 4 s, and changes side only while the sheet is open.
+    - *Overturned by wave 22: toasts sit at the top while any M2 sheet is open ([controls-and-overlays.md](controls-and-overlays.md#settled-by-the-brief)).*
 - **Severity by shape.** The glyph's shape carries the severity everywhere, never the tone alone.
 - **Held.** `info`, never `pos`, carries information. A refusal never takes a toast. Toasts keep r13 and their `field-border` edge.
+  - *Overturned by wave 22: toasts lose the `field-border` edge ([controls-and-overlays.md](controls-and-overlays.md#signed)).*
 - **New copy:** «Нагадування», in both languages.
 
 ## Rejected

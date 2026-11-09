@@ -86,15 +86,20 @@ At 360, light: the same seven frames.
   - Each status colour keeps 3 : 1 on the glass, and shape and word carry the state, never the hue alone, as Carbon asks. The column loses four boxes.
 - **Figures (K2), the wave-7 hero.** Per source, in the glass card (r24, padding 22 / 20 held):
   - the 10 px caps label;
+    - *Overturned by wave 18: the label role, 11 px ([type.md](type.md#signed)).*
   - empty days at Manrope 36 / 600, line 1.05, in `warn-tint-text` with a 26 px TriangleAlert while any day is empty;
+    - *Left open by wave 18: 36 / 600 fits no role in its table ([type.md](type.md#left-open)).*
   - the existing sentence (`emptySub` / `noEmpty`) as an 11 px `muted` caption;
   - gaps and captures · size as the wave-7 F1 fact grid (two columns, 10 / 18 gap, 10.5 px caps labels, 12.5 px bold values). The hairline goes.
+    - *Overturned by wave 18: the labels take the label role (11 / 14), and 12.5 px maps to 13 ([type.md](type.md#signed)).*
   - The order is held: empty days first, then gaps, then captures and size. The warn colour on the figure is held from today. The card is the same height for both sources at both widths.
   - Its cost: a 36 px «0 днів» on a healthy source shouts a zero.
 - **Applied from earlier waves, not asked.**
   - **Tables (wave 6).** RunLog, SpotCheck and the users table take the wave-6 anatomy: caps header on an `ink` 7 % band, zebra at 3 %, no row lines, 16 px column gap, 12 px insets. RunLog's two-line rows keep 9 px vertical padding. The users rows are 36 px, holding 30 px sm buttons. Below md, RunLog's stack and the users records are zebra records (r11, 12 px padding) in their one card (wave 6's R2).
   - **Shell at md and up (waves 2/4).** The glass sidebar (260, inset 16, r26), held to super-admin-shell's content: the brand row with no currency line; the role band, a 18 px shield in `sb-icon-active` and «Суперадміністратор» in Manrope 14 / 600, on `ink` 5 % at r12, 44 px; «Адміністрування» with «Користувачі» (its count 20 × 18 r5 on `sb-badge-bg`) above «Архів цін»; the theme control only; Налаштування; the profile row; the legal links.
+    - *Overturned by wave 21: the count is solid `accent` with `accent-fg` text (C1) ([rail-and-account-foot.md](rail-and-account-foot.md#signed)).*
   - **Shell at 360 (wave 5).** The glass bar, 56 px: the mark and «quirenote», then the shield and «Суперадміністратор». The role dock is centred, with equal tabs and the count at 16 px r4. Its colour is `sb-indicator`, which equals `accent` in both themes, so the record's two tokens agree. The dock keeps wave 5's order, «Архів цін», «Користувачі», «Ще», as the owner ruled at sign-off, though the sidebar lists «Користувачі» first.
+    - *Overturned by wave 24: the mark is a 28 plate at r7 with the «q» at 15 ([brand.md](brand.md#signed)).*
   - **Dialogs (wave 8).** D2 glass with a `field-border` edge at md and up (420), and the M2 inset sheet (12 from the edges) below. Content and copy are held. A refusal is 12 px `neg` above the buttons, with the key in mono.
   - **Fields (wave 8).** The repairs' date pickers and the users Select take the page fill (F2). The Select is 272 at md and up, and full width below.
 - **New copy:** none. Every string is the app’s or the users page record’s.

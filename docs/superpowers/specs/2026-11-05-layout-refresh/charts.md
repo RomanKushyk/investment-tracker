@@ -54,6 +54,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 
 - **Grid.** Horizontal only, at ~5 clean ticks (1-2-2.5-5 steps), 1 px hairline, solid. No vertical grid, no y axis line, no tick marks. The x baseline is a 1 px hairline.
 - **Tick labels.** 11 px JetBrains Mono `muted`, horizontal. y: ₴Nk / signed whole %. x: dd.MM, 7 evenly spaced on wide plots, first/middle/last when narrow.
+  - *Wave 23 adds: a 12-month axis keeps twelve labels at 360 ([loading-and-compositions.md](loading-and-compositions.md#settled-by-the-brief)).*
 - **Lines.** 2 px, round join and cap, no dots on daily data. The end marker is r4 in the series colour on an r6 disc in `card` (the 2 px ring).
 - **Area.** A gradient of the series colour from 32 % to 0, under the line. The capital area keeps today's cropped domain (data min − 5 000 … max + 2 000) with the fill, by the owner's ruling against Carbon's from-zero rule.
 - **0 % line.** On cumulative-return charts, a 1 px `field-border` line at 0.
@@ -61,6 +62,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 - **Tooltip.** Glass (the signed material, r12), padding 9/12, 12 px. The date in `muted` 11 px, then one row per series: a 12×2 colour key, the name, the value in 700, sorted by value. It sits right of the crosshair, left of it past mid-plot, and inside the plot's left edge on plots under 500 px wide (wrapping), so it never leaves the card.
 - **Motion.** Entry and update 400 ms on `ease-soft`. Recharts' `isAnimationActive: 'auto'` keeps honouring reduced motion.
 - **Contrast.** Every series mark is ≥ 3 : 1 against the card in both themes. Text is in text tokens only.
+  - *Overturned by wave 20: in dark, three asset slots sit under the non-text floor and take the relief rule ([palette.md](palette.md#signed)).*
 
 ### Identity
 
@@ -85,6 +87,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 - **Y1 as the default, the legend row alone:** colour is the only key along each line. It stays as the «Разом» view.
 - **Y2, direct end labels:** 168 px of right gutter, and mid-plot crossings still rely on hue.
 - **Y3, end labels + a shape per asset:** one more identity rule app-wide, and the lines between the ends are still hue-only where they cross.
+  - *Overturned by wave 14: «Разом» gives each line a shape ([yield-series-shapes.md](yield-series-shapes.md#signed)).*
 - **A1, the donut with gaps:** angle reads worse than length (Heer & Bostock; Few), and the smallest share is a sliver.
 - **A2, sorted horizontal bars:** it duplicates the neighbouring card, which draws the same four bars and adds the targets.
 - **B2, grouped:** the month total disappears, and empty coupon months leave gaps.
@@ -110,6 +113,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 - Small multiples are four `LineChart`s sharing one y domain.
 - In the new shell, with its narrower content, the payout log's «Після податку, ₴» and «Призначення» headers touch at 1440.
 - Recorded for a future palette brief, not decided here: the four asset hues were never chosen as a categorical palette. This wave works around that with facets and names; a palette brief could fix it at the source.
+  - *Answered by wave 20: eight slots in a fixed order ([palette.md](palette.md#signed)).*
 
 ## Not drawn
 

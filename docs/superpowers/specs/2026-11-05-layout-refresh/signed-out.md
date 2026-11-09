@@ -68,12 +68,15 @@ At 360, light: the same five states.
   - Google's button in Google's own colours.
   - No theme control on the bar.
 - **Page (P2).** The signed wave-1 glow behind everything: the asset hues at their caps (dark ≤ 20 %, light × 0.7), scaled to the viewport, and down at 360. The shell's `bg-page` stays underneath. The first screen anyone sees now matches the app behind it.
+  - *Overturned in light by wave 15: each light glow hue sits at its own cap (B3) ([glass-light.md](glass-light.md#signed)).*
 - **Card (C2).** The wave-4 glass (`card` 80 % with `blur(30px) saturate(180%)`), with bevel and sheen, as every card, the dock and the dialogs now are.
+  - *Overturned in light by wave 15: the light fill is `card` 70 %, with the lit edge ([glass-light.md](glass-light.md#signed)).*
   - Held: 440 / 336, padding 28 / 22, r24, top 64 / 16, and the legal links under it.
   - Turnstile and Google's button keep their own opaque fills, in their makers' colours.
   - The glass edge is drawn inset. Drawn as an outer border, it moves «Продовжити» at 360, and the record says the button never moves.
   - Over the calm glow the card reads as a tint more than glass (wave 4's finding).
 - **Bar (B2).** 57 px, the wave-4/5 glass (`card` 80 % with `blur(30px) saturate(180%)`) with its hairline bottom, the same material as the portfolio's 360 bar. Its contents are held: the mark 22, «quirenote», the language control; no theme control. Only the fill and the edge change.
+  - *Overturned in light by wave 15: the light fill is `card` 70 % ([glass-light.md](glass-light.md#signed)). By wave 24: the mark is a 28 plate at r7 with the «q» at 15 ([brand.md](brand.md#signed)).*
 - **Contents.** Unchanged: every step, sentence and slot as the record has them. Fields already take the page fill (wave 8's F2).
 
 ## Rejected

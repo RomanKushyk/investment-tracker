@@ -45,9 +45,11 @@ The top bar: scrolling down sends it away; scrolling up brings the glass bar bac
   - `--drawer-band-h`, if it is still used.
 - **Geometry.** Fixed at left/right 12 and bottom `calc(12px + env(safe-area-inset-bottom))`. Radius 19: the rows' r11 plus the sheet's 8 padding. `max-height: calc(100dvh − 80px)`, with the body in `Scroller`. At 360 × 740 nothing overflows. It grows upward from the dock line and covers the dock while open.
 - **Material.** The wave-4 glass (card 80 %, `blur(30px) saturate(180%)`, bevel + sheen). The fallbacks are wave 2's opaque cards.
+  - *Overturned in light by wave 15: the light fill is `card` 70 %, with the lit edge ([glass-light.md](glass-light.md#signed)).*
 - **Head (44 px).**
   - A grabber, 32 × 4 r1 in `field-border`, decorative. A drag down may close the sheet; the close X is its single-pointer twin (WCAG 2.5.7).
   - The title «Ще» in Manrope 16/600.
+    - *Overturned by wave 18: 16 px maps to the sub role, 15 / 20 ([type.md](type.md#signed)).*
   - The close X, 18 px in a 40 box with a `TAP_44` hit area.
 - **Body (A3, collapsible),** top to bottom:
   - The sidebar's `NavGroup` «Ввід» (Щоденні котирування, Транзакції) and «Аналітика» (Баланси, Виплати, Сезонність, Портфель). These are the screens not in the dock, with full labels: «Щоденні котирування» is not shortened.
@@ -61,6 +63,7 @@ The top bar: scrolling down sends it away; scrolling up brings the glass bar bac
   - Signed out gives no screens and the preferences row held, unseen, at a user's layout, as the drawer does today, then «Ви не ввійшли» and «Увійти».
 - **Motion.** The sheet comes in by `translateY(calc(100% + 12px))` → 0 over 260 ms and leaves over 220 ms, both on `ease-soft`. The scrim fades over 220 ms. These are the drawer's own tokens (`--animate-drawer-in/out`). Under `prefers-reduced-motion` the app's global kill-switch applies (DECISIONS, *Interaction rules*), so the sheet and scrim appear and leave in one frame. That corrects the brief, which said "opacity only".
 - **Top bar (B2 + B3).** Sticky, 56 px plus the top safe area, square, with a hairline bottom, in the wave-4 glass. It holds the mark and «quirenote»; its right side follows the role.
+  - *Overturned by wave 24: the mark is a 28 plate at r7 with the «q» at 15 ([brand.md](brand.md#signed)).*
   - Past its own height, scrolling down slides it to `translateY(-100%)` (220 ms); any scroll up brings it back (260 ms), on `ease-soft`.
   - It always shows within the first 56 px of scroll and while focus is inside it (WCAG 2.4.11). It appears instantly under reduced motion.
   - Right side: the capital for a user; shield + «Суперадміністратор» for the super-admin; nothing while the role is unknown or signed out.

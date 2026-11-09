@@ -43,14 +43,20 @@ T2, the signed material with `saturate(180%)`, over the signed backdrop.
 ## Signed
 
 - **Material (T2).** `background: color-mix(in srgb, var(--color-card) 80%, transparent)` with `backdrop-filter: blur(30px) saturate(180%)`, and the `-webkit-` twin. Wave 2 signed it with no saturate; wave 4 added `saturate(180%)`. The opacity stays at α 0.80, the thicker material.
+  - *Overturned in light by wave 15: the light fill is `card` 70 % ([glass-light.md](glass-light.md#signed)).*
 - **Edge (E4).** A 1 px border of `ink` at 6 % (dark) / 8 % (light). A bevel of two insets: `inset 1px 1px 0` RIM and `inset −1px −1px 0` SHADE.
+  - *Overturned in light by wave 15: the light stroke is `ink` 6 %, with a soft shadow in light only ([glass-light.md](glass-light.md#signed)).*
 - **Sheen (E4).** A first background layer: `linear-gradient(180deg, RIM 0%, transparent 38%)`.
+  - *Overturned in light by wave 15: the light sheen is `glass-rim` (white) at 60 % ([glass-light.md](glass-light.md#signed)).*
 - **RIM and SHADE.**
   - Dark: rim `ink` 12 % (sheen `ink` 5 %), shade `page` 60 %.
   - Light: rim `card` 90 % (sheen `card` 55 %), shade `ink` 10 %.
+    - *Overturned by wave 15: in light, `glass-rim` is white and `glass-shade` is `ink` 16 % ([glass-light.md](glass-light.md#signed)).*
   - Two new alias tokens, aliases and not colours (the `drawer-edge` precedent): `--color-glass-rim` = `ink` (dark) / `card` (light), and `--color-glass-shade` = `page` / `ink`. Without them the light theme's light comes from below.
+    - *Overturned by wave 15: the light value of `--color-glass-rim` is white (`#ffffff`) ([glass-light.md](glass-light.md#signed)).*
 - **Scope (X3).** Every content card (KPI tiles, hero, tables, lists, the real screens' `Card`), the floating sidebar (it keeps r26) and the 360 dock (it keeps r18). Wave 4 adds the chart tooltip. Not the 360 top bar or the page.
 - **Backdrop (W1).** Unchanged: the wave-1 glow (dark 20 / 18 / 16 / 12 %, light ×0.7) + grain at normal blend.
+  - *Overturned in light by wave 15: each light glow hue sits at its own cap (B3) ([glass-light.md](glass-light.md#signed)).*
 - **Fallbacks.** `@supports not (backdrop-filter: blur(1px))` and `prefers-reduced-transparency: reduce` both give the opaque card with a hairline. That is exactly wave 1's signed frames. Safari doesn't report reduced transparency, so the default stands on its own: it passes contrast.
 - **Recorded in wave 4.** Over the signed wave-1 glow, even the strongest recipe gives a tinted card more than a glass one. Glass reads from seeing something blurred behind it, and this backdrop is almost uniform. A clearly glassy look needs a backdrop with edges (wave 2's W3 spheres or W4 bands), and that would reopen wave 2's Step 1 pick.
 

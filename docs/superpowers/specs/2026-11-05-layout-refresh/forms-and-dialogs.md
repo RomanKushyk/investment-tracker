@@ -50,16 +50,20 @@ The 360 sheet at real speed: a flip-book of renders, one per 60 Hz frame. The de
 
 - **Held from the record, not re-asked.**
   - A field is 36 px at r9 with a `field-border` edge ≥ 3 : 1, hover to `ink`, invalid `neg`, and the global 2 px focus ring.
+    - *Overturned by wave 17: the focus ring is two-tone, a `card` halo inside the `accent` ring (F2) ([controls.md](controls.md#signed)).*
   - 44 is hit area, never geometry.
   - The button variants and their 60/30/10 ration.
+    - *Overturned by wave 17: the secondary button is the glass knob (B4) ([controls.md](controls.md#signed)).*
   - Radix's trap, Escape and focus return.
   - "No refusal sentence moves its button".
   - The toast's r13 and its 28 px close box.
 - **Field (F2), every form.** Fields take the recessed `page` fill, one step darker than the card in light, so every field reads as a well in the surface. It makes the two forms agree.
   - Held: 36 px at r9, a `field-border` edge, hover to `ink`, invalid `neg`, the global 2 px focus ring, labels above at 11 px `muted`, the 44 hit area below md, 16 px type below md.
+    - *Overturned by wave 17: the focus ring is two-tone, a `card` halo inside the `accent` ring (F2) ([controls.md](controls.md#signed)).*
   - Errors: an 11 px `neg` line under the field, and the summary under the submit (as shipped).
   - One shared field recipe replaces the per-surface ones.
 - **Dialog at md and up (D2).** The wave-4 glass (`card` 80 % + `blur(30px) saturate(180%)`, bevel and sheen), with the `field-border` edge kept (the record’s floating-edge rule).
+  - *Overturned in light by wave 15: the light fill is `card` 70 %, with the lit edge ([glass-light.md](glass-light.md#signed)).*
   - r24, and three bands: the header `pt-6 pb-4`, a scrolling body, the footer `pt-4 pb-6`, all at `px-[28px]`.
   - The secondary action sits left of the primary, and the scrim is held.
   - Over the scrim the page behind is dimmed, so the glass reads mostly through its bevel and sheen.
@@ -70,6 +74,7 @@ The 360 sheet at real speed: a flip-book of renders, one per 60 Hz frame. The de
   - Motion: it rises `translateY(calc(100% + 12px))` → 0 in 260 ms and leaves in 220 ms on `ease-soft`; the scrim fades over 220 ms. Reduced motion uses the global kill-switch.
   - The same sheet serves forms and confirmations; Radix keeps trap, Escape and focus return.
 - **Toast (T2 + T3), T2's status glyph in T3's glass.**
+  - *Overturned by wave 22: the toast's edge is wave 15's glass edge ([controls-and-overlays.md](controls-and-overlays.md#signed)).*
   - The wave-4 glass, r13, the `field-border` edge, 14/16 padding, 13 px text.
   - A leading 18 px glyph: Lucide circle-check in `ink` for success (`pos` and `neg` are reserved for deltas), circle-alert in `neg` for a failure. The shape says the status, so colour is never alone.
   - A failure keeps its 28 px r7 close box and stays until closed. `role=status`.
@@ -109,11 +114,13 @@ The 360 sheet at real speed: a flip-book of renders, one per 60 Hz frame. The de
 
 ## Left open
 
-These record conflicts are still open:
+Wave 8 left these record conflicts open:
 
 - Stacked button order below md (import: destructive last; re-authentication: action first).
 - Dialog r24 vs the record’s r20 for floating edges.
 - Field radius 10 (the asset form's record) vs 9.
+
+Wave 16 settles all three ([dialog-buttons-and-radii.md](dialog-buttons-and-radii.md#signed)).
 
 ## Findings left to their own issues
 

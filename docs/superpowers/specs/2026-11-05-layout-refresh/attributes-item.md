@@ -34,6 +34,7 @@ The edge states, one per card:
   - Under it, a `muted` 11.5 px "what is it" line that wraps: «Фонд · {yield type} · без погашення» or «ОВДП · {yield type}», for example «Фонд · див + кап · без погашення» and «ОВДП · фіксований купон». New copy.
   - The tag goes; its text lives in that line.
 - **Hero (H1).** One figure in Manrope 36/600 with «/ рік» beside it, then an 11 px `muted` caption.
+  - *Left open by wave 18: 36 / 600 fits no role in its table ([type.md](type.md#left-open)).*
   - Fund: the actual annual return, coloured as today (`pos` / `neg`, `muted` on a short basis), with the caption «Фактична (річна) · очікувана {expected} %», the asset's stored expected return.
   - Bond: the YTM at purchase, with the caption «YTM на купівлі». When the YTM is derived, the app's `ytmDerived` line sits under the caption.
 - **Progress bar (V1).** One visual between the hero and the facts. 8 px at r2 on an `ink` 8 % track, the fill in the asset hue (identity, not gain or loss), and a 2 px `ink` tick, 16 px tall, for the reference.
@@ -41,6 +42,7 @@ The edge states, one per card:
   - Fund: the actual return against the expected tick, on a scale of max(actual, expected) × 1.25, with «фактична … / очікувана …» at the ends.
   - The captions are new copy. «днів» must follow Ukrainian plural rules (1 день, 2–4 дні).
 - **Facts (F1).** A 2-column label/value grid (10.5 px uppercase `muted` over 12.5 px bold), in a fixed order. A fact the hero or the bar already shows is not repeated.
+  - *Overturned by wave 18: the labels take the label role (11 / 14), and 12.5 px maps to 13 ([type.md](type.md#signed)).*
   - Fund: Графік виплат, Цільова частка, Перша купівля.
   - Bond: Купон, Цільова частка, Наступний купон.
 - **Contrast.** The tick and the fills aim at 3 : 1 against the track; the bar's values are always printed in its caption, so the fill is never the only carrier, which covers a hue that falls short.

@@ -50,15 +50,20 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 
 - **Sidebar, expanded (G1).** 260 wide; margin 16 top, left and bottom (height 100dvh − 32); `card` fill; 1 px hairline; r26 (nested: row r12 + 14 padding); padding 16 14 12; column gap 2. No blur. The glow shows around it.
 - **Header.** The 5h mark at 22 px in a 40 × 40 `panel` tile at r12; «quirenote» in Manrope 17/600; an 11 px `muted` subtitle: the capital (whole ₴) · its change in `pos`; a collapse chevron 16 in a 28 box.
+  - *Overturned by wave 24: the solid «q» on a 40 plate at r10 ([brand.md](brand.md#signed)).*
 - **Group label.** 11 px, uppercase, .14em, `muted`; padding 6 (first) / 14 (next) 10 4; a collapse chevron 14 at `sb-icon`.
+  - *Overturned by wave 18: section titles and sidebar groups are uppercase +.12em, 500 (L3) ([type.md](type.md#signed)).*
 - **Row.** 44 tall, r12, padding 0 12, gap 12; 13 px `sb-item`; lucide icon 18 in `sb-icon`. Active: `accent-tint` fill + `inset 2px 0 0` `sb-indicator`, label `ink` 700, icon `accent`.
 - **Foot.** Today's theme + currency control; «Налаштування» as a row; a hairline rule; the account row (a profile glyph in a 34 `panel` tile at r9, «Профіль» + the address in 11 px `muted`, sign-out 36); legal + version in 10 px `sb-label`.
+  - *Overturned by wave 17: the theme and currency sets are the D2 segmented control ([controls.md](controls.md#signed)). By wave 21: the A2 foot, with the legal links and the version on two 11 px lines ([rail-and-account-foot.md](rail-and-account-foot.md#signed)).*
 - **Collapsed (F3).** A 64 wide rail flush to the edge, 1 px hairline right, no fill. Menu 44; icons 20 in 44 × 44 at r12; a 28 × 1 hairline between groups; active as the row. The foot holds the currency box (40 × 32, r9, `field-border`), Settings, profile and sign-out. The menu button expands the rail.
+  - *Overturned by wave 21: tighter gaps (O3), the foot's rows, and a glass header bar beside the rail for the capital (R1) ([rail-and-account-foot.md](rail-and-account-foot.md#signed)); by wave 24: the 40 plate stands over the menu, so the rail head grows by 18 px ([brand.md](brand.md#signed)).*
 - **Content.** Padding 32 36 48. Inside a card, today's components; cards gain a 1 px hairline edge.
 
 ### Backdrop
 
 - **Glow.** A fixed layer behind the content: four radial spots, `color-mix(var(--color-HUE) A%, transparent)`, fading to transparent at 68 % of the radius. The hues are `accent`, `reit`, `ovdp8976` and `energy`, at 20 / 18 / 16 / 12 % in dark and the same at ×0.7 (14 / 12.6 / 11.2 / 8.4 %) in light. The spots overlap at 360.
+  - *Overturned in light by wave 15: each light glow hue sits at its own cap (B3) ([glass-light.md](glass-light.md#signed)).*
 - **Why those caps.** `muted` sitting directly on a spot's peak must keep 4.5 : 1 (WCAG F83). At 20 % the light theme would fail, hence ×0.7.
 - **Grain.** SVG `feTurbulence` noise at 3 % opacity, normal blend. An overlay blend left a hard compositing seam across the 360 frame.
 - **Reduced transparency.** `prefers-reduced-transparency: reduce` drops the glow and the grain: the plain page. Safari doesn't report the query, so the default is built to pass on its own.
@@ -67,13 +72,17 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 
 - **Header.** Unchanged: `ScreenHeader`, 26 px title, 13 px subtitle, the screen's control top-right (the period select on /overview). All six periods stay in one select, which already works at 360.
 - **Hero (/overview).** One card: a 10 px label; the capital in Manrope 46/600; the change in `pos` 13 px 700 + «від DD.MM.YYYY» in `muted`; $ at the NBU rate, 12 px `muted`, right-aligned; an axis-less area of the /view/balances totals, 110 tall, full card width, stroke `accent` 1.6, fill `accent` 26 % → 0.
+  - *Overturned by wave 23: the rate line sits under the change, left-aligned, at every width (H3) ([loading-and-compositions.md](loading-and-compositions.md#signed)); by wave 18: the label is 11 px and the ₴ steps back to 70 % ([type.md](type.md#signed)).*
 - **Sections.** A real `<h2>`: a lucide icon 16 `muted` + the label in Manrope 14/600 `ink`, gap 8, 10 below; section gap 28. On /overview: «Показники» (4 tiles), then «Активи» (1.6fr) | «Виплати» (1fr).
+  - *Overturned by wave 18: 14 px maps to the body role, 13 / 18 ([type.md](type.md#signed)).*
 - **Tile (H2's anatomy).** Padding 16, stack gap 8; label 11 px uppercase .12em `muted`; value Manrope 30/600 −.02em, with the ₴ split off at 15/500 `muted`; sub 12 px. At 360: 2 columns, value 22, label 10, sub 11.
+  - *Overturned by wave 18: the label is 11 px in sentence case, the value takes −.01em, and the ₴ is 70 % `muted` 500 (K2) ([type.md](type.md#signed)).*
 - **Asset row line (H3).** 96 × 22 (56 × 20 at 360), axis-less, stroked in the asset's hue at 1.6, no fill, from first purchase. Read from /view/balances. The name stays beside it, so colour is never the only cue. The table stays a table.
 
 ### Mobile, below 768
 
 - **Top bar.** 56 sticky, `page` fill, hairline bottom; the mark at 20 + «quirenote» in Manrope 15/600; the capital in whole ₴ at the right. No burger.
+  - *Overturned by wave 24: a 28 plate at r7 with the «q» at 15 ([brand.md](brand.md#signed)).*
 - **Dock (M3).** Fixed, 12 from the left, right and bottom (+ safe area); `panel` fill, 1 px `panel-border`; padding 6, gap 2; r18 (item r12 + 6). Five items of 48 × flex: lucide 20 + a label in Manrope 11/600. Active: `accent-tint` + `inset 0 2px 0` `sb-indicator`, label `ink` 700, icon `accent`: the horizontal twin of the sidebar's. A route not in the dock marks «Ще».
 - **Tabs.** «Огляд · Розподіл · Дохідність · Атрибути · Ще». «Ще» holds Котирування, Транзакції, Баланси, Виплати, Сезонність, Портфель, Налаштування, the account and legal. All five labels fit at 360; with the inset, «Котирування» would truncate there.
 - **Scroll.** Content bottom padding 96, plus `scroll-padding-bottom` ≥ the dock's height + 12 + the safe area, so a focused control never sits under the dock (WCAG 2.4.11).

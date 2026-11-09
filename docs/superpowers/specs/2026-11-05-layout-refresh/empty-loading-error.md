@@ -63,6 +63,7 @@ At 360:
   - One `EmptyState` component carries all of it, with the glyph as a prop.
 - **First look (F2).** While the account holds no asset, Overview shows a first-run glass card between the header and the KPIs. The E2 cards stay below, so the account sees what will fill. All of its copy is new.
   - Title «Почніть з першого активу», Manrope 20 / 600.
+    - *Left open by wave 18: 20 / 600 fits no role in its table ([type.md](type.md#left-open)).*
   - The lead «Додайте облігацію чи фонд — і тут з’являться ваш капітал, дохідність і найближчі виплати.», 13 `muted`.
   - Three numbered steps, each with its screen's nav glyph, in wave 6's zebra rows: add an asset («Портфель»), record the purchase («Транзакції»), save the first quote.
   - One primary action, «Додати перший актив» → /portfolio, at md size (full-width 44 below md).
@@ -70,10 +71,13 @@ At 360:
   - At 1440 the text sits left and the steps right; at 360 they stack.
 - **Loading (P2).** Placeholder blocks take `ink` at 7 % instead of `panel`: the wave-6 table band's material, a tint of the text colour, so it follows the glass in both themes. On a tinted surface they keep `card`. Held unchanged from the record:
   - the 300 ms delay and 300 ms hold;
+    - *Overturned by wave 19: placeholders appear after 1000 ms (P3) ([motion.md](motion.md#signed)).*
   - the boxes and their sizes;
+    - *Overturned by wave 23: each screen's placeholder follows its new layout (L2) ([loading-and-compositions.md](loading-and-compositions.md#signed)).*
   - «—» in `faint`, with the capital «—» in the sidebar and the 360 bar;
   - aria-busy and the status line;
   - the 220 ms fade, the 1.2 s pulse on the blocks only, and the 300 ms landing. Reduced motion stills it all.
+    - *Overturned by wave 19: the content lands with the route change's E2 motion (A2) ([motion.md](motion.md#signed)).*
 - **Failure and not found.** The boundaries' card takes the wave-4 glass. Held unchanged:
   - ≤ 440 wide, r24, 22 inside;
   - centred across the content column, 64 from the top at md and up, 16 below;

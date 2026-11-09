@@ -23,9 +23,11 @@ The live pages in wave 9's frame, signed out; the page is the same signed in. No
 - **«Зміст» (T2).** The inline numbered list stays where the record has it.
   - At md and up: once that list has scrolled out of view, a «↑ Зміст» link pins to the window's foot, 24 up, in the margin left of the card, with its right edge 16 off it. It is wave-4 glass at r9 (round(34 × 0.26)), padding 8 / 12, a 14 px arrow-up glyph and «Зміст» 13 / 600 in `ink`. It jumps to the list smoothly, and instantly under reduced motion.
   - Below md: each section closes with a static «↑ Зміст»: 12 / 18 `muted`, underlined, a 12 px glyph, 12 above, with a 44 hit area.
+    - *Overturned by wave 18: 12 px text takes the small role, 12 / 16 ([type.md](type.md#signed)).*
   - Its copy reuses `privacy.contents`; the glyph is aria-hidden.
 - **Storage list (K2).** Privacy §8, «Cookie та сховище браузера», as wave 6's records. Each row is padded 10 / 12 at r11, with even rows on `ink` 3 %, pulled 12 into the card's padding so the text keeps the column's edge.
   - The name is 12 / 18 semibold in `ink`; the use and the duration are 12 / 18 in `muted`, sharing one line.
+    - *Overturned by wave 18: 12 px text takes the small role, 12 / 16 ([type.md](type.md#signed)).*
   - No box and no hairlines. It is stacked at every width, as the record rules.
   - Held from the record: every entry and its words, the names being the code's own, and nothing scrolling sideways at 360.
 - **Contrast.** The zebra is decorative.

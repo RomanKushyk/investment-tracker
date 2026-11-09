@@ -4,9 +4,12 @@ The layout refresh moves Quirenote toward a floating shell, glass surfaces over 
 
 Epic #611 makes this folder the only design reference. Until #621 retires `design/`, *Design pipeline* in `docs/DECISIONS.md` still names the old sheets as the reference.
 
-**What is in a file and what is not.** Signed values are spec: sizes, radii, tokens, opacities, timings and copy. Readings measured on the renders, such as contrast ratios, are not; a figure lives in a test. Where a later wave overturns an earlier one, the later wave's file says so.
+**What is in a file and what is not.** Signed values are spec: sizes, radii, tokens, opacities, timings and copy. Readings measured on the renders, such as contrast ratios, are not; a figure lives in a test. Where a later wave overturns an earlier one, the later wave's file says so, and the overturned line in the earlier file points to it.
 
-**Provenance.** Waves 1–14 were signed on a private review page ([part 1](https://claude.ai/artifact/2885hXysnZCFidJP5gtRoR)), which also holds every round's variants. The frames here are copied unchanged from its «Final» blocks; wave 4 has no «Final», so its frames are those of its pick, T2.
+**Provenance.** The waves were signed on two private review pages, which also hold every round's variants: [part 1](https://claude.ai/artifact/2885hXysnZCFidJP5gtRoR) for waves 1–14 and [part 2](https://claude.ai/artifact/Bc8Yh9sY1EnR6hE9zS4ZMw) for waves 15–24. The frames here are copied unchanged from each wave's «Final» block, with these exceptions:
+- Waves 4 and 23 have no «Final» frame, so their frames are those of their picks.
+- Wave 19 was signed on players. Its frames are their end states: the arrived screens from the «Final», and the placeholder states from its slow-read player at 1440 and from Step 2's player at 360.
+- Wave 21 adds the step frames its «Final» names (the feet, the rail and the counts) and its hover label's (T1). Wave 22 adds the nested container its «Final» names.
 
 ## Waves
 
@@ -26,5 +29,15 @@ Epic #611 makes this folder the only design reference. Until #621 retires `desig
 | 12 | Empty, loading and error | [empty-loading-error.md](empty-loading-error.md) | [the first look, 1440, dark](renders/w12f-first-1440-dark.jpeg) |
 | 13 | Privacy and Terms | [legal.md](legal.md) | [/privacy, 1440](renders/w13f-privacy-1440.jpeg) |
 | 14 | Telling the /yield lines apart | [yield-series-shapes.md](yield-series-shapes.md) | [the «Разом» chart](renders/w14f.jpeg) |
+| 15 | The glass in the light theme | [glass-light.md](glass-light.md) | [light beside dark](renders/w15f.jpeg) |
+| 16 | Dialog buttons, dialog and field radii | [dialog-buttons-and-radii.md](dialog-buttons-and-radii.md) | [360, 1440 and the radii](renders/w16f.jpeg) |
+| 17 | Interactive controls | [controls.md](controls.md) | [Settings, popovers and the focus walk](renders/w17g.jpeg) |
+| 18 | Typography and numbers | [type.md](type.md) | [/overview, Settings and the tables](renders/w18f.jpeg) |
+| 19 | Page transitions and load motion | [motion.md](motion.md) | [«Баланси» arrived, 1440, dark](renders/w19-dark-d-new.jpeg) |
+| 20 | The asset palette and its selector | [palette.md](palette.md) | [eight assets, dark](renders/w20s1-C3-dark.jpeg) |
+| 21 | The rail, the collapsed shell and the account foot | [rail-and-account-foot.md](rail-and-account-foot.md) | [1440, 1024 and 768](renders/w21f.jpeg) |
+| 22 | Controls and overlays the refresh never drew | [controls-and-overlays.md](controls-and-overlays.md) | [«Щоденні котирування»](renders/w22f.jpeg) |
+| 23 | Loading shapes, compositions and the sweep | [loading-and-compositions.md](loading-and-compositions.md) | [the placeholders](renders/w23s1-L2.jpeg) |
+| 24 | The logo | [brand.md](brand.md) | [every site](renders/w24f.jpeg) |
 
-Each file shows all of its wave's frames. Waves 15–24 follow in #613.
+Each file shows all of its wave's frames.

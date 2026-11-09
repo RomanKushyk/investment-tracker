@@ -8,12 +8,16 @@ The «Разом» view of /yield draws every asset's return on one chart. The a
 
 The six-asset frames add two composed lines to the chart only. They show the case the palette cannot solve: REIT and the fifth asset share a colour, as do Energy and the sixth, and their shapes tell them apart. No frame scrolls sideways, and the tooltip stays inside the plot at both widths.
 
+*Overturned by wave 20: eight slots in a fixed order, so only a 9th asset shares a colour ([palette.md](palette.md#signed)).*
+
 ## Signed
 
 - **Shape per asset.** Assigned by the asset's order (`createdAt`), never by its colour slot: circle, square, triangle, diamond, triangle-down, cross, then repeating. A fifth and sixth asset reuse a colour but still differ by shape.
+  - *Overturned by wave 20: eight slots in a fixed order, so only a 9th asset reuses a colour ([palette.md](palette.md#signed)).*
 - **Glyph (G1).** Filled in the series colour on a 2 px `card` ring (`paint-order: stroke`). 9 px across, 10 at the crosshair, 12 when focused. One drawing serves the end mark, the crosshair marks, the legend key and the tooltip key.
 - **At rest (M1).** 2 px lines with round joins and no marks along them; each line ends in its glyph. Wave 3's grid, ticks and 0 % line are held.
 - **Legend.** Above the plot, left of the toggle (stacked under it at 360), 11.5 px `muted`. Each key is a 22 px segment in the series colour with the glyph on it, then the name. Only assets with a line in the period are listed.
+  - *Overturned by wave 18: 11.5 px maps to the small role, 12 / 16 ([type.md](type.md#signed)).*
 - **Hover (H2).** At md and up on pointer move; below md on tap, pinned until a second tap or Escape.
   - The crosshair snaps to the nearest date: 1 px `field-border`, full plot height.
   - Every line shows its glyph at the crosshair.
@@ -24,6 +28,7 @@ The six-asset frames add two composed lines to the chart only. They show the cas
 - **Keyboard.** The plot is focusable. Arrow keys walk the dates; Up and Down move the focus between lines, nearest first. Escape releases.
 - **Motion.** The focus change fades over 150 ms on `ease-soft`, stilled by reduced motion. Wave 3's entry timing is held.
 - **Contrast.** Every series line and glyph is at least 3 : 1 on the card. The 30 % fade applies only while hovering, which WCAG 1.4.11 allows.
+  - *Overturned by wave 20: in dark, three asset slots sit under the non-text floor and take the relief rule ([palette.md](palette.md#signed)).*
 - **Held.** The palette; no dashes for identity (a dash means "expected" in this app); no direct end labels (rejected in wave 3); the tooltip's text stays in `ink`.
 - **New copy:** none.
 

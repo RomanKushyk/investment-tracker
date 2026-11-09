@@ -38,6 +38,7 @@ Today's one-line ledger at 360, for comparison: its labels are cut.
 
 - **Header (A2 + A3),** on Баланси, Портфель, Виплати and the ledger:
   - 10.5 px uppercase, tracking .08em, `muted`, one line (`white-space: nowrap`);
+    - *Overturned by wave 18: the label role, 11 / 14 at +.12em ([type.md](type.md#signed)).*
   - on an `ink` 7 % band at r9, painted once across the row, not per cell, over an opaque `card` base so rows pass under it;
   - it stays at the top of its table's own scroll box.
 - **Rows (A4, D2).** 36 px, content centred; a row whose content needs more grows (Портфель's total). No row lines. Every second row is `ink` 3 % at r9, softened from 4 % at the owner's ask; the header band stays at 7 %. 12 px insets at both ends. The total keeps its 2 px `panel-border` rule.
@@ -54,6 +55,7 @@ Today's one-line ledger at 360, for comparison: its labels are cut.
 - **Quotes (Q2).** The four rows in one glass card (r24, 8 px padding), rows nested at r16 (24 − 8), every second row at `ink` 3 %. A row's offer line stays inside its tint. Held: the 944 / 560 composition, each row's inner geometry (px-5 py-3.5, avatar 48, input 160 at r9, delta 52), the inputs, the ghost and dashed states, and both buttons. No row wraps.
 - **360 records (R2).** Tables stay record cards at 360 and nothing scrolls sideways. One glass card (r24, 6 px padding); records nest at r18 (24 − 6) with 16 px padding, and every second record is `ink` 3 %. The anatomy is held: a title line with the tag, then a 2-column `dl` whose `dt` is the column header verbatim. Баланси's records scroll on the same way, with a placeholder record while loading.
 - **Placeholders** follow the new geometry: rows of 36 px, blocks of 12 px at r3 in `panel`.
+  - *Overturned by wave 23: row-level bars at each line's width and height, r4, in `ink` 7 % (L2) ([loading-and-compositions.md](loading-and-compositions.md#signed)).*
 - **Sign colour.** `pos` / `neg` colour stays on deltas and gains only.
 - **Accessibility.**
   - Every `th` gets `scope`.
