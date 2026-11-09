@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useDraft } from './draft';
+import { quotesUnsaved, useDraft } from './draft';
 import { groupedForInput, inputValue, valueFromInput } from '@quirenote/core/money';
+import { SEED_ASSETS } from '@quirenote/core/seed';
 
 // The first tests for this store, and they exist for one question: whether a
 // language switch has to rewrite what it holds. It does not — the strings are
@@ -68,5 +69,50 @@ describe('the quote draft store', () => {
     expect(useDraft.getState().origins).toEqual({});
     // `clear` leaves the date alone — the screen stays on the day it was showing.
     expect(useDraft.getState().date).toBe('2026-09-12');
+  });
+
+  // The baseline is one day's: another day starts with none, until `/` reads that day.
+  it('drops the day it compares against on a date change', () => {
+    useDraft.getState().setBaseline({ recorded: { reit: 68702.1 }, ids: ['reit'] });
+    useDraft.getState().setDate('2026-09-12');
+    expect(useDraft.getState().baseline).toEqual({ recorded: {}, ids: [] });
+  });
+});
+
+describe('quotesUnsaved — a draft that differs from what the day records', () => {
+  const ids = SEED_ASSETS.map((a) => a.id);
+  const recorded = { reit: 68629.36, energy: 60086.09 };
+
+  it('is nothing for an untouched draft, and for one equal to the day, however written', () => {
+    expect(quotesUnsaved({}, ids, recorded, 'uk')).toBe(false);
+    expect(quotesUnsaved({ reit: '68 629,36', energy: '60086,090' }, ids, recorded, 'uk')).toBe(
+      false,
+    );
+  });
+
+  it('is unsaved for a changed quote, and for a quote the day does not record', () => {
+    expect(quotesUnsaved({ reit: '68 629,37' }, ids, recorded, 'uk')).toBe(true);
+    expect(quotesUnsaved({ ovdp8976: '1000' }, ids, recorded, 'uk')).toBe(true);
+  });
+
+  // The save would clear it, or refuse the row.
+  it('is unsaved for a recorded quote blanked, and for a draft it cannot read', () => {
+    expect(quotesUnsaved({ reit: '' }, ids, recorded, 'uk')).toBe(true);
+    expect(quotesUnsaved({ reit: '12abc' }, ids, recorded, 'uk')).toBe(true);
+  });
+
+  // The prefill writes the day's quote at two decimals, so that is the grain a change is read at.
+  it('is nothing for a prefilled row whose recorded quote has a third decimal', () => {
+    expect(quotesUnsaved({ reit: '1.01' }, ids, { reit: 1.005 }, 'en')).toBe(false);
+    expect(quotesUnsaved({ reit: '1.00' }, ids, { reit: 1.005 }, 'en')).toBe(true);
+  });
+
+  it('is nothing for a blank row the day does not record either', () => {
+    expect(quotesUnsaved({ ovdp8976: '  ' }, ids, recorded, 'uk')).toBe(false);
+  });
+
+  // The screen reads only the assets it shows; a row kept for another is not one it could save.
+  it('is nothing for a row of an asset it does not show', () => {
+    expect(quotesUnsaved({ gone: '1000' }, ids, recorded, 'uk')).toBe(false);
   });
 });

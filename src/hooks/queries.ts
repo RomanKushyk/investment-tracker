@@ -48,6 +48,7 @@ import {
   type UserStatus,
   type ViewData,
 } from '../lib/repository';
+import { DRAFT_SAVE_KEY, useDraft } from '../state/draft';
 import { useToday } from './useToday';
 
 export type { TermsOutcome };
@@ -602,11 +603,17 @@ export function toastWriteFailure(error: unknown, message: string): void {
   toast.error(message);
 }
 
-function useWrite<V, R>(write: (variables: V) => Promise<R>) {
+/** `saved` runs on the mutation, not the observer, so it runs after its screen has unmounted too. */
+function useWrite<V, R>(
+  write: (variables: V) => Promise<R>,
+  { mutationKey, saved }: { mutationKey?: readonly unknown[]; saved?: (variables: V) => void } = {},
+) {
   const qc = useQueryClient();
   const t = useT();
   return useMutation({
+    mutationKey,
     mutationFn: write,
+    onSuccess: (_, variables) => saved?.(variables),
     onError: (error) => {
       if (error instanceof ApiError && error.stale) {
         toast.error(t.sync.staleWrite, { id: STALE_TOAST });
@@ -614,6 +621,12 @@ function useWrite<V, R>(write: (variables: V) => Promise<R>) {
     },
     onSettled: () => refreshWritten(qc),
   });
+}
+
+/** A saved day is what the draft's day now records, for the account's forget to compare against. */
+function savedDraft({ date, quotes }: { date: string; quotes: Record<string, number> }): void {
+  const draft = useDraft.getState();
+  if (draft.date === date) draft.setBaseline({ recorded: quotes, ids: draft.baseline.ids });
 }
 
 export function useSaveSnapshot() {
@@ -627,6 +640,7 @@ export function useSaveSnapshot() {
       quotes: Record<string, number>;
       stored: Record<string, number>;
     }) => repo.saveSnapshot(date, quotes, stored),
+    { mutationKey: DRAFT_SAVE_KEY, saved: savedDraft },
   );
 }
 

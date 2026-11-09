@@ -334,6 +334,286 @@ describe('a session that ends under unsaved work', { timeout: 60_000 }, () => {
   });
 });
 
+// THE QUOTE DRAFT OUTLIVES `/`, SO ITS LOSS IS SAID ON ANY ROUTE: unsaved is a draft that differs
+// from what the day records. The fake's day is the seed's last recorded one, so `/` opens prefilled.
+describe('a session that ends with unsaved quotes', { timeout: 60_000 }, () => {
+  const SEED = buildSeedBackup('2026-07-28T12:00:00');
+  const asset = SEED.assets[0];
+  const field = () =>
+    screen.getByRole<HTMLInputElement>('textbox', { name: `${asset.name} quote` });
+
+  async function openQuotes() {
+    api = fakeApi({}, { today: '2026-07-25' });
+    api.claims = { sub: ME_USER_ID, email: ME_EMAIL };
+    const { routes, session } = await load();
+    const { queryClient } = await import('../lib/api');
+    const { useDraft } = await import('../state/draft');
+    api.rows = structuredClone({
+      assets: SEED.assets as Asset[],
+      transactions: SEED.transactions as Transaction[],
+      prices: SEED.prices,
+    });
+    const router = open(routes, '/', queryClient);
+    // Prefilled from the recorded day.
+    await waitFor(() => expect(field().value).not.toBe(''));
+    return { router, session, useDraft };
+  }
+
+  async function end(
+    router: ReturnType<typeof createMemoryRouter>,
+    session: { getIdToken(): Promise<unknown> },
+  ) {
+    // The relay refuses the next refresh: the cookie gone, as a sign-out in another tab leaves it.
+    api.signedIn = false;
+    skew = 3_600_000;
+    await act(async () => void (await session.getIdToken()));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+    await settled();
+  }
+
+  it('says on /sign-in that the changes were discarded when a quote was typed', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    await end(router, session);
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+    expect(screen.queryByText(ENDED)).toBeNull();
+  });
+
+  // The fetch writes the draft and nothing else, through the machine's path.
+  it('says so for a fetched quote that was not saved', async () => {
+    const { router, session, useDraft } = await openQuotes();
+    act(() =>
+      useDraft
+        .getState()
+        .fillQuote(asset.id, '1', { source: 'fetch', at: '2026-07-25T09:00:00.000Z' }),
+    );
+    await waitFor(() => expect(field().value).toBe('1'));
+    await end(router, session);
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+  });
+
+  it('says so when the tab has left / with the draft kept', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    await act(async () => void (await router.navigate('/overview')));
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: `${asset.name} quote` })).toBeNull(),
+    );
+    await end(router, session);
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+  });
+
+  it('keeps the ended line for quotes as prefilled', async () => {
+    const { router, session } = await openQuotes();
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  it('keeps the ended line for a quote typed back to the recorded one', async () => {
+    const { router, session } = await openQuotes();
+    const was = field().value;
+    fireEvent.change(field(), { target: { value: '1' } });
+    fireEvent.change(field(), { target: { value: was } });
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  it('keeps the ended line for quotes just saved', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    let posted = false;
+    const reach = api.fetch;
+    api.fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+      if (method.toUpperCase() === 'POST' && url.endsWith('/mutations')) posted = true;
+      return reach(input, init);
+    };
+    const save = () =>
+      screen.getByRole<HTMLButtonElement>('button', { name: uk.dailyQuotes.saveSnapshot });
+    fireEvent.click(save());
+    await waitFor(() => expect(posted).toBe(true));
+    // Settled once the view the save changed has been read again.
+    await waitFor(() => expect(save().disabled).toBe(false));
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  // Off `/` nothing compares the draft again, so the failure restores the verdict of the press.
+  /** Presses Save with its POST held until `release`, which answers it as `answer` says. */
+  async function heldSave(answer: 'fail' | 'land') {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const state = { posted: false, answered: false };
+    const reach = api.fetch;
+    api.fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+      if (method.toUpperCase() === 'POST' && url.endsWith('/mutations')) {
+        state.posted = true;
+        await held;
+        state.answered = true;
+        if (answer === 'fail')
+          return new Response(JSON.stringify({ error: 'internal' }), { status: 500 });
+      }
+      return reach(input, init);
+    };
+    fireEvent.click(screen.getByRole('button', { name: uk.dailyQuotes.saveSnapshot }));
+    await waitFor(() => expect(state.posted).toBe(true));
+    return {
+      async release() {
+        await act(async () => release());
+        await waitFor(() => expect(state.answered).toBe(true));
+        await settled();
+      },
+    };
+  }
+
+  async function leaveQuotes(router: ReturnType<typeof createMemoryRouter>) {
+    await act(async () => void (await router.navigate('/overview')));
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: `${asset.name} quote` })).toBeNull(),
+    );
+  }
+
+  it('says so when a save pressed before leaving / fails once the tab is away', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    const save = await heldSave('fail');
+    // Typed while the save is out: the save does not carry it.
+    fireEvent.change(screen.getByRole('textbox', { name: `${SEED.assets[1].name} quote` }), {
+      target: { value: '2' },
+    });
+    await leaveQuotes(router);
+    await save.release();
+    await end(router, session);
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+  });
+
+  it('keeps the ended line when a save pressed before leaving / lands once the tab is away', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    const save = await heldSave('land');
+    await leaveQuotes(router);
+    await save.release();
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  // A new `/` is a new observer, idle: what knows the save is out is the mutation cache.
+  it('keeps the ended line while a save is in flight and / was opened again', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    await heldSave('land');
+    await leaveQuotes(router);
+    await act(async () => void (await router.navigate('/')));
+    await waitFor(() => expect(field().value).not.toBe(''));
+    await settled();
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  // A fetch answers whenever it answers: its fill lands in the draft with `/` gone.
+  it('says so for a fetched quote that landed once the tab was away', async () => {
+    const { router, session, useDraft } = await openQuotes();
+    await leaveQuotes(router);
+    act(() =>
+      useDraft
+        .getState()
+        .fillQuote(asset.id, '1', { source: 'fetch', at: '2026-07-25T09:00:00.000Z' }),
+    );
+    await end(router, session);
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+  });
+
+  // Until another day's read lands, the baseline kept for it stands: an empty day is no baseline.
+  it('keeps the ended line for another day’s prefilled draft while that day is read', async () => {
+    // `/` on the 25th, prefilled and left as it was: the draft is kept in the browser's storage.
+    await openQuotes();
+    observer?.disconnect();
+    cleanup();
+    // The next load is a later day, so the kept draft's day is read, and that read is held.
+    api = fakeApi({}, { today: '2026-07-28' });
+    api.claims = { sub: ME_USER_ID, email: ME_EMAIL };
+    api.rows = structuredClone({
+      assets: SEED.assets as Asset[],
+      transactions: SEED.transactions as Transaction[],
+      prices: SEED.prices,
+    });
+    const asked = { day: false };
+    const reach = api.fetch;
+    api.fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.includes('/view/day')) {
+        asked.day = true;
+        return new Promise<Response>(() => {});
+      }
+      return reach(input, init);
+    };
+    const { routes, session } = await load();
+    const { queryClient } = await import('../lib/api');
+    const router = open(routes, '/', queryClient);
+    await waitFor(() => expect(asked.day).toBe(true));
+    await settled();
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  // A save in flight may already have landed: its quotes are not said to be discarded.
+  it('keeps the ended line while a save of the typed quote is in flight', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    let land: () => void = () => {};
+    const held = new Promise<void>((resolve) => (land = resolve));
+    let posted = false;
+    const reach = api.fetch;
+    api.fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+      if (method.toUpperCase() === 'POST' && url.endsWith('/mutations')) {
+        posted = true;
+        await held;
+      }
+      return reach(input, init);
+    };
+    fireEvent.click(screen.getByRole('button', { name: uk.dailyQuotes.saveSnapshot }));
+    await waitFor(() => expect(posted).toBe(true));
+    await end(router, session);
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+    land();
+  });
+
+  it('says so for a quote typed after a save in flight was sent', async () => {
+    const { router, session } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    await heldSave('land');
+    fireEvent.change(screen.getByRole('textbox', { name: `${SEED.assets[1].name} quote` }), {
+      target: { value: '2' },
+    });
+    await end(router, session);
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+  });
+
+  it('keeps the sign-out its own line', async () => {
+    const { router } = await openQuotes();
+    fireEvent.change(field(), { target: { value: '1' } });
+    await screen.findByRole('button', { name: uk.auth.signOut });
+    await settled();
+    await act(async () => void screen.getByRole('button', { name: uk.auth.signOut }).click());
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+    await settled();
+    expect(screen.queryByText(uk.auth.signedOut)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+});
+
 // A TOKEN THE API REFUSED WHILE THE RELAY STILL HONOURS THE SESSION: the clock jumped back, or a pair
 // was held past its expiry. One renewal and one resend, never an empty `main`.
 describe('a 401 from the API while the relay honours the session', { timeout: 60_000 }, () => {

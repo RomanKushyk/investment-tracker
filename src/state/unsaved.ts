@@ -10,9 +10,10 @@ export function holdUnsaved(): () => void {
   return () => void holds.delete(hold);
 }
 
-/** Records whether any work is unsaved now; called as the account is forgotten. */
-export function takeUnsaved(): void {
-  taken = holds.size > 0;
+/** Records whether any work is unsaved now, a screen's or the quote draft's, which outlives its
+ *  screen; called as the account is forgotten. */
+export function takeUnsaved(draftUnsaved: boolean): void {
+  taken = draftUnsaved || holds.size > 0;
 }
 
 /** What the last forget recorded. */

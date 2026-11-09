@@ -71,7 +71,8 @@ it through `repository.ts`, the one client of the user API (*Cloud target*), and
 between loads: a sign-out empties the memory, the tag a write goes under, a settings change not yet
 sent and the quote draft's stored keys (*Auth model*), and the transport asks the browser's HTTP cache to store no answer,
 since nothing clears that. What the browser's own storage holds is the person's settings, the
-draft of the day's quotes, and the last good Inzhur payload with its parse record, each under a key
+draft of the day's quotes with what that day records (the forget compares the two, since the day's
+read may be out of memory by then), and the last good Inzhur payload with its parse record, each under a key
 of its own. Every persisted setting joins `partialize` in the commit
 that adds it. A STORED VALUE IS SCOPED BY WHAT IT NAMES, and there are three kinds.
 One the platform answers each time it is asked — reduced motion, the colour the OS resolves, the
@@ -790,8 +791,11 @@ page, never prefix-matched (OWASP's *Unvalidated Redirects and Forwards*). A ses
 while the tab held it is said on `/sign-in` (OWASP's *Session Management*: "clear messaging
 explaining the need to reauthenticate"), and so is unsaved work the reset discarded with it, which
 nothing keeps (*Auth model*). Whether a screen's guard held any is taken as the account is
-forgotten, since the reset unmounts the screen and its guard; a save in flight may already have
-landed, so it is not said to be discarded. A load that never had a session says nothing. Only a
+forgotten, since the reset unmounts the screen and its guard. The quote draft outlives `/`, so its
+loss is said on any route: `/` keeps with the draft what its day records, since that read may be
+out of memory by then, and the forget compares the draft against it; a save that lands moves it. A save in flight may already
+have landed, so what it carries is not said to be discarded, and a quote typed after it was sent
+is; the forget finds it in the mutation cache, which outlives the screen that sent it. A load that never had a session says nothing. Only a
 definite answer redirects: a load the relay never answered keeps the shell, since a lost connection
 says nothing of the cookie, and a host with no auth environment has nothing to sign in to. A sign-out
 lands itself, with its own line, so the gate is quiet for the shell it was pressed under, whatever

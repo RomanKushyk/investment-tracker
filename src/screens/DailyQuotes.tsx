@@ -79,7 +79,7 @@ export function DailyQuotes() {
   // One slice of the view, whose rows keep a stable identity from read to read: the memos below
   // key on them. The yield card is a figure, cut to today; the form and the cards read every row.
   const { assets, transactions, day: opening, yields } = useView(selectQuotesForm);
-  const { date, quotes, setDate, setQuote, fillQuote } = useDraft();
+  const { date, quotes, setDate, setQuote, fillQuote, setBaseline } = useDraft();
   const saveSnapshot = useSaveSnapshot();
   // The view's day, so the due cards change day in the render the yield card does; a clock
   // read inside a memo below would be a value its deps cannot see.
@@ -130,6 +130,12 @@ export function DailyQuotes() {
   const collected = collectQuotes(quotes, assets, language);
   const filledCount = Object.keys(collected.quotes).length;
   const progress = quoteProgress(assets, ledger.units, selectedDate, collected.quotes);
+
+  // What the draft's day records, kept with the draft once read: an ended session compares the
+  // draft against it on any route.
+  useEffect(() => {
+    if (ready && !dayPending) setBaseline({ recorded, ids: assets.map((a) => a.id) });
+  }, [ready, dayPending, recorded, assets, setBaseline]);
 
   function handleSave() {
     // Refuse before writing: a row that cannot be read must not vanish from the day

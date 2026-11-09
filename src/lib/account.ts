@@ -4,14 +4,30 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 import type { Session } from '../auth/session';
-import { useDraft } from '../state/draft';
+import { DRAFT_SAVE_KEY, quotesUnsaved, useDraft } from '../state/draft';
+import { useSettings } from '../state/settings';
 import { takeUnsaved } from '../state/unsaved';
 
 /** Every figure held in memory, the tag a write goes under, a settings change not yet sent, and the
  *  draft with its stored keys. */
 export function forgetAccount(client: QueryClient, repo: { forget(): void }): void {
-  // Before the reset, which unmounts the screens and their unsaved work with them.
-  takeUnsaved();
+  // Before the reset, which unmounts the screens and their unsaved work with them. The quote draft
+  // outlives `/`; a save of it in flight may already have landed, so the draft is compared with it.
+  const draft = useDraft.getState();
+  const sent = client
+    .getMutationCache()
+    .findAll({ mutationKey: DRAFT_SAVE_KEY, status: 'pending' })
+    .map((m) => m.state.variables as { date: string; quotes: Record<string, number> })
+    .filter((v) => v.date === draft.date)
+    .at(-1);
+  takeUnsaved(
+    quotesUnsaved(
+      draft.quotes,
+      draft.baseline.ids,
+      sent?.quotes ?? draft.baseline.recorded,
+      useSettings.getState().language,
+    ),
+  );
   // Then: the reset starts the screens' reads at once, and they are the next account's.
   repo.forget();
   // Reset, not clear: a query removed from the cache leaves its mounted observers on its last

@@ -18,7 +18,8 @@ vi.stubGlobal('localStorage', {
 afterAll(() => vi.unstubAllGlobals());
 
 const { forgetAccount, forgetOnAccountEnd } = await import('./account');
-const { useDraft } = await import('../state/draft');
+const { DRAFT_SAVE_KEY, useDraft } = await import('../state/draft');
+const { unsavedTaken } = await import('../state/unsaved');
 
 beforeEach(() => {
   kept.clear();
@@ -76,6 +77,45 @@ describe('forgetting the account', () => {
     expect(forget).toHaveBeenCalledTimes(1);
     expect(useDraft.getState()).toMatchObject({ date: '', quotes: {}, origins: {} });
     expect(kept.has(DRAFT_KEY)).toBe(false);
+  });
+
+  // Read before the draft is cleared, since `/sign-in` says the quotes went with it.
+  it.each([
+    [12.5, false],
+    [10, true],
+  ])('compares the draft with the day it recorded, %s, before clearing it', (held, verdict) => {
+    useDraft.getState().setDate('2026-07-27');
+    useDraft.getState().setBaseline({ recorded: { a: held }, ids: ['a'] });
+    useDraft.getState().setQuote('a', '12,5');
+    // Stored with the draft, so a reload off `/` still compares against it.
+    expect(JSON.parse(kept.get(DRAFT_KEY)!).state.baseline).toEqual({
+      recorded: { a: held },
+      ids: ['a'],
+    });
+
+    forgetAccount(new QueryClient(), { forget: () => {} });
+
+    expect(unsavedTaken()).toBe(verdict);
+  });
+
+  // The mutation outlives the screen that sent it, and it may already have landed.
+  // Compared with what the save writes: a quote typed after it was sent is in no save.
+  it.each([
+    ['12,5', false],
+    ['13', true],
+  ])('compares the draft %s with a save in flight of 12,5: unsaved %s', (typed, verdict) => {
+    const client = new QueryClient();
+    const save = client
+      .getMutationCache()
+      .build(client, { mutationKey: DRAFT_SAVE_KEY, mutationFn: () => new Promise(() => {}) });
+    void save.execute({ date: '2026-07-27', quotes: { a: 12.5 }, stored: { a: 10 } });
+    useDraft.getState().setDate('2026-07-27');
+    useDraft.getState().setBaseline({ recorded: { a: 10 }, ids: ['a'] });
+    useDraft.getState().setQuote('a', typed);
+
+    forgetAccount(client, { forget: () => {} });
+
+    expect(unsavedTaken()).toBe(verdict);
   });
 });
 
