@@ -10,6 +10,7 @@ import {
 } from '../auth/app';
 import { sentToSignIn } from '../auth/return-to';
 import { pageLeaving, subscribeToLeaving } from '../hooks/useSignOut';
+import { unsavedTaken } from '../state/unsaved';
 
 /** Above the portfolio shell: nothing until the relay answers, then the shell, or `/sign-in` in this
  *  entry's place once it says nobody is signed in (*Two shells, one breakpoint*). */
@@ -30,8 +31,10 @@ export function SessionGate() {
   }, [pathname]);
 
   const ended = status === 'signedOut' && session.ended();
+  // Taken as the account was forgotten, before the reset unmounted the screen that held the work.
+  const discarded = ended && unsavedTaken();
   const from = `${pathname}${search}${hash}`;
-  const state = useMemo(() => sentToSignIn(from, ended), [from, ended]);
+  const state = useMemo(() => sentToSignIn(from, ended, discarded), [from, ended, discarded]);
 
   if (!hasAuthEnvironment) return <Outlet />;
   if (status === 'unknown') return null;

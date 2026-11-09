@@ -54,11 +54,11 @@ export function Allocation() {
   const invalid = targetRows.some((r) => r.value === null);
   const pending = changedTargets(targetRows);
   const dirty = pending.length > 0 || invalid;
-  const mode = useEditMode(dirty);
   // CANCEL IS LOCKED WHILE A SAVE IS IN FLIGHT: a save cannot be un-issued, so it
   // cannot be abandoned either — discarding mid-save persisted the values and then
   // congratulated the user on a page they had explicitly abandoned.
   const saving = saveTargetsWrite.isPending;
+  const mode = useEditMode(dirty, saving);
 
   // EVERY CHANGED TARGET IN ONE REQUEST, which lands whole or not at all: a plan is never half
   // saved, and the save costs one of the route's two requests a second (*Cloud target*).

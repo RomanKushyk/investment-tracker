@@ -5,11 +5,14 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import type { Session } from '../auth/session';
 import { useDraft } from '../state/draft';
+import { takeUnsaved } from '../state/unsaved';
 
 /** Every figure held in memory, the tag a write goes under, a settings change not yet sent, and the
  *  draft with its stored keys. */
 export function forgetAccount(client: QueryClient, repo: { forget(): void }): void {
-  // First: the reset starts the screens' reads at once, and they are the next account's.
+  // Before the reset, which unmounts the screens and their unsaved work with them.
+  takeUnsaved();
+  // Then: the reset starts the screens' reads at once, and they are the next account's.
   repo.forget();
   // Reset, not clear: a query removed from the cache leaves its mounted observers on its last
   // state, so its figures stay on screen and a read in flight never settles. A reset tells them.

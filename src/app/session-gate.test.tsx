@@ -9,6 +9,9 @@ import type { RouteObject } from 'react-router';
 import { createMemoryRouter } from 'react-router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildSeedBackup } from '@quirenote/core/seed';
+import type { Asset, Transaction } from '@quirenote/core/types';
+
 import { RouterProvider } from '../__fixtures__/router';
 import { fakeApi, ME_EMAIL, ME_USER_ID, type FakeApi } from '../__fixtures__/fake-api';
 import type { SignInDeps, SignInOutcome } from '../auth/sign-in';
@@ -84,6 +87,7 @@ afterAll(() => {
 });
 
 const ENDED = 'Сеанс завершився. Увійдіть знову.';
+const DISCARDED = 'Сеанс завершився, незбережені зміни відхилено. Увійдіть знову.';
 
 /** A page load: every module afresh, so the session is unknown until the relay answers. */
 async function load(host = 'http://localhost:3300/') {
@@ -121,7 +125,7 @@ let observer: MutationObserver | undefined;
 let sidebarSeen = false;
 
 /** Opens `path` after `/privacy`, a page outside the shell, so Back has somewhere to go. */
-function open(routes: RouteObject[], path: string) {
+function open(routes: RouteObject[], path: string, client = new QueryClient()) {
   sidebarSeen = false;
   observer = new MutationObserver(() => {
     if (document.getElementById('app-sidebar')) sidebarSeen = true;
@@ -132,7 +136,7 @@ function open(routes: RouteObject[], path: string) {
     initialIndex: 1,
   });
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
@@ -229,6 +233,104 @@ describe('a session that ends while the tab is open', { timeout: 60_000 }, () =>
     expect(router.state.historyAction).toBe('REPLACE');
     await settled();
     expect(screen.queryByText(ENDED)).not.toBeNull();
+  });
+});
+
+// UNSAVED WORK GOES WITH THE ACCOUNT, AND THE LINE SAYS SO: the reset unmounts the screen and its
+// guard, so this runs under the app's own client, which the account forget reaches.
+describe('a session that ends under unsaved work', { timeout: 60_000 }, () => {
+  const SEED = buildSeedBackup('2026-07-28T12:00:00');
+  const asset = SEED.assets[0];
+
+  async function endUnder(path: string, edit: () => void | Promise<void>) {
+    const { routes, session } = await load();
+    const { queryClient } = await import('../lib/api');
+    api.rows = structuredClone({
+      assets: SEED.assets as Asset[],
+      transactions: SEED.transactions as Transaction[],
+      prices: SEED.prices,
+    });
+    const router = open(routes, path, queryClient);
+    fireEvent.click(await screen.findByRole('button', { name: uk.edit.edit }));
+    await edit();
+    // The relay refuses the next refresh: the cookie gone, as a sign-out in another tab leaves it.
+    api.signedIn = false;
+    skew = 3_600_000;
+    await act(async () => void (await session.getIdToken()));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/sign-in'));
+    await settled();
+    return router;
+  }
+
+  it('says on /sign-in that the changes were discarded when a target was changed', async () => {
+    const router = await endUnder('/allocation', () => {
+      const field = screen.getByRole('textbox', { name: uk.targets.fieldAria(asset.name) });
+      fireEvent.change(field, { target: { value: '12' } });
+    });
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+    expect(screen.queryByText(ENDED)).toBeNull();
+    expect(router.state.location.state).toMatchObject({ from: '/allocation' });
+  });
+
+  it('says the changes were discarded when a target cannot be read', async () => {
+    await endUnder('/allocation', () => {
+      const field = screen.getByRole('textbox', { name: uk.targets.fieldAria(asset.name) });
+      fireEvent.change(field, { target: { value: 'abc' } });
+    });
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+  });
+
+  // A save in flight may already have landed: its work is not said to be discarded.
+  it('keeps the ended line while a save of the changed target is in flight', async () => {
+    let land: () => void = () => {};
+    const held = new Promise<void>((resolve) => (land = resolve));
+    let posted = false;
+    await endUnder('/allocation', async () => {
+      const field = screen.getByRole('textbox', { name: uk.targets.fieldAria(asset.name) });
+      fireEvent.change(field, { target: { value: '12' } });
+      const reach = api.fetch;
+      api.fetch = async (input, init) => {
+        const url = input instanceof Request ? input.url : String(input);
+        const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+        if (method.toUpperCase() === 'POST' && url.endsWith('/mutations')) {
+          posted = true;
+          await held;
+        }
+        return reach(input, init);
+      };
+      fireEvent.click(screen.getByRole('button', { name: uk.edit.save }));
+      // The save is out and the screen shows it: Cancel is locked while it is in flight.
+      await waitFor(() => expect(posted).toBe(true));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: uk.edit.cancel })).toHaveProperty(
+          'disabled',
+          true,
+        ),
+      );
+    });
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+    land();
+  });
+
+  it('keeps the ended line when a changed target was changed back', async () => {
+    await endUnder('/allocation', () => {
+      const field = screen.getByRole('textbox', { name: uk.targets.fieldAria(asset.name) });
+      const was = (field as HTMLInputElement).value;
+      fireEvent.change(field, { target: { value: '12' } });
+      fireEvent.change(field, { target: { value: was } });
+    });
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+  });
+
+  it.each([
+    ['/allocation', 'with nothing changed'],
+    ['/portfolio', 'where every change commits through its own dialog'],
+  ])('keeps the ended line on %s in edit mode %s', async (path) => {
+    await endUnder(path, () => {});
+    expect(screen.queryByText(ENDED)).not.toBeNull();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
   });
 });
 

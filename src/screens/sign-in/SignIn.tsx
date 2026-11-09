@@ -16,7 +16,13 @@ import {
 import { addressRefusal } from '../../auth/apply';
 import { arrivedGoogleFailed, belowTheForm, forgetReauthentication } from '../../auth/google';
 import { addPasskey } from '../../auth/passkey';
-import { arrivedEnded, carriedFrom, carryReturn, returnTarget } from '../../auth/return-to';
+import {
+  arrivedDiscarded,
+  arrivedEnded,
+  carriedFrom,
+  carryReturn,
+  returnTarget,
+} from '../../auth/return-to';
 import {
   type HeldChallenge,
   type SignInDeps,
@@ -127,6 +133,8 @@ export function SignIn() {
   );
   // A session that ended while the tab held it, which a shell route sent here to say.
   const [ended] = useState(() => arrivedEnded(location.state));
+  // And whether unsaved work went with it, which the line says too.
+  const [discarded] = useState(() => arrivedDiscarded(location.state));
   // Where a sign-in from here lands: the place a shell route sent here from, checked, or `/`.
   const [target] = useState(() =>
     returnTarget(carriedFrom(location.state), window.location.origin),
@@ -141,7 +149,9 @@ export function SignIn() {
   );
   const f = useFormat();
   const noteText = ended
-    ? t.auth.sessionEnded
+    ? discarded
+      ? t.auth.sessionEndedDiscarded
+      : t.auth.sessionEnded
     : cause?.kind === 'deleted'
       ? t.auth.signedOutDeleted
       : cause?.kind === 'scheduled'

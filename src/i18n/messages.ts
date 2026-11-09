@@ -1247,6 +1247,9 @@ export const en = {
     signedOut: 'You’re signed out.',
     // Where a shell route sends a tab whose session the relay refused: why it is here.
     sessionEnded: 'Your session ended. Sign in again.',
+    // The same, when a screen held unsaved work, which went with the account's figures.
+    sessionEndedDiscarded:
+      'Your session ended, and your unsaved changes were discarded. Sign in again.',
     // A deletion's landing, in the sign-out's place (`account-deletion.dc.html` T5).
     signedOutDeleted: 'Your account has been deleted.',
     signedOutScheduled: (date: string) =>
@@ -2844,6 +2847,7 @@ export const uk: Dict = {
     signOutFailed: 'Не вдалося вийти — ви досі в застосунку. Спробуйте ще раз.',
     signedOut: 'Ви вийшли із застосунку.',
     sessionEnded: 'Сеанс завершився. Увійдіть знову.',
+    sessionEndedDiscarded: 'Сеанс завершився, незбережені зміни відхилено. Увійдіть знову.',
     signedOutDeleted: 'Обліковий запис видалено.',
     signedOutScheduled: (date: string) =>
       `Обліковий запис буде видалено після ${date}. Щоб скасувати, увійдіть до кінця цього дня й натисніть «Скасувати видалення».`,

@@ -133,6 +133,36 @@ describe("the line a sign-out through Cognito's logout carries", () => {
   });
 });
 
+// AN ENDED SESSION THAT DROPPED UNSAVED WORK says so, once: a reload hands back the entry's state,
+// which the arrival has used up.
+describe('the line a session that ended under unsaved work says', () => {
+  const settled = () => act(() => new Promise((settle) => setTimeout(settle, 200)));
+  const DISCARDED = 'Сеанс завершився, незбережені зміни відхилено. Увійдіть знову.';
+
+  it('is said on arrival and not after a reload', async () => {
+    const routes = [{ path: '/sign-in', element: <SignIn /> }];
+    const sent = { from: '/allocation', ended: true, discarded: true };
+    const router = createMemoryRouter(routes, {
+      initialEntries: [{ pathname: '/sign-in', state: sent }],
+    });
+    render(<RouterProvider router={router} />);
+    await settled();
+    expect(screen.queryByText(DISCARDED)).not.toBeNull();
+    expect(screen.queryByText(uk.auth.sessionEnded)).toBeNull();
+    const kept = router.state.location.state;
+    expect(kept, 'the entry kept more than the place').toEqual({ from: '/allocation' });
+    cleanup();
+
+    const reloaded = createMemoryRouter(routes, {
+      initialEntries: [{ pathname: '/sign-in', state: kept }],
+    });
+    render(<RouterProvider router={reloaded} />);
+    await settled();
+    expect(screen.queryByText(DISCARDED)).toBeNull();
+    expect(screen.queryByText(uk.auth.sessionEnded)).toBeNull();
+  });
+});
+
 // A DELETION'S LANDING says what became of the account, the scheduled one its day, in place of
 // «Ви вийшли.» (`account-deletion.dc.html` T5, T10), by router state or across Cognito's logout.
 describe('the line a deletion’s landing says', () => {

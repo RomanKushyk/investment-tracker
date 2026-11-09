@@ -23,9 +23,14 @@ export function returnTarget(value: unknown, origin: string): string {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-/** The router state a shell route sends `/sign-in`: the place, and whether the tab's session ended. */
-export function sentToSignIn(from: string, ended: boolean) {
-  return ended ? { from, ended: true } : { from };
+/** The router state a shell route sends `/sign-in`: the place, whether the tab's session ended, and
+ *  whether unsaved work went with it. */
+export function sentToSignIn(from: string, ended: boolean, discarded = false) {
+  return ended
+    ? discarded
+      ? { from, ended: true, discarded: true }
+      : { from, ended: true }
+    : { from };
 }
 
 /** The place that state carries, unchecked: `returnTarget` reads it. */
@@ -41,6 +46,13 @@ export function carriedFrom(state: unknown): string | undefined {
 /** True only for the state a shell route sends when the session this tab held ended. */
 export function arrivedEnded(state: unknown): boolean {
   return typeof state === 'object' && state !== null && 'ended' in state && state.ended === true;
+}
+
+/** True only for the state that says unsaved work was discarded with the ended session. */
+export function arrivedDiscarded(state: unknown): boolean {
+  return (
+    typeof state === 'object' && state !== null && 'discarded' in state && state.discarded === true
+  );
 }
 
 /** THE PLACE ACROSS GOOGLE'S ROUND TRIP, which router state cannot follow; this tab's storage does. */

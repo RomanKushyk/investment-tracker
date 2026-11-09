@@ -788,9 +788,12 @@ there returns to it, replacing `/sign-in`'s entry, and Google's round trip carri
 tab's storage. The place is parsed against the origin and refused for another host or a signed-out
 page, never prefix-matched (OWASP's *Unvalidated Redirects and Forwards*). A session that ended
 while the tab held it is said on `/sign-in` (OWASP's *Session Management*: "clear messaging
-explaining the need to reauthenticate"); a load that never had one says nothing. Only a definite
-answer redirects: a load the relay never answered keeps the shell, since a lost connection says
-nothing of the cookie, and a host with no auth environment has nothing to sign in to. A sign-out
+explaining the need to reauthenticate"), and so is unsaved work the reset discarded with it, which
+nothing keeps (*Auth model*). Whether a screen's guard held any is taken as the account is
+forgotten, since the reset unmounts the screen and its guard; a save in flight may already have
+landed, so it is not said to be discarded. A load that never had a session says nothing. Only a
+definite answer redirects: a load the relay never answered keeps the shell, since a lost connection
+says nothing of the cookie, and a host with no auth environment has nothing to sign in to. A sign-out
 lands itself, with its own line, so the gate is quiet for the shell it was pressed under, whatever
 route that shell is on by then: the shell stands signed out only where a Stop or a restore leaves a
 sign-out's page during Cognito's logout, and the entry is that page's one control that reaches

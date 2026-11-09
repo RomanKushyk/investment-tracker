@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { type BlockerFunction, createPath, NavigationType, useBlocker } from 'react-router';
 
 import { arrivedSignedOut } from '../auth/signed-out';
+import { holdUnsaved } from '../state/unsaved';
 
 /**
  * Whether a screen is being edited, and the guard that stops unsaved work being dropped
@@ -25,7 +26,7 @@ export interface EditMode {
   discard: () => void;
 }
 
-export function useEditMode(dirty = false): EditMode {
+export function useEditMode(dirty = false, saving = false): EditMode {
   const [editing, setEditing] = useState(false);
   const [askingExit, setAskingExit] = useState(false);
 
@@ -47,6 +48,13 @@ export function useEditMode(dirty = false): EditMode {
     ),
   );
   const blocked = blocker.state === 'blocked';
+
+  // What the guard would ask about, held where an ended session can still read it after the reset;
+  // a save in flight may already have landed, so its work is not said to be discarded.
+  useEffect(
+    () => (editing && dirty && !saving ? holdUnsaved() : undefined),
+    [editing, dirty, saving],
+  );
 
   /**
    * A BLOCKED BLOCKER WITH NO REASON LEFT TO BLOCK IS RELEASED, stated as a CONDITION
