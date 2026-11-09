@@ -55,6 +55,15 @@ describe('the new password’s line', () => {
     expect(described).toContain(sentence);
   });
 
+  // The spec's «Перенесено»: 200 ms on `ease-soft`, as the rule's own refusal does.
+  it('fades a refusal in over 200 ms on ease-soft', () => {
+    const { described } = render({ n: 1, sentence: REUSED });
+    const classes = described.match(/^<span[^>]*class="([^"]*)"/)?.[1].split(' ') ?? [];
+    expect(classes).toEqual(
+      expect.arrayContaining(['animate-in', 'duration-200', 'fade-in', 'ease-soft']),
+    );
+  });
+
   it('keeps the rule in the line under a sentence of its own, hidden, so its height holds', () => {
     const { html, described } = render({ n: 1, sentence: REUSED });
     expect(described).not.toContain(RULE);

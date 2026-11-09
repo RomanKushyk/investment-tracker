@@ -524,11 +524,11 @@ export function SignIn() {
                   <StepAlert n={stepError.n}>{sentence(t, stepError.reason)}</StepAlert>
                 )}
                 {retryCheck.props && (
-                  <div className="mt-3">
+                  <div className="mt-3 animate-in duration-200 fade-in">
                     <BotCheck {...retryCheck.props} action="sign-in" />
                   </div>
                 )}
-                <p className="mt-4 text-[13px] leading-[19.5px]">
+                <p className="mt-4 animate-in text-[13px] leading-[19.5px] duration-200 fade-in">
                   <button type="button" className={LINK} onClick={() => retryPasskey(step.email)}>
                     {t.auth.retry}
                   </button>

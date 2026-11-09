@@ -103,7 +103,7 @@ export function RuleField({
             key={refusal.n}
             id={ruleId}
             role="alert"
-            className="col-start-1 row-start-1 flex animate-in gap-1 text-neg duration-200 fade-in"
+            className="col-start-1 row-start-1 flex animate-in gap-1 text-neg duration-200 ease-soft fade-in"
           >
             <span className="flex-none pt-[2px]">
               <CircleAlert aria-hidden className="size-3" strokeWidth={2} />

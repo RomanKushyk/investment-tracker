@@ -302,6 +302,17 @@ describe('the passkey step’s retry takes a widget of its own', () => {
     expect(tokensOf(hold.address, 1)).toEqual(['address-token', 'retry-token']);
   });
 
+  // The spec's «Перенесено»: the slot and the link fade in with the sentence, on StepAlert's fade.
+  it('fades its widget slot and link in with the sentence', async () => {
+    await toTheRetry();
+    const motion = (el: Element | null | undefined) =>
+      [...(el?.classList ?? [])].filter((c) => /^(animate-|duration-|ease-|fade-)/.test(c)).sort();
+    const sentence = motion(screen.getByRole('alert'));
+    expect(sentence).toContain('animate-in');
+    expect(motion(screen.getByTestId('bot-check').parentElement)).toEqual(sentence);
+    expect(motion(button(RETRY).closest('p'))).toEqual(sentence);
+  });
+
   it('shows no widget while the sheet is open', async () => {
     let finish: (outcome: SignInOutcome) => void = () => {};
     hold.address.mockImplementationOnce(
