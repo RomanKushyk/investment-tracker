@@ -4,6 +4,15 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import {
+  declared,
+  declaredIn,
+  ratio,
+  resolve,
+  stripCss,
+  themeBlocks,
+} from './__fixtures__/palette';
+
 // THE WALL FOLLOWS THE THEME, AND THE ACTIVE ROUTE IS SAID TWICE. The sidebar is a step
 // deeper than the canvas in BOTH themes, so nothing here may assume a plane that is dark in
 // either. The active item is an accessibility ruling rather than a repaint: a light lozenge
@@ -21,35 +30,8 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
-/** `index.css` quotes token declarations in its prose constantly, so a comment could
- *  otherwise satisfy an assertion the stylesheet fails. Quote-aware because the file's
- *  `@source` line holds a comment opener inside a string, and a naive regex takes `@theme`
- *  along with it. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      if (end === -1) throw new Error(`${what} has an unterminated comment`);
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
-/** Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+/** Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -97,63 +79,8 @@ const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 const rgbHex = (ch: number[]) =>
   '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
 
-/** sRGB → relative luminance, WCAG 2.x. */
-function luminance(hex: string): number {
-  const ch = channels(hex).map((c) => c / 255);
-  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
-function ratio(a: string, b: string): number {
-  const [la, lb] = [luminance(a), luminance(b)];
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
+const BLOCKS = themeBlocks(CSS);
 const THEMES = ['light', 'dark'] as const;
-
-function declaredIn(block: string, name: string): string | undefined {
-  const m = block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
-  return m ? m[1].trim() : undefined;
-}
-
-function declared(block: string, name: string): string {
-  const value = declaredIn(block, name);
-  expect(value, `--color-${name} is not declared in this block`).toBeDefined();
-  return value!;
-}
-
-/** Follows a `var(--color-x)` chain the way the cascade does: a name the dark block does
- *  not override resolves against `@theme`, so one block alone would fail a token the
- *  browser renders. */
-function resolve(block: string, name: string, seen: string[] = []): string {
-  expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
-    name,
-  );
-  const value = declaredIn(block, name) ?? declared(BLOCKS.light, name);
-  const alias = value.match(/^var\(\s*--color-([a-z0-9-]+)\s*(?:,\s*(.+))?\)$/);
-  if (alias) return resolve(block, alias[1], [...seen, name]);
-  const hex = value.toLowerCase();
-  expect(hex, `--color-${name} is neither a hex nor a --color-* alias (got ${value})`).toMatch(
-    /^#[0-9a-f]{6}$/,
-  );
-  return hex;
-}
 
 /** THE ACTIVE AND HOVER GROUNDS ARE DECLARED TRANSLUCENT, so every reading against one
  *  composites it first. THE BARE WALL FLATTERS THE FIGURE: the active label sits on its own
@@ -172,7 +99,7 @@ const over = (veil: { ch: number[]; alpha: number }, behind: string) =>
 describe('the wall carries its own foreground, in whichever theme is on', () => {
   it.each(THEMES)('%s: an idle route clears 4.5 : 1 on the wall', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'sb-item'), resolve(BLOCKS[theme], 'sb-bg')),
+      ratio(resolve(BLOCKS, theme, 'sb-item'), resolve(BLOCKS, theme, 'sb-bg')),
       'an idle route name is unreadable on the wall it is drawn straight onto — the ' +
         'most-read text on the plane, and 1.4.3 binds it',
     ).toBeGreaterThanOrEqual(4.5);
@@ -188,16 +115,16 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
     ['light', 3.88],
     ['dark', 8.283],
   ] as const)('%s: the active label on its own tint, at the ruled value', (theme, expected) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS[theme], 'sb-bg'));
+    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS, theme, 'sb-bg'));
     expect(
-      ratio(resolve(BLOCKS[theme], 'sb-item-active'), ground),
+      ratio(resolve(BLOCKS, theme, 'sb-item-active'), ground),
       'the ruled reading moved — a repair and a drift both have to come here and say why',
     ).toBeCloseTo(expected, 2);
   });
 
   it.each(THEMES)('%s: the 2px indicator clears 3 : 1 on the wall', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'sb-indicator'), resolve(BLOCKS[theme], 'sb-bg')),
+      ratio(resolve(BLOCKS, theme, 'sb-indicator'), resolve(BLOCKS, theme, 'sb-bg')),
       'the indicator is unreadable on the wall, and it is the half that survives a ' +
         "colour-blind reading — read against the WALL, where the tint's own ground stops",
     ).toBeGreaterThanOrEqual(3);
@@ -206,10 +133,10 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
   // Hover is a GROUND and the state is the text lifting to `sb-item-hover`, so the pair is
   // read composited or the reading is of a colour nothing paints.
   it.each(THEMES)('%s: a hovered route clears 4.5 : 1 on its own ground', (theme) => {
-    const wall = resolve(BLOCKS[theme], 'sb-bg');
+    const wall = resolve(BLOCKS, theme, 'sb-bg');
     expect(
       ratio(
-        resolve(BLOCKS[theme], 'sb-item-hover'),
+        resolve(BLOCKS, theme, 'sb-item-hover'),
         over(tint(BLOCKS[theme], 'sb-item-hover-bg'), wall),
       ),
     ).toBeGreaterThanOrEqual(4.5);
@@ -223,24 +150,24 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
 describe('the rail draws its glyphs alone, so they are held to 1.4.11', () => {
   it.each(THEMES)('%s: an idle rail glyph clears 3 : 1 on the wall', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'sb-icon'), resolve(BLOCKS[theme], 'sb-bg')),
+      ratio(resolve(BLOCKS, theme, 'sb-icon'), resolve(BLOCKS, theme, 'sb-bg')),
     ).toBeGreaterThanOrEqual(3);
   });
 
   it.each(THEMES)('%s: the active glyph clears 3 : 1 on its tint', (theme) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS[theme], 'sb-bg'));
-    expect(ratio(resolve(BLOCKS[theme], 'sb-icon-active'), ground)).toBeGreaterThanOrEqual(3);
+    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS, theme, 'sb-bg'));
+    expect(ratio(resolve(BLOCKS, theme, 'sb-icon-active'), ground)).toBeGreaterThanOrEqual(3);
   });
 
   it.each(THEMES)('%s: a hovered rail glyph clears 3 : 1 on its ground', (theme) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-hover-bg'), resolve(BLOCKS[theme], 'sb-bg'));
-    expect(ratio(resolve(BLOCKS[theme], 'sb-icon'), ground)).toBeGreaterThanOrEqual(3);
+    const ground = over(tint(BLOCKS[theme], 'sb-item-hover-bg'), resolve(BLOCKS, theme, 'sb-bg'));
+    expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), ground)).toBeGreaterThanOrEqual(3);
   });
 
   it.each(THEMES)('%s: the rail currency symbol clears 4.5 : 1 on its tint', (theme) => {
-    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS[theme], 'sb-bg'));
+    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS, theme, 'sb-bg'));
     expect(
-      ratio(resolve(BLOCKS[theme], 'ink'), ground),
+      ratio(resolve(BLOCKS, theme, 'ink'), ground),
       'the rail currency symbol is unreadable on its tint — it shows a value rather than ' +
         'offering two, so it is TEXT and reads `ink`, not the expanded track\u2019s `sb-item`',
     ).toBeGreaterThanOrEqual(4.5);
@@ -251,7 +178,7 @@ describe('the rail draws its glyphs alone, so they are held to 1.4.11', () => {
 // Settings sits on a `sb-footer-bg` band, and the arms above composite over `sb-bg` so they
 // would go on asserting a plane the app stopped painting.
 describe('the footer band is a second ground, and the eleventh route reads on it', () => {
-  const band = (theme: (typeof THEMES)[number]) => resolve(BLOCKS[theme], 'sb-footer-bg');
+  const band = (theme: (typeof THEMES)[number]) => resolve(BLOCKS, theme, 'sb-footer-bg');
 
   // The same exact-value treatment as the wall's active label, for the same reason: a ruled
   // shortfall, not a floor to drift under. Repairing it means moving `sb-item-active`, a
@@ -261,26 +188,26 @@ describe('the footer band is a second ground, and the eleventh route reads on it
     ['dark', 7.75],
   ] as const)('%s: the active label on its tint over the band, at its value', (theme, expected) => {
     const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
-    expect(ratio(resolve(BLOCKS[theme], 'sb-item-active'), ground)).toBeCloseTo(expected, 2);
+    expect(ratio(resolve(BLOCKS, theme, 'sb-item-active'), ground)).toBeCloseTo(expected, 2);
   });
 
   it.each(THEMES)('%s: the idle route on the band clears 4.5 : 1', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'sb-item'), band(theme)),
+      ratio(resolve(BLOCKS, theme, 'sb-item'), band(theme)),
       'the idle route is unreadable on the band — ordinary body text on a new plane, so ' +
         '1.4.3 binds it with no excuse',
     ).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(THEMES)('%s: the glyph on the band clears 3 : 1', (theme) => {
-    expect(ratio(resolve(BLOCKS[theme], 'sb-icon'), band(theme))).toBeGreaterThanOrEqual(3);
+    expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), band(theme))).toBeGreaterThanOrEqual(3);
   });
 
   // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL, which is why the drawing puts a
   // `sb-divider` along its top edge and `sidebar-structure.test.ts` asserts the two together.
   it.each(THEMES)('%s: the band is a step, not a boundary', (theme) => {
     expect(
-      ratio(band(theme), resolve(BLOCKS[theme], 'sb-bg')),
+      ratio(band(theme), resolve(BLOCKS, theme, 'sb-bg')),
       'the fill now does the identifying — a re-valuing has to come and change this rule',
     ).toBeLessThan(1.1);
   });
@@ -294,16 +221,16 @@ describe('the footer band is a second ground, and the eleventh route reads on it
   ] as const)('%s: the idle currency symbol on its track, at its value', (theme, expected) => {
     const track = over(
       tint(BLOCKS[theme], 'sb-item-active-bg'),
-      resolve(BLOCKS[theme], 'sb-footer-bg'),
+      resolve(BLOCKS, theme, 'sb-footer-bg'),
     );
-    expect(ratio(resolve(BLOCKS[theme], 'sb-item'), track)).toBeCloseTo(expected, 2);
+    expect(ratio(resolve(BLOCKS, theme, 'sb-item'), track)).toBeCloseTo(expected, 2);
   });
 
   it.each(THEMES)('%s: the selected chip identifies itself on the tinted track', (theme) => {
     const track = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
-    expect(ratio(resolve(BLOCKS[theme], 'accent'), track)).toBeGreaterThanOrEqual(3);
+    expect(ratio(resolve(BLOCKS, theme, 'accent'), track)).toBeGreaterThanOrEqual(3);
     expect(
-      ratio(resolve(BLOCKS[theme], 'accent-fg'), resolve(BLOCKS[theme], 'accent')),
+      ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'accent')),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
@@ -313,7 +240,7 @@ describe('the footer band is a second ground, and the eleventh route reads on it
   // beside it, because this one clears its bar.
   it.each(THEMES)('%s: an idle theme glyph clears 3 : 1 on its track', (theme) => {
     const track = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
-    expect(ratio(resolve(BLOCKS[theme], 'sb-icon'), track)).toBeGreaterThanOrEqual(3);
+    expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), track)).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -323,40 +250,40 @@ describe("the wall's field rank carries the figures drawn on it", () => {
   // figure yet, which is text and asks 4.5. A separate 3 arm could never fail on its own.
   it.each(THEMES)('%s: `sb-item` clears 4.5 : 1 on `sb-field`, for both its uses', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'sb-item'), resolve(BLOCKS[theme], 'sb-field')),
+      ratio(resolve(BLOCKS, theme, 'sb-item'), resolve(BLOCKS, theme, 'sb-field')),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(THEMES)('%s: a negative delta clears 4.5 : 1 on `sb-field`', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'neg'), resolve(BLOCKS[theme], 'sb-field')),
+      ratio(resolve(BLOCKS, theme, 'neg'), resolve(BLOCKS, theme, 'sb-field')),
       'a negative delta is unreadable on `sb-field` — a loss is as drawable as a gain, and ' +
         '`neg` is the half nothing else holds',
     ).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(THEMES)('%s: the capital figure and its gain clear 4.5 : 1 on `sb-field`', (theme) => {
-    const field = resolve(BLOCKS[theme], 'sb-field');
-    expect(ratio(resolve(BLOCKS[theme], 'ink'), field), 'the figure').toBeGreaterThanOrEqual(4.5);
+    const field = resolve(BLOCKS, theme, 'sb-field');
+    expect(ratio(resolve(BLOCKS, theme, 'ink'), field), 'the figure').toBeGreaterThanOrEqual(4.5);
     // `pos`, not `pos-on-dark`: the plane is no longer dark in both themes, so the gain
     // follows the theme like every other delta in the app.
-    expect(ratio(resolve(BLOCKS[theme], 'pos'), field), 'the gain').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(resolve(BLOCKS, theme, 'pos'), field), 'the gain').toBeGreaterThanOrEqual(4.5);
   });
 
   // THE WALL IS ALSO A CARD PLANE: `KpiCard`'s `wall` tone borrows the rail's plane for one
   // headline card per screen, which the `sb-field` readings above cannot speak for.
   it.each(THEMES)('%s: the wall-toned KPI card clears 4.5 : 1 on `sb-bg`', (theme) => {
-    const wall = resolve(BLOCKS[theme], 'sb-bg');
-    expect(ratio(resolve(BLOCKS[theme], 'ink'), wall), 'the value').toBeGreaterThanOrEqual(4.5);
-    expect(ratio(resolve(BLOCKS[theme], 'pos'), wall), 'the gain sub-line').toBeGreaterThanOrEqual(
+    const wall = resolve(BLOCKS, theme, 'sb-bg');
+    expect(ratio(resolve(BLOCKS, theme, 'ink'), wall), 'the value').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(resolve(BLOCKS, theme, 'pos'), wall), 'the gain sub-line').toBeGreaterThanOrEqual(
       4.5,
     );
-    expect(ratio(resolve(BLOCKS[theme], 'sb-item'), wall), 'the label').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(resolve(BLOCKS, theme, 'sb-item'), wall), 'the label').toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(THEMES)('%s: the selected currency clears 4.5 : 1 on its thumb', (theme) => {
     expect(
-      ratio(resolve(BLOCKS[theme], 'accent-fg'), resolve(BLOCKS[theme], 'sb-item-active')),
+      ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'sb-item-active')),
       'the selected currency is unreadable on its thumb. The label sits on the ACCENT, not ' +
         'the wall: `sb-bg` on it misses the bar by a hundredth, and `accent-fg` is what the ' +
         'palette mints for this fill',
@@ -374,15 +301,15 @@ describe('the drawer over its veil, at the value the owner ruled', () => {
     ['dark', 1.029],
   ] as const)('%s: the drawer fill against the composited scrim', (theme, expected) => {
     const veil = tint(BLOCKS[theme], 'scrim');
-    const ground = over(veil, resolve(BLOCKS[theme], 'page'));
-    expect(ratio(resolve(BLOCKS[theme], 'sb-bg'), ground)).toBeCloseTo(expected, 2);
+    const ground = over(veil, resolve(BLOCKS, theme, 'page'));
+    expect(ratio(resolve(BLOCKS, theme, 'sb-bg'), ground)).toBeCloseTo(expected, 2);
   });
 
   it('keeps the drawer edge on in dark, where the fill cannot identify it', () => {
     const veil = tint(BLOCKS.dark, 'scrim');
-    const ground = over(veil, resolve(BLOCKS.dark, 'page'));
+    const ground = over(veil, resolve(BLOCKS, 'dark', 'page'));
     expect(
-      ratio(resolve(BLOCKS.dark, 'drawer-edge'), ground),
+      ratio(resolve(BLOCKS, 'dark', 'drawer-edge'), ground),
       'the dark drawer has lost the edge that identifies it — its fill cannot, which is why ' +
         'this token holds a value in one theme and `transparent` in the other',
     ).toBeGreaterThanOrEqual(3);

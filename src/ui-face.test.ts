@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { ruleBody, stripCss } from './__fixtures__/palette';
+
 // THE UI FACE AND THE ONE RULE THAT MAKES ITS FIGURES LINE UP ARE ONE DECISION, NOT TWO.
 // Manrope's figures are PROPORTIONAL — every digit a different advance — AND IT SHIPS
 // `tnum`, so with `body { font-variant-numeric: tabular-nums }` a KPI column is exact and
@@ -16,15 +18,15 @@ import { describe, expect, it } from 'vitest';
 // the previous face close the same door on a half-revert, which is what the last two tests
 // are for.
 //
-// SELF-CONTAINED ON PURPOSE. Paths resolve from THIS file, not from `process.cwd()`.
+// Paths resolve from THIS file, not from `process.cwd()`.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
 /** Not cosmetic: a comment naming a weight would otherwise satisfy an assertion the imports
  *  fail.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -62,46 +64,6 @@ function stripTs(source: string, file: string): string {
     at = end;
   }
   return out + source.slice(at);
-}
-
-/** The readers below take the FIRST match in a block and this stylesheet quotes token
- *  declarations in its comments constantly. Quote-aware, because `index.css` line 5 holds a
- *  comment opener inside a string and a naive strip takes `@theme` with it. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      // Loudly, not silently: truncating would let every assertion pass over a partial file.
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
-/** BOTH sides bounded: an unbounded slice lets a declaration in a later, unrelated rule
- *  answer for one this rule never makes. */
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
 }
 
 const CSS = stripCss(read('index.css'), 'index.css');

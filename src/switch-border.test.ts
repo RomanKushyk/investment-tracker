@@ -4,6 +4,15 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import {
+  declared,
+  declaredIn,
+  ratio,
+  resolve,
+  stripCss,
+  themeBlocks,
+} from './__fixtures__/palette';
+
 // THE SWITCH'S BOUNDARY, at the same bar as the field edge and the floating surfaces'.
 // `design/extensions/switch-border.dc.html` mints `--color-switch-border` so the OFF state
 // has a boundary clearing 3 : 1 (WCAG 1.4.11) in both themes, where the edge it replaced
@@ -15,15 +24,15 @@ import { describe, expect, it } from 'vitest';
 // the entire argument for minting a name is that it can take its own hex later, and on that
 // day these are the only assertions between a re-valued token and a boundary under the bar.
 //
-// SELF-CONTAINED ON PURPOSE. Folding this into `field-border.test.ts` would put the switch
+// A GUARD OF ITS OWN ON PURPOSE: folding this into `field-border.test.ts` would put the switch
 // inside the FIELD guard, which is the single distinction this whole ruling rests on.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 /** Not cosmetic: `Switch.tsx`'s own comment records the token it replaced, so a comment
  *  naming a utility would fail an assertion the code passes.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -63,96 +72,11 @@ function stripTs(source: string, file: string): string {
   return out + source.slice(at);
 }
 
-/** The readers below take the FIRST match in a block and this stylesheet quotes token
- *  declarations in its comments constantly. Quote-aware, because `index.css` line 5 holds a
- *  comment opener inside a string and a naive strip takes `@theme` with it. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      // Loudly, not silently: truncating would let every assertion pass over a partial file.
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
 const CSS = stripCss(read('index.css'), 'index.css');
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
-/** sRGB → relative luminance, WCAG 2.x. */
-function luminance(hex: string): number {
-  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
-function ratio(a: string, b: string): number {
-  const [la, lb] = [luminance(a), luminance(b)];
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** BOTH sides bounded: an unbounded slice let "declared in both blocks" pass on a token
- *  declared in a later, unrelated rule. */
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-/** `undefined` is not an error on its own: the cascade falls back to `@theme` for anything
- *  the dark block does not override. */
-function declaredIn(block: string, name: string): string | undefined {
-  const m = block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
-  return m ? m[1].trim() : undefined;
-}
-
-function declared(block: string, name: string): string {
-  const value = declaredIn(block, name);
-  expect(value, `--color-${name} is not declared in this block`).toBeDefined();
-  return value!;
-}
-
-/** Follows a `var(--color-x)` chain THE WAY THE CASCADE DOES. A hex-matching reader would
- *  see nothing here, because every declaration this file cares about is an ALIAS. */
-function resolve(block: string, name: string, seen: string[] = []): string {
-  expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
-    name,
-  );
-  const value = declaredIn(block, name) ?? declared(BLOCKS.light, name);
-  const alias = value.match(/^var\(\s*--color-([a-z0-9-]+)\s*(?:,\s*(.+))?\)$/);
-  if (alias) return resolve(block, alias[1], [...seen, name]);
-  const hex = value.toLowerCase();
-  expect(hex, `--color-${name} is neither a hex nor a --color-* alias (got \`${value}\`)`).toMatch(
-    /^#[0-9a-f]{6}$/,
-  );
-  return hex;
-}
+const BLOCKS = themeBlocks(CSS);
 
 /** The dark knob's boundary is a SHADOW and not a border, so the colour half of this ruling
  *  lives in both families. */
@@ -170,11 +94,10 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
   // wherever it is drawn, which is what 1.4.11 measures.
   for (const theme of THEMES) {
     it(`${theme} \`switch-border\` is at or above 3 : 1 on page, card and panel`, () => {
-      const block = BLOCKS[theme];
-      const value = resolve(block, 'switch-border');
+      const value = resolve(BLOCKS, theme, 'switch-border');
       for (const surface of SURFACES) {
         expect(
-          ratio(value, resolve(block, surface)),
+          ratio(value, resolve(BLOCKS, theme, surface)),
           `switch-border on ${surface}`,
         ).toBeGreaterThanOrEqual(3);
       }
@@ -190,7 +113,7 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
         declared(BLOCKS[theme], 'switch-border'),
         `${theme} switch-border inlines a hex`,
       ).toMatch(/^var\(--color-[a-z0-9-]+\)$/);
-      expect(resolve(BLOCKS[theme], 'switch-border')).toBe(resolve(BLOCKS[theme], 'field-border'));
+      expect(resolve(BLOCKS, theme, 'switch-border')).toBe(resolve(BLOCKS, theme, 'field-border'));
     });
   }
 
@@ -207,13 +130,14 @@ describe('the track is frozen, and the state gap is what freezes it', () => {
   // are frozen because the OFF/ON GAP IS THE ARGUMENT AGAINST DARKENING IT: a track moved
   // far enough to clear 3 : 1 against the card behind it spends that gap.
   it('keeps `switch-track` on the two values the ruling froze', () => {
-    expect(resolve(BLOCKS.light, 'switch-track')).toBe('#efeae2');
-    expect(resolve(BLOCKS.dark, 'switch-track')).toBe('#4a4650');
+    expect(resolve(BLOCKS, 'light', 'switch-track')).toBe('#efeae2');
+    expect(resolve(BLOCKS, 'dark', 'switch-track')).toBe('#4a4650');
   });
 
   it.each(THEMES)('%s keeps at least 7 : 1 between the OFF and ON fills', (theme) => {
-    const block = BLOCKS[theme];
-    expect(ratio(resolve(block, 'switch-track'), resolve(block, 'ink'))).toBeGreaterThanOrEqual(7);
+    expect(
+      ratio(resolve(BLOCKS, theme, 'switch-track'), resolve(BLOCKS, theme, 'ink')),
+    ).toBeGreaterThanOrEqual(7);
   });
 });
 
@@ -230,11 +154,14 @@ describe("the dark knob's ring is the same boundary", () => {
   // with every other assertion here still green. The OFF track is the recorded shortfall and
   // is deliberately absent: its reason is at the value.
   it('clears 3 : 1 on the knob it rings and on the ON track it sits over', () => {
-    const ring = resolve(BLOCKS.dark, 'switch-border');
-    expect(ratio(ring, resolve(BLOCKS.dark, 'card')), 'ring on the knob').toBeGreaterThanOrEqual(3);
-    expect(ratio(ring, resolve(BLOCKS.dark, 'ink')), 'ring on the ON track').toBeGreaterThanOrEqual(
+    const ring = resolve(BLOCKS, 'dark', 'switch-border');
+    expect(ratio(ring, resolve(BLOCKS, 'dark', 'card')), 'ring on the knob').toBeGreaterThanOrEqual(
       3,
     );
+    expect(
+      ratio(ring, resolve(BLOCKS, 'dark', 'ink')),
+      'ring on the ON track',
+    ).toBeGreaterThanOrEqual(3);
   });
 
   // Light's is a drop shadow and not an edge, named here because the two halves of this one

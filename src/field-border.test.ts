@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
+
 // THE FIELD EDGE, at the bar `design/extensions/field-border.dc.html` set: no field
 // boundary reads below 3 : 1 (WCAG 1.4.11) on any of the three surfaces a field is drawn
 // on. Two halves and neither catches the other — the CSS half is arithmetic on tokens no
@@ -11,72 +13,11 @@ import { describe, expect, it } from 'vitest';
 // written out eleven times separately because there is no shared input component (#84).
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
-/** COMMENTS OUT BEFORE ANY TOKEN IS READ: `token()` takes the first match in a block and
- *  this stylesheet quotes declarations constantly, retired values included. Quote-aware,
- *  because `index.css` holds `/*` inside a string and a naive reader takes `@theme` with it. */
-const CSS = (() => {
-  const src = read('index.css');
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += src[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && src[i + 1] === '*') {
-      const end = src.indexOf('*/', i + 2);
-      if (end === -1) throw new Error('index.css has an unterminated /* comment');
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-})();
+const CSS = stripCss(read('index.css'), 'index.css');
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
-/** sRGB → relative luminance, WCAG 2.x. There is no colour helper to reuse: `core/colors.ts`
- *  owns the chart SERIES and no contrast maths. */
-function luminance(hex: string): number {
-  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
-function ratio(a: string, b: string): number {
-  const [la, lb] = [luminance(a), luminance(b)];
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** The span of a `selector { … }` rule, matched on its own braces. BOTH sides are
- *  bounded: unbounded, "declared in both blocks" passed on a later, unrelated rule. */
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-function token(block: string, name: string): string {
-  const m = block.match(new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`));
-  expect(m, `--color-${name} is not declared in this block`).not.toBeNull();
-  return m![1].toLowerCase();
-}
+const BLOCKS = themeBlocks(CSS);
 
 /** `panel` binds: on /transactions six fields sit on `card` inside a `panel`. Named and
  *  never quoted as a hex — a hex goes stale the moment the plane moves, and it did. */
@@ -87,11 +28,10 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
   for (const theme of THEMES) {
     for (const edge of ['field-border', 'pos-border'] as const) {
       it(`${theme} \`${edge}\` is at or above 3 : 1 on page, card and panel`, () => {
-        const block = BLOCKS[theme];
-        const value = token(block, edge);
+        const value = resolve(BLOCKS, theme, edge);
         for (const surface of SURFACES) {
           expect(
-            ratio(value, token(block, surface)),
+            ratio(value, resolve(BLOCKS, theme, surface)),
             `${edge} reads under 3 : 1 on ${surface} — the boundary is gone at the bar`,
           ).toBeGreaterThanOrEqual(3);
         }
@@ -101,11 +41,10 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
 
   for (const theme of THEMES) {
     it(`${theme} saved edge is at least as strong as idle, and within 1.10x`, () => {
-      const block = BLOCKS[theme];
-      const idle = token(block, 'field-border');
-      const saved = token(block, 'pos-border');
+      const idle = resolve(BLOCKS, theme, 'field-border');
+      const saved = resolve(BLOCKS, theme, 'pos-border');
       for (const surface of SURFACES) {
-        const s = token(block, surface);
+        const s = resolve(BLOCKS, theme, surface);
         const [ri, rs] = [ratio(idle, s), ratio(saved, s)];
         expect(
           rs,
@@ -131,17 +70,17 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
   // the drawer's dragged thumb. Pinned by hex rather than by ratio for that reason.
   it('leaves `faint` at the rank it was derived for, in both blocks', () => {
     expect(
-      token(BLOCKS.light, 'faint'),
+      resolve(BLOCKS, 'light', 'faint'),
       'light `faint` was lifted to a control rank, which blanks the drawer\u2019s dragged thumb',
     ).toBe('#b4aa9a');
-    expect(token(BLOCKS.dark, 'faint')).toBe('#6e6a65');
+    expect(resolve(BLOCKS, 'dark', 'faint')).toBe('#6e6a65');
   });
 });
 
 /* ────────────────────────── the markup half ────────────────────────── */
 
-/** Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+/** Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,

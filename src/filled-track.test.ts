@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { stripCss } from './__fixtures__/palette';
+
 // THE PAIRING *Interaction rules* LEAVES UNGUARDED, made to fail instead. A filled segmented
 // track is `bg-ink` and the focus ring resolves to `var(--color-ink)`, so a track without
 // `data-filled-track` paints the ring on its own colour and keyboard focus disappears —
@@ -37,8 +39,8 @@ function sourceFiles(dir: string): string[] {
 /** Comments stripped, so example markup written in prose cannot satisfy or break the
  *  pairing — a comment drawing a `bg-ink`/`border-ink` tag reads as an unguarded track.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -192,7 +194,7 @@ describe('a filled segmented track carries data-filled-track', () => {
   });
 
   it('keeps the CSS half the attribute exists to select', () => {
-    const css = readFileSync(join(here, 'index.css'), 'utf8');
+    const css = stripCss(readFileSync(join(here, 'index.css'), 'utf8'), 'index.css');
     expect(
       css,
       'the attribute is inert on its own — without this rule the markup half above stays ' +

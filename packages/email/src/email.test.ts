@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { declaredHex, stripCss, themeBlocks } from '../../../src/__fixtures__/palette.ts';
 import { KINDS, LANGUAGES, assertLinksOn, render, type Kind, type Params } from './index.ts';
 import { PALETTE } from './palette.ts';
 
@@ -162,65 +163,18 @@ function stripTs(source: string, file: string): string {
 
 // The stylesheet read as mark.test.ts reads it: comments stripped quote-aware, each theme a rule
 // body matched on its braces, and the last declaration taken, as the browser does.
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else out += c;
-  }
-  return out;
-}
-
 const CSS = stripCss(
   readFileSync(join(here, '..', '..', '..', 'src', 'index.css'), 'utf8'),
   'index.css',
 );
 
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(`${opener} {`);
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-function declared(block: keyof typeof BLOCKS, name: string): string {
-  const needle = `--color-${name}:`;
-  const from = BLOCKS[block].lastIndexOf(needle) >= 0 ? BLOCKS[block] : BLOCKS.light;
-  const at = from.lastIndexOf(needle);
-  expect(at, `--color-${name} is declared in neither ${block} nor @theme`).toBeGreaterThan(-1);
-  const value = from.slice(at + needle.length, from.indexOf(';', at)).trim();
-  expect(value, `--color-${name} is not a plain hex in ${block} — resolve the alias here`).toMatch(
-    /^#[0-9a-fA-F]{6}$/,
-  );
-  return value.toLowerCase();
-}
+const BLOCKS = themeBlocks(CSS);
 
 describe('every colour is a src/index.css token', () => {
   it('holds each palette entry equal to its token, in both themes', () => {
     for (const theme of ['light', 'dark'] as const)
       for (const [token, hex] of Object.entries(PALETTE[theme]))
-        expect(hex, `${theme} ${token}`).toBe(declared(theme, token));
+        expect(hex, `${theme} ${token}`).toBe(declaredHex(BLOCKS, theme, token));
   });
 
   it('writes no hex outside the palette, in the source or the output', async () => {

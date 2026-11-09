@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { luminance, ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
+
 // THE IMPORT DROPZONE'S EDGE, at the same bar as the field edge, the switch and the
 // floating surfaces (`design/extensions/dropzone-edge.dc.html`, #88): the box that says
 // WHERE a file may be dropped used to be the faintest thing on the screen.
@@ -16,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 // NO TOKEN IS MINTED — the rest reads `field-border` directly, holding no shortfall and no
 // per-theme difference, so a name would be the rank's own value drawn twice.
 //
-// SELF-CONTAINED ON PURPOSE, and folding this into `field-border.test.ts` would put the
+// A GUARD OF ITS OWN ON PURPOSE: folding this into `field-border.test.ts` would put the
 // dropzone inside the FIELD guard — being a non-field is exactly what let this box go
 // unowned through four sheets.
 //
@@ -32,8 +34,8 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
  *  asserted on, so a comment could satisfy an assertion the code fails or fail one it
  *  passes.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -73,92 +75,11 @@ function stripTs(source: string, file: string): string {
   return out + source.slice(at);
 }
 
-/** The readers below take the FIRST match in a block and this stylesheet quotes token
- *  declarations inside its comments constantly. Quote-aware, because `index.css` line 5
- *  holds a comment opener inside a string and a naive strip takes `@theme` with it. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      // Loudly, not silently: truncating would let every assertion pass over a
-      // partial file. `ruleBody` throws for the same reason.
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
 const CSS = stripCss(read('index.css'), 'index.css');
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
-/** sRGB → relative luminance, WCAG 2.x. */
-function luminance(hex: string): number {
-  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
-function ratio(a: string, b: string): number {
-  const [la, lb] = [luminance(a), luminance(b)];
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** The span of a `selector { … }` rule, matched on its own braces. BOTH sides
- *  are bounded: an unbounded slice would read a token out of a later rule. */
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-/** Follows a `var(--color-x)` chain THE WAY THE CASCADE DOES — a name the dark block does
- *  not override resolves against `@theme`. A literal-hex reader sees nothing through an
- *  alias, and the rank has aliases pointed at it. */
-function resolve(theme: 'light' | 'dark', name: string, seen: string[] = []): string {
-  expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
-    name,
-  );
-  // Lazily: evaluating the light-block fallback unconditionally rescans the whole `@theme`
-  // body a second time for a result already in hand.
-  const decl = (block: string) => block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
-  const found = decl(BLOCKS[theme]) ?? decl(BLOCKS.light);
-  expect(found, `--color-${name} is declared in neither block`).not.toBeNull();
-  const value = found![1].trim();
-  // No fallback group: this palette declares none, and capturing one only to
-  // discard it tells the reader a `var(--x, #hex)` would resolve when it throws.
-  const alias = value.match(/^var\(\s*--color-([a-z0-9-]+)\s*\)$/);
-  if (alias) return resolve(theme, alias[1], [...seen, name]);
-  const hex = value.toLowerCase();
-  expect(hex, `--color-${name} is neither a hex nor a --color-* alias (got \`${value}\`)`).toMatch(
-    /^#[0-9a-f]{6}$/,
-  );
-  return hex;
-}
+const BLOCKS = themeBlocks(CSS);
 
 const THEMES = ['light', 'dark'] as const;
 /** INWARD is the box's own fill, OUTWARD the `Card` it sits in. A stroke has two adjacencies
@@ -177,9 +98,9 @@ const RUNGS = [
 describe('the dropzone edge clears 3 : 1 on both of its planes, in both themes', () => {
   for (const theme of THEMES) {
     it(`${theme}: the rest edge clears the bar inward and outward`, () => {
-      const edge = resolve(theme, 'field-border');
+      const edge = resolve(BLOCKS, theme, 'field-border');
       for (const [side, plane] of Object.entries(PLANES)) {
-        const r = ratio(edge, resolve(theme, plane));
+        const r = ratio(edge, resolve(BLOCKS, theme, plane));
         expect(
           r,
           `${theme} rest is ${r.toFixed(2)} : 1 ${side} on \`${plane}\``,
@@ -214,7 +135,7 @@ describe('the dropzone edge clears 3 : 1 on both of its planes, in both themes',
   ] as const)('%s %s reads %s at %s : 1, as the ruling records', (theme, state, side, expected) => {
     const [edge, fill] = RUNGS[{ rest: 0, hover: 1, drag: 2 }[state]];
     const against = side === 'inward' ? fill : PLANES.outward;
-    const r = ratio(resolve(theme, edge), resolve(theme, against));
+    const r = ratio(resolve(BLOCKS, theme, edge), resolve(BLOCKS, theme, against));
     expect(
       Number(r.toFixed(2)),
       'this reading moved off the figure the ruling records, and nothing else records it',
@@ -234,7 +155,9 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
   // a figure goes stale at the next re-value and says nothing about the state machine.
   for (const theme of THEMES) {
     it(`${theme}: the three states are strictly ordered inward, each on its own fill`, () => {
-      const rungs = RUNGS.map(([edge, fill]) => ratio(resolve(theme, edge), resolve(theme, fill)));
+      const rungs = RUNGS.map(([edge, fill]) =>
+        ratio(resolve(BLOCKS, theme, edge), resolve(BLOCKS, theme, fill)),
+      );
       for (let i = 1; i < rungs.length; i++) {
         expect(
           rungs[i],
@@ -246,8 +169,8 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
     // OUTWARD is fill-independent — every state is drawn over the same `card` — so the
     // edges alone have to keep the order there.
     it(`${theme}: the three states are strictly ordered outward on the card`, () => {
-      const card = resolve(theme, PLANES.outward);
-      const rungs = RUNGS.map(([edge]) => ratio(resolve(theme, edge), card));
+      const card = resolve(BLOCKS, theme, PLANES.outward);
+      const rungs = RUNGS.map(([edge]) => ratio(resolve(BLOCKS, theme, edge), card));
       for (let i = 1; i < rungs.length; i++) {
         expect(
           rungs[i],
@@ -259,10 +182,11 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
     it(`${theme}: every state's edge sits on the same side of its own fill`, () => {
       const [, restFill] = RUNGS[0];
       const darker =
-        luminance(resolve(theme, 'field-border')) < luminance(resolve(theme, restFill));
+        luminance(resolve(BLOCKS, theme, 'field-border')) <
+        luminance(resolve(BLOCKS, theme, restFill));
       for (const [edge, fill] of RUNGS) {
         expect(
-          luminance(resolve(theme, edge)) < luminance(resolve(theme, fill)),
+          luminance(resolve(BLOCKS, theme, edge)) < luminance(resolve(BLOCKS, theme, fill)),
           `\`${edge}\` crosses its fill — the state would invert instead of deepening`,
         ).toBe(darker);
       }

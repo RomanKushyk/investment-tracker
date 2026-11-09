@@ -4,6 +4,15 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import {
+  declaredHex,
+  ratio,
+  resolve,
+  ruleBody,
+  stripCss,
+  themeBlocks,
+} from './__fixtures__/palette';
+
 // THE PALETTE HAS THREE COPIES OF ONE VALUE, AND TWO OF THEM ARE NOT CSS. `--color-page` is
 // duplicated in `src/app/theme.ts`'s `CHROME` map, which writes the `theme-color` meta, and
 // in `index.html`'s seed that the map overwrites. NEITHER CAN BE REACHED FROM A STYLESHEET —
@@ -19,37 +28,10 @@ import { describe, expect, it } from 'vitest';
 // `floating-edges.test.ts` catches, but a value left behind in a declaration or in a
 // sentence about one.
 //
-// SELF-CONTAINED ON PURPOSE, the house idiom — a guard stands alone. `core/colors.ts` owns
-// the chart SERIES and nothing else: no contrast maths lives there, so there is no shared
-// helper to import even though `core/` is not colour-free.
+// The colour maths and token readers are the shared `__fixtures__/palette.ts`; the TypeScript
+// reader below is a copy, held to one text by `ts-reader-census.test.ts`.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
-
-/** CSS comments out, quote-aware. `index.css` line 5 holds a literal comment
- *  opener inside a string, so a regex strip swallows `@theme` with it. Copied
- *  from `floating-edges.test.ts`'s `stripCss()`, which learned that by failing. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
 
 /** The complement of `stripCss` — every comment body, and nothing else. Same
  *  quote-awareness, for the same reason. */
@@ -76,8 +58,8 @@ function cssProse(source: string): string {
 /** `CHROME` is read through this and nothing else here is: the retired-hex sweep below reads
  *  `FILES` raw on purpose.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -117,18 +99,6 @@ function stripTs(source: string, file: string): string {
   return out + source.slice(at);
 }
 
-/** The span of a `selector { … }` rule, matched on its own braces. */
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
 const FILES = {
   'src/index.css': read('index.css'),
   'src/app/theme.ts': read('app/theme.ts'),
@@ -136,16 +106,7 @@ const FILES = {
 } as const;
 
 const CSS = stripCss(FILES['src/index.css'], 'index.css');
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-function page(block: keyof typeof BLOCKS): string {
-  const m = BLOCKS[block].match(/--color-page:\s*(#[0-9a-fA-F]{6});/);
-  expect(m, `--color-page is not declared as a hex in the ${block} block`).not.toBeNull();
-  return m![1].toLowerCase();
-}
+const BLOCKS = themeBlocks(CSS);
 
 /** The two values `CHROME` holds, read as source text — this file must not
  *  import from the app, whose module graph pulls React in for one object. */
@@ -164,8 +125,12 @@ function chrome(): { light: string; dark: string } {
 
 describe('the browser chrome mirrors `--color-page`, in both themes', () => {
   it('`CHROME` holds what `index.css` holds, and is not its own source', () => {
-    expect(chrome().light, 'CHROME.light vs @theme --color-page').toBe(page('light'));
-    expect(chrome().dark, 'CHROME.dark vs the dark block --color-page').toBe(page('dark'));
+    expect(chrome().light, 'CHROME.light vs @theme --color-page').toBe(
+      declaredHex(BLOCKS, 'light', 'page'),
+    );
+    expect(chrome().dark, 'CHROME.dark vs the dark --color-page').toBe(
+      declaredHex(BLOCKS, 'dark', 'page'),
+    );
   });
 
   // The seed is what paints before `useTheme` runs, so a stale one is a flash of
@@ -174,7 +139,7 @@ describe('the browser chrome mirrors `--color-page`, in both themes', () => {
   it('the `index.html` seed is the light `--color-page`', () => {
     const m = FILES['index.html'].match(/<meta name="theme-color" content="(#[0-9a-fA-F]{6})"/);
     expect(m, 'the theme-color meta is gone or is no longer a hex').not.toBeNull();
-    expect(m![1].toLowerCase()).toBe(page('light'));
+    expect(m![1].toLowerCase()).toBe(declaredHex(BLOCKS, 'light', 'page'));
   });
 });
 
@@ -286,38 +251,6 @@ describe('the palette and its two mirrors carry no retired value', () => {
 
 /* ─────────── the figures `index.css` records beside its values ─────────── */
 
-/** sRGB → relative luminance, WCAG 2.x. */
-function luminance(hex: string): number {
-  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
-function ratio(a: string, b: string): number {
-  const [la, lb] = [luminance(a), luminance(b)];
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** A token's hex in a block, following a `var()` chain the way the cascade
- *  does — a name the dark block does not override resolves against `@theme`. */
-function resolve(block: keyof typeof BLOCKS, name: string, seen: string[] = []): string {
-  expect(seen, `--color-${name} resolves in a cycle`).not.toContain(name);
-  // Sliced rather than matched: a name interpolated into a `RegExp` is one stray escape
-  // from a pattern that matches the wrong thing and still passes. The `:` in the needle is
-  // what keeps `--color-info` off `--color-info-tint`.
-  const needle = `--color-${name}:`;
-  const decl = (b: string) => {
-    const at = b.indexOf(needle);
-    return at === -1 ? undefined : b.slice(at + needle.length, b.indexOf(';', at)).trim();
-  };
-  const value = decl(BLOCKS[block]) ?? decl(BLOCKS.light);
-  expect(value, `--color-${name} is declared in neither block`).toBeDefined();
-  const alias = value!.match(/^var\(\s*--color-([a-z0-9-]+)\s*\)$/);
-  if (alias) return resolve(block, alias[1], [...seen, name]);
-  return value!.toLowerCase();
-}
-
 // A FIGURE LIVES IN A TEST OR NOT AT ALL, and *Design pipeline* pulls the other way for one
 // class of figure — anything still under the bar carries "its reason or its open issue where
 // the value is declared" — so `index.css` keeps the recorded shortfalls in prose beside the
@@ -401,7 +334,7 @@ describe('the recorded readings still read as recorded', () => {
   // `toBeCloseTo(1.01, 1)` accepts anything under 1.06 and the warn/accent collision would
   // have been guarded by nothing.
   it.each(RECORDED)('%s', (_label, block, a, b, expected) => {
-    expect(ratio(resolve(block, a), resolve(block, b))).toBeCloseTo(expected, 2);
+    expect(ratio(resolve(BLOCKS, block, a), resolve(BLOCKS, block, b))).toBeCloseTo(expected, 2);
   });
 
   // AND THE OTHER HALF OF THAT SENTENCE, which was asserted by nothing: the block above
@@ -421,7 +354,9 @@ describe('the recorded readings still read as recorded', () => {
   // the binding plane by a hair, so a nudge to EITHER token in EITHER direction puts the
   // Σ≠100 pill and every stale chip under the bar.
   it('keeps `warn` above 4.5 on `panel`, where it has 0.003 to spare', () => {
-    expect(ratio(resolve('light', 'warn'), resolve('light', 'panel'))).toBeGreaterThanOrEqual(4.5);
+    expect(
+      ratio(resolve(BLOCKS, 'light', 'warn'), resolve(BLOCKS, 'light', 'panel')),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   // THE OTHER FIVE PARTS OF THE MARK, a floor rather than five readings: one recorded
@@ -435,7 +370,9 @@ describe('the recorded readings still read as recorded', () => {
     ['logo-pill-a', 'dark'],
     ['logo-pill-b', 'dark'],
   ] as [string, keyof typeof BLOCKS][])('`%s` clears 3 : 1 on the wall in %s', (name, block) => {
-    expect(ratio(resolve(block, name), resolve(block, 'sb-bg'))).toBeGreaterThanOrEqual(3);
+    expect(
+      ratio(resolve(BLOCKS, block, name), resolve(BLOCKS, block, 'sb-bg')),
+    ).toBeGreaterThanOrEqual(3);
   });
 
   // The identities `index.css` records beside the minted families. They are the
@@ -454,7 +391,7 @@ describe('the recorded readings still read as recorded', () => {
     ['info-tint', 'ovdp8976-tint', 'light'],
     ['info-tint', 'ovdp8976-tint', 'dark'],
   ] as [string, string, keyof typeof BLOCKS][])('`%s` is still `%s` in %s', (a, b, block) => {
-    expect(resolve(block, a)).toBe(resolve(block, b));
+    expect(resolve(BLOCKS, block, a)).toBe(resolve(BLOCKS, block, b));
   });
 });
 
@@ -478,10 +415,10 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
 
   it.each(['light', 'dark'] as const)('`focus` is the accent in %s', (block) => {
     expect(
-      resolve(block, 'focus'),
+      resolve(BLOCKS, block, 'focus'),
       'the focus ring has been separated from the accent. The alias IS the decision, so ' +
         'that is a palette move and should cost a deleted line here plus a sentence',
-    ).toBe(resolve(block, 'accent'));
+    ).toBe(resolve(BLOCKS, block, 'accent'));
   });
 
   // `sb-bg` and `sb-field` are the wall and its field rank: `Sidebar.tsx` states that the
@@ -500,7 +437,9 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     ['sb-bg', 'dark'],
     ['sb-field', 'dark'],
   ] as [string, keyof typeof BLOCKS][])('reads on `%s` in %s', (plane, block) => {
-    expect(ratio(resolve(block, 'focus'), resolve(block, plane))).toBeGreaterThanOrEqual(3);
+    expect(
+      ratio(resolve(BLOCKS, block, 'focus'), resolve(BLOCKS, block, plane)),
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it('declares the two `chart-` aliases the capital chart resolves through', () => {
@@ -532,7 +471,7 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     // `bg-ink` and the accent on ink is under 3 : 1, so the override is load-bearing rather
     // than a leftover from when the base ring was ink.
     for (const block of ['light', 'dark'] as const) {
-      expect(ratio(resolve(block, 'focus'), resolve(block, 'ink'))).toBeLessThan(3);
+      expect(ratio(resolve(BLOCKS, block, 'focus'), resolve(BLOCKS, block, 'ink'))).toBeLessThan(3);
     }
     expect(ruleBody(CSS, '[data-filled-track] :focus-visible')).toContain(
       'outline-color: var(--color-page)',

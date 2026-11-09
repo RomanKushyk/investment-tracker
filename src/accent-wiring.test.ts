@@ -9,9 +9,8 @@ import { describe, expect, it } from 'vitest';
 // primary button goes back to `bg-ink` or the capital line back to gain green, since the
 // tokens would still be declared and still clear their bars.
 //
-// NO COLOUR MATHS HERE, DELIBERATELY: `luminance`/`ratio`/`resolve` are already copied
-// across five guards, and every assertion below is about which token a file NAMES rather
-// than what the value reads — so this one carries no reader and adds no sixth copy.
+// NO COLOUR MATHS HERE, DELIBERATELY: every assertion below is about which token a file NAMES
+// rather than what the value reads, so this one imports no palette reader.
 //
 // SOURCE TEXT, the house idiom: this file runs in the suite's `node` environment.
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,8 +19,8 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 /** The comments these files carry NAME every token asserted below, so an unstripped match is
  *  satisfied by prose about a token instead of the token.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -182,7 +181,7 @@ describe('the capital area chart is the accent', () => {
     expect(area).toMatch(/fillOpacity=\{1\}/);
   });
 
-  // The two `chart-` aliases are asserted in `palette-mirror.test.ts`, which owns the CSS
-  // stripper this file does not: `index.css` argues from its own token text on nearly every
-  // line, so an unstripped `toContain` there is satisfied by a comment.
+  // The two `chart-` aliases are asserted in `palette-mirror.test.ts`, which reads `index.css`
+  // through `stripCss` and this file does not: `index.css` argues from its own token text on
+  // nearly every line, so an unstripped `toContain` there is satisfied by a comment.
 });

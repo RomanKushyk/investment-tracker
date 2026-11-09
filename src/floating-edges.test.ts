@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { declared, ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
+
 // THE FLOATING SURFACES' BOUNDARY, ON THE SAME TOKEN AS THE FIELD EDGE (`floating-edges.
 // dc.html` T4). An `AssetForm` `Select` opens INSIDE a `Dialog`, so a `bg-card` popover
 // lands on a `bg-card` plane — and WCAG 1.4.11 governs "the visual information required to
@@ -13,39 +15,12 @@ import { describe, expect, it } from 'vitest';
 // no shared popover component a fourth surface added by copying a third lands on whatever
 // the third used, which is how the toast got its own edge.
 //
-// SELF-CONTAINED ON PURPOSE, the house idiom rather than a necessity: a guard stands alone.
+// The colour maths and token readers are the shared `__fixtures__/palette.ts`; the TypeScript
+// reader below is a copy, held to one text by `ts-reader-census.test.ts`.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
-/** `declared()` takes the FIRST match in a block and this stylesheet's comments quote token
- *  declarations constantly, so a comment could satisfy an assertion the CSS fails.
- *  Quote-aware rather than a regex, which this file learned by failing: `index.css` line 5
- *  holds a comment opener inside a string, and a naive reader takes `@theme` with it. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      // Loudly, not silently: truncating would let every assertion pass over a partial file.
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
-/** Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+/** Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -92,65 +67,7 @@ const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 const rgbHex = (ch: number[]) =>
   '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
 
-/** sRGB → relative luminance, WCAG 2.x. */
-function luminance(hex: string): number {
-  const ch = channels(hex).map((c) => c / 255);
-  const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
-  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-}
-
-function ratio(a: string, b: string): number {
-  const [la, lb] = [luminance(a), luminance(b)];
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(opener + ' {');
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-/** `undefined` is not an error on its own: the cascade falls back to `@theme` for anything
- *  the dark block does not override. */
-function declaredIn(block: string, name: string): string | undefined {
-  const m = block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
-  return m ? m[1].trim() : undefined;
-}
-
-function declared(block: string, name: string): string {
-  const value = declaredIn(block, name);
-  expect(value, `--color-${name} is not declared in this block`).toBeDefined();
-  return value!;
-}
-
-/** Follows a `var(--color-x)` chain THE WAY THE CASCADE DOES, so a name the dark block does
- *  not override resolves against `@theme`. A PLANE may be an alias — `drawer-edge` is one
- *  of this very rank in dark — where `field-border.test.ts`'s hex-matching `token()` sees
- *  nothing. */
-function resolve(block: string, name: string, seen: string[] = []): string {
-  expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
-    name,
-  );
-  const value = declaredIn(block, name) ?? declared(BLOCKS.light, name);
-  const alias = value.match(/^var\(\s*--color-([a-z0-9-]+)\s*(?:,\s*(.+))?\)$/);
-  if (alias) return resolve(block, alias[1], [...seen, name]);
-  const hex = value.toLowerCase();
-  expect(hex, `--color-${name} is neither a hex nor a --color-* alias (got \`${value}\`)`).toMatch(
-    /^#[0-9a-f]{6}$/,
-  );
-  return hex;
-}
+const BLOCKS = themeBlocks(CSS);
 
 /** TWO GROUPS, not one union. Collapsing them would demand the rank clear the bar on the
  *  wall for surfaces never drawn there and on `card` for a rail that never touches it, so
@@ -168,10 +85,10 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
   for (const theme of THEMES) {
     for (const group of Object.keys(DRAWN_ON) as (keyof typeof DRAWN_ON)[]) {
       it(`${theme}: the rank clears the bar under ${group}`, () => {
-        const value = resolve(BLOCKS[theme], 'field-border');
+        const value = resolve(BLOCKS, theme, 'field-border');
         for (const surface of DRAWN_ON[group]) {
           expect(
-            ratio(value, resolve(BLOCKS[theme], surface)),
+            ratio(value, resolve(BLOCKS, theme, surface)),
             `field-border reads under 3 : 1 on ${surface} — the surface is unidentifiable`,
           ).toBeGreaterThanOrEqual(3);
         }
@@ -221,10 +138,10 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
   for (const theme of THEMES) {
     it(`${theme}: the panel and the date sheet stay identifiable on their veil`, () => {
       const { ch, alpha } = veilOf(theme, overlayOf('components/ui/Dialog.tsx'));
-      const edge = resolve(BLOCKS[theme], 'field-border');
-      const fill = resolve(BLOCKS[theme], 'card');
+      const edge = resolve(BLOCKS, theme, 'field-border');
+      const fill = resolve(BLOCKS, theme, 'card');
       for (const plane of ['page', 'card', 'panel'] as const) {
-        const behind = channels(resolve(BLOCKS[theme], plane));
+        const behind = channels(resolve(BLOCKS, theme, plane));
         const veil = rgbHex(ch.map((c, i) => c * alpha + behind[i] * (1 - alpha)));
         const best = Math.max(ratio(fill, veil), ratio(edge, veil));
         expect(

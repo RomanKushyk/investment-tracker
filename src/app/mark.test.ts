@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { declaredHex, stripCss, themeBlocks } from '../__fixtures__/palette';
+
 // THE LOGO MARK SHIPS IN THREE COPIES AND IS DRAWN IN FOUR PLACES: `Mark` in ./Sidebar.tsx,
 // ../../public/favicon.svg, ../../public/apple-touch-icon.png, and the
 // ../../scripts/build-touch-icon.mjs that writes that raster. Comparing a raster to an SVG
@@ -29,8 +31,8 @@ const here = dirname(fileURLToPath(import.meta.url));
  *  THE FAVICON IS READ RAW and must stay that way: it is XML, and the well-formedness arm
  *  below reads its `<!-- -->` comments as its subject.
  *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+ *  Copied SIGNATURE AND ALL rather than imported:
+ *  `ts-reader-census.test.ts` holds every copy to one text. */
 function stripTs(source: string, file: string): string {
   const sf = ts.createSourceFile(
     file,
@@ -79,79 +81,13 @@ const SCRIPT = stripTs(
 const TOUCH_SCRIPT = SCRIPT.slice(0, SCRIPT.indexOf('const Q_BOWL'));
 const ICON = readFileSync(join(here, '..', '..', 'public', 'apple-touch-icon.png'));
 
-/** `index.css` line 5 holds a literal comment opener inside a string, so a plain regex strip
- *  swallows `@theme` with it. Stripping is not tidiness here: this file reads the stylesheet
- *  at MODULE scope, so a hex written in prose does not fail one assertion — it collapses the
- *  suite before the favicon-blank guard has run.
- *
- *  Copied from `palette-mirror.test.ts` SIGNATURE AND ALL — the guards in this directory each
- *  carry their own copy, and one that drifts in shape cannot be folded back if they are ever
- *  pooled. This one HAS drifted: `} else out += c;` against the braced form next door. */
-function stripCss(source: string, what: string): string {
-  let out = '';
-  let quote = '';
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += source[++i] ?? '';
-      else if (c === quote) quote = '';
-    } else if (c === '"' || c === "'") {
-      quote = c;
-      out += c;
-    } else if (c === '/' && source[i + 1] === '*') {
-      const end = source.indexOf('*/', i + 2);
-      if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
-      i = end + 1;
-    } else out += c;
-  }
-  return out;
-}
-
 const CSS = stripCss(readFileSync(join(here, '..', 'index.css'), 'utf8'), 'index.css');
 
-/** The span of a `selector { … }` rule, matched on its own braces. */
-function ruleBody(source: string, opener: string): string {
-  const at = source.indexOf(`${opener} {`);
-  expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
-  let depth = 0;
-  for (let i = source.indexOf('{', at); i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return source.slice(at, i + 1);
-  }
-  throw new Error(`${opener} is never closed`);
-}
-
-const BLOCKS = {
-  light: ruleBody(CSS, '@theme'),
-  dark: ruleBody(CSS, "[data-theme='dark']"),
-};
-
-/** What `index.css` DECLARES for one colour, so the two files holding the mark as literals
- *  cannot become a third opinion about the palette: the assertion is "the favicon holds
- *  whatever index.css holds", which survives the next re-valuing. SLICED rather than
- *  matched, since a name interpolated into a `RegExp` is one stray escape from a pattern
- *  that matches the wrong thing and still passes. LAST declaration, and `@theme` behind the
- *  dark block, because that is what the browser does.
- *
- *  A `var()` ALIAS FAILS HERE RATHER THAN RESOLVING, unlike the `resolve()` the sibling
- *  guards carry — none of these four is one, and a red test naming the day that stopped is
- *  better than a silent half-read. */
-function declared(block: keyof typeof BLOCKS, name: string): string {
-  const needle = `--color-${name}:`;
-  const from = BLOCKS[block].lastIndexOf(needle) >= 0 ? BLOCKS[block] : BLOCKS.light;
-  const at = from.lastIndexOf(needle);
-  expect(at, `--color-${name} is declared in neither ${block} nor @theme`).toBeGreaterThan(-1);
-  const value = from.slice(at + needle.length, from.indexOf(';', at)).trim();
-  expect(value, `--color-${name} is not a plain hex in ${block} — resolve the alias here`).toMatch(
-    /^#[0-9a-fA-F]{6}$/,
-  );
-  return value.toLowerCase();
-}
+const BLOCKS = themeBlocks(CSS);
 
 const LOGO = ['logo-outline', 'logo-pill-a', 'logo-pill-b'];
-const LIGHT = LOGO.map((n) => declared('light', n));
-const DARK = LOGO.map((n) => declared('dark', n));
+const LIGHT = LOGO.map((n) => declaredHex(BLOCKS, 'light', n));
+const DARK = LOGO.map((n) => declaredHex(BLOCKS, 'dark', n));
 
 const LOOP =
   'M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70';
@@ -454,7 +390,7 @@ describe('each copy keeps what only it can carry', () => {
       scriptConst('PLATE'),
       'the plate left the stylesheet, and iOS composites home-screen icons — a transparent ' +
         'PNG lands on whatever the springboard puts behind it',
-    ).toBe(declared('dark', 'card'));
+    ).toBe(declaredHex(BLOCKS, 'dark', 'card'));
     // AND THE TEMPLATE HAS TO SPEND THEM, EACH ON ITS OWN PATH: pinning a const's value says
     // nothing about where it is used, and checking the inks merely appear in order still
     // passes when the loop and a pill trade colours. The PAIRING is what is asserted.
@@ -556,8 +492,8 @@ describe("the mail's mark is the refresh's «q» on its plate, in both themes", 
 
   it('paints the plate in `logo-outline` and the «q» in `card`, per theme', () => {
     for (const [theme, plate, q] of THEMES) {
-      expect(scriptConst(plate), `${theme} plate`).toBe(declared(theme, 'logo-outline'));
-      expect(scriptConst(q), `${theme} «q»`).toBe(declared(theme, 'card'));
+      expect(scriptConst(plate), `${theme} plate`).toBe(declaredHex(BLOCKS, theme, 'logo-outline'));
+      expect(scriptConst(q), `${theme} «q»`).toBe(declaredHex(BLOCKS, theme, 'card'));
       expect(SCRIPT).toContain(`['${theme}', ${plate}, ${q}]`);
     }
     for (const hole of ['background:${plate}', 'fill="${q}"', 'border-radius:${MAIL_RADIUS}px'])
