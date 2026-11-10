@@ -167,7 +167,7 @@ describe('transactionSchema', () => {
   });
 });
 
-describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
+describe('assetFormSchema (P2 feat/asset-form)', () => {
   const base = {
     name: 'City Garden REIT',
     code: 'ci',

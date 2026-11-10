@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// The first-paint loading state (design/extensions/first-paint.dc.html, brief #406): from 300 ms
-// after the read starts until it answers, and for at least 300 ms once shown, a screen holds its
-// boxes; a read that answers sooner shows nothing, and a refetch shows none.
+// The first-paint loading state (brief #406): from 300 ms after the read starts until it answers,
+// and for at least 300 ms once shown, a screen holds its boxes; a read that answers sooner shows
+// nothing, and a refetch shows none.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

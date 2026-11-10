@@ -936,8 +936,7 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
 
   it('does NOT mark …8976 at Від початку, though it was bought after the start', () => {
     // The case that killed the deleted predicate: a "first purchase after `from`"
-    // test fires on a row bought two days into the basis and would mark three cells
-    // where the drawing shows two.
+    // test fires on a row bought two days into the basis, which is not short.
     expect(mark('all', 'ovdp8976')).toBe(false);
     expect(mark('all', 'reit')).toBe(false);
     expect(mark('all', 'energy')).toBe(false);
@@ -961,8 +960,7 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
   });
 
   it('marks in EVERY window, which is what D80 claims and only `all` was pinning', () => {
-    // Under the narrower window it holds every day, and the sheet's own errata says
-    // NOT to pin it as marked.
+    // Under the narrower window it holds every day, so it is NOT marked there.
     expect(mark('3m', 'ovdp6475')).toBe(true);
     expect(mark('1m', 'ovdp6475')).toBe(false);
     expect(mark('3m', 'ovdp8976')).toBe(false);

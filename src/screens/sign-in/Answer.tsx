@@ -77,7 +77,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
   }, [route]);
 
   // A Stop while the logout loads leaves the page here, the session ended: the next route change
-  // drops the answer (`account-way-in-and-out.dc.html`, T4), before paint.
+  // drops the answer, before paint.
   useLayoutEffect(() => {
     if (leftFrom !== undefined && leftFrom !== route) showAnswer(undefined);
   }, [leftFrom, route]);
@@ -120,7 +120,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
   }
 
   // A TAB WHOSE SIGN-IN CAME BEFORE THE REQUEST is offered no cancel the API would refuse: it is
-  // signed out to the scheduled landing (`account-deletion.dc.html`, #572's amendments 3 and 4).
+  // signed out to the scheduled landing (#572's amendments 3 and 4).
   const outOfWindow =
     held.answer === 'scheduled' && !held.cancellable && held.date !== undefined
       ? held.date
@@ -145,7 +145,7 @@ export function AnswerScreen({ held }: { held: HeldAnswer }) {
       return;
     }
     showAnswer(undefined);
-    // Said once, as «Дані стерто» is: the page the user asked for is the rest of the answer (T7).
+    // Said once, as «Дані стерто» is: the page the user asked for is the rest of the answer.
     toast.success(t.auth.scheduled.cancelled);
   }
 

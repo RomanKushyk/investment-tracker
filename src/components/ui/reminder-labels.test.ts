@@ -57,7 +57,7 @@ const maturity: Reminder = {
 };
 
 describe('reminderText', () => {
-  it('renders the four kinds exactly as the design pins them', () => {
+  it('renders the four kinds exactly as pinned', () => {
     expect(reminderText(quoteMissing, '', f, t)).toBe('No quotes saved today yet.');
     expect(reminderText(upcoming, NAMES.ovdp8976, f, t)).toBe(
       'OVDP UA4000238976 pays a coupon in 5 days (25 Aug 2026).',
@@ -82,7 +82,7 @@ describe('reminderText', () => {
 });
 
 describe('reminderAction', () => {
-  it('offers a link for the two kinds the design gives one, and no other', () => {
+  it('offers a link for the two kinds that take one, and no other', () => {
     expect(reminderAction(t)['quote-missing']).toBe('Enter quotes →');
     expect(reminderAction(t)['coupon-overdue']).toBe('Open Daily quotes →');
     expect(reminderAction(t).coupon).toBeUndefined();

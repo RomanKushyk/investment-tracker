@@ -11,7 +11,7 @@ export type BotCheckSentence = 'botCheckFailed' | 'botCheckUnavailable';
 export type Pressed = 'sent' | 'waiting' | 'pending' | 'interactive' | 'unavailable';
 
 /** `wait` holds a press until the token comes; `refuse` turns it away, for a start that must be the
- *  press's first wait, as a passkey start is in Safari before 17.4 (`bot-check.dc.html` T4). */
+ *  press's first wait, as a passkey start is in Safari before 17.4. */
 export type Policy = 'wait' | 'refuse';
 
 /** A step's sentence once its widget passes: the widget's own two no longer hold, a route's refusal

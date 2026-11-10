@@ -28,7 +28,7 @@ const INK_A = '#ece1d2';
 const INK_B = '#b07a52';
 const PLATE = '#19181a';
 
-// 180 is Apple's apple-touch-icon size; the mark takes the sheet's tile ratio
+// 180 is Apple's apple-touch-icon size; the mark takes its tile ratio
 // on it, 64 of 96. The nudges are in viewBox UNITS — mark.test.ts recomputes
 // them from the paths — so UNIT is what spends them as pixels at whatever size
 // the box is drawn. It is 1 today and would not be on a larger plate.

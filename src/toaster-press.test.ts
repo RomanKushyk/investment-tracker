@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// A TOAST TAKES ITS OWN PRESSES, EVEN UNDER A MODAL (`design/extensions/sign-out.dc.html`, T4).
+// A TOAST TAKES ITS OWN PRESSES, EVEN UNDER A MODAL.
 // The toaster turns pointer events back on, so every MODAL dialog that closes on an outside press
 // must not count a press on a toast as one — a popover is not modal, and a toast press always
 // reached it; and the drawer publishes its band's height so a toast raised there stands above

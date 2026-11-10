@@ -26,7 +26,7 @@ export type BotCheckProps = {
 const FINAL = /^(1101|1102|1105|4000)\d\d$|^200100$/;
 
 /** Turnstile, Managed and `flexible`, in a slot reserved at the widget's 65 so the button below it
- *  stands at one place in every state (`bot-check.dc.html` T1, T7). */
+ *  stands at one place in every state. */
 export function BotCheck({
   sitekey,
   action,

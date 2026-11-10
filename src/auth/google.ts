@@ -43,8 +43,7 @@ export async function beginGoogle(
 export const REAUTHENTICATED = { reauthenticated: 'confirmed' } as const;
 export const REAUTHENTICATION_REFUSED = { reauthenticated: 'refused' } as const;
 
-/** What a re-authentication is for: signing out everywhere, or a deletion with its timing
- *  (`account-deletion.dc.html` T3). */
+/** What a re-authentication is for: signing out everywhere, or a deletion with its timing. */
 export type ReauthPurpose = 'signOutEverywhere' | 'delete:now' | 'delete:later';
 const PURPOSES: readonly ReauthPurpose[] = ['signOutEverywhere', 'delete:now', 'delete:later'];
 
@@ -65,7 +64,7 @@ export function arrivedReauthentication(state: unknown): 'confirmed' | 'refused'
 }
 
 // A RE-AUTHENTICATION THIS TAB BEGAN, across Google's redirect: the tab's own storage carries it,
-// never the URL, so a pasted callback is a sign-in's (`re-authentication.dc.html` T10).
+// never the URL, so a pasted callback is a sign-in's.
 export const REAUTHENTICATING = 'quirenote-reauthenticating';
 type Tab = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 

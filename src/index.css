@@ -74,7 +74,7 @@
      darkest light plane. The warm axis is kept, so no neutral grey enters. */
   --color-muted: #5e5955;
   --color-faint: #b4aa9a;
-  /* The control-boundary rank (field-border.dc.html). A third grey rather than a
+  /* The control-boundary rank. A third grey rather than a
      move, because a field edge is neither `faint`'s text rank nor its indicator
      rank — and A RANK, NOT A FIELD'S PRIVATE COLOUR, which is what let the three
      floating-surface edge names retire into it. The import dropzone reads the rank
@@ -134,7 +134,7 @@
      the icon and the text hue alone. */
   --color-neg-tint: #eddfd8;
   --color-neg-tint-text: #a03c30;
-  /* Caution family, minted by the settings design session. Every caution state
+  /* Caution family. Every caution state
      uses ONLY these — never pos/neg/asset hues.
      NO MARGIN AT ALL on the binding plane: this clears 1.4.3's 4.5 on `panel` by
      0.003, so any later nudge to `warn` OR to `panel`, in either direction, puts
@@ -156,15 +156,15 @@
   --color-ovdp6475-tint: #e8e4e0;
   --color-ovdp6475-tint-text: #686569;
 
-  /* THE ACCENT (parchment-5h.dc.html), spent on the mark, one main CTA per
+  /* THE ACCENT, spent on the mark, one main CTA per
      screen, the active route, the capital chart's line, the focus ring below, and
      the wall's currency thumb, a SELECTED SEGMENT rather than a CTA — the accent is
      rationed, so a second action beside a filled one takes an outline or a ghost
      (*Interaction rules*). TWO IDENTITIES ARE SPENT WITH IT, recorded rather
      than resolved because an implementing task may not redraw a palette: `accent`
      IS `energy` and `logo-outline`, and `logo-pill-a`/`-b` ARE `reit`. */
-  /* RECORDED SHORTFALL: this reads 4.45 on `panel`, under 1.4.3's 4.5, and the
-     sheet's usage rule makes the accent every link and active tab in light. The
+  /* RECORDED SHORTFALL: this reads 4.45 on `panel`, under 1.4.3's 4.5, and its
+     usage rule makes the accent every link and active tab in light. The
      owner ruled the value stands; as a non-text fill it clears everywhere. It
      also lands 1.013 from `warn` — `warn` is #8a5a1a against this #8a5a3a, so
      they separate by chroma alone and by no contrast reading. A caution that must
@@ -186,9 +186,9 @@
      a ground. Not `accent-tint`, which is copper here. */
   --color-selection: rgba(216, 180, 148, 0.45);
   /* The informational rank. IT IS `ovdp8976` OUTRIGHT, hue and tint, in both
-     themes — deliberate in the sheet, with a consequence the sheet does not
-     carry: on `/` a status chip sits inside that asset's row wearing its identity
-     tint. Recorded at the value; a second cue is a brief. */
+     themes — deliberate, with a consequence: on `/` a status chip sits inside
+     that asset's row wearing its identity tint. Recorded at the value; a second
+     cue is a brief. */
   --color-info: #4a6178;
   --color-info-tint: #e3e3e1;
   --color-info-tint-text: #4a6178;
@@ -204,7 +204,7 @@
   /* THE WALL AND ITS FURNITURE, and the wall follows the theme: a step deeper
      than the canvas rather than a dark plane inside a light app. `sb-badge-bg`
      is the tint under the nav's count, whose figure is `ink`, since `sb-badge`
-     on that tint fails SC 1.4.3 (`admin-users.dc.html`, T2). Two names have no
+     on that tint fails SC 1.4.3. Two names have no
      consumer and are kept rather than trimmed: `sb-badge` for that reason, and
      `sb-border` for furniture on a wall whose boundary is the control-boundary
      rank. */
@@ -244,7 +244,8 @@
   --color-sb-badge-bg: rgba(138, 90, 58, 0.12);
   --color-sb-footer-bg: #e1d9cc;
   /* GOOGLE'S OWN, at the values its branding guidelines fix for the Light and Dark buttons, which
-     a site must follow "to complete the app verification process" (`auth-surface.dc.html` T7). */
+     a site must follow "to complete the app verification process"
+     (`docs/superpowers/specs/2026-11-05-layout-refresh/signed-out.md` § Signed). */
   --color-google-btn-bg: #ffffff;
   --color-google-btn-border: #747775;
   --color-google-btn-text: #1f1f1f;
@@ -273,8 +274,8 @@
 }
 
 /* ── Dark theme ───────────────────────────────────────────────────────────
-   Values are the appearance-language design session's, every ratio measured
-   there and none re-derived here.
+   Values are declared, not derived; the ratios the prose here states are
+   recomputed in palette-mirror.test.ts.
    THIS IS THE ONLY DARK BLOCK: the head script in index.html resolves the
    preference and stamps the ANSWER on the root, so CSS never expresses
    "system" and there is one list of values instead of two that can drift.
@@ -335,8 +336,8 @@
 
   /* Asset hues. These are never text — verified across the codebase, they appear
      only as bg-* fills — so the requirement is 1.4.11's 3 : 1, not 4.5. THE
-     BLANKET LIGHT EXEMPTION IS NARROWED, NOT INHERITED: it cited the immutable
-     master reference, which parchment-5h.dc.html supersedes in both themes.
+     BLANKET LIGHT EXEMPTION IS NARROWED, NOT INHERITED: the reference that
+     granted it no longer governs either theme.
      RECORDED SHORTFALL: `reit` alone reads 2.79 on the light `panel`, the plane
      that binds because `ColorDot` and `ShareBar` paint the bare hue inside panels.
      Colour alone never distinguishes the four in EITHER theme, so every chart,
@@ -382,10 +383,7 @@
   --color-sb-icon-active: #d8b494;
   --color-sb-label: #7a7674;
   --color-sb-badge: #d8b494;
-  /* 0.14, NOT the 0.12 the sheet's Mapping row prints: the swatch grid and the
-     token record both say 0.14, so the Mapping is the transcription that slipped,
-     and a merged drawing is immutable and cannot be corrected in place. Keeping
-     dark at 0.12 would also collapse this onto `sb-item-active-bg`. */
+  /* 0.14, NOT 0.12: dark at 0.12 would collapse this onto `sb-item-active-bg`. */
   --color-sb-badge-bg: rgba(216, 180, 148, 0.14);
   --color-sb-footer-bg: #131312;
   --color-google-btn-bg: #131314;

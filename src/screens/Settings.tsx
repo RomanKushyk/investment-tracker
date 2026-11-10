@@ -44,7 +44,7 @@ export function SettingRow({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
-      {/* min() caps the design's floor to the container width, so the card interior never overflows at 360. */}
+      {/* min() caps the 200px floor to the container width, so the card interior never overflows at 360. */}
       <div className="min-w-[min(200px,100%)] flex-[1_1_260px]">
         <div className="text-[13px] font-semibold">{title}</div>
         <div className="mt-[3px] text-xs leading-normal text-muted">{helper}</div>
@@ -298,7 +298,7 @@ function AutomationRows() {
 export function Settings() {
   const t = useT();
   // The super-admin holds no portfolio: no data, no automation, and no currency, which moves only
-  // portfolio figures (`super-admin-shell.dc.html`, T3).
+  // portfolio figures.
   const admin = useRole() === 'super_admin';
   return (
     <div>

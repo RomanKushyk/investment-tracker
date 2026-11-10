@@ -3,11 +3,10 @@
        and no fill. Same three paths and the same box as `Mark` in
        src/app/Sidebar.tsx, pinned against it by src/app/mark.test.ts.
 
-       THE BOX IS THE SHEET'S and is deliberately not cropped to the ink, even
-       for a 16px tab: the sheet renders the mark at that size on this box, and
-       cropping here would put a second box beside the one it was drawn on. A
-       box measured off the geometry clips the loop's caps and the lower pill,
-       since a bounding box ignores stroke.
+       THE BOX IS `Mark`'S and is deliberately not cropped to the ink, even for
+       a 16px tab: cropping here would put a second box beside the one the mark
+       is drawn on. A box measured off the geometry clips the loop's caps and
+       the lower pill, since a bounding box ignores stroke.
 
        Transparent and theme-aware: the browser paints the tab in its own theme,
        so a fixed colour would go invisible in one of them. SIX literals, three

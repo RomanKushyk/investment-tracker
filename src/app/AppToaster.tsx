@@ -53,9 +53,11 @@ export function AppToaster() {
         style={{ pointerEvents: 'auto' }}
         toastOptions={{
           closeButtonAriaLabel: t.toast.close,
-          // Sonner draws it as a 20px circle astride the corner; the drawing puts it INSIDE the
-          // trailing edge at 28, r7, so its 44 overlay stays on the toast. `!` because sonner's
-          // CSS is unlayered, which beats any layered utility, and it takes no style object.
+          // Sonner draws it as a 20px circle astride the corner; ours sits INSIDE the trailing
+          // edge at 28, r7, so its 44 overlay stays on the toast
+          // (`docs/superpowers/specs/2026-11-05-layout-refresh/notices-and-toasts.md` § Signed).
+          // `!` because sonner's CSS is unlayered, which beats any layered utility, and it takes
+          // no style object.
           classNames: {
             closeButton: `!relative !top-auto !right-auto !left-auto !order-last !ml-auto !size-7 !shrink-0 !transform-none !rounded-[7px] !border-field-border !bg-card !text-ink !transition hover:opacity-85 active:scale-[.97] ${TAP_44}`,
           },

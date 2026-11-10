@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// The archive panel's gate, through the real router, shell and client over a fake of the user API
-// (`design/extensions/archive-admin.dc.html`, T1 and T3).
+// The archive panel's gate, through the real router, shell and client over a fake of the user API.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
@@ -147,7 +146,7 @@ describe('/admin/archive', () => {
     await waitFor(() => expect(page.main()).toContain(uk.archive.runs.empty));
     expect(page.main()).toContain('Прочитати архів');
     expect(page.main()).not.toContain(uk.boundary.notFound.title);
-    // The nav's count of the applications waiting is the shell's read (`admin-users.dc.html`, T2).
+    // The nav's count of the applications waiting is the shell's read.
     expect(
       api.seen
         .filter((s) => s.path.startsWith('/admin/'))

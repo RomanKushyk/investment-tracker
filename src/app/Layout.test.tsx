@@ -176,7 +176,7 @@ describe("the drawer's history", () => {
 });
 
 // While the page leaves through Cognito's logout the drawer makes no history act: a traversal would
-// cancel the logout, and a push would read as a Stop (`account-way-in-and-out.dc.html`, T4).
+// cancel the logout, and a push would read as a Stop.
 describe("the drawer while the page leaves through Cognito's logout", () => {
   it('closes without cancelling the logout', async () => {
     mount();

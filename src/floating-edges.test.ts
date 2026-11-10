@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { composite, ratio, resolve, stripCss, themeBlocks, veilOf } from './__fixtures__/palette';
 
-// THE FLOATING SURFACES' BOUNDARY, ON THE SAME TOKEN AS THE FIELD EDGE (`floating-edges.
-// dc.html` T4). An `AssetForm` `Select` opens INSIDE a `Dialog`, so a `bg-card` popover
-// lands on a `bg-card` plane — and WCAG 1.4.11 governs "the visual information required to
-// identify user interface components", which a listbox popover is.
+// THE FLOATING SURFACES' BOUNDARY, ON THE SAME TOKEN AS THE FIELD EDGE. An `AssetForm`
+// `Select` opens INSIDE a `Dialog`, so a `bg-card` popover lands on a `bg-card` plane — and
+// WCAG 1.4.11 governs "the visual information required to identify user interface components",
+// which a listbox popover is.
 //
 // Two halves and neither catches the other, the split `field-border.test.ts` records. With
 // no shared popover component a fourth surface added by copying a third lands on whatever
@@ -139,11 +139,11 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     });
   }
 
-  // Three names for one step is what T4 ruled out, and nothing else in the repo would fail
+  // Three names for one step is what was ruled out, and nothing else in the repo would fail
   // if a "give the toast its own edge" edit put one back. THE WHOLE STYLESHEET, not the two
   // palette blocks: a re-mint under `:root`, under a media query or inside a new scope is
   // just as real and invisible to a two-block check.
-  it('does not re-mint the three names T4 retired, anywhere in the stylesheet', () => {
+  it('does not re-mint the three retired names, anywhere in the stylesheet', () => {
     for (const name of RETIRED) {
       expect(CSS, `--color-${name} is declared again`).not.toMatch(
         new RegExp(`--color-${name}\\s*:`),

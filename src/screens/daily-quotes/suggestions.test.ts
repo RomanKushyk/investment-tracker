@@ -1,5 +1,5 @@
 // Fixtures: the demo seed and the trimmed live Inzhur capture. The figure the
-// first case asserts is the design reference's own row.
+// first case asserts was worked out outside this code.
 import { describe, expect, it } from 'vitest';
 
 import { parseAssetsFeed, type ParsedFeed } from '@quirenote/core/inzhur/parse';

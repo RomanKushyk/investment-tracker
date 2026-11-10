@@ -33,10 +33,10 @@ import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
 
-// Two hosts, one field set (`design/extensions/asset-form.dc.html`): /portfolio
-// opens <AssetForm> in a Dialog, and TransactionPanel renders <AssetFormFields>
-// inline against its OWN form instance — quick-create keeps the atomic
-// recordTransaction(tx, newAsset) and derives firstPurchase from the tx date.
+// Two hosts, one field set: /portfolio opens <AssetForm> in a Dialog, and
+// TransactionPanel renders <AssetFormFields> inline against its OWN form
+// instance — quick-create keeps the atomic recordTransaction(tx, newAsset) and
+// derives firstPurchase from the tx date.
 
 export type AssetFormHandle = UseFormReturn<AssetFormInput, unknown, AssetFormValues>;
 

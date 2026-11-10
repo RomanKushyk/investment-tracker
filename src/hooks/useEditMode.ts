@@ -31,7 +31,7 @@ export function useEditMode(dirty = false, saving = false): EditMode {
   const [askingExit, setAskingExit] = useState(false);
 
   // A SIGN-OUT PASSES: the relay revoked the session before any guard could ask, and the unsaved
-  // work went with the account's figures (`account-way-in-and-out.dc.html`, T4).
+  // work went with the account's figures.
   // A POP TO THE SAME URL PASSES: it keeps this screen and its drafts mounted, and a blocked pop with
   // a zero delta, as over the drawer's marker, is answered with `history.go(0)`, a reload.
   const blocker = useBlocker(

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Користувачі at /admin/users through the real router, shell and client over a fake of the user API
-// (`design/extensions/admin-users.dc.html`, T1–T5 and T7).
+// Користувачі at /admin/users through the real router, shell and client over a fake of the
+// user API.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
@@ -58,7 +58,7 @@ afterAll(() => vi.unstubAllGlobals());
 const { routes } = await import('../routes');
 const { session } = await import('../auth/app');
 
-// The copy the drawing names (T1, T3, T4, T5 and T7), written out so the test pins the words.
+// The page's copy, written out so the test pins the words.
 const NAV = 'Користувачі';
 const FILTER = { pending: 'Заявки', active: 'Активні', disabled: 'Вимкнені' } as const;
 const EMPTY_PENDING = 'Нових заявок немає.';
@@ -211,7 +211,7 @@ describe('/admin/users, the gate', () => {
   });
 });
 
-describe('/admin/users, the three filters (T1) and the count (T2)', () => {
+describe('/admin/users, the three filters and the count', () => {
   it('opens on Заявки, oldest first, with the count on the pill read as one page of 100', async () => {
     const page = mount();
     await waitFor(() => expect(page.main()).toContain('olena.koval@example.com'));
@@ -367,7 +367,7 @@ async function open(page: ReturnType<typeof mount>, c: (typeof CASES)[number]) {
   }
 }
 
-describe('/admin/users, the five confirmations (T4)', () => {
+describe('/admin/users, the five confirmations', () => {
   for (const c of CASES) {
     it(`${c.act}: confirms naming the address, calls its route once, and reads the list again from the start`, async () => {
       const page = mount();
@@ -444,7 +444,7 @@ describe('/admin/users, the five confirmations (T4)', () => {
   });
 });
 
-// Every row of T5's table: the action, its answer, the drawn sentence, the key, and whether the
+// Every refusal: the action, its answer, the drawn sentence, the key, and whether the
 // action stays armed for a retry.
 const REFUSALS: { act: Act; answer: Canned; sentence: string; key?: string; armed: boolean }[] = [
   {
@@ -575,7 +575,7 @@ const REFUSALS: { act: Act; answer: Canned; sentence: string; key?: string; arme
   { act: 'disable', answer: 'offline', sentence: SENTENCE.network, armed: true },
 ];
 
-describe('/admin/users, a sentence for every refusal (T5)', () => {
+describe('/admin/users, a sentence for every refusal', () => {
   for (const r of REFUSALS) {
     it(`${r.act} answering ${r.answer === 'offline' ? 'nothing' : `${r.answer.status} ${r.key ?? 'with no key'}`}`, async () => {
       const page = mount();
@@ -611,7 +611,7 @@ describe('/admin/users, a sentence for every refusal (T5)', () => {
   });
 });
 
-describe('/admin/users, a failed read (T3)', () => {
+describe('/admin/users, a failed read', () => {
   it('names the list’s key on a failed first read, and reads again on the retry', async () => {
     api.userReads = [
       { status: 500, body: { error: 'internal' } },

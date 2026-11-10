@@ -1,5 +1,6 @@
-// THE COVERAGE STRIP'S GEOMETRY (`design/extensions/archive-admin.dc.html`, T4), in percent of one
-// axis per source. A position the API neither serves nor lets be derived is never drawn.
+// THE COVERAGE STRIP'S GEOMETRY, in percent of one axis per source
+// (`docs/superpowers/specs/2026-11-05-layout-refresh/super-admin.md` § Signed). A position the
+// API neither serves nor lets be derived is never drawn.
 import { addDays, daysBetween } from '@quirenote/core/dates';
 
 import type { ArchiveGroup } from '../../lib/repository';

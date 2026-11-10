@@ -18,12 +18,10 @@ export function Transactions() {
   return (
     <div>
       <ScreenHeader title={t.screen.transactions.title} subtitle={t.screen.transactions.subtitle} />
-      {/* COMPOSED LIKE `/payouts`, MIRRORED — the owner's instruction, and it
-          supersedes the arrangement the drawing shipped. Every other page reads
-          content-then-side-blocks, so the ledger takes the wide track and the form
-          becomes the side block; what the drawing settled stays settled, and only the
-          side changed. `min-w-0` lives on the two cards, because an `fr` track floors
-          at its content and both carry widths of their own. */}
+      {/* COMPOSED LIKE `/payouts`, MIRRORED — the owner's instruction. Every other
+          page reads content-then-side-blocks, so the ledger takes the wide track and
+          the form becomes the side block. `min-w-0` lives on the two cards, because an
+          `fr` track floors at its content and both carry widths of their own. */}
       {/* NO BOTTOM MARGIN, unlike `/payouts`, where it separates the grid from the log
           below it — here the grid is the LAST element on the page. It cost more than
           dead space: the ledger's height cap never counted it, so with the cap filled

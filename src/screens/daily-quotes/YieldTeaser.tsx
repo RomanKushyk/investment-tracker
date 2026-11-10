@@ -41,7 +41,7 @@ export function YieldTeaser({ rows }: { rows: YieldTableRow[] }) {
           </Fragment>
         ))}
       </div>
-      {/* Plain text rather than a button, so the height stays the drawing's — and that
+      {/* Plain text rather than a button, so it draws no box of its own — and that
           is exactly why it may NOT take `TAP_44`, which is for a control that already
           draws a box. Its overlay would reach up into the last yield row. Below the
           breakpoint the link grows a REAL box instead. */}

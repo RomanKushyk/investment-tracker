@@ -47,7 +47,7 @@ export function GoogleCallback() {
   return again ? <Confirming /> : <SigningIn />;
 }
 
-/** `re-authentication.dc.html` T5: the tab is signed in, so the card is no sign-in's form. */
+/** The tab is signed in, so the card is no sign-in's form. */
 function Confirming() {
   const t = useT();
   return (
@@ -58,8 +58,8 @@ function Confirming() {
   );
 }
 
-/** `account-way-in-and-out.dc.html` T5: no form a second sign-in could race the redeem from. The
- *  heading takes focus, so the card is announced once; it enters with a step's own fade. */
+/** No form a second sign-in could race the redeem from. The heading takes focus, so the card is
+ *  announced once; it enters with a step's own fade. */
 function SigningIn() {
   const t = useT();
   useSelfXssWarning(true);

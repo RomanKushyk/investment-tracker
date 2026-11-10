@@ -1,9 +1,8 @@
-// What each screen holds before its read answers (design/extensions/first-paint.dc.html, brief
-// #406). Every box whose size is known keeps its place: the static words stay, every figure reads
-// «—», a list is three rows, a chart is one block at its height, a form keeps its title and holds its
-// fields. What exists only with the data holds no box (the reminder strip, the coupon-due card, a
-// row past the third), and nothing here can be acted on. The geometry is the sheet's, measured on
-// the seed at 1280 and at a true 360.
+// What each screen holds before its read answers (brief #406). Every box whose size is known keeps
+// its place: the static words stay, every figure reads «—», a list is three rows, a chart is one
+// block at its height, a form keeps its title and holds its fields. What exists only with the data
+// holds no box (the reminder strip, the coupon-due card, a row past the third), and nothing here
+// can be acted on.
 import {
   Block,
   Bar,

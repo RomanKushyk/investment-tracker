@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // `/terms` and the ways in to it, through the real router and shells: under the signed-out card
 // beside the privacy link, on the links line in the panel and the drawer, in the profile's
-// «Ваші дані», and on `/apply`'s acceptance line (`design/extensions/terms-of-use.dc.html`).
+// «Ваші дані», and on `/apply`'s acceptance line.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';

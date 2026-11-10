@@ -306,8 +306,7 @@ export function DatePicker({
   // seven-column grid anchored to a right-aligned field cannot stay inside the phone.
   // A Dialog rather than a Popover, because a sheet anchored to the VIEWPORT is what a
   // dialog is — it brings the scrim, the focus trap and the scroll lock a floating
-  // popover does not. Its width is the app's standard overlay margin and not the
-  // drawing's, which does not account for the sheet's own padding.
+  // popover does not. Its width is the app's standard overlay margin.
   if (!desktop) {
     return (
       <RadixDialog.Root open={open} onOpenChange={openChange}>

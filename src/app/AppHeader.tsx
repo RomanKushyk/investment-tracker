@@ -45,7 +45,7 @@ export function AppHeader({
 }) {
   const t = useT();
   // The capital is a user's; the super-admin's bar names the role in its place, and while the
-  // role is unknown the bar holds its height with neither (`super-admin-shell.dc.html`, T2, T4).
+  // role is unknown the bar holds its height with neither.
   const role = useRole();
   // Radix publishes `aria-expanded` on the trigger, so the NAME has to agree with it,
   // or a screen reader reads out the contradiction in full.
@@ -61,7 +61,7 @@ export function AppHeader({
       <button type="button" id={NAV_TRIGGER_ID} aria-label={triggerLabel} className={TRIGGER_CLASS}>
         <MenuGlyph />
         {/* The super-admin's count is the one `sb-*` mark here: the rail's own badge, which the
-            burger stands in for (`admin-users.dc.html`, T2). */}
+            burger stands in for. */}
         {badge !== undefined && <CornerBadge shown={badge.shown} top="top-1" />}
       </button>
     </RadixDialog.Trigger>

@@ -6,8 +6,8 @@ import { en } from '../../i18n/messages';
 import { RuleField } from './parts';
 import { ON_THE_FIELD, ON_THE_RULE } from './refusals';
 
-// The field's line (`password-reuse.dc.html`): the rule before any refusal, and after one the
-// refusal's own sentence, with the rule kept in the line, hidden, so the line keeps its height.
+// The field's line: the rule before any refusal, and after one the refusal's own sentence, with
+// the rule kept in the line, hidden, so the line keeps its height.
 const RULE = en.auth.setPassword.rule;
 const REUSED = en.auth.setPassword.reused;
 

@@ -11,8 +11,8 @@ import googleG from './google-g.svg';
 const FACE =
   'inline-flex h-10 items-center justify-center gap-[10px] rounded-[10px] border border-google-btn-border bg-google-btn-bg px-3 font-google text-[14px] leading-5 font-medium whitespace-nowrap text-google-btn-text transition active:scale-[.97] max-md:h-11 max-md:rounded-[11px]';
 
-/** «або» and Google's own button (`auth-surface.dc.html` T1), and what is said under it; NOTHING
- *  while Google is off. The G is the bundle's, cropped to its own box. */
+/** «або» and Google's own button, and what is said under it; NOTHING while Google is off. The G
+ *  is the bundle's, cropped to its own box. */
 export function OrGoogle({
   on,
   busy,

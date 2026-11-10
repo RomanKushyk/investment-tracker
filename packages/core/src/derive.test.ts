@@ -780,14 +780,14 @@ describe('startDateByAsset', () => {
   });
 });
 
-describe('basisIsShort — F-3, and the threshold the sheet delegated', () => {
+describe('basisIsShort — F-3, and its threshold', () => {
   it('tolerates a tenth of the basis and no more', () => {
     expect(basisIsShort(90, 100)).toBe(false); // exactly the tolerance
     expect(basisIsShort(89, 100)).toBe(true);
     expect(basisIsShort(100, 100)).toBe(false);
   });
 
-  it("separates the sheet's two pinned cases with room on both sides", () => {
+  it('separates the two pinned cases with room on both sides', () => {
     expect(basisIsShort(172, 174)).toBe(false); // …8976 — 1,15 % short
     expect(basisIsShort(55, 174)).toBe(true); //  …6475 — 68,39 % short
   });

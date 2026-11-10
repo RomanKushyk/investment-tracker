@@ -2,12 +2,11 @@ import { Tooltip as RadixTooltip } from 'radix-ui';
 import type { ReactElement, ReactNode } from 'react';
 
 /**
- * The first floating surface the app opens on hover, drawn at
- * `design/extensions/parchment-sidebar.dc.html:84` and `:390`. THE STROKE IS NOT
- * DECORATION: the dark block zeroes `--shadow-popover`, and the fill barely steps
- * off the wall, so in dark the stroke is the whole of its boundary. Its radius is
- * 8 and not the 7 the drawing's own `.tip` rule declares — where a drawn literal
- * and the derived table disagree, the drawing gives it to the derivation.
+ * The first floating surface the app opens on hover
+ * (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed).
+ * THE STROKE IS NOT DECORATION: the dark block zeroes `--shadow-popover`, and the
+ * fill barely steps off the wall, so in dark the stroke is the whole of its
+ * boundary. Its radius is 8, as the derived table gives it.
  *
  * PORTALLED, which is not a default worth losing: the rail's `<aside>` is
  * `overflow-hidden` so it can animate its width, and a tooltip clipped by the
@@ -32,8 +31,9 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
       <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
       <RadixTooltip.Portal>
         <RadixTooltip.Content
-          // 16 from the item, the drawing's `left:56px` off a 40px item, which
-          // lands the tooltip clear of the shell's own edge.
+          // 16 from the item, which lands the tooltip clear of the shell's own edge
+          // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md`
+          // § Settled by the brief).
           side="right"
           sideOffset={16}
           className="z-50 animate-in rounded-[8px] border border-field-border bg-card px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap text-ink shadow-(--shadow-popover) duration-150 zoom-in-95 fade-in"

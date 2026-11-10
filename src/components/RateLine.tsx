@@ -13,7 +13,7 @@ const OPEN_DATA: Record<Language, string> = {
  * The line that says which rate a converted figure used: NBU's, for a day, with «НБУ» linking NBU's
  * open data as its terms of use ask (*External sources*). The day always shows: `/view` serves a
  * rate from an earlier day under its own date, so the date is true either way and the line needs
- * no second state. With none served it says so (rate-attribution.dc.html).
+ * no second state. With none served it says so.
  *
  * The link is inline in a sentence, which WCAG 2.5.5 and 2.5.8 both exempt from a target size, as
  * `ReminderStrip` explains, so it takes no tap-target class. It opens in the same tab, with no icon.

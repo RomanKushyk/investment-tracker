@@ -14,8 +14,8 @@ import { useT } from '../../i18n/useT';
 import type { Ruling, RulingReply } from '../../lib/repository';
 import type { Target } from '../AdminUsers';
 
-// THE FIVE CONFIRMATIONS (`design/extensions/admin-users.dc.html`, T4 and T5): a refusal is said
-// above the buttons, the action left armed where a retry could land.
+// THE FIVE CONFIRMATIONS: a refusal is said above the buttons, the action left armed where a
+// retry could land (`docs/superpowers/specs/2026-11-05-layout-refresh/super-admin.md` § Signed).
 
 type Refused = Exclude<RulingReply, { kind: 'done' } | { kind: 'gate' }>;
 /** Where a retry would repeat the answer, the action is withdrawn. */
@@ -154,7 +154,7 @@ export function ConfirmRuling({
   );
 }
 
-/** The refusal's sentence and its key in mono; 429 and no answer have no key (T5). */
+/** The refusal's sentence and its key in mono; 429 and no answer have no key. */
 function RefusalLine({ ruling, refused }: { ruling: Ruling; refused: Refused }) {
   const r = useT().users.refused;
   const internal =

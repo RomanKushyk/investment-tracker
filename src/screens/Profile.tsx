@@ -27,10 +27,9 @@ import type { Ways } from './profile/Reauthentication';
 import { SignOutEverywhere } from './profile/SignOutEverywhere';
 import { Divider, SectionLabel, SettingRow } from './Settings';
 
-// THE OWN ACCOUNT (`design/extensions/own-account.dc.html`, T1–T4 and T6): the caller from the load's
-// `GET /me` and the profile's fields from `GET /me/account`, read on demand; the passkeys are the
-// relay's list. Signed out, or before the session is known, the shell stands alone and nothing is
-// asked, as a screen behind the view.
+// THE OWN ACCOUNT: the caller from the load's `GET /me` and the profile's fields from
+// `GET /me/account`, read on demand; the passkeys are the relay's list. Signed out, or before the
+// session is known, the shell stands alone and nothing is asked, as a screen behind the view.
 type Shown = MeData & AccountData;
 type Arrived = ReturnType<typeof arrivedReauthentication>;
 /** Back from Google: what the trip was for, and how it came back. */
@@ -47,7 +46,7 @@ export function Profile() {
   const signedIn = useSessionStatus() === 'signedIn';
   const location = useLocation();
   const navigate = useNavigate();
-  // BACK FROM GOOGLE, read at mount and the entry used up at once, so a reload opens nothing (T10).
+  // BACK FROM GOOGLE, read at mount and the entry used up at once, so a reload opens nothing.
   const [back, setBack] = useState<Back | undefined>(() => {
     const arrived = arrivedReauthentication(location.state);
     return arrived && { arrived, purpose: arrivedPurpose(location.state) };
@@ -56,7 +55,7 @@ export function Profile() {
     if (arrivedReauthentication(location.state)) void navigate(...usedUp(location));
   }, [location, navigate]);
   // A page that loads here is no trip to Google: one the tab still marks was abandoned, so a later
-  // callback in it is a sign-in's (T10). The callback forgets its own before landing.
+  // callback in it is a sign-in's. The callback forgets its own before landing.
   useEffect(() => forgetReauthentication(tabStorage()), []);
   // Held here, outside the account: signing out everywhere empties the page before it leaves, and
   // the dialog stays busy meanwhile. A fresh key per open resets it while a closed one exits.
@@ -195,7 +194,9 @@ function Account({
           {/* Held until the account lands, whatever the list has answered. */}
           <Passkeys list={me === undefined ? undefined : passkeys} held={me === undefined} />
         </Card>
-        {/* Fifth and last (`account-deletion.dc.html` T1): the list above it may still move it. */}
+        {/* Fifth and last. The list above it may still move it, which is accepted
+            (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md`
+            § Перенесено). */}
         <Card radius={24} className={`${CARD} delay-300`}>
           <SectionLabel>{t.profile.sections.delete}</SectionLabel>
           {/* The only super-admin is refused before any press, in the helper's place. */}

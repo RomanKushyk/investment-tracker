@@ -8,10 +8,9 @@ export interface DonutSlice {
   value: number;
 }
 
-// Drawn at `design/Investment Tracker.dc.html:502-511`. Wrapped in an
-// aspect-square box rather than a fixed-pixel ResponsiveContainer, because this
-// is the one chart with a natural width: fixed, it forces horizontal overflow on
-// a narrow viewport instead of shrinking.
+// Wrapped in an aspect-square box rather than a fixed-pixel ResponsiveContainer,
+// because this is the one chart with a natural width: fixed, it forces horizontal
+// overflow on a narrow viewport instead of shrinking.
 export function AllocationDonut({
   slices,
   centerTop,

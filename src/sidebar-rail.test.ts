@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 // THE THIRD GEOMETRY. *Two shells, one breakpoint* once refused one, about the MOBILE job,
 // and now prescribes this rail as a DESKTOP one: navigation a press away while the rest of
 // the width goes back to the content. What that section still rejects is a rail that only
-// HIDES. This file holds what `design/extensions/parchment-sidebar.dc.html` draws, not why.
+// HIDES. This file holds what the rail draws, not why.
 //
 // A SEPARATE FILE ON PURPOSE: `sidebar-structure.test.ts` and `nav-glyphs.test.ts` COUNT
 // things across `app/Sidebar.tsx` — one footer band, two `sb-divider` sites, one `<Icon>`
@@ -65,7 +65,7 @@ const HEADER = stripTs(readFileSync(join(here, 'app', 'AppHeader.tsx'), 'utf8'),
 
 const railLines = (re: RegExp) => RAIL.split('\n').filter((l) => re.test(l));
 
-/** The sheet's table, transcribed — the same thirteen `nav-glyphs.test.ts` holds for the
+/** The route-to-glyph table — the same thirteen `nav-glyphs.test.ts` holds for the
  *  expanded panel, so both files are pinned against one table and neither drifts alone. */
 const TABLE = [
   ['/', 'CalendarDays'],
@@ -138,7 +138,7 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
   });
 });
 
-describe('the rail draws what the sheet draws', () => {
+describe('the rail, as drawn', () => {
   // ATTACHED, not merely imported. The eight shared routes reach the rail only through
   // `ANALYTICS.map`, so THAT is what is asserted — accepting the mere word `ANALYTICS`, which
   // the import line satisfies, left eight of eleven cases green when the map was deleted.
@@ -259,7 +259,7 @@ describe('the rail draws what the sheet draws', () => {
     // in, and `system` is indistinguishable from whichever theme it resolves to, so the rail
     // gets no theme control at all. The writer alone is not enough — a glyph that only
     // DISPLAYED the current theme would pass it and is exactly the button the refusal names.
-    expect(RAIL, 'a theme control entered the rail, which T2 refuses').not.toMatch(/setTheme/);
+    expect(RAIL, 'a theme control entered the rail').not.toMatch(/setTheme/);
     for (const glyph of ['Sun', 'Moon', 'Monitor']) {
       expect(RAIL, `${glyph} entered the rail, where no theme control belongs`).not.toMatch(
         new RegExp(`\b${glyph}\b`),
@@ -269,8 +269,8 @@ describe('the rail draws what the sheet draws', () => {
 
   // THREE SPANS, and NOT an inline svg and NOT a lucide import: an svg would fail
   // `mark.test.ts`, which reads `Sidebar.tsx` RAW, and a lucide `Menu` would fail
-  // `nav-glyphs.test.ts`'s exact import set. The sheet draws it narrower than the header's
-  // because three solid bars read as the heaviest thing beside eleven outlines.
+  // `nav-glyphs.test.ts`'s exact import set. It is narrower than the header's because three
+  // solid bars read as the heaviest thing beside eleven outlines.
   it('draws the burger as bars at the redrawn 14 x 12', () => {
     expect(RAIL, 'the burger became an inline SVG').not.toMatch(/<svg\b/);
     // No trailing `\b`: a `]` followed by a space is not a word boundary, so `w-\[14px\]\b`
@@ -291,8 +291,9 @@ describe('the rail draws what the sheet draws', () => {
   });
 });
 
-// ONE ORDER IN BOTH STATES (`design/extensions/sign-out.dc.html`, T2): the currency above
-// Settings, as its track sits above Settings in the panel, and the sign-out last.
+// ONE ORDER IN BOTH STATES: the currency above Settings, as its track sits above Settings in the
+// panel, and the sign-out last
+// (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed).
 describe("the rail's foot reads in the panel's order", () => {
   it('draws the currency box, then Settings, then the account', () => {
     const currency = RAIL.indexOf('h-8 w-10');
@@ -335,9 +336,9 @@ describe("the rail's foot reads in the panel's order", () => {
     expect(button, 'busy disables the button and drops its focus').not.toMatch(/\sdisabled=/);
   });
 
-  // SIGNED OUT, «Увійти» IN THE SAME SLOT (`sign-in-entry.dc.html`, T2): a plain `Link` and never
-  // `RailItem`'s `NavLink`, since `/sign-in/x` falls into the shell; named, because the tooltip
-  // only describes; a STRING className on the item radius; hover only, as its neighbours.
+  // SIGNED OUT, «Увійти» IN THE SAME SLOT: a plain `Link` and never `RailItem`'s `NavLink`, since
+  // `/sign-in/x` falls into the shell; named, because the tooltip only describes; a STRING
+  // className on the item radius; hover only, as its neighbours.
   it('offers a named sign-in link on the item radius, with no press scale', () => {
     const at = RAIL.indexOf('function RailAccount');
     const end = RAIL.indexOf('</AccountFold>', at);

@@ -7,8 +7,7 @@ import { useSettings } from '../../state/settings';
 import { Select } from './Select';
 
 /**
- * The period control — one window, three screens
- * (`design/extensions/period-and-analytics.dc.html`).
+ * The period control — one window, three screens.
  *
  * IT LIVES IN `ScreenHeader`'s ACTION SLOT, not in the sidebar: below `md` that
  * sidebar is a Radix `Dialog` behind a scrim, so a control reframing what you are
@@ -24,7 +23,7 @@ import { Select } from './Select';
  *
  * THE WIDTH IS FIXED AND DERIVED FROM THE WIDEST ROW, not the widest label, with
  * slack: Radix locks the popover to the trigger, so a trigger that only just
- * fits wraps every hinted row onto two lines. The drawing's full-bleed `w-full`
+ * fits wraps every hinted row onto two lines. A full-bleed `w-full`
  * cannot work here — `ScreenHeader` renders the slot inside a shrink-to-fit
  * `ml-auto flex` wrapper, so a percentage resolves against a parent sized by its
  * own child.

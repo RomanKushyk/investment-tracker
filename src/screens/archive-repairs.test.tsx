@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The archive panel's two repairs and its run log, through the real router, shell and client over a
-// fake of the user API (`design/extensions/archive-admin.dc.html`, T2, T5 and T6).
+// fake of the user API.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';

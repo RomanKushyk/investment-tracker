@@ -169,7 +169,7 @@ describe("the shell's account slot", () => {
   });
 
   // Nothing holds a sign-out that succeeded: the relay has revoked the session before any guard
-  // could ask, and the work went with the account's figures (`account-way-in-and-out.dc.html`, T4).
+  // could ask, and the work went with the account's figures.
   it('leaves for /sign-in past unsaved work, asking nothing', async () => {
     block = true;
     const router = mount('/allocation');
@@ -249,8 +249,9 @@ describe("the shell's account slot", () => {
     expect(auth.signOut, 'the retry began no sign-out').toHaveBeenCalledTimes(2);
   });
 
-  // The failure toast stays until it is closed or a retry succeeds, and a second failure replaces
-  // it under a new id, so that it is announced again (`sign-out.dc.html`, T4).
+  // The failure toast stays until it is closed or a retry succeeds
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Перенесено), and
+  // a second failure replaces it under a new id, so that it is announced again.
   const raised = () => vi.mocked(toast.error).mock.calls.map(([, options]) => options?.id);
 
   it('keeps the failure toast up while a retry runs, and replaces it when the retry fails', async () => {
@@ -323,8 +324,8 @@ describe("the shell's account slot", () => {
     expect(seen.drawn, '«Увійти» stood in for the pressed «Вийти»').not.toContain('entry');
   });
 
-  // A Stop while the logout loads leaves the page here, latched: the next route change ends it
-  // (`account-way-in-and-out.dc.html`, T4), and Back to the route it set out from latches nothing.
+  // A Stop while the logout loads leaves the page here, latched: the next route change ends it,
+  // and Back to the route it set out from latches nothing.
   it("answers signed out by the next route change when Cognito's logout left the page in place", async () => {
     auth.logout = LOGOUT;
     const router = mount('/allocation');
@@ -428,7 +429,7 @@ describe("the shell's account slot", () => {
   });
 
   // A logout the relay names that is no URL is none: the sign-out goes its own way to `/sign-in`,
-  // as where there is no logout, and nothing rejects on a page already signed out (T4).
+  // as where there is no logout, and nothing rejects on a page already signed out.
   it('goes its own way to /sign-in when the logout the relay names is no URL', async () => {
     auth.logout = 'logout';
     const router = mount('/allocation');

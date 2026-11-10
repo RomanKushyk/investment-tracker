@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The terms step through the real router, transport and shells: an account whose row holds no terms
 // version meets it in place of the portfolio, and pressing «Прийняти умови» opens the portfolio
-// with no second sign-in (`design/extensions/terms-acceptance-step.dc.html`).
+// with no second sign-in.
 import { TERMS_VERSION } from '@quirenote/core/terms';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';

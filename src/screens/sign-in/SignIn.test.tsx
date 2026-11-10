@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // `/sign-in` with the bot check and the sign-in calls stubbed: the widget's events are driven by
-// hand, so each case is a step's answer to one of them (`bot-check.dc.html` T2–T4,
-// `bot-check-steps.dc.html` T1–T4).
+// hand, so each case is a step's answer to one of them.
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createMemoryRouter } from 'react-router';
@@ -56,7 +55,7 @@ const { SignIn } = await import('./SignIn');
 
 const EMAIL = 'someone@example.com';
 const HELD = { session: 'held-session', userId: 'user-id' };
-/** `bot-check.dc.html` T5 and `bot-check-steps.dc.html` T5, character for character. */
+/** The copy, character for character. */
 const PENDING = 'Перевірка безпеки ще триває. Спробуйте ще раз за мить.';
 const EXPIRED = 'Час на встановлення пароля минув. Введіть тимчасовий пароль ще раз.';
 
@@ -109,7 +108,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 // The fact a sign-out through Cognito's logout carries in this tab is said only by the logout's own
-// landing, a load of the page; «Увійти» on a page the logout left is a plain visit (T4).
+// landing, a load of the page; «Увійти» on a page the logout left is a plain visit.
 describe("the line a sign-out through Cognito's logout carries", () => {
   beforeEach(() => {
     hold.tab = window.sessionStorage;
@@ -164,7 +163,7 @@ describe('the line a session that ended under unsaved work says', () => {
 });
 
 // A DELETION'S LANDING says what became of the account, the scheduled one its day, in place of
-// «Ви вийшли.» (`account-deletion.dc.html` T5, T10), by router state or across Cognito's logout.
+// «Ви вийшли.», by router state or across Cognito's logout.
 describe('the line a deletion’s landing says', () => {
   const settled = () => act(() => new Promise((settle) => setTimeout(settle, 200)));
   const DELETED = 'Обліковий запис видалено.';
@@ -332,8 +331,8 @@ describe('the passkey step’s retry takes a widget of its own', () => {
   });
 });
 
-// `account-way-in-and-out.dc.html` T6: after the sheet closes the step stays, its lead turning to
-// «Входимо…» over the sentence it replaces, and both its controls busy until the relay answers.
+// After the sheet closes the step stays, its lead turning to «Входимо…» over the sentence it
+// replaces, and both its controls busy until the relay answers.
 describe('a passkey being verified', () => {
   let closeSheet: () => void = () => {};
   let answer: (outcome: SignInOutcome) => void = () => {};

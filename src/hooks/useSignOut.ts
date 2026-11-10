@@ -31,7 +31,7 @@ const hear = (listener: () => void) => {
 };
 
 // Still here after a back/forward-cache restore, a Stop (`navigateerror`, which a route change fires
-// too) or a traversal no control saw (`account-way-in-and-out.dc.html`, T4).
+// too) or a traversal no control saw.
 const restored = (event: PageTransitionEvent) => {
   if (event.persisted) setOut(undefined);
 };

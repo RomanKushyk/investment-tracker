@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
-// THE FIRST-PAINT LOADING STATE (design/extensions/first-paint.dc.html, brief #406). A read that
-// answers soon shows nothing, since a placeholder flashed for that long reads as the app being slower
-// than it is (Primer's loading patterns), and one that does not shows its boxes after 300 ms. Once
-// shown they stay for a time of their own, so their fade-in always completes, as React holds a
-// Suspense fallback before it reveals content.
+// THE FIRST-PAINT LOADING STATE (brief #406). A read that answers soon shows nothing, since a
+// placeholder flashed for that long reads as the app being slower than it is (Primer's loading
+// patterns), and one that does not shows its boxes after 300 ms. Once shown they stay for a time
+// of their own, so their fade-in always completes, as React holds a Suspense fallback before it
+// reveals content.
 export const PLACEHOLDER_AFTER_MS = 300;
 export const PLACEHOLDER_HOLD_MS = 300;
 

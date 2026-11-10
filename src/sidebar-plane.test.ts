@@ -17,7 +17,7 @@ import {
 // THE WALL FOLLOWS THE THEME, AND THE ACTIVE ROUTE IS SAID TWICE. The sidebar is a step
 // deeper than the canvas in BOTH themes, so nothing here may assume a plane that is dark in
 // either. The active item is an accessibility ruling rather than a repaint: a light lozenge
-// says "current" with colour alone, which 1.4.1 does not accept, so the sheet draws a tint
+// says "current" with colour alone, which 1.4.1 does not accept, so the active item takes a tint
 // PLUS a 2px inset left edge.
 //
 // TWO HALVES, NEITHER CATCHING THE OTHER — the split `field-border.test.ts` records. The
@@ -80,7 +80,7 @@ const BLOCKS = themeBlocks(CSS);
 const THEMES = ['light', 'dark'] as const;
 
 // The active and hover grounds are translucent, so every reading composites them first: the
-// bare wall would flatter the label, and the sheet scores it on its own ground too.
+// bare wall would flatter the label.
 
 describe('the wall carries its own foreground, in whichever theme is on', () => {
   it.each(THEMES)('%s: an idle route clears 4.5 : 1 on the wall', (theme) => {
@@ -201,8 +201,8 @@ describe('the footer band is a second ground, and the eleventh route reads on it
     expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), band(theme))).toBeGreaterThanOrEqual(3);
   });
 
-  // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL, which is why the drawing puts a
-  // `sb-divider` along its top edge and `sidebar-structure.test.ts` asserts the two together.
+  // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL, which is why a `sb-divider` runs
+  // along its top edge and `sidebar-structure.test.ts` asserts the two together.
   it.each(THEMES)('%s: the band is a step, not a boundary', (theme) => {
     expect(
       ratio(band(theme), resolve(BLOCKS, theme, 'sb-bg')),
@@ -212,7 +212,7 @@ describe('the footer band is a second ground, and the eleventh route reads on it
 
   // THE PRICE OF THE NEW GROUND, exact rather than a floor like the active label above: the
   // rank above `sb-item` here is the hover state itself, so lifting the symbol spends the
-  // one step the track has left, and the drawing takes the reading instead.
+  // one step the track has left, and the reading is accepted instead.
   it.each([
     ['light', 4.3],
     ['dark', 5.81],
@@ -363,7 +363,7 @@ const source = (f: string) => {
 const wearing = (re: RegExp) =>
   [...SOURCES.entries()].filter(([, s]) => re.test(s)).map(([f]) => f);
 
-describe('the rail paints the recipe the sheet draws', () => {
+describe('the rail paints its pill recipe', () => {
   /** `pillClass`'s body alone: the active arm is three utilities inside one returned
    *  template string, and a whole-file match would go green with any of them on the capital
    *  card or the currency toggle instead. */

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parseLeadDays } from './settings';
 
-describe('parseLeadDays (S8 "Lead time, days")', () => {
+describe('parseLeadDays ("Lead time, days")', () => {
   it('accepts whole days inside 1–30, trimmed', () => {
     expect(parseLeadDays('7')).toBe(7);
     expect(parseLeadDays(' 1 ')).toBe(1);

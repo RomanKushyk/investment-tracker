@@ -60,7 +60,7 @@ describe('parseAssetsFeed on the live fixture', () => {
     expect(entry('UA4000238976').sellUAH).toBe(1057.67);
   });
 
-  it('picks the display title, whitespace-collapsed (S7 picker rows)', () => {
+  it('picks the display title, whitespace-collapsed (the picker rows)', () => {
     expect(entry('inzhur-reit').title).toBe('Inzhur REIT');
     expect(entry('inzhur-energy').title).toBe('Inzhur Energy');
     // The bonds' own title carries a hard line break — collapsed, not split.

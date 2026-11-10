@@ -378,10 +378,9 @@ export const transaction = pgTable(
     // additive if a screen ever needs the components.
     taxWithheld: numeric('tax_withheld'),
     // The row's own line of context, 1..100 characters. The cap is a DESIGN
-    // constraint before it is a database one — the ledger row renders it, and
-    // `design/extensions/withholding-and-note.dc.html` T5 holds the
-    // measurements that pick the number. Counted in characters and not lines
-    // because a line count is not a thing SQL checks.
+    // constraint before it is a database one — the ledger row renders it.
+    // Counted in characters and not lines because a line count is not a thing
+    // SQL checks.
     note: text(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // `/apply` with the bot check stubbed: the widget's own events are driven by hand, so each case is
-// the form's answer to one of them (`bot-check.dc.html` T1, T4).
+// the form's answer to one of them.
 import type { AccountSettings } from '@quirenote/core/settings';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -320,8 +320,8 @@ describe('a widget showing its checkbox', () => {
   });
 });
 
-// The notice's first layer (`privacy-notice.dc.html` S2): at collection, under the button, with no
-// checkbox and no "you agree" (EDPB 2/2019 ¶20).
+// The notice's first layer: at collection, under the button, with no checkbox and no "you agree"
+// (EDPB 2/2019 ¶20).
 describe('the first layer of the privacy notice', () => {
   const layer = () =>
     screen.getByText(
@@ -365,8 +365,8 @@ describe('the first layer of the privacy notice', () => {
   });
 });
 
-// The terms' acceptance by action (`terms-of-use.dc.html` T2): one sentence directly above the
-// button, naming it, with no checkbox; the privacy first layer stays a text of its own under it.
+// The terms' acceptance by action: one sentence directly above the button, naming it, with no
+// checkbox; the privacy first layer stays a text of its own under it.
 describe('the acceptance line of the terms', () => {
   const line = () =>
     screen.getByText(

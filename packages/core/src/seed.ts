@@ -105,7 +105,7 @@ export const SEED_TRANSACTIONS: Transaction[] = [
 const DAY = 86_400_000;
 const PIN_START = '2026-07-21';
 
-// Verbatim from the Balances table in `design/Investment Tracker.dc.html`.
+// The last five days, pinned as literals; before them `pathQuote` draws each day it has.
 const PINNED: Record<string, Record<string, number>> = {
   '2026-07-21': { reit: 68450.12, energy: 59980.44, ovdp8976: 15830.1, ovdp6475: 4368.9 },
   '2026-07-22': { reit: 68478.03, energy: 60001.12, ovdp8976: 15833.35, ovdp6475: 4370.02 },

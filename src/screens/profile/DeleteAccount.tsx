@@ -24,9 +24,9 @@ import {
   type Ways,
 } from './Reauthentication';
 
-// «ВИДАЛИТИ ОБЛІКОВИЙ ЗАПИС» (`account-deletion.dc.html` T2–T5): the confirmation armed by the
-// account's own address, the timing the button pressed, the shared step, then the deletion and a
-// landing that says what became of the account.
+// «ВИДАЛИТИ ОБЛІКОВИЙ ЗАПИС»: the confirmation armed by the account's own address, the timing the
+// button pressed, the shared step, then the deletion and a landing that says what became of the
+// account.
 
 export function DeleteAccount({
   open,
@@ -117,7 +117,7 @@ export function DeleteAccount({
       lines={lines}
       purpose={purpose}
       act={act}
-      // T2: focus lands in the field; back from Google there is none, and the title takes it.
+      // Focus lands in the field; back from Google there is none, and the title takes it.
       onOpenAutoFocus={(event) => {
         if (fieldRef.current === null) return;
         event.preventDefault();
@@ -147,7 +147,9 @@ export function DeleteAccount({
               className="block h-9 w-full rounded-[9px] border border-field-border bg-page px-3 font-body text-[13px] text-ink transition hover:border-ink max-md:text-[16px]"
             />
           </Body>
-          {/* Stacked at every width, the destructive pair first (T2). */}
+          {/* Stacked at every width, the destructive pair first
+              (`docs/superpowers/specs/2026-11-05-layout-refresh/dialog-buttons-and-radii.md`
+              § Signed). */}
           <Footer>
             <div className="flex flex-col gap-2.5">
               <Button

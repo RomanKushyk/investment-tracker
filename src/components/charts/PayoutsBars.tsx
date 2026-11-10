@@ -65,7 +65,6 @@ function makeSegmentLabel(data: PayoutsChartPoint[], alwaysTop: boolean) {
   };
 }
 
-// Drawn at `design/Investment Tracker.dc.html:249-260`.
 export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
   const f = useFormat();
   const t = useT();

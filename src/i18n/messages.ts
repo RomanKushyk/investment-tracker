@@ -7,9 +7,8 @@
  * Strings that take values are FUNCTIONS rather than templates with placeholders, so the
  * parameter list is part of the type.
  *
- * PROVENANCE. Strings marked ✎ are the drafts the design session left in
- * `design/extensions/appearance-language.dc.html`, which its own handover note calls
- * drafts rather than pins. Everything unmarked is written here and unreviewed.
+ * PROVENANCE. Strings marked ✎ are a design session's drafts rather than pins. Everything
+ * unmarked is written here and unreviewed.
  */
 
 /** The Ukrainian plural rule — three forms; `messages.test.ts` pins every band. */
@@ -44,12 +43,11 @@ export const en = {
     portfolio: 'Portfolio',
     allocation: 'Allocation',
     settings: 'Settings',
-    // The super-admin's group and its one route, and the role its band names
-    // (`super-admin-shell.dc.html`).
+    // The super-admin's group and its one route, and the role its band names.
     groupAdmin: 'Administration',
     archive: 'Price archive',
     // «Користувачі» and the applications waiting, which the link's and the trigger's names carry
-    // since the drawn number is hidden (`admin-users.dc.html`, T2).
+    // since the drawn number is hidden.
     users: 'Users',
     usersCount: (n: number) => `Users, ${n}`,
     usersCountOver: 'Users, over 99',
@@ -610,7 +608,7 @@ export const en = {
       reinvestedInto: (amount: string) => `reinvested (${amount})`,
       toAccount: 'account',
       ofAccount: (pct: string) => `${pct} of account`,
-      // The line under the capital card (rate-attribution.dc.html): `nbu` is the link, and
+      // The line under the capital card: `nbu` is the link, and
       // `rateLine` or `rateNone` follows it. The no-break spaces keep «NBU 41.4983» and
       // «for 10 Oct 2026» whole, so a narrow card breaks before «for».
       nbu: 'NBU',
@@ -786,7 +784,6 @@ export const en = {
         'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
     },
   },
-  // `design/extensions/archive-admin.dc.html`, T9.
   archive: {
     read: {
       stamp: (at: string) => `Snapshot ${at}`,
@@ -942,7 +939,7 @@ export const en = {
       failedLead: (cause: string) => `${cause} Runs go on without it.`,
     },
   },
-  // `design/extensions/admin-users.dc.html`, T7; the refusals are T5's, one per key and action.
+  // The refusals are one per key and action.
   users: {
     filter: {
       label: 'Show',
@@ -1012,7 +1009,7 @@ export const en = {
       network: 'The server did not answer. The action may have landed; check the list.',
     },
   },
-  // `design/extensions/own-account.dc.html`, T9; the copy's failure is the owner's ruling on #192.
+  // The copy's failure is the owner's ruling on #192.
   profile: {
     title: 'Profile',
     subtitle: 'Your account, how you sign in, and your data',
@@ -1055,19 +1052,19 @@ export const en = {
       helper: 'A full JSON copy and CSV tables are in Settings, under Data.',
       open: 'Go to Settings',
     },
-    // `privacy-notice.dc.html` S6: the row after the copy, to the notice.
+    // The row after the copy, to the notice.
     privacy: {
       title: 'How we handle your data',
       helper: 'Who holds it, why, for how long, and your rights.',
       open: 'Privacy',
     },
-    // `terms-of-use.dc.html` T4: the row after the notice's, to the terms.
+    // The row after the notice's, to the terms.
     terms: {
       title: 'Terms of use',
       helper: 'The terms the service runs on, and what it does not do.',
       open: 'Terms',
     },
-    // `own-account.dc.html` T4 and `re-authentication.dc.html` T9: the action's own lines.
+    // The action's own lines.
     signOutEverywhere: {
       title: 'Sign out everywhere',
       helper: 'Ends the sign-in on every device, this one included. You confirm it’s you first.',
@@ -1086,8 +1083,7 @@ export const en = {
         confirmedLead: 'You can now sign out on every device, this one included.',
       },
     },
-    // `account-deletion.dc.html` T10: the deletion's own lines; `{date}` is the last day it can be
-    // cancelled.
+    // The deletion's own lines; `{date}` is the last day it can be cancelled.
     deleteAccount: {
       title: 'Delete your account',
       helper: 'Your portfolio and your ways to sign in go with it. You confirm it’s you first.',
@@ -1116,7 +1112,7 @@ export const en = {
       },
     },
   },
-  // Re-authentication's own lines (`re-authentication.dc.html` T9); the action brings the rest.
+  // Re-authentication's own lines; the action brings the rest.
   reauth: {
     title: 'Confirm it’s you',
     continue: 'Confirm',
@@ -1223,7 +1219,7 @@ export const en = {
         `If it’s approved, the invitation will go to ${email}, and after it only notices about your account: its security, access and deletion.`,
       back: 'Back to sign in',
     },
-    /** The Turnstile check under a form's button (`bot-check.dc.html` T5). */
+    /** The Turnstile check under a form's button. */
     botCheck: {
       /** A press before the token where the start cannot wait: the passkey sheet opens only after it. */
       pending: 'The security check is still running. Try again in a moment.',
@@ -1250,7 +1246,7 @@ export const en = {
     // The same, when a screen held unsaved work, which went with the account's figures.
     sessionEndedDiscarded:
       'Your session ended, and your unsaved changes were discarded. Sign in again.',
-    // A deletion's landing, in the sign-out's place (`account-deletion.dc.html` T5).
+    // A deletion's landing, in the sign-out's place.
     signedOutDeleted: 'Your account has been deleted.',
     signedOutScheduled: (date: string) =>
       `Your account will be deleted after ${date}. To cancel, sign in by the end of that day and press “Cancel deletion”.`,
@@ -1281,7 +1277,7 @@ export const en = {
       title: 'Accept the terms of use',
       lead: 'To open Quirenote, accept the terms it runs on.',
     },
-    // The 30-day window's gate (`account-deletion.dc.html` T6, T7): the one answer with a way back.
+    // The 30-day window's gate: the one answer with a way back.
     scheduled: {
       title: 'Your account is scheduled for deletion',
       lead: (date: string) =>
@@ -1292,7 +1288,7 @@ export const en = {
       cancelled: 'Deletion cancelled',
     },
   },
-  // The privacy notice (`privacy-notice.dc.html`, brief #497); the Ukrainian prevails and this
+  // The privacy notice (brief #497); the Ukrainian prevails and this
   // says no more. A list is an array of its items; `[text](href)` is a link inside its sentence;
   // a section's title is bare, and the page numbers it.
   privacy: {
@@ -1404,7 +1400,7 @@ export const en = {
     firstLayer:
       'Quirenote uses your address to review your application and send the invitation, and Cloudflare checks that a person is sending the form. With your application, Quirenote records the language of the page, to write to you in it, and which version of the terms you accepted and when, to keep a record of the agreement with you. Who handles this data, where it is kept and your rights: the [Privacy policy](/privacy).',
   },
-  // `terms-of-use.dc.html` T1 and T7 (brief #514): the Ukrainian prevails and the English says no
+  // The terms of use (brief #514): the Ukrainian prevails and the English says no
   // more. A section's title is bare, and the page numbers it.
   terms: {
     link: 'Terms',
@@ -1480,9 +1476,9 @@ export const en = {
         'These terms are governed by the law of Ukraine. We first try to settle a dispute by correspondence; if that fails, a court of Ukraine hears it under the rules of jurisdiction.',
       ),
     },
-    // `terms-of-use.dc.html` T2: directly above the button, naming it.
+    // Directly above the button, naming it.
     accept: 'By pressing “Apply”, you accept the [Terms of use](/terms).',
-    // `terms-acceptance-step.dc.html` T7: the step an account with no recorded version meets.
+    // The step an account with no recorded version meets.
     step: {
       accept: 'By pressing “Accept terms”, you accept the [Terms of use](/terms).',
       submit: 'Accept terms',
@@ -1552,7 +1548,7 @@ export const en = {
     invalid: 'Check the highlighted fields and try again.',
     recentEmpty: 'No transactions yet.',
     // The Type select spells out "Interest payout"; the Recent rows say
-    // "Coupon" for the same type, per the design copy.
+    // "Coupon" for the same type.
     types: {
       buy: 'Buy',
       sell: 'Sell',
@@ -1693,7 +1689,7 @@ export const en = {
       ghost: 'Suggested from coupon accrual — accept or type your own.',
     },
   },
-  // The app's own not-found and failure states (`boundaries.dc.html`). The two failures, a screen's
+  // The app's own not-found and failure states. The two failures, a screen's
   // and the whole app's, share their words: GOV.UK's "same page for all unexpected problems".
   boundary: {
     notFound: {
@@ -1720,7 +1716,7 @@ export const en = {
     },
     overview: {
       title: 'Overview',
-      // The rate is under the capital card, not here (rate-attribution.dc.html).
+      // The rate is under the capital card, not here.
       subtitle: (date: string) => `Portfolio at a glance · ${date}`,
     },
     balances: {
@@ -3197,7 +3193,7 @@ export const uk: Dict = {
     pendingChange: {
       label: 'Цей зріз змінює',
       none: 'Ще нічого не введено',
-      // The sheet's flat «активів» is RIGHT for every plural count — after «з»
+      // The flat «активів» is RIGHT for every plural count — after «з»
       // the noun is genitive, so «2 з 4 активів» and «3 з 7 активів» alike. The
       // three-form rule is here for the ONE case it gets wrong: a single-asset
       // portfolio reads «1 з 1 активу», not «1 з 1 активів».

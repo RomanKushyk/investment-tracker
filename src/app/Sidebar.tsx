@@ -55,11 +55,11 @@ export const ANALYTICS = [
 ] as const;
 
 // The Quirenote mark. `aria-hidden` because the wordmark beside it says the brand.
-// THE BOX IS THE SHEET'S OWN and deliberately not cropped to the ink: a box measured
-// off the geometry clips the caps, so re-cropping is the one edit here to think twice
-// about. KEEP THIS THE ONLY INLINE SVG IN THE FILE — mark.test.ts reads this source
-// with its comments stripped and collects the mark's attributes as whole-file ordered
-// lists, so a second one fails the pin rather than the drawing. *Brand*
+// THE BOX IS DELIBERATELY NOT CROPPED TO THE INK: a box measured off the geometry clips
+// the caps, so re-cropping is the one edit here to think twice about. KEEP THIS THE ONLY
+// INLINE SVG IN THE FILE — mark.test.ts reads this source with its comments stripped and
+// collects the mark's attributes as whole-file ordered lists, so a second one fails the pin
+// rather than the drawing. *Brand*
 export function Mark({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
@@ -133,7 +133,7 @@ function NavItem({
       />
       <span className="flex-1 truncate">{label}</span>
       {count !== undefined && (
-        // `ink` on the tint: `sb-badge` on it is under 4,5 : 1 in light (`admin-users.dc.html`, T2).
+        // `ink` on the tint: `sb-badge` on it is under 4,5 : 1 in light.
         <span
           aria-hidden
           className="grid h-[18px] min-w-5 flex-none animate-in place-items-center rounded-[5px] bg-sb-badge-bg px-[5px] text-[11px] leading-[11px] font-bold text-ink duration-300 fade-in"
@@ -322,8 +322,7 @@ function SidebarPanel({
   // gone on reload, while `setTheme` writes the field the Appearance card writes.
   const { currency, setCurrency, theme, setTheme } = useSettings();
   // NEITHER ROLE'S ITEMS UNTIL `GET /me` NAMES ONE, and none for any other role, so no role sees the
-  // other's arrive or leave (`super-admin-shell.dc.html`, T4). The super-admin holds no portfolio:
-  // no capital, no currency.
+  // other's arrive or leave. The super-admin holds no portfolio: no capital, no currency.
   const role = useRole();
   const admin = role === 'super_admin';
   const panel = variant === 'panel';
@@ -331,7 +330,7 @@ function SidebarPanel({
   const band = useBandHeight(!panel);
 
   // THE COLUMN IS SPELLED OUT: an implicit `auto` column grows to the widest unbreakable line in
-  // it, and an address is one — a long one widened the whole band (`sign-out.dc.html`, T1).
+  // it, and an address is one — a long one widened the whole band.
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
       {/* ── band 1 — the lockup and the capital strip, fixed ────────────── */}
@@ -638,8 +637,7 @@ function HeadStrip({ onCollapse, children }: { onCollapse?: () => void; children
 
 /**
  * The super-admin's band, in the capital's slot this role leaves empty: the role in words beside a
- * shield, never colour alone (WCAG 1.4.1), and never a gear, which is Settings
- * (`super-admin-shell.dc.html`, T1).
+ * shield, never colour alone (WCAG 1.4.1), and never a gear, which is Settings.
  */
 function RoleBand({ onCollapse }: { onCollapse?: () => void }) {
   const t = useT();

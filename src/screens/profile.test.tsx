@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The profile, rendered through the real router, shell, client and relay over a fake of the user API
-// and the relay's passkey list (`design/extensions/own-account.dc.html`, T1–T3 and T6).
+// and the relay's passkey list.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
@@ -447,8 +447,8 @@ describe('copying the account ID', () => {
   });
 });
 
-// «Вийти на всіх пристроях» (`own-account.dc.html` T1, T4; `re-authentication.dc.html` T1–T4,
-// T5's confirmed state without its timer, T6's refusal), the copy character for character (T9).
+// «Вийти на всіх пристроях»: the confirmed state without its timer, the refusal, and the copy
+// character for character.
 describe('signing out everywhere', () => {
   const E = {
     open: 'Вийти всюди…',
@@ -606,7 +606,7 @@ describe('signing out everywhere', () => {
     expect(api.everywhereSent).toEqual([]);
   });
 
-  // RFC 9470 §3: the client repeats the request with the fresh sign-in; no second press (T10).
+  // RFC 9470 §3: the client repeats the request with the fresh sign-in; no second press.
   it('signs out everywhere at once once the password proves it, and lands signed out', async () => {
     const view = await toThePassword();
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
@@ -615,7 +615,7 @@ describe('signing out everywhere', () => {
     await waitFor(() => expect(buttonIn(dialog(), E.busy)).toBeDefined());
     const confirm = buttonIn(dialog(), E.busy);
     expect(confirm, '«Підтвердити» does not read «Виходимо…»').toBeDefined();
-    // Busy without `disabled`, which would drop focus to the page (T10).
+    // Busy without `disabled`, which would drop focus to the page.
     expect(confirm!.disabled).toBe(false);
     expect(confirm!.getAttribute('aria-disabled')).toBe('true');
     expect(dialog()!.contains(document.activeElement)).toBe(true);
@@ -734,7 +734,7 @@ describe('signing out everywhere', () => {
     expect(dialog()).not.toBeNull();
   });
 
-  // A FAILED ACTION KEEPS THE PROOF: the confirmed state, and «Вийти всюди» retries it (T5).
+  // A FAILED ACTION KEEPS THE PROOF: the confirmed state, and «Вийти всюди» retries it.
   it('lands a failed action on the confirmed state, whose press retries it', async () => {
     api.everywhere = ['failed'];
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
@@ -750,7 +750,7 @@ describe('signing out everywhere', () => {
     expect(signIn.password).toHaveBeenCalledTimes(1);
   });
 
-  // T6: a press the server refuses as too old returns to the first state, said as a status.
+  // A press the server refuses as too old returns to the first state, said as a status.
   it('returns to the first state when the sign-in is too old', async () => {
     api.everywhere = ['failed', 'tooOld'];
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
@@ -828,7 +828,7 @@ describe('signing out everywhere', () => {
     expect(api.everywhereSent).toEqual([]);
   });
 
-  // T10: focus stays on the pressed button; the heading takes it only when a step arrives.
+  // Focus stays on the pressed button; the heading takes it only when a step arrives.
   it('keeps focus on «Підтвердити» pressed after a too-old return', async () => {
     api.everywhere = ['failed', 'tooOld'];
     signIn.password.mockResolvedValue({ kind: 'signedIn', offerPasskey: false });
@@ -879,7 +879,7 @@ describe('signing out everywhere', () => {
     expect(opened).toEqual([false]);
   });
 
-  // «Скасувати» stays live while a proof is checked; a late answer lands nowhere (T1).
+  // «Скасувати» stays live while a proof is checked; a late answer lands nowhere.
   it('closes while a proof is checked, and the late answer sends nothing', async () => {
     let finish!: (outcome: unknown) => void;
     await toThePassword();
@@ -895,7 +895,7 @@ describe('signing out everywhere', () => {
     expect(api.everywhereSent).toEqual([]);
   });
 
-  // AN ACCOUNT WITH NO PASSWORD proves it through Google: alone (T1), or beside its passkey (T2).
+  // AN ACCOUNT WITH NO PASSWORD proves it through Google: alone, or beside its passkey.
   describe('through Google', () => {
     const G = {
       google: 'Продовжити з Google',
@@ -984,7 +984,7 @@ describe('signing out everywhere', () => {
       await waitFor(() => expect(view.router.state.location.pathname).toBe('/profile'));
     });
 
-    // T5: back on /profile the step is confirmed, and nothing runs without the press (T10).
+    // Back on /profile the step is confirmed, and nothing runs without the press.
     it('comes back to the confirmed state, and signs out only on the press', async () => {
       const view = await back();
       await waitFor(() => expect(text(dialog()!)).toContain(E.confirmedTitle));
@@ -1036,7 +1036,8 @@ describe('signing out everywhere', () => {
       });
     }
 
-    // T5's time left: whole minutes rounded up, seconds from 60, one reminder; T6 at zero.
+    // The time left: whole minutes rounded up, seconds from 60, one reminder; the expired sentence
+    // at zero.
     it('counts the window from the sign-in, then returns to the first state at zero', async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], shouldAdvanceTime: true });
       await back(30);
@@ -1083,7 +1084,7 @@ describe('signing out everywhere', () => {
       expect(text(dialog()!)).toContain(E.title);
     });
 
-    // One sentence at a time: a press leaves T6's behind, as «Підтвердити» does.
+    // One sentence at a time: a press leaves the expired one behind, as «Підтвердити» does.
     it('drops the expired sentence once Google is pressed again', async () => {
       await back();
       api.everywhere = ['tooOld'];
@@ -1120,7 +1121,7 @@ describe('signing out everywhere', () => {
       }
     });
 
-    // A trip abandoned by a reload ends there: a later callback in the tab is a sign-in's (T10).
+    // A trip abandoned by a reload ends there: a later callback in the tab is a sign-in's.
     it('forgets a mark the tab still carries when /profile loads', async () => {
       carryReauthentication(sessionStorage);
       await open('/profile');
@@ -1164,8 +1165,8 @@ describe('signing out everywhere', () => {
   });
 });
 
-// «Видалити обліковий запис» (`account-deletion.dc.html` T1–T5), the copy character for character
-// (T10). The day a 30-day deletion promises is the device's, the press on 30.10.2026 in Kyiv.
+// «Видалити обліковий запис», the copy character for character. The day a 30-day deletion
+// promises is the device's, the press on 30.10.2026 in Kyiv.
 describe('deleting the account', () => {
   const D = {
     section: 'Видалення',
@@ -1269,7 +1270,7 @@ describe('deleting the account', () => {
     expect(dialog()).toBeNull();
   });
 
-  // T1: the only super-admin is refused before any press, with no trigger.
+  // The only super-admin is refused before any press, with no trigger.
   it('refuses the only super-admin in the card, with no button', async () => {
     api.role = 'super_admin';
     api.soleSuperAdmin = true;
@@ -1285,7 +1286,7 @@ describe('deleting the account', () => {
     expect(buttonIn(main(), D.open)).toBeDefined();
   });
 
-  // T2: the address arms both timings, as typed whatever its case and edge spaces.
+  // The address arms both timings, as typed whatever its case and edge spaces.
   it('opens with focus in the field, both timings unarmed until the address is typed', async () => {
     await toTheConfirmation();
     const panel = dialog()!;
@@ -1315,7 +1316,7 @@ describe('deleting the account', () => {
     expect(api.deletionSent).toEqual([]);
   });
 
-  // T3: either timing reaches the same step, with deletion's own lead.
+  // Either timing reaches the same step, with deletion's own lead.
   it.each([D.now, D.later])('swaps «%s» to the re-authentication step', async (timing) => {
     await toTheConfirmation();
     fireEvent.change(field(), { target: { value: ME_EMAIL } });
@@ -1326,14 +1327,14 @@ describe('deleting the account', () => {
     expect(api.deletionSent).toEqual([]);
   });
 
-  // RFC 9470 §3: the proof runs the deletion at once; the landing says what became of it (T5).
+  // RFC 9470 §3: the proof runs the deletion at once; the landing says what became of it.
   it('deletes at once once the password proves it, and lands saying so', async () => {
     const view = await toThePassword(D.now);
     const release = hold('/me/deletion');
     await typeAndConfirm();
     await waitFor(() => expect(buttonIn(dialog(), D.busyNow)).toBeDefined());
     expect(buttonIn(dialog(), D.busyNow)!.getAttribute('aria-disabled')).toBe('true');
-    // A sent deletion cannot be recalled: Escape is inert while it runs (T4).
+    // A sent deletion cannot be recalled: Escape is inert while it runs.
     fireEvent.keyDown(dialog()!, { key: 'Escape' });
     expect(dialog()).not.toBeNull();
     release();
@@ -1416,7 +1417,7 @@ describe('deleting the account', () => {
     expect(view.router.state.location.pathname).toBe('/profile');
   });
 
-  // T4: a failure keeps the proof; the confirmed state's press asks again with no new one.
+  // A failure keeps the proof; the confirmed state's press asks again with no new one.
   it.each([
     [D.now, D.failedNow, D.actionNow, 'now'],
     [D.later, D.failedLater, D.actionLater, 'later'],
@@ -1499,7 +1500,7 @@ describe('deleting the account', () => {
       expect(dialog()).toBeNull();
     });
 
-    // T3: back on /profile the deletion is confirmed, and nothing runs without the press.
+    // Back on /profile the deletion is confirmed, and nothing runs without the press.
     it.each([
       ['delete:now', D.confirmedNow, D.actionNow, 'now'],
       ['delete:later', D.confirmedLater, D.actionLater, 'later'],

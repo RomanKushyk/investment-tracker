@@ -35,7 +35,7 @@ export interface PortfolioTables {
   transactions: Transaction[];
 }
 
-// --- File gate (S2) --------------------------------------------------------
+// --- File gate --------------------------------------------------------------
 // The four file-level rejections happen BEFORE anything is read: a wrong file
 // is not an error worth alarming about, and none of them touches the data.
 
@@ -68,7 +68,7 @@ export function classifyImportFiles(files: { name: string; size: number }[]): Fi
   return { ok: true, kind: 'json', name: file.name, size: file.size };
 }
 
-// --- Validation (S3 entry / S4 report) -------------------------------------
+// --- Validation (entry and report) ------------------------------------------
 
 /** The report caps the visible list and states the exact total. */
 export const ISSUE_LIST_CAP = 10;

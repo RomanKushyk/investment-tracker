@@ -10,7 +10,7 @@ import { useMegabytes } from './sources';
 
 // A count that reconciles proves the plumbing; only a value proves the parse
 // (`infra/src/capture.ts`, `diagnose`). The archive serves NUMERIC as text at its full scale, so a
-// value is shown as the drawing shows it: two decimals, a price in the language's grammar.
+// value is shown at two decimals, a price in the language's grammar.
 
 /** The newest rows the archive holds, and what its stored captures weigh. */
 export function SpotCheck({

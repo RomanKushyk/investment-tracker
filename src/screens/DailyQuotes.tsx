@@ -236,10 +236,9 @@ export function DailyQuotes() {
 
   return (
     <>
-      {/* COMPOSED LIKE `/payouts`, which SUPERSEDES the sheet's centred measure on the
-          owner's instruction, and his reason outranks a drawing: a screen that reads
-          as a different product is a worse outcome than a wide row. What the sheet won
-          stays won — the side blocks are permanent, the title block is out of the
+      {/* COMPOSED LIKE `/payouts` rather than on a centred measure, on the owner's
+          instruction: a screen that reads as a different product is a worse outcome
+          than a wide row. The side blocks are permanent, the title block is out of the
           column, the yield teaser is a card — but the MEASURE is `/payouts`'. */}
       <div>
         {/* Above the header row, full composition width; quote-missing is suppressed

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// What each screen holds before its read answers (design/extensions/first-paint.dc.html): a box for
-// every size that is known, the static words in place, «—» for every figure, and nothing a person
-// could act on. The placeholders are read by no screen reader but the one status line.
+// What each screen holds before its read answers: a box for every size that is known, the static
+// words in place, «—» for every figure, and nothing a person could act on. The placeholders are
+// read by no screen reader but the one status line.
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render } from '@testing-library/react';

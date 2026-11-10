@@ -76,7 +76,7 @@ const ALLOWED: [offence: string, why: string][] = [
     'prose naming the previous face is what it catches, so it reads comments on purpose',
   ],
   [
-    'src/floating-edges.test.ts: builds a token needle, at `does not re-mint the three names T4 retired, anywhere in the stylesheet`',
+    'src/floating-edges.test.ts: builds a token needle, at `does not re-mint the three retired names, anywhere in the stylesheet`',
     'refuses a second declaration; reads no value',
   ],
   [

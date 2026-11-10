@@ -32,7 +32,7 @@ describe('daysBetween', () => {
   });
 
   it('rounds firstPurchase-to-now spans used for "in N weeks" copy', () => {
-    // 02.06 -> 27.07 = 55 days, matches the design's "…6475 +5.20% in 8 weeks"
+    // 02.06 -> 27.07 = 55 days, which the copy reads as "in 8 weeks"
     expect(daysBetween('2026-06-02', '2026-07-27')).toBe(55);
   });
 });

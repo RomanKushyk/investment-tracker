@@ -1,9 +1,9 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-// THE PIECES OF THE FIRST-PAINT LOADING STATE (design/extensions/first-paint.dc.html). Every one is
-// decoration: hidden from assistive technology, interactive in nothing, and drawn in the tokens the
-// real screen is. A block takes `panel` on a card and `card` on a tinted surface; it is no component
-// boundary, so the 3 : 1 rule does not bind it, and meaning goes through the status line.
+// THE PIECES OF THE FIRST-PAINT LOADING STATE. Every one is decoration: hidden from assistive
+// technology, interactive in nothing, and drawn in the tokens the real screen is. A block takes
+// `panel` on a card and `card` on a tinted surface; it is no component boundary, so the 3 : 1 rule
+// does not bind it, and meaning goes through the status line.
 
 /** The app's pulse, 1.2 s as the import dialog's busy states run it. Under reduced motion the global
  *  kill switch in `index.css` leaves it still. */

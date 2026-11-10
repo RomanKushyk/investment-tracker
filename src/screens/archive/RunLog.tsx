@@ -20,8 +20,8 @@ import { useT } from '../../i18n/useT';
 import type { ArchiveOperation } from '../../lib/repository';
 import { HeldRows } from './Coverage';
 
-// THE RUN LOG (`design/extensions/archive-admin.dc.html`, T2, T3 and T6): newest first, a start
-// still unanswered on top as the client's own row, a table at and above md and stacked rows below.
+// THE RUN LOG: newest first, a start still unanswered on top as the client's own row, a table at
+// and above md and stacked rows below.
 
 type State = 'pending' | ArchiveOperation['state'];
 type Row = { kind: 'pending'; entry: PendingStart } | { kind: 'run'; run: ArchiveOperation };
@@ -111,8 +111,8 @@ export function RunLog({
 function Table({ rows, me }: { rows: Row[]; me: string }) {
   const t = useT();
   const c = t.archive.runs.columns;
-  // As wide as the drawing's table at least: a narrower card scrolls it, as the spot check's
-  // does, rather than squeezing the result column out.
+  // A floor on the width: a narrower card scrolls it, as the spot check's does, rather than
+  // squeezing the result column out.
   return (
     <Scroller orientation="horizontal">
       <table className="w-full min-w-[902px] table-fixed border-collapse font-mono text-[12.5px] leading-[18.75px]">

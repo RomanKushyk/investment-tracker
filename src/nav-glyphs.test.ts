@@ -4,16 +4,15 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// THE GLYPH AND THE IMPORT ARE ONE OBJECT, WHICH IS WHY THIS PIN EXISTS: the sheet hands
-// over an import NAME per route rather than a shape to copy, so a glyph cannot be re-picked
-// inside a component — the failure *Design pipeline* names for hexes. The record names TWO
-// icon states and no third, and where the drawing beside it paints a hovered glyph the
-// record wins.
+// THE GLYPH AND THE IMPORT ARE ONE OBJECT, WHICH IS WHY THIS PIN EXISTS: each route is given
+// an import NAME rather than a shape to copy, so a glyph cannot be re-picked inside a
+// component — the failure *Design pipeline* names for hexes. The glyph has TWO icon states and
+// no third: none for hover.
 //
 // Paths resolve from THIS file, not from `process.cwd()`.
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** Not cosmetic — `Sidebar.tsx`'s own prose names the sheet's icon states.
+/** Not cosmetic — `Sidebar.tsx`'s own prose names the glyph's icon states.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
  *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
@@ -58,9 +57,8 @@ function stripTs(source: string, file: string): string {
 
 const SIDEBAR = stripTs(readFileSync(join(here, 'app', 'Sidebar.tsx'), 'utf8'), 'Sidebar.tsx');
 
-/** `design/extensions/parchment-5h.dc.html`'s table, route by route and in its order. The
- *  two glyphs it also names — `Search` for ⌘K and `FileText` for «Податки» — belong to
- *  furniture it lists as non-shipping, so they are deliberately absent. */
+/** The route-to-glyph table, route by route. `Search` for ⌘K and `FileText` for «Податки» are
+ *  deliberately absent: their furniture does not ship. */
 const TABLE = [
   ['/', 'CalendarDays'],
   ['/transactions', 'ArrowDownUp'],
@@ -73,21 +71,21 @@ const TABLE = [
   ['/portfolio', 'Table'],
   ['/allocation', 'ChartPie'],
   ['/settings', 'Settings'],
-  // The account's address is the profile's link (`own-account.dc.html`, T5); signed out the same
-  // glyph labels the status row.
+  // The account's address is the profile's link
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed);
+  // signed out the same glyph labels the status row.
   ['/profile', 'CircleUser'],
-  // The super-admin's two routes, under «Адміністрування» (`super-admin-shell.dc.html`, T1;
-  // `admin-users.dc.html`, T2).
+  // The super-admin's two routes, under «Адміністрування»
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/super-admin.md` § Signed).
   ['/admin/users', 'Users'],
   ['/admin/archive', 'Archive'],
 ] as const;
 
 /** The glyphs that wear none of the routes. A chevron folds a group or collapses the shell and the
- *  theme track's three are segments — controls, which is why `parchment-5h.dc.html` keeps group
- *  headers glyphless; the account's two label its sign-out and its sign-in entry, whose link
- *  `sidebar-structure.test.ts` pins (`sign-out.dc.html`, `sign-in-entry.dc.html`); the shield marks
- *  the super-admin's band, a state and no route (`super-admin-shell.dc.html`, T1). Listed so the
- *  import assertion can tell them from a route's icon. */
+ *  theme track's three are segments — controls, which is why group headers stay glyphless; the
+ *  account's two label its sign-out and its sign-in entry, whose link `sidebar-structure.test.ts`
+ *  pins; the shield marks the super-admin's band, a state and no route. Listed so the import
+ *  assertion can tell them from a route's icon. */
 const CONTROLS = [
   'ChevronDown',
   'ChevronLeft',
@@ -131,7 +129,7 @@ function imported(): string[] {
     .filter((n) => n !== '' && !n.startsWith('type '));
 }
 
-/** Each read from a BOUNDED block rather than by proximity: the sheet's one table lives in
+/** Each read from a BOUNDED block rather than by proximity: the one table lives in
  *  two shapes here, and a window-based match lets one block's glyph answer for its
  *  neighbour's route on any edit that shortens the first block. */
 function pairs(): string[][] {
@@ -169,13 +167,13 @@ function mapped(): string {
   return until(at, '</NavLink>', '`ANALYTICS.map`');
 }
 
-describe('every route wears the glyph the sheet gave it', () => {
+describe('every route wears the glyph it was given', () => {
   it('imports the fourteen the table names, and no glyph it does not', () => {
     expect(
       imported()
         .filter((n) => !CONTROLS.includes(n))
         .sort(),
-      'the import and the sheet disagree',
+      'the import and the table disagree',
     ).toEqual(TABLE.map(([, icon]) => icon).sort());
   });
 
@@ -205,8 +203,8 @@ describe('every route wears the glyph the sheet gave it', () => {
     expect(block, 'the mapped row takes a glyph other than its own row').toMatch(/\bIcon=\{Icon\}/);
   });
 
-  // ONE DRAWING SITE, so the anatomy cannot drift per item. The sheet's item glyph differs
-  // between idle and active in stroke COLOUR only.
+  // ONE DRAWING SITE, so the anatomy cannot drift per item. The item glyph differs between
+  // idle and active in stroke COLOUR only.
   it('draws all eleven through one tag — 16px, stroke 2, aria-hidden', () => {
     const tag = one();
     expect(tag, 'the glyph is not 16px').toMatch(/size=\{16\}/);
@@ -248,8 +246,8 @@ describe('every route wears the glyph the sheet gave it', () => {
   });
 
   // `pillClass`'s idle arm hangs the hover on the ANCHOR, so a `hover:` here would reach a
-  // fourth state the record does not name.
-  it('keeps hover off the glyph, where the record has no state for it', () => {
+  // fourth state the glyph does not have.
+  it('keeps hover off the glyph, which has no state for it', () => {
     expect(one(), 'the glyph took a hover of its own').not.toMatch(/hover:/);
   });
 });

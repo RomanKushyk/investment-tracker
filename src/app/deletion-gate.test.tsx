@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The 30-day window's gate through the real router, transport and shells: an account a deletion
 // holds meets it in place of the portfolio, and «Скасувати видалення» opens the portfolio again
-// with no second sign-in (`design/extensions/account-deletion.dc.html` T6, T7, T10).
+// with no second sign-in.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
@@ -61,7 +61,7 @@ const { routes } = await import('../routes');
 const { session, showAnswer } = await import('../auth/app');
 const { queryClient } = await import('../lib/api');
 
-// The copy character for character (T10).
+// The copy character for character.
 const G = {
   title: 'Обліковий запис буде видалено',
   lead: 'Видалення відбудеться після 29.11.2026. Щоб і далі користуватися Quirenote, скасуйте його.',
@@ -132,7 +132,7 @@ describe('an account a deletion holds', () => {
     expect(screen.getByText(G.lead)).toBeTruthy();
     expect(screen.getByText(uk.auth.signedInAs(ME_EMAIL))).toBeTruthy();
     expect(page.querySelector('svg.lucide-calendar-clock')).not.toBeNull();
-    // The drawn order: the cancel filled, then «Вийти» (T6).
+    // The drawn order: the cancel filled, then «Вийти».
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
       G.cancel,
       uk.auth.signOut,

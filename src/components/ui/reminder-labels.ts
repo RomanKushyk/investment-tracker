@@ -8,8 +8,8 @@ import type { Dict } from '../../i18n/messages';
  * One banner's sentence. `assetName` is the reminder's asset, empty for the
  * portfolio-wide quote-missing kind.
  *
- * A same-day maturity takes its own wording: the drawing pins an "in N days"
- * pattern, and "in 0 days" is not a sentence.
+ * A same-day maturity takes its own wording: the others read "in N days", and
+ * "in 0 days" is not a sentence.
  */
 export function reminderText(reminder: Reminder, assetName: string, f: Format, t: Dict): string {
   const r = t.reminders;

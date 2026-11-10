@@ -452,7 +452,7 @@ const pendingCountKey = [...adminUsersKey, 'count'] as const;
 export const COUNT_PAGE = 100;
 
 /** How many applications wait, read as one page of `COUNT_PAGE` once for the shell and again after
- *  every ruling; a read that fails keeps the last count (`admin-users.dc.html`, T2). */
+ *  every ruling; a read that fails keeps the last count. */
 export function usePendingCount(enabled: boolean): number | undefined {
   return useQuery({
     queryKey: pendingCountKey,

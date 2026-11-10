@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { CHIP_EXIT_MS } from '../hooks/useRowsAhead';
 
 // The panel's wiring to `useRowsAhead`, read from source: jsdom loads no CSS and cannot say which
-// of the two placements of `design/extensions/rows-ahead-mark.dc.html` shows.
+// of the chip's two placements shows.
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** Comments stripped before matching, since the prose beside the row names the classes it argues

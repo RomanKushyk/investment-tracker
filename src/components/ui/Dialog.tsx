@@ -30,8 +30,8 @@ const OVERLAY_CLASS =
 const SURFACE =
   'border-field-border border bg-card fixed left-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 const PANEL_CLASS = `${SURFACE} top-1/2 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto]`;
-// TOP-ANCHORED, so a flow whose steps grow downward keeps its top edge (`re-authentication.dc.html`
-// T1); the keyboard only shortens the cap, which the Scroller holds inside the border.
+// TOP-ANCHORED, so a flow whose steps grow downward keeps its top edge; the keyboard only shortens
+// the cap, which the Scroller holds inside the border.
 const TOP_PANEL_CLASS = `${SURFACE} top-4 md:top-16`;
 const TOP_CAP =
   'max-h-[calc(100dvh-var(--keyboard-inset,0px)-34px)] md:max-h-[calc(100dvh-var(--keyboard-inset,0px)-130px)]';

@@ -14,9 +14,8 @@ import {
 } from './__fixtures__/palette';
 
 // THE SWITCH'S BOUNDARY, at the same bar as the field edge and the floating surfaces'.
-// `design/extensions/switch-border.dc.html` mints `--color-switch-border` so the OFF state
-// has a boundary clearing 3 : 1 (WCAG 1.4.11) in both themes, where the edge it replaced
-// left the whole control a rumour.
+// `--color-switch-border` is minted so the OFF state has a boundary clearing 3 : 1
+// (WCAG 1.4.11) in both themes, where the edge it replaced left the whole control a rumour.
 //
 // IT IS A NAME, NOT A VALUE — `var(--color-field-border)` in both blocks, so no fourth grey
 // enters the palette and the edge cannot drift from the rank it was measured as. THE RATIO

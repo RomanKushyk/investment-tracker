@@ -41,8 +41,7 @@ const STEP = 'flex animate-in flex-col duration-300 ease-soft fade-in slide-in-f
 
 /** The one-field application. The endpoint answers every address alike, so the recorded view
  *  promises no status and no email but the invitation. Turnstile stands between the field and the
- *  button; the button is never gated, and a press before the token waits for it
- *  (`bot-check.dc.html`). */
+ *  button; the button is never gated, and a press before the token waits for it. */
 export function Apply() {
   const t = useT();
   useSelfXssWarning(true);

@@ -137,7 +137,7 @@ describe('the fact a refused Google flow hands `/sign-in`', () => {
   });
 });
 
-// ACROSS GOOGLE'S REDIRECT the tab's own storage carries the fact, never the URL (T10).
+// ACROSS GOOGLE'S REDIRECT the tab's own storage carries the fact, never the URL.
 describe('the re-authentication this tab began', () => {
   const tab = () => {
     const kept = new Map<string, string>();

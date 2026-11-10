@@ -1,6 +1,6 @@
 import { useT } from '../../i18n/useT';
 
-// The S9d chip's warn treatment: a short ledger is a caution, not an error. One line where
+// The chip's warn treatment: a short ledger is a caution, not an error. One line where
 // it fits (radius 6 by the shape rule), wrapping in a narrow card rather than overflowing it.
 export function CashShortChip({ className = '' }: { className?: string }) {
   const t = useT();

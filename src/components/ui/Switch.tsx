@@ -2,8 +2,8 @@ import { Switch as RadixSwitch } from 'radix-ui';
 
 import { TAP_44 } from './tap-target';
 
-// The app's one switch anatomy. The drawings show the OFF fill as `hairline` and
-// its edge as `panel-border`; both moved onto the switch tokens because that
+// The app's one switch anatomy. The OFF fill was `hairline` and
+// its edge `panel-border`; both moved onto the switch tokens because that
 // state read under 3 : 1 (*Design pipeline*, then #87).
 //
 // BOTH RADII ARE PROPORTIONAL AND DERIVED INDEPENDENTLY — round(22 × .26) = 6

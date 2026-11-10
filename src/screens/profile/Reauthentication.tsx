@@ -40,13 +40,13 @@ import { Field, LINK, PasswordInput, StepAlert } from '../sign-in/parts';
 import type { Reason as SignInReason } from '../sign-in/refusals';
 import { type BotCheckOf, afterPass, useBotCheck } from '../sign-in/useBotCheck';
 
-// THE RE-AUTHENTICATION STEP (`re-authentication.dc.html` T1–T6): the host's confirmation, a fresh
-// sign-in, by a local credential or a round trip to Google, then the host's action; a failed action
-// keeps the proof, and its window shows until it runs out. Sign-out everywhere and the deletion
-// (`account-deletion.dc.html` T3) each bring their own lines and action.
+// THE RE-AUTHENTICATION STEP: the host's confirmation, a fresh sign-in, by a local credential or a
+// round trip to Google, then the host's action; a failed action keeps the proof, and its window
+// shows until it runs out. Sign-out everywhere and the deletion each bring their own lines and
+// action.
 
 /** The account's ways to prove it, from `GET /me/account` and the passkey list: Google is offered to an
- *  account with no password, alone or beside its passkey (T1, T2). */
+ *  account with no password, alone or beside its passkey. */
 export interface Ways {
   password: boolean;
   google: boolean;
@@ -90,7 +90,7 @@ function sentence(t: Dict, reason: Reason, failed: string): string {
   const own: Partial<Record<Reason, string>> = {
     actionFailed: failed,
     googleFailed: t.reauth.google.failed,
-    // The account is the signed-in one, so the sentence names the password alone (T3).
+    // The account is the signed-in one, so the sentence names the password alone.
     wrong: t.reauth.password.wrong,
     notFinished: t.reauth.passkey.notFinished,
     passwordMissing: t.auth.password.missing,
@@ -104,7 +104,7 @@ function sentence(t: Dict, reason: Reason, failed: string): string {
   return own[reason] ?? t.auth.failed;
 }
 
-// BUSY WITHOUT `disabled`, which would drop focus to the page (T10): announced as unavailable,
+// BUSY WITHOUT `disabled`, which would drop focus to the page: announced as unavailable,
 // drawn as sign-in's busy, and every handler returns while it holds.
 const BUSY = 'aria-disabled:pointer-events-none aria-disabled:opacity-70';
 const WIDE = 'max-md:w-full';
@@ -127,7 +127,7 @@ export function Reauthentication({
   /** The signed-in account's, shown and sent: the address is not asked for again. */
   email: string;
   ways: Ways;
-  /** Back from Google: the step confirmed, or refused there (T5). */
+  /** Back from Google: the step confirmed, or refused there. */
   arrived?: 'confirmed' | 'refused';
   onClose: () => void;
   lines: ReauthLines;
@@ -147,7 +147,7 @@ export function Reauthentication({
         ? { name: 'first' }
         : { name: 'confirm' },
   );
-  // No local credential to ask for: the first state is Google's own button, with no check (T1).
+  // No local credential to ask for: the first state is Google's own button, with no check.
   const googleFirst = !ways.password && ways.google && !ways.passkey;
   const [password, setPassword] = useState('');
   // A proof on its way to the relay: the pressed button reads «Перевіряємо…», «Скасувати» stays live.
@@ -214,7 +214,7 @@ export function Reauthentication({
   useEffect(() => {
     if (said?.reason === 'passwordMissing') passwordRef.current?.focus();
   }, [said]);
-  // T6: the sentence takes focus when focus was in the step that went.
+  // The sentence takes focus when focus was in the step that went.
   useEffect(() => {
     if (expired > 0) expiredRef.current?.focus();
   }, [expired]);
@@ -285,7 +285,7 @@ export function Reauthentication({
     },
   });
 
-  // RFC 9470 §3: the client repeats the request with the fresh sign-in, so no second press (T10).
+  // RFC 9470 §3: the client repeats the request with the fresh sign-in, so no second press.
   async function act() {
     const current = begin();
     setProving(false);
@@ -308,7 +308,7 @@ export function Reauthentication({
   }
 
   // THE PAGE LEAVES FOR GOOGLE naming this tab's account, which the relay asks Google to sign in
-  // again; the tab carries the fact across, and the return lands confirmed with nothing run (T5).
+  // again; the tab carries the fact across, and the return lands confirmed with nothing run.
   async function toGoogle() {
     if (held || acting) return;
     setExpired(0);
@@ -485,7 +485,7 @@ export function Reauthentication({
               <Address email={email} />
             </div>
             <Footer>
-              {/* The account's second way: its password, else Google, else none (T2). */}
+              {/* The account's second way: its password, else Google, else none. */}
               <Row cancel={cancel}>
                 {ways.password ? (
                   <Button
@@ -500,7 +500,9 @@ export function Reauthentication({
                   ways.google && google
                 )}
               </Row>
-              {/* The retry's widget enters with the sentence, as on sign-in (T2). */}
+              {/* The retry's widget enters with the sentence, as on sign-in
+                  (`docs/superpowers/specs/2026-11-05-layout-refresh/signed-out.md`
+                  § Перенесено). */}
               {(stepError || retrySaid) && (
                 <>
                   {stepError && <StepAlert n={stepError.n}>{words(stepError.reason)}</StepAlert>}
@@ -582,8 +584,8 @@ export function Reauthentication({
           </>
         )}
       </div>
-      {/* In place before its words and across the steps, so T6's sentence is announced; the
-          footer's foot is under it. */}
+      {/* In place before its words and across the steps, so the expired sentence is announced;
+          the footer's foot is under it. */}
       <div className={`${GUTTER} pb-6`}>
         <div
           ref={expiredRef}
@@ -598,7 +600,7 @@ export function Reauthentication({
   );
 }
 
-/** T5'S TIME LEFT: minutes rounded up, then seconds from 60 (hmrc-frontend's timeout dialog), each
+/** THE TIME LEFT: minutes rounded up, then seconds from 60 (hmrc-frontend's timeout dialog), each
  *  redraw scheduling the next; while `held` by the action, zero waits for its answer. */
 function TimeLeft({ until, held, onOut }: { until: number; held: boolean; onOut: () => void }) {
   const t = useT();
@@ -636,10 +638,10 @@ function TimeLeft({ until, held, onOut }: { until: number; held: boolean; onOut:
   );
 }
 
-/** The confirmation's own type, so the flow reads as one dialog (T1). */
+/** The confirmation's own type, so the flow reads as one dialog. */
 export function Title({ focus = false, children }: { focus?: boolean; children: ReactNode }) {
   const ref = useRef<HTMLHeadingElement>(null);
-  // As the step arrives, never later: focus then stays on a press (T10).
+  // As the step arrives, never later: focus then stays on a press.
   const [onArrival] = useState(focus);
   useEffect(() => {
     if (onArrival) ref.current?.focus();
@@ -657,7 +659,7 @@ export function Title({ focus = false, children }: { focus?: boolean; children: 
   );
 }
 
-/** `status` stands over the lead in its own line, the lead keeping the line's height (T2). */
+/** `status` stands over the lead in its own line, the lead keeping the line's height. */
 export function Header({
   title,
   lead,
@@ -730,7 +732,8 @@ export function Footer({ children }: { children: ReactNode }) {
   return <div className={`${GUTTER} pt-4`}>{children}</div>;
 }
 
-/** The drawn order is the focus order (WCAG 2.4.3): below md the action stacks first (T1). */
+/** The drawn order is the focus order (WCAG 2.4.3): below md the action stacks first
+ *  (`docs/superpowers/specs/2026-11-05-layout-refresh/dialog-buttons-and-radii.md` § Signed). */
 export function Row({ cancel, children }: { cancel: ReactNode; children?: ReactNode }) {
   const desktop = useIsDesktop();
   return (

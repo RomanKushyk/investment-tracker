@@ -175,7 +175,6 @@ function makeExpectedOnlyLabel(data: SeasonalityChartPoint[]) {
   };
 }
 
-// Drawn at `design/Investment Tracker.dc.html:415-437`.
 export function SeasonalityBars({
   data,
   axis = 'day',

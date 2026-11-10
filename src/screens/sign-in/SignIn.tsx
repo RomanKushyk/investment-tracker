@@ -109,10 +109,10 @@ export function SignIn() {
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  // The passkey sheet has answered and the relay is verifying it (`account-way-in-and-out.dc.html` T6).
+  // The passkey sheet has answered and the relay is verifying it.
   const [verifying, setVerifying] = useState(false);
   const [said, setSaid] = useState<Said>();
-  // The passkey retry's own check, said under its link (`bot-check-steps.dc.html` T2).
+  // The passkey retry's own check, said under its link.
   const [retrySaid, setRetrySaid] = useState<Said>();
   // The new password an expired session sent back, filled in when its step returns (WCAG 2.2.5).
   const kept = useRef('');
@@ -516,8 +516,9 @@ export function SignIn() {
             >
               {t.auth.passkey.usePassword}
             </Button>
-            {/* The retry's widget enters with the sentence, and all three leave at a press that
-                sends (`bot-check-steps.dc.html` T1, T2). */}
+            {/* The retry's widget enters with the sentence
+                (`docs/superpowers/specs/2026-11-05-layout-refresh/signed-out.md` § Перенесено), and
+                all three leave at a press that sends. */}
             {(stepError || retrySaid) && (
               <>
                 {stepError && (

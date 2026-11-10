@@ -1049,7 +1049,7 @@ export function TransactionPanel() {
                     ) : (
                       <>
                         {/* From `xl` the chip follows the label's text, which shrinks and keeps its
-                            ellipsis; below, line 1 is too narrow for both (`rows-ahead-mark.dc.html`). */}
+                            ellipsis; below, line 1 is too narrow for both. */}
                         <span className="flex min-w-0 flex-1 items-center gap-2.5">
                           <span className="min-w-0 truncate">
                             {tx.type === 'interest_payout'
@@ -1142,9 +1142,8 @@ export function TransactionPanel() {
                       IT RUNS THE ROW'S FULL WIDTH and does not reserve the ✕ column, which is a
                       child of the line above. Reserving it costs a fourth line at the narrow
                       shell, which would move the cap — the width and the character bound are one
-                      decision, drawn in `design/extensions/withholding-and-note.dc.html`. It wraps
-                      rather than truncating, because a note the row hides is a note nobody
-                      reads. */}
+                      decision. It wraps rather than truncating, because a note the row hides is a
+                      note nobody reads. */}
                   {!asking && tx.note !== undefined && (
                     <div className="mt-0.5 text-[11px] leading-4 [overflow-wrap:anywhere] text-muted">
                       {tx.note}

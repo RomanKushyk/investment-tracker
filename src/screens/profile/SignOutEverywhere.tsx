@@ -14,8 +14,7 @@ import {
   type Ways,
 } from './Reauthentication';
 
-// «ВИЙТИ НА ВСІХ ПРИСТРОЯХ» (`re-authentication.dc.html` T1–T6): the confirmation, the shared step,
-// then every session ends.
+// «ВИЙТИ НА ВСІХ ПРИСТРОЯХ»: the confirmation, the shared step, then every session ends.
 
 export function SignOutEverywhere({
   open,

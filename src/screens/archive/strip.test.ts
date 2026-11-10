@@ -1,5 +1,5 @@
-// The coverage strip's rules (`design/extensions/archive-admin.dc.html`, T4): one axis per source,
-// two eras, a mark per run of empty days, and the cut past the latest 100.
+// The coverage strip's rules: one axis per source, two eras, a mark per run of empty days, and the
+// cut past the latest 100.
 import { describe, expect, it } from 'vitest';
 
 import type { ArchiveGroup } from '../../lib/repository';
@@ -68,7 +68,7 @@ describe('the ticks', () => {
     ]);
   });
 
-  it('are quarters under two years, as the drawing’s Inzhur axis', () => {
+  it('are quarters under two years, as on the Inzhur axis', () => {
     const at = ticks('2024-11-14', '2026-10-21');
     expect(at.map((t) => [t.month, t.year])).toEqual([
       [0, 2025],
@@ -79,7 +79,7 @@ describe('the ticks', () => {
       [3, undefined],
       [6, undefined],
     ]);
-    // The drawing places January 2025 at 6,78925 % of a 707-day axis.
+    // January 2025 sits at 6,78925 % of a 707-day axis.
     expect(at[0]!.left).toBeCloseTo(6.78925, 4);
   });
 

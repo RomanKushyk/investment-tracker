@@ -7,8 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { luminance, ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
 
 // THE IMPORT DROPZONE'S EDGE, at the same bar as the field edge, the switch and the
-// floating surfaces (`design/extensions/dropzone-edge.dc.html`, #88): the box that says
-// WHERE a file may be dropped used to be the faintest thing on the screen.
+// floating surfaces (`docs/superpowers/specs/2026-11-05-layout-refresh/forms-and-dialogs.md`
+// § Перенесено, #88): the box that says WHERE a file may be dropped used to be the faintest
+// thing on the screen.
 //
 // TWO ADJACENCIES, NOT THREE. This box is `bg-panel` inside the Settings Data `card`, so it
 // is scored INWARD against its own fill and OUTWARD against the card behind it. `page` is
@@ -20,7 +21,7 @@ import { luminance, ratio, resolve, stripCss, themeBlocks } from './__fixtures__
 //
 // A GUARD OF ITS OWN ON PURPOSE: folding this into `field-border.test.ts` would put the
 // dropzone inside the FIELD guard — being a non-field is exactly what let this box go
-// unowned through four sheets.
+// unowned.
 //
 // READ THIS FILE WITH `field-border.test.ts`: its `hover:border-muted` ban is scoped per
 // field SITE and a dropzone is no field, so the two cannot collide — but a field landing in
@@ -116,7 +117,7 @@ describe('the dropzone edge clears 3 : 1 on both of its planes, in both themes',
   // than the figure it would pin, so a re-value that changed the recorded 2-dp number could
   // still slip through. What the ruling records is the PRINTED number, so that is compared.
   //
-  // ALL THREE STATES, not just the rest, because the sheet publishes all three and a figure
+  // ALL THREE STATES, not just the rest, because the edge has all three and a figure
   // lives in a test or not at all. Pinning the rest alone would let a re-value of `muted`
   // move the hover anywhere above it while every table went on printing the old number.
   it.each([

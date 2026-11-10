@@ -94,7 +94,8 @@ export function RuleField({
         </span>
       ) : (
         // The rule stays under the sentence, hidden, so the line keeps its height and the button
-        // below it does not move (`password-reuse.dc.html`).
+        // below it does not move (`docs/superpowers/specs/2026-11-05-layout-refresh/signed-out.md`
+        // § Signed).
         <span className="grid min-h-[16.5px]">
           <span aria-hidden="true" className="invisible col-start-1 row-start-1">
             {rule}

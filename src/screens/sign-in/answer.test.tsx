@@ -150,8 +150,8 @@ describe("an answer screen's sign-out", () => {
     ).not.toHaveBeenCalled();
   });
 
-  // A Stop while the logout loads leaves the page here: the next route change drops the answer
-  // (`account-way-in-and-out.dc.html`, T4), and the route that asked renders signed out.
+  // A Stop while the logout loads leaves the page here: the next route change drops the answer,
+  // and the route that asked renders signed out.
   it.each([
     ['pending', 'Вийти'],
     ['noApplication', 'Вийти й подати заявку'],
@@ -190,8 +190,8 @@ describe("an answer screen's sign-out", () => {
   });
 });
 
-// `design/extensions/terms-acceptance-step.dc.html`: the step is the refused caller's card, asking
-// for one press; accepting shows the route that asked, declining signs out as «Вийти» does.
+// The step is the refused caller's card, asking for one press; accepting shows the route that
+// asked, declining signs out as «Вийти» does.
 describe('the terms step', () => {
   const step = uk.terms.step;
 

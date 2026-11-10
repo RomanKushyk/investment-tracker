@@ -343,8 +343,7 @@ describe('seasonalityMonths (A41) — the month axis, and D-5 in it', () => {
   it('expects a coupon in EVERY month a bond is scheduled for, not just the next one', () => {
     // …8976 pays in August and again at its February maturity, so both months carry
     // an expectation — and February carries BOTH, because it also has the coupon
-    // already received. The design sheet drew only August; the schedule says
-    // otherwise, and the schedule is the thing being asked.
+    // already received. The schedule is the thing being asked, not the next coupon.
     const m = seasonalityMonths(SEED_TRANSACTIONS, SEED_ASSETS);
     expect(m.find((x) => x.month === 8)!.expected).toBe(1240);
     expect(m.find((x) => x.month === 2)!.expected).toBe(1240);
@@ -374,7 +373,7 @@ describe('A42 — /seasonality under the window: one series moves, the other can
       latestSnapshotDate(snaps),
     );
 
-  it("reproduces the sheet's measured day-10 figure under 3 місяці", () => {
+  it('reproduces the measured day-10 figure under 3 місяці', () => {
     // The REIT dividends of the three earlier months fall before the window opens.
     const all = seasonalityDaysIn(SEED_TRANSACTIONS, SEED_ASSETS, at('all'));
     const q = seasonalityDaysIn(SEED_TRANSACTIONS, SEED_ASSETS, at('3m'));

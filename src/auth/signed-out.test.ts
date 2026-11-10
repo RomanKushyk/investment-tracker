@@ -16,8 +16,8 @@ import {
   usedUp,
 } from './signed-out';
 
-// `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL (`sign-out-landing.dc.html`, T4). A reload is
-// a new router opened on the entry the old one stood on, state and all, as a browser's is.
+// `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL. A reload is a new router opened on the entry
+// the old one stood on, state and all, as a browser's is.
 const ROUTES = [{ path: '/overview' }, { path: '/sign-in' }, { path: '/apply' }];
 type Router = ReturnType<typeof createMemoryRouter>;
 
@@ -45,7 +45,7 @@ describe('the fact a sign-out hands `/sign-in`', () => {
     }
   });
 
-  // A DELETION'S LANDING names its cause, the scheduled one its day (`account-deletion.dc.html` T5).
+  // A DELETION'S LANDING names its cause, the scheduled one its day.
   it('carries a deletion’s cause, and a plain sign-out names none', () => {
     const deleted = signedOutBy({ kind: 'deleted' });
     const scheduled = signedOutBy({ kind: 'scheduled', date: '2026-11-29' });
@@ -152,7 +152,7 @@ describe('the fact carried across Cognito’s logout', () => {
     expect(returnedSignedOut(tab)).toBe(false);
   });
 
-  // A DELETION'S LANDING says what became of the account (`account-deletion.dc.html` T5).
+  // A DELETION'S LANDING says what became of the account.
   it('carries a deletion’s cause and its day, and a plain sign-out as before', () => {
     const tab = store();
     carrySignedOut(tab, { kind: 'scheduled', date: '2026-11-29' });
@@ -196,7 +196,7 @@ describe('the fact carried across Cognito’s logout', () => {
   });
 
   // A logout that is no URL is none: the sign-out goes its own way, not a throw on a page already
-  // signed out (`account-way-in-and-out.dc.html`, T4).
+  // signed out.
   it('leaves through no logout that is not a URL', () => {
     expect(throughLogout('logout', SITE, SITE, '/sign-in')).toBeUndefined();
   });

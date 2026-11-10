@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// THE PANEL IS FOUR BANDS, transcribed from `design/extensions/parchment-sidebar.dc.html`
-// rather than derived, the way every guard in this directory transcribes its drawing.
+// THE PANEL IS FOUR BANDS.
 //
 // WHICH RECIPE THE ROW PAINTS, where `sidebar-plane.test.ts` reads what the grounds MEASURE
 // — neither catches the other, since the tokens can be perfect while the track is still one
@@ -95,7 +94,7 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
   });
 
   // SPENT TWICE AND NO MORE: one rule between the two nav groups, one along the band's top
-  // edge. A third means a rule appeared somewhere the drawing does not put one.
+  // edge. A third means a rule appeared off those two sites.
   it('spends `sb-divider` exactly twice — one group rule and the band', () => {
     expect(linesWith(/\bborder-sb-divider\b/).length, '`sb-divider` moved off its two sites').toBe(
       2,
@@ -159,7 +158,7 @@ describe('the footer band carries two tracks on one row, and the theme one is a 
     );
   });
 
-  // The sheet's widths are the panel's, where `TAP_44` is inert. In the DRAWER the segments
+  // The drawn widths are the panel's, where `TAP_44` is inert. In the DRAWER the segments
   // shrink until two overlays hand each other taps, and a real 44 box is the fix
   // `tap-target.ts` names when a gap cannot be made.
   //
@@ -218,7 +217,7 @@ describe('Settings leaves the scrolling band, and its caption goes with it', () 
 
   // Settings left the scrolling band and took its group header with it. The three are a user's two
   // and the super-admin's «Адміністрування», whose one item keeps a caption because the group names
-  // the role's work and «Користувачі» joins it (`super-admin-shell.dc.html`, T1).
+  // the role's work and «Користувачі» joins it.
   it('leaves three nav groups, so three captions', () => {
     expect(linesWith(/<NavGroup\b/).length, 'the nav no longer has exactly three groups').toBe(3);
     expect(SIDEBAR, 'the Settings group caption survived its group').not.toMatch(/groupSettings/);
@@ -233,7 +232,7 @@ describe('Settings leaves the scrolling band, and its caption goes with it', () 
   });
 });
 
-describe('the group caption is the sheet its own size, and no longer shouts', () => {
+describe('the group caption is its own size, and no longer shouts', () => {
   // Sentence case, against the uppercase it replaces. Still small text, so `sb-label`'s
   // recorded shortfall stands and is not repaired here.
   it('sets the caption at 11px on the drawn tracking', () => {
@@ -246,9 +245,8 @@ describe('the group caption is the sheet its own size, and no longer shouts', ()
 });
 
 describe('the head carries the capital as a strip, and the blob is gone', () => {
-  // Bled, `sb-field`, NO radius and NO edge: the sheet refuses the edge on the instruction
-  // that this is a strip, and *Shape system* licenses the corners — a full-bleed band takes
-  // square ones.
+  // Bled, `sb-field`, NO radius and NO edge: a strip takes no edge, and *Shape system* licenses
+  // the corners — a full-bleed band takes square ones.
   it('re-planes the capital as a bled 56px `sb-field` strip with no corner', () => {
     const band = linesWith(/\bbg-sb-field\b/);
     expect(band.length, 'the capital strip is not the file one `sb-field` box').toBe(1);
@@ -257,8 +255,8 @@ describe('the head carries the capital as a strip, and the blob is gone', () => 
       /ml-\[calc\(-1\*max\(16px,env\(safe-area-inset-left\)\)\)\]/,
     );
     expect(band[0], 'the strip does not bleed to the right edge').toMatch(/-mr-4\b/);
-    expect(band[0], 'the strip took a radius the drawing refuses').not.toMatch(/rounded/);
-    expect(band[0], 'the strip took an edge the drawing refuses').not.toMatch(/\bborder\b/);
+    expect(band[0], 'the strip took a radius').not.toMatch(/rounded/);
+    expect(band[0], 'the strip took an edge').not.toMatch(/\bborder\b/);
   });
 
   // The decor blob identified nothing against the wall and sat under the band anyway, so it
@@ -269,9 +267,10 @@ describe('the head carries the capital as a strip, and the blob is gone', () => 
   });
 });
 
-// THE ACCOUNT IS THE BAND'S LAST ROW (`design/extensions/sign-out.dc.html`, T1): the owner ruled
-// the sign-out last, a pill in Settings' own recipe, with the address above it. The links line
-// under it carries the privacy and terms links over the version (`terms-of-use.dc.html`).
+// THE ACCOUNT IS THE BAND'S LAST ROW
+// (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed): the
+// owner ruled the sign-out last, a pill in Settings' own recipe, with the address above it. The
+// links line under it carries the privacy and terms links over the version.
 describe("the account is the footer band's last row", () => {
   it('draws the account rows after Settings and before the version', () => {
     const settings = SIDEBAR.indexOf('to="/settings"');
@@ -308,10 +307,11 @@ describe("the account is the footer band's last row", () => {
     expect(button, 'the sign-out lost its glyph').toMatch(/Icon=\{LogOut\}/);
   });
 
-  // SIGNED OUT, THE SLOT KEEPS ITS SIGNED-IN SHAPE (`sign-in-entry.dc.html`, T1): the status
-  // where the address stands, then «Увійти» where «Вийти» stands. A LINK, because it goes to a
-  // route; a plain `Link` and never a `NavLink`, because `/sign-in/x` falls into the shell, where
-  // a `NavLink` would mark the entry current.
+  // SIGNED OUT, THE SLOT KEEPS ITS SIGNED-IN SHAPE
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed): the
+  // status where the address stands, then «Увійти» where «Вийти» stands. A LINK, because it goes
+  // to a route; a plain `Link` and never a `NavLink`, because `/sign-in/x` falls into the shell,
+  // where a `NavLink` would mark the entry current.
   it('offers a sign-in link in the same slot, after a status row', () => {
     const at = SIDEBAR.indexOf('function AccountRows');
     const end = SIDEBAR.indexOf('</AccountFold>', at);
@@ -337,8 +337,9 @@ describe("the account is the footer band's last row", () => {
 
   // ONE GEOMETRY BY CONSTRUCTION: the held slot is the signed-in rows' height, so the signed-out
   // rows take the same row and the same pill, or Settings moves when the relay answers. The
-  // address is the profile's link at the row's 36 (`own-account.dc.html`, T5): the pill's states
-  // on a box whose 10 + 16 + 10 is the row's `h-[36px]`.
+  // address is the profile's link at the row's 36
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed): the
+  // pill's states on a box whose 10 + 16 + 10 is the row's `h-[36px]`.
   it('draws both answers from one row and one pill', () => {
     const at = SIDEBAR.indexOf('function AccountRows');
     const rows = SIDEBAR.slice(at, SIDEBAR.indexOf('</AccountFold>', at));

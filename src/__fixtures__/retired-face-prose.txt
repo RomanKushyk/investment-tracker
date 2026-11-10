@@ -20,6 +20,6 @@ making the old case is a comment that will be believed.
   src/main.tsx:9     import '@fontsource/ibm-plex-sans/700.css';
   package.json:19        "@fontsource/ibm-plex-sans": "^5.3.0",
 
-The argument itself does not survive here: `design/extensions/parchment-5h.dc.html`
-still carries it, and a merged drawing is immutable. That file is in no corpus
-this repo walks, which is why the needle needs this record and not that one.
+The argument itself does not survive here: history carries it (`d91509b~1`, for
+one), and nothing that carries it is in a corpus this repo walks, which is why
+the needle needs this record.

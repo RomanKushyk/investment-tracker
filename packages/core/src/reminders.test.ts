@@ -134,7 +134,7 @@ describe('coupon lead-day boundaries', () => {
     expect(computeReminders([bond({ nextCoupon: '2026-08-12' })], quoted, [], TODAY)).toEqual([]);
   });
 
-  // The S8 field re-windows the banners immediately (no reload) — the seed’s real
+  // The lead-time field re-windows the banners immediately (no reload) — the seed’s real
   // 25.08 coupon is 21 days out, so it appears only from leadDays 21 on.
   it('re-windows with a wider lead time', () => {
     expect(computeReminders([bond()], quoted, [], TODAY, { leadDays: 20 })).toEqual([]);
@@ -175,7 +175,7 @@ describe('upcoming → overdue transition', () => {
   });
 });
 
-describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
+describe('coupon dedupe against recorded payouts (±7 days)', () => {
   const quoted = [snapshot(TODAY, { ovdp8976: 15846.3 })];
 
   it('drops an overdue coupon whose payout is already recorded', () => {
@@ -220,7 +220,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
   });
 
   // The dedupe used to read `asset.nextCoupon` alone, and that field only moves
-  // through the S5 confirm — so a coupon recorded by hand silenced every LATER
+  // through the coupon card's confirm — so a coupon recorded by hand silenced every LATER
   // occurrence of that bond too, forever.
   it('announces the next occurrence once the pointer one is settled', () => {
     const asset = bond({ nextCoupon: '2026-07-25' }); // recorded by hand on the day
@@ -236,7 +236,7 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
     expect(later.map((r) => r.id)).toEqual([couponUpcomingReminderId('ovdp8976', '2027-01-23')]);
   });
 
-  it('announces the next occurrence after a skip (S5 → S6 hand-over)', () => {
+  it('announces the next occurrence after a skip (the card hands over to the strip)', () => {
     const asset = bond({ nextCoupon: '2026-07-25' });
     const skipped = { dismissed: [couponReminderId('ovdp8976', '2026-07-25')] };
     expect(computeReminders([asset], quoted, [], TODAY, skipped)).toEqual([]);
@@ -340,7 +340,7 @@ describe('dismissal filtering', () => {
     expect(computeReminders(assets, [], [], '2026-08-05', { dismissed })).toHaveLength(1);
   });
 
-  it('lets an S5 card skip silence its own overdue banner', () => {
+  it('lets a skip on the coupon card silence its own overdue banner', () => {
     const assets = [bond({ nextCoupon: '2026-07-25' })];
     const skipped = [couponReminderId('ovdp8976', '2026-07-25')];
     expect(computeReminders(assets, quoted, [], TODAY, { dismissed: skipped })).toEqual([]);

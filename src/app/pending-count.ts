@@ -2,7 +2,7 @@ import { COUNT_PAGE, usePendingCount, useRole } from '../hooks/queries';
 import type { Dict } from '../i18n/messages';
 
 /** The applications waiting, as the nav draws them: none while the count's first read is out or
- *  failed or none wait, «99+» from a full page (`admin-users.dc.html`, T2). */
+ *  failed or none wait, «99+» from a full page. */
 export interface PendingBadge {
   /** The number drawn, `aria-hidden`: the link's or the trigger's name carries it. */
   shown: string;

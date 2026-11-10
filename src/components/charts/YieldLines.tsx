@@ -32,7 +32,6 @@ function lastDefinedIndex(data: YieldSeriesPoint[], assetId: string): number {
   return idx;
 }
 
-// Drawn at `design/Investment Tracker.dc.html:314-322`.
 export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets: Asset[] }) {
   const f = useFormat();
   const pin = useTooltipTrigger(data);

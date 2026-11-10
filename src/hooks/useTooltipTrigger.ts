@@ -18,8 +18,9 @@ export interface TooltipPin {
   probe: Probe;
 }
 
-// Tap to pin below `md` (`docs/superpowers/specs/2026-11-05-layout-refresh/charts.md`): recharts
-// re-pins on every click and cannot clear its click state, so the release is held here.
+// Tap to pin below `md` (`docs/superpowers/specs/2026-11-05-layout-refresh/charts.md`
+// § Перенесено): recharts re-pins on every click and cannot clear its click state, so the release
+// is held here.
 export function useTooltipTrigger(data: readonly unknown[]): TooltipPin {
   const desktop = useIsDesktop();
   const [releasedPin, setReleased] = useState(false);

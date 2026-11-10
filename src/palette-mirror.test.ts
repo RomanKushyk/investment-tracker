@@ -232,8 +232,10 @@ describe('the palette and its two mirrors carry no retired value', () => {
     expect(found, `${file} still carries retired values`).toEqual([]);
   });
 
-  // GOOGLE'S FAMILY IS NOT THE PALETTE (`auth-surface.dc.html` T7): its light fill is the white the
-  // parchment palette retired, so its declarations alone leave the sweep — three per theme.
+  // GOOGLE'S FAMILY IS NOT THE PALETTE
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/signed-out.md` § Signed): its light fill is
+  // the white the parchment palette retired, so its declarations alone leave the sweep — three per
+  // theme.
   it('leaves out Google’s own three per theme, and nothing else', () => {
     expect(FILES['src/index.css'].toLowerCase().match(GOOGLE)).toHaveLength(6);
   });
@@ -257,13 +259,13 @@ describe('the palette and its two mirrors carry no retired value', () => {
 // tokens. This block is what stops that prose rotting: every number the stylesheet states
 // about a pair is recomputed here from the values it declares.
 //
-// These are DESCRIPTIVE, not floors. Each is a reading the owner ruled on or a margin the
-// sheet flagged, so a change to any of them is a palette decision that cannot happen quietly.
+// These are DESCRIPTIVE, not floors. Each is a reading the owner ruled on or a recorded margin,
+// so a change to any of them is a palette decision that cannot happen quietly.
 describe('the recorded readings still read as recorded', () => {
   const RECORDED: [string, keyof typeof BLOCKS, string, string, number][] = [
     // The four the owner ruled on: the values stand and the figures are recorded.
     [
-      'accent on panel, under 4.5 — rule 2 makes it every link in light',
+      'accent on panel, under 4.5 — its usage rule makes it every link in light',
       'light',
       'accent',
       'panel',
@@ -297,7 +299,7 @@ describe('the recorded readings still read as recorded', () => {
     // takes the three per-theme `logo-*` names now. Five of its six readings clear; the
     // lighter pill in light does not, and it is the same `reit` hue as the row below.
     ['logo-pill-a on the wall, light', 'light', 'logo-pill-a', 'sb-bg', 2.812],
-    // Two more the sheet records at their values.
+    // Two more recorded at their values.
     [
       'reit on panel — ColorDot and ShareBar paint the bare hue there',
       'light',
@@ -318,7 +320,7 @@ describe('the recorded readings still read as recorded', () => {
   // halves of the capital strip and the footer band; the set is frozen rather than derived,
   // so a figure added to or removed from the stylesheet has to move this list with it.
   const STATED_IN_THE_SHEET = [
-    'accent on panel, under 4.5 — rule 2 makes it every link in light',
+    'accent on panel, under 4.5 — its usage rule makes it every link in light',
     'warn from accent — a caution and the brand are one colour',
     'sb-label on its wall — the nav group captions, 11px since #107',
     'sb-label on its wall, dark',
@@ -375,10 +377,9 @@ describe('the recorded readings still read as recorded', () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
-  // The identities `index.css` records beside the minted families. They are the
-  // sheet's own and were declined for resolution there, so what is guarded is
-  // that they stay KNOWN — a later session that separates them should have to
-  // delete a line here and say so.
+  // The identities `index.css` records beside the minted families, recorded rather than
+  // resolved, so what is guarded is that they stay KNOWN — a later session that separates them
+  // should have to delete a line here and say so.
   it.each([
     ['accent', 'energy', 'light'],
     ['accent', 'energy', 'dark'],

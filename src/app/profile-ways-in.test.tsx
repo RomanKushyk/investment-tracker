@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The ways in to the profile, through the real router and shell: the panel's address, the rail's
-// item and the drawer's copy of the panel (`design/extensions/own-account.dc.html`, T5).
+// item and the drawer's copy of the panel.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';

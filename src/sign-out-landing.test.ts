@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-// `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL (`sign-out-landing.dc.html`): the half
-// `auth/signed-out.test.ts` cannot reach — who hands the fact over, and how the page draws it.
+// `/sign-in` SAYS SO ONCE, ON A SIGN-OUT'S ARRIVAL: the half `auth/signed-out.test.ts` cannot
+// reach — who hands the fact over, and how the page draws it.
 const here = dirname(fileURLToPath(import.meta.url));
 /** Comments cut, so a sentence about the fact cannot answer for the fact. The canonical reader,
  *  copied whole as the house idiom has it (`ts-reader-census.test.ts`). */
@@ -96,7 +96,7 @@ describe('`/sign-in` reads it once and uses it up', () => {
       step.indexOf('<Title>{t.auth.signIn.title}</Title>'),
     );
     expect(step, 'the line says something else').toMatch(/\{noteText\}<\/SignedOutNote>/);
-    // A sign-out's own words unless a deletion named its cause (`account-deletion.dc.html` T5).
+    // A sign-out's own words unless a deletion named its cause.
     expect(signIn).toMatch(/:\s*t\.auth\.signedOut;/);
   });
 

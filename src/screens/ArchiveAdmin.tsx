@@ -17,10 +17,9 @@ import { Repairs } from './archive/Repairs';
 import { RunLog } from './archive/RunLog';
 import { SpotCheck } from './archive/SpotCheck';
 
-// THE SUPER-ADMIN'S ARCHIVE PANEL (`design/extensions/archive-admin.dc.html`, T2–T6), under
-// «Адміністрування» (`super-admin-shell.dc.html`). The route is the super-admin's alone: until
-// `GET /me` answers nothing is drawn, so no other role sees it arrive, and anyone else gets the
-// app's not-found. A failed `/me` throws, as the profile's does.
+// THE SUPER-ADMIN'S ARCHIVE PANEL, under «Адміністрування». The route is the super-admin's
+// alone: until `GET /me` answers nothing is drawn, so no other role sees it arrive, and anyone
+// else gets the app's not-found. A failed `/me` throws, as the profile's does.
 export function ArchiveAdmin() {
   const signedIn = useSessionStatus() === 'signedIn';
   return signedIn ? <Gate /> : null;
@@ -42,7 +41,7 @@ function Panel({ me }: { me: string }) {
   // The first read's failure is a card that holds the retry; a refresh's keeps the answer in hand.
   const firstFailed = data === undefined && failure !== undefined && !fetching;
   const unread = data === undefined && failure === undefined && !fetching;
-  // A press in a card that leaves takes focus to the slot's busy button (T3), and a first read that
+  // A press in a card that leaves takes focus to the slot's busy button, and a first read that
   // fails takes it on to the card's retry; a failure found on arrival moves nothing.
   const slot = useRef<HTMLButtonElement>(null);
   const retry = useRef<HTMLButtonElement>(null);

@@ -6,8 +6,8 @@ import { carriedFrom } from './return-to';
 /** What a finished sign-out hands `/sign-in` as router state, so the page can say so. */
 export const SIGNED_OUT = { signedOut: true } as const;
 
-/** Why the page is signed out: a sign-out, or the account deleted now or held until `date`'s end
- *  (`account-deletion.dc.html` T5), whose landing says so in its place. */
+/** Why the page is signed out: a sign-out, or the account deleted now or held until `date`'s end,
+ *  whose landing says so in its place. */
 export type SignedOutCause =
   { kind: 'signedOut' } | { kind: 'deleted' } | { kind: 'scheduled'; date: string };
 

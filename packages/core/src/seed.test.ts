@@ -49,7 +49,7 @@ describe('seed assets (design Attributes cards, lines 340–409)', () => {
   });
 });
 
-describe('seed snapshots (design Balances table, D5#2)', () => {
+describe('seed snapshots (D5#2)', () => {
   it('exactly 174 snapshots: daily 03.02→25.07 complete (no 26.07) + partial 27.07', () => {
     expect(snaps).toHaveLength(174);
     expect(snaps[0].date).toBe('2026-02-03');

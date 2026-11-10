@@ -11,7 +11,7 @@ export type Reason =
   | 'botCheckFailed'
   | 'botCheckUnavailable';
 
-/** Said on the new password's line, in the rule's place (`password-reuse.dc.html`). */
+/** Said on the new password's line, in the rule's place. */
 export const ON_THE_RULE: readonly Reason[] = ['rule', 'reused'];
 /** Said under a field; every other reason is said under the step's button. */
 export const ON_THE_FIELD: readonly Reason[] = [

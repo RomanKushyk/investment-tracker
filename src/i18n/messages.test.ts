@@ -244,7 +244,7 @@ describe('the sign-out lines', () => {
   });
 });
 
-// `account-way-in-and-out.dc.html`: a sign-in on its way in says the password step's own busy word.
+// A sign-in on its way in says the password step's own busy word.
 describe('the way in', () => {
   it('says «Входимо…», the word the password step already says while it signs in', () => {
     expect([uk.auth.signingIn, en.auth.signingIn]).toEqual([
@@ -255,7 +255,7 @@ describe('the way in', () => {
 });
 
 describe('the reused temporary password', () => {
-  // The words the owner ruled (`password-reuse.dc.html`): what happened, then the fix the lead
+  // The words the owner ruled: what happened, then the fix the lead
   // already asks for, in its own last words.
   it('names the temporary password and says to choose another', () => {
     expect(en.auth.setPassword.reused).toBe('That’s the temporary password. Choose your own.');
@@ -264,8 +264,7 @@ describe('the reused temporary password', () => {
 });
 
 describe('the bot check', () => {
-  // Word for word as `bot-check.dc.html` T5 writes them: a step that did not finish, and a
-  // connection, the house's two failure shapes.
+  // A step that did not finish, and a connection: the house's two failure shapes.
   it('says the check did not finish, and that it could not load', () => {
     expect(en.auth.botCheck.failed).toBe('The security check didn’t finish. Try again.');
     expect(uk.auth.botCheck.failed).toBe('Перевірку безпеки не завершено. Спробуйте ще раз.');
@@ -280,7 +279,7 @@ describe('the bot check', () => {
 
 describe('the account slot signed out', () => {
   // The status is the negative of the row's own fallback, and the entry says what `/apply`'s link
-  // to `/sign-in` says (*Two shells, one breakpoint*; `sign-in-entry.dc.html`).
+  // to `/sign-in` says (*Two shells, one breakpoint*).
   it('reads not signed in, then the word the sign-in link already uses', () => {
     expect(en.auth.notSignedIn).toBe('Not signed in');
     expect(uk.auth.notSignedIn).toBe('Ви не ввійшли');
@@ -319,8 +318,8 @@ describe('the rejected answer', () => {
 describe('the not-found and failure states', () => {
   const BOUNDARY = [...EN, ...UK].filter(([key]) => key.startsWith('boundary.'));
 
-  // The words of `boundaries.dc.html`: GOV.UK's not-found page, and one failure sentence for every
-  // unexpected problem, in the app's «Не вдалося …» voice.
+  // GOV.UK's not-found page, and one failure sentence for every unexpected problem, in the app's
+  // «Не вдалося …» voice.
   it('say what the brief says, in both languages', () => {
     expect(en.boundary.notFound).toEqual({
       title: 'Page not found',
@@ -358,7 +357,7 @@ describe('the not-found and failure states', () => {
 
 describe('the rows-ahead chip', () => {
   // The owner's words on #358 ("listed, marked as not yet counted"); the title names the row's
-  // own date in full (`rows-ahead-mark.dc.html`).
+  // own date in full.
   it('says not yet counted, and from which day, in both languages', () => {
     expect(en.transaction.ahead).toBe('Not yet counted');
     expect(uk.transaction.ahead).toBe('Ще не враховано');

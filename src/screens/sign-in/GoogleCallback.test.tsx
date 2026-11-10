@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Back from Google, the card says «Входимо…» while the relay redeems the code, with no form
-// (`account-way-in-and-out.dc.html` T5), then lands where the answer sends it.
+// Back from Google, the card says «Входимо…» while the relay redeems the code, with no form, then
+// lands where the answer sends it.
 import { act, cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createMemoryRouter } from 'react-router';
@@ -59,7 +59,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('back from Google, while the relay redeems the code', () => {
-  // The drawing's words, character for character.
+  // The copy, character for character.
   it('says «Входимо…» over «Завершуємо вхід через Google.», its heading focused', () => {
     mount();
     const heading = screen.getByRole('heading', { name: 'Входимо…' });

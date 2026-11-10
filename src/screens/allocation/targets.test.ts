@@ -78,7 +78,7 @@ describe('targetsSum + sumStatus (Σ pill math)', () => {
     expect(sumStatus(sum)).toBe('ok');
   });
 
-  it('the S4 warn mock: 40+40+9+stored 3 (invalid "3%" falls back) → Σ 92 → warn', () => {
+  it('the warn case: 40+40+9+stored 3 (invalid "3%" falls back) → Σ 92 → warn', () => {
     const sum = targetsSum(targetRowStates(ASSETS, { ovdp8976: '9', ovdp6475: '3%' }, 'en'));
     expect(sum).toBe(92);
     expect(sumStatus(sum)).toBe('warn');

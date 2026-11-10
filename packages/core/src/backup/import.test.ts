@@ -129,7 +129,7 @@ const everyType = Object.keys(CARRIES) as TxType[];
 
 const CTX = { today: '2026-08-04' } as const;
 
-describe('classifyImportFiles (S2 file gate)', () => {
+describe('classifyImportFiles (the file gate)', () => {
   it('accepts one .json file of a sane size', () => {
     expect(
       classifyImportFiles([{ name: 'kubushka-backup-2026-08-04.json', size: 300_000 }]),
@@ -196,7 +196,7 @@ describe('validateImport — accepted', () => {
   });
 });
 
-describe('validateImport — format-level rejections (S4 single reason)', () => {
+describe('validateImport — format-level rejections (one reason)', () => {
   it('rejects non-JSON text with the envelope sentence as its mono detail', () => {
     const result = validateImport('{ nope');
     expect(result.ok).toBe(false);
@@ -329,7 +329,7 @@ function deepArrayAt(field: 'format' | 'formatVersion'): string {
   );
 }
 
-describe('validateImport — row-addressed rejections (S4 list)', () => {
+describe('validateImport — row-addressed rejections (a list)', () => {
   it('rejects an unknown key on a row (strictObject) and names the key', () => {
     const result = validateImport(
       mutated((env) => void ((env.assets as Record<string, unknown>[])[0].foo = 'bar')),
@@ -716,7 +716,7 @@ describe('diffBackup', () => {
     expect(diff.warnings).toEqual([]);
   });
 
-  // The S3 worked illustration: yesterday's backup over today's data silently drops
+  // The worked illustration: yesterday's backup over today's data silently drops
   // today's snapshot and today's transaction.
   it("reports yesterday's backup over today's data as replaced + removed", () => {
     const current = tables({

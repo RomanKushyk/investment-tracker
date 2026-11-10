@@ -48,7 +48,7 @@ describe('mostUnderweightAsset', () => {
   });
 });
 
-describe('totalReturnKpi (S9a — audit §5 family, additive to the pinned Capital gain)', () => {
+describe('totalReturnKpi (audit §5 family, additive to the pinned Capital gain)', () => {
   const snaps = buildSeedSnapshots();
 
   it('demo: +₴9,398.27 over net deposits 139 618,09 → +6.7314%', () => {

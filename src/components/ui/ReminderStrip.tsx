@@ -15,12 +15,11 @@ import {
 } from './reminder-labels';
 import { useT } from '../../i18n/useT';
 
-// The banner strip above the screen content on `/` and `/overview`
-// (`design/extensions/reminders.dc.html`). SEVERITY IS THE CONTAINER: a tint
-// background with its -tint-text carrying icon, text and ✕, no border and no
-// shadow. `neg-tint` is minted for the overdue severity and used nowhere else,
-// and `info` reads the INFO family rather than the gain one — gain and loss
-// belong to deltas, and a reminder is not a delta (*Interaction rules*).
+// The banner strip above the screen content on `/` and `/overview`. SEVERITY IS
+// THE CONTAINER: a tint background with its -tint-text carrying icon, text and ✕,
+// no border and no shadow. `neg-tint` is minted for the overdue severity and used
+// nowhere else, and `info` reads the INFO family rather than the gain one — gain
+// and loss belong to deltas, and a reminder is not a delta (*Interaction rules*).
 const SEVERITY_PAINT: Record<ReminderSeverity, string> = {
   info: 'bg-info-tint text-info-tint-text',
   warn: 'bg-warn-tint text-warn-tint-text',
@@ -33,8 +32,9 @@ const SEVERITY_ICON: Record<ReminderSeverity, typeof Info> = {
   overdue: Clock,
 };
 
-// The drawing's cadence expressed in Tailwind's delay ladder, which is why the
-// steps are uneven — the ladder has no rung at every multiple.
+// The stagger in (`docs/superpowers/specs/2026-11-05-layout-refresh/notices-and-toasts.md`
+// § Signed) expressed in Tailwind's delay ladder, which is why the steps are
+// uneven — the ladder has no rung at every multiple.
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
 function ReminderBanner({
@@ -69,7 +69,7 @@ function ReminderBanner({
       <div className="min-w-0 flex-1 text-[13px] leading-[1.5]">
         {reminderText(reminder, assetName, f, t)}{' '}
         {action !== undefined && (
-          // The drawing's `nowrap` holds from `sm` up only: at 360 the content
+          // `nowrap` holds from `sm` up only: at 360 the content
           // column is too narrow for it, and an unwrappable link there pushes
           // the page into horizontal scroll.
           <Link

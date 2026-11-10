@@ -19,8 +19,9 @@ describe("the footer band's account rows", () => {
     expect(accountRows('signedOut', true, false, true)).toBe('shown');
   });
 
-  // The slot keeps its signed-in shape (`sign-in-entry.dc.html`, T4): the status and «Увійти»
-  // fade into it, so Settings stands where it stood while the session was unknown.
+  // The slot keeps its signed-in shape: the status and «Увійти» fade into it, so Settings stands
+  // where it stood while the session was unknown
+  // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed).
   it('offer the entry once the relay answers signed out', () => {
     expect(accountRows('signedOut', false, false, true)).toBe('entry');
   });

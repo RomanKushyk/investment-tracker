@@ -5,8 +5,8 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // THE SHELL ASKS FOR THE SESSION ON EVERY PORTFOLIO LOAD, AND AGAIN ON EACH ROUTE UNTIL THE RELAY
-// ANSWERS (`design/extensions/sign-out.dc.html`): the session half — `restore` asking nothing once
-// answered — is `session.test.ts`'s; this holds the half no unit test can reach.
+// ANSWERS: the session half — `restore` asking nothing once answered — is `session.test.ts`'s;
+// this holds the half no unit test can reach.
 const here = dirname(fileURLToPath(import.meta.url));
 /** Comments cut, so a sentence about the effect cannot answer for the effect. The canonical
  *  reader, copied whole as the house idiom has it (`ts-reader-census.test.ts`). */

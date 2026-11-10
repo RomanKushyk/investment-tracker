@@ -6,10 +6,11 @@ import { describe, expect, it } from 'vitest';
 
 import { ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
 
-// THE FIELD EDGE, at the bar `design/extensions/field-border.dc.html` set: no field
-// boundary reads below 3 : 1 (WCAG 1.4.11) on any of the three surfaces a field is drawn
-// on. Two halves and neither catches the other — the CSS half is arithmetic on tokens no
-// other test in the repo reads, and the markup half is which recipes point at the token,
+// THE FIELD EDGE, at its bar
+// (`docs/superpowers/specs/2026-11-05-layout-refresh/forms-and-dialogs.md` § Signed): no field
+// boundary reads below 3 : 1 (WCAG 1.4.11) on any of the three surfaces a field is drawn on. Two
+// halves and neither catches the other — the CSS half is arithmetic on tokens no other test in
+// the repo reads, and the markup half is which recipes point at the token,
 // written out eleven times separately because there is no shared input component (#84).
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
@@ -141,8 +142,8 @@ const FIELD_LINE = (line: string) => /rounded-\[9px\]/.test(line) && /\bh-9\b/.t
  *  field's, then the floating-surface edge, so the next one added has an obvious place. */
 const OTHER_EDGE = /\bborder-(hairline|faint|panel-border|muted|switch-border|drawer-edge)\b/;
 
-/** The edges a field may wear, every one a state the design sheet rules on. `ink` is
- *  absent deliberately: it is the HOVER destination, never a rest. */
+/** The edges a field may wear, every one a state. `ink` is absent deliberately: it is the
+ *  HOVER destination, never a rest. */
 const FIELD_EDGE = /\bborder-(field-border|neg|pos-border|warn)\b/;
 
 /** A FIELD SITE: one `className` attribute carrying the recipe. Asked of the TSX tree,
@@ -342,8 +343,8 @@ const FIELD_FILES = sourceFiles(here)
   .filter((f) => f !== 'screens/placeholders.tsx')
   .filter((f) => fieldSites(f).length > 0);
 
-/** The one site with no hover, named rather than counted: the sheet rules that giving
- *  `QuoteRow`'s empty plain arm a hover is behaviour and not colour. */
+/** The one site with no hover, named rather than counted: giving `QuoteRow`'s empty plain
+ *  arm a hover is behaviour and not colour. */
 const UNHOVERED = { file: 'screens/daily-quotes/QuoteRow.tsx', arm: 'border-field-border' };
 
 const SITES_BY_FILE = new Map(FIELD_FILES.map((f) => [f, fieldSites(f)]));

@@ -191,8 +191,7 @@ describe('suggestedQuote', () => {
   const daily8976 = dailyAccrual(1240, 'semiannual');
 
   it('carries the last quote forward by the daily accrual', () => {
-    // Both expected figures are the design reference's own
-    // (design/extensions/daily-quotes-live.dc.html).
+    // Both expected figures were worked out outside this code, never by it.
     expect(
       suggestedQuote({
         lastQuote: 4374.12,
@@ -316,7 +315,7 @@ describe('dueCoupons', () => {
     ).toEqual([]);
   });
 
-  // `nextCoupon` only ever moves through the S5 confirm, so a coupon recorded in the
+  // `nextCoupon` only ever moves through the coupon card's confirm, so a coupon recorded in the
   // Transaction panel used to freeze the pointer AND silence the card for good.
   it('advances to the next occurrence when the pointer sits on a settled one', () => {
     const recorded = [tx()]; // the 25.08 coupon, entered by hand
@@ -326,7 +325,7 @@ describe('dueCoupons', () => {
     ]);
   });
 
-  it('advances past an occurrence the user SKIPPED (brief S5 "skipped" row)', () => {
+  it('advances past an occurrence the user SKIPPED', () => {
     const skipped = { dismissed: [couponReminderId('ovdp8976', '2026-08-25')] };
     expect(dueCoupons([bond()], [], '2026-09-04', skipped)).toEqual([]);
     expect(dueCoupons([bond()], [], '2027-02-25', skipped)).toEqual([
@@ -672,7 +671,7 @@ describe('couponProjection', () => {
 });
 
 describe('couponReminderId', () => {
-  it('is the derived id both the S5 skip and the S6 reminders use', () => {
+  it('is the derived id both the coupon card skip and the reminders use', () => {
     expect(couponReminderId('ovdp8976', '2026-08-25')).toBe('coupon:ovdp8976:2026-08-25');
   });
 });
@@ -2212,7 +2211,7 @@ describe('scheduledCouponMonths — D-5, answered forward', () => {
   });
 
   it('KEEPS A COUPON WHOSE DATE HAS PASSED AND WHICH NOBODY CONFIRMED (review F8)', () => {
-    // `nextCoupon` only moves through the S5 confirm, so the day after a coupon falls
+    // `nextCoupon` only moves through the coupon card's confirm, so the day after a coupon falls
     // due it still points at a date in the past. Gating on today dropped a month the
     // app was still reminding about; `nextUnsettledCoupon` is what the reminders read.
     expect(scheduledCouponMonths(bond(), [])).toContain(8);

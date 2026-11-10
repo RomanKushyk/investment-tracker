@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { en } from '../../i18n/messages';
 import { OrGoogle } from './GoogleButton';
 
-// `auth-surface.dc.html` T1: "without it neither the rule nor the button renders — the card runs
-// from «Продовжити» straight to the link".
+// Without Google neither the rule nor the button renders: the card runs from «Продовжити»
+// straight to the link.
 const render = (on: boolean, busy = false) =>
   renderToStaticMarkup(
     createElement(OrGoogle, { on, busy, copy: en.auth.google, onClick: () => undefined }),

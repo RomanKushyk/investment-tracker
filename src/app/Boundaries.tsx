@@ -13,8 +13,9 @@ import { ADMIN_HOME } from './admin-home';
 import { SignedOutShell } from './SignedOutShell';
 import { useTheme } from './theme';
 
-// The app's own not-found and failure states (`boundaries.dc.html`). None shows the error: the
-// router and React already log what a boundary catches, and a reader can do nothing with it.
+// The app's own not-found and failure states. None shows the error
+// (`docs/superpowers/specs/2026-11-05-layout-refresh/empty-loading-error.md` § Signed): the router
+// and React already log what a boundary catches, and a reader can do nothing with it.
 
 /** An answer's block: a muted glyph, never `neg`, since nothing here is the reader's mistake. */
 function Body({

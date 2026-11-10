@@ -123,7 +123,7 @@ function RailBox({
         aria-hidden
         className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
       />
-      {/* Inside the box, since the rail clips past its wall (`admin-users.dc.html`, T2). */}
+      {/* Inside the box, since the rail clips past its wall. */}
       {badge !== undefined && <CornerBadge shown={badge} top="top-[2px]" />}
     </span>
   );
@@ -215,9 +215,9 @@ type SignOut = ReturnType<typeof useSignOut>;
 
 /**
  * The super-admin's band, folded: a strip under the burger, the shield on the rail's axis and the
- * strip ending at the wall's edge, which stays drawn (`super-admin-shell.dc.html`, T2). The rail
- * has no room for the word, so a screen reader reads it as the strip's text and a resting pointer
- * shows it as the items' tooltips show theirs; the strip is no control, so it takes no focus.
+ * strip ending at the wall's edge, which stays drawn. The rail has no room for the word, so a
+ * screen reader reads it as the strip's text and a resting pointer shows it as the items' tooltips
+ * show theirs; the strip is no control, so it takes no focus.
  */
 function RailRoleBand() {
   const t = useT();
@@ -235,7 +235,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
   const t = useT();
   const currency = useSettings((s) => s.currency);
   // Neither role's items until `GET /me` names one, and none for any other role; meanwhile the foot
-  // is held as a user's, so a user's rail never moves (`super-admin-shell.dc.html`, T4).
+  // is held as a user's, so a user's rail never moves.
   const role = useRole();
   const admin = role === 'super_admin';
   // ONE SIGN-OUT FOR THE FOOT: its latch is the hook's, so the profile reads the rows the pressed
@@ -318,8 +318,9 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             above them uses. */}
         <div className="mt-[14px] -mr-2 mb-[calc(-16px-env(safe-area-inset-bottom))] ml-[calc(-8px-env(safe-area-inset-left))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg pt-2 pr-2 pb-[calc(8px+env(safe-area-inset-bottom))] pl-[calc(8px+env(safe-area-inset-left))]">
           {/* THE PANEL'S ORDER: the currency above Settings, as its track sits above
-              Settings in the panel, then the profile and the account last (`sign-out.dc.html`,
-              T2; `own-account.dc.html`, T5).
+              Settings in the panel, then the profile and the account last
+              (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md`
+              § Signed).
               `sr-only` and not `aria-label`: a bare div is `role=generic`, which
               ARIA-in-HTML forbids naming, so the label was dropped and the box
               announced as a bare glyph. The same idiom the expanded track uses,

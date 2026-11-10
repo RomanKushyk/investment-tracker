@@ -44,7 +44,7 @@ const matches: InzhurMatch[] = matchAssets([reit, energy, bond], feed, {}).linke
 const FETCH: QuoteOrigin = { source: 'fetch', at: '2026-08-04T10:05:00.000Z' };
 const CACHE: QuoteOrigin = { source: 'cache', at: '2026-07-25T10:05:00.000Z' };
 
-describe('sameQuote — the S3 equality guard', () => {
+describe('sameQuote — the equality guard', () => {
   it('accepts the table format the fetch itself writes', () => {
     expect(sameQuote('68 660,18', 68660.18, 'uk')).toBe(true);
     expect(sameQuote('68660.18', 68660.18, 'uk')).toBe(true);
@@ -87,7 +87,7 @@ describe('isTyped / offerVisible', () => {
   });
 });
 
-describe('provenanceChip (S2)', () => {
+describe('provenanceChip', () => {
   it('never chips an unlinked row', () => {
     expect(provenanceChip(false, { raw: '68 660,18', origin: FETCH })).toBeUndefined();
   });
@@ -193,7 +193,7 @@ describe('latestFetchedAt', () => {
   });
 });
 
-describe('feedFreshness (S1 microcopy)', () => {
+describe('feedFreshness (the button microcopy)', () => {
   // 10:05Z is 13:05 in Kyiv summer.
   const now = new Date('2026-08-04T10:30:00.000Z');
 
@@ -218,7 +218,7 @@ describe('feedFreshness (S1 microcopy)', () => {
   });
 });
 
-describe('payloadStillFresh (S1 "re-serve, do not refetch")', () => {
+describe('payloadStillFresh ("re-serve, do not refetch")', () => {
   const at = '2026-08-04T10:05:00.000Z';
 
   it('is fresh minutes after the fetch', () => {
@@ -237,7 +237,7 @@ describe('payloadStillFresh (S1 "re-serve, do not refetch")', () => {
   });
 });
 
-describe('fetchButtonState (S1 machine)', () => {
+describe('fetchButtonState (the button state machine)', () => {
   const base = { linked: 2, otherDay: false, loading: false, flash: false };
 
   it('resolves in the pinned precedence', () => {

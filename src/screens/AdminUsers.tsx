@@ -25,8 +25,8 @@ import { HeldRows } from './archive/Coverage';
 import { ConfirmRuling } from './admin-users/ConfirmRuling';
 import { useFocusFixup } from './admin-users/focus-fixup';
 
-// КОРИСТУВАЧІ (`design/extensions/admin-users.dc.html`, T1–T5), gated as the archive panel is,
-// its reads naming their failures as the panel's do (*Not found and failures*).
+// КОРИСТУВАЧІ, gated as the archive panel is, its reads naming their failures as the panel's do
+// (*Not found and failures*).
 export function AdminUsers() {
   const signedIn = useSessionStatus() === 'signedIn';
   return signedIn ? <Gate /> : null;
@@ -174,7 +174,7 @@ function Page({ me }: { me: string }) {
   );
 }
 
-/** PeriodControl's Select in the header slot, with no count on it (T1). */
+/** PeriodControl's Select in the header slot, with no count on it. */
 function FilterControl({ value, onChange }: { value: Filter; onChange: (f: Filter) => void }) {
   const t = useT();
   const id = useId();

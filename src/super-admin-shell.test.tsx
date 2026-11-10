@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The shell decided by the role `GET /me` answers (`design/extensions/super-admin-shell.dc.html`):
+// The shell decided by the role `GET /me` answers:
 // the super-admin's band, «Адміністрування» and no portfolio read; the nav waiting for the answer
 // for every role, and a failed answer failing every route with the shell kept.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,7 +15,7 @@ import { uk } from './i18n/messages';
 
 const SEED = buildSeedBackup('2026-07-28T12:00:00');
 
-// The copy the drawing names (T6), written out so the test pins the words.
+// The shell's copy, written out so the test pins the words.
 const GROUP_ADMIN = 'Адміністрування';
 const ARCHIVE = 'Архів цін';
 const SUPER_ADMIN = 'Суперадміністратор';

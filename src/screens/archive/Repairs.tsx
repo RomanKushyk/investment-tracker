@@ -21,8 +21,8 @@ import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ArchiveStart, StartReply } from '../../lib/repository';
 
-// THE TWO REPAIRS (`design/extensions/archive-admin.dc.html`, T2 and T5), each sent behind a
-// confirmation that echoes it. The server's 422 is the one validator: the form checks nothing.
+// THE TWO REPAIRS, each sent behind a confirmation that echoes it. The server's 422 is the one
+// validator: the form checks nothing.
 
 type Start = (start: ArchiveStart) => Promise<StartReply>;
 

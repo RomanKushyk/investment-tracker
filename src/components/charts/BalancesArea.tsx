@@ -20,9 +20,8 @@ import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 
-// Drawn at `design/Investment Tracker.dc.html:216-222`. The line and its fill
-// are the ACCENT, not the gain green: a total has no direction, and gain and
-// loss belong to deltas. *Interaction rules*
+// The line and its fill are the ACCENT, not the gain green: a total has no
+// direction, and gain and loss belong to deltas. *Interaction rules*
 export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
   const f = useFormat();
   const t = useT();

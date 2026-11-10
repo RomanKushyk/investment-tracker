@@ -12,9 +12,8 @@ import { declaredHex, stripCss, themeBlocks } from '../__fixtures__/palette';
 // ../../scripts/build-touch-icon.mjs that writes that raster. Comparing a raster to an SVG
 // needs a renderer vitest does not have, so the PNG is pinned through its GENERATOR — and
 // THEN READ BACK, because nothing re-runs that command and a corrected script would
-// otherwise go green over a stale icon. The drawing is transcribed from
-// `design/extensions/parchment-5h.dc.html`, never re-derived: that would invent a second
-// authority beside the sheet.
+// otherwise go green over a stale icon. `DRAWING` below is pinned by hand, never derived from
+// the copies it checks: derived, it would agree with whatever they draw.
 //
 // STRING EQUALITY RUNS FIRST AND IS THE STRICTER GATE — a re-export drawing the same curve
 // a different way fails there and never reaches the geometry, because the three copies being
@@ -414,7 +413,7 @@ describe('each copy keeps what only it can carry', () => {
     const size = scriptNum('PLATE_PX');
     expect(ICON.readUInt32BE(16), 'the icon is not the width the script writes').toBe(size);
     expect(ICON.readUInt32BE(20), 'the icon is not the height the script writes').toBe(size);
-    expect(scriptNum('SVG_PX'), "the mark has left the sheet's tile ratio").toBe((size * 2) / 3);
+    expect(scriptNum('SVG_PX'), 'the mark has left its tile ratio').toBe((size * 2) / 3);
 
     const pixels = decode(ICON);
     const at = (x: number, y: number) =>
