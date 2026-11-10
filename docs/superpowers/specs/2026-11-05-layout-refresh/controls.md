@@ -82,3 +82,11 @@ The selected segment's label, three ways, in light at 2×: T1 `accent`, T2 `acce
 - New tests: radiogroup roles and arrow keys on every set; the Select's check on the chosen item; disabled on the Select and the Switch.
 - The check on the tinted switch knob was not checked for contrast.
 - A merged drawing is immutable, so the supersessions above are recorded in `docs/DECISIONS.md`.
+
+## Перенесено
+
+Rules of the scroll surface that no code, test or decision records.
+
+- **The rail's inset from a rounded corner is the exception to concentric nesting:** never `R − r` or `R − 2r`, because concentricity is invisible on a shape this thin and a bar that leaves its edge by that much reads as floating in the gutter.
+- **The Select's list is the one exception to *Scrolling*:** Radix owns its viewport and will not nest a ScrollArea, so it keeps the platform's bar, dressed from the page's tokens.
+- **Nothing in a `Scroller`'s viewport sizes against its height:** Radix wraps the content in an auto-height `display: table` box, so `min-h-full` resolves against nothing and `mt-auto` gets no free space.

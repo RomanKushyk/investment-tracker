@@ -89,3 +89,10 @@ The wave was signed on players that run at real speed, so the motion itself is t
 ## Not drawn
 
 - /overview: its placeholder followed the old layout while its content is wave 1's canvas, so a transition there would have shown a jump that is not part of the design. Wave 23 redraws the placeholders on the new layouts ([loading-and-compositions.md](loading-and-compositions.md#signed)).
+
+## Перенесено
+
+Rules for measuring motion that no code, test or decision records.
+
+- **Before a colour is read, running transitions are forced to `finish()`.** A 0.01 ms transition does not advance in a tab driven over CDP and returns the colour from before the change, which reads exactly like a rendering bug.
+- **To measure, motion is collapsed to 0.01 ms, never with `animation: none`:** Radix unmounts a closing overlay on `animationend`, which `none` never fires, and leaves `body` at `pointer-events: none`.

@@ -135,3 +135,9 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 
 - The content of / and /balances, and the other eight screens. On / and /balances only the shell, surface and card edge change; their content waits for its own pass.
 - Not decided here: palette values, the «Ще» sheet's own layout, the drawer's fate below 768 (the dock replaces it), the motion of the dock and the collapse, copy, and implementation order and issues.
+
+## Перенесено
+
+Rules of the sidebar that no code, test or decision records.
+
+- **The capital keeps a name a screen reader announces, whether or not a caption shows:** a bare number under the wordmark is unlabelled.

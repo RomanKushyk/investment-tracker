@@ -118,3 +118,9 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 ## Not drawn
 
 - Light at 360 for /balances, /payouts, /seasonality and /allocation.
+
+## Перенесено
+
+Rules of the charts that no code, test or decision records.
+
+- **A second tap on the same point releases a pinned tooltip,** as a tap outside the chart and Escape do.

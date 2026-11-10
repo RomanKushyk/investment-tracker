@@ -76,3 +76,9 @@ The nested container (S1): the quick-create inside «Транзакція», sta
 ## Not drawn
 
 - Loading shapes, compositions and the sweep: wave 23 ([loading-and-compositions.md](loading-and-compositions.md)).
+
+## Перенесено
+
+Rules of the floating surfaces that no code, test or decision records.
+
+- **A shadow never counts toward the 3 : 1 of WCAG 1.4.11.** It describes what a sighted user perceives and is never a finding of conformance.

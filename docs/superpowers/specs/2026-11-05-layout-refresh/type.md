@@ -90,3 +90,13 @@ Two sizes signed before this wave fit no role in the table, and are not in the d
 - A new census test: no `text-[Npx]`, `leading-[…]` or tracking outside the role table, and no text below 11.
 - A KPI test: the ₴ is its own span.
 - Manrope's space, which the NBSP group separator also uses, is much narrower than JetBrains Mono's full cell, so «149 016 ₴» groups read tighter in Manrope. The KPI figures already show this today.
+
+## Перенесено
+
+Rules of the app's words that no code, test or decision records.
+
+- **A button that performs an action is labelled with an imperative infinitive:** «Зберегти зріз», «Записати транзакцію».
+- **No exclamation mark on screen.**
+- **A danger button that opens a dialog, rather than acting, ends with U+2026 (…) in both languages,** and the ellipsis means exactly that.
+- **Loading copy is an action under way, ending with U+2026:** «Отримання…», «Fetching…».
+- **One word per term:** «котирування» for a quote, «дохідність» for yield.
