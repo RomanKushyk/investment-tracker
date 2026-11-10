@@ -54,7 +54,7 @@ afterAll(() => {
 
 const { queryClient, repo } = await import('./api');
 const { session } = await import('../auth/app');
-const { Loadable } = await import('../components/loading/Loadable');
+const { Loadable, ViewClock } = await import('../components/loading/Loadable');
 const { LoadingStatus } = await import('../components/loading/LoadingStatus');
 const { PLACEHOLDER_AFTER_MS, PLACEHOLDER_HOLD_MS } = await import('../hooks/loading');
 const { useView, viewKey } = await import('../hooks/queries');
@@ -85,9 +85,11 @@ function Screens() {
     <QueryClientProvider client={queryClient}>
       <LoadingStatus />
       <Capital />
-      <Loadable placeholder={<div data-placeholder="" aria-busy="true" />}>
-        <div data-testid="content" />
-      </Loadable>
+      <ViewClock>
+        <Loadable placeholder={<div data-placeholder="" aria-busy="true" />}>
+          <div data-testid="content" />
+        </Loadable>
+      </ViewClock>
     </QueryClientProvider>
   );
 }

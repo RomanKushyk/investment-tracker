@@ -48,6 +48,7 @@ vi.mock('../hooks/queries', () => ({
   useAccountRead: () => {},
   useSettingsCopy: () => {},
   useViewDayRollover: () => {},
+  useViewPending: () => false,
 }));
 vi.mock('../hooks/useReminders', () => ({ useReminderToast: () => {} }));
 vi.mock('../components/loading/LoadingStatus', () => ({ LoadingStatus: () => null }));

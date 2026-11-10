@@ -93,6 +93,7 @@ const { routes } = await import('../routes');
 const { useDraft } = await import('../state/draft');
 const { useSettings } = await import('../state/settings');
 const { VIEW_STALE_MS } = await import('../hooks/queries');
+const { PLACEHOLDER_AFTER_MS } = await import('../hooks/loading');
 const { meKey } = await import('../lib/me-key');
 
 beforeEach(() => {
@@ -233,6 +234,53 @@ describe('moving between screens', () => {
     }
     // Settings reads the account's role off the load's `/me`, and asks nothing of its own.
     expect(asked()).toMatchObject({ view: 1, me: 1, total: 2 });
+  });
+
+  // The shell remounts the screen on a route change; the placeholders' clock is the read's.
+  it('shows the placeholders when the view has been out for their delay, whatever screen the move mounted', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    hold = (path) => (path === '/view' ? new Promise<void>(() => {}) : Promise.resolve());
+    const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+    const busy = () => document.querySelector('main [aria-busy="true"]');
+    const router = createMemoryRouter(routes, { initialEntries: ['/overview'] });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await tick(0);
+    expect(asked().view).toBe(1);
+
+    await tick(200);
+    await act(async () => void (await router.navigate('/payouts')));
+    await tick(PLACEHOLDER_AFTER_MS - 200 - 1);
+    expect(busy()).toBeNull();
+    await tick(1);
+    expect(busy()).not.toBeNull();
+  });
+
+  // The view is not asked for until `/me` names a user, so `/me`'s wait is not the view's.
+  it('counts nothing while /me is out: a view that answers soon after shows no placeholder', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const after = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+    hold = (path) =>
+      path === '/me' ? after(250) : path === '/view' ? after(100) : Promise.resolve();
+    const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+    const busy = () => document.querySelector('main [aria-busy="true"]');
+    const router = createMemoryRouter(routes, { initialEntries: ['/overview'] });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    let seen = false;
+    for (let t = 0; t < 600; t += 10) {
+      await tick(10);
+      seen ||= busy() !== null;
+    }
+    expect(asked().view).toBe(1);
+    expect(seen).toBe(false);
   });
 });
 

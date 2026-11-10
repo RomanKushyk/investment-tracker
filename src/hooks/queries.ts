@@ -173,6 +173,19 @@ export type ViewGate = 'pending' | 'ready' | 'signedOut';
  *  where the failed-screen state is (*Not found and failures*), unless a view is in hand to show;
  *  a caller nobody has signed in asks for none, and gets `signedOut`. */
 export function useViewGate(): ViewGate {
+  const gate = useViewStanding();
+  if (gate instanceof Error) throw gate;
+  return gate;
+}
+
+/** Whether the view's first read is out, for the shell, which has no boundary to throw to: not
+ *  before `/me` has named a user, since until then the view is not asked for. */
+export function useViewPending(): boolean {
+  const allowed = useViewAllowed();
+  return useViewStanding() === 'pending' && allowed;
+}
+
+function useViewStanding(): ViewGate | Error {
   const { data, status, error } = useViewRead(nothing);
   const me = useQuery(meQuery);
   if (data !== undefined) return 'ready';
@@ -180,7 +193,7 @@ export function useViewGate(): ViewGate {
   if (me.error instanceof ApiError && me.error.signedOut) return 'signedOut';
   if (status === 'error') {
     if (error instanceof ApiError && error.signedOut) return 'signedOut';
-    throw error;
+    return error;
   }
   return 'pending';
 }

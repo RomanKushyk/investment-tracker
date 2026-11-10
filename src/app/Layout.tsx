@@ -2,6 +2,7 @@ import { Dialog as RadixDialog } from 'radix-ui';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { NavigationType, Outlet, useLocation, useNavigationType } from 'react-router';
 
+import { ViewClock } from '../components/loading/Loadable';
 import { LoadingStatus } from '../components/loading/LoadingStatus';
 import { useAccountRead, useSettingsCopy, useViewDayRollover } from '../hooks/queries';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
@@ -180,10 +181,15 @@ export function Layout() {
         <div className="flex min-w-0 flex-1 flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
           {showHeader && <AppHeader desktop={desktop} open={drawerOpen} />}
           <main className="min-w-0 flex-1 px-9 pt-8 pb-12 max-md:px-3 max-md:pt-4">
-            {/* keyed by route, so every screen change animates in */}
-            <div key={pathname} className="animate-in duration-300 fade-in slide-in-from-bottom-2">
-              <Outlet />
-            </div>
+            <ViewClock>
+              {/* keyed by route, so every screen change animates in */}
+              <div
+                key={pathname}
+                className="animate-in duration-300 fade-in slide-in-from-bottom-2"
+              >
+                <Outlet />
+              </div>
+            </ViewClock>
           </main>
         </div>
       </div>
