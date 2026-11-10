@@ -76,3 +76,14 @@ P1: C3 as signed, with eight assets, light over dark.
 ## Not drawn
 
 - Migrating the carry-over rules into this spec, retiring the old sheets, and the implementation's issues: epic #611's other sub-issues.
+
+## Перенесено
+
+Rules of the compositions and the period control that no code, test or decision records.
+
+- **The «НБУ» link's underline never thickens on hover;** it takes no press scale, since an inline link takes no transform.
+- **Under a window, /yield's Δ column reads «Δ за період» (EN «Δ over period»), and «Вкладено, ₴» takes a header of its own:** the column then holds the value at the window's open plus what was bought inside, not money invested. That header's words are new copy.
+- **Below md, /yield's record card keeps Y2's bands as an order:** the result facts first, then the two basis facts (Вкладено, Вартість зараз) with their values in `muted`, and no rule line between them.
+- **«Купонний сезон» lists its tail:** the headline stays a sentence, and each other bond becomes a row of its own in the same words. Past the reminder strip's cap the list ends with a «+N» row. With one other bond it reads as a sentence. «Якір доходу» and «Тиха смуга» stay prose, since each names one thing however many assets there are.
+- **With something held the day before a window opens and no snapshot on or before that day, the capital-gain and net-return cards read «немає з чим порівняти в цьому періоді»** (EN «no comparison in this period») under a «—» in `muted`, never a zero: a zero claims the window made nothing.
+- **The period select's options ease their hover over 150 ms, and the window line under it crossfades its words and its colour over 220 ms** when the period or the clamp changes.

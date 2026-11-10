@@ -124,3 +124,4 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 Rules of the charts that no code, test or decision records.
 
 - **A tap outside the chart releases a pinned tooltip,** as a second tap on the same point and Escape do.
+- **On the month axis, «Сезонність»'s subtitle and footnote name no day:** each follows the axis or names none.
