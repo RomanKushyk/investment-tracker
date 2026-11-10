@@ -123,4 +123,4 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 
 Rules of the charts that no code, test or decision records.
 
-- **A second tap on the same point releases a pinned tooltip,** as a tap outside the chart and Escape do.
+- **A tap outside the chart releases a pinned tooltip,** as a second tap on the same point and Escape do.

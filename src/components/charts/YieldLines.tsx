@@ -20,7 +20,7 @@ import { signed } from '@quirenote/core/money';
 import type { Asset } from '@quirenote/core/types';
 import type { YieldSeriesPoint } from '@quirenote/core/view/yield';
 import { useFormat } from '../../hooks/useFormat';
-import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
+import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 
 // Each line gets its OWN end dot: an asset purchased later has a shorter series,
 // so the chart's last index is not that line's last point.
@@ -35,10 +35,15 @@ function lastDefinedIndex(data: YieldSeriesPoint[], assetId: string): number {
 // Drawn at `design/Investment Tracker.dc.html:314-322`.
 export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets: Asset[] }) {
   const f = useFormat();
-  const trigger = useTooltipTrigger();
+  const pin = useTooltipTrigger(data);
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <LineChart
+        data={data}
+        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+        onClick={pin.onClick}
+      >
+        <TapPinPlot probe={pin.probe} />
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="date"
@@ -63,7 +68,8 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
         {/* Per-asset cumulative yield exists ONLY here, so the tooltip has to
             be reachable by tap as well as by hover. */}
         <Tooltip
-          trigger={trigger}
+          trigger={pin.trigger}
+          active={pin.active}
           labelFormatter={(label) => f.dateShort(String(label))}
           formatter={(v, name) => {
             const n = Number(v);
@@ -89,7 +95,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
               isAnimationActive
               animationDuration={900}
               animationEasing="ease-out"
-              activeDot={{ r: 5, fill: color }}
+              activeDot={pin.released ? false : { r: 5, fill: color }}
               dot={(props: DotItemDotProps) =>
                 props.index === lastIdx ? (
                   <circle cx={props.cx} cy={props.cy} r={4} fill={color} />

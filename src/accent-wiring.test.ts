@@ -171,7 +171,7 @@ describe('the capital area chart is the accent', () => {
       area,
       "`activeDot` IS SPREAD AFTER recharts' own white ring, so passing `r` and `fill` alone " +
         'leaves a literal white ring on a card that follows the theme',
-    ).toMatch(/activeDot=\{\{[^}]*strokeWidth:\s*0/);
+    ).toMatch(/activeDot=\{(?:[^{}]*\?\s*false\s*:\s*)?\{[^}]*strokeWidth:\s*0/);
   });
 
   it('lets the tint be the only alpha the fill has', () => {

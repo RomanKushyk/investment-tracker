@@ -17,7 +17,7 @@ import {
   SERIES,
 } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
-import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
+import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 
 export interface PayoutsChartPoint {
@@ -69,12 +69,17 @@ function makeSegmentLabel(data: PayoutsChartPoint[], alwaysTop: boolean) {
 export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
   const f = useFormat();
   const t = useT();
-  const trigger = useTooltipTrigger();
+  const pin = useTooltipTrigger(data);
   const dividendsLabel = makeSegmentLabel(data, false);
   const couponsLabel = makeSegmentLabel(data, true);
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} margin={{ top: 28, right: 12, left: 0, bottom: 0 }}>
+      <BarChart
+        data={data}
+        margin={{ top: 28, right: 12, left: 0, bottom: 0 }}
+        onClick={pin.onClick}
+      >
+        <TapPinPlot probe={pin.probe} />
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="monthLabel"
@@ -91,7 +96,8 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
             on the screen uses a comma. The two names are the legend's own, not
             new copy. */}
         <Tooltip
-          trigger={trigger}
+          trigger={pin.trigger}
+          active={pin.active}
           formatter={(v, name) => [
             f.num(Number(v)),
             name === 'coupons' ? t.analytics.coupons : t.analytics.dividends,

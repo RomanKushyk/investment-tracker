@@ -17,7 +17,7 @@ import {
 } from '@quirenote/core/colors';
 import type { BalanceChartPoint } from '@quirenote/core/view/balances';
 import { useFormat } from '../../hooks/useFormat';
-import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
+import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 
 // Drawn at `design/Investment Tracker.dc.html:216-222`. The line and its fill
@@ -28,10 +28,15 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
   const t = useT();
   // Hover on a pointer, tap-to-pin on a touch screen: every value on the line
   // is inside the tooltip and nowhere else.
-  const trigger = useTooltipTrigger();
+  const pin = useTooltipTrigger(data);
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+      <AreaChart
+        data={data}
+        margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+        onClick={pin.onClick}
+      >
+        <TapPinPlot probe={pin.probe} />
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="date"
@@ -50,7 +55,8 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           width={44}
         />
         <Tooltip
-          trigger={trigger}
+          trigger={pin.trigger}
+          active={pin.active}
           formatter={(v) => [f.money(Number(v)), t.analytics.overview.totalCapital]}
           labelFormatter={(label) => f.dateShort(String(label))}
           contentStyle={CHART_TOOLTIP}
@@ -80,7 +86,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           // `strokeWidth: 0` because recharts seeds this dot `stroke: '#fff'`
           // and spreads the caller's props after `r` and `fill` only — leaving a
           // pure white ring on a card that moves with the theme.
-          activeDot={{ r: 4, fill: CHART.accent, strokeWidth: 0 }}
+          activeDot={pin.released ? false : { r: 4, fill: CHART.accent, strokeWidth: 0 }}
         />
       </AreaChart>
     </ResponsiveContainer>

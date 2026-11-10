@@ -524,7 +524,7 @@ Interactions to verify, on the dev server, loading a module by the URL the page 
 - Every field and both value-showing triggers (`Select`, `DatePicker`) read at 16px — under that, iOS Safari zooms on focus and does not zoom back. Toasts sit at the bottom, 12px a side, clear of the safe-area inset, never under the header.
 
 **Charts without a pointer**
-- On `/balances`, `/payouts` and `/yield` a tap pins the tooltip to the nearest point; a tap elsewhere moves it, a tap outside releases it. `/seasonality` draws both its amounts on the bars instead; `/allocation` has no tooltip at all.
+- On `/balances`, `/payouts` and `/yield` a tap pins the tooltip to the nearest point; a tap elsewhere moves it, a second tap on the same point or a tap outside releases it. `/seasonality` draws both its amounts on the bars instead; `/allocation` has no tooltip at all.
 - The plot is focusable in both shells: Tab to it and the tooltip appears at the first point; ArrowRight walks it forward. Payouts' tooltip reads "Coupons : 0.00" / "Dividends : 472.13" — translated names and locale decimals.
 
 **Settings → Portfolio**
