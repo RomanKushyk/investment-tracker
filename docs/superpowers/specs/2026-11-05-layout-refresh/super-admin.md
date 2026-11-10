@@ -139,7 +139,7 @@ At 360, light: the same seven frames.
 
 ## Перенесено
 
-Rules of the super-admin's shell that no code, test or decision records.
+Rules of the super-admin's shell and its two pages that no code, test or decision records.
 
 - **«Стан» becomes a second nav group under a divider** once its first page exists.
 - **A failed GET /me adds no failure line to the nav.** The failed-screen state already says it; a second line would say it twice, in a new phrase.
@@ -151,3 +151,19 @@ Rules of the super-admin's shell that no code, test or decision records.
   - the capital's caption recipe in the header bar, «Ви увійшли як» over the role: a new phrase for what the role already says;
   - a chip at the bar's end: it leaves the capital's place empty and reads as a status badge;
   - the wall's edge with a text chip: the edge repeats the colour that already marks the current route, and no edge reaches the header bar below md.
+- **«Користувачі».**
+  - **The applications count costs one request whatever the queue,** under the list route's throttle.
+  - **A row's two actions are never folded into a row menu:** a menu adds a part and a press.
+  - **A confirmation never puts the address in its title:** at 360 the address strands the «?» on a line of its own.
+  - **A refusal is never shown on the row or at the list's head:** the re-read often removes the row; the head is away from the act, and once a disabled row has moved to «Вимкнені» the disable retry would have no button there.
+- **«Архів цін».**
+  - **The strips of one card compare by position:** that is why every group of a source shares the source's axis.
+  - **The strip has no window switch:** nothing asked for one.
+  - **`gaps` is never the count beside a strip:** it nets, so it can hide an empty day and go below zero.
+  - **The seam carries the boundary between imported history and the captured era:** the hue cannot tell the two eras apart.
+  - **The diagnosis is never polled:** besides its wait and the payloads it executes, its route admits one read a second.
+  - **The repair confirmation says only that the start goes to the server with these parameters:** the answer is the server's.
+  - **The confirmation is the guard against a stray start,** so «Запустити…» stays pressable while one is out.
+  - **A start is never disabled on dev:** the 405 is the server's answer to show at the form; the client does not guess the environment.
+  - **A 502's pending row is never matched to a recorded run:** the answer names none.
+  - **A failed run is a caution, not a harm:** `neg-tint` stays with overdue reminders and irreversible harm.
