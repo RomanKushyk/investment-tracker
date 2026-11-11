@@ -14,8 +14,8 @@
 # Machine-written JSON. With `core.autocrlf=true` and no attribute, CHECKOUT
 # gives the working copy CRLF while the blob stays LF; a regenerator then
 # rewrites the file LF, and the pair reads as MODIFIED with an empty textual
-# diff until git next touches it. Noise after every run, and on 2026-08-28 it
-# blocked a rebase mid-merge. A pattern rather than two names, so the next
+# diff until git next touches it, noise that can block a rebase. A pattern rather
+# than two names, so the next
 # machine-written JSON does not silently miss it.
 *.json text eol=lf
 
@@ -24,7 +24,7 @@
 *.snap text eol=lf
 
 # A captured page keeps the LF line endings it was served with, which a Windows
-# checkout would turn CRLF. Scoped to fixtures: `design/` holds immutable drawings.
+# checkout would turn CRLF.
 packages/core/src/**/__fixtures__/*.html text eol=lf
 
 # The build serves these bytes as they are checked out, and their inline scripts are hashed into

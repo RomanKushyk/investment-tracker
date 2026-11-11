@@ -2,7 +2,7 @@
 
 The design of every message the released app sends, in Ukrainian and English. The brief is a comment on #584; the code that builds from it is #585 (the template package), #587 (the invitation), #589 (passkey added, welcome), #590 (the deletion notices) and #591 (the super-admin's notices), and #592 takes its list of kinds for the legal copy.
 
-It is drawn against the signed layout refresh that is to replace `design/` (epic #611; the spec for its waves 15–24 is #613): the wave-24 «q» plate, wave 18's faces, wave 17's primary button, wave 1's opaque card as the glass's signed fallback. It is not drawn against the app as it ships today. **The email leads with the «q»**: it carries the new mark before the app does, and *Brand* records that exception.
+It is drawn against the signed layout refresh, `../2026-11-05-layout-refresh/`: the wave-24 «q» plate, wave 18's faces, wave 17's primary button, wave 1's opaque card as the glass's signed fallback. It is not drawn against the app as it ships today. **The email leads with the «q»**: it carries the new mark before the app does, and *Brand* records that exception.
 
 The renders below are the email HTML itself, drawn in the fallback font stack, at 600 and 360 wide, in both palettes. Every frame is Ukrainian; English is in each message's copy table.
 

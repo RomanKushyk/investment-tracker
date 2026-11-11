@@ -44,7 +44,7 @@ Kyiv calendar date. Four columns carry a constraint the type cannot:
 | `quantity` | **nullable, required on position-moving rows.** Unrecoverable if not captured on the day; FIFO lots stay derivable from it forever |
 | `unit_price` | nullable; keep fees in separate rows rather than baking them in |
 | `tax_withheld` | **nullable, payout rows only** — what the provider withheld from this payout, below its amount |
-| `note` | **nullable, any type** — 1–100 characters, NULL the only spelling of none. The cap is a DRAWN constraint, the ledger row rendering it (`design/extensions/withholding-and-note.dc.html`) |
+| `note` | **nullable, any type** — 1–100 characters, NULL the only spelling of none. The cap is a DRAWN constraint, the ledger row rendering it as a sub-line (`docs/superpowers/specs/2026-11-05-layout-refresh/tables.md` § Signed, L3) and the form refusing past it (`forms-and-dialogs.md` § Перенесено) |
 
 **`settles_payout_id` was refused.** A separate tax row linking back would make double counting
 structurally impossible, but a field on the payout answers "does every payout have its tax?" by

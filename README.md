@@ -26,7 +26,6 @@ The portfolio lives on the server, so the app needs an account: `pnpm dev` proxi
 | `src/screens/`, `src/components/` | the routes and the UI kit |
 | `src/i18n/` | the dictionary — English canonical, Ukrainian default |
 | `infra/` | the AWS backend, with its own README |
-| `design/` | the design reference and merged extensions; immutable once merged |
 | `docs/` | `DECISIONS.md`, `reference/`, `superpowers/specs/` |
 | `public/`, `scripts/` | favicon and touch icon; `build-touch-icon.mjs` |
 

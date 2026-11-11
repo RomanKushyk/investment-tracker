@@ -749,13 +749,13 @@ route change included, and puts the marker back in step once a Stop, Back or a r
 page still here. A Stop is the `navigateerror` no `navigate` follows. «Увійти» there is a plain visit to `/sign-in`; the line that
 says so is a sign-out's own arrival's, the logout's landing included. A logout the relay names that
 is no URL is none: the sign-out goes its own way to `/sign-in`.
-THE ROLE DECIDES WHAT THE SHELL HOLDS (`super-admin-shell.dc.html`), from `GET /me`. A user's holds
+THE ROLE DECIDES WHAT THE SHELL HOLDS, from `GET /me`. A user's holds
 the capital, «Ввід», «Аналітика» and the currency. The super-admin's holds none of them: a band in
 the capital's slot names the role, a shield and «Суперадміністратор», in the panel and the drawer,
 folded to the shield in the rail with the word as its text and tooltip, and inline in the header bar;
 its one group is «Адміністрування» with «Користувачі» and «Архів цін»; its footer keeps the theme
-alone, Settings and the account. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT
-(`admin-users.dc.html`, T2): one page of the pending list, «99+» when full, on the pill, at the
+alone, Settings and the account. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT:
+one page of the pending list, «99+» when full, on the pill, at the
 corner of the rail's box and of the burger, the visible figure hidden and the link's or the
 trigger's name saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel holds the capital's slot as
 its empty strip and the footer's track row unseen at a user's layout, the rail holds a user's foot,
@@ -775,7 +775,7 @@ pointer. By the time a guard for unsaved work could ask, the relay has revoked t
 work has gone with the account's figures, so a sign-out passes it. Where the page is still here
 after a later act of the user's, the slot answers signed out: a busy «Вийти» under a signed-in label
 would misstate the session (NN/g's visibility of system status), and the swap moves no target. It
-never answers the press itself, which asked to leave (`account-way-in-and-out.dc.html` T4, T9). A
+never answers the press itself, which asked to leave. A
 drawer that closes is not a Stop the user chose: a traversal while the logout loads cancels it (HTML,
 *apply the history step*), and only that load clears Cognito's session cookie, which its `/logout`
 must be invoked in the browser to do; a push fires `navigateerror`, the Stop's own signal, then its own `navigate` (HTML,
@@ -835,10 +835,10 @@ screens catches every other path, `/sign-in/x` too, inside the shell. Each state
 block — a muted glyph, the title, the lead, one button — and in the shell its card sits where the
 signed-out card does. The two failures share their words and one reload; not found sends a user to
 `/` and the super-admin to `/admin/archive` until `/status` exists, though the super-admin's `/`
-lands on `/admin/users`: the not-found keeps the way out its drawings show (the owner's ruling).
+lands on `/admin/users`: the not-found keeps that way out (the owner's ruling).
 NO STATE SHOWS THE ERROR, a status code or a stack: the router and React log what a boundary
-catches. THE ONE EXCEPTION IS THE SUPER-ADMIN'S TWO PAGES, THE ARCHIVE PANEL AND THE USERS PAGE
-(`archive-admin.dc.html`, `admin-users.dc.html`), whose reads do not throw: a failure there names
+catches. THE ONE EXCEPTION IS THE SUPER-ADMIN'S TWO PAGES, THE ARCHIVE PANEL AND THE USERS PAGE,
+whose reads do not throw: a failure there names
 the route's error key, or the HTTP status where the route has none, and reads again, because their
 one operator decides what to do next from that answer; a ruling's refusal is said in its
 confirmation, with the key.
@@ -847,7 +847,7 @@ that failed, and so does one of the wide figures (a curve, a page of the table, 
 the caller's), and so do the profile's `GET /me/account` and the shell's `GET /me`, which every
 screen waits for, and the failed-screen state is what shows, the sidebar kept; an answer already in
 hand stays on screen when a later read of it fails. BESIDE THE
-SUPER-ADMIN'S PAGES, THE PROFILE'S PASSKEY LIST DOES NOT THROW (`own-account.dc.html`, T2): it is the
+SUPER-ADMIN'S PAGES, THE PROFILE'S PASSKEY LIST DOES NOT THROW: it is the
 relay's read, apart from the account above it, so a failure is one sentence in its card that asks
 for a reload, and the account stays on screen. EVERY SCREEN WAITS FOR THE ROLE: `GET /me`, read on
 every load before the view, names it, and until it answers no screen is chosen and the shell draws
@@ -865,8 +865,8 @@ loading (*Cloud target*).
 "oops" and no red. OWASP logs the details and returns none to the user, and the console is this
 app's log. React Router renders a boundary in place of its own route's element, so where a boundary
 sits decides what survives the throw. A cold Lambda makes a first visit wait, and the screens' own
-empty-portfolio states would state something false meanwhile: "an editor opened over an empty list
-… is the one failure a user reads as 'my data is gone'" (`design/extensions/where-things-live.dc.html`).
+empty-portfolio states would state something false meanwhile: an editor opened over an empty list
+is the one failure a user reads as their data gone.
 Primer's loading patterns warn that "Seeing a loading indicator flash on the screen could be
 distracting and make the product feel slower than it is", so a warm read shows none, and React holds
 a Suspense fallback before revealing content for the same reason. Few screen readers honour
@@ -1272,17 +1272,15 @@ Google keeps that one, `FORCE_CHANGE_PASSWORD`, "until they sign in and set thei
 (`AdminCreateUser`), and past the pool's validity days "an administrator must reset their password"
 (`PasswordPolicyType`). It never becomes the account's own (*Auth model*), so that account has no
 password, registration closed or not. Its reader is the re-authentication step on `/profile`,
-which offers Google where no password is, alone or beside a passkey
-(`re-authentication.dc.html` T1, T2). Both reads are IAM-authorized, so a Google
+which offers Google where no password is, alone or beside a passkey. Both reads are IAM-authorized, so a Google
 sign-in's token, which lacks the admin scope, does not limit them. It looks the caller up by the
 token's `cognito:username`, since a `sub` names a local user only. ITS ONE READER IS THE PROFILE,
-`/profile`, which departs from `own-account.dc.html` in three places, the drawing left as merged
-(*Design pipeline*): it draws no «Пароль» row, since GitHub's *Password and authentication* page
+`/profile`, three of whose choices are deliberate: it draws no «Пароль» row, since GitHub's *Password and authentication* page
 offers an action, not a status; it names the role for the super-admin alone,
 as «Суперадміністратор», since a role is shown where it names a privilege, as Grafana lists one per
 organization, and so holds no role row while the read is out; and a copy the browser refuses reads
 «Не скопійовано» on its button for the 2 s «Скопійовано» would, is said in the same status line and
-leaves the ID selected to copy by hand, where the drawing draws success alone (Primer's copy
+leaves the ID selected to copy by hand, rather than showing success alone (Primer's copy
 pattern: "Don't let a copy fail silently"); it takes the address, the ID and the role from the
 load's `GET /me`. EACH TAG IS WEAK and a DIGEST OF ITS BODY (RFC 9110 §8.8.3): the profile's 304
 needs the pool's answer as much as a 200 does, so a tag composed from inputs would save no read;
@@ -1384,8 +1382,7 @@ level in `src/hooks/slices.ts`; until the read answers, a consumer in the shell 
 of an empty portfolio, `viewBody` over no rows, and reads `useViewReady` beside it. A SCREEN THAT
 READS THE PORTFOLIO WAITS BEHIND THE VIEW (`Loadable`), and is the not-found for the super-admin,
 who holds none: the shell alone until the read has been out
-for `PLACEHOLDER_AFTER_MS`, then the screen's drawn placeholders (`src/screens/placeholders.tsx`, from
-`design/extensions/first-paint.dc.html`) for at least `PLACEHOLDER_HOLD_MS`, then the screen; a refetch shows
+for `PLACEHOLDER_AFTER_MS`, then the screen's drawn placeholders (`src/screens/placeholders.tsx`) for at least `PLACEHOLDER_HOLD_MS`, then the screen; a refetch shows
 none, a first read that failed throws to the failed-screen state (*Not found and failures*), and a
 caller nobody has signed in asks for nothing and sees neither the portfolio nor a placeholder, the
 transport sending nothing without a token (*Auth model*). The curve of a period, a page of the
@@ -2399,7 +2396,7 @@ review, or delete information after a pre-determined period"; the sweep reads
 `GmailThread.getLastMessageDate()`, and Gmail deletes a message for good 30 days into the Trash.
 WP260 ¶11 accepts "clearly signposting" a route as well as linking it; Discord names "the User
 Settings menu" unlinked. The sources and
-the item-by-item mapping are in brief #497 and `design/extensions/privacy-notice.dc.html`. The terms
+the item-by-item mapping are in brief #497. The terms
 rest on Civil Code Art. 205 ч. 2 (conduct shows the will), Art. 207 ч. 1 (a reference to another
 document) and Art. 634 (adhesion); Art. 50 ч. 2 and Art. 633 keep a public contract to a registered
 entrepreneur. Courts hold a line "directly above or below the action button" (*Oberstein v. Live
@@ -2408,8 +2405,8 @@ ClassPass*, 9th Cir. 2025); WP260 ¶8 keeps privacy information apart from "gene
 Enforcement rests on "the exact version of terms presented to the user at the time of acceptance";
 Mastodon keys its terms by a `date` `effective_date` and Google archives its terms by date.
 Liability rests on Art. 906 ч. 2's cap for a free service, Art. 614 ч. 3 and Art. 617, no further,
-as Art. 634 ч. 2 lets a joining party contest more. The sources and the mapping are in brief #514
-and `design/extensions/terms-of-use.dc.html`. The step follows GitLab, whose "existing users must
+as Art. 634 ч. 2 lets a joining party contest more. The sources and the mapping are in brief #514.
+The step follows GitLab, whose "existing users must
 accept the terms on their next GitLab interaction" and are signed out on declining, and whose API
 refuses a user who has not accepted ("must accept the Terms of Service in order to perform this
 action"): a gate in the app alone would leave the API open to a caller who never saw the terms.
@@ -2417,8 +2414,7 @@ Terms shown at the next sign-in, with no way further without assent, were upheld
 Airbnb* (S.D.N.Y. 2018). The terms apply from approval or from acceptance on the step (Civil Code
 Art. 640 ч. 1, Art. 631 ч. 2). The write is a POST, as GitLab's accept and Mastodon's acceptance
 are: a PUT would replace a version already held (RFC 9110 §9.3.4), and "POST must be used if the
-method has side effects" (AIP-136). The sources are in brief #554 and
-`design/extensions/terms-acceptance-step.dc.html`.
+method has side effects" (AIP-136). The sources are in brief #554.
 **Rejected.** An Art. 27 representative: the app targets no EU market (recital 23; EDPB 3/2018,
 Example 10). · The first layer collapsed behind «Детальніше»: collapsed text reads as unseen under
 ¶36. · A rail item: it lifted the rail's foot for a link seldom sought there. · A footer on every
@@ -2789,24 +2785,26 @@ cancels one, and the path filters would have to be re-derived inside one run. ·
 wait action: dependency code in the job, for a call `gh` already makes.
 
 ## Design pipeline
-**Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the
-markup — read it for any exact size or spacing, and ignore `support.js` and `_ds/`, which are
-prototype runtime. COLOUR IS THE ONE THING IT NO LONGER OWNS:
-`design/extensions/parchment-5h.dc.html` is the colour reference for BOTH themes and supersedes
-every colour in every merged drawing, geometry and copy in none of them. A merged drawing is
-immutable; a new surface gets its own file under `design/extensions/`. Email is the one surface
-drawn outside it: `docs/superpowers/specs/2026-11-07-email/` holds its spec and renders, drawn
-against the signed layout refresh that is to replace `design/` (#611). The pipeline is brief → a
-design session that turns it into an extension → the UI task, which may not start before its
-extension merges; a merged drawing wins a layout dispute, the brief wins copy and behaviour, and
-colours come only from theme tokens. 3 : 1 (WCAG 1.4.11) binds any boundary that identifies a
-component or its state, in both themes, and anything under it carries its reason where the value is
-declared.
-**Why.** The drawing owns the RESULT and the code owns the mechanism: a static sheet has no
+**Decision.** The reference is the signed layout refresh,
+`docs/superpowers/specs/2026-11-05-layout-refresh/`: one file per area holding the signed values,
+and `renders/` holding the signed frames. Most of it is still to be built (#611's implementation
+epic); until a section is, what ships is what the code, `navigation-map.md` and these decisions
+record. Email is the one surface drawn outside it, in `docs/superpowers/specs/2026-11-07-email/`.
+The pipeline is brief → a design session that signs a new or amended section of that spec, with
+its renders committed and its row in the folder's README → the UI task, which may not start before
+that section merges. A SIGNED LINE IS NOT REWRITTEN: a later section overturns it by saying so, and
+the overturned line gains only a pointer to the section that did, as the folder's README says;
+signed renders are not edited. The signed spec wins a layout dispute, the brief wins copy and
+behaviour, and colours come only from theme tokens: the `@theme` block of `src/index.css` holds
+every value, in both themes, and a spec section that changes one names the token and its value. 3 : 1 (WCAG 1.4.11) binds any boundary that identifies a component or its
+state, in both themes, and anything under it carries its reason where the value is declared.
+**Why.** The spec owns the RESULT and the code owns the mechanism: a signed frame has no
 intermediate widths, no viewport height and no second language, so where it is silent the code
 decides — and says where it decided.
-**Rejected.** Editing a merged drawing to match a later ruling: it destroys the only record of what
-changed.
+**Rejected.** Rewriting a signed line in place to match a later ruling: the spec is the only record
+of what was signed and what overturned it, and `git log` does not say which ruling a line answers.
+Linking the private review pages as the reference: a reader without them has nothing to check
+against, so the signed frames are committed beside the spec.
 
 ## Measurement
 **Decision.** Geometry and colour are read through the chrome-devtools MCP, never Playwright's

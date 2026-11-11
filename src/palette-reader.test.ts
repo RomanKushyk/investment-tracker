@@ -93,9 +93,9 @@ const MODULE = /\.[cm]?[jt]sx?$/;
 const walk = (dir: string): string[] =>
   readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
     const rel = dir ? `${dir}/${e.name}` : e.name;
-    // Dot directories are tool output (`.aws-sam` bundles) and `design/` holds the drawings.
+    // Dot directories are tool output (`.aws-sam` bundles).
     if (e.isDirectory()) {
-      return skipped(e.name) || e.name.startsWith('.') || rel === 'design' ? [] : walk(rel);
+      return skipped(e.name) || e.name.startsWith('.') ? [] : walk(rel);
     }
     return MODULE.test(e.name) ? [rel] : [];
   });

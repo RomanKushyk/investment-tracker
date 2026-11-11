@@ -37,7 +37,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - Fonts are Manrope + JetBrains Mono because Ukrainian is the default language. Manrope's figures are proportional, so `body` sets `font-variant-numeric: tabular-nums` — one declaration, and every KPI column depends on it. Number grammar follows the language; tables stay in ₴; dates `dd.MM.yyyy`. [Language, numbers, fonts]
 - Every interaction has fluid, soft motion; `prefers-reduced-motion` is respected. [Interaction rules]
 - Measure in the chrome-devtools MCP, never Playwright's headless Chromium. Calibrate a probe first, disable transitions, check `document.visibilityState`, reload rather than flip the theme, and measure the rendered height — `text-[11px]` sets no line height. [Measurement]
-- The design reference is `design/Investment Tracker.dc.html`, styles inline (ignore `support.js` and `_ds/`); colours come from the Tailwind theme tokens, never ad-hoc hex. [Design pipeline]
+- The design reference is the signed spec, `docs/superpowers/specs/2026-11-05-layout-refresh/`, most of it not yet built: what ships is what the code and `navigation-map.md` record. Colours come from the Tailwind theme tokens, never ad-hoc hex. [Design pipeline]
 - `packages/core/` is pure and returns keys, never prose; `src/lib/` is the client of the API; new code reads and writes through `repository.ts`, never the transport. [Core is pure]
 
 ## Documentation
@@ -45,4 +45,4 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - `README.md` what and how to run · `docs/DECISIONS.md` why, current state only · `navigation-map.md` per-route expected values · `docs/reference/` external facts code cannot carry · `docs/superpowers/specs/` live design specs · `infra/README.md` the backend.
 - Decisions are rewritten in place; the history is `git log`. Delete dead documentation, never archive it. A figure lives in a test or not at all; documentation carries no dates and no measurements.
 - A comment says why in one or two lines. Trim history, dates and measurements out of a file's comments when you touch it. Cite decisions by topic heading; old `D<n>` citations resolve through the table at the end of `docs/DECISIONS.md`. No new `D<n>` is ever minted.
-- A merged drawing under `design/` is immutable. New UI gets a brief, a design session, an extension under `design/extensions/`, then code; email's drawing is its spec folder (*Design pipeline*).
+- A signed spec line is never rewritten: a later section overturns it, and the line gains only a pointer to that section. New UI gets a brief, a design session, a new or amended spec section with its renders, then code; email's drawing is its own spec folder (*Design pipeline*).

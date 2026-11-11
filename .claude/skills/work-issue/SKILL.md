@@ -68,7 +68,7 @@ A resume, or a confirmed branch: read `git log origin/dev..<branch>` and its dif
 
 ## Step 4: Explore, research, ask once, plan, get approval
 
-1. **Explore.** Where each criterion lands and what depends on it: `navigation-map.md` for a route, the `docs/DECISIONS.md` topics that bind the area, the tests that pin it. A wide search goes through `Explore` subagents so the main context stays for the work. A `[BRIEF]` issue goes through its design session and `design/extensions/` before code.
+1. **Explore.** Where each criterion lands and what depends on it: `navigation-map.md` for a route, the `docs/DECISIONS.md` topics that bind the area, the tests that pin it. A wide search goes through `Explore` subagents so the main context stays for the work. A `[BRIEF]` issue goes through its design session and a new or amended section of `docs/superpowers/specs/2026-11-05-layout-refresh/` before code.
 2. **Research the open choices.** For each one, before the question round: one search or documentation read outside this repository (`WebSearch`, `WebFetch`, `context7`, the installed package's source), then the plan's `Research` line records the choice, the source opened and what it says, or the search run and that it found no practice. A measurement of this repo's data is evidence for a premise, never that line's source. A choice without that line is not asked and not made.
 3. **One `AskUserQuestion` round**: every readiness gap, the tree question, every open choice with its evidence. Nothing is assumed on silence.
 4. **Write the plan** in the file plan mode names:

@@ -2,22 +2,16 @@
 # already honours .gitignore, so build output and scratch directories need no
 # entry and none is given.
 
-# D14 — A MERGED DRAWING IS IMMUTABLE. These are the design sessions' own
-# output, cited by line number from code comments and decisions. Measured with
-# THIS config: `period-and-analytics.dc.html` goes from 2 729 lines to 7 535,
-# a 7 152-line rewrite of a file the repo has promised not to edit.
-design/
-
 # EVERY Markdown file, at every depth — not just the root, and not just docs/.
 # The plans, decisions, reference notes and the folder READMEs are all
 # hand-formatted prose whose tables carry measured figures, and prettier re-pads
 # every cell to align its pipes: a one-word edit to one row then rewrites the
-# whole block (295 lines on PLAN-NOW.md alone). It also turns `*emphasis*` into
+# whole block. It also turns `*emphasis*` into
 # `_emphasis_`. On files whose value IS the text, that trade is backwards.
 *.md
 
-# CAPTURED FROM UPSTREAM, so its shape is the provider's and not ours — the same
-# argument design/ wins on. `assets-sample.json` is a trimmed live capture of
+# CAPTURED FROM UPSTREAM, so its shape is the provider's and not ours.
+# `assets-sample.json` is a trimmed live capture of
 # Inzhur's `/_api/assets` (see packages/core/README.md); reformatting it puts a
 # whitespace diff on top of every re-capture and makes the refreshed file fail
 # this very check. TWO LINES, NOT ONE `**/__fixtures__/`: infra/src/__fixtures__/
@@ -32,12 +26,11 @@ pnpm-lock.yaml
 # COMMITTED, BUT NOT OURS TO FORMAT. Git tracks four entries under `.claude/` —
 # `settings.json`, `agents/`, `commands/`, `skills/` — and they are configuration
 # this repository carries rather than source it writes. eslint and vitest already
-# exclude the directory whole for the same reason (D109), which leaves prettier as
+# exclude the directory whole for the same reason (*Review, gates, tests*), which leaves prettier as
 # the ONLY gate that reads them, failing on files nobody edited: `/update-config`
 # writes `settings.json` with `JSON.stringify(obj, null, 2)` and no trailing
 # newline, and a skill ships `scripts/*.js`, `references/*.json` and `*.yaml` beside
-# its Markdown. Measured: four files, `format:check` RED. Narrowing this to
-# `settings.json` was tried and covered only the first of them.
+# its Markdown; `settings.json` alone would cover only the first of them.
 .claude/
 
 # Machine-written, never hand-edited: `pnpm openapi` emits it with JSON.stringify, whose

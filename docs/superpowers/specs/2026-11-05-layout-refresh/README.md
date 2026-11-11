@@ -2,11 +2,11 @@
 
 The layout refresh moves Quirenote toward a floating shell, glass surfaces over an ambient glow of the asset hues, and a dock at 360, keeping the parchment and copper palette. It was decided wave by wave, each wave a set of rendered variants that the owner picked from. This folder is its written record: one file per area, holding the signed picks with their values, the rejected options with their reasons, what research settled, and what an implementation must check. Beside them, `renders/` holds the signed frames.
 
-Epic #611 makes this folder the only design reference. Until #621 retires `design/`, *Design pipeline* in `docs/DECISIONS.md` still names the old sheets as the reference.
+This folder is the only design reference (*Design pipeline* in `docs/DECISIONS.md`). A new or amended area file joins the wave table below with its renders; a signed line is overturned by a later file, never rewritten.
 
 **What is in a file and what is not.** Signed values are spec: sizes, radii, tokens, opacities, timings and copy. Readings measured on the renders, such as contrast ratios, are not; a figure lives in a test. Where a later wave overturns an earlier one, the later wave's file says so, and the overturned line in the earlier file points to it.
 
-**«Перенесено».** Where a file ends with this section, it holds the rules of the old sheets under `design/` that, once checked, no code, test or decision recorded. Each section names the area whose sheets it covers.
+**«Перенесено».** Where a file ends with this section, it holds the rules of the retired design sheets (named in these files as `parchment-5h`, `mobile` and the like, readable in [`design/` at the last commit that held it](https://github.com/RomanKushyk/investment-tracker/tree/40aba902b95a0d8edc2c46f39c73f4acfe869eb4/design)) that, once checked, no code, test or decision recorded. Each section names the area whose sheets it covers.
 
 **Provenance.** The waves were signed on two private review pages, which also hold every round's variants: [part 1](https://claude.ai/artifact/2885hXysnZCFidJP5gtRoR) for waves 1–14 and [part 2](https://claude.ai/artifact/Bc8Yh9sY1EnR6hE9zS4ZMw) for waves 15–24. The frames here are copied unchanged from each wave's «Final» block, with these exceptions:
 - Waves 4 and 23 have no «Final» frame, so their frames are those of their picks.

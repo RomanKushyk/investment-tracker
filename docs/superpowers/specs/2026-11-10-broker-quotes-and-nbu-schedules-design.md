@@ -191,7 +191,7 @@ at several brokers, each with its own quantity.
 
 ## §7 — Later deliverables
 
-These are sketches for their own design sessions (*Design pipeline*: brief, session, extension,
+These are sketches for their own design sessions (*Design pipeline*: brief, session, spec section,
 then code). Nothing here is decided beyond what the owner said.
 
 - **Comparison screen.**
