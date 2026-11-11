@@ -651,6 +651,11 @@ const EXEMPT: [file: string, site: string, reason: string][] = [
     'is the only file under .github that invokes the runner',
     'every file under `.github`, whatever its extension: an invoke in prose carries it too',
   ],
+  [
+    'src/tailwind-sources.test.ts',
+    'handedOut',
+    'loads every core module to walk the values it exports at run time, never its text',
+  ],
 ];
 
 const SUITE_CENSUS = census(SUITE);

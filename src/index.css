@@ -1,4 +1,8 @@
-@import 'tailwindcss';
+/* src/ is the scan base: text elsewhere adds no utilities. Paths here resolve from src/, not the
+   root, and a file elsewhere that names a class or a theme variable needs an @source below. */
+@import 'tailwindcss' source('.');
+/* Core hands the charts var(--color-chart-*) strings; unseen, Tailwind prunes those tokens. */
+@source '../packages/core/src/colors.ts';
 /* Test files are not markup: a guard that names a utility in a regex would
    otherwise keep it alive in the bundle. */
 @source not '**/*.test.ts';
