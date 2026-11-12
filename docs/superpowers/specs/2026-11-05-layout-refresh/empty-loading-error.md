@@ -64,6 +64,7 @@ At 360:
 - **First look (F2).** While the account holds no asset, Overview shows a first-run glass card between the header and the KPIs. The E2 cards stay below, so the account sees what will fill. All of its copy is new.
   - Title «Почніть з першого активу», Manrope 20 / 600.
     - *Left open by wave 18: 20 / 600 fits no role in its table ([type.md](type.md#left-open)).*
+    - *Overturned by wave 25: the title is h3, 17 / 22 ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - The lead «Додайте облігацію чи фонд — і тут з’являться ваш капітал, дохідність і найближчі виплати.», 13 `muted`.
   - Three numbered steps, each with its screen's nav glyph, in wave 6's zebra rows: add an asset («Портфель»), record the purchase («Транзакції»), save the first quote.
   - One primary action, «Додати перший актив» → /portfolio, at md size (full-width 44 below md).

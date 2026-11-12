@@ -26,6 +26,7 @@ Every pick together (R2, S3, L3, K2) with wave 17's controls and wave 15's light
   | title | 26 / 32 | Manrope | 600 | 26 |
   | display (wave 1, held) | capital 46 (360: 32) · tiles 30 (360: 22) · income 24 | Manrope | 600 −.01em, K2 | the signed canvas |
 
+- *Wave 25 adds to the table: the display row gains hero 36 and header capital 18, the collapsed header's capital ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Faces (R2).**
   - Manrope, with `tnum` from `body`'s `tabular-nums`, for headings, prose, subtitles, labels, nav, buttons, footnotes, dialog text, KPI and display figures.
   - JetBrains Mono for data: tables, figures inside rows (amounts, percentages, row dates), fields, chart ticks and IDs.
@@ -82,7 +83,9 @@ Every pick together (R2, S3, L3, K2) with wave 17's controls and wave 15's light
 Two sizes signed before this wave fit no role in the table, and are not in the display row (wave 1's canvas). No wave decides them, so the census test below cannot pass until they are mapped or named as display sizes:
 
 - Manrope 36 / 600: the «Атрибути» hero figure (wave 7, [attributes-item.md](attributes-item.md#signed)) and the archive's empty-days figure (wave 10, [super-admin.md](super-admin.md#signed)).
+  - *Answered by wave 25: hero 36 joins the display row ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - Manrope 20 / 600: the first-look card's title (wave 12, [empty-loading-error.md](empty-loading-error.md#signed)).
+  - *Answered by wave 25: the title maps to h3, 17 / 22 ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 
 ## Implementation checks
 

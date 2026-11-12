@@ -89,6 +89,7 @@ At 360, light: the same seven frames.
     - *Overturned by wave 18: the label role, 11 px ([type.md](type.md#signed)).*
   - empty days at Manrope 36 / 600, line 1.05, in `warn-tint-text` with a 26 px TriangleAlert while any day is empty;
     - *Left open by wave 18: 36 / 600 fits no role in its table ([type.md](type.md#left-open)).*
+    - *Answered by wave 25: hero 36 joins the display row ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - the existing sentence (`emptySub` / `noEmpty`) as an 11 px `muted` caption;
   - gaps and captures · size as the wave-7 F1 fact grid (two columns, 10 / 18 gap, 10.5 px caps labels, 12.5 px bold values). The hairline goes.
     - *Overturned by wave 18: the labels take the label role (11 / 14), and 12.5 px maps to 13 ([type.md](type.md#signed)).*

@@ -35,6 +35,7 @@ The edge states, one per card:
   - The tag goes; its text lives in that line.
 - **Hero (H1).** One figure in Manrope 36/600 with «/ рік» beside it, then an 11 px `muted` caption.
   - *Left open by wave 18: 36 / 600 fits no role in its table ([type.md](type.md#left-open)).*
+  - *Answered by wave 25: hero 36 joins the display row ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - Fund: the actual annual return, coloured as today (`pos` / `neg`, `muted` on a short basis), with the caption «Фактична (річна) · очікувана {expected} %», the asset's stored expected return.
   - Bond: the YTM at purchase, with the caption «YTM на купівлі». When the YTM is derived, the app's `ytmDerived` line sits under the caption.
 - **Progress bar (V1).** One visual between the hero and the facts. 8 px at r2 on an `ink` 8 % track, the fill in the asset hue (identity, not gain or loss), and a 2 px `ink` tick, 16 px tall, for the reference.

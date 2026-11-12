@@ -53,12 +53,15 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 ### Anatomy (C2), every chart
 
 - **Grid.** Horizontal only, at ~5 clean ticks (1-2-2.5-5 steps), 1 px hairline, solid. No vertical grid, no y axis line, no tick marks. The x baseline is a 1 px hairline.
+  - *Overturned by wave 25: steps of 1, 2 or 5 × 10ⁿ in at most five intervals; the 2.5 step retires ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Tick labels.** 11 px JetBrains Mono `muted`, horizontal. y: ₴Nk / signed whole %. x: dd.MM, 7 evenly spaced on wide plots, first/middle/last when narrow.
   - *Wave 23 adds: a 12-month axis keeps twelve labels at 360 ([loading-and-compositions.md](loading-and-compositions.md#settled-by-the-brief)).*
+  - *Overturned by wave 25: a y label carries its step's decimals, and zero is «0 %» unsigned ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Lines.** 2 px, round join and cap, no dots on daily data. The end marker is r4 in the series colour on an r6 disc in `card` (the 2 px ring).
 - **Area.** A gradient of the series colour from 32 % to 0, under the line. The capital area keeps today's cropped domain (data min − 5 000 … max + 2 000) with the fill, by the owner's ruling against Carbon's from-zero rule.
 - **0 % line.** On cumulative-return charts, a 1 px `field-border` line at 0.
 - **Crosshair.** On hover anywhere on the plot (≥ 768) or on tap (below), as `useTooltipTrigger` does today. A full-height 1 px `field-border` line, plus ringed markers on each series at that x.
+  - *Overturned by wave 25 for bar charts: the hovered category takes a `hairline` band, and /seasonality tap-pins like the others ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Tooltip.** Glass (the signed material, r12), padding 9/12, 12 px. The date in `muted` 11 px, then one row per series: a 12×2 colour key, the name, the value in 700, sorted by value. It sits right of the crosshair, left of it past mid-plot, and inside the plot's left edge on plots under 500 px wide (wrapping), so it never leaves the card.
 - **Motion.** Entry and update 400 ms on `ease-soft`. Recharts' `isAnimationActive: 'auto'` keeps honouring reduced motion.
 - **Contrast.** Every series mark is ≥ 3 : 1 against the card in both themes. Text is in text tokens only.
@@ -68,13 +71,17 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 
 - **Rule.** Colour is never the only key: names, labels or facets carry identity. Dashes stay reserved for expected/proposed.
 - **/yield (Y4, toggle to Y1).** Small multiples by default: one panel per asset on a shared scale, the others as hairline context lines, and the panel title as the name + the final value. Two columns at ≥ 600 px, one below. A «Окремо / Разом» segmented toggle (selected = `accent`, the app's existing segment pattern) switches to the combined chart with today's legend row.
+  - *Answered by wave 25: two columns while the card is ≥ 600 px inside; a panel with no line stays, with a line of text; the English pair is "Separate / Combined"; the toggle stays under #338's message ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Recorded.** The combined view relies on hue along the lines. It is accepted only because it isn't the default and the tooltip names each asset. Adding direct end labels (Y2) to it would close the gap.
 - **/seasonality.** One colour (`accent`) for every bar; the asset is named on the bar, after the value (for example «3 641 · REIT»). Labels are clamped inside the plot.
+  - *Answered by wave 25: the month axis prints the total alone and names no asset ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 
 ### Forms
 
 - **Allocation (A3).** A tall segmented bar: 28 px, parts at 4 px corners with 2 px gaps, widths by share. A share is printed inside at 11/700 only when it fits, in near-black or white by the fill's luminance. A legend list below, in block order, with name + share. The total figure sits above. The neighbouring target card stays as is.
+  - *Answered by wave 25: the 4 px holds; chart marks are outside the Shape system rule ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Payouts (B1).** Stacked columns ≤ 24 px: dividends at the bottom, coupons on top with a 2 px gap. Square at the baseline, 4 px round at the data end (the top part only). The month total on the cap at 11/700 `ink`. A legend row of two keys.
+  - *Answered by wave 25: the month total is whole, with no ₴, and the 4 px holds ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Seasonality.** Columns ≤ 18 px (12 when paired with an expected bar). Expected bars stay outlined and dashed at 40 % with a «*» label. Empty days get an 8×4 hairline stub.
 - **Capital.** The C2 area, cropped as above, with a single series and no legend.
 

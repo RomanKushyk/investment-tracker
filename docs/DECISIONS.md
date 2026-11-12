@@ -695,11 +695,15 @@ a wrong number that reads as a right one.
 off its SHORT side; a box nested against a parent's corner takes `outer = inner + gap`, the gap
 being padding plus any border. A segmented control is both at once — segment proportional, track
 concentric. A full-bleed bar takes square corners. Only asset avatars and colour dots stay round.
-The mark is drawn geometry, its loop and pills strokes rather than radii. Measure the RENDERED
+The mark is drawn geometry, its loop and pills strokes rather than radii. The rule binds controls
+and surfaces, not data marks: a chart's bar takes a fixed 4 on the corners its wave rounds, and
+its baseline stays square. Measure the RENDERED
 height: `text-[11px]` sets a font size, not a height.
 **Why.** Proportional describes an object and concentric describes containment, so reaching for the
-wrong one gives an answer that looks derived while being arbitrary.
+wrong one gives an answer that looks derived while being arbitrary. A data mark's radius is read as
+data, so it stays small and does not grow with the mark (eBay Playbook, Polaris Viz).
 **Rejected.** A track given its own proportional value: the two curves then diverge at every corner.
+A chart's parts at the proportional value: parts of one bar would take different radii.
 
 ## Scrolling
 **Decision.** Nothing scrolls with the platform's bar — every constrained box goes through
@@ -2787,8 +2791,8 @@ wait action: dependency code in the job, for a call `gh` already makes.
 ## Design pipeline
 **Decision.** The reference is the signed layout refresh,
 `docs/superpowers/specs/2026-11-05-layout-refresh/`: one file per area holding the signed values,
-and `renders/` holding the signed frames. Most of it is still to be built (#611's implementation
-epic); until a section is, what ships is what the code, `navigation-map.md` and these decisions
+and `renders/` holding the signed frames. Most of it is still to be built (#670); until a section
+is, what ships is what the code, `navigation-map.md` and these decisions
 record. Email is the one surface drawn outside it, in `docs/superpowers/specs/2026-11-07-email/`.
 The pipeline is brief → a design session that signs a new or amended section of that spec, with
 its renders committed and its row in the folder's README → the UI task, which may not start before

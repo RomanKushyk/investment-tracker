@@ -43,6 +43,7 @@ Today's one-line ledger at 360, for comparison: its labels are cut.
   - it stays at the top of its table's own scroll box.
 - **Rows (A4, D2).** 36 px, content centred; a row whose content needs more grows (Портфель's total). No row lines. Every second row is `ink` 3 % at r9, softened from 4 % at the owner's ask; the header band stays at 7 %. 12 px insets at both ends. The total keeps its 2 px `panel-border` rule.
 - **Columns.** 8 + 8 px cell padding (none at the outer edges), so at least 16 px between columns. Numeric columns and their headers are right-aligned, with units in the header. The ledger's cells drop the ₴.
+  - *Narrowed by wave 25: the ledger drops the ₴ at md and up; below md each two-line row keeps it ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Sticky header on every table (the owner's ruling).** Every table and the ledger scroll in their own box, through `Scroller` (both axes). The box follows the ledger's rule: it fills the viewport down to 80 px from the bottom, `max(200px, 100dvh − top − 80px)`. The header stays at the box top.
   - A page-level sticky header is impossible while the horizontal `Scroller` wraps the table.
   - The tables need that sideways scroll at narrow desktop widths: Баланси grows one column per asset, and the payout log is 720 px.
@@ -51,6 +52,7 @@ Today's one-line ledger at 360, for comparison: its labels are cut.
   - The count line stays.
   - The page size must exceed a box-full of rows. New rows are announced politely, and the box is `aria-busy` while a page is out.
 - **Ledger (L3).** At 1440 a table (ТИП · АКТИВ, ОДИНИЦІ, СУМА, ₴, ДАТА, ✕), all existing strings, with columns sized to their widest entry. Sub-lines (tax, note, the rows-ahead chip) stay under their row inside its tint.
+  - *Answered by wave 25: «СУМА, ₴» is one column, and its cells drop the ₴ at md and up ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Ledger at 360 (an open question, settled).** Below md the ledger stays a list, in two-line rows: line 1 is the whole label and the ✕ (44 × 44), line 2 is units · amount · date.
 - **Quotes (Q2).** The four rows in one glass card (r24, 8 px padding), rows nested at r16 (24 − 8), every second row at `ink` 3 %. A row's offer line stays inside its tint. Held: the 944 / 560 composition, each row's inner geometry (px-5 py-3.5, avatar 48, input 160 at r9, delta 52), the inputs, the ghost and dashed states, and both buttons. No row wraps.
 - **360 records (R2).** Tables stay record cards at 360 and nothing scrolls sideways. One glass card (r24, 6 px padding); records nest at r18 (24 − 6) with 16 px padding, and every second record is `ink` 3 %. The anatomy is held: a title line with the tag, then a 2-column `dl` whose `dt` is the column header verbatim. Баланси's records scroll on the same way, with a placeholder record while loading.

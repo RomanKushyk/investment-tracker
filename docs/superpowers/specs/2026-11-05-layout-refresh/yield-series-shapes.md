@@ -23,6 +23,7 @@ The six-asset frames add two composed lines to the chart only. They show the cas
   - Every line shows its glyph at the crosshair.
   - The line nearest the pointer by vertical distance is focused. It draws at 3 px with its glyph at 12 px on top; the others fall to 30 %.
   - The glass tooltip (r12, padding 9 / 12, 12 px, `field-border` edge) shows the date in `muted` 11 px, then one row per series sorted by value, descending.
+    - *Overturned by wave 25: the tooltip wears the glass edge ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - Each row is the glyph key, the short name and the value in 700. The focused row is bold and the others are at 55 %.
   - The tooltip sits right of the crosshair, left of it past mid-plot, and inside the plot's left edge below 500 px.
 - **Keyboard.** The plot is focusable. Arrow keys walk the dates; Up and Down move the focus between lines, nearest first. Escape releases.

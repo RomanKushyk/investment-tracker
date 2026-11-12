@@ -31,6 +31,7 @@ The count at «3» and «99+» on the super-admin's rail with its role strip, in
 - **The collapsed shell's header (R1),** at md and up, only while the rail is collapsed; below md it is wave 5's 360 bar.
   - 56 px tall, sticky, the wave 4 / 15 glass (`card` 80 % dark, 70 % light, blur 30, saturate 180), a 1 px hairline under it, square corners (a full-bleed band), padding 0 36.
   - Left: «ЗАГАЛЬНИЙ КАПІТАЛ» in the label role (11 / 14, caps, .12em, `muted`) over the figure (Manrope 18 / 600, `ink`).
+    - *Answered by wave 25: header capital 18 joins the display row, with K2 ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - Right: the change (11 / 600, `pos` or `neg`) over «$ · НБУ rate» (11, `muted`); the dataset caution sits here as today.
   - The super-admin: the shield (18, `accent`) and «Суперадмін» (Manrope 15 / 600) instead of the figure.
 - **The rail (O3), tighter gaps, scroll below 670 px.**

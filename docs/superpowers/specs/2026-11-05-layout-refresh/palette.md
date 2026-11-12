@@ -52,6 +52,7 @@ A new asset: the field starts on the cycled default.
 - **The selector (D2), the field opens the palette.**
   - The field: «Колір» in the asset dialog, beside «Код» in a two-column grid at md+, on its own full-width row below md. It is the form's Select trigger anatomy (36 px, r9, F2 `page` fill, `field-border`, chevron), showing a 14 px dot and the colour's name.
   - The palette: a P2 glass popover with the listbox's radius, 8 px below the field and end-aligned to it, flipping above when there is no room. Padding 12 / 14 / 14. A «Колір» title in 11 px caps, tracking .14em, `muted`. A 4 × 2 grid of 72 px cells, gap 12 (rows) / 4 (columns), 328 px wide, so it fits 360 with 12 px margins.
+    - *Overturned by wave 25: the title's tracking is +.12em ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - A cell is a 28 px r7 swatch over its name (11 / 14 `muted`; the chosen name in `ink` 600). The whole cell is the hit target, at least 44 px. The chosen swatch takes a 2 px `card` halo, a 2 px `ink` ring and a 14 px `card` check.
   - Keyboard: the field is a button (`aria-haspopup="dialog"`, `aria-expanded`). Enter, Space or Down opens it, with focus on the chosen swatch. Inside is a radio group (`aria-label` «Колір», each swatch `role=radio` named by its colour). The arrows move focus and select, per the WAI-ARIA radio group pattern, with the F2 accent ring as focus (offset 6 around the chosen ring). Enter, Escape or a click outside closes it and returns focus to the field; a click on a cell picks and closes.
   - Behaviour: the chosen colour is always named in words, never by colour alone. A pick repaints the avatar at once and is saved with the form. A new asset starts on the cycled default. The inline quick-create in `TransactionPanel` shows no field and takes the cycled default; the colour is changed later in «Змінити» (the owner's ruling at sign-off).
@@ -79,6 +80,7 @@ A new asset: the field starts on the cycled default.
 
 - `asset-builder.test.ts`: the 5th asset takes `c5`; a 6th and 7th take distinct colours, tested over `COLOR_KEYS`; the 9th wraps to `reit`.
 - `palette-mirror.test.ts`: the reit reading; the shared-value equalities (accent = energy, logo = reit, info = ovdp8976) turn into independence checks; today's asset hexes join the retired list.
+  - *Overturned by wave 25: `RETIRED` stays closed; a second list holds the values wave 20 replaced that no token keeps, and `--color-glass-rim` is exempt by name ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - `model-parity.test.ts`.
 - New: the validator's gates over the shipped tokens in both themes, and tint-text at AA per slot.
 - D2's field opens a grid, not a native Select, so the keyboard is built rather than borrowed.
