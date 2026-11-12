@@ -62,6 +62,7 @@ At 360:
   - No empty card carries an action; the record's one action stays on /portfolio.
   - One `EmptyState` component carries all of it, with the glyph as a prop.
 - **First look (F2).** While the account holds no asset, Overview shows a first-run glass card between the header and the KPIs. The E2 cards stay below, so the account sees what will fill. All of its copy is new.
+  - *Answered by wave 26: its three steps are signed as drawn, each a link to its screen ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Title «Почніть з першого активу», Manrope 20 / 600.
     - *Left open by wave 18: 20 / 600 fits no role in its table ([type.md](type.md#left-open)).*
     - *Overturned by wave 25: the title is h3, 17 / 22 ([open-values-charts-type.md](open-values-charts-type.md#signed)).*

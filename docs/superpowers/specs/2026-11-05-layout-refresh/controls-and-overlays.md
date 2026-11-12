@@ -18,8 +18,10 @@ The nested container (S1): the quick-create inside «Транзакція», sta
 
 - **Secondary containers (S1, the dashed `faint` edge, as shipped).**
   - The coupon-due card, the import diff panel, the quick-create sub-form and the passkey cards keep a 1 px dashed `faint` edge.
+    - *Overturned by wave 26: the passkey cards take a solid `hairline` edge; the quick-create keeps its dash ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Standalone (the coupon card), it is the glass card with the dashed edge in place of the solid one, r20.
   - Nested (the quick-create, the diff panel, the passkeys), it is transparent with the dashed edge alone, r16, so no `panel` fill sits on glass.
+    - *Overturned by wave 26: the passkeys are not dashed; they take a solid `hairline` edge, r16 ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - The dash is decoration, not a control's boundary, so WCAG 1.4.11 does not bind it.
   - The coupon card's overdue date is wave 11's C2: a 12 px `warn` TriangleAlert + «25.07» in `ink`; the `warn-tint` pill goes.
 - **Checkbox (K2), `accent` fill.**
@@ -64,6 +66,7 @@ The nested container (S1): the quick-create inside «Транзакція», sta
 ## Settled by the brief
 
 - **The fetch flash:** `ink`, the 13 px check and «Оновлено 13:05» for about 2.5 s, with no `pos`.
+  - *Answered by wave 26: the copy is held, and the dictionary's «Отримано» goes ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **«Backup done»:** a disabled B4 knob with a check, crossfading 220 ms.
 - **The asking row:** an `ink` question with a `warn` TriangleAlert, «Видалити» in B4 `outlineDanger`, «Ні» ghost.
 - **The delta chip and the stale and failed lines** in C2: glyph + `ink` words, no fill, the delta's figure in `pos` / `neg`.

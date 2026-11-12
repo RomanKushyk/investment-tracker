@@ -71,6 +71,7 @@ At 360, light: the same five states.
   - *Overturned in light by wave 15: each light glow hue sits at its own cap (B3) ([glass-light.md](glass-light.md#signed)).*
 - **Card (C2).** The wave-4 glass (`card` 80 % with `blur(30px) saturate(180%)`), with bevel and sheen, as every card, the dock and the dialogs now are.
   - *Overturned in light by wave 15: the light fill is `card` 70 %, with the lit edge ([glass-light.md](glass-light.md#signed)).*
+  - *Overturned by wave 26 for dialogs: they take `card` 90 % / 92 % ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Held: 440 / 336, padding 28 / 22, r24, top 64 / 16, and the legal links under it.
   - Turnstile and Google's button keep their own opaque fills, in their makers' colours.
   - The glass edge is drawn inset. Drawn as an outer border, it moves «Продовжити» at 360, and the record says the button never moves.

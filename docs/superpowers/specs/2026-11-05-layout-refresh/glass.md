@@ -55,6 +55,7 @@ T2, the signed material with `saturate(180%)`, over the signed backdrop.
   - Two new alias tokens, aliases and not colours (the `drawer-edge` precedent): `--color-glass-rim` = `ink` (dark) / `card` (light), and `--color-glass-shade` = `page` / `ink`. Without them the light theme's light comes from below.
     - *Overturned by wave 15: the light value of `--color-glass-rim` is white (`#ffffff`) ([glass-light.md](glass-light.md#signed)).*
 - **Scope (X3).** Every content card (KPI tiles, hero, tables, lists, the real screens' `Card`), the floating sidebar (it keeps r26) and the 360 dock (it keeps r18). Wave 4 adds the chart tooltip. Not the 360 top bar or the page.
+  - *Answered by wave 26: KpiCard's tint and wall tones go; one glass for every content card ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **Backdrop (W1).** Unchanged: the wave-1 glow (dark 20 / 18 / 16 / 12 %, light ×0.7) + grain at normal blend.
   - *Overturned in light by wave 15: each light glow hue sits at its own cap (B3) ([glass-light.md](glass-light.md#signed)).*
 - **Fallbacks.** `@supports not (backdrop-filter: blur(1px))` and `prefers-reduced-transparency: reduce` both give the opaque card with a hairline. That is exactly wave 1's signed frames. Safari doesn't report reduced transparency, so the default stands on its own: it passes contrast.

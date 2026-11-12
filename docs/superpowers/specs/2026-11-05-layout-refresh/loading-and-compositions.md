@@ -61,6 +61,7 @@ P1: C3 as signed, with eight assets, light over dark.
 ## Settled by the brief
 
 - **Motion:** a first load arrives with E2; a re-read in place moves nothing; a step swap inside a route uses E2; focus goes to the heading on every route change ([motion.md](motion.md)).
+  - *Answered by wave 26: the signed-out pages take E2 too ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **The Google button** keeps Google Sans Medium (Google's guideline), the one font exception.
 - **The glow** takes its own `glow-1…4` tokens at today's hues, so wave 15's caps hold.
 - **The 12-month axis** keeps twelve labels at 360.

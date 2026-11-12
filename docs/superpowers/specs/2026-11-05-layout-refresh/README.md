@@ -13,8 +13,10 @@ This folder is the only design reference (*Design pipeline* in `docs/DECISIONS.m
 - Wave 19 was signed on players. Its frames are their end states: the arrived screens from the «Final», and the placeholder states from its slow-read player at 1440 and from Step 2's player at 360.
 - Wave 21 adds the step frames its «Final» names (the feet, the rail and the counts) and its hover label's (T1). Wave 22 adds the nested container its «Final» names.
 - Wave 25 adds each round's sheet, its variants side by side, beside the five composite frames of its «Final».
+- Wave 26 adds each round's sheet beside the six composite frames of its «Final»; its motion is shown as stills, and the review page plays it.
 
 A third private review page, [part 3](https://claude.ai/artifact/TgGrhxuQGwSY1MBWxdz1os), holds wave 25, with every round's variants.
+Wave 26 is on the same page, above wave 25.
 
 ## Waves
 
@@ -45,5 +47,6 @@ A third private review page, [part 3](https://claude.ai/artifact/TgGrhxuQGwSY1MB
 | 23 | Loading shapes, compositions and the sweep | [loading-and-compositions.md](loading-and-compositions.md) | [the placeholders](renders/w23s1-L2.jpeg) |
 | 24 | The logo | [brand.md](brand.md) | [every site](renders/w24f.jpeg) |
 | 25 | Open values: charts, tables, type and the palette | [open-values-charts-type.md](open-values-charts-type.md) | [/yield, 1440 and 360](renders/w25f1.jpeg) |
+| 26 | Open values: the shell, dialogs, motion, the overview and controls | [open-values-shell-controls.md](open-values-shell-controls.md) | [the shell, 1440 and 360](renders/w26f1.jpeg) |
 
 Each file shows all of its wave's frames.

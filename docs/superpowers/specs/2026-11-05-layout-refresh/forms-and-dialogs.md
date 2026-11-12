@@ -64,11 +64,13 @@ The 360 sheet at real speed: a flip-book of renders, one per 60 Hz frame. The de
   - One shared field recipe replaces the per-surface ones.
 - **Dialog at md and up (D2).** The wave-4 glass (`card` 80 % + `blur(30px) saturate(180%)`, bevel and sheen), with the `field-border` edge kept (the record’s floating-edge rule).
   - *Overturned in light by wave 15: the light fill is `card` 70 %, with the lit edge ([glass-light.md](glass-light.md#signed)).*
+  - *Overturned by wave 26: the fill is `card` 90 % in light and 92 % in dark ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - r24, and three bands: the header `pt-6 pb-4`, a scrolling body, the footer `pt-4 pb-6`, all at `px-[28px]`.
   - The secondary action sits left of the primary, and the scrim is held.
   - Over the scrim the page behind is dimmed, so the glass reads mostly through its bevel and sheen.
   - Drawn on the asset dialog («Додати актив», 520) and the delete confirmation (AlertDialog, 420).
 - **Dialog below md (M2), an inset sheet like «Ще».**
+  - *Overturned by wave 26: re-authentication stays top-anchored in M2's glass, and the fill is `card` 90 % / 92 % ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Geometry: 12 px from the sides, `bottom: calc(12px + env(safe-area-inset-bottom))` above the keyboard inset, r24, `max-height: calc(100dvh − 80px)`, with the body scrolling inside.
   - The buttons end up within thumb reach. Fields stay 36 px with the 44 hit area, at the 16 px type the app forces below md.
   - Motion: it rises `translateY(calc(100% + 12px))` → 0 in 260 ms and leaves in 220 ms on `ease-soft`; the scrim fades over 220 ms. Reduced motion uses the global kill-switch.

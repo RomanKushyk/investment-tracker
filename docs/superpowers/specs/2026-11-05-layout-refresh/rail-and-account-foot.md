@@ -33,7 +33,9 @@ The count at «3» and «99+» on the super-admin's rail with its role strip, in
   - Left: «ЗАГАЛЬНИЙ КАПІТАЛ» in the label role (11 / 14, caps, .12em, `muted`) over the figure (Manrope 18 / 600, `ink`).
     - *Answered by wave 25: header capital 18 joins the display row, with K2 ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
   - Right: the change (11 / 600, `pos` or `neg`) over «$ · НБУ rate» (11, `muted`); the dataset caution sits here as today.
+    - *Answered by wave 26: the line is wave 23's dated H3 line, and there is no caution: it was the DEMO badge ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - The super-admin: the shield (18, `accent`) and «Суперадмін» (Manrope 15 / 600) instead of the figure.
+    - *Overturned by wave 26: «Суперадміністратор» at every site ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **The rail (O3), tighter gaps, scroll below 670 px.**
   - 64 wide, flush left, glass, a 1 px hairline on the right, padding 8 / 0, no gaps; items 44 × 44 at r12, icons 20; group hairlines 28 × 1 with 2 px margins. The hit areas touch without overlapping.
   - The foot: the currency box (40 × 32, r9, `field-border`), Settings, profile, «Вийти».

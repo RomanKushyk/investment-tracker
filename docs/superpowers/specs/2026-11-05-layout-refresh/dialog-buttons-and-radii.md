@@ -11,6 +11,7 @@ The three live dialogs at 360 (delete an asset, edit an asset, sign out everywhe
 ## Signed
 
 - **Below md (the M2 sheet, `useIsDesktop()` false), in every dialog (W1).**
+  - *Answered by wave 26: re-authentication stays top-anchored below md; this button rule holds for it too ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - The button row is a column with a 10 px gap (`gap-2.5`).
   - Each button is full width, 44 high and r11 (the size is held).
   - The action is first, «Скасувати» last, destructive or not.

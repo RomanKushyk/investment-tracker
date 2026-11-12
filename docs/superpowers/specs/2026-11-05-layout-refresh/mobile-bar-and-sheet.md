@@ -71,6 +71,7 @@ The top bar: scrolling down sends it away; scrolling up brings the glass bar bac
   - A user keeps the full-width dock signed in wave 1: four tabs + «Ще».
   - The super-admin's tabs are «Архів цін», «Користувачі» (with the pending count from `GET /admin/users`, status Заявки) and «Ще».
   - Signed out or a role not yet known, the dock is «Ще» alone.
+    - *Overturned by wave 26: while the role is not yet known, the user's dock is drawn with placeholder tabs and rises at the first paint (E1); signed out keeps «Ще» alone ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - With fewer than five tabs the dock fits its tabs and is centred.
   - All tabs share one width: max(a user tab's width, the widest label). A user tab is 63 px; the super-admin's tabs are 67 px each, so «Користувачі» fills its pill almost to the edge.
   - The count is a 16 px square at r4 (round(16 × 0.26)), in `accent` / `accent-fg`, never a capsule.

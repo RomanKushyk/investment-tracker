@@ -73,11 +73,13 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 - **Header.** Unchanged: `ScreenHeader`, 26 px title, 13 px subtitle, the screen's control top-right (the period select on /overview). All six periods stay in one select, which already works at 360.
 - **Hero (/overview).** One card: a 10 px label; the capital in Manrope 46/600; the change in `pos` 13 px 700 + «від DD.MM.YYYY» in `muted`; $ at the NBU rate, 12 px `muted`, right-aligned; an axis-less area of the /view/balances totals, 110 tall, full card width, stroke `accent` 1.6, fill `accent` 26 % → 0.
   - *Overturned by wave 23: the rate line sits under the change, left-aligned, at every width (H3) ([loading-and-compositions.md](loading-and-compositions.md#signed)); by wave 18: the label is 11 px and the ₴ steps back to 70 % ([type.md](type.md#signed)).*
+  - *Answered by wave 26: the XIRR line and the cash-short chip stay in their tiles, and the area follows the period, sliced from the served `balances.chart` ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **Sections.** A real `<h2>`: a lucide icon 16 `muted` + the label in Manrope 14/600 `ink`, gap 8, 10 below; section gap 28. On /overview: «Показники» (4 tiles), then «Активи» (1.6fr) | «Виплати» (1fr).
   - *Overturned by wave 18: 14 px maps to the body role, 13 / 18 ([type.md](type.md#signed)).*
 - **Tile (H2's anatomy).** Padding 16, stack gap 8; label 11 px uppercase .12em `muted`; value Manrope 30/600 −.02em, with the ₴ split off at 15/500 `muted`; sub 12 px. At 360: 2 columns, value 22, label 10, sub 11.
   - *Overturned by wave 18: the label is 11 px in sentence case, the value takes −.01em, and the ₴ is 70 % `muted` 500 (K2) ([type.md](type.md#signed)).*
 - **Asset row line (H3).** 96 × 22 (56 × 20 at 360), axis-less, stroked in the asset's hue at 1.6, no fill, from first purchase. Read from /view/balances. The name stays beside it, so colour is never the only cue. The table stays a table.
+  - *Overturned by wave 26: the line reads the series #731 adds to `GET /view`, not /view/balances ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 
 ### Mobile, below 768
 
@@ -128,6 +130,7 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 
 - The H2 tile is a `KpiCard` variant.
 - Each H3 row reads its column of /view/balances, a paged read the overview doesn't make today.
+  - *Overturned by wave 26: #731 adds the series to `GET /view` ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - The sidebar no longer touches the edge, so the collapse to F3 changes both its width and its inset.
 - The `docs/DECISIONS.md` topic an implementation rewrites: Two shells, one breakpoint. Interaction rules' active-route sentence stays true.
 

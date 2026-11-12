@@ -39,6 +39,7 @@ The edge states, one per card:
   - Fund: the actual annual return, coloured as today (`pos` / `neg`, `muted` on a short basis), with the caption «Фактична (річна) · очікувана {expected} %», the asset's stored expected return.
   - Bond: the YTM at purchase, with the caption «YTM на купівлі». When the YTM is derived, the app's `ytmDerived` line sits under the caption.
 - **Progress bar (V1).** One visual between the hero and the facts. 8 px at r2 on an `ink` 8 % track, the fill in the asset hue (identity, not gain or loss), and a 2 px `ink` tick, 16 px tall, for the reference.
+  - *Answered by wave 26: with no value or no range (a negative or missing fund return, a bond with no maturity) no bar is drawn ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Bond: first purchase → maturity with today ticked, the two dates at the ends, and «ще N днів до погашення» under it. A matured bond shows a full bar, no tick, and «погашено {date}».
   - Fund: the actual return against the expected tick, on a scale of max(actual, expected) × 1.25, with «фактична … / очікувана …» at the ends.
   - The captions are new copy. «днів» must follow Ukrainian plural rules (1 день, 2–4 дні).

@@ -36,6 +36,7 @@ The wave was signed on players that run at real speed, so the motion itself is t
 | A refetch after a write | no placeholders; the figures tween (held) | — | — | — | — |
 
 - **A route change (E2)** runs on push and on Back / Forward alike, and is done in about 540 ms.
+  - *Answered by wave 26: E2 reaches the signed-out pages and every step swap inside a route ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **The shell never moves:** the sidebar, header, dock and glow stay put, and the active item changes at once.
 - **Input is never blocked.** A press during a transition goes through at once, and the next route starts its own E2 from wherever the screen stands.
 - **One motion owns entry (A2).** Today's three stacked fades go: the `Layout` wrapper's fade-and-rise, `Loadable`'s wrapper, and every card's own `animate-in` and `STAGGER` on Overview, Settings, Profile, Archive and the rest.

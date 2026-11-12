@@ -29,8 +29,10 @@ The selected segment's label, three ways, in light at 2×: T1 `accent`, T2 `acce
   - Its label is 700: `accent-pressed` in light, `accent` in dark (T2, picked at sign-off). Unselected labels are `muted` 600.
   - The state cue is the raised tinted knob and its coloured bold label. The knob has no 3:1 boundary against the well, which falls short of the brief's WCAG 1.4.11 goal; the owner accepted that cost of D2.
   - Radii come from the shape system, the segment round(h × .26) and the track concentric: 28 → 7 / 12; the sidebar's 22 → 6 / 9; PriceMode's 16 → 4 / 7.
+    - *Overturned by wave 26: PriceMode's segments are 24 px, so 24 → 6 / 9 ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Motion: the knob slides in 300 ms on `ease-soft`, with a press of .97.
   - Semantics: a radiogroup with arrow keys. PriceMode alone stays a single `aria-pressed` toggle, and gains `TAP_44`.
+    - *Overturned by wave 26: PriceMode joins the radiogroup, with 24 px segments and no `TAP_44` ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **The switch (S2 with D2's knob).**
   - 40 × 22 r6, padding 2, the knob 16 r4, travel 18.
   - On: an `accent` fill and edge, and a 10 px `accent` check in the knob.
@@ -38,6 +40,7 @@ The selected segment's label, three ways, in light at 2×: T1 `accent`, T2 `acce
   - The knob is the glass knob tinted: `accent` 16 % light / 22 % dark mixed into `card`, at 94 %, with a `0 1px 4px` drop. The off knob takes the tint too.
 - **Buttons (B4).** The secondary (today's `outline`) becomes the glass knob at button scale with `ink` text. Held: the primary `accent` fill, ghost, `outlineDanger`, `danger`, the sizes (md 40 / r10, 44 / r11 below md) and wave 16's stacking. The hand-rolled buttons are each mapped against this set, or the reason is recorded: TransactionPanel's delete-confirm and cancel, QuoteRow's dashed pill, `GoogleButton`'s 1 px edge.
 - **The popover (P2).** The Select list and the DatePicker take the dialogs' glass.
+  - *Answered by wave 26: the popover keeps `card` 70 % / 80 %; the thicker fill is the dialogs' alone ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - `card` 70 % light / 80 % dark, `blur(30px) saturate(180%)`.
   - The sheen and bevel as above, with a `0 8px 24px` drop.
   - The `field-border` edge, r14 for the select and r16 for the date picker.
