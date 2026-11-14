@@ -46,9 +46,8 @@ const ENTRY = [
  * One item, and the drawn box is 40 × 36 at radius 9.
  *
  * `h-[36px]` AND NOT `h-9`, which renders identically: `field-border.test.ts`
- * calls any line carrying both `rounded-[9px]` and `h-9` a field, conscripts the
- * file into that suite, and then asserts an exact edge-minus-hover count across
- * it — a failure that reports itself as being about `QuoteRow`.
+ * calls any class list carrying both `rounded-[9px]` and `h-9` a field drawn by
+ * hand, and fails the file for not calling `fieldVariants`.
  *
  * THE RADIUS IS SPENT TWICE, on the link and on the box inside it. The link is
  * the focusable element, so it is the link the focus outline follows; without

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '../../components/ui/Button';
+import { fieldVariants } from '../../components/ui/field-variants';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -118,7 +119,9 @@ export function ConfirmRuling({
             onChange={(event) => setTyped(event.target.value)}
             autoComplete="off"
             spellCheck={false}
-            className="block h-9 w-full rounded-[9px] border border-field-border bg-page px-3 font-body text-[13px] text-ink transition hover:border-ink max-md:text-[16px]"
+            className={fieldVariants({
+              className: 'block w-full px-3 font-body text-[13px] text-ink max-md:text-[16px]',
+            })}
           />
         </DialogBody>
       )}

@@ -126,7 +126,7 @@ describe('the transaction form survives its own reset', () => {
     const field = amountField();
     expect(field).toMatch(/aria-invalid=/);
     expect(field).toMatch(/aria-describedby=/);
-    expect(field).toMatch(/inputClass\(fieldState\.invalid\)/);
+    expect(field).toMatch(/edge:\s*fieldState\.invalid \? 'invalid' : 'rest'/);
     // Two messages, because the schema refuses four things and one sentence told someone
     // who typed `0` to enter the amount they had just typed.
     expect(field).toMatch(/amountMissing/);
@@ -326,7 +326,7 @@ describe('the two controls #136 adds obey the panel\u2019s own rules', () => {
       expect(f, `${name}: no aria-invalid`).toMatch(/aria-invalid=\{fieldState\.invalid/);
       expect(f, `${name}: error not linked`).toContain(errorId);
       expect(f, `${name}: lost the invalid border`).toMatch(
-        /className=\{inputClass\(fieldState\.invalid\)\}/,
+        /className=\{fieldVariants\(\{[^}]*edge:\s*fieldState\.invalid \? 'invalid' : 'rest'/,
       );
     }
   });
@@ -343,7 +343,7 @@ describe('the two controls #136 adds obey the panel\u2019s own rules', () => {
     expect(CODE, 'the withholding is no longer revealed on the payout pair').toMatch(
       /<Reveal\s+show=\{takesWithholding\}/,
     );
-    // `min-w-0` for the reason `inputClass` states: a grid item's `min-width` is `auto`, so
+    // `min-w-0` for the reason `INPUT` states: a grid item's `min-width` is `auto`, so
     // a cell holding an input sizes its column to the input's min-content.
     expect(CODE).toMatch(/show=\{takesWithholding\}[\s\S]{0,120}min-w-0/);
     expect(CODE).toMatch(/if \(takesWithholding\) return;/);

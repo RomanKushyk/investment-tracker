@@ -23,8 +23,8 @@ import { luminance, ratio, resolve, stripCss, themeBlocks } from './__fixtures__
 // dropzone inside the FIELD guard — being a non-field is exactly what let this box go
 // unowned.
 //
-// READ THIS FILE WITH `field-border.test.ts`: its `hover:border-muted` ban is scoped per
-// field SITE and a dropzone is no field, so the two cannot collide — but a field landing in
+// READ THIS FILE WITH `field-border.test.ts`: it owns the field recipe, and a dropzone is no
+// field, so the two cannot collide — but a field landing in
 // `ImportRow.tsx` still answers this file's WHOLE-FILE assertions, the fill census and the
 // `border-dashed` ban. Never resolve such a collision by weakening an assertion: the scope
 // belongs to whichever guard owns the subject.

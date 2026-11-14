@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { Select as RadixSelect } from 'radix-ui';
 import type { ReactNode } from 'react';
 
+import { fieldVariants, type FieldFill } from './field-variants';
 import { TAP_44 } from './tap-target';
 
 // A generic string-value select on the app's field shape. `bg` is an explicit
@@ -23,7 +24,7 @@ export function Select({
   placeholder,
   className = '',
   invalid = false,
-  bg = 'white',
+  bg = 'card',
   onOpenChange,
   status,
   scrollList = false,
@@ -42,7 +43,8 @@ export function Select({
    * "check the highlighted fields" names nothing.
    */
   invalid?: boolean;
-  bg?: 'white' | 'page';
+  // `card`, never a literal white: a control surface has to invert with the theme.
+  bg?: FieldFill;
   // Fires on open/close — the Inzhur picker fetches its list on first open.
   onOpenChange?: (open: boolean) => void;
   // Non-selectable row(s) after the options: the picker's loading and empty rows
@@ -66,10 +68,6 @@ export function Select({
   /** The element that explains the current selection — e.g. a resolved window. */
   ariaDescribedBy?: string;
 }) {
-  const borderClass = invalid ? 'border-neg' : 'border-field-border hover:border-ink';
-  // `card`, never a literal white: a control surface has to invert with the
-  // theme, and a literal cannot.
-  const bgClass = bg === 'page' ? 'bg-page' : 'bg-card';
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>
       <RadixSelect.Trigger
@@ -81,7 +79,11 @@ export function Select({
         // DISPLAYS a value, and a select reading 13px beside an input reading 16
         // is the pair looking mismatched on the one screen where it shows. It is
         // a button, so it never triggers the iOS zoom itself.
-        className={`${borderClass} flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border font-body text-ink ${bgClass} px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
+        className={fieldVariants({
+          fill: bg,
+          edge: invalid ? 'invalid' : 'rest',
+          className: `flex w-full items-center justify-between gap-2 px-3 font-body text-[13px] text-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`,
+        })}
       >
         {/* THE VALUE TRUNCATES, and it has to: the longest yield-type label in
             the asset form's two-column row at 360 wrapped to two lines inside a

@@ -12,8 +12,8 @@ import { groupedForInput, valueFromInput } from '@quirenote/core/money';
 import { caretAfterDigits, digitsBefore, withoutDigit } from './number-field';
 import { useSettings } from '../../state/settings';
 
-// BEHAVIOUR, NOT GEOMETRY: every site draws its own field, so `className` is the
-// caller's and this sets no visual property — nor a font size, which `index.css`
+// BEHAVIOUR, NOT GEOMETRY: the caller draws the field through `fieldVariants`, so
+// `className` is the caller's and this sets no visual property — nor a font size, which `index.css`
 // gives every input below 48rem.
 // `value` is LANGUAGE-FREE and the display is derived from it, so the language
 // can change under a filled field without changing what it means. *Language,

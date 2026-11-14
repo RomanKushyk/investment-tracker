@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { fieldVariants } from '../../components/ui/field-variants';
 import { NumberField } from '../../components/ui/NumberField';
 import { rollNextCoupon, type DueCoupon } from '@quirenote/core/accrual';
 import { inputValue } from '@quirenote/core/money';
@@ -161,9 +162,10 @@ export function CouponDueCard({
         }}
         aria-invalid={showAmountError}
         aria-describedby={showAmountError ? errorId : undefined}
-        className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
-          showAmountError ? 'border-neg' : 'border-field-border hover:border-ink'
-        }`}
+        className={fieldVariants({
+          edge: showAmountError ? 'invalid' : 'rest',
+          className: 'w-full px-3 font-body text-[13px]',
+        })}
       />
       {showAmountError && (
         <div
@@ -221,9 +223,10 @@ export function CouponDueCard({
             placeholder={t.transaction.quantityPlaceholder}
             aria-invalid={showUnitsError}
             aria-describedby={showUnitsError ? unitsErrorId : undefined}
-            className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
-              showUnitsError ? 'border-neg' : 'border-field-border hover:border-ink'
-            }`}
+            className={fieldVariants({
+              edge: showUnitsError ? 'invalid' : 'rest',
+              className: 'w-full px-3 font-body text-[13px]',
+            })}
           />
           {showUnitsError && (
             <div

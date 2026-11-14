@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
+import { fieldVariants } from '../../components/ui/field-variants';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -99,7 +100,7 @@ function ClearDataDialog({ open, onClose }: { open: boolean; onClose: () => void
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"
           spellCheck={false}
-          className="h-9 w-full rounded-[9px] border border-field-border bg-page px-3 text-[13px] transition hover:border-ink"
+          className={fieldVariants({ className: 'w-full px-3 text-[13px]' })}
         />
         <Button
           variant={backedUp ? 'outlineMuted' : 'outline'}

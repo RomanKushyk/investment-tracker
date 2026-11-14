@@ -197,9 +197,9 @@ describe('the rail, as drawn', () => {
     );
   });
 
-  // `h-[36px]` AND NOT `h-9`, WHICH RENDERS IDENTICALLY: `field-border.test.ts` calls a line
-  // carrying both `rounded-[9px]` and `h-9` a FIELD, and would conscript this file into a
-  // suite asserting an edge-minus-hover count across it. Do not "tidy" it.
+  // `h-[36px]` AND NOT `h-9`, WHICH RENDERS IDENTICALLY: `field-border.test.ts` calls a class
+  // list carrying both `rounded-[9px]` and `h-9` a FIELD drawn by hand, and fails the file.
+  // Do not "tidy" it.
   it('sizes its items 40 x 36 at the drawn radius, and stays out of the field scope', () => {
     const radius = railLines(/rounded-\[9px\]/);
     // FOUR SITES, all the item: the box that paints it, and the route link, the sign-out button

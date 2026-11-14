@@ -7,6 +7,7 @@ import type { ReauthPurpose } from '../../auth/google';
 import { signedOutBy, type SignedOutCause } from '../../auth/signed-out';
 import { Button } from '../../components/ui/Button';
 import { AlertDialogCancel } from '../../components/ui/Dialog';
+import { fieldVariants } from '../../components/ui/field-variants';
 import { useDeleteAccount } from '../../hooks/queries';
 import { useFormat } from '../../hooks/useFormat';
 import { rich } from '../../i18n/rich';
@@ -144,7 +145,9 @@ export function DeleteAccount({
               onChange={(event) => setTyped(event.target.value)}
               autoComplete="off"
               spellCheck={false}
-              className="block h-9 w-full rounded-[9px] border border-field-border bg-page px-3 font-body text-[13px] text-ink transition hover:border-ink max-md:text-[16px]"
+              className={fieldVariants({
+                className: 'block w-full px-3 font-body text-[13px] text-ink max-md:text-[16px]',
+              })}
             />
           </Body>
           {/* Stacked at every width, the destructive pair first

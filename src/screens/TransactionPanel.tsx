@@ -8,6 +8,7 @@ import { AssetFormFields } from '../components/forms/AssetForm';
 import { assetFormDefaults } from '../components/forms/asset-form';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { fieldVariants } from '../components/ui/field-variants';
 import { Reveal } from '../components/ui/Reveal';
 import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -66,18 +67,14 @@ const TYPE_ORDER: TxType[] = [
 // The Recent rows use "Coupon" for interest_payout where the Type select spells
 // out "Interest payout"; the other eight share their select label.
 
-// The invalid variant is not decoration: without it the form's own summary
-// ("check the highlighted fields") pointed at nothing.
+// Each field's `invalid` edge is not decoration: without it the form's own summary
+// ("check the highlighted fields") points at nothing.
 // `min-w-0` IS LOAD-BEARING SINCE THE ROW BECAME A SUBGRID. An `<input>` has an
 // intrinsic min-content width and a grid item's `min-width` is `auto`, so the
 // cell's column sizes to that instead of to the cell and everything in it hangs
 // past its box. A `flex flex-col` cell never had this — the floor applies to the
 // MAIN axis, and there the main axis was vertical.
-function inputClass(invalid: boolean): string {
-  return `h-9 min-w-0 rounded-[9px] border bg-card px-3 font-body text-[13px] text-ink transition ${
-    invalid ? 'border-neg' : 'border-field-border hover:border-ink'
-  }`;
-}
+const INPUT = 'min-w-0 px-3 font-body text-[13px] text-ink';
 
 // The amount's own ids, so the error is LINKED to the input rather than folded into its name.
 const AMOUNT_ID = 'tx-amount';
@@ -726,7 +723,11 @@ export function TransactionPanel() {
                   <>
                     <NumberField
                       id={QUANTITY_ID}
-                      className={inputClass(fieldState.invalid)}
+                      className={fieldVariants({
+                        fill: 'card',
+                        edge: fieldState.invalid ? 'invalid' : 'rest',
+                        className: INPUT,
+                      })}
                       placeholder={t.transaction.quantityPlaceholder}
                       aria-invalid={fieldState.invalid || undefined}
                       aria-describedby={fieldState.invalid ? QUANTITY_ERROR_ID : undefined}
@@ -803,7 +804,11 @@ export function TransactionPanel() {
                   <>
                     <NumberField
                       id={AMOUNT_ID}
-                      className={inputClass(fieldState.invalid)}
+                      className={fieldVariants({
+                        fill: 'card',
+                        edge: fieldState.invalid ? 'invalid' : 'rest',
+                        className: INPUT,
+                      })}
                       placeholder={t.transaction.amountPlaceholder}
                       aria-invalid={fieldState.invalid || undefined}
                       aria-describedby={fieldState.invalid ? AMOUNT_ERROR_ID : undefined}
@@ -870,7 +875,11 @@ export function TransactionPanel() {
                   <>
                     <NumberField
                       id={WITHHOLDING_ID}
-                      className={inputClass(fieldState.invalid)}
+                      className={fieldVariants({
+                        fill: 'card',
+                        edge: fieldState.invalid ? 'invalid' : 'rest',
+                        className: INPUT,
+                      })}
                       placeholder={t.transaction.withholdingPlaceholder}
                       aria-invalid={fieldState.invalid || undefined}
                       aria-describedby={fieldState.invalid ? WITHHOLDING_ERROR_ID : undefined}
@@ -924,7 +933,11 @@ export function TransactionPanel() {
                   <input
                     id={NOTE_ID}
                     type="text"
-                    className={inputClass(fieldState.invalid)}
+                    className={fieldVariants({
+                      fill: 'card',
+                      edge: fieldState.invalid ? 'invalid' : 'rest',
+                      className: INPUT,
+                    })}
                     placeholder={t.transaction.notePlaceholder}
                     aria-invalid={fieldState.invalid || undefined}
                     aria-describedby={fieldState.invalid ? NOTE_ERROR_ID : undefined}

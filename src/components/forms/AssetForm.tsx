@@ -19,6 +19,7 @@ import { AssetAvatar } from '../ui/AssetAvatar';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '../ui/Dialog';
+import { fieldVariants } from '../ui/field-variants';
 import { Reveal } from '../ui/Reveal';
 import { Select } from '../ui/Select';
 import { Switch } from '../ui/Switch';
@@ -62,14 +63,9 @@ function Field({
   );
 }
 
-// `page`, hard-coded, because BOTH hosts stand on `card` — the dialog body and
-// the dashed quick-create panel alike — so one value inverts against both. Hover
-// takes the field edge to `ink`.
-function inputClass(invalid: boolean): string {
-  return `h-9 rounded-[9px] border bg-page px-3 font-body text-[13px] text-ink transition ${
-    invalid ? 'border-neg' : 'border-field-border hover:border-ink'
-  }`;
-}
+// `page` fill (the recipe's default), because BOTH hosts stand on `card` — the dialog body
+// and the dashed quick-create panel alike — so one value inverts against both.
+const INPUT = 'px-3 font-body text-[13px] text-ink';
 
 // The Inzhur link group. Its own `useFormState`/`useWatch` subscriptions, for
 // the reason `AssetFormFields` gives below: the form arrives via props.
@@ -289,7 +285,10 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
               };
               return showManual ? (
                 <input
-                  className={inputClass(!!errors.inzhur?.ref)}
+                  className={fieldVariants({
+                    edge: errors.inzhur?.ref ? 'invalid' : 'rest',
+                    className: INPUT,
+                  })}
                   aria-invalid={!!errors.inzhur?.ref || undefined}
                   placeholder={kind === 'bond' ? 'UA4000238976' : 'inzhur-reit'}
                   value={field.value ?? ''}
@@ -367,7 +366,10 @@ export function AssetFormFields({
     <div className="grid grid-cols-2 gap-2.5">
       <Field label={t.asset.field.expectedPct} error={!!errors.expectedPct && MSG.expectedPct}>
         <input
-          className={inputClass(!!errors.expectedPct)}
+          className={fieldVariants({
+            edge: errors.expectedPct ? 'invalid' : 'rest',
+            className: INPUT,
+          })}
           aria-invalid={!!errors.expectedPct || undefined}
           placeholder={t.asset.placeholder.expectedPct}
           inputMode="decimal"
@@ -376,7 +378,10 @@ export function AssetFormFields({
       </Field>
       <Field label={t.asset.field.targetPct} error={!!errors.targetPct && MSG.targetPct}>
         <input
-          className={inputClass(!!errors.targetPct)}
+          className={fieldVariants({
+            edge: errors.targetPct ? 'invalid' : 'rest',
+            className: INPUT,
+          })}
           aria-invalid={!!errors.targetPct || undefined}
           placeholder={t.asset.placeholder.targetPct}
           inputMode="decimal"
@@ -453,7 +458,7 @@ export function AssetFormFields({
     <>
       <Field label={t.asset.field.name} error={!!errors.name && MSG.name}>
         <input
-          className={inputClass(!!errors.name)}
+          className={fieldVariants({ edge: errors.name ? 'invalid' : 'rest', className: INPUT })}
           aria-invalid={!!errors.name || undefined}
           placeholder={t.asset.placeholder.name}
           {...form.register('name', {
@@ -475,7 +480,10 @@ export function AssetFormFields({
         <div className="flex items-center gap-2.5">
           <AssetAvatar code={(code || 'GB').toUpperCase()} colorKey={avatarColorKey} />
           <input
-            className={`${inputClass(!!errors.code)} w-20 uppercase`}
+            className={fieldVariants({
+              edge: errors.code ? 'invalid' : 'rest',
+              className: `${INPUT} w-20 uppercase`,
+            })}
             aria-invalid={!!errors.code || undefined}
             placeholder="GB"
             maxLength={2}
@@ -555,7 +563,10 @@ export function AssetFormFields({
             error={!!errors.couponRatePct && MSG.couponRatePct}
           >
             <input
-              className={inputClass(!!errors.couponRatePct)}
+              className={fieldVariants({
+                edge: errors.couponRatePct ? 'invalid' : 'rest',
+                className: INPUT,
+              })}
               aria-invalid={!!errors.couponRatePct || undefined}
               placeholder={t.asset.placeholder.couponRatePct}
               inputMode="decimal"

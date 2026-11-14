@@ -9,6 +9,7 @@ import { useFormat } from '../../hooks/useFormat';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { useT } from '../../i18n/useT';
 import { YEARS_PER_PAGE, yearBounds, yearPage } from './date-picker-years';
+import { fieldVariants, type FieldFill } from './field-variants';
 import { Scroller } from './Scroller';
 import { TAP_44 } from './tap-target';
 import { keepOpenForToasts } from './toaster-press';
@@ -99,7 +100,7 @@ export function DatePicker({
   id?: string; // lets a sibling <label htmlFor> associate with the trigger
   placeholder?: string; // shown muted while value is '' (optional dates, P2 AssetForm)
   invalid?: boolean; // error styling per the form-error idiom (border neg)
-  bg?: 'card' | 'page'; // explicit variant, same rationale as Select's `bg`
+  bg?: FieldFill; // explicit variant, same rationale as Select's `bg`
 }) {
   const f = useFormat();
   const t = useT();
@@ -145,7 +146,11 @@ export function DatePicker({
       id={id}
       aria-label={value ? t.dates.selected(f.date(value)) : (placeholder ?? t.dates.pick)}
       aria-invalid={invalid || undefined}
-      className={`${invalid ? 'border-neg' : 'border-field-border hover:border-ink'} ${bg === 'page' ? 'bg-page' : 'bg-card'} h-9 rounded-[9px] border px-3 font-body text-[13px] text-ink transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
+      className={fieldVariants({
+        fill: bg,
+        edge: invalid ? 'invalid' : 'rest',
+        className: `px-3 font-body text-[13px] text-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`,
+      })}
     >
       {value ? f.date(value) : <span className="text-muted">{placeholder ?? t.dates.pick}</span>}
     </button>

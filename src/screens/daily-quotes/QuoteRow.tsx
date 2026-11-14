@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 
 import { AssetAvatar } from '../../components/ui/AssetAvatar';
+import { fieldVariants } from '../../components/ui/field-variants';
 import { NumberField } from '../../components/ui/NumberField';
 import { TAP_44, TAP_44_BOX } from '../../components/ui/tap-target';
 import { Card } from '../../components/ui/Card';
@@ -267,16 +268,18 @@ export function QuoteRow({
             // A DELIBERATE GEOMETRY EXCEPTION below the breakpoint, radius recomputed from
             // the new box. This is the control of the daily ritual, so a bigger target here
             // is the design rather than a concession.
-            className={
-              'h-9 w-full rounded-[9px] border bg-card px-3 text-right font-body text-[13px] transition max-md:h-11 max-md:rounded-[11px] ' +
-              (unreadable
-                ? 'border-neg'
+            className={fieldVariants({
+              fill: 'card',
+              edge: unreadable
+                ? 'invalid'
                 : filled
-                  ? 'border-pos-border'
+                  ? 'saved'
                   : ghost !== undefined
-                    ? 'border-dashed border-field-border hover:border-ink'
-                    : 'border-field-border')
-            }
+                    ? 'proposed'
+                    : 'quiet',
+              className:
+                'w-full px-3 text-right font-body text-[13px] max-md:h-11 max-md:rounded-[11px]',
+            })}
             value={raw ?? ''}
             placeholder={
               ghost === undefined && yesterday !== undefined ? f.num(yesterday) : undefined

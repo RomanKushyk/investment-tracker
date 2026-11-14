@@ -5,13 +5,14 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import { ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
+import { FIELD_EDGES, FIELD_FILLS, fieldVariants } from './components/ui/field-variants';
 
 // THE FIELD EDGE, at its bar
 // (`docs/superpowers/specs/2026-11-05-layout-refresh/forms-and-dialogs.md` § Signed): no field
 // boundary reads below 3 : 1 (WCAG 1.4.11) on any of the three surfaces a field is drawn on. Two
 // halves and neither catches the other — the CSS half is arithmetic on tokens no other test in
-// the repo reads, and the markup half is which recipes point at the token,
-// written out eleven times separately because there is no shared input component (#84).
+// the repo reads, and the markup half is the one recipe that points at the token,
+// `fieldVariants`, which no file may copy.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 const CSS = stripCss(read('index.css'), 'index.css');
@@ -150,10 +151,16 @@ const FIELD_EDGE = /\bborder-(field-border|neg|pos-border|warn)\b/;
  *  not the text — which element a class name belongs to is a question about the tree, and
  *  no reading of the joined string tells a ternary's arms from the part every state
  *  wears. AN EXPRESSION THE RESOLVER CANNOT MODEL YIELDS NO SITE, and nothing here goes
- *  red for it — the walk floor sits far below the count. That hole is stated in full below
- *  and #125 carries it. */
+ *  red for it — a copy held in an imported constant or behind a shadowed name passes the ban.
+ *  #125 carries that hole. */
+const trees = new Map<string, ts.SourceFile>();
 function parse(file: string): ts.SourceFile {
-  return ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const hit = trees.get(file);
+  if (hit) return hit;
+  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sf = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true, kind);
+  trees.set(file, sf);
+  return sf;
 }
 
 /** Is this operator a STATE rather than a join? `a && 'border-x'` draws nothing when `a` is
@@ -335,125 +342,241 @@ function fieldSites(file: string): ClassList[] {
   return sites;
 }
 
-/** Asked of the TREE: a recipe split across two source lines is a field here, and was
- *  invisible to the line-based discovery this replaced. */
-const FIELD_FILES = sourceFiles(here)
-  .map((f) => relative(here, f).split(sep).join('/'))
-  // A placeholder draws the box a field will fill, in the field's size and radius, and is no field.
-  .filter((f) => f !== 'screens/placeholders.tsx')
-  .filter((f) => fieldSites(f).length > 0);
+/** Every `.tsx` the walk reads, as a path relative to `src/`. */
+const SOURCES = sourceFiles(here).map((f) => relative(here, f).split(sep).join('/'));
 
-/** The one site with no hover, named rather than counted: giving `QuoteRow`'s empty plain
- *  arm a hover is behaviour and not colour. */
-const UNHOVERED = { file: 'screens/daily-quotes/QuoteRow.tsx', arm: 'border-field-border' };
+/** A placeholder draws the box a field will fill, in the field's size and radius, and is no
+ *  field — which makes it the walk's live positive control. */
+const PLACEHOLDERS = 'screens/placeholders.tsx';
 
-const SITES_BY_FILE = new Map(FIELD_FILES.map((f) => [f, fieldSites(f)]));
-const ALL_SITES = [...SITES_BY_FILE].flatMap(([file, sites]) => sites.map((l) => ({ file, ...l })));
-describe('every field points at the token', () => {
-  // INJECTION-VERIFIED: a new `src/screens/Goals.tsx` with one field on `hairline` fails here,
-  // where the hard-coded file list this replaced could not see it.
-  it('finds the field files by walking, not from a list', () => {
-    expect(FIELD_FILES.length, 'no file draws a field any more').toBeGreaterThanOrEqual(3);
+const RECIPE = 'components/ui/field-variants.ts';
+
+/** Every non-test `.ts` module under `src/`. */
+function moduleFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...moduleFiles(full));
+    else if (/\.ts$/.test(entry) && !/\.(test|d)\.ts$/.test(entry)) out.push(full);
+  }
+  return out;
+}
+const MODULES = moduleFiles(here).map((f) => relative(here, f).split(sep).join('/'));
+
+/** Every string a file spells, a template's literal text joined. */
+function literals(file: string): string[] {
+  const sf = parse(file);
+  const out: string[] = [];
+  sf.forEachChild(function visit(n) {
+    if (ts.isStringLiteralLike(n)) out.push(n.text);
+    else if (ts.isTemplateExpression(n)) {
+      out.push([n.head.text, ...n.templateSpans.map((s) => s.literal.text)].join(' '));
+    }
+    n.forEachChild(visit);
+  });
+  return out;
+}
+
+/** Every file but the recipe's own that the call walk reads. */
+const READ = [...SOURCES, ...MODULES].filter((f) => f !== RECIPE);
+
+/** The files that import the recipe's FUNCTION as a value, asked of their import declarations:
+ *  a type-only import of `FieldFill` calls nothing. */
+const IMPORTERS = READ.filter((f) =>
+  parse(f).statements.some(
+    (s) =>
+      ts.isImportDeclaration(s) &&
+      ts.isStringLiteral(s.moduleSpecifier) &&
+      /\/field-variants$/.test(s.moduleSpecifier.text) &&
+      !s.importClause?.isTypeOnly &&
+      s.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(s.importClause.namedBindings) &&
+      s.importClause.namedBindings.elements.some(
+        (e) => !e.isTypeOnly && (e.propertyName ?? e.name).text === 'fieldVariants',
+      ),
+  ),
+);
+
+interface RecipeCall {
+  className: string[];
+  edge: string[];
+  /** A spread, or an argument that is no object literal: what it passes cannot be read. */
+  unreadable: boolean;
+}
+
+const calls = new Map<string, RecipeCall[]>();
+/** Each `fieldVariants(…)` call in a file: what its `className` and its `edge` can be. */
+function recipeCalls(file: string): RecipeCall[] {
+  const hit = calls.get(file);
+  if (hit) return hit;
+  const sf = parse(file);
+  const out: RecipeCall[] = [];
+  sf.forEachChild(function visit(n) {
+    if (
+      ts.isCallExpression(n) &&
+      ts.isIdentifier(n.expression) &&
+      n.expression.text === 'fieldVariants'
+    ) {
+      const [arg] = n.arguments;
+      const object = arg && ts.isObjectLiteralExpression(arg) ? arg : undefined;
+      const prop = (name: string) =>
+        (object?.properties ?? []).flatMap((p) =>
+          ts.isPropertyAssignment(p) && p.name.getText(sf) === name
+            ? classStrings(p.initializer, sf, n.pos)
+            : ts.isShorthandPropertyAssignment(p) && p.name.text === name
+              ? classStrings(p.name, sf, n.pos)
+              : [],
+        );
+      out.push({
+        className: prop('className'),
+        edge: prop('edge'),
+        unreadable:
+          (arg !== undefined && !object) ||
+          (object?.properties.some(ts.isSpreadAssignment) ?? false),
+      });
+    }
+    n.forEachChild(visit);
+  });
+  calls.set(file, out);
+  return out;
+}
+
+/** The files that call the recipe, asked of the calls themselves. */
+const CALLERS = READ.filter((f) => recipeCalls(f).length > 0);
+
+/** A class the recipe owns — its edge, fill, height or radius — written where CSS order picks
+ *  between it and the recipe's own. Only a GEOMETRY change at a breakpoint is the caller's,
+ *  winning by its media query: that is how QuoteRow's 44 px box below md is drawn. An edge or a
+ *  fill at a breakpoint is still a second edge or fill. */
+const ownedClass = (token: string) => {
+  const parts = token.split(':');
+  const utility = parts.pop()!.replace(/^!/, '');
+  const responsive = parts.some((p) => /^(max-)?(sm|md|lg|xl|2xl)$/.test(p));
+  if (/^(border(-|$)|bg-)/.test(utility)) return true;
+  return !responsive && /^(h-|rounded(-|$))/.test(utility);
+};
+
+describe('the field recipe lives in one place', () => {
+  // WITHOUT THIS THE BAN BELOW PASSES ON A BROKEN WALK: a walk that recognises nothing finds
+  // no copy anywhere.
+  it('still recognises a field-shaped class list', () => {
+    expect(
+      fieldSites(PLACEHOLDERS).length,
+      'the walk no longer sees the field-shaped placeholder boxes',
+    ).toBeGreaterThanOrEqual(1);
   });
 
-  // A floor with headroom, not an equality: #84's shared component will legitimately
-  // collapse `AssetForm`'s six sites to one.
-  it('keeps the walk from going quiet', () => {
-    expect(ALL_SITES.length, 'no field site survives the walk').toBeGreaterThanOrEqual(5);
+  // Asked of the TREE, so a recipe split across lines or held in a local constant is a copy.
+  it('no file spells the field recipe instead of calling `fieldVariants`', () => {
+    const copies = SOURCES.filter((f) => f !== PLACEHOLDERS).filter(
+      (f) => fieldSites(f).length > 0,
+    );
+    expect(copies, 'these files draw a field by hand — call `fieldVariants`').toEqual([]);
   });
 
-  // THE HOLE LEFT, named rather than inferred: a shape the resolver does not model — a
-  // class list in an imported constant, a name shadowed in a callback — yields no strings
-  // and the field is not a site. Telling that from "read and correct" needs a type
-  // checker, and #125 carries it.
+  // The walk above reads `className` attributes only, so a recipe held in a constant — in a
+  // `.ts` module like `tap-target.ts`, or exported from a `.tsx` — would pass it.
+  it('no string anywhere holds the field recipe but `field-variants.ts`', () => {
+    const copies = [...MODULES, ...SOURCES]
+      .filter((f) => f !== RECIPE && f !== PLACEHOLDERS)
+      .filter((f) => literals(f).some(FIELD_LINE));
+    expect(copies, 'these files hold a second field recipe').toEqual([]);
+  });
 
-  // EVERY STATE DRAWS AN EDGE, which the site total cannot answer: a field whose rest arm
-  // is `bg-page` while the token sits in its invalid arm has the token SOMEWHERE and no
-  // boundary at rest. Which strings are ALTERNATIVES only the parse knows.
-  it.each(FIELD_FILES)('%s draws an edge in every state of every field', (file) => {
-    for (const { shared, branches } of SITES_BY_FILE.get(file) ?? []) {
-      // THE SHARED PART, asked of the tree: an arm that happens to carry the recipe is
-      // still an arm, and using it as a proxy for "unconditional" excused this very check.
-      if (FIELD_EDGE.test(shared.join(' '))) continue;
-      for (const ternary of branches) {
-        // ONLY A TERNARY ABOUT THE EDGE: `bg === 'page' ? 'bg-page' : 'bg-card'` names no
-        // boundary by design, and one branch naming a border COLOUR is what says these
-        // alternatives are edges.
-        const named = new RegExp(`${FIELD_EDGE.source}|${OTHER_EDGE.source}`);
-        if (!ternary.some((b) => named.test(b.join(' ')))) continue;
-        for (const branch of ternary) {
-          // UNKNOWN IS NOT EMPTY: a branch that resolved to no strings is one the resolver
-          // could not read, and calling that "draws no edge" fails correct code (#125).
-          if (branch.length === 0) continue;
-          expect(
-            FIELD_EDGE.test(branch.join(' ')),
-            `${file}: one state of a field draws no edge — it inherits currentColor there`,
-          ).toBe(true);
-        }
-      }
+  // WITHOUT THIS THE CHECKS BELOW PASS ON A WALK THAT READS NO CALL.
+  it('finds a call in every file that imports the recipe', () => {
+    expect(CALLERS.length, 'the walk reads no `fieldVariants` call').toBeGreaterThan(0);
+    expect(IMPORTERS.filter((f) => !CALLERS.includes(f))).toEqual([]);
+  });
+
+  // A SPREAD OR A FORWARDED OPTIONS OBJECT IS RED: the walk cannot read it, and it would clear
+  // every check below with nothing checked. THE TRUST BOUNDARY: a property the walk cannot
+  // resolve — a class passed in through a component's own `className` prop (Select,
+  // DatePicker), an imported constant, a recipe split across concatenated literals — reads as
+  // empty and passes. Closing it needs a resolver that follows values across files (#125).
+  it.each(CALLERS)('%s passes the recipe a readable object', (file) => {
+    for (const { unreadable } of recipeCalls(file)) {
+      expect(unreadable, `${file} spreads or forwards the recipe's options`).toBe(false);
     }
   });
 
-  // THE RANK, stricter than "an edge": `neg`, `pos-border` and `warn` are states a field
-  // passes through, so a site naming only one of them draws nothing at rest.
-  // INJECTION-VERIFIED: a field stripped of its rest edge fails here; a popover losing the
-  // token does not, and fails `floating-edges.test.ts` instead.
-  it.each(FIELD_FILES)('%s names the rank on every field it draws', (file) => {
-    for (const { parts } of SITES_BY_FILE.get(file) ?? []) {
-      const site = parts.join(' ');
-      expect(site, `${file}: a field draws no edge at rest`).toMatch(/\bborder-field-border\b/);
+  // THE EDGE, FILL, HEIGHT AND RADIUS ARE THE RECIPE'S: the same property in a caller's
+  // `className` sits beside the recipe's own, and generated-CSS order picks which one paints.
+  it.each(CALLERS)('%s passes no class the recipe owns', (file) => {
+    for (const { className } of recipeCalls(file)) {
+      const owned = className.flatMap((c) => c.split(/\s+/)).filter(ownedClass);
+      expect(owned, `${file} restates the recipe in its className`).toEqual([]);
     }
   });
 
-  it.each(FIELD_FILES)('%s names no non-field edge on a field', (file) => {
-    for (const { parts } of SITES_BY_FILE.get(file) ?? []) {
-      const site = parts.join(' ');
-      expect(
-        site,
-        `${file}: a field names a non-field edge. Asked per SITE, because read whole-file ` +
-          'one wearing `border-panel-border` beside the token passed every assertion here',
-      ).not.toMatch(OTHER_EDGE);
-    }
+  // The one state with no hover, named rather than counted: giving `QuoteRow`'s empty plain
+  // arm a hover is behaviour and not colour.
+  it('keeps `quiet` to QuoteRow', () => {
+    const users = CALLERS.filter((f) => recipeCalls(f).some((c) => c.edge.includes('quiet')));
+    expect(users, '`quiet` spread past the one field that has no hover').toEqual([
+      'screens/daily-quotes/QuoteRow.tsx',
+    ]);
   });
 });
 
-describe('hover leaves the resting edge behind', () => {
-  // A FIELD HOVERS TO `ink` BECAUSE A FIELD TAKES FOCUS: the hover has to be told apart
-  // from a 2px `ink` focus ring on the same edge, and only the top of the ladder manages it.
-  //
-  // PER SITE IS WHY THIS CANNOT COLLIDE WITH `dropzone-edge.test.ts`, which REQUIRES the
-  // `hover:border-muted` this bans. Whole-file, the two coexisted only while `ImportRow.tsx`
-  // carried no `rounded-[9px] h-9` line; a dropzone is no field, so per site they never meet.
-  it.each(FIELD_FILES)('%s hovers to neither `faint` nor `muted` on a field', (file) => {
-    for (const { parts } of SITES_BY_FILE.get(file) ?? []) {
-      const site = parts.join(' ');
-      expect(site, `${file}: a field still hovers to faint`).not.toMatch(/hover:border-faint/);
-      expect(site, `${file}: a field still hovers to muted`).not.toMatch(/hover:border-muted/);
+const classes = (c: string) => c.split(/\s+/).filter(Boolean);
+
+describe('the one field recipe', () => {
+  it.each(FIELD_FILLS)('is 36 px at r9 with a 1 px edge on `%s`', (fill) => {
+    for (const edge of FIELD_EDGES) {
+      expect(classes(fieldVariants({ fill, edge }))).toEqual(
+        expect.arrayContaining(['h-9', 'rounded-[9px]', 'border', `bg-${fill}`]),
+      );
     }
   });
 
-  // PER ARM: netted over a whole site, a hover on the `neg` arm cancelled a missing one on
-  // the rest arm and the field never lit. SORTED, not positional — `readdirSync` is
-  // alphabetical on NTFS and hash order on the ext4 CI runs on.
-  it('pairs every field rest edge with an `ink` hover, except the named one', () => {
-    const unhovered: string[] = [];
-    for (const { file, parts, shared } of ALL_SITES) {
-      // Hoisted is the SHARED part carrying the hover, which covers every arm; a hover in a
-      // sibling ARM covers nothing, and one joined string cannot tell the two apart.
-      const hoisted = /hover:border-ink\b/.test(shared.join(' '));
-      for (const part of parts) {
-        if (!/\bborder-field-border\b/.test(part)) continue;
-        if (/hover:border-ink\b/.test(part) || hoisted) continue;
-        unhovered.push(file);
-      }
-    }
-    expect(unhovered.sort(), 'a field rest edge lost its `ink` hover').toEqual([UNHOVERED.file]);
-    const arms = (SITES_BY_FILE.get(UNHOVERED.file) ?? []).flatMap((l) => l.parts);
-    expect(
-      arms,
-      'QuoteRow no longer carries the one arm that is the token alone — read off the ' +
-        "field's own site, so no other string in the file can stand in for it",
-    ).toContain(UNHOVERED.arm);
+  it('rests on `page` and the rest edge when a caller names neither', () => {
+    expect(classes(fieldVariants())).toEqual(
+      expect.arrayContaining(['bg-page', 'border-field-border', 'hover:border-ink']),
+    );
+    expect(fieldVariants()).not.toMatch(/\bbg-card\b/);
+  });
+
+  // cva reads `null` as "no class for this variant", so a field would inherit `currentColor`.
+  // The recipe's type refuses it; the directive below fails `pnpm typecheck` if that lapses.
+  it('takes no `null` state', () => {
+    // @ts-expect-error `null` is no state
+    const refused = () => fieldVariants({ edge: null });
+    expect(refused).toBeTypeOf('function');
+  });
+
+  // EVERY STATE DRAWS AN EDGE, or the field inherits `currentColor` in it (WCAG 1.4.11 holds
+  // per state).
+  it.each(FIELD_EDGES)('`%s` draws a field edge and no other', (edge) => {
+    const c = fieldVariants({ edge });
+    expect(c, `${edge} draws no field edge`).toMatch(FIELD_EDGE);
+    expect(c, `${edge} names a non-field edge`).not.toMatch(OTHER_EDGE);
+  });
+
+  // A FIELD HOVERS TO `ink` BECAUSE A FIELD TAKES FOCUS: the hover has to be told apart from a
+  // 2px `ink` focus ring on the same edge, and only the top of the ladder manages it.
+  it.each(FIELD_EDGES)('`%s` never hovers to `faint` or `muted`', (edge) => {
+    expect(fieldVariants({ edge })).not.toMatch(/hover:border-(faint|muted)\b/);
+  });
+
+  // The #3 bug: `hover:border-ink` outranks `border-neg` on specificity, so a hover on the
+  // invalid state replaced the only error cue with ink.
+  it('hovers to `ink` from rest and proposed only', () => {
+    const hovering = FIELD_EDGES.filter((edge) => /hover:border-/.test(fieldVariants({ edge })));
+    expect(hovering).toEqual(['rest', 'proposed']);
+    for (const edge of hovering) expect(fieldVariants({ edge })).toMatch(/hover:border-ink\b/);
+  });
+
+  it('says proposed with a dash, and no other state does', () => {
+    const dashed = FIELD_EDGES.filter((edge) => /\bborder-dashed\b/.test(fieldVariants({ edge })));
+    expect(dashed).toEqual(['proposed']);
+  });
+
+  it('rests on `field-border`, fails on `neg` and saves on `pos-border`', () => {
+    expect(fieldVariants({ edge: 'rest' })).toMatch(/\bborder-field-border\b/);
+    expect(fieldVariants({ edge: 'quiet' })).toMatch(/\bborder-field-border\b/);
+    expect(fieldVariants({ edge: 'invalid' })).toMatch(/\bborder-neg\b/);
+    expect(fieldVariants({ edge: 'saved' })).toMatch(/\bborder-pos-border\b/);
   });
 });
 

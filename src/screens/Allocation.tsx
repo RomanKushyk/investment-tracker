@@ -5,6 +5,7 @@ import { AllocationDonut } from '../components/charts/AllocationDonut';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
+import { fieldVariants } from '../components/ui/field-variants';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EditActions } from '../components/ui/EditActions';
 import { useEditMode } from '../hooks/useEditMode';
@@ -175,7 +176,10 @@ export function Allocation() {
                             inputMode="decimal"
                             aria-label={t.targets.fieldAria(r.asset.name)}
                             aria-invalid={error}
-                            className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
+                            className={fieldVariants({
+                              edge: error ? 'invalid' : 'rest',
+                              className: 'w-[72px] px-2.5 text-right text-[13px]',
+                            })}
                           />
                           <span className="text-muted">%</span>
                         </>

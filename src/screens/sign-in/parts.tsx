@@ -2,18 +2,13 @@ import { CircleAlert, CircleCheck, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router';
 
+import { fieldVariants } from '../../components/ui/field-variants';
 import { TAP_44 } from '../../components/ui/tap-target';
 import { useT } from '../../i18n/useT';
 
 // The signed-out card's parts. Every field it draws is drawn here, because `field-border.test.ts`
-// resolves a class only inside the file that declares it (#125), and #84's shared field is not in.
-
-// `page` on `card`, as every field in the app; hover takes the edge to `ink`.
-function fieldClass(invalid: boolean): string {
-  return `block h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] text-ink transition ${
-    invalid ? 'border-neg' : 'border-field-border hover:border-ink'
-  }`;
-}
+// reads a field's classes only in the file that calls the recipe (#125).
+const INPUT = 'block w-full px-3 font-body text-[13px] text-ink';
 
 export const LINK = `cursor-pointer text-accent underline underline-offset-2 ${TAP_44}`;
 
@@ -177,7 +172,7 @@ export function EmailInput({
       onChange={(event) => onChange(event.target.value)}
       aria-invalid={invalid || undefined}
       aria-describedby={describedBy}
-      className={fieldClass(invalid)}
+      className={fieldVariants({ edge: invalid ? 'invalid' : 'rest', className: INPUT })}
     />
   );
 }
@@ -219,7 +214,10 @@ export function PasswordInput({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
-        className={`${fieldClass(invalid)} pr-9`}
+        className={fieldVariants({
+          edge: invalid ? 'invalid' : 'rest',
+          className: `${INPUT} pr-9`,
+        })}
       />
       {/* Outside the label, so its name does not join the field's; the wrapper is what sits in
           the corner, because the tap overlay needs the button itself to be `relative`. */}

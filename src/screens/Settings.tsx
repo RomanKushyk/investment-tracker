@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
+import { fieldVariants } from '../components/ui/field-variants';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -199,7 +200,10 @@ function LeadDaysField() {
         aria-invalid={error}
         // The message lives outside the label, so the link has to be explicit — `aria-invalid` alone gives no reason.
         aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
-        className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
+        className={fieldVariants({
+          edge: error ? 'invalid' : 'rest',
+          className: 'w-[72px] px-2.5 text-right text-[13px]',
+        })}
       />
       {error && (
         <div
