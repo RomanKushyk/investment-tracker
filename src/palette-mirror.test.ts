@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -294,11 +294,6 @@ describe('the recorded readings still read as recorded', () => {
       2.867,
     ],
     ['sb-label on the footer band — the version, dark', 'dark', 'sb-label', 'sb-footer-bg', 4.139],
-    // THE SUCCESSOR OF THE `brand-sand` ROW, and the improvement is most of the way rather
-    // than all of it: that sand was drawn for a plate dark in both themes, and the mark
-    // takes the three per-theme `logo-*` names now. Five of its six readings clear; the
-    // lighter pill in light does not, and it is the same `reit` hue as the row below.
-    ['logo-pill-a on the wall, light', 'light', 'logo-pill-a', 'sb-bg', 2.812],
     // Two more recorded at their values.
     [
       'reit on panel — ColorDot and ShareBar paint the bare hue there',
@@ -316,7 +311,7 @@ describe('the recorded readings still read as recorded', () => {
     ],
   ];
 
-  // The nine the sheet prints beside the tokens. The two it does not print are the dark
+  // The eight the sheet prints beside the tokens. The two it does not print are the dark
   // halves of the capital strip and the footer band; the set is frozen rather than derived,
   // so a figure added to or removed from the stylesheet has to move this list with it.
   const STATED_IN_THE_SHEET = [
@@ -326,7 +321,6 @@ describe('the recorded readings still read as recorded', () => {
     'sb-label on its wall, dark',
     'sb-label on the capital strip, light',
     'sb-label on the footer band — the version, light',
-    'logo-pill-a on the wall, light',
     'reit on panel — ColorDot and ShareBar paint the bare hue there',
     "the switch's OFF edge on its own track, dark",
   ];
@@ -343,7 +337,7 @@ describe('the recorded readings still read as recorded', () => {
   // recomputes what the sheet states, but never checked the sheet still states it. The
   // stylesheet prints these to two decimals, so a reading is "stated" when its own rounding
   // appears IN A COMMENT — the declarations carry decimals of their own and would match by
-  // accident. Nine of the eleven are stated; the set is frozen, so deleting one or reverting
+  // accident. Eight of the ten are stated; the set is frozen, so deleting one or reverting
   // one to an older figure moves it and reddens here.
   it('index.css still states the readings it records, beside the tokens', () => {
     const stated = RECORDED.filter(([, , , , expected]) =>
@@ -361,21 +355,21 @@ describe('the recorded readings still read as recorded', () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
-  // THE OTHER FIVE PARTS OF THE MARK, a floor rather than five readings: one recorded
-  // shortfall is the whole of what the mark is allowed, and without this the stylesheet's
-  // sentence is the only thing holding it. `logo-pill-a` in light is that exception,
-  // recorded above at its value.
+  // THE LOGO'S EDGES, a floor rather than readings: WCAG 1.4.11 asks 3 : 1 of a graphic that
+  // identifies — the plate on the sidebar's wall and on the signed-out page, the «q» on the plate.
   it.each([
-    ['logo-outline', 'light'],
-    ['logo-pill-b', 'light'],
-    ['logo-outline', 'dark'],
-    ['logo-pill-a', 'dark'],
-    ['logo-pill-b', 'dark'],
-  ] as [string, keyof typeof BLOCKS][])('`%s` clears 3 : 1 on the wall in %s', (name, block) => {
-    expect(
-      ratio(resolve(BLOCKS, block, name), resolve(BLOCKS, block, 'sb-bg')),
-    ).toBeGreaterThanOrEqual(3);
-  });
+    ['logo-outline', 'sb-bg', 'light'],
+    ['logo-outline', 'sb-bg', 'dark'],
+    ['logo-outline', 'page', 'light'],
+    ['logo-outline', 'page', 'dark'],
+    ['card', 'logo-outline', 'light'],
+    ['card', 'logo-outline', 'dark'],
+  ] as [string, string, keyof typeof BLOCKS][])(
+    '`%s` clears 3 : 1 on `%s` in %s',
+    (a, b, block) => {
+      expect(ratio(resolve(BLOCKS, block, a), resolve(BLOCKS, block, b))).toBeGreaterThanOrEqual(3);
+    },
+  );
 
   // The identities `index.css` records beside the minted families, recorded rather than
   // resolved, so what is guarded is that they stay KNOWN — a later session that separates them
@@ -385,14 +379,37 @@ describe('the recorded readings still read as recorded', () => {
     ['accent', 'energy', 'dark'],
     ['accent', 'logo-outline', 'light'],
     ['accent', 'logo-outline', 'dark'],
-    ['logo-pill-a', 'reit', 'light'],
-    ['logo-pill-b', 'reit', 'dark'],
     ['info', 'ovdp8976', 'light'],
     ['info', 'ovdp8976', 'dark'],
     ['info-tint', 'ovdp8976-tint', 'light'],
     ['info-tint', 'ovdp8976-tint', 'dark'],
   ] as [string, string, keyof typeof BLOCKS][])('`%s` is still `%s` in %s', (a, b, block) => {
     expect(resolve(BLOCKS, block, a)).toBe(resolve(BLOCKS, block, b));
+  });
+});
+
+/** Every TypeScript source under `src/` but the tests: the code a utility class is named from. */
+function sources(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) return sources(full);
+    return /\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry) ? [full] : [];
+  });
+}
+
+// THE LOGO IS A PLATE AND A «q» (*Brand*), two tokens per theme, so the pill tokens are gone. Their
+// hexes cannot join `RETIRED`: `reit` and `accent-pressed` still hold them.
+describe('the logo’s retired pill tokens are gone', () => {
+  // The code through the canonical reader, so a comment that mentions them is not a consumer;
+  // the stylesheet raw, its prose included. The favicon and the touch-icon script hold the logo
+  // as hexes, which `mark.test.ts` pins against the two tokens left.
+  it('no source names them, and the stylesheet does not mention them', () => {
+    const files = sources(here);
+    expect(files.length, 'the sweep found nothing to read').toBeGreaterThan(100);
+    expect(
+      files.filter((file) => stripTs(readFileSync(file, 'utf8'), file).includes('logo-pill')),
+    ).toEqual([]);
+    expect(FILES['src/index.css']).not.toContain('logo-pill');
   });
 });
 

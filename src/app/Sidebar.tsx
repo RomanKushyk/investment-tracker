@@ -54,38 +54,33 @@ export const ANALYTICS = [
   { to: '/allocation', key: 'allocation', Icon: ChartPie },
 ] as const;
 
-// The Quirenote mark. `aria-hidden` because the wordmark beside it says the brand.
-// THE BOX IS DELIBERATELY NOT CROPPED TO THE INK: a box measured off the geometry clips
-// the caps, so re-cropping is the one edit here to think twice about. KEEP THIS THE ONLY
-// INLINE SVG IN THE FILE — mark.test.ts reads this source with its comments stripped and
-// collects the mark's attributes as whole-file ordered lists, so a second one fails the pin
-// rather than the drawing. *Brand*
-export function Mark({ className = '' }: { className?: string }) {
+// The plate's corner is round(side × 0.26) (*Shape system*) and the «q» is 22/40 of the side.
+const PLATE = {
+  40: { plate: 'size-[40px] rounded-[10px]', q: 'size-[22px]' },
+  28: { plate: 'size-[28px] rounded-[7px]', q: 'size-[15px]' },
+} as const;
+
+// The logo: the «q» knocked into its plate, the counter showing the plate. `aria-hidden`
+// because the wordmark beside it says the brand. KEEP THIS THE ONLY INLINE SVG IN THE FILE:
+// mark.test.ts reads every path in this source as the logo's. *Brand*
+export function Mark({ size }: { size: keyof typeof PLATE }) {
   return (
-    <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
-      <path
-        className="stroke-logo-outline"
-        d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70"
-        fill="none"
-        strokeWidth="11"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        className="stroke-logo-pill-a"
-        d="M72 48 V70"
-        fill="none"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-      <path
-        className="stroke-logo-pill-b"
-        d="M96 70 V88"
-        fill="none"
-        strokeWidth="15"
-        strokeLinecap="round"
-      />
-    </svg>
+    <span
+      aria-hidden="true"
+      className={`grid flex-none place-items-center bg-logo-outline ${PLATE[size].plate}`}
+    >
+      <svg viewBox="0 0 120 120" className={PLATE[size].q}>
+        <path
+          className="fill-card"
+          fillRule="evenodd"
+          d="M47 21 H73 A15 15 0 0 1 88 36 V62 A15 15 0 0 1 73 77 H47 A15 15 0 0 1 32 62 V36 A15 15 0 0 1 47 21 Z M54 37 H64 A6 6 0 0 1 70 43 V55 A6 6 0 0 1 64 61 H54 A6 6 0 0 1 48 55 V43 A6 6 0 0 1 54 37 Z"
+        />
+        <path
+          className="fill-card"
+          d="M75 49 H83 A5 5 0 0 1 88 54 V94 A5 5 0 0 1 83 99 H75 A5 5 0 0 1 70 94 V54 A5 5 0 0 1 75 49 Z"
+        />
+      </svg>
+    </span>
   );
 }
 
@@ -335,9 +330,9 @@ function SidebarPanel({
     <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
       {/* ── band 1 — the lockup and the capital strip, fixed ────────────── */}
       <div>
-        <div className="mb-[14px] flex items-center gap-2">
-          <Mark className="size-[22px] flex-none" />
-          <span className="font-body text-[15px] font-semibold tracking-[-0.03em] text-ink">
+        <div className="mb-[14px] flex items-center gap-3">
+          <Mark size={40} />
+          <span className="font-display text-[17px] leading-[22px] font-semibold text-ink">
             quirenote
           </span>
         </div>

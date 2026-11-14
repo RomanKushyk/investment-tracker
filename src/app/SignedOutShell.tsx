@@ -25,9 +25,9 @@ export function SignedOutShell({
   return (
     <div className="min-h-dvh bg-page text-ink">
       <header className="flex h-[57px] items-center justify-between border-b border-hairline bg-page px-9 max-md:px-3">
-        <div className="flex items-center gap-2">
-          <Mark className="size-[22px] flex-none" />
-          <span className="font-body text-[15px] font-semibold tracking-[-0.03em] text-ink">
+        <div className="flex items-center gap-2.5">
+          <Mark size={28} />
+          <span className="font-display text-[15px] leading-[20px] font-semibold text-ink">
             quirenote
           </span>
         </div>

@@ -166,7 +166,7 @@
      rationed, so a second action beside a filled one takes an outline or a ghost
      (*Interaction rules*). TWO IDENTITIES ARE SPENT WITH IT, recorded rather
      than resolved because an implementing task may not redraw a palette: `accent`
-     IS `energy` and `logo-outline`, and `logo-pill-a`/`-b` ARE `reit`. */
+     IS `energy` and `logo-outline`. */
   /* RECORDED SHORTFALL: this reads 4.45 on `panel`, under 1.4.3's 4.5, and its
      usage rule makes the accent every link and active tab in light. The
      owner ruled the value stands; as a non-text fill it clears everywhere. It
@@ -196,15 +196,10 @@
   --color-info: #4a6178;
   --color-info-tint: #e3e3e1;
   --color-info-tint-text: #4a6178;
-  /* The 5h mark's three parts — the loop, then the two pills. All three copies of
-     the mark read them: `Mark` in Sidebar.tsx through Tailwind, and
-     public/favicon.svg and scripts/build-touch-icon.mjs as literals.
-     RECORDED SHORTFALL: `logo-pill-a` reads 2.81 on the light wall, under
-     1.4.11's 3 : 1 for a non-text graphic, where the other five readings clear.
-     Re-valuing it is a brief, not a hex; `palette-mirror.test.ts` records it. */
+  /* The logo's plate; the «q» knocked into it is `card`. `Mark` in Sidebar.tsx reads
+     both through Tailwind, and public/favicon.svg and scripts/build-touch-icon.mjs
+     hold them as literals. */
   --color-logo-outline: #8a5a3a;
-  --color-logo-pill-a: #b07a52;
-  --color-logo-pill-b: #5c3a26;
   /* THE WALL AND ITS FURNITURE, and the wall follows the theme: a step deeper
      than the canvas rather than a dark plane inside a light app. `sb-badge-bg`
      is the tint under the nav's count, whose figure is `ink`, since `sb-badge`
@@ -371,8 +366,6 @@
   --color-info-tint: #2a2c30;
   --color-info-tint-text: #93a4b5;
   --color-logo-outline: #d8b494;
-  --color-logo-pill-a: #ece1d2;
-  --color-logo-pill-b: #b07a52;
   --color-sb-bg: #0d0d0c;
   --color-sb-border: #26232a;
   --color-sb-divider: #1c1a1c;

@@ -259,7 +259,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             budget, so growing the drawn 12 into a 36px control would spend the
             rail's clearance. The overlay moves nothing. */}
         <div className="mb-[14px] flex flex-col items-center gap-3">
-          <Mark className="size-[22px] flex-none" />
+          <Mark size={40} />
           <button
             type="button"
             id={NAV_TRIGGER_ID}

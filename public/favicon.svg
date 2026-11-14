@@ -1,38 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Quirenote">
-  <!-- The Quirenote mark: the 5h mark, a rounded loop and two pills, all stroke
-       and no fill. Same three paths and the same box as `Mark` in
-       src/app/Sidebar.tsx, pinned against it by src/app/mark.test.ts.
-
-       THE BOX IS `Mark`'S and is deliberately not cropped to the ink, even for
-       a 16px tab: cropping here would put a second box beside the one the mark
-       is drawn on. A box measured off the geometry clips the loop's caps and
-       the lower pill, since a bounding box ignores stroke.
-
-       Transparent and theme-aware: the browser paints the tab in its own theme,
-       so a fixed colour would go invisible in one of them. SIX literals, three
-       per branch, since each part of the mark carries its own logo token. The
-       light trio is the DEFAULT branch and has to be — Safari ignores the query
-       altogether, so whatever sits outside it is what that chrome draws.
-
-       AND THAT SENTENCE IS WHY THE TOKENS ARE NAMED WITHOUT THEIR DASHES: a
-       double hyphen cannot appear inside an XML comment, so writing a custom
-       property in full here makes this whole file not well-formed and the icon
-       renders BLANK. Every text assertion in mark.test.ts still passed on the
-       broken file, so that test now checks this rule directly.
-
-       One class per part rather than one shared: they take three different
-       values in each branch, and nothing here needs a fill. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-label="Quirenote">
+  <!-- The tab's own drawing, since the app's plate scaled down smears the «q». The light pair is
+       the default because Safari ignores the query; never write a double hyphen in here, or the
+       file is not well-formed and the icon renders BLANK. -->
   <style>
-    .loop { stroke: #8a5a3a }
-    .pill-a { stroke: #b07a52 }
-    .pill-b { stroke: #5c3a26 }
+    .plate { fill: #8a5a3a }
+    .q { fill: #f8f5ef }
     @media (prefers-color-scheme: dark) {
-      .loop { stroke: #d8b494 }
-      .pill-a { stroke: #ece1d2 }
-      .pill-b { stroke: #b07a52 }
+      .plate { fill: #d8b494 }
+      .q { fill: #19181a }
     }
   </style>
-  <path class="loop" d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
-  <path class="pill-a" d="M72 48 V70" fill="none" stroke-width="15" stroke-linecap="round" />
-  <path class="pill-b" d="M96 70 V88" fill="none" stroke-width="15" stroke-linecap="round" />
+  <rect class="plate" width="16" height="16" rx="4" />
+  <path class="q" fill-rule="evenodd" d="M6 3 H10 A2 2 0 0 1 12 5 V8 A2 2 0 0 1 10 10 H6 A2 2 0 0 1 4 8 V5 A2 2 0 0 1 6 3 Z M7 5 H9 A1 1 0 0 1 10 6 V7 A1 1 0 0 1 9 8 H7 A1 1 0 0 1 6 7 V6 A1 1 0 0 1 7 5 Z" />
+  <path class="q" d="M10 6 H12 V12 A1 1 0 0 1 11 13 A1 1 0 0 1 10 12 Z" />
 </svg>

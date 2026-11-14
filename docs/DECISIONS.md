@@ -695,7 +695,7 @@ a wrong number that reads as a right one.
 off its SHORT side; a box nested against a parent's corner takes `outer = inner + gap`, the gap
 being padding plus any border. A segmented control is both at once — segment proportional, track
 concentric. A full-bleed bar takes square corners. Only asset avatars and colour dots stay round.
-The mark is drawn geometry, its loop and pills strokes rather than radii. The rule binds controls
+The logo's plate takes the rule; the «q» inside it is drawn geometry. The rule binds controls
 and surfaces, not data marks: a chart's bar takes a fixed 4 on the corners its wave rounds, and
 its baseline stays square. Measure the RENDERED
 height: `text-[11px]` sets a font size, not a height.
@@ -898,20 +898,22 @@ wrong role. · A portfolio route sending the super-admin home: it hides that the
 for that role.
 
 ## Brand
-**Decision.** The product is Quirenote and the domain is `quirenote.com`. The logo is the 5h mark,
-all stroke and no fill, and it SHIPS IN THREE FILES and is DRAWN IN FOUR: `src/app/Sidebar.tsx`,
-`public/favicon.svg`, `public/apple-touch-icon.png`, and `scripts/build-touch-icon.mjs`, which
-generates the raster. Edit the mark and all four move. Its three parts take PER-THEME tokens, so the
-mark inverts with the app; the two that hold the mark as literals, the favicon and the script, copy
-those values, neither having a token to read, and the favicon's light trio is its default branch
-because Safari ignores the colour-scheme query. MAIL IS THE ONE EXCEPTION, ONCE IT SENDS: its mark
-is drawn as the signed refresh's «q» knocked into a plate
-(`docs/superpowers/specs/2026-11-07-email/`), ahead of the app's own change, so the mail and the
-app differ until the refresh lands. It is `public/email/mark-light.png` and `mark-dark.png`, a 2×
-plate per theme with transparent corners, written by the same script and read back by
-`src/app/mark.test.ts` against the spec's geometry and the stylesheet's tokens.
-**Why.** The box is the design sheet's own and is not cropped to the ink: a box measured off the
-geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
+**Decision.** The product is Quirenote and the domain is `quirenote.com`. The logo is a solid «q»
+knocked into a plate (wave 24, `docs/superpowers/specs/2026-11-05-layout-refresh/brand.md`), all
+fill with nothing baked in, and it is DRAWN IN FOUR PLACES: `Mark` in `src/app/Sidebar.tsx`,
+`public/favicon.svg`, `scripts/build-touch-icon.mjs`, and the PNGs it writes. Edit the logo and all
+four move. Two tokens per theme: the plate is `logo-outline` and the «q» is `card`, so the logo
+inverts with the app; the favicon and the script hold those values as literals, having no token to
+read. `Mark` takes the lockup's two plate sizes, one for the sidebar and the rail and one for the
+signed-out header. The tab is its own drawing on the small pixel grid, a two-colour plate and «q»
+whose light pair is the default branch, because Safari ignores the colour-scheme query. The
+home-screen icon is an opaque square in the light pair, unmasked; mail's `public/email/mark-light.png`
+and `mark-dark.png` are the sidebar's plate at 2× per theme, with transparent corners.
+`src/app/mark.test.ts` pins all of them against the spec's geometry and the stylesheet's tokens, and
+reads each PNG back.
+**Why.** Filled shapes, few of them, survive small sizes where thin strokes blur into one tone, and
+a separate small drawing keeps the «q»'s counter open in a tab (Apple, Material, Primer). The box is
+the drawing's own and is not cropped to the ink.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free.
 
 ## The price archive
