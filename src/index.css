@@ -70,6 +70,10 @@
      a near neighbour. THAT SHORTFALL IS DELIBERATE — the fill pair carries the
      STATE and the edge the COMPONENT. Dark reads `switch-border` instead. */
   --shadow-thumb: 0 1px 3px rgba(60, 40, 20, 0.06);
+  /* The glass drops (glass-light.md, controls.md § Signed), each the shade alias at its alpha. */
+  --shadow-glass: 0 8px 24px color-mix(in srgb, var(--color-glass-shade) 7%, transparent);
+  --shadow-glass-knob: 0 2px 6px color-mix(in srgb, var(--color-glass-shade) 12%, transparent);
+  --shadow-glass-well: inset 0 1px 2px color-mix(in srgb, var(--color-glass-shade) 14%, transparent);
 
   --color-page: #efeae2;
   --color-ink: #1c1a19;
@@ -249,6 +253,17 @@
   --color-google-btn-bg: #ffffff;
   --color-google-btn-border: #747775;
   --color-google-btn-text: #1f1f1f;
+  /* GLASS (glass.md, glass-light.md, controls.md § Signed). Rim and shade are aliases, so light
+     is lit from above too; every layer below is one of them, or `card`, at this theme's alpha. */
+  --color-glass-rim: #ffffff;
+  --color-glass-shade: var(--color-ink);
+  --color-glass-fill: color-mix(in srgb, var(--color-card) 70%, transparent);
+  --color-glass-sheen: color-mix(in srgb, var(--color-glass-rim) 60%, transparent);
+  --color-glass-bevel-top: var(--color-glass-rim);
+  --color-glass-bevel-bottom: color-mix(in srgb, var(--color-glass-shade) 16%, transparent);
+  --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 72%, transparent);
+  --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 62%, transparent);
+  --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 6%, transparent);
 
   /* Chart paint aliases — core/colors.ts emits var(--color-chart-*) for SVG
      fill/stroke, which gives the dark theme a chart-specific seam to redefine. */
@@ -387,6 +402,15 @@
   --color-google-btn-bg: #131314;
   --color-google-btn-border: #8e918f;
   --color-google-btn-text: #e3e3e3;
+  --color-glass-rim: var(--color-ink);
+  --color-glass-shade: var(--color-page);
+  --color-glass-fill: color-mix(in srgb, var(--color-card) 80%, transparent);
+  --color-glass-sheen: color-mix(in srgb, var(--color-glass-rim) 5%, transparent);
+  --color-glass-bevel-top: color-mix(in srgb, var(--color-glass-rim) 12%, transparent);
+  --color-glass-bevel-bottom: color-mix(in srgb, var(--color-glass-shade) 60%, transparent);
+  --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 82%, transparent);
+  --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 6%, transparent);
+  --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 55%, transparent);
 
   /* Elevation comes from the surface step, never from shadow. `0 0 #0000` rather
      than `none` — see the token block above. */
@@ -400,6 +424,80 @@
      the `ink` track — accepted, it still clears. It must NOT be "corrected" with
      a `data-state` branch, which would make the knob change with the state. */
   --shadow-thumb: 0 0 0 1px var(--color-switch-border);
+  /* Glass casts no shadow in dark; the knob and the well keep theirs, being controls. */
+  --shadow-glass: 0 0 #0000;
+  --shadow-glass-knob: 0 2px 6px color-mix(in srgb, var(--color-glass-shade) 80%, transparent);
+  --shadow-glass-well: inset 0 1px 3px color-mix(in srgb, var(--color-glass-shade) 90%, transparent);
+}
+
+/* `--glass-edge` swaps the stroke, as dialogs and the popover do for `field-border`; it does not
+   inherit, so a dialog's edge stays off the glass inside it. */
+@property --glass-edge {
+  syntax: '*';
+  inherits: false;
+}
+
+/* THE GLASS MATERIAL. The edge is box-shadow, never `border`, so wearing it moves no content. */
+@utility glass {
+  background-color: var(--color-glass-fill);
+  background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);
+  /* A literal, never var(): Safari 18 on Sonoma drops a backdrop filter that reads one. */
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge, color-mix(in srgb, var(--color-ink) 6%, transparent)),
+    inset 1px 1px 0 var(--color-glass-bevel-top),
+    inset -1px -1px 0 var(--color-glass-bevel-bottom),
+    var(--shadow-glass);
+
+  /* Wave 1's opaque card and hairline. Safari never reports reduced transparency, so the
+     glass above must pass contrast on its own. */
+  @supports not (backdrop-filter: blur(1px)) {
+    background-color: var(--color-card);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: inset 0 0 0 1px var(--glass-edge, var(--color-hairline));
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-card);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: inset 0 0 0 1px var(--glass-edge, var(--color-hairline));
+  }
+}
+
+/* THE GLASS KNOB, for the segmented control, the switch and the secondary button. RECORDED
+   SHORTFALL: no 3 : 1 boundary against its well (1.4.11), a cost the owner accepted. */
+@utility glass-knob {
+  background-color: var(--color-glass-knob-fill);
+  background-image: linear-gradient(180deg, var(--color-glass-knob-sheen) 0%, transparent 40%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent),
+    inset 1px 1px 0 var(--color-glass-bevel-top),
+    inset -1px -1px 0 var(--color-glass-bevel-bottom),
+    var(--shadow-glass-knob);
+}
+
+/* The knob at button scale, at one thicker fill in both themes. */
+@utility glass-button {
+  background-color: color-mix(in srgb, var(--color-card) 92%, transparent);
+  background-image: linear-gradient(180deg, var(--color-glass-knob-sheen) 0%, transparent 40%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent),
+    inset 1px 1px 0 var(--color-glass-bevel-top),
+    inset -1px -1px 0 var(--color-glass-bevel-bottom),
+    var(--shadow-glass-knob);
+}
+
+/* The segmented control's well, the track the knob slides in. */
+@utility glass-well {
+  background-color: var(--color-glass-well);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 8%, transparent),
+    var(--shadow-glass-well);
 }
 
 /* The theme cross-fade: 200ms linear, ONCE, on exactly the four properties that

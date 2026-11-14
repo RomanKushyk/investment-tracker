@@ -209,6 +209,8 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
       'sb-item-active',
       'sb-indicator',
       'sb-label',
+      'glass-rim',
+      'glass-shade',
     ])
       expect(light).toContain(name);
   });

@@ -215,6 +215,8 @@ const RETIRED = [
 
 /** A declaration of Google's button family, whole, and nothing around it. */
 const GOOGLE = /^[ \t]*--color-google-btn-[a-z]+: #[0-9a-f]{6};\r?$/gm;
+/** The light glass rim's white, as one whole declaration (glass-light.md § Signed). */
+const GLASS_RIM = /^[ \t]*--color-glass-rim: #ffffff;\r?$/gm;
 
 describe('the palette and its two mirrors carry no retired value', () => {
   // COMMENTS INCLUDED, DELIBERATELY: `index.css` argues from its own hexes beside nearly
@@ -227,7 +229,7 @@ describe('the palette and its two mirrors carry no retired value', () => {
   // mirrors. `mark.test.ts` keeps those honest meanwhile, reading their colours out of
   // `index.css` rather than freezing them.
   it.each(Object.keys(FILES) as (keyof typeof FILES)[])('%s holds none of them', (file) => {
-    const source = FILES[file].toLowerCase().replace(GOOGLE, '');
+    const source = FILES[file].toLowerCase().replace(GOOGLE, '').replace(GLASS_RIM, '');
     const found = RETIRED.filter((hex) => source.includes(hex));
     expect(found, `${file} still carries retired values`).toEqual([]);
   });
@@ -238,6 +240,12 @@ describe('the palette and its two mirrors carry no retired value', () => {
   // theme.
   it('leaves out Google’s own three per theme, and nothing else', () => {
     expect(FILES['src/index.css'].toLowerCase().match(GOOGLE)).toHaveLength(6);
+  });
+
+  // THE GLASS RIM IS WHITE IN LIGHT (glass-light.md § Signed), the value the parchment palette
+  // retired: that one declaration leaves the sweep, and no other white does.
+  it('leaves out the light glass rim’s white, once', () => {
+    expect(FILES['src/index.css'].toLowerCase().match(GLASS_RIM)).toHaveLength(1);
   });
 
   // IS THE SWEEP ACTUALLY LOOKING? An absence guard passes on a tree where nothing is left
