@@ -47,7 +47,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
         <XAxis
           dataKey="date"
           tickFormatter={f.dateShort}
-          tick={{ fontSize: 10, fill: CHART.muted }}
+          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           minTickGap={48}
@@ -59,7 +59,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           tickFormatter={(v: number) =>
             v === 0 ? f.pctPlain(0, 0) : signed(v, f.pctPlain(Math.abs(v), 0))
           }
-          tick={{ fontSize: 10, fill: CHART.muted }}
+          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
           axisLine={false}
           tickLine={false}
           width={40}
@@ -77,6 +77,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
               assets.find((a) => a.id === name)?.name ?? String(name),
             ];
           }}
+          wrapperClassName="font-mono"
           contentStyle={CHART_TOOLTIP}
           itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_LINE}

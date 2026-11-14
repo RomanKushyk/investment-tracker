@@ -97,9 +97,9 @@ export function SpotCheck({
                 <span className="font-mono">{r.instrument_ref}</span>
                 <Basis>{r.basis}</Basis>
               </span>
-              <span className="text-muted">{f.date(r.as_of)}</span>
+              <span className="font-mono text-muted">{f.date(r.as_of)}</span>
             </div>
-            <div className="mt-1 text-muted">
+            <div className="mt-1 font-mono text-muted">
               {s.line(price(r.price), percent(r.ytm), percent(r.clean_rate))}
             </div>
           </div>

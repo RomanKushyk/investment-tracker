@@ -34,7 +34,7 @@ export function YieldTeaser({ rows }: { rows: YieldTableRow[] }) {
             {/* The sign decides the tint: a loss is not drawn in the same colour as a gain.
                 An asset with no quote has no figure: «—», muted, as `/yield` renders it. */}
             <span
-              className={`text-right font-bold ${deltaTotal === undefined ? 'text-muted' : deltaTotal < 0 ? 'text-neg' : 'text-pos'}`}
+              className={`text-right font-mono font-bold ${deltaTotal === undefined ? 'text-muted' : deltaTotal < 0 ? 'text-neg' : 'text-pos'}`}
             >
               {deltaTotal === undefined ? '—' : f.pct(deltaTotal)}
             </span>

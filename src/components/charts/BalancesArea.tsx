@@ -40,7 +40,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
         <XAxis
           dataKey="date"
           tickFormatter={f.dateShort}
-          tick={{ fontSize: 10, fill: CHART.muted }}
+          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           minTickGap={48}
@@ -48,7 +48,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
         <YAxis
           domain={['dataMin - 5000', 'dataMax + 2000']}
           tickFormatter={(v: number) => `₴${Math.round(v / 1000)}k`}
-          tick={{ fontSize: 10, fill: CHART.muted }}
+          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
           axisLine={false}
           tickLine={false}
           width={44}
@@ -58,6 +58,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           active={pin.active}
           formatter={(v) => [f.money(Number(v)), t.analytics.overview.totalCapital]}
           labelFormatter={(label) => f.dateShort(String(label))}
+          wrapperClassName="font-mono"
           contentStyle={CHART_TOOLTIP}
           itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_LINE}

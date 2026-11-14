@@ -63,7 +63,7 @@ export function AppToaster() {
           },
           style: {
             borderRadius: '13px',
-            fontFamily: 'var(--font-body)',
+            fontFamily: 'var(--font-sans)',
             // Same token as the popovers, so the toast loses its shadow in dark with
             // everything else rather than keeping a lone halo.
             boxShadow: 'var(--shadow-popover)',

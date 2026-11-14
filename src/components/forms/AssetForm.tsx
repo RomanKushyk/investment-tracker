@@ -65,7 +65,7 @@ function Field({
 
 // `page` fill (the recipe's default), because BOTH hosts stand on `card` — the dialog body
 // and the dashed quick-create panel alike — so one value inverts against both.
-const INPUT = 'px-3 font-body text-[13px] text-ink';
+const INPUT = 'px-3 text-[13px] text-ink';
 
 // The Inzhur link group. Its own `useFormState`/`useWatch` subscriptions, for
 // the reason `AssetFormFields` gives below: the form arrives via props.

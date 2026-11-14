@@ -23,7 +23,7 @@ function SkipLine({ skip }: { skip: SkippedEntry }) {
       {skip.fields !== undefined && (
         // The load-bearing detail: WHICH field. A rename is the likeliest way
         // this feed breaks, and the path is the whole diagnosis.
-        <span className="font-body text-faint">{skip.fields.join(', ')}</span>
+        <span className="font-mono text-faint">{skip.fields.join(', ')}</span>
       )}
     </li>
   );

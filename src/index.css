@@ -38,12 +38,13 @@
     }
   }
 
-  /* Both Cyrillic-capable, which Ukrainian as the default language asks of them
-     first (*Language, numbers, fonts*). Manrope's figures are PROPORTIONAL and it
-     ships `tnum`, so `body` below asks for it once; delete that one declaration
-     and every KPI column wobbles. `ui-face.test.ts` holds the two together. */
+  /* Manrope for prose, JetBrains Mono for data, both Cyrillic-capable for the default
+     language (*Language, numbers, fonts*). Tailwind's own `sans` and `mono` slots, so its
+     preflight and `font-mono` read them too. Manrope's figures are PROPORTIONAL and it ships
+     `tnum`, so `body` below asks for it once. `ui-face.test.ts` holds all of it. */
   --font-display: 'Manrope', sans-serif;
-  --font-body: 'JetBrains Mono', monospace;
+  --font-sans: 'Manrope', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
   /* The Google button's label alone: Google's guidelines name the face ("The button font is
      Google Sans Medium"), loaded by the one module that draws it. */
   --font-google: 'Google Sans', 'Manrope', sans-serif;
@@ -462,12 +463,28 @@
   body {
     background: var(--color-page);
     color: var(--color-ink);
-    font-family: var(--font-body);
+    font-family: var(--font-sans);
     font-size: 13px;
     /* The one call site, and what keeps a KPI column aligned. Here rather than per
        component, because the alternative is remembering it at every site that ever
        shows a number. */
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Data by element, so a new table cell or native field cannot miss the face; a column head
+     stays prose. In `base`, so a utility at a call site still wins. A button-based field (Select,
+     DatePicker) carries `font-mono` itself. */
+  td,
+  th[scope='row'],
+  input,
+  textarea {
+    font-family: var(--font-mono);
+  }
+
+  /* recharts sizes tick labels in this span, which hangs off `body` with no face of its own, before
+     drawing them in mono; measured in Manrope, the tick gap under-counts every label. */
+  #recharts_measurement_span {
+    font-family: var(--font-mono);
   }
 
   h1,

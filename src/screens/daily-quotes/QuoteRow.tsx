@@ -246,7 +246,7 @@ export function QuoteRow({
         <div className="min-w-[110px] flex-1 break-words max-md:basis-[calc(100%-60px)]">
           <div className="text-sm font-semibold">{asset.name}</div>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-            <span>
+            <span className="font-mono">
               {yesterday !== undefined ? t.dailyQuotes.yesterdayValue(f.money(yesterday)) : '—'}
             </span>
             {chip !== undefined && <ProvenanceChipPill chip={chip} />}
@@ -277,8 +277,7 @@ export function QuoteRow({
                   : ghost !== undefined
                     ? 'proposed'
                     : 'quiet',
-              className:
-                'w-full px-3 text-right font-body text-[13px] max-md:h-11 max-md:rounded-[11px]',
+              className: 'w-full px-3 text-right text-[13px] max-md:h-11 max-md:rounded-[11px]',
             })}
             value={raw ?? ''}
             placeholder={
@@ -292,7 +291,7 @@ export function QuoteRow({
           {ghost !== undefined && (
             <span
               id={ghostId}
-              className="pointer-events-none absolute right-3 animate-in text-[13px] text-muted duration-300 fade-in"
+              className="pointer-events-none absolute right-3 animate-in font-mono text-[13px] text-muted duration-300 fade-in"
             >
               {f.num(ghost)}
             </span>
@@ -301,7 +300,7 @@ export function QuoteRow({
         <span
           key={delta ?? 'empty'}
           className={
-            'w-[52px] animate-in text-right text-xs font-bold duration-150 zoom-in-95 fade-in ' +
+            'w-[52px] animate-in text-right font-mono text-xs font-bold duration-150 zoom-in-95 fade-in ' +
             (delta === undefined ? 'text-faint' : delta < 0 ? 'text-neg' : 'text-pos')
           }
         >

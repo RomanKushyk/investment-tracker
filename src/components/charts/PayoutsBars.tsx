@@ -52,6 +52,7 @@ function makeSegmentLabel(data: PayoutsChartPoint[], alwaysTop: boolean) {
     if (!alwaysTop && point.coupons > 0) return null;
     return (
       <text
+        className="font-mono"
         x={x + width / 2}
         y={y - 6}
         textAnchor="middle"
@@ -82,7 +83,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="monthLabel"
-          tick={{ fontSize: 10.5, fill: CHART.muted }}
+          tick={{ fontSize: 10.5, fill: CHART.muted, className: 'font-mono' }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
         />
@@ -101,6 +102,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
             f.num(Number(v)),
             name === 'coupons' ? t.analytics.coupons : t.analytics.dividends,
           ]}
+          wrapperClassName="font-mono"
           contentStyle={CHART_TOOLTIP}
           itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_FILL}

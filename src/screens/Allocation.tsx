@@ -132,7 +132,7 @@ export function Allocation() {
               <div key={a.id} className="flex items-center gap-2">
                 <ColorDot colorKey={a.colorKey} />
                 <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                <span className="font-bold">
+                <span className="font-mono font-bold">
                   <Share pct={share} />
                 </span>
               </div>
@@ -162,7 +162,7 @@ export function Allocation() {
                       </span>
                       {editing ? (
                         <>
-                          <span className="whitespace-nowrap text-muted">
+                          <span className="font-mono whitespace-nowrap text-muted">
                             <Share pct={r.share} />
                           </span>
                           <span className="text-muted">/</span>
@@ -184,7 +184,7 @@ export function Allocation() {
                           <span className="text-muted">%</span>
                         </>
                       ) : (
-                        <span className="ml-auto">
+                        <span className="ml-auto font-mono">
                           <Share pct={r.share} /> /{' '}
                           {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}
                           {deltaPp !== null ? (
@@ -259,7 +259,7 @@ export function Allocation() {
                     {a.kind === 'buy' ? t.analytics.allocation.buy : t.analytics.allocation.trim}{' '}
                     {planLabel(a.asset)}
                   </span>
-                  <strong className="whitespace-nowrap">
+                  <strong className="font-mono whitespace-nowrap">
                     {a.kind === 'buy' ? '+' : '−'}
                     {f.moneyWhole(a.amount)}
                   </strong>

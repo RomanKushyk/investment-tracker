@@ -8,7 +8,7 @@ import { useT } from '../../i18n/useT';
 
 // The signed-out card's parts. Every field it draws is drawn here, because `field-border.test.ts`
 // reads a field's classes only in the file that calls the recipe (#125).
-const INPUT = 'block w-full px-3 font-body text-[13px] text-ink';
+const INPUT = 'block w-full px-3 text-[13px] text-ink';
 
 export const LINK = `cursor-pointer text-accent underline underline-offset-2 ${TAP_44}`;
 

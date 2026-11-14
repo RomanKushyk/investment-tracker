@@ -220,14 +220,14 @@ export function Overview() {
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold max-md:basis-[calc(100%-18px)]">
                       {a.name}
                     </span>
-                    <span className="text-xs whitespace-nowrap text-muted">
+                    <span className="font-mono text-xs whitespace-nowrap text-muted">
                       {t.asset.yieldShort[a.yieldType]} · <Share pct={share} />
                     </span>
-                    <strong className="w-[110px] text-right text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
+                    <strong className="w-[110px] text-right font-mono text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
                       {value === undefined ? '—' : f.money(value)}
                     </strong>
                     <span
-                      className={`w-[60px] text-right text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ === undefined ? 'text-muted' : yield_ < 0 ? 'text-neg' : 'text-pos'}`}
+                      className={`w-[60px] text-right font-mono text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ === undefined ? 'text-muted' : yield_ < 0 ? 'text-neg' : 'text-pos'}`}
                     >
                       {yield_ === undefined ? '—' : f.pct(yield_)}
                     </span>
@@ -254,7 +254,7 @@ export function Overview() {
                       ? t.analytics.prose.couponOf(r.assetRef)
                       : t.analytics.prose.dividendOf(r.assetRef)}
                   </span>
-                  <strong className="whitespace-nowrap">
+                  <strong className="font-mono whitespace-nowrap">
                     {r.approx ? '~' : ''}
                     {f.moneyWhole(r.amount)} · {f.dateShort(r.date)}
                   </strong>

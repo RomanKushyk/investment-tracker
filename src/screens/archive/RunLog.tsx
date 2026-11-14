@@ -115,7 +115,7 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
   // squeezing the result column out.
   return (
     <Scroller orientation="horizontal">
-      <table className="w-full min-w-[902px] table-fixed border-collapse font-mono text-[12.5px] leading-[18.75px]">
+      <table className="w-full min-w-[902px] table-fixed border-collapse text-[12.5px] leading-[18.75px]">
         <colgroup>
           <col className="w-[128px]" />
           <col className="w-[200px]" />

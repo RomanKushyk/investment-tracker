@@ -452,7 +452,7 @@ function Report({
         </AlertDialogTitle>
       </DialogHeader>
       <DialogBody>
-        <div className="mb-3 font-body text-[11px] [overflow-wrap:anywhere] text-muted">{name}</div>
+        <div className="mb-3 font-mono text-[11px] [overflow-wrap:anywhere] text-muted">{name}</div>
         <AlertDialogDescription asChild>
           <p className="m-0 mb-3.5 text-[13px] leading-normal text-neg">
             {t.importing.report.lead}
@@ -466,7 +466,7 @@ function Report({
               {formatReasonSentence(rejection.code, rejection.version, t)}
             </div>
             {/* The ONE place the parser's own sentence appears on screen. */}
-            <div className="mt-1.5 font-body text-[11.5px] [overflow-wrap:anywhere] text-muted">
+            <div className="mt-1.5 font-mono text-[11.5px] [overflow-wrap:anywhere] text-muted">
               {rejection.detail}
             </div>
           </div>
@@ -483,7 +483,7 @@ function Report({
                   not. Passing `radius` already opens the gutter from the root, so px here
                   insets the issue lines a second time. */}
               <Scroller radius={16} className="max-h-[200px] py-3">
-                <div className="font-body text-[11.5px] leading-[1.9] [overflow-wrap:anywhere]">
+                <div className="font-mono text-[11.5px] leading-[1.9] [overflow-wrap:anywhere]">
                   {rejection.issues.map((issue, i) => (
                     <div key={`${issue.table}-${issue.at ?? i}-${issue.field ?? ''}-${i}`}>
                       {issueLine(issue, t)}

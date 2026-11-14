@@ -85,7 +85,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex justify-between gap-3 text-xs leading-[18px]">
       <span className="text-muted">{label}</span>
-      <span className="font-semibold">{children}</span>
+      <span className="font-mono font-semibold">{children}</span>
     </div>
   );
 }

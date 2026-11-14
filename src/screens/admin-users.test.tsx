@@ -620,7 +620,11 @@ describe('/admin/users, a failed read', () => {
     const page = mount();
     await waitFor(() => expect(page.main()).toContain(FAILED));
     expect(page.main()).toContain(SENTENCE.internal);
-    expect(document.querySelector('main .font-mono')?.textContent).toBe('internal');
+    // The mono span beside the sentence: the filter's Select trigger is mono too.
+    const key = [...document.querySelectorAll('main .font-mono')].find((el) =>
+      el.parentElement?.textContent?.includes(SENTENCE.internal),
+    );
+    expect(key?.textContent).toBe('internal');
     fireEvent.click(within(document.querySelector('main')!).getByRole('button', { name: RETRY }));
     await waitFor(() => expect(page.main()).toContain('olena.koval@example.com'));
   });

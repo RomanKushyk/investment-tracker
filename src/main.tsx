@@ -4,14 +4,13 @@ import './zod-jitless';
 // the default language, so a face without it drops the whole app into a system
 // fallback (*Language, numbers, fonts*). Each stylesheet below is the aggregate
 // for its weight, every `@font-face` behind its own `unicode-range`, so the
-// browser fetches Cyrillic only for the pages that use it. 500 stays although
-// every display site asks for 600 or 700: it is the face an unweighted element
-// would match, and an unfetched declaration costs a reader nothing.
+// browser fetches Cyrillic only for the pages that use it. The weights are the
+// ones the type roles name (`type.md` § Signed).
+import '@fontsource/manrope/400.css';
 import '@fontsource/manrope/500.css';
 import '@fontsource/manrope/600.css';
 import '@fontsource/manrope/700.css';
 import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/jetbrains-mono/600.css';
 import '@fontsource/jetbrains-mono/700.css';
 import './index.css';

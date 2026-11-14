@@ -83,7 +83,7 @@ export function Payouts() {
                       ? t.analytics.prose.couponOf(r.assetRef)
                       : t.analytics.prose.dividendOf(r.assetRef)}
                   </span>
-                  <strong className="whitespace-nowrap">
+                  <strong className="font-mono whitespace-nowrap">
                     {r.approx ? '~' : ''}
                     {f.moneyWhole(r.amount)} · {f.dateShort(r.date)}
                   </strong>
@@ -161,7 +161,7 @@ export function Payouts() {
             <RecordCard
               key={`${row.date}-${row.assetId}-${row.amount}`}
               index={i}
-              eyebrow={f.date(row.date)}
+              eyebrow={<span className="font-mono">{f.date(row.date)}</span>}
               title={assetName(row.assetId)}
               tag={<Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>}
             >

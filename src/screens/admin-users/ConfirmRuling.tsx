@@ -120,7 +120,7 @@ export function ConfirmRuling({
             autoComplete="off"
             spellCheck={false}
             className={fieldVariants({
-              className: 'block w-full px-3 font-body text-[13px] text-ink max-md:text-[16px]',
+              className: 'block w-full px-3 text-[13px] text-ink max-md:text-[16px]',
             })}
           />
         </DialogBody>

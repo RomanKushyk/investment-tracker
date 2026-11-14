@@ -9,7 +9,7 @@ export function Fact({ label, children }: { label: string; children: ReactNode }
   return (
     <div>
       <dt className="text-[10.5px] tracking-[.08em] text-muted uppercase">{label}</dt>
-      <dd className="m-0 text-[12.5px] font-bold">{children}</dd>
+      <dd className="m-0 font-mono text-[12.5px] font-bold">{children}</dd>
     </div>
   );
 }

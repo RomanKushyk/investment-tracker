@@ -76,7 +76,12 @@ const THEME = ruleBody(CSS, '@theme');
 const LAYER = ruleBody(CSS, '@layer base');
 const BODY = ruleBody(LAYER, 'body');
 
-const WEIGHTS = ['500', '600', '700'] as const;
+/** The weights the role table names for each face (`type.md` § Signed): Manrope 400 prose,
+ *  500 labels, 600 headings and figures, 700 active nav; mono 400 cells, 600 dates, 700 totals. */
+const FACES = [
+  { pkg: 'manrope', weights: ['400', '500', '600', '700'] },
+  { pkg: 'jetbrains-mono', weights: ['400', '600', '700'] },
+] as const;
 
 /** The declaration as written, so a failure names the value rather than printing the whole
  *  block it was read out of. */
@@ -85,23 +90,74 @@ function declared(block: string, name: string): string | undefined {
   return m ? m[1].trim() : undefined;
 }
 
-describe('the UI face', () => {
-  it('is Manrope, read through `--font-display`', () => {
+/** The LAST `font-family` of a rule, the one CSS applies at equal specificity. */
+function family(block: string): string | undefined {
+  return [...block.matchAll(/font-family:\s*([^;]+);/g)].map((m) => m[1].trim()).at(-1);
+}
+
+describe('the faces (R2): Manrope for prose, JetBrains Mono for data', () => {
+  it('display is Manrope, read through `--font-display`', () => {
     expect(declared(THEME, 'display')).toBe("'Manrope', sans-serif");
   });
 
-  it('loads exactly the three weights the tokens use, and nothing else', () => {
-    const imported = [
-      ...stripTs(read('main.tsx'), 'main.tsx').matchAll(/@fontsource\/manrope\/([^'"]+)\.css/g),
-    ]
-      .map((m) => m[1])
-      .sort();
-    expect(imported).toEqual([...WEIGHTS]);
+  it('body text resolves to Manrope, through `--font-sans`', () => {
+    expect(declared(THEME, 'sans')).toBe("'Manrope', sans-serif");
+    expect(family(BODY), '`body` reads another token').toBe('var(--font-sans)');
   });
 
-  it('declares the package it imports', () => {
+  // Without it `font-mono` is Tailwind's system stack: Consolas here, Menlo on a Mac.
+  it('mono is JetBrains Mono, so no `font-mono` falls back to a system monospace', () => {
+    expect(declared(THEME, 'mono')).toBe("'JetBrains Mono', monospace");
+  });
+
+  it('sets the data elements in mono by element, so a new table or field cannot miss it', () => {
+    // By selector list, whitespace aside: a reflowed rule is the same rule.
+    const rules = [...LAYER.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+      selector: m[1].replace(/\s+/g, ' ').trim(),
+      body: m[2],
+    }));
+    const rule = rules.find((r) => r.selector === "td, th[scope='row'], input, textarea");
+    expect(rule, 'no `td, th[scope=row], input, textarea` rule in `@layer base`').toBeDefined();
+    expect(family(rule?.body ?? '')).toBe('var(--font-mono)');
+  });
+
+  // recharts 3 measures a tick in a `<span id="recharts_measurement_span">` on `body`
+  // (`util/DOMUtils.js`) and draws it in mono: the two faces must agree or the tick gap lies.
+  it('measures chart ticks in the face they are drawn in', () => {
+    expect(family(ruleBody(LAYER, '#recharts_measurement_span'))).toBe('var(--font-mono)');
+    // An upgrade that renames the span would leave the rule styling nothing.
+    const domUtils = join(here, '..', 'node_modules', 'recharts', 'lib', 'util', 'DOMUtils.js');
+    expect(readFileSync(domUtils, 'utf8')).toContain("'recharts_measurement_span'");
+  });
+
+  // The R1 token: a `font-body` left anywhere would name a face that no longer exists.
+  it('leaves no trace of the R1 body token', () => {
+    const hits: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+          if (/\bfont-body\b/.test(stripTs(readFileSync(full, 'utf8'), full))) hits.push(entry);
+        }
+      }
+    };
+    walk(here);
+    if (/\bfont-body\b/.test(CSS)) hits.push('the stylesheet');
+    expect(hits).toEqual([]);
+  });
+
+  it.each(FACES)('loads exactly the $pkg weights the roles name, and nothing else', (face) => {
+    const re = new RegExp(`@fontsource/${face.pkg}/([^'"]+)\\.css`, 'g');
+    const imported = [...stripTs(read('main.tsx'), 'main.tsx').matchAll(re)]
+      .map((m) => m[1])
+      .sort();
+    expect(imported).toEqual([...face.weights]);
+  });
+
+  it.each(FACES)('declares @fontsource/$pkg, the package it imports', (face) => {
     const pkg = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'));
-    expect(pkg.dependencies['@fontsource/manrope']).toBeDefined();
+    expect(pkg.dependencies[`@fontsource/${face.pkg}`]).toBeDefined();
   });
 });
 

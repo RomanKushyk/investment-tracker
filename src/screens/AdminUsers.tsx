@@ -205,7 +205,7 @@ function Stamp({ at }: { at: string | null }) {
 function You() {
   const t = useT();
   return (
-    <span className="ml-2 inline-flex h-5 flex-none items-center rounded-[5px] bg-accent-tint px-1.5 align-middle text-[11px] font-semibold text-ink">
+    <span className="ml-2 inline-flex h-5 flex-none items-center rounded-[5px] bg-accent-tint px-1.5 align-middle font-sans text-[11px] font-semibold text-ink">
       {t.users.you}
     </span>
   );

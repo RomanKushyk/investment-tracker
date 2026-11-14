@@ -115,7 +115,10 @@ function Ticks({ axis }: { axis: Axis }) {
   return (
     <div className="mb-2.5 md:mb-2 md:grid md:grid-cols-[210px_minmax(0,1fr)_92px] md:gap-x-4">
       <span className="max-md:hidden" />
-      <div aria-hidden className="relative h-[15px] text-[10px] leading-[15px] text-muted">
+      <div
+        aria-hidden
+        className="relative h-[15px] font-mono text-[10px] leading-[15px] text-muted"
+      >
         {ticksOf(axis).map((tick) => (
           <span
             key={tick.left}
@@ -156,7 +159,7 @@ function GroupRow({ group, strip }: { group: ArchiveGroup; strip: Strip | undefi
           </div>
         )}
       </div>
-      <div className="text-right text-xs leading-[18px]">
+      <div className="text-right font-mono text-xs leading-[18px]">
         {empty === null ? (
           <span className="text-muted">{t.archive.coverage.notMeasured}</span>
         ) : empty > 0 ? (

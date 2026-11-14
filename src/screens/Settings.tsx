@@ -117,8 +117,7 @@ function CurrencyControl() {
 // equalises segments that can shrink to their basis, and text cannot go below its
 // min-content. `grid-cols-3` columns are equal by construction whatever the words
 // are, so the labels can be translated without re-measuring. A flex track holds only
-// while a pair is equal-width in EVERY dictionary — true of ₴ UAH against $ USD in the
-// mono face this app sets.
+// while a pair is equal-width in EVERY dictionary.
 // The thumb's width is DERIVED from the track's padding box, not fitted.
 
 function ThemeControl() {

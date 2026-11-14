@@ -95,7 +95,9 @@ export function PeriodControl({ from, to }: { from: string | undefined; to: stri
             app's `dd.MM.yyyy`, while a hint repeats per row and only has to be
             comparable BETWEEN rows — which is what makes identical short hints
             read as one window. */}
-        {f.date(resolved.from)} – {f.date(resolved.to)}
+        <span className="font-mono">
+          {f.date(resolved.from)} – {f.date(resolved.to)}
+        </span>
         {resolved.clamped ? ` · ${t.period.clamped}` : ''}
       </div>
     </div>

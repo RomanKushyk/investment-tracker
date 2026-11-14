@@ -136,6 +136,7 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
 
     return (
       <text
+        className="font-mono"
         x={clampLabelX(x + width / 2, text, 10, parentViewBox)}
         y={topY - 6}
         textAnchor="middle"
@@ -162,6 +163,7 @@ function makeExpectedOnlyLabel(data: SeasonalityChartPoint[]) {
     if (text === null) return null;
     return (
       <text
+        className="font-mono"
         x={clampLabelX(x + width / 2, text, 10, parentViewBox)}
         y={y - 6}
         textAnchor="middle"
@@ -207,7 +209,7 @@ export function SeasonalityBars({
           dataKey="day"
           ticks={axis === 'month' ? MONTH_TICKS : DAY_TICKS}
           tickFormatter={axis === 'month' ? (v) => t.dates.monthShort[Number(v) - 1] : undefined}
-          tick={{ fontSize: 10, fill: CHART.muted }}
+          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           interval={0}
@@ -222,6 +224,7 @@ export function SeasonalityBars({
               ? t.dates.monthFull[Number(label) - 1]
               : t.analytics.seasonality.anchorDay(Number(label))
           }
+          wrapperClassName="font-mono"
           contentStyle={CHART_TOOLTIP}
           itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_FILL}

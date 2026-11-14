@@ -360,7 +360,7 @@ function ConfirmStart({
           {echo.map(([label, value]) => (
             <div key={label} className="contents">
               <dt className="text-muted">{label}</dt>
-              <dd className="m-0 text-right font-bold">{value}</dd>
+              <dd className="m-0 text-right font-mono font-bold">{value}</dd>
             </div>
           ))}
         </dl>

@@ -149,7 +149,7 @@ export function DatePicker({
       className={fieldVariants({
         fill: bg,
         edge: invalid ? 'invalid' : 'rest',
-        className: `px-3 font-body text-[13px] text-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`,
+        className: `px-3 font-mono text-[13px] text-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`,
       })}
     >
       {value ? f.date(value) : <span className="text-muted">{placeholder ?? t.dates.pick}</span>}

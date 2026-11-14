@@ -671,8 +671,11 @@ decimal, English keeps the comma as grouping, and when both marks appear the las
 decimal. A currency token beside the number is dropped before the grammar reads it; a token alone or
 any other letter is not, so `12abc` stays refused. The ₴/$ toggle converts the DISPLAY of headline
 KPIs and the sidebar capital only, at the rate `/view` serves (*External sources*) and to «—» where
-it serves none; tables stay in ₴, and dates are `dd.MM.yyyy`. Faces: Manrope for
-headings, buttons and KPI numbers, JetBrains Mono for body and tables, and `body` sets
+it serves none; tables stay in ₴, and dates are `dd.MM.yyyy`. Faces: Manrope
+(`--font-sans`, which `body` reads) for headings, prose, labels, nav, buttons and KPI figures,
+JetBrains Mono (`--font-mono`) for data: tables, figures in rows, fields, chart text and IDs; `td`,
+row headers and native fields take it by element; the rest, Select and DatePicker among them, by
+`font-mono`. `body` sets
 `font-variant-numeric: tabular-nums`. Google's button alone takes Google Sans Medium, the face
 Google's guidelines fix for it; its Cyrillic subset carries the Ukrainian label (*Auth model*). A field holding an unsaved number STORES A LANGUAGE-FREE
 SPELLING and derives what it shows. A mark the typist PRESSES is read as this language's own; a mark

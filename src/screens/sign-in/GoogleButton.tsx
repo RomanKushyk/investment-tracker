@@ -29,7 +29,7 @@ export function OrGoogle({
   if (!on) return null;
   return (
     <div className="flex animate-in flex-col duration-300 ease-soft fade-in">
-      <div className="my-4 flex items-center gap-3 font-body text-[11px] leading-[16.5px] text-muted">
+      <div className="my-4 flex items-center gap-3 text-[11px] leading-[16.5px] text-muted">
         <span aria-hidden className="h-px flex-1 bg-hairline" />
         {copy.or}
         <span aria-hidden className="h-px flex-1 bg-hairline" />

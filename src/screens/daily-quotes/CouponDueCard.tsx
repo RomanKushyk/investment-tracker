@@ -164,7 +164,7 @@ export function CouponDueCard({
         aria-describedby={showAmountError ? errorId : undefined}
         className={fieldVariants({
           edge: showAmountError ? 'invalid' : 'rest',
-          className: 'w-full px-3 font-body text-[13px]',
+          className: 'w-full px-3 text-[13px]',
         })}
       />
       {showAmountError && (
@@ -225,7 +225,7 @@ export function CouponDueCard({
             aria-describedby={showUnitsError ? unitsErrorId : undefined}
             className={fieldVariants({
               edge: showUnitsError ? 'invalid' : 'rest',
-              className: 'w-full px-3 font-body text-[13px]',
+              className: 'w-full px-3 text-[13px]',
             })}
           />
           {showUnitsError && (

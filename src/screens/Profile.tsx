@@ -245,7 +245,7 @@ function AccountCard({ me }: { me: Shown | undefined }) {
           </Fact>
         )}
         <Fact name="since" label={t.profile.since}>
-          {me && f.date(me.memberSince)}
+          {me && <span className="font-mono">{f.date(me.memberSince)}</span>}
         </Fact>
       </Facts>
       <Divider />
@@ -273,14 +273,18 @@ function DataCard({ me }: { me: Shown | undefined }) {
       <SectionLabel>{t.profile.sections.data}</SectionLabel>
       <Facts>
         <Fact name="assets" label={t.profile.assets}>
-          {me && String(me.assets)}
+          {me && <span className="font-mono">{String(me.assets)}</span>}
         </Fact>
         <Fact name="transactions" label={t.profile.transactions}>
-          {me && String(me.transactions)}
+          {me && <span className="font-mono">{String(me.transactions)}</span>}
         </Fact>
         {/* None yet reads «—» in the value's own ink: an answer, not a box held. */}
         <Fact name="firstActivity" label={t.profile.firstActivity}>
-          {me && (me.firstTransaction === undefined ? '—' : f.date(me.firstTransaction))}
+          {me && (
+            <span className="font-mono">
+              {me.firstTransaction === undefined ? '—' : f.date(me.firstTransaction)}
+            </span>
+          )}
         </Fact>
       </Facts>
       <Divider />

@@ -74,7 +74,7 @@ const TYPE_ORDER: TxType[] = [
 // cell's column sizes to that instead of to the cell and everything in it hangs
 // past its box. A `flex flex-col` cell never had this — the floor applies to the
 // MAIN axis, and there the main axis was vertical.
-const INPUT = 'min-w-0 px-3 font-body text-[13px] text-ink';
+const INPUT = 'min-w-0 px-3 text-[13px] text-ink';
 
 // The amount's own ids, so the error is LINKED to the input rather than folded into its name.
 const AMOUNT_ID = 'tx-amount';
@@ -1085,7 +1085,7 @@ export function TransactionPanel() {
                             the same as the gap being hunted. */}
                         {movesPosition(tx.type) && (
                           <span
-                            className="whitespace-nowrap text-muted"
+                            className="font-mono whitespace-nowrap text-muted"
                             title={t.transaction.quantity}
                           >
                             {tx.quantity === undefined ? '—' : f.units(tx.quantity)}
@@ -1094,11 +1094,13 @@ export function TransactionPanel() {
                         {/* Bold once the row counts, as a scheduled row turns bold on its date in
                             YNAB's register; the chip is the second cue. */}
                         <strong
-                          className={`whitespace-nowrap ${ahead.narrow === 'in' ? 'max-xl:font-normal' : ''} ${ahead.wide === 'in' ? 'xl:font-normal' : ''}`}
+                          className={`font-mono whitespace-nowrap ${ahead.narrow === 'in' ? 'max-xl:font-normal' : ''} ${ahead.wide === 'in' ? 'xl:font-normal' : ''}`}
                         >
                           {f.money(tx.amount)}
                         </strong>
-                        <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
+                        <span className="font-mono whitespace-nowrap text-muted">
+                          {f.dateShort(tx.date)}
+                        </span>
                         {/* HOVER REVEALS IT ON A POINTER, because always-on glyphs on every row are
                             noise on a desktop and a hover-only control does not exist on a phone.
                             `focus-visible` keeps it reachable. */}
@@ -1142,7 +1144,7 @@ export function TransactionPanel() {
                       portfolio's REIT position reaches. `signedMoney` carries the U+2212 the app
                       pins in one place. */}
                   {!asking && tx.taxWithheld !== undefined && (
-                    <div className="mt-0.5 text-[11px] leading-4 text-muted">
+                    <div className="mt-0.5 font-mono text-[11px] leading-4 text-muted">
                       {t.transaction.withheldAndNet(
                         f.signedMoney(-tx.taxWithheld),
                         f.money(tx.amount - tx.taxWithheld),

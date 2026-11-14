@@ -203,7 +203,11 @@ export function Balances() {
             </Card>
           )}
           {rows.map((row, i) => (
-            <RecordCard key={row.date} index={i} title={f.date(row.date)}>
+            <RecordCard
+              key={row.date}
+              index={i}
+              title={<span className="font-mono">{f.date(row.date)}</span>}
+            >
               {row.cells.map((cell, ci) => (
                 <Fact key={columns[ci].id} label={columns[ci].name}>
                   {/* The same mark in both shells, and it names itself — a glyph with nothing in
