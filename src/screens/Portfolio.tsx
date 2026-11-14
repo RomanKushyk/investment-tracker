@@ -300,7 +300,6 @@ export function Portfolio() {
           </Card>
         )}
         <KpiCard
-          tone="tint"
           className="animate-in delay-150 duration-300 fade-in"
           valueSize="sm"
           label={t.analytics.portfolio.incomeEngine}
@@ -319,7 +318,7 @@ export function Portfolio() {
                 })()
               : undefined
           }
-          subClassName="text-pos-tint-text"
+          subClassName="text-ink"
         />
       </div>
       <AssetDialogs ctl={assetDialogs} />

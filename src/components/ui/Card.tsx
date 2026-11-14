@@ -10,7 +10,6 @@ export function Card({
   // caller that needs to measure one should not have to wrap it in another.
 }: ComponentPropsWithRef<'div'> & { radius?: 20 | 24 }) {
   const radiusClass = radius === 24 ? 'rounded-3xl' : 'rounded-[20px]';
-  return (
-    <div className={`${radiusClass} bg-card shadow-(--shadow-card) ${className}`} {...props} />
-  );
+  // Every content card is the one glass (glass.md § Signed, X3); its edge is drawn inside the box.
+  return <div className={`${radiusClass} glass ${className}`} {...props} />;
 }

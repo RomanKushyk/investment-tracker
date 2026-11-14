@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compile } from '@tailwindcss/node';
 import ts from 'typescript';
@@ -239,8 +239,10 @@ function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
-    else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(full);
+    // Fixtures are test code, like the tests: they read the tokens, they paint nothing.
+    if (statSync(full).isDirectory()) {
+      if (entry !== '__fixtures__') out.push(...sourceFiles(full));
+    } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(full);
   }
   return out;
 }
@@ -248,19 +250,19 @@ function sourceFiles(dir: string): string[] {
 /** A glass class or token in a class string, whatever its prefix or variant. */
 const NAMES_GLASS = /\bglass\b/;
 
-describe('nothing wears the glass yet', () => {
-  // #688 puts the content cards on it, and each consumer slice after; until then a use is a
+describe('only the surfaces whose issue has landed wear the glass', () => {
+  // #688 put the content cards on it; each consumer slice adds its own file. Any other use is a
   // surface painted ahead of its issue.
   // Core is an `@source` of the stylesheet, so a class string there is built too.
-  it('no source under src/ or packages/core/src names a glass class or token', () => {
+  it('no other source under src/ or packages/core/src names a glass class or token', () => {
     const core = sourceFiles(join(here, '../packages/core/src'));
     expect(core.length, 'the walk found almost nothing in core').toBeGreaterThan(10);
     const files = [...sourceFiles(here), ...core];
     expect(files.length, 'the walk found almost nothing').toBeGreaterThan(100);
-    const wearing = files.filter((file) =>
-      NAMES_GLASS.test(stripTs(readFileSync(file, 'utf8'), file)),
-    );
-    expect(wearing).toEqual([]);
+    const wearing = files
+      .filter((file) => NAMES_GLASS.test(stripTs(readFileSync(file, 'utf8'), file)))
+      .map((file) => relative(here, file).split(sep).join('/'));
+    expect(wearing.sort()).toEqual(['components/ui/Card.tsx', 'components/ui/KpiCard.tsx']);
   });
 
   it('the stylesheet applies no glass utility to anything', () => {

@@ -80,18 +80,29 @@ function ledgerCard(): string {
   return m[1];
 }
 
-/** Anchored by `<Card>` AND its `bg-panel` surface, with the token standing alone so
- *  `hover:bg-panel` or `bg-panel/50` cannot retarget it.
- *
- *  `<Card` IS PART OF THE ANCHOR because a standalone `bg-panel` on a plain `<div>` earlier
- *  in the file once captured the match and reported that element's classes as the card's.
- *  Nothing collides today, and the anchor STAYS: what it pins is that the subject is the
- *  CARD rather than whatever else shares a surface token, and the next control to reach for
- *  `bg-panel` would recreate it. */
+/** The only `<Card radius={24}>`, found in the parse tree: both cards wear the one glass, so no
+ *  class tells them apart, and no attribute's order or text can hide one. */
 function formCard(): string {
-  const m = PANEL.match(/<Card\b[^>]*className="([^"]*(?<![-:/\w])bg-panel(?![-/\w])[^"]*)"/);
-  if (m === null) throw new Error('no form Card (bg-panel) in TransactionPanel');
-  return m[1];
+  const sf = ts.createSourceFile('p.tsx', PANEL, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const found: ts.JsxAttributes[] = [];
+  const attr = (attrs: ts.JsxAttributes, name: string) =>
+    attrs.properties.find((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === name) as
+      ts.JsxAttribute | undefined;
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(sf) === 'Card' &&
+      attr(node.attributes, 'radius')?.initializer?.getText(sf) === '{24}'
+    )
+      found.push(node.attributes);
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  if (found.length !== 1) throw new Error(`${found.length} r24 Cards in TransactionPanel, not one`);
+  const cls = attr(found[0], 'className')?.initializer;
+  if (cls === undefined || !ts.isStringLiteral(cls))
+    throw new Error('the r24 Card has no literal className');
+  return cls.text;
 }
 
 /** Read from `/payouts`' own row, the file's charter applied to the breakpoint too: if the
@@ -165,9 +176,8 @@ describe('the three screens are composed by one expression', () => {
     // visually while leaving the ledger first sends a keyboard through every row and delete
     // button before the field the user can see at the top (WCAG 2.4.3, 1.3.2).
     //
-    // ANCHORED THROUGH `formCard()`, never `indexOf('bg-panel')` — the bare index is the
-    // idiom that docblock calls out, and it resolved to a different element entirely, so this
-    // assertion passed for years without ever looking at the form.
+    // ANCHORED THROUGH `formCard()`, never a bare token index, which can resolve to a different
+    // element and pass without ever looking at the form.
     const formAt = PANEL.indexOf(formCard());
     const ledgerAt = PANEL.indexOf('ref={ledgerRef}');
     expect(formAt, 'the form card is gone from the panel').toBeGreaterThan(-1);

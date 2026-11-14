@@ -151,6 +151,57 @@ export function composite(veil: { ch: number[]; alpha: number }, behind: string)
   return rgbHex(veil.ch.map((c, i) => c * veil.alpha + b[i] * (1 - veil.alpha)));
 }
 
+/** A `color-mix(in srgb, var(--color-x) N%, transparent)` token as the veil it paints. */
+export function mixOf(blocks: Blocks, theme: Theme, name: string): { ch: number[]; alpha: number } {
+  const value = inTheme(blocks, theme, name);
+  const m = value.match(
+    /^color-mix\(in srgb, var\(--color-([a-z0-9-]+)\) ([0-9.]+)%, transparent\)$/,
+  );
+  expect(m, `--color-${name} is not one token mixed with transparent (got ${value})`).not.toBeNull();
+  return { ch: channels(resolve(blocks, theme, m![1])), alpha: +m![2] / 100 };
+}
+
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+const toSrgb = (c: number) => (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+
+/** `saturate(s)` by Filter Effects 1's matrix, on sRGB values or on linear light: engines differ on
+ *  the space a filter function runs in, so a reading takes both. */
+export function saturate(hex: string, s: number, space: 'srgb' | 'linear'): string {
+  const m = [
+    [0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s],
+    [0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s],
+    [0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s],
+  ];
+  const v = channels(hex).map((c) => (space === 'linear' ? toLinear(c / 255) : c / 255));
+  const out = m.map((r) => Math.min(1, Math.max(0, r[0] * v[0] + r[1] * v[1] + r[2] * v[2])));
+  return rgbHex(out.map((c) => 255 * (space === 'linear' ? toSrgb(c) : c)));
+}
+
+/** Every plane the glass can show over the page and each glow peak (the blur only averages them),
+ *  for a reading to take the least contrasting; light's white grain only lightens, so it is left out. */
+export function glassPlanes(css: string, theme: Theme): string[] {
+  const blocks = themeBlocks(css);
+  const filter = ruleBody(css, '@utility glass').match(/\bbackdrop-filter:[^;]*saturate\(([0-9.]+)%\)/);
+  expect(filter, 'the glass utility declares no saturate()').not.toBeNull();
+  const s = +filter![1] / 100;
+  const page = resolve(blocks, theme, 'page');
+  let backdrops = [page, ...[1, 2, 3, 4].map((n) => composite(mixOf(blocks, theme, `glow-${n}-peak`), page))];
+  if (theme === 'dark') {
+    const url = blocks.dark.match(/--glow-grain:\s*url\("data:image\/svg\+xml,([^"]+)"\)/);
+    expect(url, 'dark declares no --glow-grain tile').not.toBeNull();
+    const opacity = +decodeURIComponent(url![1]).match(/<rect [^>]*opacity='([0-9.]+)'/)![1];
+    backdrops = backdrops.map((b) => composite({ ch: [128, 128, 128], alpha: opacity }, b));
+  }
+  const fill = mixOf(blocks, theme, 'glass-fill');
+  const sheen = mixOf(blocks, theme, 'glass-sheen');
+  return backdrops.flatMap((b) =>
+    (['srgb', 'linear'] as const).flatMap((space) => {
+      const plane = composite(fill, saturate(b, s, space));
+      return [plane, composite(sheen, plane)];
+    }),
+  );
+}
+
 /** The literal hex a theme declares; an alias is refused, since this reader's consumers
  *  cannot follow one. */
 export function declaredHex(blocks: Blocks, theme: Theme, name: string): string {

@@ -120,8 +120,8 @@ export function Seasonality() {
       </Card>
 
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
-        <div className="animate-in rounded-3xl bg-pos-tint px-[22px] py-5 duration-300 fade-in">
-          <div className="mb-1 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
+        <Card radius={24} className="animate-in px-[22px] py-5 duration-300 fade-in">
+          <div className="mb-1 text-[10px] tracking-[.12em] text-muted uppercase">
             {t.analytics.seasonality.incomeAnchor}
           </div>
           <div className="text-[13.5px] leading-[1.5]">
@@ -139,7 +139,7 @@ export function Seasonality() {
               t.analytics.seasonality.anchorEmpty
             )}
           </div>
-        </div>
+        </Card>
 
         <Card radius={24} className="animate-in px-[22px] py-5 duration-300 fade-in">
           <div className="mb-1 text-[10px] tracking-[.12em] text-muted uppercase">

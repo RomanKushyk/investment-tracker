@@ -246,7 +246,7 @@ export function Allocation() {
             )}
           </Card>
 
-          <div className="animate-in rounded-3xl border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in">
+          <Card radius={24} className="animate-in px-[23px] py-[21px] duration-300 fade-in">
             <div className="mb-2 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.analytics.allocation.rebalancePlan}
             </div>
@@ -272,7 +272,7 @@ export function Allocation() {
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

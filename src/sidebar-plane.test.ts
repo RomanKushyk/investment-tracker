@@ -268,17 +268,6 @@ describe("the wall's field rank carries the figures drawn on it", () => {
     expect(ratio(resolve(BLOCKS, theme, 'pos'), field), 'the gain').toBeGreaterThanOrEqual(4.5);
   });
 
-  // THE WALL IS ALSO A CARD PLANE: `KpiCard`'s `wall` tone borrows the rail's plane for one
-  // headline card per screen, which the `sb-field` readings above cannot speak for.
-  it.each(THEMES)('%s: the wall-toned KPI card clears 4.5 : 1 on `sb-bg`', (theme) => {
-    const wall = resolve(BLOCKS, theme, 'sb-bg');
-    expect(ratio(resolve(BLOCKS, theme, 'ink'), wall), 'the value').toBeGreaterThanOrEqual(4.5);
-    expect(ratio(resolve(BLOCKS, theme, 'pos'), wall), 'the gain sub-line').toBeGreaterThanOrEqual(
-      4.5,
-    );
-    expect(ratio(resolve(BLOCKS, theme, 'sb-item'), wall), 'the label').toBeGreaterThanOrEqual(4.5);
-  });
-
   it.each(THEMES)('%s: the selected currency clears 4.5 : 1 on its thumb', (theme) => {
     expect(
       ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'sb-item-active')),

@@ -575,7 +575,7 @@ export function TransactionPanel() {
           1.3.2). Collapsed, the column IS the sequence. */}
       <Card
         radius={24}
-        className="min-w-0 animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in max-lg:max-w-[560px] lg:col-start-2 lg:row-start-1"
+        className="min-w-0 animate-in px-[23px] py-[21px] duration-300 fade-in max-lg:max-w-[560px] lg:col-start-2 lg:row-start-1"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="font-display text-lg font-semibold">{t.transaction.title}</div>

@@ -59,7 +59,6 @@ export function Payouts() {
 
         <div className="flex flex-col gap-3.5">
           <KpiCard
-            tone="wall"
             className="animate-in duration-300 fade-in"
             label={t.analytics.receivedTotal}
             value={f.money(income.total)}
@@ -70,8 +69,8 @@ export function Payouts() {
             )}
           />
 
-          <div className="animate-in rounded-3xl bg-pos-tint px-[22px] py-5 duration-300 fade-in">
-            <div className="mb-1.5 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
+          <Card radius={24} className="animate-in px-[22px] py-5 duration-300 fade-in">
+            <div className="mb-1.5 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.analytics.upcoming}
             </div>
             <div className="flex flex-col gap-2 text-[13px]">
@@ -90,7 +89,7 @@ export function Payouts() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
           <KpiCard
             className="animate-in duration-300 fade-in"

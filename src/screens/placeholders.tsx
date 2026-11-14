@@ -97,7 +97,6 @@ export function OverviewPlaceholder() {
       />
       <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
         <KpiCard
-          tone="wall"
           label={o.totalCapital}
           value={<Dash />}
           // The figure in the other currency, and the rate line under it.
@@ -133,12 +132,12 @@ export function OverviewPlaceholder() {
         </Card>
 
         <div className="flex flex-col gap-3.5">
-          <div className="rounded-3xl bg-pos-tint px-[22px] py-5">
-            <div className="mb-1.5 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
+          <Card radius={24} className="px-[22px] py-5">
+            <div className="mb-1.5 text-[10px] tracking-[.12em] text-muted uppercase">
               {o.nextPayouts}
             </div>
-            <Rows tone="card" className="flex flex-col gap-2" rowClassName="h-[19.5px]" />
-          </div>
+            <Rows className="flex flex-col gap-2" rowClassName="h-[19.5px]" />
+          </Card>
 
           <Card radius={24} className="p-5">
             <div className="mb-1.5 text-[10px] tracking-[.12em] text-muted uppercase">
@@ -266,7 +265,7 @@ export function TransactionsPlaceholder() {
         {/* The form leads, as it does: it is the side block on the right and first when stacked. */}
         <Card
           radius={24}
-          className="min-w-0 border border-panel-border bg-panel px-[22px] py-5 max-lg:max-w-[560px] lg:col-start-2 lg:row-start-1"
+          className="min-w-0 px-[23px] py-[21px] max-lg:max-w-[560px] lg:col-start-2 lg:row-start-1"
         >
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <div className="font-display text-lg font-semibold">{t.transaction.title}</div>
@@ -275,11 +274,7 @@ export function TransactionsPlaceholder() {
             </span>
           </div>
           <p className="mt-1 mb-3.5 text-xs text-muted">{t.transaction.subtitle}</p>
-          <Block
-            kind="fields"
-            tone="card"
-            className="h-[318.5px] rounded-[1px] max-md:h-[322.5px]"
-          />
+          <Block kind="fields" className="h-[318.5px] rounded-[1px] max-md:h-[322.5px]" />
         </Card>
         <Card className="min-w-0 py-4 lg:col-start-1 lg:row-start-1">
           <Rows
@@ -420,18 +415,13 @@ export function PayoutsPlaceholder() {
           <Block kind="chart" className="h-[240px] rounded-[2px]" />
         </Card>
         <div className="flex flex-col gap-3.5">
-          <KpiCard
-            tone="wall"
-            label={a.receivedTotal}
-            value={<Dash />}
-            sub={<Dash className="h-4" />}
-          />
-          <div className="rounded-3xl bg-pos-tint px-[22px] py-5">
-            <div className="mb-1.5 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
+          <KpiCard label={a.receivedTotal} value={<Dash />} sub={<Dash className="h-4" />} />
+          <Card radius={24} className="px-[22px] py-5">
+            <div className="mb-1.5 text-[10px] tracking-[.12em] text-muted uppercase">
               {a.upcoming}
             </div>
-            <Rows tone="card" className="flex flex-col gap-2" rowClassName="h-[19.5px]" />
-          </div>
+            <Rows className="flex flex-col gap-2" rowClassName="h-[19.5px]" />
+          </Card>
           <KpiCard
             label={a.reinvested}
             valueSize="md"
@@ -517,7 +507,7 @@ export function SeasonalityPlaceholder() {
         <div className="mt-2 text-[11.5px] text-muted">{t.analytics.prose.seasonalityNote}</div>
       </Card>
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
-        <Conclusion label={s.incomeAnchor} tint />
+        <Conclusion label={s.incomeAnchor} />
         <Conclusion label={s.couponSeason} />
         <Conclusion label={s.quietStretch} />
       </div>
@@ -526,25 +516,14 @@ export function SeasonalityPlaceholder() {
 }
 
 /** A finding card: its name, and two lines for what the data will say. */
-function Conclusion({ label, tint = false }: { label: string; tint?: boolean }) {
-  const body = (
-    <>
-      <div
-        className={`mb-1 text-[10px] tracking-[.12em] uppercase ${tint ? 'text-pos-tint-text' : 'text-muted'}`}
-      >
-        {label}
-      </div>
-      <div className="flex flex-col gap-2 py-1">
-        <Bar w="90%" tone={tint ? 'card' : 'panel'} />
-        <Bar w="60%" tone={tint ? 'card' : 'panel'} />
-      </div>
-    </>
-  );
-  return tint ? (
-    <div className="rounded-3xl bg-pos-tint px-[22px] py-5">{body}</div>
-  ) : (
+function Conclusion({ label }: { label: string }) {
+  return (
     <Card radius={24} className="px-[22px] py-5">
-      {body}
+      <div className="mb-1 text-[10px] tracking-[.12em] text-muted uppercase">{label}</div>
+      <div className="flex flex-col gap-2 py-1">
+        <Bar w="90%" />
+        <Bar w="60%" />
+      </div>
     </Card>
   );
 }
@@ -599,7 +578,6 @@ export function PortfolioPlaceholder() {
         />
         <KpiCard label={p.laggard} valueSize="sm" value={<Dash />} sub={<Dash className="h-4" />} />
         <KpiCard
-          tone="tint"
           label={p.incomeEngine}
           valueSize="sm"
           value={<Dash />}
@@ -634,12 +612,12 @@ export function AllocationPlaceholder() {
             </div>
             <Rows className="flex flex-col gap-3.5" rowClassName="h-[34px]" />
           </Card>
-          <div className="rounded-3xl border border-panel-border bg-panel px-[22px] py-5">
+          <Card radius={24} className="px-[23px] py-[21px]">
             <div className="mb-2 text-[10px] tracking-[.12em] text-muted uppercase">
               {al.rebalancePlan}
             </div>
-            <Rows tone="card" className="flex flex-col gap-2" rowClassName="h-5" />
-          </div>
+            <Rows className="flex flex-col gap-2" rowClassName="h-5" />
+          </Card>
         </div>
       </div>
     </PlaceholderScreen>

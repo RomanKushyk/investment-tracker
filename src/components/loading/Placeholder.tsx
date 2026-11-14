@@ -1,26 +1,21 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 // THE PIECES OF THE FIRST-PAINT LOADING STATE. Every one is decoration: hidden from assistive
-// technology, interactive in nothing, and drawn in the tokens the real screen is. A block takes
-// `panel` on a card and `card` on a tinted surface; it is no component boundary, so the 3 : 1 rule
-// does not bind it, and meaning goes through the status line.
+// technology, interactive in nothing, and drawn in the tokens the real screen is. A block is `panel`;
+// it is no component boundary, so the 3 : 1 rule does not bind it, and meaning goes through the
+// status line.
 
 /** The app's pulse, 1.2 s as the import dialog's busy states run it. Under reduced motion the global
  *  kill switch in `index.css` leaves it still. */
 const PULSE = 'animate-pulse [animation-duration:1.2s]';
 
-type Tone = 'panel' | 'card';
-const TONE: Record<Tone, string> = { panel: 'bg-panel', card: 'bg-card' };
-
 /** A box held for what is on its way. `kind` names what it holds, for the tests that count them. */
 export function Block({
   kind = 'block',
-  tone = 'panel',
   className = '',
   style,
 }: {
   kind?: string;
-  tone?: Tone;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -28,22 +23,15 @@ export function Block({
     <span
       data-placeholder={kind}
       aria-hidden="true"
-      className={`block ${PULSE} ${TONE[tone]} ${className}`}
+      className={`block ${PULSE} bg-panel ${className}`}
       style={style}
     />
   );
 }
 
 /** A line of text: 12 px at the radius a share bar draws its own. */
-export function Bar({ w, tone, className = '' }: { w: string; tone?: Tone; className?: string }) {
-  return (
-    <Block
-      kind="bar"
-      tone={tone}
-      className={`h-3 rounded-[3px] ${className}`}
-      style={{ width: w }}
-    />
-  );
+export function Bar({ w, className = '' }: { w: string; className?: string }) {
+  return <Block kind="bar" className={`h-3 rounded-[3px] ${className}`} style={{ width: w }} />;
 }
 
 /** «—» in `faint`, at the type size of the figure it stands for. Not announced. */
@@ -65,29 +53,27 @@ export function Slot({ children, className = '' }: { children: ReactNode; classN
 }
 
 /** A row of a list or a table: a label bar and a figure bar, at the height the real row has. */
-export function Row({ tone, className = '' }: { tone?: Tone; className?: string }) {
+export function Row({ className = '' }: { className?: string }) {
   return (
     <div data-placeholder-row className={`flex items-center justify-between gap-4 ${className}`}>
-      <Bar w="40%" tone={tone} />
-      <Bar w="22%" tone={tone} />
+      <Bar w="40%" />
+      <Bar w="22%" />
     </div>
   );
 }
 
 /** Three rows, as a list is held whatever its length will be. */
 export function Rows({
-  tone,
   className = '',
   rowClassName = '',
 }: {
-  tone?: Tone;
   className?: string;
   rowClassName?: string;
 }) {
   return (
     <div className={className}>
       {[0, 1, 2].map((i) => (
-        <Row key={i} tone={tone} className={rowClassName} />
+        <Row key={i} className={rowClassName} />
       ))}
     </div>
   );

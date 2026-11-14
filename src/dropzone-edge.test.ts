@@ -4,7 +4,14 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { luminance, ratio, resolve, stripCss, themeBlocks } from './__fixtures__/palette';
+import {
+  glassPlanes,
+  luminance,
+  ratio,
+  resolve,
+  stripCss,
+  themeBlocks,
+} from './__fixtures__/palette';
 
 // THE IMPORT DROPZONE'S EDGE, at the same bar as the field edge, the switch and the
 // floating surfaces (`docs/superpowers/specs/2026-11-05-layout-refresh/forms-and-dialogs.md`
@@ -299,7 +306,14 @@ describe('the markup points at the rank', () => {
     ).toBeGreaterThan(0);
     expect(
       stripTs(read('components/ui/Card.tsx'), 'components/ui/Card.tsx'),
-      '`Card` no longer paints `bg-card`',
-    ).toMatch(/\bbg-card\b/);
+      '`Card` no longer wears the glass, whose fallback is `card`',
+    ).toMatch(/\bglass\b/);
+  });
+
+  // `card` is the glass's opaque fallback; where the glass draws, the rest edge reads against it.
+  it.each(THEMES)('%s: the rest edge clears 3 : 1 outward on the glass, at its least', (theme) => {
+    const edge = resolve(BLOCKS, theme, 'field-border');
+    const least = Math.min(...glassPlanes(CSS, theme).map((plane) => ratio(edge, plane)));
+    expect(least).toBeGreaterThanOrEqual(3);
   });
 });
