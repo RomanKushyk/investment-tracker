@@ -26,11 +26,12 @@ import { HeldRows } from './Coverage';
 type State = 'pending' | ArchiveOperation['state'];
 type Row = { kind: 'pending'; entry: PendingStart } | { kind: 'run'; run: ArchiveOperation };
 
-const CHIP: Record<State, string> = {
-  pending: 'border border-field-border text-muted',
-  running: 'bg-info-tint text-info-tint-text',
-  succeeded: 'bg-panel text-ink',
-  failed: 'bg-warn-tint text-warn-tint-text',
+/** The glyph's status colour. Never `pos` or `neg`: a run that succeeded is not a gain. */
+const TONE: Record<State, string> = {
+  pending: 'text-muted',
+  running: 'text-info',
+  succeeded: 'text-muted',
+  failed: 'text-warn',
 };
 const GLYPH: Record<State, LucideIcon> = {
   pending: Clock,
@@ -143,7 +144,7 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
               className="animate-in border-t border-hairline align-top duration-200 fade-in"
             >
               <td className="py-3 pr-3">
-                <Chip state={stateOf(row)} />
+                <Status state={stateOf(row)} />
               </td>
               <td className="py-3 pr-3">
                 <Operation row={row} />
@@ -181,7 +182,7 @@ function Stack({ rows, me }: { rows: Row[]; me: string }) {
           className="animate-in py-3.5 duration-200 fade-in not-first:border-t not-first:border-hairline"
         >
           <div className="mb-2 flex items-center justify-between gap-2.5">
-            <Chip state={stateOf(row)} />
+            <Status state={stateOf(row)} />
             <span className="text-[11px] text-muted">
               <Started row={row} />
             </span>
@@ -211,20 +212,21 @@ const modeOf = (row: Row) => (row.kind === 'pending' ? row.entry.start.mode : ro
 const dayOr = (date: (iso: string) => string, v: unknown) =>
   typeof v === 'string' && v !== '' ? date(v) : '—';
 
-/** Keyed by its state, so a state that changes cross-fades rather than swaps. */
-function Chip({ state }: { state: State }) {
+/** A glyph and a word with no box, keyed by its state, so a state that changes cross-fades rather
+ *  than swaps. Shape and word carry the state; the hue only repeats it. */
+function Status({ state }: { state: State }) {
   const t = useT();
   const Glyph = GLYPH[state];
   return (
     <span
       key={state}
-      className={`inline-flex h-[22px] animate-in items-center gap-[5px] rounded-[6px] px-2 text-[11px] leading-[16.5px] font-semibold whitespace-nowrap duration-200 fade-in ${CHIP[state]}`}
+      className="inline-flex h-[22px] animate-in items-center gap-1.5 text-[11px] leading-[16.5px] font-semibold whitespace-nowrap text-ink duration-200 fade-in"
     >
       <Glyph
-        size={12}
-        strokeWidth={2}
+        size={14}
+        strokeWidth={2.25}
         aria-hidden
-        className={state === 'running' ? 'animate-spin' : undefined}
+        className={`shrink-0 ${TONE[state]} ${state === 'running' ? 'motion-safe:animate-spin' : ''}`}
       />
       {t.archive.runs.state[state]}
     </span>

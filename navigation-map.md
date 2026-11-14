@@ -269,8 +269,8 @@ The super-admin's panel, reached from «Адміністрування» → «�
     - «Імпортувати історію фондів»: a helper; «Фонди», one row per fund (the ref in mono over its name in muted) with a switch, every fund on; the same «Запустити…».
     - «Запустити…» stays pressable while a start is out.
   - **«Журнал запусків»**, with «новіші вгорі» to its right. While its first read is out, three held `panel` rows.
-    - Layout: at and above 768, a table in mono, Стан · Операція · Почато · Запустив · Результат. Below, stacked rows: the chip with the time to its right, the operation, the result, then «Запустив: …».
-    - Four chips, 22 tall at radius 6: «Надсилається» (`Clock`, a `field-border` outline), «Виконується» (`LoaderCircle`, spinning, `info-tint`), «Готово» (`Check`, `panel`), «Помилка» (`TriangleAlert`, `warn-tint`).
+    - Layout: at and above 768, a table in mono, Стан · Операція · Почато · Запустив · Результат. Below, stacked rows: the status with the time to its right, the operation, the result, then «Запустив: …».
+    - Four statuses, each a 14 px glyph in its colour and the word in 11 px semibold `ink` on a 22 px line, with no fill, border or padding: «Надсилається» (`Clock`, `muted`), «Виконується» (`LoaderCircle`, `info`, spinning), «Готово» (`Check`, `muted`), «Помилка» (`TriangleAlert`, `warn`). None is `pos` or `neg`.
     - The operation reads «Дозапис · Inzhur|НБУ» over its range, or «Імпорт історії» over its refs in mono.
     - «Почато» is «dd.MM.yyyy, HH:mm» in Kyiv time, or «щойно» for a start not answered yet. A running run adds «до HH:mm», its deadline.
     - «Запустив» is «Ви» for the caller, else the first eight characters of the id and «…».
@@ -305,7 +305,7 @@ Interactions to verify:
 10. **A start's answer** (stub `/relay/admin/archive/operations` in an init-script `fetch` wrapper, since dev answers 405):
     - A 202 turns the pending row «Виконується», and the log is read again.
     - The log is read every 10 s while a row is pending or running, and stops once none is.
-    - A run that finishes takes «Готово» or «Помилка» in place, its chip cross-fading.
+    - A run that finishes takes «Готово» or «Помилка» in place, its status cross-fading.
     - While a start awaits its answer, a run the log lists as started after the press is held back.
 11. **A refused start** records no row, and the pending row leaves.
     - On dev, a 405: under the pressed form's button, an `info-tint` notice with `Info`: «Запуск тут вимкнено: ремонти виконує лише продакшн. Діагностика й журнал працюють.»
@@ -319,7 +319,7 @@ Interactions to verify:
 13. 360px:
     - The forms stack, the two date fields share their row, and the log is stacked rows.
     - Every control of the forms, the dialog and the log keeps a 44 × 44 hit area.
-    - `prefers-reduced-motion` leaves the dialog, the chips and the run rows instant.
+    - `prefers-reduced-motion` leaves the dialog, the statuses and the run rows instant, and the running glyph still.
 
 ## `/profile` — Profile
 
