@@ -521,3 +521,17 @@ describe('the drawer over unsaved work', () => {
     expect(location.pathname).toBe('/portfolio');
   });
 });
+
+// motion.md: "The shell never moves: the sidebar, header, dock and glow stay put".
+describe('the backdrop', () => {
+  it('stays mounted across a route change', async () => {
+    shell.desktop = true;
+    const router = mount();
+    await act(() => router.navigate('/overview'));
+    const backdrop = document.querySelector('[data-backdrop]');
+    expect(backdrop, 'the shell mounts no backdrop').not.toBeNull();
+    await act(() => router.navigate('/balances'));
+    expect(document.querySelector('[data-backdrop]')).toBe(backdrop);
+    expect(backdrop!.isConnected).toBe(true);
+  });
+});

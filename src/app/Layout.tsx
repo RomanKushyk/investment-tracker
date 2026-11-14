@@ -9,6 +9,7 @@ import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
 import { pageLeaving, subscribeToLeaving } from '../hooks/useSignOut';
 import { AppHeader } from './AppHeader';
+import { Backdrop } from './Backdrop';
 import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { Sidebar, SidebarDrawer } from './Sidebar';
 import { SidebarRail } from './SidebarRail';
@@ -167,6 +168,7 @@ export function Layout() {
     <RadixDialog.Root open={drawerOpen} onOpenChange={toggleDrawer}>
       {/* Outside every screen, so it is not under a busy root; mounted empty, so its text is a change. */}
       <LoadingStatus />
+      <Backdrop />
       {/* `dvh`, not `vh`: `100vh` is the height with the toolbars RETRACTED, so a
           `min-h-screen` shell sits under the chrome. */}
       <div className="flex min-h-dvh">

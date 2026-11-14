@@ -264,6 +264,16 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 72%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 62%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 6%, transparent);
+  /* THE GLOW (shell.md § Backdrop). Its own literal hues, not the asset tokens, so the caps hold
+     when an asset colour moves; each peak is that hue's cap for `muted` on a bare peak. */
+  --color-glow-1: #8a5a3a;
+  --color-glow-2: #b07a52;
+  --color-glow-3: #4a6178;
+  --color-glow-4: #8a5a3a;
+  --color-glow-1-peak: color-mix(in srgb, var(--color-glow-1) 19%, transparent);
+  --color-glow-2-peak: color-mix(in srgb, var(--color-glow-2) 25%, transparent);
+  --color-glow-3-peak: color-mix(in srgb, var(--color-glow-3) 18.5%, transparent);
+  --color-glow-4-peak: color-mix(in srgb, var(--color-glow-4) 19%, transparent);
 
   /* Chart paint aliases — core/colors.ts emits var(--color-chart-*) for SVG
      fill/stroke, which gives the dark theme a chart-specific seam to redefine. */
@@ -411,6 +421,16 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 82%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 6%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 55%, transparent);
+  --color-glow-1: #d8b494;
+  --color-glow-2: #b07a52;
+  --color-glow-3: #93a4b5;
+  --color-glow-4: #d8b494;
+  --color-glow-1-peak: color-mix(in srgb, var(--color-glow-1) 20%, transparent);
+  --color-glow-2-peak: color-mix(in srgb, var(--color-glow-2) 18%, transparent);
+  --color-glow-3-peak: color-mix(in srgb, var(--color-glow-3) 16%, transparent);
+  --color-glow-4-peak: color-mix(in srgb, var(--color-glow-4) 12%, transparent);
+  /* Dark's grain is WinUI Acrylic's neutral grey ramp: `muted` has the room for its mean. */
+  --glow-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.3333 0.3333 0.3333 0 0 0.3333 0.3333 0.3333 0 0 0.3333 0.3333 0.3333 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 
   /* Elevation comes from the surface step, never from shadow. `0 0 #0000` rather
      than `none` — see the token block above. */
@@ -500,6 +520,31 @@
     var(--shadow-glass-well);
 }
 
+/* THE BACKDROP: the glow and its grain, one fixed layer behind each shell. Sized in viewport units,
+   so neither a scrollbar coming and going nor a toolbar retracting moves it. Radii in vmin: no spot
+   reaches another's centre, so where two overlap the page is never darker than one peak. */
+@utility glow {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    var(--glow-grain),
+    radial-gradient(62.5vmin 62.5vmin at 85% 0%, var(--color-glow-1-peak), transparent 68%),
+    radial-gradient(55.6vmin 55.6vmin at 10% 15%, var(--color-glow-2-peak), transparent 68%),
+    radial-gradient(62.5vmin 62.5vmin at 20% 100%, var(--color-glow-3-peak), transparent 68%),
+    radial-gradient(55.6vmin 55.6vmin at 95% 90%, var(--color-glow-4-peak), transparent 68%);
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+
+  /* Safari never reports it, so the glow above passes contrast on its own. */
+  @media (prefers-reduced-transparency: reduce) {
+    display: none;
+  }
+}
+
 /* The theme cross-fade: 200ms linear, ONCE, on exactly the four properties that
    carry colour. `fill` and `stroke` are there because the charts are SVG and
    would otherwise snap while the page around them faded.
@@ -544,6 +589,9 @@
      scrollbars and caret it paints itself follow the theme. */
   :root {
     color-scheme: light;
+    /* Light's grain is white specks only: the light peaks are capped at AA for `muted`, and a
+       darker speck would take it under (WCAG F83). The dark block swaps the tile. */
+    --glow-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
     /* Pull-to-refresh reloads the page and the quote draft is held in memory until
        "Save snapshot", so an accidental overscroll at the top of `/` discards the
        ritual's work. On the ROOT and not on `body`: overscroll-behavior propagates

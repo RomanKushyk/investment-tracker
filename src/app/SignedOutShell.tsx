@@ -5,6 +5,7 @@ import { LanguageControl } from '../components/LanguageControl';
 import { Card } from '../components/ui/Card';
 import { TAP_44 } from '../components/ui/tap-target';
 import { useT } from '../i18n/useT';
+import { Backdrop } from './Backdrop';
 import { LEGAL_LINKS } from './legal-links';
 import { Mark } from './Sidebar';
 
@@ -23,7 +24,9 @@ export function SignedOutShell({
 }) {
   const t = useT();
   return (
-    <div className="min-h-dvh bg-page text-ink">
+    // `isolate`, so the glow's -1 layer paints over this `bg-page` and under the content.
+    <div className="isolate min-h-dvh bg-page text-ink">
+      <Backdrop />
       <header className="flex h-[57px] items-center justify-between border-b border-hairline bg-page px-9 max-md:px-3">
         <div className="flex items-center gap-2.5">
           <Mark size={28} />
