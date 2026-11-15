@@ -26,14 +26,14 @@ export function ScreenHeader({
   return (
     <>
       {actions === undefined ? (
-        <h2 className="mb-1 text-[26px]">{title}</h2>
+        <h2 className="mb-1 text-title">{title}</h2>
       ) : (
         <div className="mb-1 flex flex-wrap items-center gap-3">
-          <h2 className="text-[26px]">{title}</h2>
+          <h2 className="text-title">{title}</h2>
           <div className="ml-auto flex items-center gap-2">{actions}</div>
         </div>
       )}
-      <p className="mb-[22px] text-[13px] text-muted">{subtitle}</p>
+      <p className="mb-[22px] text-body text-muted">{subtitle}</p>
     </>
   );
 }

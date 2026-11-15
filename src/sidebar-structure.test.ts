@@ -232,15 +232,14 @@ describe('Settings leaves the scrolling band, and its caption goes with it', () 
   });
 });
 
-describe('the group caption is its own size, and no longer shouts', () => {
-  // Sentence case, against the uppercase it replaces. Still small text, so `sb-label`'s
-  // recorded shortfall stands and is not repaired here.
-  it('sets the caption at 11px on the drawn tracking', () => {
+describe('the group caption is a section label', () => {
+  // L3 (`type.md` § Signed): sidebar groups are caps +.12em at 500, the label role's recipe. Still
+  // small text, so `sb-label`'s recorded shortfall stands and is not repaired here.
+  it('sets the caption in the caps label recipe', () => {
     const header = linesWith(/\btext-sb-label\b/).filter((l) => /h-\[18px\]/.test(l));
     expect(header.length, 'the group caption row is gone').toBe(1);
-    expect(header[0], 'the caption is not 11px').toMatch(/text-\[11px\]/);
-    expect(header[0], 'the caption kept the shipped .12em tracking').toMatch(/tracking-\[\.02em\]/);
-    expect(header[0], 'the caption still shouts').not.toMatch(/\buppercase\b/);
+    expect(header[0], 'the caption left the caps label').toMatch(/\btext-label-caps\b/);
+    expect(header[0], 'the caption does not read in caps').toMatch(/\buppercase\b/);
   });
 });
 
@@ -339,14 +338,14 @@ describe("the account is the footer band's last row", () => {
   // rows take the same row and the same pill, or Settings moves when the relay answers. The
   // address is the profile's link at the row's 36
   // (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md` § Signed): the
-  // pill's states on a box whose 10 + 16 + 10 is the row's `h-[36px]`.
+  // pill's states on a box whose 10 + the small role's 16 + 10 is the row's `h-[36px]`.
   it('draws both answers from one row and one pill', () => {
     const at = SIDEBAR.indexOf('function AccountRows');
     const rows = SIDEBAR.slice(at, SIDEBAR.indexOf('</AccountFold>', at));
     expect(rows.match(/className=\{ACCOUNT_ROW\}/g)?.length, 'a row left the shared row').toBe(1);
     expect(rows.match(/ACCOUNT_LINK\b/g)?.length, 'the address left the shared link').toBe(1);
     expect(SIDEBAR, "the address link left the row's height or the pill's states").toMatch(
-      /const ACCOUNT_LINK = pillClass\('py-2\.5', 'rounded-\[9px\]', 'text-\[11px\] leading-\[16px\]'\);/,
+      /const ACCOUNT_LINK = pillClass\('py-2\.5', 'rounded-\[9px\]', 'text-small'\);/,
     );
     expect(SIDEBAR, "the row's height moved").toMatch(/const ACCOUNT_ROW = `[^`]*\bh-\[36px\]/);
     expect(rows.match(/ACCOUNT_PILL\b/g)?.length, 'a pill left the shared pill').toBe(2);

@@ -6,9 +6,9 @@ import type { CSSProperties, ReactNode } from 'react';
 type ValueSize = 'lg' | 'md' | 'sm';
 
 const VALUE_SIZE: Record<ValueSize, string> = {
-  lg: 'text-[26px]',
-  md: 'text-[22px]',
-  sm: 'text-[19px]',
+  lg: 'text-title',
+  md: 'text-kpi',
+  sm: 'text-kpi',
 };
 
 // `valueSize` is an explicit variant, not a className override, so a caller
@@ -45,14 +45,14 @@ export function KpiCard({
       className={`rounded-3xl glass px-[23px] py-[21px] text-ink transition ${className}`}
       style={style}
     >
-      <div className="text-[10px] tracking-[.12em] text-muted uppercase">{label}</div>
+      <div className="text-label-figure text-muted">{label}</div>
       <div
-        className={`font-display font-semibold ${VALUE_SIZE[valueSize]} ${valueClassName}`}
+        className={`font-display ${VALUE_SIZE[valueSize]} ${valueClassName}`}
         {...(timing === undefined ? {} : { elementtiming: timing })}
       >
         {value}
       </div>
-      {sub != null && <div className={`mt-0.5 text-xs ${subClassName}`}>{sub}</div>}
+      {sub != null && <div className={`mt-0.5 text-small ${subClassName}`}>{sub}</div>}
       {children}
     </div>
   );

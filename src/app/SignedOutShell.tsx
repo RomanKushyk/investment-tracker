@@ -30,9 +30,7 @@ export function SignedOutShell({
       <header className="flex h-[57px] items-center justify-between border-b border-hairline bg-page px-9 max-md:px-3">
         <div className="flex items-center gap-2.5">
           <Mark size={28} />
-          <span className="font-display text-[15px] leading-[20px] font-semibold text-ink">
-            quirenote
-          </span>
+          <span className="font-display text-sub text-ink">quirenote</span>
         </div>
         <LanguageControl />
       </header>
@@ -47,14 +45,14 @@ export function SignedOutShell({
           {LEGAL_LINKS.map(([to, document], i) => (
             <Fragment key={to}>
               {i > 0 && (
-                <span aria-hidden className="mx-2 text-[12px] leading-[18px] text-muted">
+                <span aria-hidden className="mx-2 text-small text-muted">
                   ·
                 </span>
               )}
               <NavLink
                 to={to}
                 {...(notice === 'tab' && { target: '_blank', rel: 'noopener' })}
-                className={`text-[12px] leading-[18px] text-muted underline underline-offset-2 transition-colors hover:text-ink ${TAP_44}`}
+                className={`text-small text-muted underline underline-offset-2 transition-colors hover:text-ink ${TAP_44}`}
               >
                 {t[document].link}
                 {notice === 'tab' && <span className="sr-only"> {t.privacy.newTab}</span>}

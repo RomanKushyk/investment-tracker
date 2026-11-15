@@ -4,7 +4,7 @@ export function CornerBadge({ shown, top }: { shown: string; top: 'top-[2px]' | 
   return (
     <span
       aria-hidden
-      className={`absolute ${top} right-[2px] grid h-4 min-w-4 place-items-center rounded-[4px] bg-sb-indicator px-1 text-[10px] leading-[10px] font-bold text-card`}
+      className={`absolute ${top} right-[2px] grid h-4 min-w-4 place-items-center rounded-[4px] bg-sb-indicator px-1 text-label font-bold text-card`}
     >
       {shown}
     </span>

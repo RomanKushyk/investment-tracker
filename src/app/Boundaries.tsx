@@ -33,7 +33,7 @@ function Body({
     <>
       <Glyph aria-hidden className="mb-4 size-6 flex-none text-muted" strokeWidth={2} />
       {title}
-      <p className="mb-[22px] text-[13px] leading-[19.5px] text-muted">{lead}</p>
+      <p className="mb-[22px] text-body text-muted">{lead}</p>
       {children}
     </>
   );

@@ -48,6 +48,7 @@ The count at «3» and «99+» on the super-admin's rail with its role strip, in
   - Signed out: «Ви не ввійшли» as a 36 px status row in `muted`, then «Увійти» as the row.
   - While `/me` is unread, the slot is held empty at the signed-in rows' height, so nothing moves when the answer lands.
   - Legal: «Конфіденційність · Умови» (11 / 14.25, links underlined in `sb-item`), the version on a second line 4 px under it in `sb-label`.
+    - *Overturned by the owner's ruling on #689: both lines take the label role, 11 / 14 ([type.md](type.md#signed)).*
   - On /profile the address row takes the nav row's active state, in the panel, the «Ще» sheet and the dock.
 - **The rail's hover label (T1, as shipped).**
   - `card` fill, a 1 px `field-border` edge, r8, padding 6 / 10, 12 / 16 at 500 in `ink`, and a `0 4px 12px` `ink` 10 % shadow in light only. It is today's `Tooltip.tsx`.

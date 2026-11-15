@@ -83,10 +83,10 @@ export function PeriodControl({ from, to }: { from: string | undefined; to: stri
           here; clamped, it re-colours and gains a clause.
 
           `warn-tint-text`, not `warn`, which is under 4,5 : 1 on `page` and so
-          fails 1.4.3 at this 11 px body size. */}
+          fails 1.4.3 at this body size. */}
       <div
         id={lineId}
-        className={`text-[11px] transition-colors duration-150 ${
+        className={`text-small transition-colors duration-150 ${
           resolved.clamped ? 'text-warn-tint-text' : 'text-muted'
         }`}
       >

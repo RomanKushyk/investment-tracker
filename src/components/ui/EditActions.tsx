@@ -78,11 +78,9 @@ export function EditActions(props: EditActionsProps) {
           is what keeps it meaning something. */}
       <Dialog open={mode.asking} onOpenChange={(open) => !open && mode.keepEditing()}>
         <DialogHeader>
-          <DialogTitle className="text-[19px]">{t.edit.discardTitle}</DialogTitle>
+          <DialogTitle className="text-h3">{t.edit.discardTitle}</DialogTitle>
         </DialogHeader>
-        <DialogBody className="text-[13px] leading-[1.55] text-muted">
-          {t.edit.discardBody}
-        </DialogBody>
+        <DialogBody className="text-body text-muted">{t.edit.discardBody}</DialogBody>
         <DialogFooter>
           {/* The band pads itself and the row lives inside it: `DialogFooter`
               takes children only, so its gutter cannot be overridden per

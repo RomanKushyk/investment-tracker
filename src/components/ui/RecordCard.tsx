@@ -8,8 +8,8 @@ import { Card } from './Card';
 export function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-[10.5px] tracking-[.08em] text-muted uppercase">{label}</dt>
-      <dd className="m-0 font-mono text-[12.5px] font-bold">{children}</dd>
+      <dt className="text-label-caps text-muted uppercase">{label}</dt>
+      <dd className="m-0 font-mono text-table font-bold">{children}</dd>
     </div>
   );
 }
@@ -62,12 +62,12 @@ export function RecordCard({
       <div className="mb-3.5 flex items-center gap-3">
         {avatar}
         <div className="min-w-0 flex-1">
-          {eyebrow !== undefined && <div className="text-[10.5px] text-muted">{eyebrow}</div>}
+          {eyebrow !== undefined && <div className="text-label text-muted">{eyebrow}</div>}
           {/* `max-md:truncate`, not `truncate`: the overflow it answers is at
               360, and unconditional `nowrap` would also cut a long name on a
               wide desktop card where it used to wrap, with nothing to recover
               it. */}
-          <h3 className="m-0 text-[17px] max-md:truncate">{title}</h3>
+          <h3 className="m-0 text-h3 max-md:truncate">{title}</h3>
         </div>
         {tag !== undefined && <span className="flex-none">{tag}</span>}
       </div>

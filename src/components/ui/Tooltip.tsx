@@ -36,7 +36,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
           // § Settled by the brief).
           side="right"
           sideOffset={16}
-          className="z-50 animate-in rounded-[8px] border border-field-border bg-card px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap text-ink shadow-(--shadow-popover) duration-150 zoom-in-95 fade-in"
+          className="z-50 animate-in rounded-[8px] border border-field-border bg-card px-2.5 py-1.5 text-small font-medium whitespace-nowrap text-ink shadow-(--shadow-popover) duration-150 zoom-in-95 fade-in"
         >
           <span aria-hidden>{label}</span>
         </RadixTooltip.Content>

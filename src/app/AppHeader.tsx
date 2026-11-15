@@ -82,9 +82,7 @@ export function AppHeader({
           // The band's content on the page plane: the bar refuses the `sb-*` family.
           <div className="flex min-w-0 animate-in items-center gap-2.5 duration-300 ease-soft fade-in">
             <Shield size={18} strokeWidth={2} aria-hidden className="flex-none text-accent" />
-            <span className="truncate font-display text-[15px] font-semibold tracking-[-.01em] text-ink">
-              {t.nav.superAdmin}
-            </span>
+            <span className="truncate font-display text-sub text-ink">{t.nav.superAdmin}</span>
           </div>
         )}
       </div>
@@ -102,19 +100,17 @@ function HeaderCapital() {
       {/* `truncate` ON BOTH LINES: a `min-w-0` block with nothing to clip it overflows
             the viewport instead of ellipsising. No route may scroll sideways. */}
       <div className="min-w-0">
-        <div className="truncate text-[9.5px] tracking-[.12em] text-muted uppercase">
+        <div className="truncate text-label-caps text-muted uppercase">
           {t.sidebar.totalCapital}
         </div>
-        <div
-          className={`truncate font-display text-[18px] leading-[1.15] font-bold ${empty ? 'text-faint' : ''}`}
-        >
+        <div className={`truncate font-display text-display-header ${empty ? 'text-faint' : ''}`}>
           {capital.value}
         </div>
       </div>
       {/* The delta STACKS rather than running on one line as the sidebar card does:
             at 360 the row has little left after the trigger and the figure,
             and two lines fit the height the bar already has. */}
-      <div className="ml-auto pr-1 text-right text-[11px] leading-[1.35]">
+      <div className="ml-auto pr-1 text-right text-label">
         {empty ? (
           <span className="text-faint">—</span>
         ) : (

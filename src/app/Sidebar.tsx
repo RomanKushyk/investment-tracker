@@ -88,7 +88,7 @@ export function Mark({ size }: { size: keyof typeof PLATE }) {
 // the padding that sets the height. The drawn box does NOT change below the
 // breakpoint — `TAP_44` grows the region around it, which is what holds the radii
 // where they are. *Shape system*
-function pillClass(padY: string, radius: string, type = 'text-[13.5px]') {
+function pillClass(padY: string, radius: string, type = 'text-body') {
   return ({ isActive }: { isActive: boolean }) =>
     `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left ${type} transition select-none active:scale-[.97] ` +
     (isActive
@@ -131,7 +131,7 @@ function NavItem({
         // `ink` on the tint: `sb-badge` on it is under 4,5 : 1 in light.
         <span
           aria-hidden
-          className="grid h-[18px] min-w-5 flex-none animate-in place-items-center rounded-[5px] bg-sb-badge-bg px-[5px] text-[11px] leading-[11px] font-bold text-ink duration-300 fade-in"
+          className="grid h-[18px] min-w-5 flex-none animate-in place-items-center rounded-[5px] bg-sb-badge-bg px-[5px] text-label font-bold text-ink duration-300 fade-in"
         >
           {count}
         </span>
@@ -208,7 +208,7 @@ function NavGroup({
         // pushes the first pill down instead of overlapping it, which is what
         // tap-target.ts requires. `TAP_44_BOX` squares the box and this one has a
         // label to hold.
-        className="group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-[11px] font-semibold tracking-[.02em] text-sb-label transition select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
+        className="group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-label-caps text-sb-label uppercase transition select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
       >
         {label}
         <ChevronDown
@@ -332,9 +332,7 @@ function SidebarPanel({
       <div>
         <div className="mb-[14px] flex items-center gap-3">
           <Mark size={40} />
-          <span className="font-display text-[17px] leading-[22px] font-semibold text-ink">
-            quirenote
-          </span>
+          <span className="font-display text-h3 text-ink">quirenote</span>
         </div>
         {/* THE CAPITAL IS THE PANEL'S ALONE — below the breakpoint the header bar
             carries it, and both read the same hook so they cannot disagree. The super-admin
@@ -436,7 +434,7 @@ function SidebarPanel({
                 type="button"
                 aria-pressed={currency === 'UAH'}
                 onClick={() => setCurrency('UAH')}
-                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
               >
                 ₴<span className="sr-only"> UAH</span>
               </button>
@@ -444,7 +442,7 @@ function SidebarPanel({
                 type="button"
                 aria-pressed={currency === 'USD'}
                 onClick={() => setCurrency('USD')}
-                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
               >
                 $<span className="sr-only"> USD</span>
               </button>
@@ -464,24 +462,24 @@ function SidebarPanel({
             «Вийти» all carry `TAP_44`, so the gap is their two overlays' halves. `sb-label` is the
             caption rank in here, and its shortfall is recorded rather than repaired: a second
             grey is a re-mint the palette forbids. */}
-        <div className="mt-2.5 flex h-[14.25px] items-center justify-center gap-2 max-md:mt-[19px]">
+        <div className="mt-2.5 flex h-[14px] items-center justify-center gap-2 max-md:mt-[19px]">
           {LEGAL_LINKS.map(([to, document], i) => (
             <Fragment key={to}>
               {i > 0 && (
-                <span aria-hidden className="text-[11px] leading-[14.25px] text-sb-label">
+                <span aria-hidden className="text-label text-sb-label">
                   ·
                 </span>
               )}
               <NavLink
                 to={to}
-                className={`block text-[11px] leading-[14.25px] text-sb-item underline underline-offset-2 transition-colors hover:text-sb-item-hover ${TAP_44}`}
+                className={`block text-label text-sb-item underline underline-offset-2 transition-colors hover:text-sb-item-hover ${TAP_44}`}
               >
                 {t[document].link}
               </NavLink>
             </Fragment>
           ))}
         </div>
-        <div className="mt-1 text-center text-[9.5px] leading-[14.25px] tracking-[.12em] text-sb-label uppercase">
+        <div className="mt-1 text-center text-label-caps text-sb-label uppercase">
           v{__APP_VERSION__}
         </div>
       </div>
@@ -523,10 +521,10 @@ export function AccountFold({
 // ONE GEOMETRY FOR BOTH ANSWERS: the held slot is the signed-in rows' height, so the signed-out
 // rows take the same row and pill, or Settings moves when the relay answers.
 const ACCOUNT_STEP = 'mt-[3px] max-md:mt-2';
-const ACCOUNT_ROW = `${ACCOUNT_STEP} flex h-[36px] items-center px-3.5 text-[11px] text-sb-item`;
+const ACCOUNT_ROW = `${ACCOUNT_STEP} flex h-[36px] items-center px-3.5 text-small text-sb-item`;
 const ACCOUNT_PILL = `${ACCOUNT_STEP} ${pillClass('py-2', 'rounded-[9px]')({ isActive: false })}`;
-// The address as the profile's link: the pill's states at the row's 36 and 11 px.
-const ACCOUNT_LINK = pillClass('py-2.5', 'rounded-[9px]', 'text-[11px] leading-[16px]');
+// The address as the profile's link: the pill's states at the row's height and size.
+const ACCOUNT_LINK = pillClass('py-2.5', 'rounded-[9px]', 'text-small');
 
 /**
  * THE ACCOUNT IS THE BAND'S LAST ROW, above the links line: the address, the profile's link,
@@ -639,7 +637,7 @@ function RoleBand({ onCollapse }: { onCollapse?: () => void }) {
   return (
     <HeadStrip onCollapse={onCollapse}>
       <Shield size={18} strokeWidth={2} aria-hidden className="flex-none text-sb-icon-active" />
-      <span className="min-w-0 flex-1 truncate font-display text-[14px] font-semibold tracking-[-.01em] text-ink">
+      <span className="min-w-0 flex-1 truncate font-display text-body font-semibold text-ink">
         {t.nav.superAdmin}
       </span>
     </HeadStrip>
@@ -657,19 +655,15 @@ function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
   return (
     <HeadStrip onCollapse={onCollapse}>
       <div className="flex min-w-0 flex-col gap-[3px]">
-        <div className="text-[9.5px] tracking-[.12em] text-sb-label uppercase">
-          {t.sidebar.totalCapital}
-        </div>
+        <div className="text-label-figure text-sb-label">{t.sidebar.totalCapital}</div>
 
         <div className="flex items-baseline gap-2.5">
           {/* `min-w-0 truncate` so the figure GIVES FIRST: it shares a baseline with the
               delta, and a big total would otherwise paint under the chevron. */}
-          <div className="min-w-0 truncate font-display text-[18px] font-semibold tracking-[-.01em] text-ink">
-            {capital.value}
-          </div>
+          <div className="min-w-0 truncate font-display text-h3 text-ink">{capital.value}</div>
           {/* BY SIGN, because `AppHeader` colours the same figure by sign. */}
           <div
-            className={`flex-none text-[11px] font-semibold ${
+            className={`flex-none text-small font-semibold ${
               capital.pct === undefined
                 ? 'text-sb-item'
                 : (capital.net ?? 0) < 0

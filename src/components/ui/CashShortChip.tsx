@@ -8,7 +8,7 @@ export function CashShortChip({ className = '' }: { className?: string }) {
     <span
       role="status"
       title={t.analytics.cashShortDetail}
-      className={`inline-block max-w-full animate-in rounded-[6px] bg-warn-tint px-3 py-1 text-xs font-semibold text-warn-tint-text duration-200 zoom-in-95 fade-in ${className}`}
+      className={`inline-block max-w-full animate-in rounded-[6px] bg-warn-tint px-3 py-1 text-label font-semibold text-warn-tint-text duration-200 zoom-in-95 fade-in ${className}`}
     >
       {t.analytics.cashShort}
       <span className="sr-only"> — {t.analytics.cashShortDetail}</span>

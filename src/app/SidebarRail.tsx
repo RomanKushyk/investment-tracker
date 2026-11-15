@@ -327,7 +327,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
           {/* The super-admin has no currency, and Settings takes the foot's own inset. */}
           {!admin && (
             <div
-              className={`mx-auto grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-[13px] font-semibold text-ink ${role !== 'user' ? 'invisible' : ''}`}
+              className={`mx-auto grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-body font-semibold text-ink ${role !== 'user' ? 'invisible' : ''}`}
             >
               {currency === 'UAH' ? '₴' : '$'}
               <span className="sr-only">{t.nav.currencyShown(currency)}</span>

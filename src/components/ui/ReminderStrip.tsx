@@ -66,7 +66,7 @@ function ReminderBanner({
       }`}
     >
       <Icon size={16} strokeWidth={2.25} className="mt-[2px] flex-none" />
-      <div className="min-w-0 flex-1 text-[13px] leading-[1.5]">
+      <div className="min-w-0 flex-1 text-body">
         {reminderText(reminder, assetName, f, t)}{' '}
         {action !== undefined && (
           // `nowrap` holds from `sm` up only: at 360 the content
@@ -157,7 +157,7 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
           onClick={() => setExpanded(true)}
           // Text, not an icon, so it keeps its own width and grows only in
           // height — again a real box, this control drawing no fill.
-          className="animate-in cursor-pointer self-start px-1 py-[2px] text-xs text-muted transition fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
+          className="animate-in cursor-pointer self-start px-1 py-[2px] text-small text-muted transition fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
         >
           {moreRemindersLabel(hidden, t)}
         </button>

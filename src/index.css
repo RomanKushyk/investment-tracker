@@ -48,6 +48,43 @@
   /* The Google button's label alone: Google's guidelines name the face ("The button font is
      Google Sans Medium"), loaded by the one module that draws it. */
   --font-google: 'Google Sans', 'Manrope', sans-serif;
+
+  /* The type roles (*Language, numbers, fonts*), each with its own px line height; caps are not a
+     theme property, so a `text-label-caps` site adds `uppercase`. */
+  --text-label: 11px;
+  --text-label--line-height: 14px;
+  --text-label-caps: 11px;
+  --text-label-caps--line-height: 14px;
+  --text-label-caps--letter-spacing: 0.12em;
+  --text-label-caps--font-weight: 500;
+  --text-label-figure: 11px;
+  --text-label-figure--line-height: 14px;
+  --text-label-figure--letter-spacing: 0.04em;
+  --text-label-figure--font-weight: 600;
+  --text-small: 12px;
+  --text-small--line-height: 16px;
+  --text-body: 13px;
+  --text-body--line-height: 18px;
+  --text-table: 13px;
+  --text-table--line-height: 18px;
+  --text-sub: 15px;
+  --text-sub--line-height: 20px;
+  --text-sub--font-weight: 600;
+  --text-h3: 17px;
+  --text-h3--line-height: 22px;
+  --text-h3--font-weight: 600;
+  --text-kpi: 22px;
+  --text-kpi--line-height: 26px;
+  --text-kpi--letter-spacing: -0.01em;
+  --text-kpi--font-weight: 600;
+  --text-title: 26px;
+  --text-title--line-height: 32px;
+  --text-title--font-weight: 600;
+  /* The display row's collapsed-header capital. */
+  --text-display-header: 18px;
+  --text-display-header--line-height: 23px;
+  --text-display-header--letter-spacing: -0.01em;
+  --text-display-header--font-weight: 600;
   /* Elevation as three tokens, so all three go transparent under
      [data-theme=dark] in one place: DARK ELEVATION COMES FROM THE SURFACE STEP
      (page -> card -> panel), never from shadow.
@@ -610,7 +647,9 @@
     background: var(--color-page);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: 13px;
+    /* The size alone: a px line height inherits as a length, so until every site carries a role
+       (#741) a bare `text-[26px]` would get an 18 px line box. */
+    font-size: var(--text-body);
     /* The one call site, and what keeps a KPI column aligned. Here rather than per
        component, because the alternative is remembering it at every site that ever
        shows a number. */

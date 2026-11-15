@@ -677,7 +677,15 @@ JetBrains Mono (`--font-mono`) for data: tables, figures in rows, fields, chart 
 row headers and native fields take it by element; the rest, Select and DatePicker among them, by
 `font-mono`. `body` sets
 `font-variant-numeric: tabular-nums`. Google's button alone takes Google Sans Medium, the face
-Google's guidelines fix for it; its Cyrillic subset carries the Ukrainian label (*Auth model*). A field holding an unsaved number STORES A LANGUAGE-FREE
+Google's guidelines fix for it; its Cyrillic subset carries the Ukrainian label (*Auth model*).
+Every size is a ROLE, a `--text-<role>` token carrying its own px line height: label 11/14, small
+12/16, body 13/18, table 13/18, sub 15/20, h3 17/22, kpi 22/26 (600, −.01em) and title 26/32, plus
+the display row, whose collapsed-header capital is 18/23 (600, −.01em). The label has two recipes:
+caps at +.12em and 500 for section titles, sidebar groups and column heads; sentence case at +.04em
+and 600 for a label over a figure. Nothing outside the census allow-list renders under 11 px;
+fields stay 16 below md.
+`src/type-census.test.ts` refuses any other size, line height or tracking, and its allow-list of
+files not yet on the roles may only shrink. A field holding an unsaved number STORES A LANGUAGE-FREE
 SPELLING and derives what it shows. A mark the typist PRESSES is read as this language's own; a mark
 that ARRIVES BY PASTE is read by the grammar, the only way to keep refusing a European `1234,567`
 under English.
@@ -687,11 +695,19 @@ is what buys the aligned KPI column, and `src/ui-face.test.ts` fails if the face
 ever separated. A missing rate is NaN rather than 0 or one held from before, so the display boundary
 (*Metric families and windows*) renders every figure converted with it «—». Overview adds two cases
 for what a «—» cannot carry: it paints a «—» `muted`, since it has no sign for a colour to name, and
-a sentence built around the figure («+ … реінвестовано») gives way to the bare «—».
+a sentence built around the figure («+ … реінвестовано») gives way to the bare «—». The roles follow
+Apple's macOS text styles (Subheadline 11/14, Title 2 17/22, Title 1 22/26, Large Title 26/32), and
+11 is Apple's iOS minimum and M3's Label S. A px line height per role, never a box height, lets WCAG
+1.4.12's spacing overrides grow the box rather than clip it. The header capital's 23 is the leading
+Apple pairs with its one 18 pt style (iOS Title 3, Small), the same ratio as h3. `body` takes the
+body role's size, and its line height only once the allow-list is empty: a px line height inherits
+as a length, so a file still on the list with a bare size would get an 18 px line box.
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · Judging a
 pasted mark the way a typed one is judged: it turns a refusal into a silent thousandfold. · A
 conversion at a default rate or one held from an earlier answer: a figure at a rate nobody served is
-a wrong number that reads as a right one.
+a wrong number that reads as a right one. · The sidebar's legal line at 11/14.25: no published scale
+pairs 11 with it, and the census would carry a permanent exception. · Holding the header capital's
+1.15: it is under the 120 % floor of book typography's line-spacing range.
 
 ## Shape system
 **Decision.** Nothing in the app is a capsule. A standalone control takes `round(min(w, h) × 0.26)`

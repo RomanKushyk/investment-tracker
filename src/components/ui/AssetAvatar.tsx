@@ -10,8 +10,8 @@ const TINT: Record<ColorKey, string> = {
 // `size` is a variant, not a free number, for the same reason `Card.radius` is:
 // two call sites need two sizes and nothing needs a third.
 const SIZE = {
-  34: 'size-[34px] text-xs',
-  48: 'size-[48px] text-sm',
+  34: 'size-[34px] text-small',
+  48: 'size-[48px] text-body',
 };
 
 export function AssetAvatar({

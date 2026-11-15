@@ -42,11 +42,11 @@ export const buttonVariants = cva(
         // because it is the primary-action size and there is no instance of it for
         // which the grown box is wrong. Its radius is RECOMPUTED from the new short
         // side, never inherited. *Shape system*
-        md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 pr-5 text-[13.5px]',
+        md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 pr-5 text-body',
         // `header` and `sm` do NOT: `header` is sized to sit beside the Date field, so
         // moving one breaks the pairing. Both reach the hit area through `TAP_44`.
-        header: 'rounded-[10px] h-9 pr-[18px] text-[13px]',
-        sm: 'rounded-[8px] h-[30px] pr-3.5 text-xs',
+        header: 'rounded-[10px] h-9 pr-[18px] text-body',
+        sm: 'rounded-[8px] h-[30px] pr-3.5 text-small',
       },
       // A control that is BUSY must not read like one you may never press.
       disabledTone: {

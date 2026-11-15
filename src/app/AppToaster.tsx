@@ -60,6 +60,9 @@ export function AppToaster() {
           // no style object.
           classNames: {
             closeButton: `!relative !top-auto !right-auto !left-auto !order-last !ml-auto !size-7 !shrink-0 !transform-none !rounded-[7px] !border-field-border !bg-card !text-ink !transition hover:opacity-85 active:scale-[.97] ${TAP_44}`,
+            // The body role, over sonner's own 1.5 and 1.4 line heights.
+            title: '!text-body',
+            description: '!text-body',
           },
           style: {
             borderRadius: '13px',

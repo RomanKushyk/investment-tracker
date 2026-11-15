@@ -17,7 +17,7 @@ import { useT } from '../../i18n/useT';
 function SkipLine({ skip }: { skip: SkippedEntry }) {
   const t = useT();
   return (
-    <li className="flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-muted">
+    <li className="flex flex-wrap items-baseline gap-x-1.5 text-small text-muted">
       <span className="font-semibold text-ink">{skip.ref}</span>
       <span>— {t.parse.reason[skip.reason]}</span>
       {skip.fields !== undefined && (
@@ -45,7 +45,7 @@ export function ParseSkips({ className = '' }: { className?: string }) {
   // that the feed still parses.
   if (count === 0) {
     return (
-      <p className={`text-[11px] text-faint ${className}`}>
+      <p className={`text-small text-faint ${className}`}>
         {t.parse.allClean(parse.entries, f.savedAt(parse.at))}
       </p>
     );
@@ -60,7 +60,7 @@ export function ParseSkips({ className = '' }: { className?: string }) {
         // `opacity`, not `-tint-text`: the palette gives `warn` and
         // `warn-tint-text` one value, so a colour hover animates between two
         // identical colours.
-        className="text-[11px] text-warn underline underline-offset-2 transition duration-200 hover:opacity-85"
+        className="text-small text-warn underline underline-offset-2 transition duration-200 hover:opacity-85"
       >
         {t.parse.failed(count)}
         {' · '}
