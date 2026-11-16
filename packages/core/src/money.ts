@@ -183,6 +183,13 @@ export function groupedForInput(stored: string, lang: Lang): string {
   return fraction === undefined ? grouped : `${grouped}${decimal}${fraction}`;
 }
 
+/** A money string in pieces, on `Intl.NumberFormat.formatToParts`' model: the values, joined in
+ *  order, are the one string. `figure` is the sign and digits, `literal` the NBSP between. */
+export interface MoneyPart {
+  type: 'figure' | 'literal' | 'currency';
+  value: string;
+}
+
 export interface Format {
   num(n: number): string;
   numWhole(n: number): string;
@@ -217,7 +224,14 @@ export interface Format {
   savedAt(iso: string): string;
   signedMoney(n: number, currency?: Currency): string;
   signedNum(n: number): string;
+  /** `money`, `moneyWhole` and `signedMoney` with the unit handed back apart (K2). */
+  moneyParts(n: number, currency?: Currency): MoneyPart[];
+  moneyWholeParts(n: number, currency?: Currency): MoneyPart[];
+  signedMoneyParts(n: number, currency?: Currency): MoneyPart[];
 }
+
+/** The one string the parts make. */
+export const joined = (parts: MoneyPart[]) => parts.map((p) => p.value).join('');
 
 // `NumberFormat`'s unit style, not `DurationFormat`, which Safari has only from 16.4.
 const unitIn = (locale: string, unit: 'minute' | 'second') =>
@@ -232,8 +246,24 @@ export function makeFormat(lang: Lang): Format {
   const f = NUM[lang];
   const uk = lang === 'uk';
   // Ukrainian trails the symbol after an NBSP; English leads with it, tight.
-  const withSymbol = (body: string, currency: Currency) =>
-    uk ? `${body}${NBSP}${SYMBOL[currency]}` : `${SYMBOL[currency]}${body}`;
+  const symbolParts = (body: string, currency: Currency): MoneyPart[] => {
+    const unit: MoneyPart = { type: 'currency', value: SYMBOL[currency] };
+    return uk
+      ? [{ type: 'figure', value: body }, { type: 'literal', value: NBSP }, unit]
+      : [unit, { type: 'figure', value: body }];
+  };
+  // The sign leads the whole, so in English it stands before the symbol: «+$4,452.61».
+  const signedParts = (n: number, parts: MoneyPart[]): MoneyPart[] =>
+    parts[0].type === 'figure'
+      ? [{ type: 'figure', value: signed(n, parts[0].value) }, ...parts.slice(1)]
+      : [{ type: 'figure', value: signed(n, '') }, ...parts];
+  const finiteParts =
+    (fmt: (n: number, currency: Currency) => MoneyPart[]) =>
+    (n: number, currency: Currency = 'UAH'): MoneyPart[] =>
+      Number.isFinite(n) ? fmt(n, currency) : [{ type: 'figure', value: '—' }];
+  const moneyParts = finiteParts((n, c) => symbolParts(num(n), c));
+  const moneyWholeParts = finiteParts((n, c) => symbolParts(nbsp(f.whole.format(n)), c));
+  const signedMoneyParts = finiteParts((n, c) => signedParts(n, symbolParts(num(Math.abs(n)), c)));
 
   const num = (n: number) => nbsp(f.two.format(n));
   // THE DISPLAY BOUNDARY: `Intl` prints `NaN` and `∞` as words, which read as data.
@@ -262,10 +292,8 @@ export function makeFormat(lang: Lang): Format {
         ? shown
         : String(n);
     },
-    money: finite((n, currency: Currency = 'UAH') => withSymbol(num(n), currency)),
-    moneyWhole: finite((n, currency: Currency = 'UAH') =>
-      withSymbol(nbsp(f.whole.format(n)), currency),
-    ),
+    money: (n, currency) => joined(moneyParts(n, currency)),
+    moneyWhole: (n, currency) => joined(moneyWholeParts(n, currency)),
     // `toFixed` then a decimal swap, NOT Intl: a percentage is never grouped here, so
     // the only locale difference is the decimal mark, and `toFixed` is exact about
     // digit count where a formatter’s rounding options are one more thing to keep in
@@ -292,10 +320,11 @@ export function makeFormat(lang: Lang): Format {
       const [d, time] = iso.split('T');
       return `${dateShort(d)}, ${time.slice(0, 5)}`;
     },
-    signedMoney: finite((n, currency: Currency = 'UAH') =>
-      signed(n, withSymbol(num(Math.abs(n)), currency)),
-    ),
+    signedMoney: (n, currency) => joined(signedMoneyParts(n, currency)),
     signedNum: finite((n) => signed(n, num(Math.abs(n)))),
+    moneyParts,
+    moneyWholeParts,
+    signedMoneyParts,
   };
 }
 

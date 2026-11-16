@@ -4,6 +4,7 @@ import { buttonVariants } from '../components/ui/button-variants';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Amount } from '../components/ui/Amount';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -50,35 +51,35 @@ export function Overview() {
   // The card shows the portfolio in both currencies: the headline, and the other one under it.
   const capitalOther = usd ? total : capitalUsd;
   const capital = usd
-    ? { value: f.money(tweenedCapital, 'USD'), other: f.money(total) }
-    : { value: f.money(tweenedCapital), other: f.money(capitalUsd, 'USD') };
+    ? { value: f.moneyParts(tweenedCapital, 'USD'), other: f.money(total) }
+    : { value: f.moneyParts(tweenedCapital), other: f.money(capitalUsd, 'USD') };
 
   const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, rate) : net.uah);
-  const netValue = usd ? f.signedMoney(tweenedNet, 'USD') : f.signedMoney(tweenedNet);
+  const netValue = usd ? f.signedMoneyParts(tweenedNet, 'USD') : f.signedMoneyParts(tweenedNet);
 
   const tweenedTotalReturn = useTweenedNumber(usd ? toUsd(totalReturn.uah, rate) : totalReturn.uah);
   const totalReturnValue = usd
-    ? f.signedMoney(tweenedTotalReturn, 'USD')
-    : f.signedMoney(tweenedTotalReturn);
+    ? f.signedMoneyParts(tweenedTotalReturn, 'USD')
+    : f.signedMoneyParts(tweenedTotalReturn);
 
   const depositedUsd = toUsd(deposited, rate);
   const reinvestedUsd = toUsd(reinvested, rate);
   const tweenedDeposited = useTweenedNumber(usd ? depositedUsd : deposited);
   const deposit = usd
     ? {
-        value: f.money(tweenedDeposited, 'USD'),
+        value: f.moneyParts(tweenedDeposited, 'USD'),
         // `+ — reinvested` would read as a sum.
         sub: Number.isFinite(reinvestedUsd)
           ? t.analytics.prose.plusReinvested(f.money(reinvestedUsd, 'USD'))
           : '—',
       }
     : {
-        value: f.moneyWhole(tweenedDeposited),
+        value: f.moneyWholeParts(tweenedDeposited),
         sub: t.analytics.prose.plusReinvested(f.money(reinvested)),
       };
 
   const tweenedCash = useTweenedNumber(usd ? toUsd(cash, rate) : cash);
-  const cashValue = usd ? f.money(tweenedCash, 'USD') : f.money(tweenedCash);
+  const cashValue = usd ? f.moneyParts(tweenedCash, 'USD') : f.moneyParts(tweenedCash);
 
   const shareSegments = view.rows.map((r) => ({
     colorKey: r.asset.colorKey,
@@ -104,7 +105,7 @@ export function Overview() {
         <KpiCard
           className="animate-in duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalCapital}
-          value={capital.value}
+          value={<Amount parts={capital.value} />}
           // Mounted only once the view has answered, so an entry for this is never the loading
           // state's. The screen's fade (`Loadable`) and the card's are part of what it reads
           // unless collapsed (*Measurement*).
@@ -121,7 +122,7 @@ export function Overview() {
         <KpiCard
           className="animate-in delay-75 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.capitalGain}
-          value={netValue}
+          value={<Amount parts={netValue} />}
           valueClassName={`whitespace-nowrap ${paint(tweenedNet, net.uah < 0 ? 'text-neg' : 'text-pos')}`}
           // A card measured ACROSS the window points at its LEFT end, which is the end that
           // moves on every press. `sinceDate` already names that end exactly, so it is fed
@@ -132,7 +133,7 @@ export function Overview() {
         <KpiCard
           className="animate-in delay-150 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalReturnNet}
-          value={totalReturnValue}
+          value={<Amount parts={totalReturnValue} />}
           valueClassName={`whitespace-nowrap ${paint(tweenedTotalReturn, totalReturn.uah < 0 ? 'text-neg' : 'text-pos')}`}
           sub={
             <>
@@ -166,14 +167,14 @@ export function Overview() {
         <KpiCard
           className="animate-in delay-200 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.depositedReinvested}
-          value={deposit.value}
+          value={<Amount parts={deposit.value} />}
           valueClassName={paint(tweenedDeposited)}
           sub={deposit.sub}
         />
         <KpiCard
           className="animate-in delay-300 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.freeCash}
-          value={cashValue}
+          value={<Amount parts={cashValue} />}
           valueClassName={paint(tweenedCash)}
           sub={
             <>
@@ -297,7 +298,7 @@ export function Overview() {
           <KpiCard
             className="animate-in duration-300 fade-in"
             label={t.analytics.overview.incomeReceived}
-            value={f.money(income.total)}
+            value={<Amount parts={f.moneyParts(income.total)} />}
             valueSize="md"
             sub={
               <>

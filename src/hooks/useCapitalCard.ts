@@ -1,4 +1,4 @@
-import { toUsd } from '@quirenote/core/money';
+import { joined, toUsd, type MoneyPart } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
 import { useView, useViewReady } from './queries';
 import { selectCapital } from './slices';
@@ -26,6 +26,8 @@ import { useTweenedNumber } from './useTweenedNumber';
 export interface CapitalCard {
   /** Headline, already tweened and formatted in the selected currency. */
   value: string;
+  /** The same headline with its unit apart, for the header's display figure (K2). */
+  parts: MoneyPart[];
   /** Net result as a percentage, formatted — `undefined` while there are no KPIs. */
   pct: string | undefined;
   /** The same total in the OTHER currency, formatted. */
@@ -44,16 +46,28 @@ export function useCapitalCard(): CapitalCard {
   const usdTotal = toUsd(total, rate);
   const tweened = useTweenedNumber(currency === 'UAH' ? total : usdTotal);
 
-  if (!kpis) return { value: '—', pct: undefined, counter: undefined, net: undefined };
+  if (!kpis) {
+    return {
+      value: '—',
+      parts: [{ type: 'figure', value: '—' }],
+      pct: undefined,
+      counter: undefined,
+      net: undefined,
+    };
+  }
+  const parts = currency === 'UAH' ? f.moneyWholeParts(tweened) : f.moneyParts(tweened, 'USD');
+  const value = joined(parts);
   return currency === 'UAH'
     ? {
-        value: f.moneyWhole(tweened),
+        value,
+        parts,
         pct: f.pct(kpis.net.pct),
         counter: f.money(usdTotal, 'USD'),
         net: kpis.net.pct,
       }
     : {
-        value: f.money(tweened, 'USD'),
+        value,
+        parts,
         pct: f.pct(kpis.net.pct),
         counter: f.money(total),
         net: kpis.net.pct,

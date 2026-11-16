@@ -36,7 +36,11 @@ const RULES: Record<string, Rule> = {
     },
   },
   'src/hooks/useCapitalCard.ts': {
-    allow: { 'money#toUsd': 'currency conversion stays in the component' },
+    allow: {
+      'money#toUsd': 'currency conversion stays in the component',
+      'money#joined':
+        'the one-line figure is the header figure’s parts joined, so the two never drift',
+    },
   },
   'src/hooks/usePeriodWindow.tsx': { allow: {} },
 };

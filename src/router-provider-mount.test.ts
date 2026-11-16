@@ -27,6 +27,7 @@ const MOUNTS = [
   'src/screens/admin-users.test.tsx',
   'src/screens/archive-admin.test.tsx',
   'src/screens/archive-repairs.test.tsx',
+  'src/screens/kpi-unit.test.tsx',
   'src/screens/daily-quotes/coupon-confirm.test.tsx',
   'src/screens/ledger-delete-coupon.test.tsx',
   'src/screens/overview-figures-mark.test.tsx',

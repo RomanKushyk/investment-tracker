@@ -682,8 +682,12 @@ Every size is a ROLE, a `--text-<role>` token carrying its own px line height: l
 12/16, body 13/18, table 13/18, sub 15/20, h3 17/22, kpi 22/26 (600, −.01em) and title 26/32, plus
 the display row, whose collapsed-header capital is 18/23 (600, −.01em). The label has two recipes:
 caps at +.12em and 500 for section titles, sidebar groups and column heads; sentence case at +.04em
-and 600 for a label over a figure. Nothing outside the census allow-list renders under 11 px;
-fields stay 16 below md.
+and 600 for a label over a figure. A kpi or display figure in money sets its unit apart (K2): the
+digits at the role in their sign colour, the ₴ or $ at 70 % (`--text-unit`), 500, `muted`, .18em
+from them. `makeFormat` hands the figure back in parts that join to the one string, and
+`src/components/ui/Amount.tsx` draws them, keeping the Ukrainian NBSP in the text and narrowing it to
+.18em with `word-spacing`. Tables, the sidebar's one-line capital and inline amounts keep one
+string. Nothing outside the census allow-list renders under 11 px; fields stay 16 below md.
 `src/type-census.test.ts` refuses any other size, line height or tracking, and its allow-list of
 files not yet on the roles may only shrink. A field holding an unsaved number STORES A LANGUAGE-FREE
 SPELLING and derives what it shows. A mark the typist PRESSES is read as this language's own; a mark
@@ -701,13 +705,21 @@ Apple's macOS text styles (Subheadline 11/14, Title 2 17/22, Title 1 22/26, Larg
 1.4.12's spacing overrides grow the box rather than clip it. The header capital's 23 is the leading
 Apple pairs with its one 18 pt style (iOS Title 3, Small), the same ratio as h3. `body` takes the
 body role's size, and its line height only once the allow-list is empty: a px line height inherits
-as a length, so a file still on the list with a bare size would get an 18 px line box.
+as a length, so a file still on the list with a bare size would get an 18 px line box. The parts
+follow `Intl.NumberFormat.formatToParts`, whose values concatenate to `format()`, so the copied text
+and the screen reader's are unchanged. CSS Text 3 counts the NBSP as a word-separator, which is why
+`word-spacing` can narrow Manrope's space to the signed .18em without dropping the character. The
+unit takes a zero line height: an inherited px line would set the smaller glyph lower and grow the
+figure's line box.
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · Judging a
 pasted mark the way a typed one is judged: it turns a refusal into a silent thousandfold. · A
 conversion at a default rate or one held from an earlier answer: a figure at a rate nobody served is
 a wrong number that reads as a right one. · The sidebar's legal line at 11/14.25: no published scale
 pairs 11 with it, and the census would carry a permanent exception. · Holding the header capital's
-1.15: it is under the 120 % floor of book typography's line-spacing range.
+1.15: it is under the 120 % floor of book typography's line-spacing range. · K1, the unit at full
+size: at display sizes the ₴ competes with the digits. · K3, the decimals at 70 % as well: they read as less
+true. · Dropping the NBSP and spacing the unit by margin: the figure's text would stop being the
+string every other surface prints.
 
 ## Shape system
 **Decision.** Nothing in the app is a capsule. A standalone control takes `round(min(w, h) × 0.26)`

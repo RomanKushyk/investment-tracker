@@ -2,6 +2,7 @@ import { Shield } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 
+import { Amount } from '../components/ui/Amount';
 import { useRole } from '../hooks/queries';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { NAV_TRIGGER_ID } from './nav-ids';
@@ -104,7 +105,7 @@ function HeaderCapital() {
           {t.sidebar.totalCapital}
         </div>
         <div className={`truncate font-display text-display-header ${empty ? 'text-faint' : ''}`}>
-          {capital.value}
+          <Amount parts={capital.parts} />
         </div>
       </div>
       {/* The delta STACKS rather than running on one line as the sidebar card does:

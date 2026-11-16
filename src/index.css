@@ -85,6 +85,12 @@
   --text-display-header--line-height: 23px;
   --text-display-header--letter-spacing: -0.01em;
   --text-display-header--font-weight: 600;
+  /* K2's unit, a share of the figure's size. A zero line height keeps the figure's line box,
+     and no tracking keeps the figure's, inherited as a length, out of the gap. */
+  --text-unit: 70%;
+  --text-unit--line-height: 0;
+  --text-unit--letter-spacing: 0em;
+  --text-unit--font-weight: 500;
   /* Elevation as three tokens, so all three go transparent under
      [data-theme=dark] in one place: DARK ELEVATION COMES FROM THE SURFACE STEP
      (page -> card -> panel), never from shadow.

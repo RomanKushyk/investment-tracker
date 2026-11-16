@@ -189,6 +189,78 @@ describe('a non-finite figure at the display boundary', () => {
   );
 });
 
+describe('money in parts — the unit handed back apart (K2)', () => {
+  const NBSP = ' ';
+  const join = (parts: readonly { value: string }[]) => parts.map((p) => p.value).join('');
+  const VALUES = [149016.36, -92.25, 0, 0.004, -0.004, 1234567.891];
+
+  it.each(['uk', 'en'] as const)('%s: joined, the parts are the one string', (lang) => {
+    const f = makeFormat(lang);
+    for (const n of VALUES) {
+      for (const c of ['UAH', 'USD'] as const) {
+        expect(join(f.moneyParts(n, c))).toBe(f.money(n, c));
+        expect(join(f.moneyWholeParts(n, c))).toBe(f.moneyWhole(n, c));
+        expect(join(f.signedMoneyParts(n, c))).toBe(f.signedMoney(n, c));
+      }
+      expect(join(f.moneyParts(n))).toBe(f.money(n));
+    }
+  });
+
+  it.each(['uk', 'en'] as const)('%s: the unit is one part, the symbol alone', (lang) => {
+    const f = makeFormat(lang);
+    for (const n of VALUES) {
+      for (const [c, sym] of [
+        ['UAH', '₴'],
+        ['USD', '$'],
+      ] as const) {
+        for (const parts of [
+          f.moneyParts(n, c),
+          f.moneyWholeParts(n, c),
+          f.signedMoneyParts(n, c),
+        ]) {
+          const units = parts.filter((p) => p.type === 'currency');
+          expect(units).toEqual([{ type: 'currency', value: sym }]);
+          expect(
+            parts
+              .filter((p) => p.type === 'figure')
+              .map((p) => p.value)
+              .join(''),
+          ).not.toMatch(/[₴$]/);
+        }
+      }
+    }
+  });
+
+  it('keeps each language’s order: the unit trails after an NBSP in uk, leads tight in en', () => {
+    const uk = makeFormat('uk');
+    const en = makeFormat('en');
+    expect(uk.signedMoneyParts(-4452.61)).toEqual([
+      { type: 'figure', value: `−4${NBSP}452,61` },
+      { type: 'literal', value: NBSP },
+      { type: 'currency', value: '₴' },
+    ]);
+    expect(en.signedMoneyParts(4452.61, 'USD')).toEqual([
+      { type: 'figure', value: '+' },
+      { type: 'currency', value: '$' },
+      { type: 'figure', value: '4,452.61' },
+    ]);
+    // Unsigned money keeps its grammar: Intl's hyphen rides the digits, after the symbol.
+    expect(en.moneyParts(-92.25)).toEqual([
+      { type: 'currency', value: '₴' },
+      { type: 'figure', value: '-92.25' },
+    ]);
+  });
+
+  it.each(['uk', 'en'] as const)('%s: a non-finite figure is «—» with no unit', (lang) => {
+    const f = makeFormat(lang);
+    for (const n of [NaN, Infinity, -Infinity]) {
+      for (const parts of [f.moneyParts(n, 'USD'), f.moneyWholeParts(n), f.signedMoneyParts(n)]) {
+        expect(parts).toEqual([{ type: 'figure', value: '—' }]);
+      }
+    }
+  });
+});
+
 describe('pctFit — a signed percentage that fits a seven-character column', () => {
   // The daily-quotes delta chip is 52px of 12px JetBrains Mono: seven glyphs, and
   // the input accepts any magnitude, so a fat-fingered quote must still fit.

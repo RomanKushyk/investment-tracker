@@ -1,5 +1,6 @@
 import { PayoutsBars } from '../components/charts/PayoutsBars';
 import { Card } from '../components/ui/Card';
+import { Amount } from '../components/ui/Amount';
 import { KpiCard } from '../components/ui/KpiCard';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -61,7 +62,7 @@ export function Payouts() {
           <KpiCard
             className="animate-in duration-300 fade-in"
             label={t.analytics.receivedTotal}
-            value={f.money(income.total)}
+            value={<Amount parts={f.moneyParts(income.total)} />}
             subClassName="text-pos"
             sub={t.analytics.prose.dividendsAndCoupons(
               f.money(income.dividends),
@@ -95,7 +96,7 @@ export function Payouts() {
             className="animate-in duration-300 fade-in"
             valueSize="md"
             label={t.analytics.reinvested}
-            value={f.money(reinvested)}
+            value={<Amount parts={f.moneyParts(reinvested)} />}
             sub={t.analytics.prose.ofReceivedIncome(f.pctPlain(reinvestedPct))}
           />
         </div>

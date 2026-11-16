@@ -328,7 +328,12 @@ describe('the header bar of a collapsed rail, in the ₴ view', () => {
     await open('UAH', true);
 
     // The ₴ total proves the bar holds the portfolio and not its empty state, which draws a «—» of its own.
-    await waitFor(() => expect(inHeaderBar(f.moneyWhole(o.total))).toBe(1));
+    // The figure's ₴ is its own element (K2), so the figure is read whole.
+    await waitFor(() =>
+      expect(document.querySelector('header .text-display-header')?.textContent).toBe(
+        f.moneyWhole(o.total),
+      ),
+    );
     expect(inHeaderBar(NONE)).toBe(1);
   });
 });

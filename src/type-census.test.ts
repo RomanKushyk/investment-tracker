@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { __unstable__loadDesignSystem } from '@tailwindcss/node';
 import ts from 'typescript';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -44,6 +44,8 @@ const ROLES: Record<string, { size: string; line: string; tracking?: string; wei
   title: { size: '26px', line: '32px', weight: '600' },
   // The display row's collapsed-header capital.
   'display-header': { size: '18px', line: '23px', tracking: '-0.01em', weight: '600' },
+  // K2's unit, a share of the figure it stands beside, taking no line box of its own.
+  unit: { size: '70%', line: '0', tracking: '0em', weight: '500' },
 };
 const ROLE = `(${Object.keys(ROLES).join('|')})`;
 
@@ -644,6 +646,32 @@ beforeAll(async () => {
 });
 
 describe('the type census', () => {
+  // The unit's size is a share of its parent's, so the floor holds only where the parent is a kpi
+  // or display figure: `Amount` alone draws it.
+  it('finds the unit role in Amount alone', () => {
+    const users = SOURCES.filter(({ sf }) =>
+      readModule(sf).sets.some((set) => set.includes('text-unit')),
+    ).map((s) => s.rel);
+    expect(users).toEqual(['src/components/ui/Amount.tsx']);
+  });
+
+  // And `Amount` only where its parent is one: the 360 header's capital and the KPI cards' values.
+  it('finds Amount only beside a kpi or display figure', () => {
+    const users = SOURCES.filter(({ rel, sf }) =>
+      sf.statements.some(
+        (s) =>
+          ts.isImportDeclaration(s) &&
+          ts.isStringLiteral(s.moduleSpecifier) &&
+          posix.join(posix.dirname(rel), s.moduleSpecifier.text) === 'src/components/ui/Amount',
+      ),
+    ).map((s) => s.rel);
+    expect(users.sort()).toEqual([
+      'src/app/AppHeader.tsx',
+      'src/screens/Overview.tsx',
+      'src/screens/Payouts.tsx',
+    ]);
+  });
+
   it('reads the app, and the allow-list names files that exist and none it has swept', () => {
     // VACUITY ANCHOR: an empty walk would pass every assertion below.
     expect(SOURCES.length).toBeGreaterThan(150);
