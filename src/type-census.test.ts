@@ -44,6 +44,8 @@ const ROLES: Record<string, { size: string; line: string; tracking?: string; wei
   title: { size: '26px', line: '32px', weight: '600' },
   // The display row's collapsed-header capital.
   'display-header': { size: '18px', line: '23px', tracking: '-0.01em', weight: '600' },
+  // The display row's hero figure.
+  'display-hero': { size: '36px', line: '44px', tracking: '-0.01em', weight: '600' },
   // K2's unit, a share of the figure it stands beside, taking no line box of its own.
   unit: { size: '70%', line: '0', tracking: '0em', weight: '500' },
 };
@@ -297,7 +299,6 @@ const ALLOWED: Record<string, Record<string, number>> = {
     'tracking-[.12em]': 1,
     'uppercase without the caps recipe': 1,
   },
-  'src/screens/archive/Figures.tsx': { 'leading-[18px]': 1, 'text-xs': 1 },
   'src/screens/archive/Repairs.tsx': {
     'leading-6': 1,
     'leading-[16.5px]': 2,

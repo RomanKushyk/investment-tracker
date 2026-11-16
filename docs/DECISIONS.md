@@ -680,9 +680,10 @@ row headers and native fields take it by element; the rest, Select and DatePicke
 Google's guidelines fix for it; its Cyrillic subset carries the Ukrainian label (*Auth model*).
 Every size is a ROLE, a `--text-<role>` token carrying its own px line height: label 11/14, small
 12/16, body 13/18, table 13/18, sub 15/20, h3 17/22, kpi 22/26 (600, −.01em) and title 26/32, plus
-the display row, whose collapsed-header capital is 18/23 (600, −.01em). The label has two recipes:
-caps at +.12em and 500 for section titles, sidebar groups and column heads; sentence case at +.04em
-and 600 for a label over a figure. A kpi or display figure in money sets its unit apart (K2): the
+the display row, whose collapsed-header capital is 18/23 and whose hero is 36/44 (both 600, −.01em). The label has two recipes:
+caps at +.12em and 500 for section titles, sidebar groups, column heads and the source over the
+archive's hero, which names the card's subject, not the figure; sentence case at +.04em and 600 for
+a label over a figure. A kpi or display figure in money sets its unit apart (K2): the
 digits at the role in their sign colour, the ₴ or $ at 70 % (`--text-unit`), 500, `muted`, .18em
 from them. `makeFormat` hands the figure back in parts that join to the one string, and
 `src/components/ui/Amount.tsx` draws them, keeping the Ukrainian NBSP in the text and narrowing it to
@@ -703,7 +704,8 @@ a sentence built around the figure («+ … реінвестовано») gives 
 Apple's macOS text styles (Subheadline 11/14, Title 2 17/22, Title 1 22/26, Large Title 26/32), and
 11 is Apple's iOS minimum and M3's Label S. A px line height per role, never a box height, lets WCAG
 1.4.12's spacing overrides grow the box rather than clip it. The header capital's 23 is the leading
-Apple pairs with its one 18 pt style (iOS Title 3, Small), the same ratio as h3. `body` takes the
+Apple pairs with its one 18 pt style (iOS Title 3, Small), the same ratio as h3. The hero's 44 is
+Material 3's display-small (36/44), and Carbon sets its 36 px step at 1.22. `body` takes the
 body role's size, and its line height only once the allow-list is empty: a px line height inherits
 as a length, so a file still on the list with a bare size would get an 18 px line box. The parts
 follow `Intl.NumberFormat.formatToParts`, whose values concatenate to `format()`, so the copied text
@@ -716,7 +718,7 @@ pasted mark the way a typed one is judged: it turns a refusal into a silent thou
 conversion at a default rate or one held from an earlier answer: a figure at a rate nobody served is
 a wrong number that reads as a right one. · The sidebar's legal line at 11/14.25: no published scale
 pairs 11 with it, and the census would carry a permanent exception. · Holding the header capital's
-1.15: it is under the 120 % floor of book typography's line-spacing range. · K1, the unit at full
+1.15, or the hero's 1.05: both are under the 120 % floor of book typography's line-spacing range. · K1, the unit at full
 size: at display sizes the ₴ competes with the digits. · K3, the decimals at 70 % as well: they read as less
 true. · Dropping the NBSP and spacing the unit by margin: the figure's text would stop being the
 string every other surface prints.

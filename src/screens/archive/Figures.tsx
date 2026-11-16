@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 
 import { SOURCES, type Source } from '@quirenote/core/archive';
 import { Dash } from '../../components/loading/Placeholder';
-import { KpiCard } from '../../components/ui/KpiCard';
+import { Card } from '../../components/ui/Card';
+import { Fact } from '../../components/ui/RecordCard';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ArchiveDiagnosis } from '../../lib/repository';
@@ -18,8 +19,9 @@ export function Figures({
   answer: ArchiveDiagnosis | undefined;
   className: string;
 }) {
+  // Equal rows, so both cards stand one height when they stack below md.
   return (
-    <div className={`grid gap-3.5 md:grid-cols-2 ${className}`}>
+    <div className={`grid auto-rows-fr gap-3.5 md:grid-cols-2 ${className}`}>
       {SOURCES.map((source) => (
         <Figure key={source} source={source} answer={answer} />
       ))}
@@ -35,9 +37,9 @@ function Figure({ source, answer }: { source: Source; answer: ArchiveDiagnosis |
   if (answer === undefined) {
     const held = <span className="text-faint">—</span>;
     return (
-      <KpiCard label={t.archive.source[source]} value={<Dash />} sub="—">
-        <Breakdown gaps={held} size={held} />
-      </KpiCard>
+      <Hero label={t.archive.source[source]} value={<Dash />} caption="—">
+        <Facts gaps={held} size={held} />
+      </Hero>
     );
   }
   const groups = answer.observations.filter((g) => g.source === source);
@@ -47,45 +49,61 @@ function Figure({ source, answer }: { source: Source; answer: ArchiveDiagnosis |
   const gaps = groups.reduce((sum, g) => sum + (g.gaps ?? 0), 0);
   const stored = answer.bySource.find((s) => s.source === source);
   return (
-    <KpiCard
+    <Hero
       label={t.archive.source[source]}
-      valueClassName={`flex items-center gap-2 ${empty > 0 ? 'text-warn-tint-text' : ''}`}
+      warn={empty > 0}
       value={
         <>
-          {empty > 0 && <TriangleAlert size={20} aria-hidden />}
+          {empty > 0 && <TriangleAlert size={26} aria-hidden />}
           {k.empty(empty, f.numWhole(empty))}
         </>
       }
-      sub={
+      caption={
         empty > 0 || unmeasured > 0 ? k.emptySub(withEmpty, groups.length, unmeasured) : k.noEmpty
       }
     >
-      <Breakdown
+      <Facts
         gaps={f.numWhole(gaps)}
         size={`${f.numWhole(Number(stored?.n ?? 0))} · ${megabytes(Number(stored?.bytes ?? 0))}`}
       />
-    </KpiCard>
+    </Hero>
   );
 }
 
-function Breakdown({ gaps, size }: { gaps: ReactNode; size: ReactNode }) {
+// Padding 23 / 21: the glass's 1px edge is drawn inset over it, so the content sits 22 / 20 inside.
+function Hero({
+  label,
+  value,
+  warn = false,
+  caption,
+  children,
+}: {
+  label: string;
+  value: ReactNode;
+  warn?: boolean;
+  caption: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Card radius={24} className="px-[23px] py-[21px] text-ink">
+      <div className="text-label-caps text-muted uppercase">{label}</div>
+      <div
+        className={`flex items-center gap-2 font-display text-display-hero ${warn ? 'text-warn-tint-text' : ''}`}
+      >
+        {value}
+      </div>
+      <div className="mt-0.5 text-label text-muted">{caption}</div>
+      {children}
+    </Card>
+  );
+}
+
+function Facts({ gaps, size }: { gaps: ReactNode; size: ReactNode }) {
   const t = useT();
   return (
-    <>
-      <div className="mt-3.5 mb-2.5 h-px bg-hairline" />
-      <div className="flex flex-col gap-1">
-        <Row label={t.archive.kpi.gaps}>{gaps}</Row>
-        <Row label={t.archive.kpi.size}>{size}</Row>
-      </div>
-    </>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex justify-between gap-3 text-xs leading-[18px]">
-      <span className="text-muted">{label}</span>
-      <span className="font-mono font-semibold">{children}</span>
-    </div>
+    <dl className="m-0 mt-3.5 grid grid-cols-2 gap-x-4.5 gap-y-2.5">
+      <Fact label={t.archive.kpi.gaps}>{gaps}</Fact>
+      <Fact label={t.archive.kpi.size}>{size}</Fact>
+    </dl>
   );
 }

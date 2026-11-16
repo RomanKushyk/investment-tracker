@@ -85,6 +85,11 @@
   --text-display-header--line-height: 23px;
   --text-display-header--letter-spacing: -0.01em;
   --text-display-header--font-weight: 600;
+  /* The display row's hero figure. */
+  --text-display-hero: 36px;
+  --text-display-hero--line-height: 44px;
+  --text-display-hero--letter-spacing: -0.01em;
+  --text-display-hero--font-weight: 600;
   /* K2's unit, a share of the figure's size. A zero line height keeps the figure's line box,
      and no tracking keeps the figure's, inherited as a length, out of the gap. */
   --text-unit: 70%;
