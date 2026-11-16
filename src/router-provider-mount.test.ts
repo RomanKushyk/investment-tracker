@@ -41,6 +41,7 @@ const MOUNTS = [
   'src/screens/sign-in/answer.test.tsx',
   'src/screens/sign-in/self-xss-warning.test.tsx',
   'src/screens/stale-write-toast.test.tsx',
+  'src/screens/table-anatomy.test.tsx',
   'src/super-admin-shell.test.tsx',
 ];
 

@@ -20,12 +20,17 @@ import type { Asset } from '@quirenote/core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-import { Scroller } from '../components/ui/Scroller';
+import { TableBox } from '../components/ui/TableBox';
+import { TABLE, TD, TH, THEAD, TH_NUM, TR } from '../components/ui/table-anatomy';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
 function highlightLabel(asset: Asset): string {
   return asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : asset.name;
 }
+
+// The total keeps its 2 px rule above it (tables.md § Signed, Rows), straight to both ends: the
+// row's rounded end cells would bend it down into their corners.
+const TOTAL = 'border-t-2 border-panel-border rounded-none!';
 
 function signClass(v: number): string {
   return v < 0 ? 'text-neg' : 'text-pos';
@@ -97,25 +102,41 @@ export function Portfolio() {
         <div className="mb-3.5 text-[13px] leading-normal text-muted">{t.assets.empty}</div>
       ) : desktop ? (
         <Card radius={24} className="mb-3.5 animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
+          {/* The table scrolls in a box of its own, so its header can stick (*Scrolling*). Card
               sets no overflow: a rounded card clipping its own content is where the square
               platform track came from. */}
-          <Scroller orientation="horizontal">
-            <table className="w-full border-collapse text-[12.5px]">
-              <thead>
-                <tr className="text-left text-muted">
-                  <th className="py-2 font-normal">{t.analytics.asset}</th>
-                  <th className="py-2 font-normal">{t.analytics.yieldType}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.ofItReinvested}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.capitalGainUah}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.capitalGainPct}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.share}</th>
+          <TableBox>
+            <table className={`${TABLE} text-[12.5px]`}>
+              <thead className={THEAD}>
+                <tr>
+                  <th scope="col" className={TH}>
+                    {t.analytics.asset}
+                  </th>
+                  <th scope="col" className={TH}>
+                    {t.analytics.yieldType}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.invested}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.ofItReinvested}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.valueNow}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.capitalGainUah}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.capitalGainPct}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.share}
+                  </th>
                   {/* The ninth column exists only in edit mode: an always-present empty column
                       would widen the table's min-width for a control that is not there. */}
                   {editing && (
-                    <th className="py-2 font-normal">
+                    <th scope="col" className={TH}>
                       <span className="sr-only">{t.assets.actionsHeader}</span>
                     </th>
                   )}
@@ -123,35 +144,32 @@ export function Portfolio() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr
-                    key={r.asset.id}
-                    className="border-t border-hairline transition-colors hover:bg-page/60"
-                  >
+                  <tr key={r.asset.id} className={TR}>
                     {/* `th scope="row"` so the action buttons are announced against the asset. */}
-                    <th scope="row" className="py-2 text-left font-semibold">
+                    <th scope="row" className={`${TD} text-left font-semibold`}>
                       {r.asset.name}
                     </th>
-                    <td className="py-2">
+                    <td className={TD}>
                       <Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>
                     </td>
-                    <td className="py-2 text-right">{f.num(r.invested)}</td>
-                    <td className="py-2 text-right">
+                    <td className={`${TD} text-right`}>{f.num(r.invested)}</td>
+                    <td className={`${TD} text-right`}>
                       {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className={`${TD} text-right`}>
                       {r.value === undefined ? '—' : f.num(r.value)}
                     </td>
-                    <td className={`py-2 text-right font-bold ${gainClass(r.pnl)}`}>
+                    <td className={`${TD} text-right font-bold ${gainClass(r.pnl)}`}>
                       {r.pnl === undefined ? '—' : f.signedNum(r.pnl)}
                     </td>
-                    <td className={`py-2 text-right font-bold ${gainClass(r.pnlPct)}`}>
+                    <td className={`${TD} text-right font-bold ${gainClass(r.pnlPct)}`}>
                       {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className={`${TD} text-right`}>
                       <Share pct={r.share} />
                     </td>
                     {editing && (
-                      <td className="py-2 pl-4">
+                      <td className={TD}>
                         <div className="flex animate-in items-center justify-end gap-2.5 duration-300 fade-in slide-in-from-bottom-1">
                           {rowActions(r.asset)}
                         </div>
@@ -159,29 +177,39 @@ export function Portfolio() {
                     )}
                   </tr>
                 ))}
-                <tr className="border-t-2 border-panel-border">
-                  <td className="py-2 font-bold">
+                {/* A sum, not a record: no zebra and no veil. The rule sits on the cells, since a
+                    row draws no border in the separate model. */}
+                <tr data-total>
+                  <td className={`${TD} ${TOTAL} font-bold`}>
                     {t.analytics.prose.totalPlusCash(f.money(cash))}
                   </td>
-                  <td className="py-2"></td>
-                  <td className="py-2 text-right font-bold">{f.num(totals.invested)}</td>
-                  <td className="py-2 text-right font-bold">{f.num(totals.reinvested)}</td>
-                  <td className="py-2 text-right font-bold">{f.num(totals.value)}</td>
-                  <td className={`py-2 text-right font-bold ${signClass(totals.net.uah)}`}>
+                  <td className={`${TD} ${TOTAL}`}></td>
+                  <td className={`${TD} ${TOTAL} text-right font-bold`}>
+                    {f.num(totals.invested)}
+                  </td>
+                  <td className={`${TD} ${TOTAL} text-right font-bold`}>
+                    {f.num(totals.reinvested)}
+                  </td>
+                  <td className={`${TD} ${TOTAL} text-right font-bold`}>{f.num(totals.value)}</td>
+                  <td
+                    className={`${TD} ${TOTAL} text-right font-bold ${signClass(totals.net.uah)}`}
+                  >
                     {f.signedNum(totals.net.uah)}
                   </td>
-                  <td className={`py-2 text-right font-bold ${signClass(totals.net.pct)}`}>
+                  <td
+                    className={`${TD} ${TOTAL} text-right font-bold ${signClass(totals.net.pct)}`}
+                  >
                     {f.pct(totals.net.pct)}
                   </td>
-                  <td className="py-2 text-right font-bold">
+                  <td className={`${TD} ${TOTAL} text-right font-bold`}>
                     <Share pct={totals.share} fractionDigits={0} />
                   </td>
                   {/* The Total row gets no actions — a sum is not an entity. */}
-                  {editing && <td className="py-2" />}
+                  {editing && <td className={`${TD} ${TOTAL}`} />}
                 </tr>
               </tbody>
             </table>
-          </Scroller>
+          </TableBox>
           {/* Under the "Total + cash" line it explains; the chip does not fit the cell. */}
           {cashShort && <CashShortChip className="mt-2.5" />}
           <div className="mt-2.5 text-[11.5px] text-muted">{t.analytics.prose.capitalGainNote}</div>

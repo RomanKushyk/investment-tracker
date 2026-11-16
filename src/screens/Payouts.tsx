@@ -9,7 +9,8 @@ import { useView } from '../hooks/queries';
 import { selectPayouts } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-import { Scroller } from '../components/ui/Scroller';
+import { TableBox } from '../components/ui/TableBox';
+import { TABLE, TD, TH, THEAD, TH_NUM, TR } from '../components/ui/table-anatomy';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
 export function Payouts() {
@@ -106,52 +107,63 @@ export function Payouts() {
           phone never builds the min-width table or derives the rows twice. */}
       {desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
-              sets no overflow, so the Scroller, not the card, clips (*Scrolling*). */}
-          <Scroller orientation="horizontal">
+          {/* The table scrolls in a box of its own, so its header can stick. Card sets no
+              overflow, so the box, not the card, clips (*Scrolling*). */}
+          <TableBox>
             {/* 720 for the seven columns: a smaller bound would cramp the two tax columns
-                instead of letting the Scroller do its job. */}
-            <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
-              <thead>
-                <tr className="text-left text-muted">
-                  <th className="py-2 font-normal">{t.analytics.date}</th>
-                  <th className="py-2 font-normal">{t.analytics.asset}</th>
-                  <th className="py-2 font-normal">{t.analytics.type}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
+                instead of letting the box scroll. */}
+            <table className={`${TABLE} min-w-[720px] text-[12.5px]`}>
+              <thead className={THEAD}>
+                <tr>
+                  <th scope="col" className={TH}>
+                    {t.analytics.date}
+                  </th>
+                  <th scope="col" className={TH}>
+                    {t.analytics.asset}
+                  </th>
+                  <th scope="col" className={TH}>
+                    {t.analytics.type}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.amountUah}
+                  </th>
                   {/* AFTER the amount, where they read as a deduction from it and the remainder —
                       the order the tax spec names. */}
-                  <th className="py-2 text-right font-normal">{t.analytics.withheldUah}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.netOfTaxUah}</th>
-                  <th className="py-2 font-normal">{t.analytics.destination}</th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.withheldUah}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.netOfTaxUah}
+                  </th>
+                  <th scope="col" className={TH}>
+                    {t.analytics.destination}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {logRows.map((row) => (
-                  <tr
-                    key={`${row.date}-${row.assetId}-${row.amount}`}
-                    className="border-t border-hairline transition-colors hover:bg-page/60"
-                  >
-                    <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
-                    <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
-                    <td className="py-2">
+                  <tr key={`${row.date}-${row.assetId}-${row.amount}`} className={TR}>
+                    <td className={`${TD} whitespace-nowrap`}>{f.date(row.date)}</td>
+                    <td className={`${TD} font-semibold`}>{assetName(row.assetId)}</td>
+                    <td className={TD}>
                       <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
                     </td>
-                    <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
+                    <td className={`${TD} text-right font-bold`}>{f.num(row.amount)}</td>
                     {/* EMPTY WHERE THERE IS NONE, the net cell included: such a row's net IS the
                         amount column, so printing it would repeat one figure on most rows. Not a
                         dash and not a zero. */}
-                    <td className="py-2 text-right font-bold">
+                    <td className={`${TD} text-right font-bold`}>
                       {row.taxWithheld !== undefined ? f.num(row.taxWithheld) : ''}
                     </td>
-                    <td className="py-2 text-right font-bold">
+                    <td className={`${TD} text-right font-bold`}>
                       {row.taxWithheld !== undefined ? f.num(row.net) : ''}
                     </td>
-                    <td className="py-2">{destination(row)}</td>
+                    <td className={TD}>{destination(row)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </Scroller>
+          </TableBox>
         </Card>
       ) : (
         /* Below the breakpoint the log becomes one card per payout: the DATE and the

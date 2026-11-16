@@ -39,6 +39,15 @@ beforeAll(() => {
     setItem: () => undefined,
     removeItem: () => undefined,
   });
+  // The table's box measures its top on resize; jsdom has no observer to do it with.
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
 });
 const { Balances } = await import('./Balances');
 const { repo } = await import('../lib/api');

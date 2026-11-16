@@ -50,6 +50,7 @@ import { useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';
 import { rowAhead, useRowsAhead } from '../hooks/useRowsAhead';
 import { useT } from '../i18n/useT';
+import { useDocumentTop } from '../hooks/useDocumentTop';
 
 // ORDER is a design decision and stays here; the LABELS are looked up, because
 // they are language-dependent and the order is not.
@@ -175,69 +176,8 @@ function PriceModeSegment({
   );
 }
 
-/**
- * The ledger's distance from the top of the DOCUMENT, published as a custom
- * property so its scroll box can size itself against the viewport.
- *
- * MEASURED, NOT MIRRORED. Summing the parts by hand copies four components'
- * internals into one constant, with nothing to notice when any of them moves —
- * and it missed `AppHeader`'s `pt-[env(safe-area-inset-top)]` and the inset when
- * no header is drawn at all.
- *
- * DOCUMENT-RELATIVE, not viewport-relative: `getBoundingClientRect().top` moves
- * with the scroll position, so a page that scrolls would feed its own offset
- * back into the box's height. Adding `scrollY` pins it to the layout.
- *
- * The observer watches `document.body` too, because everything that moves this
- * number is ABOVE the card.
- */
-function useLedgerTop() {
-  const ref = useRef<HTMLDivElement>(null);
-  const last = useRef(-1);
-
-  const measure = useCallback(() => {
-    const el = ref.current;
-    if (el === null) return;
-    const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-    // The guard is not an optimisation. Writing unconditionally from inside a
-    // ResizeObserver whose subject this property RESIZES is the observe → write →
-    // resize cycle the browser reports as an undelivered-notifications loop.
-    if (top === last.current) return;
-    last.current = top;
-    el.style.setProperty('--ledger-top', `${top}px`);
-  }, []);
-
-  useLayoutEffect(measure);
-
-  // A ResizeObserver WATCHES SIZE AND THIS PUBLISHES A POSITION, so the subject
-  // must be an element that actually resizes when the card moves. Neither obvious
-  // candidate does: `document.body` is floored at the viewport by `Layout`'s
-  // `min-h-dvh`, and the card's own box is content-driven. `main` IS the element
-  // that changes — `flex-1` under the column the header joins, so it loses exactly
-  // the header's height.
-  //
-  // Rendering does not catch this: `createBrowserRouter` builds each route's
-  // element ONCE, so `<Outlet/>` hands React the identical object and the subtree
-  // bails out of re-rendering.
-  useEffect(() => {
-    const el = ref.current;
-    const main = el?.closest('main');
-    const observer = new ResizeObserver(measure);
-    observer.observe(document.body);
-    if (main !== null && main !== undefined) observer.observe(main);
-    if (el !== null) observer.observe(el);
-    window.addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [measure]);
-
-  return ref;
-}
-
 export function TransactionPanel() {
-  const ledgerRef = useLedgerTop();
+  const ledgerRef = useDocumentTop('--ledger-top');
   const f = useFormat();
   const t = useT();
   const language = useSettings((state) => state.language);
@@ -551,7 +491,7 @@ export function TransactionPanel() {
           stacked there, and 360 must not move.
 
           `--ledger-top` IS MEASURED: everything above the card is read off the layout
-          rather than summed by hand (see `useLedgerTop`); the fallback in the `var()`
+          rather than summed by hand (see `useDocumentTop`); the fallback in the `var()`
           survives only for the first paint, and the subtrahend beside it is this card's own
           `py-4` plus `main`'s `pb-12` — NOT `main`'s top, which the measurement already
           includes, being taken at this card's own box.

@@ -312,6 +312,9 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 72%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 62%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 6%, transparent);
+  /* A table's header band (tables.md § Signed): `ink` 7 % over an opaque `card`, mixed into one
+     colour, so rows passing under the sticky header do not show through it. */
+  --color-table-band: color-mix(in srgb, var(--color-ink) 7%, var(--color-card));
   /* THE GLOW (shell.md § Backdrop). Its own literal hues, not the asset tokens, so the caps hold
      when an asset colour moves; each peak is that hue's cap for `muted` on a bare peak. */
   --color-glow-1: #8a5a3a;
@@ -469,6 +472,7 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 82%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 6%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 55%, transparent);
+  --color-table-band: color-mix(in srgb, var(--color-ink) 7%, var(--color-card));
   --color-glow-1: #d8b494;
   --color-glow-2: #b07a52;
   --color-glow-3: #93a4b5;

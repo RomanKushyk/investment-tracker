@@ -12,7 +12,8 @@ import { useBalancesPage, useView } from '../hooks/queries';
 import { selectBalances } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-import { Scroller } from '../components/ui/Scroller';
+import { TableBox } from '../components/ui/TableBox';
+import { TABLE, TD, TH, THEAD, TH_NUM, TR } from '../components/ui/table-anatomy';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { BalancesTablePlaceholder } from './placeholders';
 
@@ -118,41 +119,44 @@ export function Balances() {
         </div>
       ) : desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
+          {/* The table scrolls in a box of its own, so its header can stick (*Scrolling*). Card
               sets no overflow: a rounded card clipping its own content is where the square
               platform track came from. */}
-          <Scroller orientation="horizontal">
-            <table className="w-full min-w-[640px] border-collapse text-[12.5px]">
-              <thead>
-                <tr className="text-left text-muted">
-                  <th className="py-2 font-normal">{t.analytics.snapshot}</th>
+          <TableBox>
+            <table className={`${TABLE} min-w-[640px] text-[12.5px]`}>
+              <thead className={THEAD}>
+                <tr>
+                  <th scope="col" className={TH}>
+                    {t.analytics.snapshot}
+                  </th>
                   {columns.map((c) => (
-                    <th key={c.id} className="py-2 text-right font-normal">
+                    <th key={c.id} scope="col" className={TH_NUM}>
                       {c.name}
                     </th>
                   ))}
-                  <th className="py-2 text-right font-normal">{t.analytics.cash}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.totalUah}</th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.cash}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.totalUah}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {empty && (
-                  <tr>
-                    <td colSpan={columns.length + 3} className="py-4 text-center text-muted">
+                  <tr className={TR}>
+                    <td colSpan={columns.length + 3} className={`${TD} text-center text-muted`}>
                       {t.analytics.empty.table}
                     </td>
                   </tr>
                 )}
                 {rows.map((row) => (
-                  <tr
-                    key={row.date}
-                    className="border-t border-hairline transition-colors hover:bg-page/60"
-                  >
-                    <td className="py-2 font-semibold whitespace-nowrap">{f.date(row.date)}</td>
+                  <tr key={row.date} className={TR}>
+                    <td className={`${TD} font-semibold whitespace-nowrap`}>{f.date(row.date)}</td>
                     {row.cells.map((cell, i) => (
                       <td
                         key={columns[i].id}
-                        className="py-2 text-right"
+                        className={`${TD} text-right`}
                         title={
                           cell.status === 'value' && cell.notHeld
                             ? t.analytics.balances.notHeldQuote
@@ -174,8 +178,8 @@ export function Balances() {
                         )}
                       </td>
                     ))}
-                    <td className="py-2 text-right">{f.num(row.cash)}</td>
-                    <td className="py-2 text-right font-bold">
+                    <td className={`${TD} text-right`}>{f.num(row.cash)}</td>
+                    <td className={`${TD} text-right font-bold`}>
                       {row.total === null ? (
                         <span className="text-faint">—</span>
                       ) : (
@@ -186,7 +190,7 @@ export function Balances() {
                 ))}
               </tbody>
             </table>
-          </Scroller>
+          </TableBox>
 
           {note && <div className="mt-2.5">{note}</div>}
           <div className="mt-2.5">{pager}</div>

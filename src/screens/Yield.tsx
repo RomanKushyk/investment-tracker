@@ -12,7 +12,8 @@ import { yieldOf } from '../hooks/slices';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import { Scroller } from '../components/ui/Scroller';
+import { TableBox } from '../components/ui/TableBox';
+import { TABLE, TD, TH, THEAD, TH_NUM, TR } from '../components/ui/table-anatomy';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
 // One rule for both forms, so the table and the card can never disagree about
@@ -21,6 +22,9 @@ import { useIsDesktop } from '../hooks/useIsDesktop';
 function signClass(v: number | null | undefined): string {
   return v == null ? 'text-muted' : v < 0 ? 'text-neg' : 'text-pos';
 }
+
+// A 1 px hairline closes the basis, with the cells' 8 px either side (Y2).
+const BASIS_END = 'border-r border-hairline';
 
 export function Yield() {
   const f = useFormat();
@@ -91,56 +95,70 @@ export function Yield() {
           derivation twice. `useIsDesktop` mounts one branch and only one. */}
       {desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
+          {/* The table scrolls in a box of its own, so its header can stick (*Scrolling*). Card
               sets no overflow: a rounded card clipping its own content is where the square
               platform track came from. */}
-          <Scroller orientation="horizontal">
-            <table className="w-full min-w-[780px] border-collapse text-[12.5px]">
-              <thead>
-                <tr className="text-left text-muted">
-                  <th className="py-2 font-normal">{t.analytics.asset}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.deltaTotal}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.annualized}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.totalReturn}</th>
-                  <th className="py-2 text-right font-normal">{xirrHeader}</th>
-                  <th className="py-2 text-right font-normal">{t.analytics.vsExpected}</th>
+          <TableBox>
+            <table className={`${TABLE} min-w-[780px] text-[12.5px]`}>
+              <thead className={THEAD}>
+                <tr>
+                  <th scope="col" className={TH}>
+                    {t.analytics.asset}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.invested}
+                  </th>
+                  <th scope="col" className={`${TH_NUM} ${BASIS_END}`}>
+                    {t.analytics.valueNow}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.deltaTotal}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.annualized}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.totalReturn}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {xirrHeader}
+                  </th>
+                  <th scope="col" className={TH_NUM}>
+                    {t.analytics.vsExpected}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr
-                    key={r.asset.id}
-                    className="border-t border-hairline transition-colors hover:bg-page/60"
-                  >
-                    <td className="py-2 font-semibold">{r.asset.name}</td>
-                    <td className="py-2 text-right">
+                  <tr key={r.asset.id} className={TR}>
+                    <td className={`${TD} font-semibold`}>{r.asset.name}</td>
+                    {/* The basis reads muted, so the returns after the hairline lead (Y2). */}
+                    <td className={`${TD} text-right text-muted`}>
                       {r.invested === undefined ? '—' : f.num(r.invested)}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className={`${TD} ${BASIS_END} text-right text-muted`}>
                       {r.value === undefined ? '—' : f.num(r.value)}
                     </td>
-                    <td className={`py-2 text-right font-bold ${signClass(r.deltaTotal)}`}>
+                    <td className={`${TD} text-right font-bold ${signClass(r.deltaTotal)}`}>
                       {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
                     </td>
                     {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a reader who cannot
                         separate `muted` from `ink` (WCAG 1.4.1), and nothing in the accessible tree
                         says WHICH cells are grey — so the marked ones name themselves. */}
                     <td
-                      className={`py-2 text-right ${r.shortBasis ? 'text-muted' : ''}`}
+                      className={`${TD} text-right ${r.shortBasis ? 'text-muted' : ''}`}
                       title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
                     >
                       {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
                     </td>
-                    <td className={`py-2 text-right font-bold ${signClass(r.totalReturn)}`}>
+                    <td className={`${TD} text-right font-bold ${signClass(r.totalReturn)}`}>
                       {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
                     </td>
-                    <td className={`py-2 text-right ${r.xirr == null ? 'text-muted' : ''}`}>
+                    <td className={`${TD} text-right font-bold ${signClass(r.xirr)}`}>
                       {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
                     </td>
                     <td
-                      className={`py-2 text-right ${r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}`}
+                      className={`${TD} text-right ${r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}`}
                       title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
                     >
                       {r.vsExpectedPp === undefined
@@ -151,7 +169,7 @@ export function Yield() {
                 ))}
               </tbody>
             </table>
-          </Scroller>
+          </TableBox>
           {note && <div className="mt-2.5 text-[11.5px] text-muted">{note}</div>}
         </Card>
       ) : (
@@ -191,9 +209,7 @@ export function Yield() {
                 </span>
               </Fact>
               <Fact label={xirrHeader}>
-                <span className={r.xirr == null ? 'text-muted' : ''}>
-                  {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
-                </span>
+                <span className={signClass(r.xirr)}>{r.xirr == null ? '—' : f.pct(r.xirr, 1)}</span>
               </Fact>
               <Fact label={t.analytics.vsExpected}>
                 <span
