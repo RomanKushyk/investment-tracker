@@ -2495,6 +2495,10 @@ exports[`cash-short > attributes 1`] = `
       "coupon": 1240,
       "kind": "bond",
       "nextCoupon": "2026-08-25",
+      "toMaturity": {
+        "daysLeft": 212,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
     {
@@ -2502,6 +2506,10 @@ exports[`cash-short > attributes 1`] = `
       "coupon": 216,
       "kind": "bond",
       "nextCoupon": "2026-12-03",
+      "toMaturity": {
+        "daysLeft": 303,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
   ],
@@ -7963,6 +7971,7 @@ exports[`linked > attributes 1`] = `
       "coupon": undefined,
       "kind": "bond",
       "nextCoupon": undefined,
+      "toMaturity": undefined,
       "ytm": 16.744947904528146,
     },
   ],
@@ -10929,6 +10938,10 @@ exports[`seed > attributes 1`] = `
       "coupon": 1240,
       "kind": "bond",
       "nextCoupon": "2026-08-25",
+      "toMaturity": {
+        "daysLeft": 212,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
     {
@@ -10936,6 +10949,10 @@ exports[`seed > attributes 1`] = `
       "coupon": 216,
       "kind": "bond",
       "nextCoupon": "2026-12-03",
+      "toMaturity": {
+        "daysLeft": 303,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
   ],
@@ -14999,6 +15016,10 @@ exports[`sold-and-unquoted > attributes 1`] = `
       "coupon": 1240,
       "kind": "bond",
       "nextCoupon": "2026-08-25",
+      "toMaturity": {
+        "daysLeft": 212,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
     {
@@ -15006,6 +15027,10 @@ exports[`sold-and-unquoted > attributes 1`] = `
       "coupon": 216,
       "kind": "bond",
       "nextCoupon": "2026-12-03",
+      "toMaturity": {
+        "daysLeft": 303,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
     {
@@ -18879,6 +18904,10 @@ exports[`sold-out > attributes 1`] = `
       "coupon": undefined,
       "kind": "bond",
       "nextCoupon": undefined,
+      "toMaturity": {
+        "daysLeft": 212,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
     {
@@ -18886,6 +18915,10 @@ exports[`sold-out > attributes 1`] = `
       "coupon": 216,
       "kind": "bond",
       "nextCoupon": "2026-12-03",
+      "toMaturity": {
+        "daysLeft": 303,
+        "kind": "running",
+      },
       "ytm": undefined,
     },
   ],

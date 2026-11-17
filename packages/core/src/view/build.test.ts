@@ -295,7 +295,7 @@ describe('the clock is an input, never read', () => {
     expect(buildView(seed)).toStrictEqual(before);
   });
 
-  it('moves the next payouts, and nothing else, with `today`', () => {
+  it('moves the next payouts and the days to maturity, and nothing else, with `today`', () => {
     const a = buildView({ ...seed, today: '2026-07-28' });
     const b = buildView({ ...seed, today: '2026-09-01' });
     expect(a.payouts.nextPayouts.map((r) => r.date)).toEqual([
@@ -308,9 +308,24 @@ describe('the clock is an input, never read', () => {
       '2026-12-03',
       '2027-02-25',
     ]);
+    const toMaturity = (v: View) =>
+      v.attributes.cards.flatMap((c) => (c.kind === 'bond' ? [c.toMaturity] : []));
+    expect(toMaturity(a)).toStrictEqual([
+      { kind: 'running', daysLeft: 212 },
+      { kind: 'running', daysLeft: 303 },
+    ]);
+    expect(toMaturity(b)).toStrictEqual([
+      { kind: 'running', daysLeft: 177 },
+      { kind: 'running', daysLeft: 268 },
+    ]);
     const withoutNext = (v: View) => ({
       ...v,
       payouts: { ...v.payouts, nextPayouts: [] },
+      attributes: {
+        cards: v.attributes.cards.map((c) =>
+          c.kind === 'bond' ? { ...c, toMaturity: undefined } : c,
+        ),
+      },
       periods: Object.fromEntries(
         Object.entries(v.periods).map(([p, block]) => [
           p,

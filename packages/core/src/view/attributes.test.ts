@@ -136,6 +136,56 @@ describe('derivedYtmPct — YTM at purchase, solved rather than typed (D120)', (
   });
 });
 
+describe('attributesView — how far a bond has to go, at the view’s day', () => {
+  // …8976 matures on 25.02.2027 and the seed still holds it then.
+  const at = (today: string, assets: Asset[] = SEED_ASSETS) =>
+    attributesView({ assets, snapshots: [], transactions: SEED_TRANSACTIONS, today }).cards;
+  const bondAt = (today: string, assets?: Asset[]) => {
+    const card = at(today, assets).find((c) => c.asset.id === 'ovdp8976')!;
+    if (card.kind !== 'bond') throw new Error('not a bond');
+    return card;
+  };
+
+  it('counts the whole days left before the maturity day, and is matured on it and after', () => {
+    expect(bondAt('2027-02-24').toMaturity).toStrictEqual({ kind: 'running', daysLeft: 1 });
+    expect(bondAt('2027-02-25').toMaturity).toStrictEqual({ kind: 'matured' });
+    expect(bondAt('2027-02-26').toMaturity).toStrictEqual({ kind: 'matured' });
+  });
+
+  it('says neither for a bond with no stored maturity', () => {
+    const assets = SEED_ASSETS.map((a) =>
+      a.id === 'ovdp8976' ? { ...a, maturity: undefined } : a,
+    );
+    for (const day of ['2027-02-24', '2027-02-25', '2027-02-26']) {
+      expect(bondAt(day, assets).toMaturity).toBeUndefined();
+    }
+  });
+
+  it('serves no coupon and no next coupon once matured, though the units are still held', () => {
+    const running = bondAt('2027-02-24');
+    expect(running.coupon).toBeDefined();
+    expect(running.nextCoupon).toBeDefined();
+    for (const day of ['2027-02-25', '2027-02-26']) {
+      expect(bondAt(day).coupon).toBeUndefined();
+      expect(bondAt(day).nextCoupon).toBeUndefined();
+    }
+  });
+
+  it('leaves every fund card as it was, whatever the day', () => {
+    const funds = (today: string) => at(today).filter((c) => c.kind === 'market');
+    expect(funds('2027-02-24').length).toBeGreaterThan(0);
+    expect(funds('2027-02-26')).toStrictEqual(funds('2027-02-24'));
+    expect(funds('2027-02-24')).toStrictEqual(
+      attributesView({
+        assets: SEED_ASSETS,
+        snapshots: [],
+        transactions: SEED_TRANSACTIONS,
+        today: '2026-07-28',
+      }).cards.filter((c) => c.kind === 'market'),
+    );
+  });
+});
+
 describe('attributesView — the Next coupon fact', () => {
   // The transaction form records a coupon without moving `asset.nextCoupon`, so the
   // stored pointer stays on a settled date; the card carries the ledger's walk instead.
@@ -151,6 +201,7 @@ describe('attributesView — the Next coupon fact', () => {
       assets: SEED_ASSETS,
       snapshots: [],
       transactions: [...SEED_TRANSACTIONS, paid],
+      today: '2026-07-28',
     }).cards.find((c) => c.asset.id === 'ovdp8976')!;
     expect(card.kind === 'bond' && card.nextCoupon).toBe('2027-02-25');
     expect(card.asset.nextCoupon).toBe('2026-08-25');
@@ -178,6 +229,7 @@ describe('attributesView — the Next coupon fact', () => {
         assets: SEED_ASSETS,
         snapshots: [],
         transactions: [...SEED_TRANSACTIONS, ...rows],
+        today: '2026-07-28',
       }).cards.find((c) => c.asset.id === 'ovdp8976')!;
       return card.kind === 'bond' ? card.nextCoupon : 'not a bond';
     };
@@ -246,7 +298,12 @@ describe("attributesView — Actual is /yield's annualized return at the full hi
     const assets = SEED_ASSETS.map((a) =>
       a.id === 'ovdp6475' ? { ...a, yieldType: 'capitalization' as const } : a,
     );
-    const at = { assets, snapshots: buildSeedSnapshots(), transactions: SEED_TRANSACTIONS };
+    const at = {
+      assets,
+      snapshots: buildSeedSnapshots(),
+      transactions: SEED_TRANSACTIONS,
+      today: '2026-07-28',
+    };
     const card = attributesView(at).cards.find((c) => c.asset.id === 'ovdp6475')!;
     expect(card.kind === 'market' && card.shortBasis).toBe(true);
   });
@@ -261,6 +318,7 @@ describe("attributesView — Actual is /yield's annualized return at the full hi
       transactions: [
         { id: 'b1', date: day, type: 'buy' as const, assetId: 'energy', amount: 10_000 },
       ],
+      today: day,
     };
     const card = attributesView(at).cards[0]!;
     expect(card.kind === 'market' && card.actualAnnualized).toBeUndefined();

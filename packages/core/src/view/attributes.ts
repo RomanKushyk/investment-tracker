@@ -2,11 +2,12 @@
 // structured tokens, so the label words and the ordinal assembly live in the
 // component layer.
 import { couponPerPayment, nextUnsettledCouponDate } from '../accrual';
+import { daysBetween } from '../dates';
 import { purchaseUnitPrice, unitsByAsset } from '../derive';
 import { impliedYield } from '../inzhur/dcf';
 import { matchAssets, NO_UNITS, type ParsedFeed } from '../inzhur/parse';
 import type { Asset, PayoutSchedule, Transaction } from '../types';
-import type { FeedInput, LedgerInput, PaymentDatesInput } from './input';
+import type { ClockInput, FeedInput, LedgerInput, PaymentDatesInput } from './input';
 import { yieldView } from './yield';
 
 export function dividendDayOfMonth(
@@ -85,6 +86,8 @@ export interface BondCard {
   coupon: number | undefined;
   /** The ledger's walk, never the stored pointer, which a recorded payout leaves behind. */
   nextCoupon: string | undefined;
+  /** At the view's day; absent with no stored maturity. A matured bond pays no more coupons. */
+  toMaturity: { kind: 'running'; daysLeft: number } | { kind: 'matured' } | undefined;
 }
 
 export interface MarketCard {
@@ -101,23 +104,35 @@ export type AttributeCard = BondCard | MarketCard;
 
 /** The Attributes screen's facts, one card per asset. A market asset's return is `/yield`'s
  *  row at `all`, the full history. */
-export function attributesView(input: LedgerInput & FeedInput & PaymentDatesInput): {
+export function attributesView(input: LedgerInput & ClockInput & FeedInput & PaymentDatesInput): {
   cards: AttributeCard[];
 } {
-  const { transactions, feed, paymentDates } = input;
+  const { transactions, feed, paymentDates, today } = input;
   const units = unitsByAsset(transactions);
   return {
     cards: yieldView({ ...input, period: 'all' }).rows.map((row): AttributeCard => {
       const { asset } = row;
       if (asset.yieldType === 'fixed_coupon') {
+        const { maturity } = asset;
+        // Redeemed on its maturity day, so that day already counts as matured.
+        const toMaturity: BondCard['toMaturity'] =
+          maturity === undefined
+            ? undefined
+            : today < maturity
+              ? { kind: 'running', daysLeft: daysBetween(today, maturity) }
+              : { kind: 'matured' };
+        const matured = toMaturity?.kind === 'matured';
         return {
           kind: 'bond',
           asset,
           ytm: derivedYtmPct(asset, transactions, feed),
-          coupon: couponPerPayment(asset, units[asset.id]),
-          nextCoupon: nextUnsettledCouponDate(asset, transactions, {
-            schedule: paymentDates?.get(asset.id),
-          }),
+          coupon: matured ? undefined : couponPerPayment(asset, units[asset.id]),
+          nextCoupon: matured
+            ? undefined
+            : nextUnsettledCouponDate(asset, transactions, {
+                schedule: paymentDates?.get(asset.id),
+              }),
+          toMaturity,
         };
       }
       return {
