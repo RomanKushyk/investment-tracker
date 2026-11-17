@@ -311,12 +311,12 @@ describe('the clock is an input, never read', () => {
     const toMaturity = (v: View) =>
       v.attributes.cards.flatMap((c) => (c.kind === 'bond' ? [c.toMaturity] : []));
     expect(toMaturity(a)).toStrictEqual([
-      { kind: 'running', daysLeft: 212 },
-      { kind: 'running', daysLeft: 303 },
+      { kind: 'running', daysLeft: 212, daysTotal: 385 },
+      { kind: 'running', daysLeft: 303, daysTotal: 359 },
     ]);
     expect(toMaturity(b)).toStrictEqual([
-      { kind: 'running', daysLeft: 177 },
-      { kind: 'running', daysLeft: 268 },
+      { kind: 'running', daysLeft: 177, daysTotal: 385 },
+      { kind: 'running', daysLeft: 268, daysTotal: 359 },
     ]);
     const withoutNext = (v: View) => ({
       ...v,

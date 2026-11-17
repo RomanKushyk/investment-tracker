@@ -174,6 +174,27 @@ describe('day-of-month', () => {
   });
 });
 
+// The «Атрибути» bar's caption: «днів» follows the plural rule (attributes-item.md § Signed).
+describe('the days to maturity', () => {
+  it('takes each Ukrainian form, through the 11-14 band and back at 21', () => {
+    const days = uk.analytics.attributes.daysToMaturity;
+    expect(days(1)).toBe('ще 1 день до погашення');
+    expect(days(2)).toBe('ще 2 дні до погашення');
+    expect(days(4)).toBe('ще 4 дні до погашення');
+    expect(days(5)).toBe('ще 5 днів до погашення');
+    expect(days(11)).toBe('ще 11 днів до погашення');
+    expect(days(14)).toBe('ще 14 днів до погашення');
+    expect(days(20)).toBe('ще 20 днів до погашення');
+    expect(days(21)).toBe('ще 21 день до погашення');
+    expect(days(22)).toBe('ще 22 дні до погашення');
+  });
+
+  it('keeps English to its two forms', () => {
+    expect(en.analytics.attributes.daysToMaturity(1)).toBe('1 day to maturity');
+    expect(en.analytics.attributes.daysToMaturity(21)).toBe('21 days to maturity');
+  });
+});
+
 // `plural` is private, so the delete-cascade sentence is what tests it: two counts in
 // one string, which is where a form is most likely to be picked for the wrong count.
 // The 11-14 band is the exception a naive implementation gets wrong.

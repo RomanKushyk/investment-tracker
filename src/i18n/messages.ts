@@ -586,13 +586,20 @@ export const en = {
     attributes: {
       ytmAtPurchase: 'YTM at purchase',
       coupon: 'Coupon',
-      maturity: 'Maturity',
       targetShare: 'Target share',
       firstPurchase: 'First purchase',
       nextCoupon: 'Next coupon',
-      expectedReturn: 'Expected return',
-      actualAnn: 'Actual (ann.)',
       payoutSchedule: 'Payout schedule',
+      // ✎ The item's "what is it" line, its captions and the bar's end labels (attributes-item.md).
+      kindFund: (yieldType: string) => `Fund · ${yieldType} · no maturity`,
+      kindBond: (yieldType: string) => `Bond · ${yieldType}`,
+      actualCaption: (expected: string) => `Actual (ann.) · expected ${expected}`,
+      actualNotYet: (expected: string) => `Actual (ann.) not counted yet · expected ${expected}`,
+      barActual: (pct: string) => `actual ${pct}`,
+      barExpected: (pct: string) => `expected ${pct}`,
+      daysToMaturity: (n: number) => `${n} ${n === 1 ? 'day' : 'days'} to maturity`,
+      maturedOn: (date: string) => `matured ${date}`,
+      noMaturity: 'maturity date not given',
     },
     prose: {
       totalPlusCash: (cash: string) => `Total + cash ${cash}`,
@@ -2252,13 +2259,20 @@ export const uk: Dict = {
     attributes: {
       ytmAtPurchase: 'YTM на купівлі',
       coupon: 'Купон',
-      maturity: 'Погашення',
       targetShare: 'Цільова частка',
       firstPurchase: 'Перша купівля',
       nextCoupon: 'Наступний купон',
-      expectedReturn: 'Очікувана дохідність',
-      actualAnn: 'Фактична (річна)',
       payoutSchedule: 'Графік виплат',
+      kindFund: (yieldType: string) => `Фонд · ${yieldType} · без погашення`, // ✎
+      kindBond: (yieldType: string) => `ОВДП · ${yieldType}`, // ✎
+      actualCaption: (expected: string) => `Фактична (річна) · очікувана ${expected}`, // ✎
+      actualNotYet: (expected: string) =>
+        `Фактична (річна) ще не рахується · очікувана ${expected}`, // ✎
+      barActual: (pct: string) => `фактична ${pct}`, // ✎
+      barExpected: (pct: string) => `очікувана ${pct}`, // ✎
+      daysToMaturity: (n: number) => `ще ${n} ${plural(n, 'день', 'дні', 'днів')} до погашення`, // ✎
+      maturedOn: (date: string) => `погашено ${date}`, // ✎
+      noMaturity: 'дата погашення не вказана', // ✎
     },
     prose: {
       totalPlusCash: (cash: string) => `Разом + готівка ${cash}`,

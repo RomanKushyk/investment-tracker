@@ -99,7 +99,6 @@ const ALLOWED: Record<string, Record<string, number>> = {
     'tracking-[.12em]': 2,
     'uppercase without the caps recipe': 2,
   },
-  'src/screens/Attributes.tsx': { 'leading-[1.4]': 1, 'text-[10.5px]': 1 },
   'src/screens/Balances.tsx': { 'text-[11.5px]': 2, 'text-[12.5px]': 1, 'text-xs': 2 },
   'src/screens/DailyQuotes.tsx': { 'text-[13px]': 2, 'text-[26px]': 1, 'text-xs': 3 },
   'src/screens/Overview.tsx': {

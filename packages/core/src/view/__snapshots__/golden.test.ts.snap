@@ -2497,6 +2497,7 @@ exports[`cash-short > attributes 1`] = `
       "nextCoupon": "2026-08-25",
       "toMaturity": {
         "daysLeft": 212,
+        "daysTotal": 385,
         "kind": "running",
       },
       "ytm": undefined,
@@ -2508,6 +2509,7 @@ exports[`cash-short > attributes 1`] = `
       "nextCoupon": "2026-12-03",
       "toMaturity": {
         "daysLeft": 303,
+        "daysTotal": 359,
         "kind": "running",
       },
       "ytm": undefined,
@@ -10940,6 +10942,7 @@ exports[`seed > attributes 1`] = `
       "nextCoupon": "2026-08-25",
       "toMaturity": {
         "daysLeft": 212,
+        "daysTotal": 385,
         "kind": "running",
       },
       "ytm": undefined,
@@ -10951,6 +10954,7 @@ exports[`seed > attributes 1`] = `
       "nextCoupon": "2026-12-03",
       "toMaturity": {
         "daysLeft": 303,
+        "daysTotal": 359,
         "kind": "running",
       },
       "ytm": undefined,
@@ -15018,6 +15022,7 @@ exports[`sold-and-unquoted > attributes 1`] = `
       "nextCoupon": "2026-08-25",
       "toMaturity": {
         "daysLeft": 212,
+        "daysTotal": 385,
         "kind": "running",
       },
       "ytm": undefined,
@@ -15029,6 +15034,7 @@ exports[`sold-and-unquoted > attributes 1`] = `
       "nextCoupon": "2026-12-03",
       "toMaturity": {
         "daysLeft": 303,
+        "daysTotal": 359,
         "kind": "running",
       },
       "ytm": undefined,
@@ -18906,6 +18912,7 @@ exports[`sold-out > attributes 1`] = `
       "nextCoupon": undefined,
       "toMaturity": {
         "daysLeft": 212,
+        "daysTotal": 385,
         "kind": "running",
       },
       "ytm": undefined,
@@ -18917,6 +18924,7 @@ exports[`sold-out > attributes 1`] = `
       "nextCoupon": "2026-12-03",
       "toMaturity": {
         "daysLeft": 303,
+        "daysTotal": 359,
         "kind": "running",
       },
       "ytm": undefined,

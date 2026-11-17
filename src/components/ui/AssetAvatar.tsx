@@ -7,10 +7,11 @@ const TINT: Record<ColorKey, string> = {
   ovdp6475: 'bg-ovdp6475-tint text-ovdp6475-tint-text',
 };
 
-// `size` is a variant, not a free number, for the same reason `Card.radius` is:
-// two call sites need two sizes and nothing needs a third.
+// `size` is a variant, not a free number, for the same reason `Card.radius` is: each size
+// belongs to a call site, and nothing else needs one.
 const SIZE = {
   34: 'size-[34px] text-small',
+  44: 'size-[44px] text-body',
   48: 'size-[48px] text-body',
 };
 
@@ -21,7 +22,7 @@ export function AssetAvatar({
 }: {
   code: string;
   colorKey: ColorKey;
-  size?: 34 | 48;
+  size?: 34 | 44 | 48;
 }) {
   return (
     <div

@@ -60,6 +60,10 @@ async function screenOn(today: string) {
   return container;
 }
 
+/** The bond's hero row: the figure the item leads with and its «/ рік». */
+const heroOf = (root: HTMLElement) =>
+  root.querySelector(`[data-asset="${bond.id}"] [data-hero]`)?.textContent;
+
 // The buy is dated 12.08.2026; on the 20th it is held, on the 1st it is yet to come.
 const HELD_ON = '2026-08-20';
 const AHEAD_OF = '2026-08-01';
@@ -74,14 +78,16 @@ describe('the YTM at purchase', () => {
 
   it('shows the rate solved against the feed when a feed is held, beside the stored one', async () => {
     held.feed = { feed: linked.feed };
-    const text = (await screenOn(HELD_ON)).textContent;
-    expect(text).toContain(`${f.pctPlain(solved!)} ${uk.analytics.perYear}`);
+    const root = await screenOn(HELD_ON);
+    const text = root.textContent;
+    expect(heroOf(root)).toBe(`${f.pctPlain(solved!)}${uk.analytics.perYear}`);
     expect(text).toContain(uk.analytics.prose.ytmDerived(f.pctPlain(bond.expectedPct)));
   });
 
   it('shows the stored rate when no feed is held', async () => {
-    const text = (await screenOn(HELD_ON)).textContent;
-    expect(text).toContain(`${f.pctPlain(bond.expectedPct)} ${uk.analytics.perYear}`);
+    const root = await screenOn(HELD_ON);
+    const text = root.textContent;
+    expect(heroOf(root)).toBe(`${f.pctPlain(bond.expectedPct)}${uk.analytics.perYear}`);
     expect(text).not.toContain(uk.analytics.prose.ytmDerived(f.pctPlain(bond.expectedPct)));
   });
 
@@ -89,8 +95,9 @@ describe('the YTM at purchase', () => {
   // price solved against it included.
   it('solves nothing for a purchase that is dated ahead', async () => {
     held.feed = { feed: linked.feed };
-    const text = (await screenOn(AHEAD_OF)).textContent;
-    expect(text).toContain(`${f.pctPlain(bond.expectedPct)} ${uk.analytics.perYear}`);
+    const root = await screenOn(AHEAD_OF);
+    const text = root.textContent;
+    expect(heroOf(root)).toBe(`${f.pctPlain(bond.expectedPct)}${uk.analytics.perYear}`);
     expect(text).not.toContain(uk.analytics.prose.ytmDerived(f.pctPlain(bond.expectedPct)));
   });
 });

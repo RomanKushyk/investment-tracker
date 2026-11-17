@@ -164,10 +164,25 @@ On seed:
 ## `/attributes`
 
 On seed:
-- 2×2 grid of read-only asset cards: avatar + name + yield-type tag + a `<dl>` of 5 facts for a non-bond (Expected return, Actual, Payout schedule, Target share, First purchase) and 6 for a bond.
-- **Coupon is derived** — `rate/100 ÷ payments/year × 1000 × units`, so it moves when the holding does. On the seed both bonds carry the legacy stored amount and no rate, so …8976 still reads **1 240 ₴ semi-annually** and …6475 **216 ₴**. Record a sell that closes a linked bond and the fact goes to "—". Set …8976's Maturity to today or earlier and Coupon and Next coupon both read "—": the bond has matured.
+- 2×2 grid of read-only asset items (1 column below md), each a glass card at r24 with 22 padding. Each item has four parts:
+  - **Header:** a 44 avatar, the name at 17/600 cut with an ellipsis (whole in its `title`), and a muted line that wraps, saying what the asset is: «Фонд · {yield type} · без погашення» or «ОВДП · {yield type}». There is no tag.
+  - **Hero:** one figure at 36/44 with «/ рік», over an 11 muted caption.
+    - Fund: the actual annual return in `pos` / `neg`, `muted` on a short basis, captioned «Фактична (річна) · очікувана {expected}».
+    - Bond: the YTM at purchase, captioned «YTM на купівлі».
+  - **Bar:** an 8 px track at `ink` 8 %, filled in the asset's hue, with a 2 × 16 `ink` tick.
+    - Bond: first purchase → maturity, today ticked, the two dates at the ends, «ще N днів до погашення» under it.
+    - Fund: the actual against the expected tick on max(actual, expected) × 1.25, «фактична … / очікувана …» at the ends.
+  - **Facts:** three, in this order. Fund: Payout schedule, Target share, First purchase. Bond: Coupon, Target share, Next coupon.
+- **No bar without a value and a range.**
+  - A fund with a negative return prints it in `neg` and keeps its caption.
+  - A fund with no actual return yet reads «—» over «Фактична (річна) ще не рахується · очікувана {expected}».
+  - A bond with no stored maturity shows «дата погашення не вказана» in its place.
+- **Check on seed:**
+  - Energy's long name stays on one line; no screen scrolls sideways at 360.
+  - …8976's bar reads 05.02.2026 → 25.02.2027 and «ще 212 днів до погашення» on 28.07.2026; …6475's reads 02.06.2026 → 27.05.2027 and 303 days.
+- **Coupon is derived** — `rate/100 ÷ payments/year × 1000 × units`, so it moves when the holding does. On the seed both bonds carry the legacy stored amount and no rate, so …8976 still reads **1 240 ₴ semi-annually** and …6475 **216 ₴**. Record a sell that closes a linked bond and the fact goes to "—". Set …8976's Maturity to today or earlier and Coupon and Next coupon both read "—": the bond has matured, its bar is full with no tick, and it reads «погашено {date}». Set it before the first purchase (05.02.2026) and there is no span to draw: «погашено {date}» stands alone, with no bar. A running bond whose first purchase is on or after its maturity likewise shows only «ще N днів до погашення», and one whose first purchase is still ahead of today draws an empty bar with no tick.
 - **Next coupon is the next occurrence the ledger has not settled**, not the stored pointer, and a Skip on the coupon-due card does not move it: …8976 reads **25.08.2026** and …6475 **03.12.2026** on the seed. Record a …8976 interest payout dated 25.08.2026 on `/transactions` and the fact reads 25.02.2027, while `/portfolio`'s edit dialog keeps 25.08.2026; add one dated 25.02.2027 and the schedule is spent, so the fact reads "—". Sell …8976's 15 units on 01.07 instead and it reads "—" too, since the ledger held none on 24.08, the day before the coupon; buy 5 back on 01.09 and it reads 25.02.2027. A semiannual bond steps 182 days, not by calendar month: create an unlinked one with a coupon date of 01.10.2025 and maturity 27.09.2028, buy it before that date, record its 01.10.2025 and 01.04.2026 coupons on `/transactions`, and the fact reads **30.09.2026**.
-- **YTM at purchase is solved and disclosed when it differs** — the yield implied by the price actually paid, against the bond's own schedule, on the purchase's own date. Needs a linked bond, a purchase carrying a unit price, and a feed in hand; missing any, the stored expected % shows instead. When the two differ at the precision SHOWN, a muted note renders below the figure naming the stored value. Visible text, not a tooltip. Check: targets 40/40/17/3; Energy shows "None (price only)" for payout schedule; bond cards swap in YTM at purchase / Coupon / Maturity / Next coupon. Check: YTM at purchase reads the stored expected % with NO second line — 16,4% on …8976 and 15,2% on …6475 — neither carries a live link, so nothing solves and nothing differs. Assets created via the transaction form appear here with their entered attributes.
+- **YTM at purchase is solved and disclosed when it differs** — the yield implied by the price actually paid, against the bond's own schedule, on the purchase's own date. Needs a linked bond, a purchase carrying a unit price, and a feed in hand; missing any, the stored expected % shows instead. When the two differ at the precision SHOWN, a muted note renders under the hero's caption naming the stored value. Visible text, not a tooltip. Check: targets 40/40/17/3; Energy shows "None (price only)" for payout schedule. Check: the bond hero reads the stored expected % with NO second line — 16,4% on …8976 and 15,2% on …6475 — neither carries a live link, so nothing solves and nothing differs. Assets created via the transaction form appear here with their entered attributes.
 
 ## `/seasonality`
 

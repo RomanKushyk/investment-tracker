@@ -147,9 +147,27 @@ describe('attributesView — how far a bond has to go, at the view’s day', () 
   };
 
   it('counts the whole days left before the maturity day, and is matured on it and after', () => {
-    expect(bondAt('2027-02-24').toMaturity).toStrictEqual({ kind: 'running', daysLeft: 1 });
-    expect(bondAt('2027-02-25').toMaturity).toStrictEqual({ kind: 'matured' });
-    expect(bondAt('2027-02-26').toMaturity).toStrictEqual({ kind: 'matured' });
+    // 05.02.2026 → 25.02.2027: the span the «Атрибути» bar runs over, first purchase to maturity.
+    expect(bondAt('2027-02-24').toMaturity).toStrictEqual({
+      kind: 'running',
+      daysLeft: 1,
+      daysTotal: 385,
+    });
+    expect(bondAt('2027-02-25').toMaturity).toStrictEqual({ kind: 'matured', daysTotal: 385 });
+    expect(bondAt('2027-02-26').toMaturity).toStrictEqual({ kind: 'matured', daysTotal: 385 });
+  });
+
+  it('serves a span of zero or less as it is when the first purchase is not before maturity', () => {
+    const on = (firstPurchase: string) =>
+      SEED_ASSETS.map((a) => (a.id === 'ovdp8976' ? { ...a, firstPurchase } : a));
+    expect(bondAt('2027-03-10', on('2027-02-25')).toMaturity).toStrictEqual({
+      kind: 'matured',
+      daysTotal: 0,
+    });
+    expect(bondAt('2027-03-10', on('2027-03-01')).toMaturity).toStrictEqual({
+      kind: 'matured',
+      daysTotal: -4,
+    });
   });
 
   it('says neither for a bond with no stored maturity', () => {

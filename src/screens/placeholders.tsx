@@ -464,15 +464,17 @@ export function AttributesPlaceholder() {
       <ScreenHeader title={t.screen.attributes.title} subtitle={t.screen.attributes.subtitle} />
       <div className="grid grid-cols-2 gap-3.5 max-md:grid-cols-1">
         {[0, 1, 2].map((i) => (
+          // The item's geometry: the avatar, the name and its line, the hero, the bar.
           <Card key={i} radius={24} className="p-[22px]">
             <div className="flex items-center gap-3">
-              <Block kind="avatar" className="size-9 rounded-full" />
-              <Bar w="40%" />
+              <Block kind="avatar" className="size-11 flex-none rounded-full" />
+              <div className="flex flex-1 flex-col gap-2">
+                <Bar w="45%" />
+                <Bar w="65%" />
+              </div>
             </div>
-            <div className="mt-4 flex flex-col gap-3">
-              <Bar w="70%" />
-              <Bar w="55%" />
-            </div>
+            <Block kind="hero" className="mt-4 h-9 w-[40%] rounded-[9px]" />
+            <Block kind="track" className="mt-4 h-2 rounded-[2px]" />
           </Card>
         ))}
       </div>

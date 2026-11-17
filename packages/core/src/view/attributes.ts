@@ -86,8 +86,13 @@ export interface BondCard {
   coupon: number | undefined;
   /** The ledger's walk, never the stored pointer, which a recorded payout leaves behind. */
   nextCoupon: string | undefined;
-  /** At the view's day; absent with no stored maturity. A matured bond pays no more coupons. */
-  toMaturity: { kind: 'running'; daysLeft: number } | { kind: 'matured' } | undefined;
+  /** At the view's day; absent with no stored maturity. A matured bond pays no more coupons.
+   *  `daysTotal` runs from the first purchase to maturity, the span «Атрибути»'s bar covers; the
+   *  two are stored apart, so it can be zero or negative, and then there is no span to draw. */
+  toMaturity:
+    | { kind: 'running'; daysLeft: number; daysTotal: number }
+    | { kind: 'matured'; daysTotal: number }
+    | undefined;
 }
 
 export interface MarketCard {
@@ -115,12 +120,13 @@ export function attributesView(input: LedgerInput & ClockInput & FeedInput & Pay
       if (asset.yieldType === 'fixed_coupon') {
         const { maturity } = asset;
         // Redeemed on its maturity day, so that day already counts as matured.
-        const toMaturity: BondCard['toMaturity'] =
-          maturity === undefined
-            ? undefined
-            : today < maturity
-              ? { kind: 'running', daysLeft: daysBetween(today, maturity) }
-              : { kind: 'matured' };
+        const toMaturity = ((): BondCard['toMaturity'] => {
+          if (maturity === undefined) return undefined;
+          const daysTotal = daysBetween(asset.firstPurchase, maturity);
+          return today < maturity
+            ? { kind: 'running', daysLeft: daysBetween(today, maturity), daysTotal }
+            : { kind: 'matured', daysTotal };
+        })();
         const matured = toMaturity?.kind === 'matured';
         return {
           kind: 'bond',

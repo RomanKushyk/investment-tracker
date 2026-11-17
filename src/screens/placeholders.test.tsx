@@ -156,4 +156,28 @@ describe('what a placeholder keeps of its screen', () => {
       cleanup();
     }
   });
+
+  // attributes-item.md § Signed, the loading placeholder.
+  it('Attributes holds each item as its avatar circle, two text bars, the hero and the bar', () => {
+    const root = mount('attributes');
+    const items = [...root.querySelectorAll('[data-placeholder="avatar"]')].map((avatar) =>
+      avatar.closest('.glass')!,
+    );
+    expect(items).toHaveLength(3);
+    for (const card of items) {
+      const blocks = [...card.querySelectorAll<HTMLElement>('[data-placeholder]')];
+      expect(blocks.map((b) => b.dataset.placeholder)).toEqual([
+        'avatar',
+        'bar',
+        'bar',
+        'hero',
+        'track',
+      ]);
+      const [avatar, , , hero, track] = blocks;
+      expect(avatar.className).toContain('size-11');
+      expect(avatar.className).toContain('rounded-full');
+      expect(hero.className).toContain('h-9');
+      expect(track.className).toContain('h-2');
+    }
+  });
 });
