@@ -9,7 +9,7 @@ import { useAssetDialogs } from './portfolio/useAssetDialogs';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
-import { Fact, RecordCard } from '../components/ui/RecordCard';
+import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { Share } from '../components/ui/Share';
@@ -216,60 +216,62 @@ export function Portfolio() {
         </Card>
       ) : (
         <div className="mb-3.5 flex flex-col gap-2.5">
-          {rows.map((r, i) => (
+          <RecordList>
+            {rows.map((r, i) => (
+              <RecordCard
+                key={r.asset.id}
+                index={i}
+                avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
+                title={r.asset.name}
+                tag={<Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>}
+                // A FOOTER BAND, not the header row, which two buttons would overflow at 360.
+                // The band is ALREADY `flex flex-wrap`, so the actions
+                // go in bare — a nested flex box makes the pair one unwrappable item and
+                // cancels the wrap the band exists to provide.
+                footer={editing ? rowActions(r.asset) : undefined}
+              >
+                <Fact label={t.analytics.invested}>{f.num(r.invested)}</Fact>
+                <Fact label={t.analytics.ofItReinvested}>
+                  {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
+                </Fact>
+                <Fact label={t.analytics.valueNow}>
+                  {r.value === undefined ? '—' : f.num(r.value)}
+                </Fact>
+                <Fact label={t.analytics.share}>
+                  <Share pct={r.share} />
+                </Fact>
+                <Fact label={t.analytics.capitalGainUah}>
+                  <span className={gainClass(r.pnl)}>
+                    {r.pnl === undefined ? '—' : f.signedNum(r.pnl)}
+                  </span>
+                </Fact>
+                <Fact label={t.analytics.capitalGainPct}>
+                  <span className={gainClass(r.pnlPct)}>
+                    {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
+                  </span>
+                </Fact>
+              </RecordCard>
+            ))}
             <RecordCard
-              key={r.asset.id}
-              index={i}
-              avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
-              title={r.asset.name}
-              tag={<Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>}
-              // A FOOTER BAND, not the header row, which two buttons would overflow at 360.
-              // The band is ALREADY `flex flex-wrap`, so the actions
-              // go in bare — a nested flex box makes the pair one unwrappable item and
-              // cancels the wrap the band exists to provide.
-              footer={editing ? rowActions(r.asset) : undefined}
+              index={rows.length}
+              title={t.analytics.prose.totalPlusCash(f.money(cash))}
+              ruled
+              footer={cashShort ? <CashShortChip /> : undefined}
             >
-              <Fact label={t.analytics.invested}>{f.num(r.invested)}</Fact>
-              <Fact label={t.analytics.ofItReinvested}>
-                {r.reinvested > 0 ? f.num(r.reinvested) : '—'}
-              </Fact>
-              <Fact label={t.analytics.valueNow}>
-                {r.value === undefined ? '—' : f.num(r.value)}
-              </Fact>
+              <Fact label={t.analytics.invested}>{f.num(totals.invested)}</Fact>
+              <Fact label={t.analytics.ofItReinvested}>{f.num(totals.reinvested)}</Fact>
+              <Fact label={t.analytics.valueNow}>{f.num(totals.value)}</Fact>
               <Fact label={t.analytics.share}>
-                <Share pct={r.share} />
+                <Share pct={totals.share} fractionDigits={0} />
               </Fact>
               <Fact label={t.analytics.capitalGainUah}>
-                <span className={gainClass(r.pnl)}>
-                  {r.pnl === undefined ? '—' : f.signedNum(r.pnl)}
-                </span>
+                <span className={signClass(totals.net.uah)}>{f.signedNum(totals.net.uah)}</span>
               </Fact>
               <Fact label={t.analytics.capitalGainPct}>
-                <span className={gainClass(r.pnlPct)}>
-                  {r.pnlPct === undefined ? '—' : f.pct(r.pnlPct)}
-                </span>
+                <span className={signClass(totals.net.pct)}>{f.pct(totals.net.pct)}</span>
               </Fact>
             </RecordCard>
-          ))}
-          <RecordCard
-            index={rows.length}
-            title={t.analytics.prose.totalPlusCash(f.money(cash))}
-            className="border-t-2 border-panel-border"
-            footer={cashShort ? <CashShortChip /> : undefined}
-          >
-            <Fact label={t.analytics.invested}>{f.num(totals.invested)}</Fact>
-            <Fact label={t.analytics.ofItReinvested}>{f.num(totals.reinvested)}</Fact>
-            <Fact label={t.analytics.valueNow}>{f.num(totals.value)}</Fact>
-            <Fact label={t.analytics.share}>
-              <Share pct={totals.share} fractionDigits={0} />
-            </Fact>
-            <Fact label={t.analytics.capitalGainUah}>
-              <span className={signClass(totals.net.uah)}>{f.signedNum(totals.net.uah)}</span>
-            </Fact>
-            <Fact label={t.analytics.capitalGainPct}>
-              <span className={signClass(totals.net.pct)}>{f.pct(totals.net.pct)}</span>
-            </Fact>
-          </RecordCard>
+          </RecordList>
           <div className="px-1 text-[11.5px] text-muted">{t.analytics.prose.capitalGainNote}</div>
         </div>
       )}

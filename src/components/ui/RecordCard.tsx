@@ -1,6 +1,19 @@
-import type { ReactNode } from 'react';
+import { Children, createContext, useContext, type ReactNode } from 'react';
 
 import { Card } from './Card';
+
+const InList = createContext(false);
+
+/** The narrow records in ONE glass card (tables.md § Signed, R2); the RecordCards inside read
+ *  the context, so none can stay a card of its own. No records, no card. */
+export function RecordList({ children }: { children: ReactNode }) {
+  if (Children.toArray(children).length === 0) return null;
+  return (
+    <Card radius={24} className="flex animate-in flex-col p-1.5 duration-300 fade-in">
+      <InList value>{children}</InList>
+    </Card>
+  );
+}
 
 // The <div> wrapper is valid <dl> content — HTML5 allows grouping a dt+dd pair
 // in a <div> child — and it is what makes each fact ONE grid cell while dt and
@@ -15,7 +28,7 @@ export function Fact({ label, children }: { label: string; children: ReactNode }
 }
 
 /**
- * A table row as a card: the HEADER is the row's identity, the BODY a `dl` of
+ * A table row as a record: the HEADER is the row's identity, the BODY a `dl` of
  * the remaining columns.
  *
  * EVERY COLUMN HEADER BECOMES A `dt` VERBATIM — no re-wording, no abbreviation,
@@ -33,9 +46,9 @@ export function RecordCard({
   eyebrow,
   title,
   tag,
-  className = '',
   children,
   footer,
+  ruled = false,
 }: {
   /** Position in the list — drives the stagger only (`60 ms × (i mod 4)`). */
   index?: number;
@@ -44,7 +57,6 @@ export function RecordCard({
   eyebrow?: ReactNode;
   title: ReactNode;
   tag?: ReactNode;
-  className?: string;
   children: ReactNode;
   /**
    * A band BELOW the facts, separated by a hairline — never the header row,
@@ -52,13 +64,16 @@ export function RecordCard({
    * would re-open it.
    */
   footer?: ReactNode;
+  /** A sum in a RecordList: ruled above, and out of the zebra, as the desktop total. A drawn
+   *  line, not `border-top`, which bends into the rounded corners. */
+  ruled?: boolean;
 }) {
-  return (
-    <Card
-      radius={24}
-      className={`animate-in p-[22px] duration-300 fade-in ${className}`}
-      style={{ animationDelay: `${(index % 4) * 60}ms` }}
-    >
+  const nested = useContext(InList);
+  const body = (
+    <>
+      {ruled && (
+        <div aria-hidden data-rule className="absolute inset-x-4 top-0 h-0.5 bg-panel-border" />
+      )}
       <div className="mb-3.5 flex items-center gap-3">
         {avatar}
         <div className="min-w-0 flex-1">
@@ -75,14 +90,25 @@ export function RecordCard({
       {footer !== undefined && (
         <>
           <div className="mt-3.5 h-px bg-hairline" />
-          {/* `gap-2.5` does NOT separate the tap targets: `TAP_44` reaches
-              (44 − 30) / 2 = 7 px past each edge, so two neighbours would need
-              ≥ 14. What saves it is WIDTH — the overlay is `min-w-full` and both
-              labels render wider than 44, so the regions never meet. An
-              icon-only action here would need the gap re-derived. */}
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">{footer}</div>
+          {/* The labels' width, not the gap, parts the tap targets. `ml-auto` on the first bare
+              button pushes the actions right; a chip stays left. */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 [&>button:first-of-type]:ml-auto">
+            {footer}
+          </div>
         </>
       )}
+    </>
+  );
+  const enter = `animate-in duration-300 fade-in${ruled ? ' relative' : ''}`;
+  const zebra = ruled ? '' : ' even:bg-ink/3';
+  const style = { animationDelay: `${(index % 4) * 60}ms` };
+  return nested ? (
+    <div className={`${enter} rounded-[18px] p-4${zebra}`} style={style}>
+      {body}
+    </div>
+  ) : (
+    <Card radius={24} className={`${enter} p-[22px]`} style={style}>
+      {body}
     </Card>
   );
 }

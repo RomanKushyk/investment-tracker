@@ -2,7 +2,7 @@ import { PayoutsBars } from '../components/charts/PayoutsBars';
 import { Card } from '../components/ui/Card';
 import { Amount } from '../components/ui/Amount';
 import { KpiCard } from '../components/ui/KpiCard';
-import { Fact, RecordCard } from '../components/ui/RecordCard';
+import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useView } from '../hooks/queries';
@@ -166,9 +166,9 @@ export function Payouts() {
           </TableBox>
         </Card>
       ) : (
-        /* Below the breakpoint the log becomes one card per payout: the DATE and the
+        /* Below the breakpoint the log becomes one record per payout: the DATE and the
          asset are the record's identity, so they go in the header. */
-        <div className="flex flex-col gap-2.5">
+        <RecordList>
           {logRows.map((row, i) => (
             <RecordCard
               key={`${row.date}-${row.assetId}-${row.amount}`}
@@ -195,7 +195,7 @@ export function Payouts() {
               )}
             </RecordCard>
           ))}
-        </div>
+        </RecordList>
       )}
     </div>
   );

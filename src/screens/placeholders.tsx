@@ -65,18 +65,23 @@ function TableRows({ columns }: { columns: number }) {
   );
 }
 
-/** A record card of the narrow shell, held as a card with two lines of text in it. */
-function RecordSlot() {
+/** The narrow shell's records: one glass card of three nested records, as `RecordList` draws
+ *  them, each held with two lines of text in it. */
+function RecordSlots() {
   return (
-    <Card radius={24} className="p-[22px]">
-      <div className="flex items-center gap-3">
-        <Block kind="avatar" className="size-9 rounded-full" />
-        <Bar w="40%" />
-      </div>
-      <div className="mt-3 flex flex-col gap-2">
-        <Row className="h-4" />
-        <Row className="h-4" />
-      </div>
+    <Card radius={24} className="flex flex-col p-1.5">
+      {[0, 1, 2].map((i) => (
+        <div key={i} data-placeholder-record className="rounded-[18px] p-4 even:bg-ink/3">
+          <div className="flex items-center gap-3">
+            <Block kind="avatar" className="size-9 rounded-full" />
+            <Bar w="40%" />
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            <Row className="h-4" />
+            <Row className="h-4" />
+          </div>
+        </div>
+      ))}
     </Card>
   );
 }
@@ -335,11 +340,7 @@ export function YieldPlaceholder() {
           </div>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          <RecordSlot />
-          <RecordSlot />
-          <RecordSlot />
-        </div>
+        <RecordSlots />
       )}
     </PlaceholderScreen>
   );
@@ -383,11 +384,7 @@ export function BalancesTablePlaceholder({
       </div>
     </Card>
   ) : (
-    <div className="flex flex-col gap-2.5">
-      <RecordSlot />
-      <RecordSlot />
-      <RecordSlot />
-    </div>
+    <RecordSlots />
   );
 }
 
@@ -452,11 +449,7 @@ export function PayoutsPlaceholder() {
           </table>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          <RecordSlot />
-          <RecordSlot />
-          <RecordSlot />
-        </div>
+        <RecordSlots />
       )}
     </PlaceholderScreen>
   );
@@ -563,10 +556,8 @@ export function PortfolioPlaceholder() {
           <div className="mt-2.5 text-[11.5px] text-muted">{a.prose.capitalGainNote}</div>
         </Card>
       ) : (
-        <div className="mb-3.5 flex flex-col gap-2.5">
-          <RecordSlot />
-          <RecordSlot />
-          <RecordSlot />
+        <div className="mb-3.5">
+          <RecordSlots />
         </div>
       )}
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">

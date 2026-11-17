@@ -3,7 +3,7 @@ import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Fact, RecordCard } from '../components/ui/RecordCard';
+import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
 import { Block } from '../components/loading/Placeholder';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useHold } from '../hooks/loading';
@@ -173,54 +173,60 @@ export function Yield() {
           {note && <div className="mt-2.5 text-[11.5px] text-muted">{note}</div>}
         </Card>
       ) : (
-        /* THE SAME ROWS AS CARDS, and the `dt` text is the `th` text, character for character. */
+        /* THE SAME ROWS AS RECORDS, and the `dt` text is the `th` text, character for character. */
         <div className="flex flex-col gap-2.5">
-          {rows.map((r, i) => (
-            <RecordCard
-              key={r.asset.id}
-              index={i}
-              avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
-              title={r.asset.name}
-            >
-              <Fact label={t.analytics.invested}>
-                {r.invested === undefined ? '—' : f.num(r.invested)}
-              </Fact>
-              <Fact label={t.analytics.valueNow}>
-                {r.value === undefined ? '—' : f.num(r.value)}
-              </Fact>
-              <Fact label={t.analytics.deltaTotal}>
-                <span className={signClass(r.deltaTotal)}>
-                  {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
-                </span>
-              </Fact>
-              <Fact label={t.analytics.annualized}>
-                {/* The same mark in both shells — a figure greyed on the rail and black in the
+          <RecordList>
+            {rows.map((r, i) => (
+              <RecordCard
+                key={r.asset.id}
+                index={i}
+                avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
+                title={r.asset.name}
+              >
+                <Fact label={t.analytics.invested}>
+                  {r.invested === undefined ? '—' : f.num(r.invested)}
+                </Fact>
+                <Fact label={t.analytics.valueNow}>
+                  {r.value === undefined ? '—' : f.num(r.value)}
+                </Fact>
+                <Fact label={t.analytics.deltaTotal}>
+                  <span className={signClass(r.deltaTotal)}>
+                    {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
+                  </span>
+                </Fact>
+                <Fact label={t.analytics.annualized}>
+                  {/* The same mark in both shells — a figure greyed on the rail and black in the
                     drawer is two different claims. */}
-                <span
-                  className={r.shortBasis ? 'text-muted' : ''}
-                  title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
-                >
-                  {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
-                </span>
-              </Fact>
-              <Fact label={t.analytics.totalReturn}>
-                <span className={signClass(r.totalReturn)}>
-                  {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
-                </span>
-              </Fact>
-              <Fact label={xirrHeader}>
-                <span className={signClass(r.xirr)}>{r.xirr == null ? '—' : f.pct(r.xirr, 1)}</span>
-              </Fact>
-              <Fact label={t.analytics.vsExpected}>
-                <span
-                  className={r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}
-                  title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
-                >
-                  {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
-                </span>
-              </Fact>
-            </RecordCard>
-          ))}
+                  <span
+                    className={r.shortBasis ? 'text-muted' : ''}
+                    title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                  >
+                    {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
+                  </span>
+                </Fact>
+                <Fact label={t.analytics.totalReturn}>
+                  <span className={signClass(r.totalReturn)}>
+                    {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
+                  </span>
+                </Fact>
+                <Fact label={xirrHeader}>
+                  <span className={signClass(r.xirr)}>
+                    {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
+                  </span>
+                </Fact>
+                <Fact label={t.analytics.vsExpected}>
+                  <span
+                    className={r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}
+                    title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                  >
+                    {r.vsExpectedPp === undefined
+                      ? '—'
+                      : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
+                  </span>
+                </Fact>
+              </RecordCard>
+            ))}
+          </RecordList>
           {note && <div className="px-1 text-[11.5px] text-muted">{note}</div>}
         </div>
       )}

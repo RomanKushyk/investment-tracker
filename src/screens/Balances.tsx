@@ -4,7 +4,7 @@ import { BalancesArea } from '../components/charts/BalancesArea';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Fact, RecordCard } from '../components/ui/RecordCard';
+import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { pageHasNotHeldQuote } from '@quirenote/core/view/balances';
 import { useHold } from '../hooks/loading';
@@ -206,42 +206,44 @@ export function Balances() {
               <div className="text-center text-muted">{t.analytics.empty.table}</div>
             </Card>
           )}
-          {rows.map((row, i) => (
-            <RecordCard
-              key={row.date}
-              index={i}
-              title={<span className="font-mono">{f.date(row.date)}</span>}
-            >
-              {row.cells.map((cell, ci) => (
-                <Fact key={columns[ci].id} label={columns[ci].name}>
-                  {/* The same mark in both shells, and it names itself — a glyph with nothing in
+          <RecordList>
+            {rows.map((row, i) => (
+              <RecordCard
+                key={row.date}
+                index={i}
+                title={<span className="font-mono">{f.date(row.date)}</span>}
+              >
+                {row.cells.map((cell, ci) => (
+                  <Fact key={columns[ci].id} label={columns[ci].name}>
+                    {/* The same mark in both shells, and it names itself — a glyph with nothing in
                       the accessible tree behind it is not a message. */}
-                  {cell.status === 'value' && (
-                    <span title={cell.notHeld ? t.analytics.balances.notHeldQuote : undefined}>
-                      {f.num(cell.amount)}
-                      {cell.notHeld && (
-                        <span className="font-normal text-muted">{NOT_HELD_MARK}</span>
-                      )}
-                    </span>
-                  )}
-                  {/* A partial row keeps its treatment exactly: the total stays `—` rather than a
+                    {cell.status === 'value' && (
+                      <span title={cell.notHeld ? t.analytics.balances.notHeldQuote : undefined}>
+                        {f.num(cell.amount)}
+                        {cell.notHeld && (
+                          <span className="font-normal text-muted">{NOT_HELD_MARK}</span>
+                        )}
+                      </span>
+                    )}
+                    {/* A partial row keeps its treatment exactly: the total stays `—` rather than a
                       number that would read as complete. */}
-                  {cell.status === 'pending' && (
-                    <span className="font-normal text-faint">{t.analytics.balances.pending}</span>
+                    {cell.status === 'pending' && (
+                      <span className="font-normal text-faint">{t.analytics.balances.pending}</span>
+                    )}
+                    {cell.status === 'none' && '—'}
+                  </Fact>
+                ))}
+                <Fact label={t.analytics.cash}>{f.num(row.cash)}</Fact>
+                <Fact label={t.analytics.totalUah}>
+                  {row.total === null ? (
+                    <span className="font-normal text-faint">—</span>
+                  ) : (
+                    f.num(row.total)
                   )}
-                  {cell.status === 'none' && '—'}
                 </Fact>
-              ))}
-              <Fact label={t.analytics.cash}>{f.num(row.cash)}</Fact>
-              <Fact label={t.analytics.totalUah}>
-                {row.total === null ? (
-                  <span className="font-normal text-faint">—</span>
-                ) : (
-                  f.num(row.total)
-                )}
-              </Fact>
-            </RecordCard>
-          ))}
+              </RecordCard>
+            ))}
+          </RecordList>
           {note && <div className="px-1">{note}</div>}
           <div className="px-1">{pager}</div>
         </div>

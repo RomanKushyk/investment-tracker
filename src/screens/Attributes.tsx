@@ -61,7 +61,7 @@ export function Attributes() {
   return (
     <div>
       <ScreenHeader title={t.screen.attributes.title} subtitle={t.screen.attributes.subtitle} />
-      {/* The card the other four screens borrow lives in `components/ui/RecordCard`;
+      {/* The record the other four screens nest in one card lives in `components/ui/RecordCard`;
           this screen is where its anatomy was designed. */}
       <div className="grid grid-cols-2 gap-3.5 max-md:grid-cols-1">
         {cards.map((card, i) => {
