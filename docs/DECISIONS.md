@@ -750,16 +750,21 @@ Every table scrolls in its own box on both axes (`TableBox`), with the header st
 its bottom, `max(200px, 100dvh − top − 80px)`, its top measured off the layout (`useDocumentTop`).
 It reaches its card's edge, so the fixed gutter takes the card's padding's place. The header band
 and the zebra are painted per cell, rounded at the row's ends, under one sticky `thead`.
+The archive panel's run log and spot check take the band and the zebra but no box: they sit
+mid-page, and the page scrolls them (the owner's ruling).
 **Why.** A square-cornered platform track cuts a rounded panel's corner, and takes layout width on
 one OS and none on another, so a screen reflows differently per platform. Padding on the scrolling
 element is INSIDE the scroll box: away from the ends of the range, content slides under the rail.
 A header cannot stick to the page while a horizontal `Scroller` wraps its table, and the tables
 need that sideways scroll at narrow desktop widths. A radius on a `tr` paints nothing, and a
-pseudo-element on one becomes a cell of its own and shifts every column.
+pseudo-element on one becomes a cell of its own and shifts every column. Mid-page, the box floors
+at 200 px inside a page that already scrolls, a few rows at a time: Spectrum's TableView "should not
+be placed within a scrollable container", and Baymard finds such inline areas trap the scroll.
 **Rejected.** Gating the gutter on whether a rail is showing: the panel then flips between symmetric
 and lopsided as its content grows, which `overlay` does not, being fixed by one caller's width.
 A page-level sticky header, impossible inside the horizontal `Scroller`. Separately sticky header
-cells: each rasterises on its own, and the first reads a shade lighter.
+cells: each rasterises on its own, and the first reads a shade lighter. A box on the archive's
+tables too.
 
 ## Two shells, one breakpoint
 **Decision.** Two layouts and one switch — `md`, 768px, WRITTEN TWICE, in the markup and in

@@ -99,6 +99,7 @@ At 360, light: the same seven frames.
 - **Applied from earlier waves, not asked.**
   - **Tables (wave 6).** RunLog, SpotCheck and the users table take the wave-6 anatomy: caps header on an `ink` 7 % band, zebra at 3 %, no row lines, 16 px column gap, 12 px insets. RunLog's two-line rows keep 9 px vertical padding. The users rows are 36 px, holding 30 px sm buttons. Below md, RunLog's stack and the users records are zebra records (r11, 12 px padding) in their one card (wave 6's R2).
     - *Overturned by wave 26: below md the records take R2, r18 with 16 px padding, RunLog's too ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
+    - *Narrowed and widened by the owner's rulings on #694: the users table alone scrolls in a box of its own, and SpotCheck's rows take R2 below md too ([below](#the-owners-rulings-on-694)).*
   - **Shell at md and up (waves 2/4).** The glass sidebar (260, inset 16, r26), held to super-admin-shell's content: the brand row with no currency line; the role band, a 18 px shield in `sb-icon-active` and «Суперадміністратор» in Manrope 14 / 600, on `ink` 5 % at r12, 44 px; «Адміністрування» with «Користувачі» (its count 20 × 18 r5 on `sb-badge-bg`) above «Архів цін»; the theme control only; Налаштування; the profile row; the legal links.
     - *Overturned by wave 21: the count is solid `accent` with `accent-fg` text (C1) ([rail-and-account-foot.md](rail-and-account-foot.md#signed)).*
   - **Shell at 360 (wave 5).** The glass bar, 56 px: the mark and «quirenote», then the shield and «Суперадміністратор». The role dock is centred, with equal tabs and the count at 16 px r4. Its colour is `sb-indicator`, which equals `accent` in both themes, so the record's two tokens agree. The dock keeps wave 5's order, «Архів цін», «Користувачі», «Ще», as the owner ruled at sign-off, though the sidebar lists «Користувачі» first.
@@ -106,6 +107,12 @@ At 360, light: the same seven frames.
   - **Dialogs (wave 8).** D2 glass with a `field-border` edge at md and up (420), and the M2 inset sheet (12 from the edges) below. Content and copy are held. A refusal is 12 px `neg` above the buttons, with the key in mono.
   - **Fields (wave 8).** The repairs' date pickers and the users Select take the page fill (F2). The Select is 272 at md and up, and full width below.
 - **New copy:** none. Every string is the app’s or the users page record’s.
+
+## The owner's rulings on #694
+
+- **Own box.** Only the users table scrolls in a box of its own, with its band sticky; it fills its page. RunLog and SpotCheck sit mid-page, where the box would floor at 200 px inside a page that already scrolls, so the page scrolls them (`docs/DECISIONS.md` § Scrolling).
+- **The users records' actions** sit at the start of the footer, under its hairline, as wave 26 draws them, not at the right as [tables.md](tables.md#перенесено) carries for the record card.
+- **SpotCheck below md.** Its rows are R2 records in its card too, so the panel has one list anatomy.
 
 ## Rejected
 

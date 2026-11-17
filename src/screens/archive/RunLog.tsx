@@ -12,7 +12,9 @@ import { SOURCE } from '@quirenote/core/archive';
 import { kyivDateIso, kyivTimeHm } from '@quirenote/core/dates';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { RECORD, RECORD_ROWS } from '../../components/ui/RecordCard';
 import { Scroller } from '../../components/ui/Scroller';
+import { TABLE, TD, TH, TR } from '../../components/ui/table-anatomy';
 import type { PendingStart, ReadFailure, useArchiveRuns } from '../../hooks/queries';
 import { useFormat } from '../../hooks/useFormat';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
@@ -113,10 +115,11 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
   const t = useT();
   const c = t.archive.runs.columns;
   // A floor on the width: a narrower card scrolls it, as the spot check's does, rather than
-  // squeezing the result column out.
+  // squeezing the result column out. No box of its own: it sits mid-page, and the page scrolls it
+  // (*Scrolling*).
   return (
     <Scroller orientation="horizontal">
-      <table className="w-full min-w-[902px] table-fixed border-collapse text-[12.5px] leading-[18.75px]">
+      <table className={`${TABLE} min-w-[902px] table-fixed text-[12.5px] leading-[18.75px]`}>
         <colgroup>
           <col className="w-[128px]" />
           <col className="w-[200px]" />
@@ -127,10 +130,7 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
         <thead>
           <tr>
             {[c.state, c.operation, c.started, c.by, c.result].map((label) => (
-              <th
-                key={label}
-                className="py-2 pr-3 text-left text-[11px] leading-[16.5px] font-normal text-muted"
-              >
+              <th key={label} scope="col" className={TH}>
                 {label}
               </th>
             ))}
@@ -141,15 +141,15 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
             <tr
               key={keyOf(row)}
               data-run
-              className="animate-in border-t border-hairline align-top duration-200 fade-in"
+              className={`${TR} animate-in align-top duration-200 fade-in`}
             >
-              <td className="py-3 pr-3">
+              <td className={CELL}>
                 <Status state={stateOf(row)} />
               </td>
-              <td className="py-3 pr-3">
+              <td className={CELL}>
                 <Operation row={row} />
               </td>
-              <td className="py-3 pr-3">
+              <td className={CELL}>
                 <Started row={row} />
                 {row.kind === 'run' && row.run.state === 'running' && (
                   <div className="text-[11.5px] leading-[17px] text-muted">
@@ -157,10 +157,10 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
                   </div>
                 )}
               </td>
-              <td className="py-3 pr-3">
+              <td className={CELL}>
                 <StartedBy row={row} me={me} />
               </td>
-              <td className="py-3 pr-3">
+              <td className={CELL}>
                 <Result row={row} />
               </td>
             </tr>
@@ -171,16 +171,15 @@ function Table({ rows, me }: { rows: Row[]; me: string }) {
   );
 }
 
+/** The two-line rows keep their 9 px above and below. */
+const CELL = `${TD} py-[9px]`;
+
 function Stack({ rows, me }: { rows: Row[]; me: string }) {
   const t = useT();
   return (
-    <ul className="m-0 list-none p-0 font-mono text-[12.5px] leading-[18.75px]">
+    <ul className={`${RECORD_ROWS} list-none p-0 font-mono text-[12.5px] leading-[18.75px]`}>
       {rows.map((row) => (
-        <li
-          key={keyOf(row)}
-          data-run
-          className="animate-in py-3.5 duration-200 fade-in not-first:border-t not-first:border-hairline"
-        >
+        <li key={keyOf(row)} data-run className={`${RECORD} animate-in duration-200 fade-in`}>
           <div className="mb-2 flex items-center justify-between gap-2.5">
             <Status state={stateOf(row)} />
             <span className="text-[11px] text-muted">

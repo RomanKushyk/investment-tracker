@@ -47,6 +47,7 @@ Today's one-line ledger at 360, for comparison: its labels are cut.
 - **Sticky header on every table (the owner's ruling).** Every table and the ledger scroll in their own box, through `Scroller` (both axes). The box follows the ledger's rule: it fills the viewport down to 80 px from the bottom, `max(200px, 100dvh − top − 80px)`. The header stays at the box top.
   - A page-level sticky header is impossible while the horizontal `Scroller` wraps the table.
   - The tables need that sideways scroll at narrow desktop widths: Баланси grows one column per asset, and the payout log is 720 px.
+  - *Narrowed by the owner's ruling on #694: the archive panel's two mid-page tables take no box ([super-admin.md](super-admin.md#the-owners-rulings-on-694)).*
 - **Infinite scroll instead of paging (the owner's ruling).** It applies to Баланси only, the one paged table; the payout log and the ledger already list every row.
   - «Назад» and «Далі» go. The next page loads as the box nears its end, under three placeholder rows at 36 px (the record’s loading rule).
   - The count line stays.
@@ -129,6 +130,7 @@ Rules that no code, test or decision records: of the ledger on /transactions wit
 - **The read-back adds no motion of its own.**
 - **/transactions has no microlabel over its list:** `ScreenHeader`'s title already names it.
 - **The record card's footer actions sit at the right,** pushed there by `ml-auto`.
+  - *Narrowed by the owner's ruling on #694: the users records keep theirs at the start ([super-admin.md](super-admin.md#the-owners-rulings-on-694)).*
 - **Fetch chips survive Save.** They describe the draft, and saving keeps the draft.
 - **The accrual ghost and its tag fade out over 150 ms on the first keystroke.**
 - **The fetch's motion.** On the success flash the label crossfades over 220 ms, and the microcopy's colour crossfades over 220 ms when it changes. A fetch fill fades in the input's text and zooms the chip in over 200 ms, staggered 50 ms per row. The offer to take the fetched value reveals with its height and a fade over 300 ms, and collapses over 220 ms on accept or dismiss.

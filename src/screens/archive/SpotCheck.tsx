@@ -1,6 +1,8 @@
 import { Rows } from '../../components/loading/Placeholder';
 import { Card } from '../../components/ui/Card';
+import { RECORD, RECORD_ROWS } from '../../components/ui/RecordCard';
 import { Scroller } from '../../components/ui/Scroller';
+import { TABLE, TD, TH, TH_NUM, TR } from '../../components/ui/table-anatomy';
 import { useFormat } from '../../hooks/useFormat';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { useT } from '../../i18n/useT';
@@ -55,55 +57,67 @@ export function SpotCheck({
     <Card radius={24} className={`p-[22px] ${className}`}>
       {head}
       {desktop ? (
+        // No box of its own: it sits mid-page, and the page scrolls it (*Scrolling*).
         <Scroller orientation="horizontal">
-          <table className="w-full border-collapse text-[12.5px] leading-[18.75px]">
+          <table className={`${TABLE} text-[12.5px] leading-[18.75px]`}>
             <thead>
-              <tr className="text-[11px] leading-[16.5px] text-muted">
-                <th className="py-1.5 pr-4 text-left font-normal">{s.date}</th>
-                <th className="py-1.5 pr-4 text-left font-normal">{s.instrument}</th>
-                <th className="py-1.5 pr-4 text-left font-normal">{s.basis}</th>
-                <th className="py-1.5 pr-4 text-right font-normal">{s.price}</th>
-                <th className="py-1.5 pr-4 text-right font-normal">{s.ytm}</th>
-                <th className="py-1.5 pr-4 text-right font-normal">{s.clean}</th>
+              <tr>
+                <th scope="col" className={TH}>
+                  {s.date}
+                </th>
+                <th scope="col" className={TH}>
+                  {s.instrument}
+                </th>
+                <th scope="col" className={TH}>
+                  {s.basis}
+                </th>
+                <th scope="col" className={TH_NUM}>
+                  {s.price}
+                </th>
+                <th scope="col" className={TH_NUM}>
+                  {s.ytm}
+                </th>
+                <th scope="col" className={TH_NUM}>
+                  {s.clean}
+                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr
-                  key={`${r.as_of} ${r.instrument_ref} ${r.basis}`}
-                  className="border-t border-hairline"
-                >
-                  <td className="py-[9px] pr-4">{f.date(r.as_of)}</td>
-                  <td className="py-[9px] pr-4 font-mono">{r.instrument_ref}</td>
-                  <td className="py-[9px] pr-4">
+                <tr key={`${r.as_of} ${r.instrument_ref} ${r.basis}`} className={TR}>
+                  <td className={TD}>{f.date(r.as_of)}</td>
+                  <td className={`${TD} font-mono`}>{r.instrument_ref}</td>
+                  <td className={TD}>
                     <Basis>{r.basis}</Basis>
                   </td>
-                  <td className="py-[9px] pr-4 text-right">{price(r.price)}</td>
-                  <td className="py-[9px] pr-4 text-right">{percent(r.ytm)}</td>
-                  <td className="py-[9px] pr-4 text-right">{percent(r.clean_rate)}</td>
+                  <td className={`${TD} text-right`}>{price(r.price)}</td>
+                  <td className={`${TD} text-right`}>{percent(r.ytm)}</td>
+                  <td className={`${TD} text-right`}>{percent(r.clean_rate)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </Scroller>
       ) : (
-        rows.map((r, i) => (
-          <div
-            key={`${r.as_of} ${r.instrument_ref} ${r.basis}`}
-            className={`py-2.5 text-[12.5px] leading-[18.75px] ${i > 0 ? 'border-t border-hairline' : ''}`}
-          >
-            <div className="flex justify-between gap-2">
-              <span className="flex items-center gap-2">
-                <span className="font-mono">{r.instrument_ref}</span>
-                <Basis>{r.basis}</Basis>
-              </span>
-              <span className="font-mono text-muted">{f.date(r.as_of)}</span>
+        <div className={RECORD_ROWS}>
+          {rows.map((r) => (
+            <div
+              key={`${r.as_of} ${r.instrument_ref} ${r.basis}`}
+              className={`${RECORD} text-[12.5px] leading-[18.75px]`}
+            >
+              <div className="flex justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <span className="font-mono">{r.instrument_ref}</span>
+                  <Basis>{r.basis}</Basis>
+                </span>
+                <span className="font-mono text-muted">{f.date(r.as_of)}</span>
+              </div>
+              <div className="mt-1 font-mono text-muted">
+                {s.line(price(r.price), percent(r.ytm), percent(r.clean_rate))}
+              </div>
             </div>
-            <div className="mt-1 font-mono text-muted">
-              {s.line(price(r.price), percent(r.ytm), percent(r.clean_rate))}
-            </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </Card>
   );

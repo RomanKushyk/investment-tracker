@@ -24,6 +24,7 @@ const MOUNTS = [
   'src/app/terms-step.test.tsx',
   'src/app/terms-ways-in.test.tsx',
   'src/hooks/useSignOut.test.tsx',
+  'src/screens/admin-tables.test.tsx',
   'src/screens/admin-users.test.tsx',
   'src/screens/archive-admin.test.tsx',
   'src/screens/archive-repairs.test.tsx',

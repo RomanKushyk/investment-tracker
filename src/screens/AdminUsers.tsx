@@ -6,9 +6,11 @@ import { NotFound } from '../app/Boundaries';
 import { useSessionStatus } from '../auth/app';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Fact, RecordCard } from '../components/ui/RecordCard';
+import { Fact, RecordCard, RecordRows } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Select } from '../components/ui/Select';
+import { TableBox } from '../components/ui/TableBox';
+import { TABLE, TD, TH, THEAD, TR } from '../components/ui/table-anatomy';
 import {
   useAdminUsers,
   useMe,
@@ -150,12 +152,10 @@ function Page({ me }: { me: string }) {
             }}
             button={retry}
           />
-        ) : desktop ? (
+        ) : (
           <Card radius={24} className="p-[22px]">
             {panel}
           </Card>
-        ) : (
-          panel
         )}
       </div>
       {target !== undefined && (
@@ -242,73 +242,72 @@ function Table({ rows, filter, me, pick }: ListProps) {
   const t = useT();
   const decided = filter !== 'pending';
   return (
-    <table className="w-full table-fixed border-collapse text-[13px]">
-      <colgroup>
-        <col />
-        <col className="w-[150px]" />
-        {decided && <col className="w-[150px]" />}
-        <col className="w-[200px]" />
-      </colgroup>
-      <thead>
-        <tr>
-          {[
-            t.users.col.email,
-            t.users.col.applied,
-            ...(decided ? [t.users.col.decided] : []),
-            '',
-          ].map((label, i) => (
-            <th
-              key={i}
-              scope="col"
-              className="py-2 pr-3 text-left text-[11px] leading-[16.5px] font-normal text-muted"
-            >
-              {label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.id} className="animate-in border-t border-hairline duration-200 fade-in">
-            <th scope="row" className="py-3 pr-3 text-left font-semibold">
-              {/* The address clips, «Ви» never does. */}
-              <div className="flex min-w-0 items-center">
-                <span className="min-w-0 truncate">{row.email}</span>
-                {row.id === me && <You />}
-              </div>
-            </th>
-            <td className="py-3 pr-3 text-[12.5px] text-muted">
-              <Stamp at={row.appliedAt} />
-            </td>
-            {decided && (
-              <td className="py-3 pr-3 text-[12.5px] text-muted">
-                <Stamp at={row.decidedAt} />
-              </td>
-            )}
-            <td className="py-3">
-              {/* Your own row has no action and keeps the others' height. */}
-              <div
-                className="flex justify-end gap-2.5"
-                data-row-actions={row.id === me ? undefined : ''}
-              >
-                {row.id === me ? (
-                  <span aria-hidden className="inline-block h-[30px]" />
-                ) : (
-                  <Actions row={row} pick={pick} />
-                )}
-              </div>
-            </td>
+    <TableBox>
+      <table className={`${TABLE} table-fixed text-[13px]`}>
+        <colgroup>
+          <col />
+          <col className="w-[150px]" />
+          {decided && <col className="w-[150px]" />}
+          <col className="w-[220px]" />
+        </colgroup>
+        <thead className={THEAD}>
+          <tr>
+            {[
+              t.users.col.email,
+              t.users.col.applied,
+              ...(decided ? [t.users.col.decided] : []),
+              '',
+            ].map((label, i) => (
+              <th key={i} scope="col" className={TH}>
+                {label}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className={`${TR} animate-in duration-200 fade-in`}>
+              {/* The row's header, so it takes the row's cells, not the band. */}
+              <th scope="row" className={`${TD} text-left font-semibold`}>
+                {/* The address clips, «Ви» never does. */}
+                <div className="flex min-w-0 items-center">
+                  <span className="min-w-0 truncate">{row.email}</span>
+                  {row.id === me && <You />}
+                </div>
+              </th>
+              <td className={`${TD} text-[12.5px] text-muted`}>
+                <Stamp at={row.appliedAt} />
+              </td>
+              {decided && (
+                <td className={`${TD} text-[12.5px] text-muted`}>
+                  <Stamp at={row.decidedAt} />
+                </td>
+              )}
+              <td className={TD}>
+                {/* Your own row has no action and keeps the others' height. */}
+                <div
+                  className="flex justify-end gap-2.5"
+                  data-row-actions={row.id === me ? undefined : ''}
+                >
+                  {row.id === me ? (
+                    <span aria-hidden className="inline-block h-[30px]" />
+                  ) : (
+                    <Actions row={row} pick={pick} />
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableBox>
   );
 }
 
 function Stack({ rows, filter, me, pick }: ListProps) {
   const t = useT();
   return (
-    <div className="flex flex-col gap-3.5">
+    <RecordRows>
       {rows.map((row, i) => (
         <RecordCard
           key={row.id}
@@ -317,6 +316,8 @@ function Stack({ rows, filter, me, pick }: ListProps) {
           tag={row.id === me ? <You /> : undefined}
           footer={
             row.id === me ? undefined : (
+              // Not the footer's own children, so its ml-auto leaves them at the start (the owner's
+              // ruling, as wave 26 draws the users records).
               <span data-row-actions className="contents">
                 <Actions row={row} pick={pick} />
               </span>
@@ -333,7 +334,7 @@ function Stack({ rows, filter, me, pick }: ListProps) {
           )}
         </RecordCard>
       ))}
-    </div>
+    </RecordRows>
   );
 }
 

@@ -15,6 +15,22 @@ export function RecordList({ children }: { children: ReactNode }) {
   );
 }
 
+/** One record nested in its list's card: r18 inside the r24 card's 6 px, every second tinted. */
+export const RECORD = 'rounded-[18px] p-4 even:bg-ink/3';
+
+/** R2 inside a card that already holds a head: the records bleed over its 22 px padding to sit
+ *  6 px in, as RecordList's do, their content level with the head. */
+export const RECORD_ROWS = '-mx-4 flex flex-col last:-mb-4';
+
+/** RecordCards as R2 records inside a card of the caller's own. */
+export function RecordRows({ children }: { children: ReactNode }) {
+  return (
+    <div className={RECORD_ROWS}>
+      <InList value>{children}</InList>
+    </div>
+  );
+}
+
 // The <div> wrapper is valid <dl> content — HTML5 allows grouping a dt+dd pair
 // in a <div> child — and it is what makes each fact ONE grid cell while dt and
 // dd keep their semantics.
@@ -100,10 +116,9 @@ export function RecordCard({
     </>
   );
   const enter = `animate-in duration-300 fade-in${ruled ? ' relative' : ''}`;
-  const zebra = ruled ? '' : ' even:bg-ink/3';
   const style = { animationDelay: `${(index % 4) * 60}ms` };
   return nested ? (
-    <div className={`${enter} rounded-[18px] p-4${zebra}`} style={style}>
+    <div className={`${enter} ${ruled ? 'rounded-[18px] p-4' : RECORD}`} style={style}>
       {body}
     </div>
   ) : (
