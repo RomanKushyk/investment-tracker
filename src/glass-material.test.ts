@@ -65,11 +65,22 @@ describe('the glass tokens', () => {
     ['glass-knob-fill', mix('card', 72), mix('card', 82)],
     ['glass-knob-sheen', mix('glass-rim', 62), mix('glass-rim', 6)],
     ['glass-well', mix('glass-shade', 6), mix('glass-shade', 55)],
+    // The selected segment's knob: `accent` mixed into `card`, then at the theme's alpha.
+    [
+      'glass-knob-tint',
+      `color-mix(in srgb, color-mix(in srgb, var(--color-accent) 16%, var(--color-card)) 88%, transparent)`,
+      `color-mix(in srgb, color-mix(in srgb, var(--color-accent) 22%, var(--color-card)) 92%, transparent)`,
+    ],
+    // Its label, T2 at sign-off.
+    ['segment-label', 'var(--color-accent-pressed)', 'var(--color-accent)'],
   ];
 
+  // Flattened, because the formatter wraps a long `color-mix` over several lines.
+  const flat = (v: string) => v.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')');
+
   it.each(SIGNED)('--color-%s takes its signed value in each theme', (name, light, dark) => {
-    expect(declared(BLOCKS.light, name)).toBe(light);
-    expect(declared(BLOCKS.dark, name)).toBe(dark);
+    expect(flat(declared(BLOCKS.light, name))).toBe(light);
+    expect(flat(declared(BLOCKS.dark, name))).toBe(dark);
   });
 
   // The light theme's shade is `ink`, dark's is `page`, so each drop reads the shade alias.
@@ -163,6 +174,7 @@ describe('the glass knob and its well', () => {
 
   it.each([
     ['glass-knob', knob('var(--color-glass-knob-fill)')],
+    ['glass-knob-tint', knob('var(--color-glass-knob-tint)')],
     // A button takes focus, so its own shadows end with the ring's halo.
     ['glass-button', knob(mix('card', 92), 'var(--focus-halo)')],
     [
@@ -182,9 +194,15 @@ describe('the glass knob and its well', () => {
 describe('the build keeps what the utilities read', () => {
   // Tailwind drops a theme variable nothing it builds uses, so a utility with no consumer
   // yet could read a token the build pruned. Built here as a consumer would build it.
-  it('declares every glass variable the four utilities use, in the light theme too', async () => {
+  it('declares every glass variable the five utilities use, in the light theme too', async () => {
     const compiler = await compile(CSS, { base: here, onDependency: () => {} });
-    const built = compiler.build(['glass', 'glass-knob', 'glass-button', 'glass-well']);
+    const built = compiler.build([
+      'glass',
+      'glass-knob',
+      'glass-knob-tint',
+      'glass-button',
+      'glass-well',
+    ]);
     const GLASS_VAR = /var\((--(?:color|shadow)-glass[\w-]*)/g;
     const used = [...new Set([...built.matchAll(GLASS_VAR)].map((m) => m[1]))].sort();
     expect(used.length, 'the built CSS reads no glass variable').toBeGreaterThanOrEqual(10);
@@ -269,6 +287,7 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
     expect(wearing.sort()).toEqual([
       'components/ui/Card.tsx',
       'components/ui/KpiCard.tsx',
+      'components/ui/SegmentedControl.tsx',
       'components/ui/button-variants.ts',
     ]);
   });

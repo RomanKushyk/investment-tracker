@@ -341,6 +341,18 @@ describe('the recorded readings still read as recorded', () => {
     expect(ratio(resolve(BLOCKS, block, a), resolve(BLOCKS, block, b))).toBeCloseTo(expected, 2);
   });
 
+  // A SHORTFALL WITH NO FIGURE: the knob is translucent over a well that takes whatever plane
+  // is behind it, so there is no one pair to compute. The prose is what is pinned, at the utility.
+  it('the glass knob states its missing 3 : 1 boundary against the well, where it is declared', () => {
+    const comment = FILES['src/index.css'].match(
+      /\/\*((?:[^*]|\*(?!\/))*)\*\/\s*@utility glass-knob \{/,
+    )?.[1];
+    expect(comment, 'no comment sits on `@utility glass-knob`').toBeTruthy();
+    const prose = comment!.replace(/\s+/g, ' ');
+    for (const part of ['no 3 : 1 boundary', 'well', '1.4.11', 'owner accepted'])
+      expect(prose).toContain(part);
+  });
+
   // AND THE OTHER HALF OF THAT SENTENCE, which was asserted by nothing: the block above
   // recomputes what the sheet states, but never checked the sheet still states it. The
   // stylesheet prints these to two decimals, so a reading is "stated" when its own rounding

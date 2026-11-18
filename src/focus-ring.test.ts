@@ -124,6 +124,8 @@ describe('a control with a shadow of its own', () => {
     'last:shadow-none': ['the table head, a th', 1],
     'shadow-[inset_2px_0_0_var(--color-sb-indicator)]': ['the rail span inside its link', 1],
     glass: ['Card and KpiCard, divs', 2],
+    'glass-well': ['the segmented root, which hands its focus to the checked radio at once', 1],
+    'glass-knob-tint': ['the segmented knob, an aria-hidden div', 1],
   };
 
   it('ends every other box-shadow class in src with the halo', () => {

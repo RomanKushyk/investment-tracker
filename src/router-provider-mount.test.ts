@@ -37,6 +37,7 @@ const MOUNTS = [
   'src/screens/quotes-save-busy.test.tsx',
   'src/screens/records-one-card.test.tsx',
   'src/screens/routes-read-the-view.test.tsx',
+  'src/screens/segmented-sites.test.tsx',
   'src/screens/sign-in/Apply.test.tsx',
   'src/screens/sign-in/GoogleCallback.test.tsx',
   'src/screens/sign-in/SignIn.test.tsx',

@@ -75,8 +75,7 @@ const FIELDS: Record<string, Record<string, number>> = {
 
 /** What still carries a pre-role size, and which slice sweeps it. */
 const ALLOWED: Record<string, Record<string, number>> = {
-  // #740: the portfolio screens, the forms, the charts and the language control.
-  'src/components/LanguageControl.tsx': { 'text-xs': 1 },
+  // #740: the portfolio screens, the forms, the charts and the segmented control.
   'src/components/charts/AllocationDonut.tsx': { 'fontSize=11': 1, 'fontSize=20': 1 },
   'src/components/charts/BalancesArea.tsx': { 'fontSize=10': 2 },
   'src/components/charts/PayoutsBars.tsx': { 'fontSize=10.5': 2 },
@@ -138,7 +137,6 @@ const ALLOWED: Record<string, Record<string, number>> = {
     'text-[10px]': 3,
     'text-[11.5px]': 1,
     'text-[13.5px]': 3,
-    'text-xs': 1,
     'tracking-[.12em]': 3,
     'uppercase without the caps recipe': 3,
   },
@@ -147,7 +145,7 @@ const ALLOWED: Record<string, Record<string, number>> = {
     'text-[10px]': 1,
     'text-[11px]': 1,
     'text-[13px]': 2,
-    'text-xs': 3,
+    'text-xs': 1,
     'tracking-[.12em]': 1,
     'uppercase without the caps recipe': 1,
   },
@@ -308,7 +306,7 @@ const ALLOWED: Record<string, Record<string, number>> = {
     'text-[12.5px]': 2,
     'text-[13px]': 1,
     'text-lg': 1,
-    'text-xs': 8,
+    'text-xs': 7,
     'tracking-[.12em]': 1,
     'uppercase without the caps recipe': 1,
   },

@@ -146,14 +146,14 @@ describe('a filled segmented track carries data-filled-track', () => {
   it('finds the tracks at all, so an empty pass cannot look like a green one', () => {
     // A FLOOR, not an equality, and deliberately: another filled control must pass this and
     // be caught by the pairing test below instead. Only a vanished one fails here. THE
-    // NUMBER MOVES WHEN A CONTROL GOES, never when the rule weakens — it was two higher
-    // until the asset form's Fund/Bond segment and the dataset switch were deleted outright.
+    // NUMBER MOVES WHEN A CONTROL GOES, never when the rule weakens — PriceMode's is the one
+    // left, the rest now on the segmented control's glass well.
     const all = files.flatMap((f) => filledTracks(stripTs(readFileSync(f, 'utf8'), f)));
     expect(
       all.length,
       'the filled tracks are disappearing from the walk — at zero every assertion below ' +
         'passes over nothing, which is what this floor exists to catch',
-    ).toBeGreaterThanOrEqual(5);
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('pairs every one of them with the attribute', () => {
@@ -191,6 +191,20 @@ describe('a filled segmented track carries data-filled-track', () => {
       'the class pair has moved off `RadixSwitch.Root` onto an inner element, which is the ' +
         'shape the exception does not cover',
     ).toBe(true);
+  });
+
+  // The sets wave 17 moved onto the one control: an `ink` track coming back on any of them is
+  // the retired drawing, attribute or not.
+  it.each([
+    'components/LanguageControl.tsx',
+    'screens/Settings.tsx',
+    'screens/archive/Repairs.tsx',
+    'screens/Seasonality.tsx',
+  ])('%s sets its segments on the segmented control, with no ink track', (rel) => {
+    const src = stripTs(readFileSync(join(here, rel), 'utf8'), rel);
+    expect(src).not.toContain('data-filled-track');
+    expect(filledTracks(src)).toEqual([]);
+    expect(src).toMatch(/<SegmentedControl\b/);
   });
 
   it('keeps the CSS half the attribute exists to select', () => {

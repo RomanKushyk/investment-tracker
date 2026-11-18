@@ -8,6 +8,7 @@ import { fieldVariants } from '../components/ui/field-variants';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Switch } from '../components/ui/Switch';
 import { inputValue } from '@quirenote/core/money';
 import { THEME_ORDER, useSettings } from '../state/settings';
@@ -18,7 +19,6 @@ import { parseLeadDays } from './settings/settings';
 import { useBackupDownload } from '../hooks/useBackupDownload';
 import { useRole } from '../hooks/queries';
 import { useT } from '../i18n/useT';
-import { TAP_44 } from '../components/ui/tap-target';
 
 export function SectionLabel({
   className = 'mb-3.5',
@@ -75,83 +75,38 @@ function BackupButton() {
   );
 }
 
-// SAME ANATOMY AS THE SIDEBAR TOGGLE, DIFFERENT FIELD. This one writes the
+// THE SIDEBAR TOGGLE'S TWIN, DIFFERENT FIELD. This one writes the
 // PREFERENCE — what the app opens in — and the sidebar's writes the session.
 // While they were one field this was a second remote for that switch rather than
 // a default. It still moves the view immediately, because `setDefaultCurrency`
 // carries the session with it; the sidebar toggle does not come back.
 function CurrencyControl() {
+  const t = useT();
   const { defaultCurrency: currency, setDefaultCurrency: setCurrency } = useSettings();
-  const segment = (c: 'UAH' | 'USD', label: string) => (
-    <button
-      type="button"
-      aria-pressed={currency === c}
-      onClick={() => setCurrency(c)}
-      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${currency === c ? 'text-ink' : 'text-page hover:opacity-85'}`}
-    >
-      {label}
-    </button>
-  );
-  /* A GRID, like the controls beside it. A flex track shrink-wraps, so a fixed
-  `calc(50% − N)` chip only lands while both labels are the same width — a bet on
-  the font and on nobody relabelling it. Two `1fr` columns take the widest content,
-  so the chip fits by construction. */
   return (
-    <div
-      data-filled-track
-      className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1"
-    >
-      <div
-        aria-hidden
-        data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
-        style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
-      />
-      {segment('UAH', '₴ UAH')}
-      {segment('USD', '$ USD')}
-    </div>
+    <SegmentedControl
+      aria-label={t.settings.currency.title}
+      value={currency}
+      onChange={(c) => setCurrency(c)}
+      options={[
+        { value: 'UAH', label: '₴ UAH' },
+        { value: 'USD', label: '$ USD' },
+      ]}
+    />
   );
 }
-
-// GRID, not flex, and that is load-bearing. `flex-1` is `flex:1 1 0%`, which only
-// equalises segments that can shrink to their basis, and text cannot go below its
-// min-content. `grid-cols-3` columns are equal by construction whatever the words
-// are, so the labels can be translated without re-measuring. A flex track holds only
-// while a pair is equal-width in EVERY dictionary.
-// The thumb's width is DERIVED from the track's padding box, not fitted.
 
 function ThemeControl() {
   const t = useT();
   const { theme, setTheme } = useSettings();
-  const index = THEME_ORDER.indexOf(theme);
   return (
-    <div
-      role="radiogroup"
+    <SegmentedControl
       aria-label={t.settings.theme.ariaLabel}
-      data-filled-track
-      className="relative grid grid-cols-3 gap-1 rounded-[12px] border border-ink bg-ink p-1 max-sm:w-full"
-    >
-      {/* `data-owns-motion` keeps the theme cross-fade from replacing this transition
-          during the very flip that moves it. */}
-      <div
-        aria-hidden
-        data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
-        style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
-      />
-      {THEME_ORDER.map((value) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={theme === value}
-          onClick={() => setTheme(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
-        >
-          {t.settings.theme[value]}
-        </button>
-      ))}
-    </div>
+      value={theme}
+      onChange={(value) => setTheme(value)}
+      options={THEME_ORDER.map((value) => ({ value, label: t.settings.theme[value] }))}
+      className="max-sm:w-full"
+    />
   );
 }
 

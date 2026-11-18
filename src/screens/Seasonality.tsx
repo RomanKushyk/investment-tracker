@@ -4,7 +4,7 @@ import { SeasonalityBars } from '../components/charts/SeasonalityBars';
 import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { TAP_44 } from '../components/ui/tap-target';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { useView } from '../hooks/queries';
 import { seasonalityOf } from '../hooks/slices';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
@@ -90,30 +90,15 @@ export function Seasonality() {
         {/* A CONTROL THAT CHANGES ONE CHART SITS ON THAT CHART, where the period control
             that changes a whole screen sits in its header. */}
         <div className="mb-3 flex justify-end">
-          <div
-            role="group"
+          <SegmentedControl
             aria-label={t.analytics.seasonality.axisAriaLabel}
-            data-filled-track
-            className="flex gap-1 rounded-[11px] border border-ink bg-ink p-[3px]"
-          >
-            {(['day', 'month'] as const).map((a) => (
-              <button
-                key={a}
-                type="button"
-                aria-pressed={axis === a}
-                onClick={() => setAxis(a)}
-                // 44 × 44 IS HIT AREA, NEVER GEOMETRY: the overlay grows only up and down, and
-                // the segments are wide enough that it cannot reach across the gap.
-                className={`cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition-control duration-220 ease-soft active:scale-[.97] ${TAP_44} ${
-                  axis === a ? 'bg-card text-ink' : 'text-page hover:opacity-85'
-                }`}
-              >
-                {a === 'day'
-                  ? t.analytics.seasonality.axisByDay
-                  : t.analytics.seasonality.axisByMonth}
-              </button>
-            ))}
-          </div>
+            value={axis}
+            onChange={(a) => setAxis(a)}
+            options={[
+              { value: 'day', label: t.analytics.seasonality.axisByDay },
+              { value: 'month', label: t.analytics.seasonality.axisByMonth },
+            ]}
+          />
         </div>
         <SeasonalityBars data={axis === 'day' ? chartData : monthData} axis={axis} />
         <div className="mt-2 text-[11.5px] text-muted">{t.analytics.prose.seasonalityNote}</div>

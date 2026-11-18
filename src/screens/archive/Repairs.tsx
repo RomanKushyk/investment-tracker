@@ -15,8 +15,8 @@ import {
   DialogFooter,
   DialogHeader,
 } from '../../components/ui/Dialog';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Switch } from '../../components/ui/Switch';
-import { TAP_44 } from '../../components/ui/tap-target';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ArchiveStart, StartReply } from '../../lib/repository';
@@ -289,7 +289,7 @@ function FormRefusal({ refused, lines }: { refused: Refused; lines: string[] }) 
   );
 }
 
-/** The source, on the language control's filled track: two segments and a thumb that slides. */
+/** The source: two segments on the one segmented control. */
 function SourceControl({
   value,
   onChange,
@@ -301,31 +301,16 @@ function SourceControl({
 }) {
   const t = useT();
   return (
-    <div
-      role="radiogroup"
+    <SegmentedControl
       aria-labelledby={labelledBy}
-      data-filled-track
-      className="relative grid w-fit grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1"
-    >
-      <div
-        aria-hidden
-        data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
-        style={{ transform: `translateX(calc(${SOURCES.indexOf(value)} * (100% + 4px)))` }}
-      />
-      {SOURCES.map((source) => (
-        <button
-          key={source}
-          type="button"
-          role="radio"
-          aria-checked={value === source}
-          onClick={() => onChange(source)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${value === source ? 'text-ink' : 'text-page hover:opacity-85'}`}
-        >
-          {t.archive.repairs.observe.sources[source]}
-        </button>
-      ))}
-    </div>
+      value={value}
+      onChange={(source) => onChange(source)}
+      options={SOURCES.map((source) => ({
+        value: source,
+        label: t.archive.repairs.observe.sources[source],
+      }))}
+      className="w-fit"
+    />
   );
 }
 
