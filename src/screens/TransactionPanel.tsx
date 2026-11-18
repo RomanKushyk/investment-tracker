@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, X } from 'lucide-react';
+import { Plus, TriangleAlert, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ import { Reveal } from '../components/ui/Reveal';
 import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
-import { TAP_44, TAP_44_BOX } from '../components/ui/tap-target';
+import { TAP_44_BOX } from '../components/ui/tap-target';
 import {
   toastWriteFailure,
   useDeleteTransaction,
@@ -974,30 +974,37 @@ export function TransactionPanel() {
                       <>
                         {/* THE ROW ITSELF ASKS, and the question REPLACES the row — so the label, amount
                             and date it stood on are gone at the moment of confirming something
-                            unrecoverable, where two coupons of one amount were indistinguishable. */}
-                        <span role="alert" className="min-w-0 flex-1 truncate text-neg">
+                            unrecoverable, where two coupons of one amount were indistinguishable. A
+                            question, not an error: `ink`, with the glyph carrying the caution. */}
+                        <TriangleAlert
+                          aria-hidden
+                          size={13}
+                          strokeWidth={2.25}
+                          className="flex-none text-warn"
+                        />
+                        <span role="alert" className="min-w-0 flex-1 truncate text-ink">
                           {t.transaction.delete.ask(f.money(tx.amount), f.dateShort(tx.date))}
                         </span>
-                        {/* `TAP_44`, NOT `TAP_44_BOX`: the BOX squares a control to 44 × 44 below `md`,
-                            where «Видалити» has no wrap opportunity and spills straight out of its own
-                            border. `autoFocus` keeps the keyboard on the question it just asked — the ✕
-                            unmounts in the same commit. */}
-                        <button
-                          type="button"
+                        {/* The variants' dense size, whose base carries `TAP_44`, not the squared
+                            `TAP_44_BOX`: «Видалити» has no wrap opportunity and would spill out of a
+                            44 × 44 box. `autoFocus` keeps the keyboard on the question it just asked —
+                            the ✕ unmounts in the same commit. */}
+                        <Button
+                          variant="outlineDanger"
+                          size="xs"
                           autoFocus
                           onClick={() => removeTransaction(tx)}
                           disabled={deleteTransaction.isPending}
-                          className={`${TAP_44} cursor-pointer rounded-[6px] border border-neg px-2 py-[3px] font-semibold text-neg transition-control hover:bg-neg-tint active:scale-[.97]`}
                         >
                           {t.transaction.delete.confirm}
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
                           onClick={() => setConfirmingId(undefined)}
-                          className={`${TAP_44} cursor-pointer rounded-[6px] px-2 py-[3px] text-muted transition-control hover:text-ink active:scale-[.97]`}
                         >
                           {t.transaction.delete.cancel}
-                        </button>
+                        </Button>
                       </>
                     ) : (
                       <>

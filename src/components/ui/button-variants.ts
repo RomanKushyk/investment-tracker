@@ -18,14 +18,13 @@ export const buttonVariants = cva(
         // along the accent scale, never the fill mixed with white. *Interaction rules*
         primary:
           'border-transparent bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-pressed',
-        // `panel` and not a rail token: `text-ink` inverts with the theme and a rail
-        // token does not, so in dark both met at near-white and the button emptied.
-        outline: 'border-ink bg-transparent text-ink hover:bg-panel',
-        ghost: 'border-transparent bg-transparent text-ink hover:opacity-85',
+        // THE SECONDARY IS THE GLASS KNOB (B4). Neutral hover is an `ink` 5 % veil, never a
+        // fade (H2); on the knob the veil is folded into its fill, so it steps on any ground.
+        outline: 'border-transparent glass-button text-ink hover:bg-glass-button-hover',
+        ghost: 'border-transparent bg-transparent text-ink hover:bg-ink/5',
         // The outline trigger opens a confirm; the fill is the dialog's armed action.
         outlineDanger: 'border-neg bg-transparent text-neg hover:bg-neg/8',
         danger: 'border-transparent bg-neg text-card hover:opacity-90',
-        outlineMuted: 'pointer-events-none border-panel-border bg-transparent text-muted',
       },
       // EVERY AXIS IS A VARIANT, NEVER A className: two utilities of one kind fight
       // over generated-CSS order, and the winner is whichever Tailwind emitted last.
@@ -42,27 +41,32 @@ export const buttonVariants = cva(
         // because it is the primary-action size and there is no instance of it for
         // which the grown box is wrong. Its radius is RECOMPUTED from the new short
         // side, never inherited. *Shape system*
-        md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 pr-5 text-body',
+        md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 text-body',
         // `header` and `sm` do NOT: `header` is sized to sit beside the Date field, so
         // moving one breaks the pairing. Both reach the hit area through `TAP_44`.
-        header: 'rounded-[10px] h-9 pr-[18px] text-body',
-        sm: 'rounded-[8px] h-[30px] pr-3.5 text-small',
+        header: 'rounded-[10px] h-9 text-body',
+        sm: 'rounded-[8px] h-[30px] text-small',
+        // The dense size, for a control inside a list row: 26 at round(26 × .26) = 7.
+        xs: 'rounded-[7px] h-[26px] text-small',
       },
       // A control that is BUSY must not read like one you may never press.
       disabledTone: {
         gated: 'disabled:opacity-50',
         busy: 'disabled:opacity-70',
       },
-      // So a ghost link flush against a card edge can drop its left padding.
+      // A ghost link flush with a card's text: a small padding, pulled back with the border's
+      // 1.5px, so the label keeps the text's edge and the hover veil has an even box around it.
       inset: {
         normal: '',
-        flushLeft: 'border-l-0 pl-0',
+        flushLeft: 'pl-2.5 pr-2.5 -ml-[11.5px]',
       },
     },
+    // Each side's padding lives here, one per button, so two paddings never fight.
     compoundVariants: [
-      { size: 'md', inset: 'normal', class: 'pl-5' },
-      { size: 'header', inset: 'normal', class: 'pl-[18px]' },
-      { size: 'sm', inset: 'normal', class: 'pl-3.5' },
+      { size: 'md', inset: 'normal', class: 'pl-5 pr-5' },
+      { size: 'header', inset: 'normal', class: 'pl-[18px] pr-[18px]' },
+      { size: 'sm', inset: 'normal', class: 'pl-3.5 pr-3.5' },
+      { size: 'xs', inset: 'normal', class: 'pl-2.5 pr-2.5' },
     ],
     defaultVariants: {
       variant: 'primary',

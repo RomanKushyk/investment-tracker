@@ -6,8 +6,8 @@ import type { FeedFreshness, FetchButtonState } from './fetch-quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 
-// The headline control: an outline pill one notch shorter than the md button, so
-// it reads as part of the ritual header beside the Date field.
+// The headline control: the knob at the header size, one notch shorter than md, so it
+// reads as part of the ritual header beside the Date field.
 // Five machine states — idle, loading, success flash, error (a TOAST, never a
 // red button) and stale-cache — plus the gating ones. Their copy lives in the
 // dictionary: a module constant could not follow a language that switches
@@ -47,8 +47,8 @@ export function FetchQuotesButton({
       disabled={disabled}
       title={title}
       // No aria-label: the button has visible text and a fixed label would override
-      // it, where the accessible name has to follow the state (WCAG 2.5.3).
-      className={success ? 'border-pos text-pos' : undefined}
+      // it, where the accessible name has to follow the state (WCAG 2.5.3). The flash stays
+      // `ink`: the check and the words say it worked, and `pos` belongs to deltas.
     >
       {success ? (
         <Check size={13} strokeWidth={2.75} />

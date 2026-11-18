@@ -312,6 +312,13 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 72%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 62%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 6%, transparent);
+  /* The knob's hover (H2): an `ink` 5 % veil over `glass-button`'s `card` 92 %, folded into one
+     fill so it transitions; 5 / 92.4 of `ink` at alpha 1 − .95 × .08 composites the same. */
+  --color-glass-button-hover: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-ink) 5.4113%, var(--color-card)) 92.4%,
+    transparent
+  );
   /* A table's header band (tables.md § Signed): `ink` 7 % over an opaque `card`, mixed into one
      colour, so rows passing under the sticky header do not show through it. */
   --color-table-band: color-mix(in srgb, var(--color-ink) 7%, var(--color-card));
@@ -472,6 +479,11 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 82%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 6%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 55%, transparent);
+  --color-glass-button-hover: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-ink) 5.4113%, var(--color-card)) 92.4%,
+    transparent
+  );
   --color-table-band: color-mix(in srgb, var(--color-ink) 7%, var(--color-card));
   --color-glow-1: #d8b494;
   --color-glow-2: #b07a52;
@@ -605,7 +617,8 @@
     var(--shadow-glass-knob);
 }
 
-/* The knob at button scale, at one thicker fill in both themes. */
+/* The knob at button scale, at one thicker fill in both themes. A button takes focus, so the
+   halo is listed last (*Focus ring*). */
 @utility glass-button {
   background-color: color-mix(in srgb, var(--color-card) 92%, transparent);
   background-image: linear-gradient(180deg, var(--color-glass-knob-sheen) 0%, transparent 40%);
@@ -613,7 +626,8 @@
     inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent),
     inset 1px 1px 0 var(--color-glass-bevel-top),
     inset -1px -1px 0 var(--color-glass-bevel-bottom),
-    var(--shadow-glass-knob);
+    var(--shadow-glass-knob),
+    var(--focus-halo);
 }
 
 /* The segmented control's well, the track the knob slides in. */

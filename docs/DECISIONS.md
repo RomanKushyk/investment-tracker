@@ -2907,13 +2907,19 @@ controls that write it write that one field, so neither has a value of its own t
 The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, never a fill, so a state is
 never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces are the sixty, text
 and borders and the chart series the thirty, the accent the ten, so a second action beside a filled
-one takes an outline or a ghost. Gain and loss belong to DELTAS: an informational chip reads `info`,
-a text selection reads `selection`, and neither borrows `pos`.
-**Why.** A dismissal on `animationend` never lands in a throttled tab, so it commits on a timer.
+one takes the glass knob or a ghost. The neutral buttons (the ghost, the knob) and a list row hover
+with an `ink` 5 % veil and never fade; the primary steps to `accent-hover`. On the knob the veil is
+folded into its own fill, so it steps on any ground the knob sits on. Gain and loss belong to
+DELTAS: an informational chip reads `info`, a text selection reads `selection`, and neither borrows
+`pos`, so a fetch that worked flashes in `ink` with a check.
+**Why.** A fade reads as "less available", the opposite of a hover. A hover that paints a ground
+token is invisible on that ground: the outline's `panel` hover vanished on the import drop target's
+`panel`. A dismissal on `animationend` never lands in a throttled tab, so it commits on a timer.
 WCAG 1.4.1 does not accept a state said in colour alone, so the indicator is the half that survives
 a colour-blind reading. A green highlight on a reminder or a run of selected text says "up" about
 something that has no direction.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it.
+The 1.5px `ink` outline for the secondary: the darkest line on a glass card (controls.md B1).
 
 ## Focus ring
 **Decision.** The ring is two-tone: on `:focus-visible` a 2px `focus` outline (the accent) at offset

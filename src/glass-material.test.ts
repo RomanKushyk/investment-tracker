@@ -149,18 +149,22 @@ describe('the glass material', () => {
 });
 
 describe('the glass knob and its well', () => {
-  const knob = (fill: string) => ({
+  const knob = (fill: string, ...last: string[]) => ({
     'background-color': fill,
     'background-image':
       'linear-gradient(180deg, var(--color-glass-knob-sheen) 0%, transparent 40%)',
-    'box-shadow': [`inset 0 0 0 1px ${mix('ink', 6)}`, ...BEVEL, 'var(--shadow-glass-knob)'].join(
-      ', ',
-    ),
+    'box-shadow': [
+      `inset 0 0 0 1px ${mix('ink', 6)}`,
+      ...BEVEL,
+      'var(--shadow-glass-knob)',
+      ...last,
+    ].join(', '),
   });
 
   it.each([
     ['glass-knob', knob('var(--color-glass-knob-fill)')],
-    ['glass-button', knob(mix('card', 92))],
+    // A button takes focus, so its own shadows end with the ring's halo.
+    ['glass-button', knob(mix('card', 92), 'var(--focus-halo)')],
     [
       'glass-well',
       {
@@ -262,7 +266,11 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
     const wearing = files
       .filter((file) => NAMES_GLASS.test(stripTs(readFileSync(file, 'utf8'), file)))
       .map((file) => relative(here, file).split(sep).join('/'));
-    expect(wearing.sort()).toEqual(['components/ui/Card.tsx', 'components/ui/KpiCard.tsx']);
+    expect(wearing.sort()).toEqual([
+      'components/ui/Card.tsx',
+      'components/ui/KpiCard.tsx',
+      'components/ui/button-variants.ts',
+    ]);
   });
 
   it('the stylesheet applies no glass utility to anything', () => {

@@ -93,12 +93,27 @@ describe('deleting a ledger row', () => {
 
   it('gives the labelled buttons the overlay, never the squared box', () => {
     // `TAP_44_BOX` squares a control below `md` and «Видалити» has no wrap opportunity inside
-    // it, spilling out of its own border. `tap-target.ts` reserves that box for a control
-    // that draws none.
+    // it, spilling out of its own border. The variants' base carries `TAP_44`.
     const asking = CODE.slice(CODE.indexOf('role="alert"'), CODE.indexOf('delete.cancel'));
-    expect(asking).toContain('${TAP_44}');
     expect(asking).not.toContain('TAP_44_BOX');
     expect(asking, 'the keyboard leaves the question it just asked').toContain('autoFocus');
+  });
+
+  it('asks in ink beside a warn glyph, with the two answers on the button variants', () => {
+    // The brief (controls-and-overlays.md § Settled by the brief): the question is not an
+    // error, so it is `ink`, and the glyph carries the caution.
+    const question = CODE.match(/<span\s+role="alert"\s+className="([^"]*)"/);
+    expect(question, 'the question lost its alert').not.toBeNull();
+    expect(question![1]).toContain('text-ink');
+    expect(question![1]).not.toContain('text-neg');
+    // From where the asking branch opens: the glyph stands before the question.
+    const asking = CODE.slice(
+      CODE.indexOf('{asking ? ('),
+      CODE.indexOf('</Button>', CODE.indexOf('delete.cancel')),
+    );
+    expect(asking).toMatch(/<TriangleAlert[^>]*className="[^"]*text-warn/);
+    expect(asking).toMatch(/<Button\s+variant="outlineDanger"\s+size="xs"/);
+    expect(asking).toMatch(/<Button\s+variant="ghost"\s+size="xs"/);
   });
 
   it('asks first — the ✕ only marks the row, it never deletes', () => {

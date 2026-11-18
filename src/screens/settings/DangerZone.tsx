@@ -103,11 +103,9 @@ function ClearDataDialog({ open, onClose }: { open: boolean; onClose: () => void
           className={fieldVariants({ className: 'w-full px-3 text-[13px]' })}
         />
         <Button
-          variant={backedUp ? 'outlineMuted' : 'outline'}
+          variant="outline"
           className="mt-3 w-full"
-          disabled={backup.pending}
-          aria-disabled={backedUp || undefined}
-          tabIndex={backedUp ? -1 : undefined}
+          disabled={backup.pending || backedUp}
           onClick={() => {
             void backup.download().then((ok) => ok && setBackedUp(true));
           }}

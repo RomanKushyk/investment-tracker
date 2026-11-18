@@ -70,6 +70,8 @@ function OfferLine({
   onDismiss: () => void;
 }) {
   return (
+    // NOT A BUTTON VARIANT: the offer pill is wave 22's signed O1, dashed because it suggests a
+    // value rather than commanding (controls-and-overlays.md), which no variant draws.
     // The right gutter aligns the pill under the input column; below `sm` the row is
     // already stacked, so the pill takes the full width instead of wrapping inside a
     // narrower box.

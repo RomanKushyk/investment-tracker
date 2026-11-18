@@ -47,7 +47,7 @@ export interface QuoteFetch {
   state: FetchButtonState;
   /** Header microcopy source; undefined until a fetch has ever succeeded. */
   freshness: FeedFreshness | undefined;
-  /** Instant to render in the transient "Fetched 13:05" label. */
+  /** Instant to render in the transient "Updated 13:05" label. */
   flashAt: string | undefined;
   /** Whatever feed is in hand, live or the last-good cache. */
   feed: ParsedFeed | undefined;

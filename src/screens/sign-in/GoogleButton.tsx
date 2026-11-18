@@ -7,6 +7,8 @@ import type { ReactNode } from 'react';
 import type { Dict } from '../../i18n/messages';
 import googleG from './google-g.svg';
 
+// NOT A BUTTON VARIANT: Google's branding guidelines fix the face (the white fill, the 1 px
+// `#747775` edge, Google Sans), so the glass knob cannot stand in for it (controls.md B4).
 // 40 at radius 10, and below `md` 44 at 11 — the primary's own box (*Shape system*).
 const FACE =
   'inline-flex h-10 items-center justify-center gap-[10px] rounded-[10px] border border-google-btn-border bg-google-btn-bg px-3 font-google text-[14px] leading-5 font-medium whitespace-nowrap text-google-btn-text transition-control active:scale-[.97] max-md:h-11 max-md:rounded-[11px]';

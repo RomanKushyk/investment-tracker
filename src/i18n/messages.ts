@@ -1606,7 +1606,7 @@ export const en = {
     fetch: {
       idle: 'Fetch quotes',
       loading: 'Fetching…',
-      fetchedAt: (time: string) => `Fetched ${time}`,
+      fetchedAt: (time: string) => `Updated ${time}`,
       unlinked: 'No Inzhur-linked assets yet — link one on Portfolio.',
       otherDay: 'Inzhur prices are today’s — set the date to today to fetch.',
       feedAsOf: (date: string) => `Inzhur as of ${date}`,
@@ -3170,7 +3170,7 @@ export const uk: Dict = {
     fetch: {
       idle: 'Отримати котирування',
       loading: 'Отримання…', // ✎
-      fetchedAt: (time: string) => `Отримано ${time}`, // ✎
+      fetchedAt: (time: string) => `Оновлено ${time}`, // ✎
       unlinked: 'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Портфелі.',
       otherDay: 'Ціни Inzhur — на сьогодні; щоб їх отримати, оберіть сьогоднішню дату.',
       feedAsOf: (date: string) => `Inzhur станом на ${date}`, // ✎
