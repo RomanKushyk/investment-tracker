@@ -502,6 +502,58 @@
   --shadow-glass-well: inset 0 1px 3px color-mix(in srgb, var(--color-glass-shade) 90%, transparent);
 }
 
+/* Unfocused it paints nothing, and it never reaches a child of the focused control. */
+@property --focus-halo {
+  syntax: '*';
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+
+/* Tailwind's `transition` without `outline-color`, so the ring is at full colour when focus
+   lands (*Focus ring*). `transition` and `transition-colors` are not used in src. */
+@utility transition-control {
+  transition-property:
+    color,
+    background-color,
+    border-color,
+    text-decoration-color,
+    fill,
+    stroke,
+    --tw-gradient-from,
+    --tw-gradient-via,
+    --tw-gradient-to,
+    opacity,
+    box-shadow,
+    transform,
+    translate,
+    scale,
+    rotate,
+    filter,
+    -webkit-backdrop-filter,
+    backdrop-filter,
+    display,
+    content-visibility,
+    overlay,
+    pointer-events;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+/* `transition-colors`'s twin, so a colour-only site does not start easing transforms. */
+@utility transition-control-colors {
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill, stroke, --tw-gradient-from,
+    --tw-gradient-via, --tw-gradient-to;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
+/* Hides the ring and its halo together; `outline-none` alone would leave a lone `card` box. */
+@utility focus-ring-none {
+  outline-style: none;
+  --focus-halo: 0 0 #0000;
+}
+
 /* `--glass-edge` swaps the stroke, as dialogs and the popover do for `field-border`; it does not
    inherit, so a dialog's edge stays off the glass inside it. */
 @property --glass-edge {
@@ -696,9 +748,13 @@
     color: var(--color-ink);
   }
 
+  /* Two-tone (*Focus ring*): the `card` halo fills the offset, so the ring reads on any fill. A
+     control with a shadow of its own lists `var(--focus-halo)` last, as this rule loses to it. */
   :focus-visible {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+    --focus-halo: 0 0 0 2px var(--color-card);
+    box-shadow: var(--focus-halo);
   }
 
   /* The NATIVE scrollbar, dressed to match `components/ui/Scroller.tsx` — the
@@ -755,14 +811,6 @@
        gives a reach of 3, which the tightest track contains exactly. */
     outline-offset: 1px;
   }
-
-  /* THE RING STILL FADES IN, AND THIS IS THE OPEN EDGE. Tailwind's `transition`
-     utility covers `outline-color` and an UNFOCUSED segment's computed outline
-     colour is `currentColor`, so on arrival the ring animates from ink-on-ink to
-     `page` and is at full contrast only at the end. No rule in this layer fixes
-     it — `transition-property` comes from a UTILITY, which wins over `base`. The
-     fix belongs in the class string, six duplicated recipes today and the reason
-     a shared `SegmentedTrack` is the open proposal. */
 
   /* Its own token, not `accent-tint`: selection is sand in both themes and the
      accent is copper in light. */

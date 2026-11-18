@@ -2915,6 +2915,30 @@ a colour-blind reading. A green highlight on a reminder or a run of selected tex
 something that has no direction.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it.
 
+## Focus ring
+**Decision.** The ring is two-tone: on `:focus-visible` a 2px `focus` outline (the accent) at offset
+2, and inside it a `0 0 0 2px card` halo, `--focus-halo`, that fills the offset. The base rule paints
+the halo alone. A control with a shadow of its own loses that rule to its utility, so it lists
+`var(--focus-halo)` LAST in its own shadow, after what it draws. The halo is registered, not
+inherited, and paints nothing unfocused. The ring is at full colour on the frame focus lands: no
+class in `src` transitions `outline-color`. Each built-in has a twin without it:
+`transition-control` for `transition`, and `transition-control-colors` for `transition-colors`, so
+no site's list widens. The halo eases in and out with `box-shadow`. An element that hides the ring
+uses `focus-ring-none`, which drops the halo with the outline; `outline-none` alone would leave a
+lone `card` box. `focus-ring.test.ts` holds each of these over `src`'s class strings through the
+CSS Tailwind generates. Its allow-list names the shadows of what does not take focus. CSS a
+library injects and inline styles are outside what it reads, so sonner's list, which hides its
+outline and takes focus on the toaster's hotkey, carries `focus-ring-none` by hand.
+**Why.** A single accent ring on an `accent` or `neg` fill has only the backdrop between ring and
+fill. Two colours keep the ring readable on any fill: WCAG technique C40 combines "the outline and
+box-shadow properties", and GOV.UK draws its focus the same way. WCAG 2.4.13 asks for "a solid 2
+CSS pixel thick perimeter". Tailwind writes `outline-color` into `transition` and
+`transition-colors`, so a ring would fade in from `currentColor`.
+**Rejected.** The single ring, and a 3px ring (heavy on small controls), in the spec's F1 and F3.
+Tailwind's `--tw-ring-offset-shadow` slot, which composes on its own but sits before the control's
+shadow and is not public. Redefining `transition` with a same-named `@utility`: Tailwind adds it on
+top of the core rule (tailwindcss discussion #16997), so it wins only by sort order.
+
 ## Forms and layout
 **Decision.** `/` and `/transactions` are composed the way `/payouts` is — a `1.6fr 1fr` grid, one
 column when it collapses, `/transactions` mirrored so the ledger leads. Inside a grid track the

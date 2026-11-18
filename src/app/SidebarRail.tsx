@@ -108,7 +108,7 @@ function RailBox({
 }) {
   return (
     <span
-      className={`relative mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition ${
+      className={`relative mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition-control ${
         isActive
           ? 'bg-sb-item-active-bg shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
           : still
@@ -120,7 +120,7 @@ function RailBox({
         size={18}
         strokeWidth={2}
         aria-hidden
-        className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
+        className={`flex-none transition-control-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
       />
       {/* Inside the box, since the rail clips past its wall. */}
       {badge !== undefined && <CornerBadge shown={badge} top="top-[2px]" />}
@@ -173,7 +173,7 @@ function RailAccount({ rows, leaving, leave }: SignOut) {
             aria-label={t.auth.signOut}
             aria-disabled={leaving || undefined}
             onClick={() => void leave()}
-            className="mt-1.5 block w-full cursor-pointer rounded-[9px] transition aria-disabled:opacity-70"
+            className="mt-1.5 block w-full cursor-pointer rounded-[9px] transition-control aria-disabled:opacity-70"
           >
             <RailBox Icon={LogOut} />
           </button>
@@ -265,7 +265,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             id={NAV_TRIGGER_ID}
             onClick={onExpand}
             aria-label={t.nav.expandNav}
-            className={`cursor-pointer text-sb-item transition hover:text-sb-item-hover active:scale-[.97] ${TAP_RAIL}`}
+            className={`cursor-pointer text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97] ${TAP_RAIL}`}
           >
             <span aria-hidden className="flex h-3 w-[14px] flex-col justify-between">
               <span className="h-[2px] rounded-[1px] bg-current" />

@@ -77,7 +77,7 @@ function OfferLine({
       <button
         type="button"
         onClick={onAccept}
-        className={`${TAP_44} cursor-pointer rounded-[7px] border border-dashed px-3 py-1 text-[11px] transition active:scale-[.97] ${
+        className={`${TAP_44} cursor-pointer rounded-[7px] border border-dashed px-3 py-1 text-[11px] transition-control active:scale-[.97] ${
           stale
             ? 'border-warn text-warn hover:bg-page'
             : 'border-field-border text-ink hover:border-ink hover:bg-page'
@@ -95,7 +95,7 @@ function OfferLine({
         type="button"
         aria-label={dismissLabel}
         onClick={onDismiss}
-        className={`${TAP_44_BOX} cursor-pointer p-1 text-muted opacity-85 transition hover:opacity-100 active:scale-[.97]`}
+        className={`${TAP_44_BOX} cursor-pointer p-1 text-muted opacity-85 transition-control hover:opacity-100 active:scale-[.97]`}
       >
         <X size={11} strokeWidth={2.75} />
       </button>

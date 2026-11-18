@@ -30,7 +30,7 @@ export function RateLine() {
         aria-label={p.nbuLabel}
         // `ink`, not the in-text opacity: `muted` at .85 on the capital card's `sb-bg` falls under
         // 4.5 : 1 in light, and a 12 px line needs it.
-        className="underline underline-offset-2 transition-colors duration-200 hover:text-ink"
+        className="underline underline-offset-2 transition-control-colors duration-200 hover:text-ink"
       >
         {p.nbu}
       </a>

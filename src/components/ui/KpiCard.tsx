@@ -39,7 +39,7 @@ export function KpiCard({
 }) {
   return (
     <div
-      className={`rounded-3xl glass px-[23px] py-[21px] text-ink transition ${className}`}
+      className={`rounded-3xl glass px-[23px] py-[21px] text-ink transition-control ${className}`}
       style={style}
     >
       <div className="text-label-figure text-muted">{label}</div>

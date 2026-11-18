@@ -52,7 +52,7 @@ export function SignedOutShell({
               <NavLink
                 to={to}
                 {...(notice === 'tab' && { target: '_blank', rel: 'noopener' })}
-                className={`text-small text-muted underline underline-offset-2 transition-colors hover:text-ink ${TAP_44}`}
+                className={`text-small text-muted underline underline-offset-2 transition-control-colors hover:text-ink ${TAP_44}`}
               >
                 {t[document].link}
                 {notice === 'tab' && <span className="sr-only"> {t.privacy.newTab}</span>}

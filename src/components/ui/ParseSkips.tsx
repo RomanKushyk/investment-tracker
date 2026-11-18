@@ -60,7 +60,7 @@ export function ParseSkips({ className = '' }: { className?: string }) {
         // `opacity`, not `-tint-text`: the palette gives `warn` and
         // `warn-tint-text` one value, so a colour hover animates between two
         // identical colours.
-        className="text-small text-warn underline underline-offset-2 transition duration-200 hover:opacity-85"
+        className="text-small text-warn underline underline-offset-2 transition-control duration-200 hover:opacity-85"
       >
         {t.parse.failed(count)}
         {' · '}

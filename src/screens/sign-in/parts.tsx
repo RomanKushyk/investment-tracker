@@ -28,7 +28,7 @@ export function FocusedTitle({ children }: { children: ReactNode }) {
     <h2
       ref={ref}
       tabIndex={-1}
-      className="mb-1 font-display text-[26px] leading-[39px] font-semibold text-ink outline-none"
+      className="mb-1 font-display text-[26px] leading-[39px] font-semibold text-ink focus-ring-none"
     >
       {children}
     </h2>

@@ -120,7 +120,7 @@ export function ImportRow() {
           setDragOver(false);
           if (!busy) void handleFiles(Array.from(e.dataTransfer.files));
         }}
-        className={`mt-3 flex flex-col items-center gap-1.5 rounded-2xl border p-5 text-center transition duration-150 max-sm:p-4 ${
+        className={`mt-3 flex flex-col items-center gap-1.5 rounded-2xl border p-5 text-center transition-control duration-150 max-sm:p-4 ${
           dragOver ? 'border-ink bg-hairline' : 'border-field-border bg-panel hover:border-muted'
         }`}
       >

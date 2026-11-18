@@ -94,7 +94,7 @@ export function LegalDocument({
         <div className="mb-3">
           <Link
             to="/"
-            className={`inline-flex items-center gap-1 text-[12px] leading-[18px] text-muted transition-colors hover:text-ink ${TAP_44}`}
+            className={`inline-flex items-center gap-1 text-[12px] leading-[18px] text-muted transition-control-colors hover:text-ink ${TAP_44}`}
           >
             <ChevronLeft aria-hidden className="size-3.5 flex-none" strokeWidth={2} />
             {t.privacy.back}

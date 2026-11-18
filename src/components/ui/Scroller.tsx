@@ -28,7 +28,7 @@ const RAIL =
 // whole time a rail is up, and that variant outranks `hover:` in generated-CSS
 // order, so the dragged thumb never reaches the value 1.4.11 is cleared on.
 const THUMB =
-  'bg-faint hover:bg-muted active:bg-muted relative flex-1 rounded-[1px] transition-colors duration-200';
+  'bg-faint hover:bg-muted active:bg-muted relative flex-1 rounded-[1px] transition-control-colors duration-200';
 
 export interface ScrollerProps {
   children: ReactNode;

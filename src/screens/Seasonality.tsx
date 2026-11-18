@@ -104,7 +104,7 @@ export function Seasonality() {
                 onClick={() => setAxis(a)}
                 // 44 × 44 IS HIT AREA, NEVER GEOMETRY: the overlay grows only up and down, and
                 // the segments are wide enough that it cannot reach across the gap.
-                className={`cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition duration-220 ease-soft active:scale-[.97] ${TAP_44} ${
+                className={`cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition-control duration-220 ease-soft active:scale-[.97] ${TAP_44} ${
                   axis === a ? 'bg-card text-ink' : 'text-page hover:opacity-85'
                 }`}
               >

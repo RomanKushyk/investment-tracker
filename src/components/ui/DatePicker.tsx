@@ -38,7 +38,7 @@ function dateToIso(d: Date): string {
 // The hover is NOT in it: the hover and the emphasis fill are both one class deep,
 // `:hover` wins the tie, and the emphasised cell paints page-on-page under the pointer.
 const CELL_BASE =
-  'grid h-8 place-items-center rounded-[8px] text-body transition active:scale-[.97] max-md:h-11';
+  'grid h-8 place-items-center rounded-[8px] text-body transition-control active:scale-[.97] max-md:h-11';
 const CELL_IDLE = 'hover:bg-page';
 const CELL_SHOWN = 'bg-ink text-page';
 
@@ -50,9 +50,9 @@ const calendarClassNames = {
   month_caption: 'hidden',
   nav: 'flex items-center justify-between',
   button_previous:
-    'absolute left-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97] max-md:size-11',
+    'absolute left-1 top-1 grid size-7 place-items-center rounded-[7px] transition-control hover:bg-page active:scale-[.97] max-md:size-11',
   button_next:
-    'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97] max-md:size-11',
+    'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition-control hover:bg-page active:scale-[.97] max-md:size-11',
   month_grid: 'w-full border-collapse',
   weekdays: 'flex',
   // Matches the day column INCLUDING its gutter, or it drifts per column and the last
@@ -81,7 +81,7 @@ const calendarClassNames = {
 // The radius stays constant across both heights, matching the nav buttons beside it: a
 // declared exception, which `CELL_BASE` inherits on purpose. *Shape system*
 const CAPTION_BUTTON =
-  'grid h-7 place-items-center rounded-[7px] px-2 font-display text-body font-semibold transition hover:bg-page active:scale-[.97] max-md:h-11 max-md:px-2.5 max-md:text-sub';
+  'grid h-7 place-items-center rounded-[7px] px-2 font-display text-body font-semibold transition-control hover:bg-page active:scale-[.97] max-md:h-11 max-md:px-2.5 max-md:text-sub';
 const CAPTION_BUTTON_OPEN = 'bg-page';
 
 export function DatePicker({

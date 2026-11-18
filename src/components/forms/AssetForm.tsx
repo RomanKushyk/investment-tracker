@@ -322,7 +322,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
           setManual(!showManual);
           if (showManual) ensureFeed(); // going back to the list = a retry
         }}
-        className="cursor-pointer self-start p-0 text-[11px] text-ink transition hover:opacity-85 active:scale-[.97]"
+        className="cursor-pointer self-start p-0 text-[11px] text-ink transition-control hover:opacity-85 active:scale-[.97]"
       >
         {showManual ? PICK.toPicker : PICK.toManual}
       </button>

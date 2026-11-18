@@ -152,7 +152,7 @@ function PriceModeSegment({
       onClick={() => {
         if (mode !== value) onChange(mode);
       }}
-      className={`relative z-10 flex-1 cursor-pointer rounded-[4px] text-[11px] font-bold transition active:scale-[.97] ${
+      className={`relative z-10 flex-1 cursor-pointer rounded-[4px] text-[11px] font-bold transition-control active:scale-[.97] ${
         value === mode ? 'text-ink' : 'text-page hover:opacity-85'
       }`}
     >
@@ -987,14 +987,14 @@ export function TransactionPanel() {
                           autoFocus
                           onClick={() => removeTransaction(tx)}
                           disabled={deleteTransaction.isPending}
-                          className={`${TAP_44} cursor-pointer rounded-[6px] border border-neg px-2 py-[3px] font-semibold text-neg transition hover:bg-neg-tint active:scale-[.97]`}
+                          className={`${TAP_44} cursor-pointer rounded-[6px] border border-neg px-2 py-[3px] font-semibold text-neg transition-control hover:bg-neg-tint active:scale-[.97]`}
                         >
                           {t.transaction.delete.confirm}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmingId(undefined)}
-                          className={`${TAP_44} cursor-pointer rounded-[6px] px-2 py-[3px] text-muted transition hover:text-ink active:scale-[.97]`}
+                          className={`${TAP_44} cursor-pointer rounded-[6px] px-2 py-[3px] text-muted transition-control hover:text-ink active:scale-[.97]`}
                         >
                           {t.transaction.delete.cancel}
                         </button>
@@ -1049,7 +1049,7 @@ export function TransactionPanel() {
                           aria-label={t.transaction.delete.aria}
                           data-delete-row={tx.id}
                           onClick={() => setConfirmingId(tx.id)}
-                          className={`${TAP_44_BOX} flex-none cursor-pointer p-1 text-faint opacity-0 transition group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
+                          className={`${TAP_44_BOX} flex-none cursor-pointer p-1 text-faint opacity-0 transition-control group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
                         >
                           <X size={12} strokeWidth={2.75} />
                         </button>

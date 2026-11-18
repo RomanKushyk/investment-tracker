@@ -195,7 +195,7 @@ export function CouponDueCard({
             // with nowhere to recover it.
             setUnitsError(false);
           }}
-          className="mt-[1px] size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition active:scale-[.97]"
+          className="mt-[1px] size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition-control active:scale-[.97]"
         />
         <span className="text-xs leading-[1.45]">
           {t.dailyQuotes.coupon.reinvest}

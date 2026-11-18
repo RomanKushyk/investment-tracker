@@ -248,7 +248,7 @@ function Preview({
 
         {envelope.settings ? (
           <label
-            className={`mt-4 flex items-start gap-2.5 rounded-xl p-2 transition hover:bg-page/60 ${
+            className={`mt-4 flex items-start gap-2.5 rounded-xl p-2 transition-control hover:bg-page/60 ${
               pending ? 'pointer-events-none opacity-70' : 'cursor-pointer'
             }`}
           >
@@ -257,7 +257,7 @@ function Preview({
               checked={applySettings}
               disabled={pending}
               onChange={(e) => onApplySettings(e.target.checked)}
-              className="mt-px size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition active:scale-[.97]"
+              className="mt-px size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition-control active:scale-[.97]"
             />
             <span className="flex-1">
               <span className="block text-[13px]">{t.importing.preview.settingsOptIn}</span>

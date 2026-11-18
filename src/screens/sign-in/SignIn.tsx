@@ -693,7 +693,7 @@ function AddressRow({
         aria-label={t.auth.changeLabel}
         aria-disabled={busy || undefined}
         onClick={() => !busy && onChange()}
-        className={`flex-none transition ${LINK} ${BUSY}`}
+        className={`flex-none transition-control ${LINK} ${BUSY}`}
       >
         {t.auth.change}
       </button>

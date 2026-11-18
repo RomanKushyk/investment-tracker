@@ -24,4 +24,4 @@ export const TH_NUM = `${HEAD} text-right`;
 export const TR = 'group/row';
 
 /** 36 px rows that grow when the content needs more; every second one tinted, any one veiled on hover. */
-export const TD = `h-9 ${CELL} transition-colors group-even/row:bg-ink/3 group-hover/row:bg-ink/5`;
+export const TD = `h-9 ${CELL} transition-control-colors group-even/row:bg-ink/3 group-hover/row:bg-ink/5`;

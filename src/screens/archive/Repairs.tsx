@@ -320,7 +320,7 @@ function SourceControl({
           role="radio"
           aria-checked={value === source}
           onClick={() => onChange(source)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${value === source ? 'text-ink' : 'text-page hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${value === source ? 'text-ink' : 'text-page hover:opacity-85'}`}
         >
           {t.archive.repairs.observe.sources[source]}
         </button>

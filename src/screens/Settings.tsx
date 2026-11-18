@@ -87,7 +87,7 @@ function CurrencyControl() {
       type="button"
       aria-pressed={currency === c}
       onClick={() => setCurrency(c)}
-      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === c ? 'text-ink' : 'text-page hover:opacity-85'}`}
+      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${currency === c ? 'text-ink' : 'text-page hover:opacity-85'}`}
     >
       {label}
     </button>
@@ -146,7 +146,7 @@ function ThemeControl() {
           role="radio"
           aria-checked={theme === value}
           onClick={() => setTheme(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
         >
           {t.settings.theme[value]}
         </button>

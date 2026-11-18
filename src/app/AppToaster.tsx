@@ -13,6 +13,8 @@ export function AppToaster() {
           unlayered, which beats any layered utility, so the toast takes inline styles and the
           close button, which takes no style object, takes `!` classes. */}
       <Toaster
+        // Sonner focuses its list on its hotkey and hides the list's outline; the halo goes too.
+        className="focus-ring-none"
         // BELOW 600px sonner swaps to this offset — its own breakpoint, not the app's.
         // The bottom pays back `env(safe-area-inset-bottom)` whenever that is larger, so
         // the toast never sits under the home indicator now that `viewport-fit=cover`
@@ -59,7 +61,7 @@ export function AppToaster() {
           // `!` because sonner's CSS is unlayered, which beats any layered utility, and it takes
           // no style object.
           classNames: {
-            closeButton: `!relative !top-auto !right-auto !left-auto !order-last !ml-auto !size-7 !shrink-0 !transform-none !rounded-[7px] !border-field-border !bg-card !text-ink !transition hover:opacity-85 active:scale-[.97] ${TAP_44}`,
+            closeButton: `!relative !top-auto !right-auto !left-auto !order-last !ml-auto !size-7 !shrink-0 !transform-none !rounded-[7px] !border-field-border !bg-card !text-ink !transition-control hover:opacity-85 active:scale-[.97] ${TAP_44}`,
             // The body role, over sonner's own 1.5 and 1.4 line heights.
             title: '!text-body',
             description: '!text-body',

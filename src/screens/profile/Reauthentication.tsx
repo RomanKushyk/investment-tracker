@@ -591,7 +591,7 @@ export function Reauthentication({
           ref={expiredRef}
           role="status"
           tabIndex={-1}
-          className="text-[11px] leading-[16.5px] text-neg outline-none"
+          className="text-[11px] leading-[16.5px] text-neg focus-ring-none"
         >
           {expired > 0 && step.name === 'first' && <p className="mt-3">{t.reauth.expired}</p>}
         </div>
@@ -651,7 +651,7 @@ export function Title({ focus = false, children }: { focus?: boolean; children: 
       <h2
         ref={ref}
         tabIndex={-1}
-        className="m-0 font-display text-[18px] leading-6 font-semibold text-ink outline-none"
+        className="m-0 font-display text-[18px] leading-6 font-semibold text-ink focus-ring-none"
       >
         {children}
       </h2>

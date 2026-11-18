@@ -86,7 +86,7 @@ export function PeriodControl({ from, to }: { from: string | undefined; to: stri
           fails 1.4.3 at this body size. */}
       <div
         id={lineId}
-        className={`text-small transition-colors duration-150 ${
+        className={`text-small transition-control-colors duration-150 ${
           resolved.clamped ? 'text-warn-tint-text' : 'text-muted'
         }`}
       >

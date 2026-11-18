@@ -29,7 +29,7 @@ export function Switch({
       // 40 × 22 drawn, 44 × 44 pressable below the breakpoint. The two radii
       // above are keyed to the DRAWN height, so growing the box would move them
       // both — which is exactly what `TAP_44` exists to avoid.
-      className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition active:scale-[.97] ${TAP_44} ${
+      className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition-control active:scale-[.97] ${TAP_44} ${
         checked ? 'border-ink bg-ink' : 'border-switch-border bg-switch-track'
       }`}
     >

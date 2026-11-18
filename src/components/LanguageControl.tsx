@@ -33,7 +33,7 @@ export function LanguageControl({ stretch = false }: { stretch?: boolean }) {
           role="radio"
           aria-checked={language === value}
           onClick={() => setLanguage(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${language === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition-control active:scale-[.97] ${TAP_44} ${language === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
         >
           {t.settings.language[value]}
         </button>

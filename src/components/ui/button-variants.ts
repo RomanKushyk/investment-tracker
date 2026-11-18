@@ -9,7 +9,7 @@ export const buttonVariants = cva(
   // automatic, so a border only some variants carry is height only some variants have.
   // Every variant reserves the same ring and the filled ones paint it transparent, so
   // all variants of a size are isometric by construction.
-  `inline-flex items-center justify-center gap-2 whitespace-nowrap border-[1.5px] font-display transition active:scale-[.97] disabled:pointer-events-none ${TAP_44}`,
+  `inline-flex items-center justify-center gap-2 whitespace-nowrap border-[1.5px] font-display transition-control active:scale-[.97] disabled:pointer-events-none ${TAP_44}`,
   {
     variants: {
       variant: {

@@ -27,7 +27,7 @@ const edges: Record<FieldEdge, string> = {
   quiet: 'border-field-border',
 };
 
-const recipe = cva('h-9 rounded-[9px] border transition', {
+const recipe = cva('h-9 rounded-[9px] border transition-control', {
   variants: { fill: fills, edge: edges },
   defaultVariants: { fill: 'page', edge: 'rest' },
 });

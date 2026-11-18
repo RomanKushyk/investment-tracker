@@ -90,13 +90,13 @@ export function Mark({ size }: { size: keyof typeof PLATE }) {
 // where they are. *Shape system*
 function pillClass(padY: string, radius: string, type = 'text-body') {
   return ({ isActive }: { isActive: boolean }) =>
-    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left ${type} transition select-none active:scale-[.97] ` +
+    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left ${type} transition-control select-none active:scale-[.97] ` +
     (isActive
       ? // SAID TWICE, WHICH IS THE WHOLE POINT: a tint AND an inset left edge, because
         // 1.4.1 does not accept a state carried by colour alone. An INSET SHADOW and not
         // a pseudo-element — `TAP_44` owns `::after` on every pill below the breakpoint,
         // and a real border would move the label and break the radii.
-        'bg-sb-item-active-bg font-bold text-sb-item-active shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
+        'bg-sb-item-active-bg font-bold text-sb-item-active shadow-[inset_2px_0_0_var(--color-sb-indicator),var(--focus-halo)]'
       : // HOVER LIVES IN THIS ARM ONLY. In the shared prefix it outranks the active
         // arm — `hover:` is a class higher and Tailwind emits it later — so pointing
         // at the route you are already on repaints it and takes away both halves.
@@ -124,7 +124,7 @@ function NavItem({
         size={16}
         strokeWidth={2}
         aria-hidden
-        className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
+        className={`flex-none transition-control-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
       />
       <span className="flex-1 truncate">{label}</span>
       {count !== undefined && (
@@ -208,7 +208,7 @@ function NavGroup({
         // pushes the first pill down instead of overlapping it, which is what
         // tap-target.ts requires. `TAP_44_BOX` squares the box and this one has a
         // label to hold.
-        className="group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-label-caps text-sb-label uppercase transition select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
+        className="group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-label-caps text-sb-label uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
       >
         {label}
         <ChevronDown
@@ -410,7 +410,7 @@ function SidebarPanel({
                   role="radio"
                   aria-checked={theme === value}
                   onClick={() => setTheme(value)}
-                  className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${theme === value ? 'text-accent-fg' : 'text-sb-icon'}`}
+                  className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] transition-control active:scale-[.97] max-md:min-w-11 ${TAP_44} ${theme === value ? 'text-accent-fg' : 'text-sb-icon'}`}
                 >
                   <Glyph aria-hidden className="size-3.5" />
                   <span className="sr-only">{t.settings.theme[value]}</span>
@@ -434,7 +434,7 @@ function SidebarPanel({
                 type="button"
                 aria-pressed={currency === 'UAH'}
                 onClick={() => setCurrency('UAH')}
-                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition-control active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
               >
                 ₴<span className="sr-only"> UAH</span>
               </button>
@@ -442,7 +442,7 @@ function SidebarPanel({
                 type="button"
                 aria-pressed={currency === 'USD'}
                 onClick={() => setCurrency('USD')}
-                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition-control active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
               >
                 $<span className="sr-only"> USD</span>
               </button>
@@ -472,7 +472,7 @@ function SidebarPanel({
               )}
               <NavLink
                 to={to}
-                className={`block text-label text-sb-item underline underline-offset-2 transition-colors hover:text-sb-item-hover ${TAP_44}`}
+                className={`block text-label text-sb-item underline underline-offset-2 transition-control-colors hover:text-sb-item-hover ${TAP_44}`}
               >
                 {t[document].link}
               </NavLink>
@@ -619,7 +619,7 @@ function HeadStrip({ onCollapse, children }: { onCollapse?: () => void; children
           id={SIDEBAR_COLLAPSE_ID}
           onClick={onCollapse}
           aria-label={t.nav.collapseNav}
-          className="-mr-px ml-auto grid size-[26px] flex-none cursor-pointer place-items-center text-sb-item transition hover:text-sb-item-hover active:scale-[.97]"
+          className="-mr-px ml-auto grid size-[26px] flex-none cursor-pointer place-items-center text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97]"
         >
           <ChevronLeft size={24} strokeWidth={2} aria-hidden />
         </button>

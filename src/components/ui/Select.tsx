@@ -119,7 +119,7 @@ export function Select({
                 // highlight fill, and an overlay would make adjacent rows fight
                 // over the shared area. The radius is CONCENTRIC (14 − 5), not
                 // proportional, so the height does not move it.
-                className="cursor-pointer rounded-[9px] px-3 py-2 font-mono text-body transition outline-none data-[highlighted]:bg-page max-md:py-3"
+                className="cursor-pointer rounded-[9px] px-3 py-2 font-mono text-body transition-control focus-ring-none data-[highlighted]:bg-page max-md:py-3"
               >
                 <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
                 {o.hint !== undefined && <span className="text-muted"> · {o.hint}</span>}

@@ -80,7 +80,7 @@ function ReminderBanner({
             // the overlay lands somewhere nobody chose, and it reaches into the
             // body copy above. WCAG 2.5.8 exempts a target inline in a sentence
             // for that reason: the line height belongs to the prose.
-            className="font-bold underline decoration-transparent transition hover:decoration-current active:scale-[.97] sm:whitespace-nowrap"
+            className="font-bold underline decoration-transparent transition-control hover:decoration-current active:scale-[.97] sm:whitespace-nowrap"
           >
             {action}
           </Link>
@@ -93,7 +93,7 @@ function ReminderBanner({
         // A real box and not the overlay, which reached into the text column
         // beside it and put a dismiss under a tap on plain prose. Nothing is
         // redrawn: the control has no fill and no border.
-        className={`${TAP_44_BOX} flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition hover:opacity-100 active:scale-[.97]`}
+        className={`${TAP_44_BOX} flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition-control hover:opacity-100 active:scale-[.97]`}
       >
         <X size={13} strokeWidth={2.5} />
       </button>
@@ -157,7 +157,7 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
           onClick={() => setExpanded(true)}
           // Text, not an icon, so it keeps its own width and grows only in
           // height — again a real box, this control drawing no fill.
-          className="animate-in cursor-pointer self-start px-1 py-[2px] text-small text-muted transition fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
+          className="animate-in cursor-pointer self-start px-1 py-[2px] text-small text-muted transition-control fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
         >
           {moreRemindersLabel(hidden, t)}
         </button>
