@@ -65,7 +65,6 @@ async function open(path: string) {
 async function group(root: HTMLElement, name: string) {
   const found = await waitFor(() => within(root).getByRole('radiogroup', { name }));
   expect(found.querySelector('[aria-pressed]')).toBeNull();
-  expect(found.hasAttribute('data-filled-track')).toBe(false);
   return within(found)
     .getAllByRole('radio')
     .map((r) => r.textContent);
@@ -124,6 +123,14 @@ describe('each segmented set is a radiogroup', () => {
     const page = await open('/admin/archive');
     const radios = await group(page, uk.archive.repairs.observe.source);
     expect(radios.length).toBe(2);
+  });
+
+  // Named by the amount's label; the radios read their glyph's words.
+  it('Transactions: PriceMode', async () => {
+    const page = await open('/transactions');
+    const t = uk.transaction;
+    expect(await group(page, t.amount)).toEqual([`Σ${t.priceTotal}`, `1${t.priceUnit}`]);
+    expect(page.querySelector('main [aria-pressed]')).toBeNull();
   });
 
   it('Seasonality: the axis', async () => {

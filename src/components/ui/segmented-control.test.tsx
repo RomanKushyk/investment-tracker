@@ -30,7 +30,7 @@ function Harness({
 }: {
   onChange?: (v: Letter) => void;
   initial?: Letter;
-  size?: 'md' | 'sm';
+  size?: 'md' | 'sm' | 'field';
 }) {
   const [value, setValue] = useState<Letter>(initial);
   return (
@@ -128,7 +128,6 @@ describe('the segmented control is drawn as signed', () => {
     expect(well.style.padding).toBe('5px');
     expect(well.style.gap).toBe('4px');
     expect(classes(well)).not.toEqual(expect.arrayContaining(['bg-ink']));
-    expect(well.hasAttribute('data-filled-track')).toBe(false);
     for (const r of radios())
       expect(classes(r)).toEqual(expect.arrayContaining(['h-7', 'rounded-[7px]', 'text-small']));
   });
@@ -197,6 +196,38 @@ describe('the segmented control is drawn as signed', () => {
     const well = screen.getByRole('radiogroup');
     expect(classes(well)).toContain('min-w-max');
     expect(well.style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+  });
+
+  // PriceMode's 24 (open-values-shell-controls.md § Signed, item 14): 24 → 6 / 9 by the shape rule,
+  // and no 44 overlay — 24 meets WCAG 2.5.8, and two neighbouring overlays would overlap.
+  it('draws the field size: a 9-round well 3 in, 24 × 24 6-round segments 2 apart, no overlay', () => {
+    render(<Harness size="field" />);
+    const well = screen.getByRole('radiogroup');
+    expect(classes(well)).toEqual(expect.arrayContaining(['glass-well', 'rounded-[9px]']));
+    expect(well.style.padding).toBe('3px');
+    expect(well.style.gap).toBe('2px');
+    for (const r of radios()) {
+      expect(classes(r)).toEqual(expect.arrayContaining(['size-6', 'rounded-[6px]']));
+      expect(r.className, 'a 24 segment took the 44 overlay').not.toMatch(/after:/);
+    }
+    const knob = document.querySelector<HTMLElement>('[data-owns-motion]')!;
+    expect(classes(knob)).toContain('rounded-[6px]');
+    expect(knob.style.top).toBe('3px');
+  });
+
+  it('gives a segment its title, a hint beside the name it already has', () => {
+    render(
+      <SegmentedControl
+        aria-label="Sums"
+        value="a"
+        onChange={() => {}}
+        options={[
+          { value: 'a', label: 'Σ', title: 'Total' },
+          { value: 'b', label: '1' },
+        ]}
+      />,
+    );
+    expect(radios().map((r) => r.getAttribute('title'))).toEqual(['Total', null]);
   });
 
   // The knob's slide is a transition, so the global reduced-motion rule is what stops it.

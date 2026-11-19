@@ -441,9 +441,9 @@ describe('the logo’s retired pill tokens are gone', () => {
 // it is drawn on, and the base rule is unqualified, so that is every plane the app has —
 // including the WALL, where the rail's currency toggle lives.
 //
-// BOTH HALVES, the reason `filled-track.test.ts` gives about its own attribute: a token is
-// inert without the rule that reads it. Nothing else here would notice `--color-focus` being
-// deleted, so the CSS half is what stops the arithmetic guarding a value no ring resolves.
+// BOTH HALVES: a token is inert without the rule that reads it. Nothing else here would
+// notice `--color-focus` being deleted, so the CSS half is what stops the arithmetic guarding
+// a value no ring resolves.
 describe('the focus ring is the accent, and clears 1.4.11 on every plane', () => {
   it.each(['light', 'dark'] as const)('`focus` is declared in the %s block', (block) => {
     expect(
@@ -526,21 +526,8 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
   });
 
   it('keeps the rule that reads the token', () => {
-    // NOT the filled-track override, which `filled-track.test.ts` pins. This is the base
-    // rule, and it must name the TOKEN rather than the accent directly, or the alias is one
-    // the app declares and nothing consumes.
+    // It must name the TOKEN rather than the accent directly, or the alias is one the app
+    // declares and nothing consumes.
     expect(ruleBody(CSS, ':focus-visible')).toMatch(/outline:\s*2px solid var\(--color-focus\)/);
-  });
-
-  it('leaves the filled track its own ring, which the accent cannot give it', () => {
-    // The pairing's REASON, computed rather than asserted in prose: a segmented track is
-    // `bg-ink` and the accent on ink is under 3 : 1, so the override is load-bearing rather
-    // than a leftover from when the base ring was ink.
-    for (const block of ['light', 'dark'] as const) {
-      expect(ratio(resolve(BLOCKS, block, 'focus'), resolve(BLOCKS, block, 'ink'))).toBeLessThan(3);
-    }
-    expect(ruleBody(CSS, '[data-filled-track] :focus-visible')).toContain(
-      'outline-color: var(--color-page)',
-    );
   });
 });

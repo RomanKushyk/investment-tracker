@@ -33,6 +33,7 @@ const MOUNTS = [
   'src/screens/ledger-delete-coupon.test.tsx',
   'src/screens/overview-figures-mark.test.tsx',
   'src/screens/overview-rate.test.tsx',
+  'src/screens/price-mode-segment.test.tsx',
   'src/screens/profile.test.tsx',
   'src/screens/quotes-save-busy.test.tsx',
   'src/screens/records-one-card.test.tsx',

@@ -832,24 +832,6 @@
     background: transparent;
   }
 
-  /* A TRACK PAINTED IN ITS PLANE'S FOREGROUND NEEDS THE RING IN THE BACKGROUND.
-     The segmented controls' track is `ink`, and a ring painted `var(--color-ink)`
-     on it reads 1.00:1 — focus invisible wherever it landed. Moving the base ring
-     to `focus` does not rescue a filled track: the accent on ink is under 3 : 1 in
-     light and barely over 1 in dark, which `palette-mirror.test.ts` computes
-     rather than states. `page` rather than a fixed value, so it inverts with the
-     theme the way the track does. Opt-in by attribute, because a control on
-     `panel` or `card` is already served by the base rule. */
-  [data-filled-track] :focus-visible {
-    outline-color: var(--color-page);
-    /* AND A SHORTER REACH, because a filled track is the ring's own backdrop. The
-       base offset of 2 puts a 2px ring at 2→4px from the segment's edge, and the
-       tightest filled track leaves only 3, so the outer half fell past the track
-       onto `panel` and the ring read as 1px reaching toward its neighbour. Offset 1
-       gives a reach of 3, which the tightest track contains exactly. */
-    outline-offset: 1px;
-  }
-
   /* Its own token, not `accent-tint`: selection is sand in both themes and the
      accent is copper in light. */
   ::selection {

@@ -192,12 +192,6 @@ describe('the footer band carries two segmented controls on one row', () => {
     expect(SIDEBAR, 'a thumb of the sidebar’s own is left').not.toMatch(/data-owns-motion/);
   });
 
-  // The refusal `index.css` argues at its `[data-filled-track]` rule: that attribute repaints
-  // the ring for a track painted in the plane's FOREGROUND, and the glass well is not one.
-  it('gives neither track `data-filled-track`', () => {
-    expect(SIDEBAR, 'a well took the filled track’s ring').not.toMatch(/data-filled-track/);
-  });
-
   // THE FIT, from the control's own numbers: in the drawer each segment is `44 − gap` wide (the
   // 44 overlays then tile), and the five with both wells' padding and gaps and the row's `gap-2`
   // must fit the 239 the band measures, or the row wraps where nothing narrows it.

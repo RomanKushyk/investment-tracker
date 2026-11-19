@@ -152,7 +152,7 @@ const ALLOWED: Record<string, Record<string, number>> = {
   'src/screens/TransactionPanel.tsx': {
     'leading-4': 2,
     'text-[10px]': 2,
-    'text-[11px]': 15,
+    'text-[11px]': 14,
     'text-[12.5px]': 1,
     'text-[13px]': 1,
     'text-lg': 1,

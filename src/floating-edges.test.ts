@@ -255,10 +255,9 @@ const CHART_COLORS = stripTs(
 // that names palette tokens. Left out, that guard goes on passing because it stopped looking.
 const ALL_SOURCE = [...SOURCES.values(), CHART_COLORS].join('\n');
 
-/** Line-based is enough where `filled-track.test.ts` needed a brace scanner — the border
- *  and the shadow live in one `className` string, not in two attributes. A line deferring
- *  its edge to an interpolation OR A CONCATENATION is exempt — the two arms of `DEFERS` —
- *  and the `it` below holds that exemption empty. */
+/** Line-based is enough: the border and the shadow live in one `className` string, not in
+ *  two attributes. A line deferring its edge to an interpolation OR A CONCATENATION is
+ *  exempt — the two arms of `DEFERS` — and the `it` below holds that exemption empty. */
 const POPOVER_LINE = (line: string) => /shadow-\(--shadow-popover\)/.test(line);
 const DEFERS = (line: string) => /\$\{/.test(line) || line.trimEnd().endsWith('+');
 

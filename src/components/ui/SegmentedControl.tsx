@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import { TAP_44 } from './tap-target';
 
 /** Each size's well padding and segment gap, in px, which place the knob too. `sm` is the
- *  sidebar's 22: radii 6 / 9 make its padding 3, and its gap keeps `md`'s 4 : 5 of it. */
+ *  sidebar's 22: radii 6 / 9 make its padding 3, and its gap keeps `md`'s 4 : 5 of it. `field`
+ *  is PriceMode's 24, beside a field's label: 24 → 6 / 9 by the same rule, and no `TAP_44`, because
+ *  24 meets WCAG 2.5.8 and two neighbouring overlays would hand each other taps. */
 const SIZES = {
   md: {
     pad: 5,
@@ -12,6 +14,7 @@ const SIZES = {
     well: 'rounded-[12px]',
     knob: 'rounded-[7px]',
     segment: 'h-7 rounded-[7px] px-3 text-small',
+    tap: TAP_44,
   },
   sm: {
     pad: 3,
@@ -23,6 +26,15 @@ const SIZES = {
     // `44 − gap` below the breakpoint, so two neighbours' 44 overlays tile (tap-target.ts).
     segment:
       'flex h-[22px] items-center justify-center rounded-[6px] text-body max-md:min-w-[42px]',
+    tap: TAP_44,
+  },
+  field: {
+    pad: 3,
+    gap: 2,
+    well: 'rounded-[9px]',
+    knob: 'rounded-[6px]',
+    segment: 'flex size-6 items-center justify-center rounded-[6px] text-label',
+    tap: '',
   },
 } as const;
 
@@ -38,13 +50,14 @@ export function SegmentedControl<T extends string>({
 }: {
   value: T;
   onChange: (value: T) => void;
-  options: readonly { value: T; label: ReactNode }[];
+  /** `title` is a mouse-only hint; the accessible name is the label's own text. */
+  options: readonly { value: T; label: ReactNode; title?: string }[];
   size?: keyof typeof SIZES;
   className?: string;
   'aria-label'?: string;
   'aria-labelledby'?: string;
 }) {
-  const { pad, gap, well, knob, segment } = SIZES[size];
+  const { pad, gap, well, knob, segment, tap } = SIZES[size];
   const n = options.length;
   const index = options.findIndex((o) => o.value === value);
   return (
@@ -77,9 +90,10 @@ export function SegmentedControl<T extends string>({
         <RadioGroup.Item
           key={o.value}
           value={o.value}
+          title={o.title}
           // Radix moves its tab stop only on focus; a value written elsewhere would leave it behind.
           tabIndex={o.value === value ? 0 : -1}
-          className={`z-10 cursor-pointer transition-control active:scale-[.97] ${segment} ${TAP_44} ${
+          className={`z-10 cursor-pointer transition-control active:scale-[.97] ${segment} ${tap} ${
             o.value === value
               ? 'font-bold text-segment-label'
               : 'font-semibold text-muted hover:bg-ink/5'

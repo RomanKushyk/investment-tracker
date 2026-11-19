@@ -12,6 +12,7 @@ import { fieldVariants } from '../components/ui/field-variants';
 import { Reveal } from '../components/ui/Reveal';
 import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Select } from '../components/ui/Select';
 import { TAP_44_BOX } from '../components/ui/tap-target';
 import {
@@ -79,6 +80,7 @@ const INPUT = 'min-w-0 px-3 text-[13px] text-ink';
 
 // The amount's own ids, so the error is LINKED to the input rather than folded into its name.
 const AMOUNT_ID = 'tx-amount';
+const AMOUNT_LABEL_ID = 'tx-amount-label';
 const AMOUNT_ERROR_ID = 'tx-amount-error';
 const QUANTITY_ID = 'tx-quantity';
 const QUANTITY_ERROR_ID = 'tx-quantity-error';
@@ -86,95 +88,6 @@ const WITHHOLDING_ID = 'tx-withholding';
 const WITHHOLDING_ERROR_ID = 'tx-withholding-error';
 const NOTE_ID = 'tx-note';
 const NOTE_ERROR_ID = 'tx-note-error';
-
-/**
- * What the amount field holds: the whole transaction, or one unit.
- *
- * SIZED TO THE SETTINGS SWITCH (owner's ruling) — the track is the switch's own
- * 40 × 22 box and the two segments split it.
- *
- * A SEGMENTED CONTROL NEEDS BOTH OF *Shape system*'s RULES: the segment is
- * PROPORTIONAL to its own rendered box, the track CONCENTRIC around it. The
- * switch's own track differs by a pixel because a switch derives both radii from
- * their own boxes, not being segmented. A radius is never portable between two
- * sizes, and `text-[11px]` sets no line height, so a rendered box has to be
- * measured rather than read off the classes.
- *
- * `flex-1` ON BOTH SEGMENTS IS LOAD-BEARING: the thumb is a fixed
- * `calc(50% - 4px)`, which lands correctly only while the two are equal width.
- * `Σ` is wider than `1`, so content-sized labels overhang one state.
- *
- * NO `TAP_44`, AND THAT IS THE HELPER'S OWN RULE: a centred 44px overlay reaches
- * `(44 − w) / 2` past each edge, so two neighbours only tile when `w + gap ≥ 44`.
- * Satisfying it here needs either a gap that breaks the track's concentric
- * spacing or a segment that is geometry, which *Two shells, one breakpoint*
- * forbids growing. Overlapping hit areas are WORSE than small ones, and here the
- * wrong control silently re-reads the amount as a price per unit.
- *
- * WHICH LEAVES A KNOWN GAP, and it is the price of the size: the segments are
- * under WCAG 2.5.8 AA's 24 × 24 and the spacing exception does not rescue them.
- * Accepted deliberately — the owner asked for the switch's footprint — but it is
- * a REGRESSION, not something this control never had.
- *
- * UNDOING IT IS SIX EDITS, NOT ONE NUMBER: the track loses `w-10` and returns to
- * `h-[32px] p-[3px]`, the segments need `px-2.5 py-1` back, and the radii are
- * literals that do NOT follow — segment and thumb 4 → 6, track 7 → 10, and the
- * thumb's `w-[calc(50%-4px)]` and `top/bottom/left-[2px]` back to `-5px`/`[3px]`.
- *
- * `aria-pressed` and not a radio group: it toggles the MEANING of a neighbouring
- * input rather than submitting a value of its own.
- */
-function PriceModeSegment({
-  value,
-  onChange,
-}: {
-  value: 'total' | 'unit';
-  onChange: (mode: 'total' | 'unit') => void;
-}) {
-  const t = useT();
-  // GLYPH VISIBLE, WORDS IN THE TOOLTIP AND THE ACCESSIBLE NAME.
-  //
-  // `Σ` and `1`, not `₴` and `1`: both modes are in hryvnia, so the currency
-  // distinguishes nothing. Σ against 1 compares a sum with a single unit.
-  //
-  // `aria-label` is right here and wrong two components over: a trigger's
-  // accessible name comes from its CONTENTS, so `Select` must never take one. A
-  // bare `Σ` is not a name, so this supplies the words the glyph replaced.
-  const segment = (mode: 'total' | 'unit', glyph: string, label: string) => (
-    <button
-      type="button"
-      aria-pressed={value === mode}
-      aria-label={label}
-      title={label}
-      // ONLY ON AN ACTUAL CHANGE, never on a click: the panel converts the amount on
-      // this event, so firing on every press multiplies by the count each time.
-      // `aria-pressed` already says the press is a no-op.
-      onClick={() => {
-        if (mode !== value) onChange(mode);
-      }}
-      className={`relative z-10 flex-1 cursor-pointer rounded-[4px] text-[11px] font-bold transition-control active:scale-[.97] ${
-        value === mode ? 'text-ink' : 'text-page hover:opacity-85'
-      }`}
-    >
-      {glyph}
-    </button>
-  );
-  return (
-    <div
-      data-filled-track
-      className="relative flex h-[22px] w-10 gap-1 rounded-[7px] border border-ink bg-ink p-[2px]"
-    >
-      <div
-        aria-hidden
-        data-owns-motion
-        className="absolute top-[2px] bottom-[2px] left-[2px] w-[calc(50%-4px)] rounded-[4px] bg-card transition-transform duration-300 ease-soft"
-        style={{ transform: value === 'total' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
-      />
-      {segment('total', 'Σ', t.transaction.priceTotal)}
-      {segment('unit', '1', t.transaction.priceUnit)}
-    </div>
-  );
-}
 
 export function TransactionPanel() {
   const ledgerRef = useDocumentTop('--ledger-top');
@@ -706,11 +619,14 @@ export function TransactionPanel() {
                 non-numeric, and a single message told someone who typed `0` to enter the
                 amount they had just typed. */}
             <div className="col-span-2 row-span-3 grid min-w-0 grid-rows-subgrid gap-1 group-has-[#tx-quantity]:col-span-1 group-has-[#tx-withholding]:col-span-1">
-              {/* THE SEGMENT RIDES THE LABEL ROW. `min-w-0` + `truncate` on the label, because
-                  the row has a hard budget: the unit-mode label plus the track plus the gap
-                  has to fit the grid column. */}
+              {/* THE SEGMENT RIDES THE LABEL ROW, and the label wraps beside it rather than
+                  clipping where the column is too narrow for both. */}
               <div className="flex items-center justify-between gap-2">
-                <label className="min-w-0 truncate text-[11px] text-muted" htmlFor={AMOUNT_ID}>
+                <label
+                  id={AMOUNT_LABEL_ID}
+                  className="min-w-0 text-[11px] text-muted"
+                  htmlFor={AMOUNT_ID}
+                >
                   {/* THE LABEL IS THE CONTRACT. A number meaning one thing while the field says
                       «Сума, ₴» is a worse defect than the one this fixes — silent, and in the
                       direction of recording a price as a total. */}
@@ -719,19 +635,45 @@ export function TransactionPanel() {
                 {/* THE SAME `Reveal` THE UNITS FIELD USES, because these two appear and leave on
                     one condition: a bare `&&` had the track vanish in a single frame while the
                     field it governs was still gliding away. `distance={1}` because this one
-                    moves inside a label row, and a shrinkable track would be squeezed before the
-                    `truncate` label beside it. */}
+                    moves inside a label row, and a shrinkable well would be squeezed before the
+                    label beside it wraps. */}
                 <Reveal show={takesUnits} distance={1} className="shrink-0">
                   <Controller
                     control={form.control}
                     name="priceMode"
                     render={({ field }) => (
-                      <PriceModeSegment
+                      // Named by the amount's label, which it switches. Radix reports a change
+                      // only, never a press on the radio in effect, so each converts once.
+                      <SegmentedControl
+                        aria-labelledby={AMOUNT_LABEL_ID}
+                        size="field"
                         value={field.value ?? 'total'}
                         onChange={(mode) => {
                           convertAmount(mode);
                           field.onChange(mode);
                         }}
+                        options={[
+                          {
+                            value: 'total',
+                            title: t.transaction.priceTotal,
+                            label: (
+                              <>
+                                <span aria-hidden>Σ</span>
+                                <span className="sr-only">{t.transaction.priceTotal}</span>
+                              </>
+                            ),
+                          },
+                          {
+                            value: 'unit',
+                            title: t.transaction.priceUnit,
+                            label: (
+                              <>
+                                <span aria-hidden>1</span>
+                                <span className="sr-only">{t.transaction.priceUnit}</span>
+                              </>
+                            ),
+                          },
+                        ]}
                       />
                     )}
                   />
