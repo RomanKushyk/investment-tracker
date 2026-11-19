@@ -61,7 +61,7 @@ export function AppToaster() {
           // `!` because sonner's CSS is unlayered, which beats any layered utility, and it takes
           // no style object.
           classNames: {
-            closeButton: `!relative !top-auto !right-auto !left-auto !order-last !ml-auto !size-7 !shrink-0 !transform-none !rounded-[7px] !border-field-border !bg-card !text-ink !transition-control hover:opacity-85 active:scale-[.97] ${TAP_44}`,
+            closeButton: `!relative !top-auto !right-auto !left-auto !order-last !ml-auto !size-7 !shrink-0 !transform-none !rounded-[7px] !border-field-border !bg-card !text-ink !transition-control hover:!bg-card-hover active:scale-[.97] ${TAP_44}`,
             // The body role, over sonner's own 1.5 and 1.4 line heights.
             title: '!text-body',
             description: '!text-body',

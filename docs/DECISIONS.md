@@ -731,7 +731,8 @@ concentric. A full-bleed bar takes square corners. Only asset avatars and colour
 The logo's plate takes the rule; the «q» inside it is drawn geometry. The rule binds controls
 and surfaces, not data marks: a chart's bar takes a fixed 4 on the corners its wave rounds, and
 its baseline stays square. Measure the RENDERED
-height: `text-[11px]` sets a font size, not a height.
+height: `text-[11px]` sets a font size, not a height. A control whose label wraps keeps the radius
+of its one-line height, as Primer's wrapping button keeps its own.
 **Why.** Proportional describes an object and concentric describes containment, so reaching for the
 wrong one gives an answer that looks derived while being arbitrary. A data mark's radius is read as
 data, so it stays small and does not grow with the mark (eBay Playbook, Polaris Viz).
@@ -2907,9 +2908,16 @@ controls that write it write that one field, so neither has a value of its own t
 The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, never a fill, so a state is
 never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces are the sixty, text
 and borders and the chart series the thirty, the accent the ten, so a second action beside a filled
-one takes the glass knob or a ghost. The neutral buttons (the ghost, the knob) and a list row hover
-with an `ink` 5 % veil and never fade; the primary steps to `accent-hover`. On the knob the veil is
-folded into its own fill, so it steps on any ground the knob sits on. A list row's highlight is
+one takes the glass knob or a ghost. Every neutral control (the ghost, the knob, a list row, a text
+control, the toast's close) hovers with an `ink` 5 % veil and never fades; the primary steps to
+`accent-hover`. On a control with a fill of its own, the knob or the toast's `card` close, the veil
+is folded into that fill, so it steps on any ground. A text control takes the veil on its own padded
+box, pulled back so its text keeps its edge, rather than the ghost variant, which would set its
+colour, weight and height. An opacity under a hover stands at five sites only: the two ✕ glyphs
+brighten from their signed .85 rest, the reverse of a fade; a ledger row reveals its delete; the
+360 burger still fades until #721 removes it; and `danger` keeps its fade under B4.
+`hover-fade.test.ts` reads every class in `src`, and the stylesheet as Tailwind builds it, through
+the CSS Tailwind writes, and names each site with its owner. A list row's highlight is
 its hover, since the Select moves keyboard focus to the row under the pointer, so the highlighted
 row takes the veil whether the pointer or the arrow keys put it there. Gain and loss belong to
 DELTAS: an informational chip reads `info`, a text selection reads `selection`, and neither borrows

@@ -6,7 +6,7 @@ import type { Reminder, ReminderSeverity } from '@quirenote/core/reminders';
 import { useFormat } from '../../hooks/useFormat';
 import { useReminders } from '../../hooks/useReminders';
 import { useSettings } from '../../state/settings';
-import { TAP_44_BOX } from './tap-target';
+import { TAP_44, TAP_44_BOX } from './tap-target';
 import {
   moreRemindersLabel,
   reminderAction,
@@ -155,9 +155,9 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          // Text, not an icon, so it keeps its own width and grows only in
-          // height — again a real box, this control drawing no fill.
-          className="animate-in cursor-pointer self-start px-1 py-[2px] text-small text-muted transition-control fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
+          // The ghost's veil on its own box, not the variant, which would turn it `ink`; the
+          // overlay gives the hit area, and the top margin the gap the overlay owes the banner.
+          className={`-ml-1.5 animate-in cursor-pointer self-start rounded-[6px] px-2.5 py-1 text-small text-muted transition-control fade-in hover:bg-ink/5 active:scale-[.97] max-md:mt-0.5 ${TAP_44}`}
         >
           {moreRemindersLabel(hidden, t)}
         </button>

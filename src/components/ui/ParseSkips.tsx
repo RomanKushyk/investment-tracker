@@ -57,10 +57,9 @@ export function ParseSkips({ className = '' }: { className?: string }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        // `opacity`, not `-tint-text`: the palette gives `warn` and
-        // `warn-tint-text` one value, so a colour hover animates between two
-        // identical colours.
-        className="text-small text-warn underline underline-offset-2 transition-control duration-200 hover:opacity-85"
+        // The ghost's veil on its own box (the variant would turn it `ink`), pulled back on both
+        // sides to hold its text; a wrapped label keeps the one-line radius (*Shape system*).
+        className="-mx-2.5 rounded-[6px] px-2.5 py-1 text-small text-warn underline underline-offset-2 transition-control duration-200 hover:bg-ink/5"
       >
         {t.parse.failed(count)}
         {' · '}

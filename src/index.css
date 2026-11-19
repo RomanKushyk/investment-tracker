@@ -322,6 +322,8 @@
     color-mix(in srgb, var(--color-ink) 5.4113%, var(--color-card)) 92.4%,
     transparent
   );
+  /* A solid `card` control's hover (H2): the `ink` 5 % veil over it, folded into one colour. */
+  --color-card-hover: color-mix(in srgb, var(--color-ink) 5%, var(--color-card));
   /* A table's header band (tables.md § Signed): `ink` 7 % over an opaque `card`, mixed into one
      colour, so rows passing under the sticky header do not show through it. */
   --color-table-band: color-mix(in srgb, var(--color-ink) 7%, var(--color-card));
@@ -498,6 +500,7 @@
     color-mix(in srgb, var(--color-ink) 5.4113%, var(--color-card)) 92.4%,
     transparent
   );
+  --color-card-hover: color-mix(in srgb, var(--color-ink) 5%, var(--color-card));
   --color-table-band: color-mix(in srgb, var(--color-ink) 7%, var(--color-card));
   --color-glow-1: #d8b494;
   --color-glow-2: #b07a52;
