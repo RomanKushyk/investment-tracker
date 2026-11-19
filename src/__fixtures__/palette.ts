@@ -161,14 +161,18 @@ export function mixOf(blocks: Blocks, theme: Theme, name: string): { ch: number[
   return { ch: channels(resolve(blocks, theme, m![1])), alpha: +m![2] / 100 };
 }
 
-/** The segmented knob's `glass-knob-tint`, `accent` mixed into `card` and that at an alpha, as the
- *  veil it paints; one level deeper than `mixOf` reads. */
-export function knobTintOf(blocks: Blocks, theme: Theme): { ch: number[]; alpha: number } {
-  const value = inTheme(blocks, theme, 'glass-knob-tint').replace(/\s+/g, ' ');
+/** A tinted knob (the segmented `glass-knob-tint`, the switch's `switch-knob`), `accent` mixed into
+ *  `card` and that at an alpha, as the veil it paints; one level deeper than `mixOf` reads. */
+export function knobTintOf(
+  blocks: Blocks,
+  theme: Theme,
+  name = 'glass-knob-tint',
+): { ch: number[]; alpha: number } {
+  const value = inTheme(blocks, theme, name).replace(/\s+/g, ' ');
   const m = value.match(
     /^color-mix\( ?in srgb, color-mix\(in srgb, var\(--color-accent\) ([0-9.]+)%, var\(--color-card\)\) ([0-9.]+)%, transparent ?\)$/,
   );
-  expect(m, `--color-glass-knob-tint is not accent into card at an alpha (got ${value})`).not.toBeNull();
+  expect(m, `--color-${name} is not accent into card at an alpha (got ${value})`).not.toBeNull();
   const tint = composite(
     { ch: channels(resolve(blocks, theme, 'accent')), alpha: +m![1] / 100 },
     resolve(blocks, theme, 'card'),

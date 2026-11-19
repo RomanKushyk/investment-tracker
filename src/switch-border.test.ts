@@ -5,30 +5,27 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
-  declared,
+  channels,
+  composite,
   declaredIn,
+  knobTintOf,
+  mixOf,
   ratio,
   resolve,
+  ruleBody,
   stripCss,
   themeBlocks,
 } from './__fixtures__/palette';
 
-// THE SWITCH'S BOUNDARY, at the same bar as the field edge and the floating surfaces'.
-// `--color-switch-border` is minted so the OFF state has a boundary clearing 3 : 1
-// (WCAG 1.4.11) in both themes, where the edge it replaced left the whole control a rumour.
-//
-// IT IS A NAME, NOT A VALUE — `var(--color-field-border)` in both blocks, so no fourth grey
-// enters the palette and the edge cannot drift from the rank it was measured as. THE RATIO
-// ASSERTIONS BELOW THEREFORE CANNOT FAIL WHILE THE ALIAS HOLDS, and are kept deliberately:
-// the entire argument for minting a name is that it can take its own hex later, and on that
-// day these are the only assertions between a re-valued token and a boundary under the bar.
+// THE SWITCH, AS SIGNED (controls.md § Signed, S2 with D2's knob): on, an `accent` fill and edge
+// with an `accent` check in the knob; off, the glass well with a 1 px `field-border` edge. Every
+// state reaches 3 : 1 (WCAG 1.4.11) and the check carries the state beside the colour.
 //
 // A GUARD OF ITS OWN ON PURPOSE: folding this into `field-border.test.ts` would put the switch
-// inside the FIELD guard, which is the single distinction this whole ruling rests on.
+// inside the FIELD guard, whose sites are fields and whose edge is a field's state.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
-/** Not cosmetic: `Switch.tsx`'s own comment records the token it replaced, so a comment
- *  naming a utility would fail an assertion the code passes.
+/** Not cosmetic: a comment naming a utility would fail an assertion the code passes.
  *
  *  Copied SIGNATURE AND ALL rather than imported:
  *  `ts-reader-census.test.ts` holds every copy to one text. */
@@ -77,113 +74,131 @@ const CSS = stripCss(read('index.css'), 'index.css');
 
 const BLOCKS = themeBlocks(CSS);
 
-/** The dark knob's boundary is a SHADOW and not a border, so the colour half of this ruling
- *  lives in both families. */
-function shadowIn(block: string, name: string): string {
-  const m = block.match(new RegExp(`--shadow-${name}:\\s*([^;]+);`));
-  expect(m, `--shadow-${name} is not declared in this block`).not.toBeNull();
-  return m![1].trim();
-}
-
 const SURFACES = ['page', 'card', 'panel'] as const;
 const THEMES = ['light', 'dark'] as const;
 
-describe('the switch edge clears 3 : 1 on every surface, in both themes', () => {
+describe('the off edge clears 3 : 1 on every surface, in both themes', () => {
   // All three bind, and neither known site is the whole census: a switch is a component
   // wherever it is drawn, which is what 1.4.11 measures.
   for (const theme of THEMES) {
-    it(`${theme} \`switch-border\` is at or above 3 : 1 on page, card and panel`, () => {
-      const value = resolve(BLOCKS, theme, 'switch-border');
+    it(`${theme} \`field-border\` is at or above 3 : 1 on page, card and panel`, () => {
+      const edge = resolve(BLOCKS, theme, 'field-border');
       for (const surface of SURFACES) {
         expect(
-          ratio(value, resolve(BLOCKS, theme, surface)),
-          `switch-border on ${surface}`,
+          ratio(edge, resolve(BLOCKS, theme, surface)),
+          `field-border on ${surface}`,
         ).toBeGreaterThanOrEqual(3);
       }
     });
   }
+});
 
-  // A NAME, NOT A VALUE: inlining the rank's hex would still pass the ratios above and then
-  // stop tracking it the next time it moves. What is pinned is that the value is READ, not
-  // the spelling of the chain, which `resolve()` is relaxed about.
-  for (const theme of THEMES) {
-    it(`${theme} reads the edge through a token, never as a copy of its hex`, () => {
+describe('the on fill clears 3 : 1 on every surface, in both themes', () => {
+  // The on arm's boundary is its `accent` fill and edge; a re-valued `accent` must not take it under.
+  it.each(THEMES)('%s `accent` is at or above 3 : 1 on page, card and panel', (theme) => {
+    const on = resolve(BLOCKS, theme, 'accent');
+    for (const surface of SURFACES)
       expect(
-        declared(BLOCKS[theme], 'switch-border'),
-        `${theme} switch-border inlines a hex`,
-      ).toMatch(/^var\(--color-[a-z0-9-]+\)$/);
-      expect(resolve(BLOCKS, theme, 'switch-border')).toBe(resolve(BLOCKS, theme, 'field-border'));
-    });
-  }
-
-  // Belt and braces over `floating-edges.test.ts`'s palette parity, for the token this file
-  // owns — and this one names which block is missing it.
-  it('declares `switch-border` in `@theme` AND in the dark block', () => {
-    expect(declaredIn(BLOCKS.light, 'switch-border'), 'missing from @theme').toBeDefined();
-    expect(declaredIn(BLOCKS.dark, 'switch-border'), 'missing from the dark block').toBeDefined();
+        ratio(on, resolve(BLOCKS, theme, surface)),
+        `accent on ${surface}`,
+      ).toBeGreaterThanOrEqual(3);
   });
 });
 
-describe('the track is frozen, and the state gap is what freezes it', () => {
-  // THE RULING REFUSED TO REPAIR THE OFF STATE BY DARKENING THE TRACK, and the two values
-  // are frozen because the OFF/ON GAP IS THE ARGUMENT AGAINST DARKENING IT: a track moved
-  // far enough to clear 3 : 1 against the card behind it spends that gap.
-  it('keeps `switch-track` on the two values the ruling froze', () => {
-    expect(resolve(BLOCKS, 'light', 'switch-track')).toBe('#efeae2');
-    expect(resolve(BLOCKS, 'dark', 'switch-track')).toBe('#4a4650');
+describe('the two arms keep one shadow shape, so a focused toggle fades', () => {
+  // A list pair where one shadow is inset and the other is not interpolates discretely (CSS
+  // Backgrounds 3, box-shadow animation), so the on arm holds an inset slot of its own.
+  it('paints `switch-on` in `accent`, with an inset slot first and the halo last', () => {
+    const body = ruleBody(CSS, '@utility switch-on');
+    expect(body).toMatch(/background-color:\s*var\(--color-accent\);/);
+    expect(body).toMatch(/box-shadow:\s*inset [^,;]+,\s*var\(--focus-halo\);\s*\}$/);
   });
 
-  it.each(THEMES)('%s keeps at least 7 : 1 between the OFF and ON fills', (theme) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'switch-track'), resolve(BLOCKS, theme, 'ink')),
-    ).toBeGreaterThanOrEqual(7);
-  });
-});
-
-describe("the dark knob's ring is the same boundary", () => {
-  // Dark zeroes its shadows bar this one, so the ring IS the knob's boundary — a spread-only
-  // shadow used as a 1px edge, read through the token so it cannot drift from the value above.
-  it('points dark `--shadow-thumb` at `switch-border`', () => {
-    expect(shadowIn(BLOCKS.dark, 'thumb')).toBe('0 0 0 1px var(--color-switch-border)');
-  });
-
-  // THE RING HAS TWO BACKDROPS, because it is applied in BOTH states: the `card` knob it
-  // rings and the track it sits over, `ink` when checked. The second must not live only in a
-  // comment — re-valuing the shared rank lighter would take the ON knob's halo under the bar
-  // with every other assertion here still green. The OFF track is the recorded shortfall and
-  // is deliberately absent: its reason is at the value.
-  it('clears 3 : 1 on the knob it rings and on the ON track it sits over', () => {
-    const ring = resolve(BLOCKS, 'dark', 'switch-border');
-    expect(ratio(ring, resolve(BLOCKS, 'dark', 'card')), 'ring on the knob').toBeGreaterThanOrEqual(
-      3,
+  it('gives `switch-well` the well inset first and the halo last', () => {
+    expect(ruleBody(CSS, '@utility switch-well')).toMatch(
+      /box-shadow:\s*var\(--shadow-glass-well\),\s*var\(--focus-halo\);\s*\}$/,
     );
-    expect(
-      ratio(ring, resolve(BLOCKS, 'dark', 'ink')),
-      'ring on the ON track',
-    ).toBeGreaterThanOrEqual(3);
   });
 
-  // Light's is a drop shadow and not an edge, named here because the two halves of this one
-  // token are easy to "unify" by accident.
-  //
-  // COMPARED AGAINST `--shadow-card`, NEVER AGAINST A COPY OF ITS SPELLING: the invariant is
-  // byte-identity with the card shadow, so a session re-valuing only `--shadow-card` must
-  // fail here, where a hard-coded string would stay green while the knob kept the old drop.
-  it('leaves light `--shadow-thumb` the card shadow, not a ring', () => {
-    expect(shadowIn(BLOCKS.light, 'thumb')).toBe(shadowIn(BLOCKS.light, 'card'));
+  it.each(THEMES)(
+    "%s `--shadow-glass-well`, the off arm's first slot, is an inset shadow",
+    (theme) => {
+      expect(BLOCKS[theme]).toMatch(/--shadow-glass-well:\s*inset /);
+    },
+  );
+});
+
+describe('the knob is the glass knob tinted, at 94 %', () => {
+  const SIGNED = { light: 16, dark: 22 } as const;
+
+  it('declares `switch-knob` in `@theme` AND in the dark block', () => {
+    expect(declaredIn(BLOCKS.light, 'switch-knob'), 'missing from @theme').toBeDefined();
+    expect(declaredIn(BLOCKS.dark, 'switch-knob'), 'missing from the dark block').toBeDefined();
+  });
+
+  it.each(THEMES)('%s mixes the signed share of `accent` into `card`, at 94 %%', (theme) => {
+    const knob = knobTintOf(BLOCKS, theme, 'switch-knob');
+    expect(knob.alpha).toBe(0.94);
+    const tint = composite(
+      { ch: channels(resolve(BLOCKS, theme, 'accent')), alpha: SIGNED[theme] / 100 },
+      resolve(BLOCKS, theme, 'card'),
+    );
+    expect(knob.ch).toEqual(channels(tint));
+  });
+
+  // controls.md § Implementation checks: "The check on the tinted switch knob was not checked for
+  // contrast." The check shows only when on, where the 94 % knob sits over the `accent` track.
+  // DESCRIPTIVE, not a floor: the readings the signed recipe gives, so a change cannot be quiet.
+  it.each([
+    ['light', 4.0],
+    ['dark', 5.11],
+  ] as const)(
+    '%s reads the `accent` check against the knob on the track as recorded',
+    (theme, at) => {
+      const accent = resolve(BLOCKS, theme, 'accent');
+      const knob = composite(knobTintOf(BLOCKS, theme, 'switch-knob'), accent);
+      expect(ratio(accent, knob)).toBeCloseTo(at, 2);
+    },
+  );
+
+  // The sheen fades out by 40 % of the knob, so the check's top meets it; its peak bounds that.
+  it.each([
+    ['light', 5.09],
+    ['dark', 4.37],
+  ] as const)('%s reads the check against the sheen at its peak as recorded', (theme, at) => {
+    const accent = resolve(BLOCKS, theme, 'accent');
+    const knob = composite(knobTintOf(BLOCKS, theme, 'switch-knob'), accent);
+    const peak = composite(mixOf(BLOCKS, theme, 'glass-knob-sheen'), knob);
+    expect(ratio(accent, peak)).toBeCloseTo(at, 2);
+  });
+
+  it('drops `0 1px 4px` under the knob, and lists no focus halo, being no focus target', () => {
+    const body = ruleBody(CSS, '@utility switch-knob');
+    expect(body).toMatch(/var\(--shadow-switch-knob\)/);
+    expect(body).not.toMatch(/--focus-halo/);
+    for (const block of [BLOCKS.light, BLOCKS.dark])
+      expect(block).toMatch(/--shadow-switch-knob:\s*0 1px 4px /);
+  });
+
+  it("puts the root's focus halo last on the off well", () => {
+    expect(ruleBody(CSS, '@utility switch-well')).toMatch(/var\(--focus-halo\);\s*\}$/);
   });
 });
 
 /* ────────────────────────── the markup half ────────────────────────── */
 
-describe('the markup points at the token', () => {
-  // ON THE ARM, not merely in the file: a whole-file match stays green with the token on any
+describe('the markup points at the recipe', () => {
+  // ON THE ARM, not merely in the file: a whole-file match stays green with the edge on any
   // sibling of the track.
-  it('`Switch.tsx` wears `switch-border` on the unchecked arm and nothing else', () => {
+  it('`Switch.tsx` wears `field-border` on the off arm and `accent` on the on arm', () => {
     const src = stripTs(read('components/ui/Switch.tsx'), 'components/ui/Switch.tsx');
-    const arm = src.split('\n').filter((l) => /\bbg-switch-track\b/.test(l));
-    expect(arm.length, 'the switch track line vanished').toBeGreaterThan(0);
-    for (const line of arm) expect(line).toMatch(/\bborder-switch-border\b/);
+    const off = src.split('\n').filter((l) => /\bswitch-well\b/.test(l));
+    expect(off.length, 'the off arm vanished').toBeGreaterThan(0);
+    for (const line of off) expect(line).toMatch(/\bborder-field-border\b/);
+    const on = src.split('\n').filter((l) => /\bswitch-on\b/.test(l));
+    expect(on.length, 'the on arm vanished').toBeGreaterThan(0);
+    for (const line of on) expect(line).toMatch(/\bborder-accent\b/);
+    expect(src, 'the `ink` on-fill is back').not.toMatch(/\bbg-ink\b/);
     expect(src, 'the switch is back on `panel-border`').not.toMatch(/\bborder-panel-border\b/);
   });
 

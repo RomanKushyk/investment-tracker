@@ -106,21 +106,11 @@
   --shadow-card: 0 1px 3px rgba(60, 40, 20, 0.06);
   --shadow-popover: 0 4px 16px rgba(60, 40, 20, 0.12);
   --shadow-dialog: 0 12px 40px rgba(60, 40, 20, 0.18);
-  /* `panel` swaps elevation role between themes — light is
-     page -> card(raised) -> panel(recessed), dark is page -> card -> panel
-     (HIGHEST) — which inverts a segmented control whose track is `panel`. A token
-     rather than the theme-conditional className the reference prescribes, because
-     the app has three copies of that control and a conditional would be forgotten
-     on a fourth.
-     ONLY THE SWITCH USES IT: on an `ink` track a `card` chip is far past the bar
-     either way, and on the price-mode track a 1px spread filled half the 2px gap.
-     Named for the THUMB, whose drop shadow is the whole of what separates it from
-     a near neighbour. THAT SHORTFALL IS DELIBERATE — the fill pair carries the
-     STATE and the edge the COMPONENT. Dark reads `switch-border` instead. */
-  --shadow-thumb: 0 1px 3px rgba(60, 40, 20, 0.06);
   /* The glass drops (glass-light.md, controls.md § Signed), each the shade alias at its alpha. */
   --shadow-glass: 0 8px 24px color-mix(in srgb, var(--color-glass-shade) 7%, transparent);
   --shadow-glass-knob: 0 2px 6px color-mix(in srgb, var(--color-glass-shade) 12%, transparent);
+  /* The switch's knob drops less at its 16 px; the colour is the glass knob's. */
+  --shadow-switch-knob: 0 1px 4px color-mix(in srgb, var(--color-glass-shade) 12%, transparent);
   --shadow-glass-well: inset 0 1px 2px color-mix(in srgb, var(--color-glass-shade) 14%, transparent);
 
   --color-page: #efeae2;
@@ -317,6 +307,12 @@
     color-mix(in srgb, var(--color-accent) 16%, var(--color-card)) 88%,
     transparent
   );
+  /* The switch's knob (controls.md § Signed, S2): the same tint, thicker, in both states. */
+  --color-switch-knob: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-accent) 16%, var(--color-card)) 94%,
+    transparent
+  );
   /* The selected segment's label: `accent` is under AA for 12 px on the tinted knob in light. */
   --color-segment-label: var(--color-accent-pressed);
   /* The knob's hover (H2): an `ink` 5 % veil over `glass-button`'s `card` 92 %, folded into one
@@ -491,6 +487,11 @@
     color-mix(in srgb, var(--color-accent) 22%, var(--color-card)) 92%,
     transparent
   );
+  --color-switch-knob: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-accent) 22%, var(--color-card)) 94%,
+    transparent
+  );
   --color-segment-label: var(--color-accent);
   --color-glass-button-hover: color-mix(
     in srgb,
@@ -514,16 +515,10 @@
   --shadow-card: 0 0 #0000;
   --shadow-popover: 0 0 #0000;
   --shadow-dialog: 0 0 #0000;
-  /* The one exception: a thumb keeps its elevation cue, because its surface step
-     is the one that inverts here. A spread-only shadow IS the 1px edge, and it
-     reads switch-border at runtime so it cannot drift from the edge it matches.
-     It is on the knob in BOTH states, so the CHECKED knob's halo reads weaker on
-     the `ink` track — accepted, it still clears. It must NOT be "corrected" with
-     a `data-state` branch, which would make the knob change with the state. */
-  --shadow-thumb: 0 0 0 1px var(--color-switch-border);
   /* Glass casts no shadow in dark; the knob and the well keep theirs, being controls. */
   --shadow-glass: 0 0 #0000;
   --shadow-glass-knob: 0 2px 6px color-mix(in srgb, var(--color-glass-shade) 80%, transparent);
+  --shadow-switch-knob: 0 1px 4px color-mix(in srgb, var(--color-glass-shade) 80%, transparent);
   --shadow-glass-well: inset 0 1px 3px color-mix(in srgb, var(--color-glass-shade) 90%, transparent);
 }
 
@@ -618,7 +613,7 @@
   }
 }
 
-/* THE GLASS KNOB, for the segmented control, the switch and the secondary button. RECORDED
+/* THE GLASS KNOB, for the segmented control and the secondary button. RECORDED
    SHORTFALL: no 3 : 1 boundary against its well (1.4.11), a cost the owner accepted. */
 @utility glass-knob {
   background-color: var(--color-glass-knob-fill);
@@ -651,6 +646,33 @@
     inset 1px 1px 0 var(--color-glass-bevel-top),
     inset -1px -1px 0 var(--color-glass-bevel-bottom),
     var(--shadow-glass-knob),
+    var(--focus-halo);
+}
+
+/* The switch's knob: the tinted glass knob, at its own drop. */
+@utility switch-knob {
+  background-color: var(--color-switch-knob);
+  background-image: linear-gradient(180deg, var(--color-glass-knob-sheen) 0%, transparent 40%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 6%, transparent),
+    inset 1px 1px 0 var(--color-glass-bevel-top),
+    inset -1px -1px 0 var(--color-glass-bevel-bottom),
+    var(--shadow-switch-knob);
+}
+
+/* The switch's off track: the well's fill and inset, its edge a `field-border` border instead of
+   the well's ring. The root takes focus, so the halo is listed last (*Focus ring*). */
+@utility switch-well {
+  background-color: var(--color-glass-well);
+  box-shadow: var(--shadow-glass-well), var(--focus-halo);
+}
+
+/* The switch's on track. The empty inset slot matches `switch-well`'s list shape, because an inset
+   paired with an outset shadow interpolates discretely and a focused toggle would snap. */
+@utility switch-on {
+  background-color: var(--color-accent);
+  box-shadow:
+    inset 0 0 0 0 transparent,
     var(--focus-halo);
 }
 
