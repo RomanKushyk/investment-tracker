@@ -59,6 +59,31 @@ function stripTs(source: string, file: string): string {
 
 const SIDEBAR = stripTs(readFileSync(join(here, 'app', 'Sidebar.tsx'), 'utf8'), 'Sidebar.tsx');
 
+/** Each `<SegmentedControl />` here as its own props, `options` left out: they hold nested JSX,
+ *  and an opening-tag regex stops at the first `=>` in a handler. */
+function segmentedControls(): string[] {
+  const sf = ts.createSourceFile(
+    'Sidebar.tsx',
+    SIDEBAR,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const found: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(sf) === 'SegmentedControl')
+      found.push(
+        node.attributes.properties
+          .filter((a) => !(ts.isJsxAttribute(a) && a.name.getText(sf) === 'options'))
+          .map((a) => a.getText(sf))
+          .join(' '),
+      );
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return found;
+}
+
 /** Every line carrying `re`, so a pin can say WHICH element wears a token and
  *  not merely that the file mentions it somewhere. */
 const linesWith = (re: RegExp) => SIDEBAR.split('\n').filter((l) => re.test(l));
@@ -118,12 +143,10 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
   // what holds them. Asserted as "no track carries one" as well, or the pair drifts back to
   // a margin each and reads the same.
   it('clears the two tracks of the Settings pill below the breakpoint', () => {
-    // The tint names three things — the active pill's arm and both tracks — so a track is
-    // identified by its radius too.
-    const tracks = linesWith(/\bbg-sb-item-active-bg\b/).filter((l) => /rounded-\[8px\]/.test(l));
+    const tracks = segmentedControls();
     expect(tracks.length, 'the footer band is not carrying two tracks').toBe(2);
     for (const track of tracks) {
-      expect(track, 'a track took the row\u2019s own bottom margin').not.toMatch(/\bmb-\d/);
+      expect(track, 'a track took the row’s own bottom margin').not.toMatch(/\bmb-\d/);
     }
     const row = linesWith(/max-md:mb-4\b/);
     expect(row.length, 'the clearance is not on one element').toBe(1);
@@ -133,76 +156,73 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
   });
 });
 
-// Three glyph segments on a track with no edge, on the active route's own tint, beside the
-// currency track at `flex:1` each — one object at two widths.
-describe('the footer band carries two tracks on one row, and the theme one is a radiogroup', () => {
-  it('draws the theme track as three radios inside a radiogroup', () => {
-    expect(SIDEBAR, 'the theme track is not a radiogroup').toMatch(/role="radiogroup"/);
-    expect(
-      (SIDEBAR.match(/role="radio"/g) ?? []).length,
-      'the theme track is not three segments',
-    ).toBe(1);
-    // One `role="radio"` in the source, three at run time: the segments are mapped off
-    // `THEME_ORDER`, and `theme.test.ts` holds that half.
-    expect(SIDEBAR, 'the segments are not mapped off the store\u2019s order').toMatch(
+// The row's two sets are the one segmented control at the sidebar's size (controls.md § Signed,
+// D2), each at `flex:1`: theme's three glyphs, and for a user the currency's two symbols.
+describe('the footer band carries two segmented controls on one row', () => {
+  const tracks = segmentedControls;
+
+  it('draws both at the sidebar size, each a named radiogroup', () => {
+    expect(tracks().length).toBe(2);
+    for (const track of tracks()) {
+      expect(track, 'a track is not at the sidebar size').toMatch(/\bsize="sm"/);
+      expect(track, 'a track does not take half the row').toMatch(/className="flex-1"/);
+    }
+    const [theme, currency] = tracks();
+    expect(theme, 'the theme track lost its name').toMatch(
+      /aria-label=\{t\.settings\.theme\.ariaLabel\}/,
+    );
+    // No new copy: the currency is named by Settings' own row title.
+    expect(currency, 'the currency track lost its name').toMatch(
+      /aria-label=\{t\.settings\.currency\.title\}/,
+    );
+    // One order, the store's; `theme.test.ts` holds that half.
+    expect(SIDEBAR, 'the segments are not mapped off the store’s order').toMatch(
       /THEME_ORDER\.map\(/,
     );
-    expect(SIDEBAR, 'a segment does not announce its stored value').toMatch(/aria-checked=/);
+  });
+
+  // The hand-rolled pair is gone: a radiogroup replaces the pressed pair, and the knob the chip.
+  it('leaves no hand-rolled segment, pressed pair or accent chip', () => {
+    expect(SIDEBAR, 'the currency is still a pressed pair').not.toMatch(/aria-pressed/);
+    expect(SIDEBAR, 'a hand-rolled radio is left').not.toMatch(/role="radio/);
+    expect(SIDEBAR, 'the accent chip is still drawn').not.toMatch(/\bbg-accent\b/);
+    expect(SIDEBAR, 'a track still paints the route tint').not.toMatch(
+      /rounded-\[8px\] bg-sb-item-active-bg/,
+    );
+    expect(SIDEBAR, 'a thumb of the sidebar’s own is left').not.toMatch(/data-owns-motion/);
   });
 
   // The refusal `index.css` argues at its `[data-filled-track]` rule: that attribute repaints
-  // the ring for a track painted in the plane's FOREGROUND, and a tint is not one.
+  // the ring for a track painted in the plane's FOREGROUND, and the glass well is not one.
   it('gives neither track `data-filled-track`', () => {
-    expect(SIDEBAR, 'a tinted track took the filled track\u2019s ring').not.toMatch(
-      /data-filled-track/,
+    expect(SIDEBAR, 'a well took the filled track’s ring').not.toMatch(/data-filled-track/);
+  });
+
+  // THE FIT, from the control's own numbers: in the drawer each segment is `44 − gap` wide (the
+  // 44 overlays then tile), and the five with both wells' padding and gaps and the row's `gap-2`
+  // must fit the 239 the band measures, or the row wraps where nothing narrows it.
+  it('fits the five segments in the drawer band, and wraps rather than clipping below it', () => {
+    const control = stripTs(
+      readFileSync(join(here, 'components', 'ui', 'SegmentedControl.tsx'), 'utf8'),
+      'SegmentedControl.tsx',
     );
-  });
-
-  // The drawn widths are the panel's, where `TAP_44` is inert. In the DRAWER the segments
-  // shrink until two overlays hand each other taps, and a real 44 box is the fix
-  // `tap-target.ts` names when a gap cannot be made.
-  //
-  // TIED TO THE DRAWN HEIGHT, NOT COUNTED: the theme track's three segments are ONE MAPPED
-  // LINE, so counting lines gives three where the row draws five. What has to hold is that
-  // nothing wearing the segment's drawn height is missing the width.
-  it('gives every segment 44 of width below the breakpoint', () => {
-    const segments = linesWith(/\bh-\[22px\]/);
-    expect(segments.length, 'the 22px segment recipe is gone from the row').toBe(3);
-    for (const segment of segments) {
-      expect(segment, 'a segment keeps an overlay it is too narrow for').toMatch(
-        /max-md:min-w-11\b/,
-      );
-      expect(segment, 'a segment lost the overlay the width is sized for').toMatch(/TAP_44/);
-    }
-  });
-
-  // THE FIT IS EXACT, NOT ROOMY — the drawn 44 boxes plus their gaps come to the width the
-  // band measures, with nothing spare. A left safe-area inset takes that width down, which
-  // is reachable in landscape below the breakpoint, and a row that overflowed would be
-  // CLIPPED by the drawer's `overflow-hidden`. It wraps instead, and the gap below is what
-  // two stacked tracks need between them.
-  it('wraps rather than clipping where the band gives less than 239', () => {
+    const sm = control.match(/sm:\s*\{[^}]*\bpad:\s*(\d+),\s*gap:\s*(\d+)/);
+    expect(sm, 'the control has no sidebar size').not.toBeNull();
+    const [pad, gap] = [+sm![1], +sm![2]];
+    expect(control, 'a segment is not 44 − gap wide below the breakpoint').toContain(
+      `max-md:min-w-[${44 - gap}px]`,
+    );
+    const well = (n: number) => 2 * pad + n * (44 - gap) + (n - 1) * gap;
+    expect(well(3) + 8 + well(2), 'the drawer row no longer fits its band').toBeLessThanOrEqual(
+      239,
+    );
+    // A left safe-area inset takes the band down in landscape, and the drawer's
+    // `overflow-hidden` would clip an overflowing row; it wraps, with room between its lines.
     const row = linesWith(/max-md:mb-4\b/)[0] ?? '';
     expect(row, 'the row cannot wrap, so a narrower band clips it').toMatch(/max-md:flex-wrap\b/);
     expect(row, 'a wrapped row has no clearance between its two lines').toMatch(
       /max-md:gap-y-\[22px\]/,
     );
-  });
-
-  // THE THUMB'S GEOMETRY IS THE TRACK'S OWN, re-derived for three rather than copied from
-  // two: a thumb is absolutely positioned, so its percentages resolve against the track's
-  // PADDING box and the padding and gap come out of every segment.
-  it('re-derives the sliding thumb for three segments', () => {
-    expect(SIDEBAR, 'the three-segment thumb is not a third of its track').toMatch(
-      /w-\[calc\(\(100%-6px\)\/3\)\]/,
-    );
-    expect(SIDEBAR, 'the three-segment thumb does not travel a segment plus the gap').toMatch(
-      /\$\{index\} \* \(100% \+ 1px\)/,
-    );
-    expect(
-      (SIDEBAR.match(/data-owns-motion/g) ?? []).length,
-      'a thumb that moves through a theme flip lost its opt-out',
-    ).toBe(2);
   });
 });
 

@@ -162,8 +162,13 @@ describe('the super-admin shell, once GET /me answers super_admin', () => {
     const links = page.links(document.getElementById('app-sidebar'));
     expect(links).toContain('/admin/archive');
     for (const route of ['/', ...PORTFOLIO_ROUTES]) expect(links).not.toContain(route);
-    // No currency on its footer: the UAH/USD pair is not there.
-    expect(document.getElementById('app-sidebar')!.querySelector('[aria-pressed]')).toBeNull();
+    // No currency on its footer: the theme set is there and the currency set is not.
+    const group = (name: string) =>
+      document
+        .getElementById('app-sidebar')!
+        .querySelector(`[role="radiogroup"][aria-label="${name}"]`);
+    expect(group(uk.settings.theme.ariaLabel)).not.toBeNull();
+    expect(group(uk.settings.currency.title)).toBeNull();
   });
 
   it('draws the band, «Архів цін» and no currency box in the collapsed rail, and the role in its header', async () => {

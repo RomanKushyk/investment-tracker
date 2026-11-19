@@ -74,15 +74,40 @@ async function group(root: HTMLElement, name: string) {
 describe('each segmented set is a radiogroup', () => {
   it('Settings: theme, language and currency', async () => {
     const page = await open('/settings');
+    // The sidebar carries a theme and a currency set under the same names, so the page's own are
+    // read in `main`.
+    const main = await waitFor(() => {
+      const m = page.querySelector('main');
+      expect(m).not.toBeNull();
+      return m!;
+    });
     const s = uk.settings;
-    expect(await group(page, s.theme.ariaLabel)).toEqual([
+    expect(await group(main, s.theme.ariaLabel)).toEqual([
       s.theme.light,
       s.theme.dark,
       s.theme.system,
     ]);
-    expect(await group(page, s.language.ariaLabel)).toEqual([s.language.uk, s.language.en]);
-    expect(await group(page, s.currency.title)).toEqual(['₴ UAH', '$ USD']);
+    expect(await group(main, s.language.ariaLabel)).toEqual([s.language.uk, s.language.en]);
+    expect(await group(main, s.currency.title)).toEqual(['₴ UAH', '$ USD']);
     expect(page.querySelector('main [aria-pressed]')).toBeNull();
+  });
+
+  // The sidebar's theme and currency, beside the nav: radios with their glyph's word or ISO code.
+  it('the sidebar: theme and currency', async () => {
+    const page = await open('/settings');
+    const s = uk.settings;
+    const outsideMain = async (name: string) => {
+      const all = await waitFor(() => within(page).getAllByRole('radiogroup', { name }));
+      const found = all.filter((g) => !g.closest('main'));
+      expect(found.length, `no sidebar radiogroup named ${name}`).toBe(1);
+      return group(found[0].parentElement!, name);
+    };
+    expect(await outsideMain(s.theme.ariaLabel)).toEqual([
+      s.theme.light,
+      s.theme.dark,
+      s.theme.system,
+    ]);
+    expect(await outsideMain(s.currency.title)).toEqual(['₴ UAH', '$ USD']);
   });
 
   it('the signed-out bar: language', async () => {

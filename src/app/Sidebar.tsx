@@ -38,6 +38,7 @@ import { SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
 import { THEME_ORDER, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { Scroller } from '../components/ui/Scroller';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { TAP_44 } from '../components/ui/tap-target';
 import { keepOpenForToasts } from '../components/ui/toaster-press';
 
@@ -321,7 +322,6 @@ function SidebarPanel({
   const role = useRole();
   const admin = role === 'super_admin';
   const panel = variant === 'panel';
-  const index = THEME_ORDER.indexOf(theme);
   const band = useBandHeight(!panel);
 
   // THE COLUMN IS SPELLED OUT: an implicit `auto` column grows to the widest unbreakable line in
@@ -370,83 +370,62 @@ function SidebarPanel({
         ref={band}
         className="mt-[14px] -mr-4 mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg py-2 pr-5 pl-[calc(max(16px,env(safe-area-inset-left))+4px)]"
       >
-        {/* NO `data-filled-track`: it puts the focus ring on `page` for a track painted
-            in the plane's FOREGROUND, and these two are on the active route's tint. The
-            thumb widths resolve against the PADDING box — re-derive them if it moves. */}
-        {/* EVERY UTILITY ON THIS ROW PAST `flex gap-2` IS `TAP_44` ARITHMETIC. The gap
-            doubles below the breakpoint because a segment's overlay and the Settings
-            pill's both reach and the drawn gap does not clear the pair — measured, a
-            tap on Settings flipped the currency. `min-w-11` goes on the segment because
-            two overlays that both reach need `w + gap >= 44` across: the real box
-            tap-target.ts names when the gap cannot be made, and it moves no radius.
-            AND THE ROW WRAPS, because the five fit the drawer exactly. */}
+        {/* Every utility past `flex gap-2` is `TAP_44` arithmetic: below the breakpoint the
+            segments' and Settings' overlays both reach, so the margin doubles, and the row
+            wraps where a safe-area inset narrows the band. */}
         {/* Held at a user's layout, unseen, while the role is unknown; the super-admin's theme
             track alone takes the row. */}
         <div
           className={`mb-2 flex gap-2 max-md:mb-4 max-md:flex-wrap max-md:gap-y-[22px] ${role !== 'user' && !admin ? 'invisible' : ''}`}
         >
-          {/* A RADIOGROUP and the currency track is not — three mutually exclusive
-              values are radios, two states of one view a pressed pair. The idle glyph
-              takes NO HOVER: it is the glyph rank, the symbol beside it the label. */}
-          <div
-            role="radiogroup"
+          {/* The one segmented control at the sidebar's size (controls.md § Signed, D2). The
+              glyph's word and the symbol's ISO code are `sr-only`, so each name CONTAINS
+              the visible label (2.5.3). */}
+          <SegmentedControl
             aria-label={t.settings.theme.ariaLabel}
-            className="relative flex flex-1 gap-px rounded-[8px] bg-sb-item-active-bg p-0.5"
-          >
-            {/* `data-owns-motion` keeps the theme cross-fade from replacing this
-                transition during the flip that moves it. */}
-            <div
-              aria-hidden
-              data-owns-motion
-              className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc((100%-6px)/3)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
-              style={{ transform: `translateX(calc(${index} * (100% + 1px)))` }}
-            />
-            {THEME_ORDER.map((value) => {
+            size="sm"
+            className="flex-1"
+            value={theme}
+            onChange={(v) => setTheme(v)}
+            options={THEME_ORDER.map((value) => {
               const Glyph = THEME_GLYPH[value];
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === value}
-                  onClick={() => setTheme(value)}
-                  className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] transition-control active:scale-[.97] max-md:min-w-11 ${TAP_44} ${theme === value ? 'text-accent-fg' : 'text-sb-icon'}`}
-                >
-                  <Glyph aria-hidden className="size-3.5" />
-                  <span className="sr-only">{t.settings.theme[value]}</span>
-                </button>
-              );
+              return {
+                value,
+                label: (
+                  <>
+                    <Glyph aria-hidden className="size-3.5" />
+                    <span className="sr-only">{t.settings.theme[value]}</span>
+                  </>
+                ),
+              };
             })}
-          </div>
+          />
           {!admin && (
-            <div className="relative flex flex-1 gap-px rounded-[8px] bg-sb-item-active-bg p-0.5">
-              <div
-                aria-hidden
-                data-owns-motion
-                className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2.5px)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
-                style={{
-                  transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 1px))',
-                }}
-              />
-              {/* The ISO code rides beside the symbol for a screen reader, `sr-only` and
-                not `aria-label` so the name CONTAINS the visible label (2.5.3). */}
-              <button
-                type="button"
-                aria-pressed={currency === 'UAH'}
-                onClick={() => setCurrency('UAH')}
-                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition-control active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
-              >
-                ₴<span className="sr-only"> UAH</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={currency === 'USD'}
-                onClick={() => setCurrency('USD')}
-                className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-body font-semibold transition-control active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
-              >
-                $<span className="sr-only"> USD</span>
-              </button>
-            </div>
+            <SegmentedControl
+              aria-label={t.settings.currency.title}
+              size="sm"
+              className="flex-1"
+              value={currency}
+              onChange={(c) => setCurrency(c)}
+              options={[
+                {
+                  value: 'UAH',
+                  label: (
+                    <>
+                      ₴<span className="sr-only"> UAH</span>
+                    </>
+                  ),
+                },
+                {
+                  value: 'USD',
+                  label: (
+                    <>
+                      $<span className="sr-only"> USD</span>
+                    </>
+                  ),
+                },
+              ]}
+            />
           )}
         </div>
 

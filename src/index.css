@@ -214,9 +214,8 @@
   --color-ovdp6475-tint-text: #686569;
 
   /* THE ACCENT, spent on the mark, one main CTA per
-     screen, the active route, the capital chart's line, the focus ring below, and
-     the wall's currency thumb, a SELECTED SEGMENT rather than a CTA — the accent is
-     rationed, so a second action beside a filled one takes an outline or a ghost
+     screen, the active route, the capital chart's line and the focus ring below — the
+     accent is rationed, so a second action beside a filled one takes an outline or a ghost
      (*Interaction rules*). TWO IDENTITIES ARE SPENT WITH IT, recorded rather
      than resolved because an implementing task may not redraw a palette: `accent`
      IS `energy` and `logo-outline`. */

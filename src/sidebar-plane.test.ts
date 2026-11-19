@@ -5,8 +5,11 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  channels,
   composite,
   declaredIn,
+  knobTintOf,
+  mixOf,
   ratio,
   resolve,
   stripCss,
@@ -210,35 +213,44 @@ describe('the footer band is a second ground, and the eleventh route reads on it
     ).toBeLessThan(1.1);
   });
 
-  // THE PRICE OF THE NEW GROUND, exact rather than a floor like the active label above: the
-  // rank above `sb-item` here is the hover state itself, so lifting the symbol spends the
-  // one step the track has left, and the reading is accepted instead.
+  // The row's two sets are the one segmented control (controls.md § Signed, D2): the glass well
+  // over the band, the selected segment the tinted knob over the well.
+  const well = (theme: (typeof THEMES)[number]) =>
+    composite(mixOf(BLOCKS, theme, 'glass-well'), band(theme));
+  const knob = (theme: (typeof THEMES)[number]) =>
+    composite(knobTintOf(BLOCKS, theme), well(theme));
+
+  // A RULED SHORTFALL, exact rather than a floor: the signed `muted` label is just under 1.4.3 in
+  // light, and the owner kept it rather than give this one placement a colour of its own.
   it.each([
-    ['light', 4.3],
-    ['dark', 5.81],
-  ] as const)('%s: the idle currency symbol on its track, at its value', (theme, expected) => {
-    const track = composite(
-      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
-      resolve(BLOCKS, theme, 'sb-footer-bg'),
-    );
-    expect(ratio(resolve(BLOCKS, theme, 'sb-item'), track)).toBeCloseTo(expected, 2);
+    ['light', 4.42],
+    ['dark', 7.27],
+  ] as const)('%s: the idle currency symbol on the well, at its value', (theme, expected) => {
+    expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme))).toBeCloseTo(expected, 2);
   });
 
-  it.each(THEMES)('%s: the selected chip identifies itself on the tinted track', (theme) => {
-    const track = composite(veilOf(BLOCKS, theme, 'sb-item-active-bg'), band(theme));
-    expect(ratio(resolve(BLOCKS, theme, 'accent'), track)).toBeGreaterThanOrEqual(3);
-    expect(
-      ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'accent')),
-    ).toBeGreaterThanOrEqual(4.5);
+  // The same label under H2's `ink` 5 % hover veil, recorded beside the idle reading.
+  it.each([
+    ['light', 4.04],
+    ['dark', 6.55],
+  ] as const)(
+    '%s: the hovered currency symbol on the veiled well, at its value',
+    (theme, expected) => {
+      const veiled = composite(
+        { ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 },
+        well(theme),
+      );
+      expect(ratio(resolve(BLOCKS, theme, 'muted'), veiled)).toBeCloseTo(expected, 2);
+    },
+  );
+
+  it.each(THEMES)('%s: the selected label clears 4.5 : 1 on the knob', (theme) => {
+    expect(ratio(resolve(BLOCKS, theme, 'segment-label'), knob(theme))).toBeGreaterThanOrEqual(4.5);
   });
 
-  // THE OTHER TRACK ON THE SAME ROW, and the split is why it takes a different token from
-  // its neighbour: a currency symbol is a character and 1.4.3 asks 4.5, a theme segment is a
-  // GLYPH with no label of its own and 1.4.11 asks 3. A FLOOR rather than the exact value
-  // beside it, because this one clears its bar.
-  it.each(THEMES)('%s: an idle theme glyph clears 3 : 1 on its track', (theme) => {
-    const track = composite(veilOf(BLOCKS, theme, 'sb-item-active-bg'), band(theme));
-    expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), track)).toBeGreaterThanOrEqual(3);
+  // A theme segment is a GLYPH with no visible word, so 1.4.11 asks 3 of it, not 1.4.3's 4.5.
+  it.each(THEMES)('%s: an idle theme glyph clears 3 : 1 on the well', (theme) => {
+    expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme))).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -266,15 +278,6 @@ describe("the wall's field rank carries the figures drawn on it", () => {
     // `pos`, not `pos-on-dark`: the plane is no longer dark in both themes, so the gain
     // follows the theme like every other delta in the app.
     expect(ratio(resolve(BLOCKS, theme, 'pos'), field), 'the gain').toBeGreaterThanOrEqual(4.5);
-  });
-
-  it.each(THEMES)('%s: the selected currency clears 4.5 : 1 on its thumb', (theme) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'sb-item-active')),
-      'the selected currency is unreadable on its thumb. The label sits on the ACCENT, not ' +
-        'the wall: `sb-bg` on it misses the bar by a hundredth, and `accent-fg` is what the ' +
-        'palette mints for this fill',
-    ).toBeGreaterThanOrEqual(4.5);
   });
 });
 

@@ -5,7 +5,10 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  composite,
   declaredHex,
+  knobTintOf,
+  mixOf,
   ratio,
   resolve,
   ruleBody,
@@ -459,10 +462,8 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     ).toBe(resolve(BLOCKS, block, 'accent'));
   });
 
-  // `sb-bg` and `sb-field` are the wall and its field rank: `Sidebar.tsx` states that the
-  // footer band's two tracks take NO `data-filled-track`, because their ground is the active
-  // route's tint rather than the plane's foreground, so their segments are served by the
-  // BASE rule. This is the half that keeps that sentence true after a re-valuing.
+  // `sb-bg` and `sb-field` are the wall and its field rank, the planes the sidebar's controls sit
+  // on with the BASE rule's ring. This is the half that keeps that true after a re-valuing.
   it.each([
     ['page', 'light'],
     ['card', 'light'],
@@ -478,6 +479,33 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     expect(
       ratio(resolve(BLOCKS, block, 'focus'), resolve(BLOCKS, block, plane)),
     ).toBeGreaterThanOrEqual(3);
+  });
+
+  // #114: the sidebar's segments sit 2 apart, inside the ring's 4 px reach, so a ring can land on
+  // its neighbour. The `card` halo fills the offset, so the ring's inner edge always reads on
+  // `card`. Its outer edge reads on the well, the neighbour's knob, or, beside an end segment
+  // whose padding is 3, 1 px of the band; never on an accent fill.
+  it.each(['light', 'dark'] as const)(
+    'reads on the halo, the well, the knob and the band of a sidebar segment in %s',
+    (block) => {
+      const focus = resolve(BLOCKS, block, 'focus');
+      const band = resolve(BLOCKS, block, 'sb-footer-bg');
+      const well = composite(mixOf(BLOCKS, block, 'glass-well'), band);
+      const knob = composite(knobTintOf(BLOCKS, block), well);
+      expect(ratio(focus, resolve(BLOCKS, block, 'card')), 'the halo').toBeGreaterThanOrEqual(3);
+      expect(ratio(focus, well), 'the well').toBeGreaterThanOrEqual(3);
+      expect(ratio(focus, knob), 'the knob').toBeGreaterThanOrEqual(3);
+      expect(ratio(focus, band), 'the band past the well').toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it('fills the whole offset with the halo, so the ring never touches the segment', () => {
+    const rule = ruleBody(CSS, ':focus-visible');
+    const offset = rule.match(/outline-offset:\s*(\d+)px/);
+    const halo = rule.match(/--focus-halo:\s*0 0 0 (\d+)px var\(--color-card\)/);
+    expect(offset, 'the base rule has no outline-offset').not.toBeNull();
+    expect(halo, 'the base rule has no `card` halo').not.toBeNull();
+    expect(+halo![1], 'the halo no longer reaches the ring').toBeGreaterThanOrEqual(+offset![1]);
   });
 
   it('declares the two `chart-` aliases the capital chart resolves through', () => {

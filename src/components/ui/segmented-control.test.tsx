@@ -26,15 +26,18 @@ type Letter = (typeof OPTIONS)[number]['value'];
 function Harness({
   onChange,
   initial = 'a',
+  size,
 }: {
   onChange?: (v: Letter) => void;
   initial?: Letter;
+  size?: 'md' | 'sm';
 }) {
   const [value, setValue] = useState<Letter>(initial);
   return (
     <>
       <SegmentedControl
         aria-label="Letters"
+        size={size}
         value={value}
         onChange={(v) => {
           setValue(v);
@@ -121,9 +124,9 @@ describe('the segmented control is drawn as signed', () => {
   it('sits on the glass well, 12 round with a 5 px gap to the 7-round segments', () => {
     render(<Harness />);
     const well = screen.getByRole('radiogroup');
-    expect(classes(well)).toEqual(
-      expect.arrayContaining(['glass-well', 'rounded-[12px]', 'p-[5px]']),
-    );
+    expect(classes(well)).toEqual(expect.arrayContaining(['glass-well', 'rounded-[12px]']));
+    expect(well.style.padding).toBe('5px');
+    expect(well.style.gap).toBe('4px');
     expect(classes(well)).not.toEqual(expect.arrayContaining(['bg-ink']));
     expect(well.hasAttribute('data-filled-track')).toBe(false);
     for (const r of radios())
@@ -158,6 +161,42 @@ describe('the segmented control is drawn as signed', () => {
     // jsdom, like a browser, serialises the division as a product.
     expect(knob.style.width).toMatch(/^calc\(0\.333+ \* \(100% - 10px - 8px\)\)$/);
     for (const r of radios()) expect(classes(r)).toContain('active:scale-[.97]');
+  });
+
+  // The sidebar's 22 (controls.md § Signed): radii 6 / 9 make the padding 3, and the gap is the
+  // 28 size's 4 : 5 of it, as the signed render draws.
+  it('draws the sidebar size: a 9-round well 3 in, 22-tall 6-round segments 2 apart', () => {
+    render(<Harness size="sm" />);
+    const well = screen.getByRole('radiogroup');
+    expect(classes(well)).toEqual(expect.arrayContaining(['glass-well', 'rounded-[9px]']));
+    expect(well.style.padding).toBe('3px');
+    expect(well.style.gap).toBe('2px');
+    for (const r of radios())
+      expect(classes(r)).toEqual(
+        expect.arrayContaining(['h-[22px]', 'rounded-[6px]', 'text-body']),
+      );
+    const knob = document.querySelector<HTMLElement>('[data-owns-motion]')!;
+    expect(classes(knob)).toContain('rounded-[6px]');
+    expect(knob.style.top).toBe('3px');
+    expect(knob.style.width).toMatch(/^calc\(0\.333+ \* \(100% - 6px - 4px\)\)$/);
+    fireEvent.click(screen.getByRole('radio', { name: 'Gamma' }));
+    expect(knob.style.transform).toBe('translateX(calc(2 * (100% + 2px)))');
+  });
+
+  // tap-target.ts: two neighbours that both carry the 44 overlay owe `gap >= 44 − w`, so the
+  // sidebar's 2 px gap asks each segment for 42 below the breakpoint.
+  it('gives each sidebar segment 44 − gap of width below the breakpoint', () => {
+    render(<Harness size="sm" />);
+    const gap = parseInt(screen.getByRole('radiogroup').style.gap, 10);
+    for (const r of radios()) {
+      expect(classes(r)).toContain(`max-md:min-w-[${44 - gap}px]`);
+      expect(classes(r), 'a segment lost its overlay').toContain('max-md:after:size-11');
+    }
+    // The width has to reach the well, or a `flex-1` parent shrinks it under its segments, which
+    // then overlapped their neighbours at 360. The columns stay equal, which the knob relies on.
+    const well = screen.getByRole('radiogroup');
+    expect(classes(well)).toContain('min-w-max');
+    expect(well.style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
   });
 
   // The knob's slide is a transition, so the global reduced-motion rule is what stops it.
