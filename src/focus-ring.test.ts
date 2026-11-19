@@ -118,12 +118,12 @@ describe('a control with a shadow of its own', () => {
   const NO_HALO: Record<string, [owner: string, count: number]> = {
     'switch-knob': ['the Switch thumb, a span inside the focusable root', 1],
     'shadow-(--shadow-dialog)': ['the dialog surfaces, focused only when nothing in them is', 1],
-    'shadow-(--shadow-popover)': ['the Select and DatePicker lists, the same fallback; Tooltip', 4],
+    'shadow-(--shadow-popover)': ['the date sheet below md, the same fallback; Tooltip', 2],
     'shadow-[0_0_0_1px_var(--color-card)]': ['Coverage KEYLINE, on divs', 1],
     'shadow-[1px_0_0_var(--color-table-band)]': ['the table head, a th', 1],
     'last:shadow-none': ['the table head, a th', 1],
     'shadow-[inset_2px_0_0_var(--color-sb-indicator)]': ['the rail span inside its link', 1],
-    glass: ['Card and KpiCard, divs', 2],
+    glass: ['Card and KpiCard, divs; the Select and DatePicker lists, the same fallback', 4],
     'glass-well': ['the segmented root, which hands its focus to the checked radio at once', 1],
     'glass-knob-tint': ['the segmented knob, an aria-hidden div', 1],
   };

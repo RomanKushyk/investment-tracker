@@ -258,7 +258,12 @@ const ALL_SOURCE = [...SOURCES.values(), CHART_COLORS].join('\n');
 /** Line-based is enough: the border and the shadow live in one `className` string, not in
  *  two attributes. A line deferring its edge to an interpolation OR A CONCATENATION is
  *  exempt — the two arms of `DEFERS` — and the `it` below holds that exemption empty. */
-const POPOVER_LINE = (line: string) => /shadow-\(--shadow-popover\)/.test(line);
+const GLASS = /(?<![\w-])glass(?![\w-])/;
+/** A glass surface draws its edge as an inset shadow, so it names the token through the override. */
+const GLASS_EDGE = /\[--glass-edge:var\(--color-field-border\)\]/;
+const POPOVER_LINE = (line: string) =>
+  /shadow-\(--shadow-popover\)/.test(line) || (/\bz-50\b/.test(line) && GLASS.test(line));
+const NAMES_TOKEN = (text: string) => /\bborder-field-border\b/.test(text) || GLASS_EDGE.test(text);
 const DEFERS = (line: string) => /\$\{/.test(line) || line.trimEnd().endsWith('+');
 
 const POPOVERS = FILES.flatMap((f) =>
@@ -276,15 +281,24 @@ describe('the floating surfaces point at the token', () => {
   it('finds the class-based ones by walking, so an empty pass cannot look green', () => {
     expect(
       POPOVERS.length,
-      'no surface names `shadow-(--shadow-popover)` any more — a floor, so a sixth surface ' +
-        'passes here and is caught by the assertions below instead',
+      'no surface names `shadow-(--shadow-popover)` or the glass any more — a floor, so a ' +
+        'sixth surface passes here and is caught by the assertions below instead',
     ).toBeGreaterThanOrEqual(3);
+  });
+
+  // P2: the Select list and the md-and-up date popover are the glass, on the field edge.
+  it('puts the Select list and the date popover on the glass', () => {
+    const glass = POPOVERS.filter((p) => GLASS.test(p.line)).map((p) => p.file);
+    expect(glass.sort()).toEqual(['components/ui/DatePicker.tsx', 'components/ui/Select.tsx']);
+    // The utility, not its override or a sibling utility.
+    expect('z-50 glass p-2').toMatch(GLASS);
+    expect('[--glass-edge:var(--x)] glass-knob md:glass-well').not.toMatch(GLASS);
   });
 
   // NO `DEFERS` EXEMPTION HERE: the `it` two below holds that exemption empty, so exempting
   // a line here could only hide the very surface that one fails about.
   it('names `field-border` on every one of them', () => {
-    const missing = POPOVERS.filter((p) => !/\bborder-field-border\b/.test(p.line)).map(
+    const missing = POPOVERS.filter((p) => !NAMES_TOKEN(p.line)).map(
       (p) => `${p.file}: ${p.line.trim().slice(0, 90)}`,
     );
     expect(missing).toEqual([]);
@@ -293,9 +307,10 @@ describe('the floating surfaces point at the token', () => {
   // THE COMPENSATING HALF FOR `DEFERS`: without it a surface building its className from a
   // template literal is exempt from the line check and invisible to everything else.
   it.each(POPOVER_FILES)('%s names the token somewhere, however it composes', (file) => {
-    expect(source(file), `${file} holds a floating surface but never names the token`).toMatch(
-      /\bborder-field-border\b/,
-    );
+    expect(
+      NAMES_TOKEN(source(file)),
+      `${file} holds a floating surface but never names the token`,
+    ).toBe(true);
   });
 
   // AND THE COMPENSATOR IS WEAKER THAN IT LOOKS, asserted rather than hidden: `Select.tsx`

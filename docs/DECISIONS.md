@@ -2909,16 +2909,22 @@ never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces
 and borders and the chart series the thirty, the accent the ten, so a second action beside a filled
 one takes the glass knob or a ghost. The neutral buttons (the ghost, the knob) and a list row hover
 with an `ink` 5 % veil and never fade; the primary steps to `accent-hover`. On the knob the veil is
-folded into its own fill, so it steps on any ground the knob sits on. Gain and loss belong to
+folded into its own fill, so it steps on any ground the knob sits on. A list row's highlight is
+its hover, since the Select moves keyboard focus to the row under the pointer, so the highlighted
+row takes the veil whether the pointer or the arrow keys put it there. Gain and loss belong to
 DELTAS: an informational chip reads `info`, a text selection reads `selection`, and neither borrows
 `pos`, so a fetch that worked flashes in `ink` with a check.
 **Why.** A fade reads as "less available", the opposite of a hover. A hover that paints a ground
 token is invisible on that ground: the outline's `panel` hover vanished on the import drop target's
-`panel`. A dismissal on `animationend` never lands in a throttled tab, so it commits on a timer.
+`panel`. In dark the veil sets a row further from the glass than the `page` fill does, and a highlight
+that differs by input would show the one state two ways. A dismissal on `animationend` never lands in
+a throttled tab, so it commits on a timer.
 WCAG 1.4.1 does not accept a state said in colour alone, so the indicator is the half that survives
 a colour-blind reading. A green highlight on a reminder or a run of selected text says "up" about
 something that has no direction.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it.
+The `page` highlight with the veil laid over it on hover: in dark the veil lifts `page` back to
+`card`, so the row under the pointer is the hardest to see.
 The 1.5px `ink` outline for the secondary: the darkest line on a glass card (controls.md B1).
 
 ## Focus ring

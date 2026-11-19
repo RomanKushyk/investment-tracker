@@ -537,6 +537,15 @@ describe('the one field recipe', () => {
     expect(fieldVariants()).not.toMatch(/\bbg-card\b/);
   });
 
+  // P2: the Select's and the date picker's triggers are wave 8's field, on `page`. The rendered
+  // classes are pinned beside each component; this holds the default the callers lean on.
+  it.each(['components/ui/Select.tsx', 'components/ui/DatePicker.tsx'])(
+    '%s rests its trigger on `page` when a caller names no fill',
+    (file) => {
+      expect(stripTs(read(file), file)).toMatch(/\bbg = 'page'/);
+    },
+  );
+
   // cva reads `null` as "no class for this variant", so a field would inherit `currentColor`.
   // The recipe's type refuses it; the directive below fails `pnpm typecheck` if that lapses.
   it('takes no `null` state', () => {

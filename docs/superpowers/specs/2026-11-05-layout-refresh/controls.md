@@ -45,6 +45,7 @@ The selected segment's label, three ways, in light at 2×: T1 `accent`, T2 `acce
   - The sheen and bevel as above, with a `0 8px 24px` drop.
   - The `field-border` edge, r14 for the select and r16 for the date picker.
   - The chosen item carries a 14 px `accent` check at the row's end. The highlight stays the `page` fill, and the chosen day keeps its `ink` cell.
+    - *Overturned by the owner's ruling on #704: the highlighted row takes the `ink` 5 % veil, pointer and keyboard alike (`docs/DECISIONS.md` § Interaction rules).*
   - The trigger is wave 8's field (36 / r9, `page` fill).
 - **Focus (F2).** On `:focus-visible`, a 2 px `accent` outline at offset 2, plus `0 0 0 2px` `card` appended to the control's own shadows, so the ring always has `card` inside it, even on an `accent` track or a `neg` fill. It appears at once: `outline-color` leaves the transition, which ends today's fade from `currentColor`. The `[data-filled-track]` `page`-ring override retires with the `ink` tracks. `docs/DECISIONS.md` gains a focus-ring entry, since it has none today.
 - **Hover (H2).** Neutral controls (ghost, B4, unselected segments, list rows) take an `ink` 5 % overlay; the primary steps to `accent-hover`.

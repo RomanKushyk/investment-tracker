@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { Select as RadixSelect } from 'radix-ui';
 import type { ReactNode } from 'react';
 
@@ -24,7 +24,9 @@ export function Select({
   placeholder,
   className = '',
   invalid = false,
-  bg = 'card',
+  bg = 'page',
+  disabled = false,
+  disabledTone = 'gated',
   onOpenChange,
   status,
   scrollList = false,
@@ -43,8 +45,11 @@ export function Select({
    * "check the highlighted fields" names nothing.
    */
   invalid?: boolean;
-  // `card`, never a literal white: a control surface has to invert with the theme.
+  // Wave 8's field rests on `page`; `card` stays for a surface that still draws it.
   bg?: FieldFill;
+  disabled?: boolean;
+  // The Button's two tones: `busy` is a wait, so it dims less than a gate.
+  disabledTone?: 'gated' | 'busy';
   // Fires on open/close — the Inzhur picker fetches its list on first open.
   onOpenChange?: (open: boolean) => void;
   // Non-selectable row(s) after the options: the picker's loading and empty rows
@@ -69,12 +74,18 @@ export function Select({
   ariaDescribedBy?: string;
 }) {
   return (
-    <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>
+    <RadixSelect.Root
+      value={value}
+      onValueChange={onValueChange}
+      onOpenChange={onOpenChange}
+      disabled={disabled}
+    >
       <RadixSelect.Trigger
         id={id}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
         aria-invalid={invalid || undefined}
+        aria-busy={(disabled && disabledTone === 'busy') || undefined}
         // `max-md:text-base` for the same reason the fields take 16: this trigger
         // DISPLAYS a value, and a select reading 13px beside an input reading 16
         // is the pair looking mismatched on the one screen where it shows. It is
@@ -82,7 +93,7 @@ export function Select({
         className={fieldVariants({
           fill: bg,
           edge: invalid ? 'invalid' : 'rest',
-          className: `flex w-full items-center justify-between gap-2 px-3 font-mono text-body text-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`,
+          className: `flex w-full items-center justify-between gap-2 px-3 font-mono text-body text-ink active:scale-[.97] disabled:pointer-events-none ${disabledTone === 'busy' ? 'disabled:opacity-70' : 'disabled:opacity-50'} max-md:text-base ${TAP_44} ${className}`,
         })}
       >
         {/* THE VALUE TRUNCATES, and it has to: the longest yield-type label in
@@ -102,11 +113,11 @@ export function Select({
           position="popper"
           sideOffset={6}
           // 14, not the 16 a surface would take: the items sit in this popover's
-          // corners at a uniform 5px inset (4px viewport padding + the 1px
-          // border), so this is the concentric case, 9 + 5. The DatePicker keeps
-          // 16 because its only corner-adjacent child is an absolutely-placed
-          // arrow, not a box that hugs all four.
-          className="z-50 animate-in overflow-hidden rounded-[14px] border border-field-border bg-card shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
+          // corners at a uniform 5px inset, so this is the concentric case, 9 + 5.
+          // The DatePicker keeps 16 because its only corner-adjacent child is an
+          // absolutely-placed arrow, not a box that hugs all four. The glass draws
+          // its edge inside the box, so `p-px` keeps the scrolling viewport off it.
+          className="z-50 animate-in overflow-hidden rounded-[14px] glass p-px duration-200 zoom-in-95 [--glass-edge:var(--color-field-border)] fade-in"
           style={{ width: 'var(--radix-select-trigger-width)' }}
         >
           <RadixSelect.Viewport className={scrollList ? 'max-h-60 overflow-y-auto p-1' : 'p-1'}>
@@ -118,11 +129,18 @@ export function Select({
                 // rather than overlaying it: a list row's drawn box IS its
                 // highlight fill, and an overlay would make adjacent rows fight
                 // over the shared area. The radius is CONCENTRIC (14 − 5), not
-                // proportional, so the height does not move it.
-                className="cursor-pointer rounded-[9px] px-3 py-2 font-mono text-body transition-control focus-ring-none data-[highlighted]:bg-page max-md:py-3"
+                // proportional, so the height does not move it. The highlight is the
+                // hover too (Radix focuses the row under the pointer), so it takes the
+                // hover's veil. *Interaction rules*
+                className="flex cursor-pointer items-center justify-between gap-2 rounded-[9px] px-3 py-2 font-mono text-body transition-control focus-ring-none data-[highlighted]:bg-ink/5 max-md:py-3"
               >
-                <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
-                {o.hint !== undefined && <span className="text-muted"> · {o.hint}</span>}
+                <span>
+                  <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
+                  {o.hint !== undefined && <span className="text-muted"> · {o.hint}</span>}
+                </span>
+                <RadixSelect.ItemIndicator>
+                  <Check size={14} strokeWidth={2.5} aria-hidden className="text-accent" />
+                </RadixSelect.ItemIndicator>
               </RadixSelect.Item>
             ))}
             {status}

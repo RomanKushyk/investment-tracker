@@ -91,7 +91,7 @@ export function DatePicker({
   id,
   placeholder,
   invalid = false,
-  bg = 'card',
+  bg = 'page',
 }: {
   value: string; // ISO yyyy-MM-dd; '' = unset (renders the placeholder)
   onChange: (iso: string) => void;
@@ -347,7 +347,8 @@ export function DatePicker({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="z-50 animate-in rounded-2xl border border-field-border bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
+          // 9, not 8: the glass draws its 1 px edge inside the box, where the border sat.
+          className="z-50 animate-in rounded-2xl glass p-[9px] duration-200 zoom-in-95 [--glass-edge:var(--color-field-border)] fade-in"
         >
           {calendar}
         </Popover.Content>

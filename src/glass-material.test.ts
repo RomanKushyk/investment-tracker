@@ -286,8 +286,10 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
       .map((file) => relative(here, file).split(sep).join('/'));
     expect(wearing.sort()).toEqual([
       'components/ui/Card.tsx',
+      'components/ui/DatePicker.tsx',
       'components/ui/KpiCard.tsx',
       'components/ui/SegmentedControl.tsx',
+      'components/ui/Select.tsx',
       'components/ui/button-variants.ts',
     ]);
   });
