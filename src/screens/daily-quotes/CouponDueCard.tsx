@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { fieldVariants } from '../../components/ui/field-variants';
 import { NumberField } from '../../components/ui/NumberField';
 import { rollNextCoupon, type DueCoupon } from '@quirenote/core/accrual';
@@ -183,11 +184,10 @@ export function CouponDueCard({
       )}
 
       <label className="mt-3 flex cursor-pointer items-start gap-2">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={reinvest}
-          onChange={(e) => {
-            setReinvest(e.target.checked);
+          onCheckedChange={(on) => {
+            setReinvest(on);
             // THE ERROR RESETS, THE VALUE DOES NOT. The field unmounts but its state
             // survives, so unchecking after a rejected value and re-checking rendered it
             // already red before the user touched anything. Clearing `units` as well is
@@ -195,7 +195,6 @@ export function CouponDueCard({
             // with nowhere to recover it.
             setUnitsError(false);
           }}
-          className="mt-[1px] size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition-control active:scale-[.97]"
         />
         <span className="text-xs leading-[1.45]">
           {t.dailyQuotes.coupon.reinvest}

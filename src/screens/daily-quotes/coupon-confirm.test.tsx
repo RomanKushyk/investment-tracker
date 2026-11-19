@@ -160,6 +160,23 @@ describe('recording a coupon', () => {
     expect(nextCoupon()).toBe('2027-02-25');
   });
 
+  it('reveals the units on the reinvest, and keeps a typed count across untick and tick', async () => {
+    await open('/');
+
+    const c = card();
+    const units = () => c.queryByRole('textbox', { name: uk.transaction.quantity });
+    const reinvest = () =>
+      c.getByRole('checkbox', { name: (n) => n.startsWith(uk.dailyQuotes.coupon.reinvest) });
+    expect(units()).toBeNull();
+    fireEvent.click(reinvest());
+    fireEvent.change(units()!, { target: { value: '3' } });
+    fireEvent.click(reinvest());
+    expect(units()).toBeNull();
+    fireEvent.click(reinvest());
+    expect((units() as HTMLInputElement).value).toBe('3');
+    expect(units()!.getAttribute('aria-invalid')).not.toBe('true');
+  });
+
   it('sends the payout, the reinvest and the roll as one request', async () => {
     await open('/');
 

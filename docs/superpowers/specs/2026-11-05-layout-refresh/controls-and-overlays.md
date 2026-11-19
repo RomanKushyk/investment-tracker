@@ -26,6 +26,7 @@ The nested container (S1): the quick-create inside «Транзакція», sta
   - The coupon card's overdue date is wave 11's C2: a 12 px `warn` TriangleAlert + «25.07» in `ink`; the `warn-tint` pill goes.
 - **Checkbox (K2), `accent` fill.**
   - 16 px at r5, left of its label; the label is the hit area.
+    - *Overturned by the owner's ruling on #703: the box takes r4, round(16 × 0.26) (`docs/DECISIONS.md` § Shape system).*
   - Off: a 1 px `field-border` edge on `page`. On: an `accent` fill and edge with a 10 px `accent-fg` check (stroke 3.5).
   - Focus: wave 17's F2 ring; Space toggles; the box and the check each hold 3:1.
   - Used by the coupon card's reinvest and the import opt-in.

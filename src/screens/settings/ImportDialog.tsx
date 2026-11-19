@@ -13,6 +13,7 @@ import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
+import { Checkbox } from '../../components/ui/Checkbox';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -252,12 +253,10 @@ function Preview({
               pending ? 'pointer-events-none opacity-70' : 'cursor-pointer'
             }`}
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={applySettings}
               disabled={pending}
-              onChange={(e) => onApplySettings(e.target.checked)}
-              className="mt-px size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition-control active:scale-[.97]"
+              onCheckedChange={onApplySettings}
             />
             <span className="flex-1">
               <span className="block text-[13px]">{t.importing.preview.settingsOptIn}</span>

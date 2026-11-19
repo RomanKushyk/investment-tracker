@@ -580,6 +580,29 @@ describe('the one field recipe', () => {
   });
 });
 
+// K2 (controls-and-overlays.md § Signed): one checkbox, its off edge on the field token.
+describe('the checkbox', () => {
+  it('puts the checkbox on the field token, and both sites on the checkbox', () => {
+    const own = 'components/ui/Checkbox.tsx';
+    const off = stripTs(read(own), own)
+      .split('\n')
+      .filter((l) => /\bbg-page\b/.test(l));
+    expect(off.length, `${own}: the off arm vanished`).toBeGreaterThan(0);
+    for (const line of off) expect(line).toMatch(/\bborder-field-border\b/);
+
+    for (const file of [
+      'screens/daily-quotes/CouponDueCard.tsx',
+      'screens/settings/ImportDialog.tsx',
+    ]) {
+      const src = stripTs(read(file), file);
+      expect(src, `${file} draws its own checkbox`).not.toMatch(/type="checkbox"/);
+      expect(src, `${file} does not use the checkbox`).toMatch(/<Checkbox\b/);
+    }
+    const inked = SOURCES.filter((f) => /\baccent-ink\b/.test(stripTs(read(f), f)));
+    expect(inked, 'these files tint a native control in ink').toEqual([]);
+  });
+});
+
 describe('what the ruling deliberately does not touch', () => {
   it('the three dashed CONTAINERS keep `faint`', () => {
     for (const file of [
@@ -605,21 +628,6 @@ describe('what the ruling deliberately does not touch', () => {
     expect(stripTs(read('screens/TransactionPanel.tsx'), 'screens/TransactionPanel.tsx')).toMatch(
       /const isNewAsset = needsAsset && pickedNew;/,
     );
-  });
-
-  // "Do not re-token them", not "keep this exact class": their border paints no pixel — no
-  // width utility, a native control the UA draws — so deleting the dead class is correct.
-  it('leaves the checkboxes off the field token', () => {
-    for (const file of [
-      'screens/daily-quotes/CouponDueCard.tsx',
-      'screens/settings/ImportDialog.tsx',
-    ]) {
-      const checkbox = stripTs(read(file), file)
-        .split('\n')
-        .filter((l) => /rounded-\[5px\]/.test(l));
-      expect(checkbox.length, `${file}: the checkbox line vanished`).toBeGreaterThan(0);
-      for (const line of checkbox) expect(line).not.toMatch(/border-field-border/);
-    }
   });
 
   // THE ONE SITE THE FIELD CENSUS DOES NOT SEE, pinned so its coverage is not lost with it:
