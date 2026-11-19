@@ -291,6 +291,7 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
       'components/ui/SegmentedControl.tsx',
       'components/ui/Select.tsx',
       'components/ui/button-variants.ts',
+      'screens/daily-quotes/CouponDueCard.tsx',
     ]);
   });
 

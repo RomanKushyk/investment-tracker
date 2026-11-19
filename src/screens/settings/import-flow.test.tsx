@@ -112,6 +112,20 @@ describe('picking a file', () => {
     expect(api.rows.assets).toHaveLength(2);
   });
 
+  // S1 nested: transparent with the dashed `faint` edge alone at r16, so no fill sits on glass.
+  it('draws the diff in a transparent panel on a dashed `faint` edge at r16', async () => {
+    const { pick } = mount();
+
+    await pick(fileOf());
+
+    const panel = (await screen.findByText(uk.importing.preview.diffLabel)).parentElement;
+    const list = panel?.className.split(/\s+/) ?? [];
+    expect(list).toEqual(
+      expect.arrayContaining(['rounded-2xl', 'border', 'border-dashed', 'border-faint']),
+    );
+    expect(list.filter((c) => c.startsWith('bg-'))).toEqual([]);
+  });
+
   it('reports a file the importer refuses, and sends no request but the read', async () => {
     const broken = JSON.parse(JSON.stringify(SEED)) as { assets: Record<string, unknown>[] };
     broken.assets[0].createdAt = '2026-02-03T10:00:00Z';

@@ -444,7 +444,8 @@ function Passkeys({ list, held }: { list: PasskeyList | undefined; held: boolean
               <li
                 key={i}
                 data-passkey
-                className="flex items-center gap-3 rounded-[16px] bg-panel px-3.5 py-3"
+                // The edge's 1 px comes out of the padding, so the card keeps its placeholder's height.
+                className="flex items-center gap-3 rounded-[16px] border border-hairline px-3.5 py-[11px]"
               >
                 <KeyRound size={16} aria-hidden className="flex-none text-muted" />
                 <div className="min-w-0">

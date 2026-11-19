@@ -226,3 +226,22 @@ describe('recording a coupon', () => {
     },
   );
 });
+
+describe('the card', () => {
+  // S1 standalone: the glass at r20 with the dashed `faint` edge in place of its own solid one.
+  it('is the glass at r20 with the dashed `faint` edge in place of its solid one', async () => {
+    await open('/');
+
+    const glass = document.getElementById(`coupon-amount-${BOND}`)?.closest('.glass');
+    const list = glass?.className.split(/\s+/) ?? [];
+    expect(list).toEqual(
+      expect.arrayContaining([
+        'rounded-[20px]',
+        'border',
+        'border-dashed',
+        'border-faint',
+        '[--glass-edge:transparent]',
+      ]),
+    );
+  });
+});

@@ -625,6 +625,29 @@ describe('what the ruling deliberately does not touch', () => {
     }
   });
 
+  // S1 nested: no fill sits on the glass, so the dashed edge is the panel's only mark, at r16.
+  it.each(['screens/settings/ImportDialog.tsx', 'screens/TransactionPanel.tsx'])(
+    'the nested dashed container in %s is transparent at r16',
+    (file) => {
+      const dashed = classLists(file)
+        .map((l) => l.parts.join(' ').split(/\s+/))
+        .filter((tokens) => tokens.includes('border-dashed') && tokens.includes('border-faint'));
+      expect(dashed, `${file} has no dashed container`).toHaveLength(1);
+      expect(dashed[0]).toContain('rounded-2xl');
+      expect(dashed[0].filter((t) => t.startsWith('bg-'))).toEqual([]);
+    },
+  );
+
+  // Wave 26: saved passkeys are not provisional, so they take a solid `hairline`, never the dash.
+  it('the passkey cards take a solid `hairline` edge, not the dash', () => {
+    const cards = classLists('screens/Profile.tsx')
+      .map((l) => l.parts.join(' ').split(/\s+/))
+      .filter((tokens) => tokens.includes('rounded-[16px]') && tokens.includes('border-hairline'));
+    expect(cards, 'Profile.tsx has no hairline-edged passkey card').toHaveLength(1);
+    expect(cards[0]).toContain('border');
+    expect(cards[0]).not.toContain('border-dashed');
+  });
+
   // `Select`'s two arms resolve to one token, so the prop was one behaviour with two
   // spellings. `isNewAsset` is NOT collateral: `transaction-form-reset.test.ts` pins it.
   it('drops the `borderColor` variant but keeps `isNewAsset`', () => {

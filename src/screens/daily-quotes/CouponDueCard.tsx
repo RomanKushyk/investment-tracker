@@ -129,8 +129,8 @@ export function CouponDueCard({
 
   return (
     <Card
-      className="animate-in border border-dashed border-faint px-5 py-[18px] duration-300 fade-in slide-in-from-bottom-1"
-      // A suggestion: dashed `faint` edge, never pos/warn tinted.
+      className="animate-in border border-dashed border-faint px-5 py-[18px] duration-300 [--glass-edge:transparent] fade-in slide-in-from-bottom-1"
+      // A suggestion: the dashed `faint` edge in place of the glass's solid one, never pos/warn tinted.
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-[10px] tracking-[.12em] text-muted uppercase">

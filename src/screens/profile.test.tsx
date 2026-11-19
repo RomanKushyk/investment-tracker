@@ -252,6 +252,23 @@ describe('the passkeys', () => {
     ]);
   });
 
+  // Wave 26: transparent on a solid `hairline` at r16. The edge's 1 px comes out of the padding,
+  // so a card stays as tall as its `h-[61.5px]` placeholder and the list does not shift.
+  it('draws each card on a solid `hairline` edge with no fill, its padding giving the edge room', async () => {
+    api.passkeys = [{ name: 'Roaming passkey', createdAt: '2026-10-22' }];
+    const { main } = await open();
+    const cards = [...main().querySelectorAll('[data-passkey]')];
+    expect(cards).toHaveLength(1);
+    for (const card of cards) {
+      const list = card.className.split(/\s+/);
+      expect(list).toEqual(
+        expect.arrayContaining(['rounded-[16px]', 'border', 'border-hairline', 'py-[11px]']),
+      );
+      for (const gone of ['bg-panel', 'border-dashed', 'py-3'])
+        expect(list, gone).not.toContain(gone);
+    }
+  });
+
   it.each([
     ['none', [] as const, p.passkeys.none],
     ['a Google session', 'google' as const, p.passkeys.google],

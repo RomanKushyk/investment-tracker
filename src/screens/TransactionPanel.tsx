@@ -522,7 +522,7 @@ export function TransactionPanel() {
               Do not re-wrap this without that. */}
           {isNewAsset && (
             <div className="animate-in duration-300 fade-in slide-in-from-top-2">
-              <div className="flex flex-col gap-2.5 rounded-2xl border border-dashed border-faint bg-card p-3.5">
+              <div className="flex flex-col gap-2.5 rounded-2xl border border-dashed border-faint p-3.5">
                 <div className="flex items-center gap-2 text-[11px] font-bold tracking-[.06em] text-pos-tint-text uppercase">
                   <Plus size={13} strokeWidth={2.75} />
                   {t.transaction.newAssetDetails}
