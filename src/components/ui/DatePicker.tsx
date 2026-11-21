@@ -36,10 +36,10 @@ function dateToIso(d: Date): string {
 // `w-full` on the button, because the pressable thing is the BUTTON. ONE BASE FOR
 // EVERY CELL, because the month and year cells replace the day cells in the same box.
 // The hover is NOT in it: the hover and the emphasis fill are both one class deep,
-// `:hover` wins the tie, and the emphasised cell paints page-on-page under the pointer.
+// `:hover` wins the tie, and the emphasised cell would lose its ink under the pointer.
 const CELL_BASE =
   'grid h-8 place-items-center rounded-[8px] text-body transition-control active:scale-[.97] max-md:h-11';
-const CELL_IDLE = 'hover:bg-page';
+const CELL_IDLE = 'hover:bg-ink/5';
 const CELL_SHOWN = 'bg-ink text-page';
 
 const calendarClassNames = {
@@ -49,10 +49,11 @@ const calendarClassNames = {
   // the month rather than a child of the caption, so hiding this keeps both chevrons.
   month_caption: 'hidden',
   nav: 'flex items-center justify-between',
+  // rdp marks an arrow at the span's edge `aria-disabled`, not `disabled`, so it guards that.
   button_previous:
-    'absolute left-1 top-1 grid size-7 place-items-center rounded-[7px] transition-control hover:bg-page active:scale-[.97] max-md:size-11',
+    'absolute left-1 top-1 grid size-7 place-items-center rounded-[7px] transition-control hover:bg-ink/5 aria-disabled:hover:bg-transparent active:scale-[.97] max-md:size-11',
   button_next:
-    'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition-control hover:bg-page active:scale-[.97] max-md:size-11',
+    'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition-control hover:bg-ink/5 aria-disabled:hover:bg-transparent active:scale-[.97] max-md:size-11',
   month_grid: 'w-full border-collapse',
   weekdays: 'flex',
   // Matches the day column INCLUDING its gutter, or it drifts per column and the last
@@ -81,7 +82,9 @@ const calendarClassNames = {
 // The radius stays constant across both heights, matching the nav buttons beside it: a
 // declared exception, which `CELL_BASE` inherits on purpose. *Shape system*
 const CAPTION_BUTTON =
-  'grid h-7 place-items-center rounded-[7px] px-2 font-display text-body font-semibold transition-control hover:bg-page active:scale-[.97] max-md:h-11 max-md:px-2.5 max-md:text-sub';
+  'grid h-7 place-items-center rounded-[7px] px-2 font-display text-body font-semibold transition-control active:scale-[.97] max-md:h-11 max-md:px-2.5 max-md:text-sub';
+// The hover sits on the closed caption only, as on the cells: it would win the tie with the open mark.
+const CAPTION_BUTTON_IDLE = 'hover:bg-ink/5';
 const CAPTION_BUTTON_OPEN = 'bg-page';
 
 export function DatePicker({
@@ -179,7 +182,7 @@ export function DatePicker({
         aria-label={`${t.dates.pickMonth}: ${monthName}`}
         aria-expanded={view === 'months'}
         onClick={() => toggle('months')}
-        className={`${CAPTION_BUTTON} ${view === 'months' ? CAPTION_BUTTON_OPEN : ''}`}
+        className={`${CAPTION_BUTTON} ${view === 'months' ? CAPTION_BUTTON_OPEN : CAPTION_BUTTON_IDLE}`}
       >
         {monthName}
       </button>
@@ -189,7 +192,7 @@ export function DatePicker({
         aria-label={`${t.dates.pickYear}: ${shown.getFullYear()}`}
         aria-expanded={view === 'years'}
         onClick={() => toggle('years')}
-        className={`${CAPTION_BUTTON} ${view === 'years' ? CAPTION_BUTTON_OPEN : ''}`}
+        className={`${CAPTION_BUTTON} ${view === 'years' ? CAPTION_BUTTON_OPEN : CAPTION_BUTTON_IDLE}`}
       >
         {shown.getFullYear()}
       </button>

@@ -95,11 +95,10 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
   // THE OVERLAY ADJACENCY IS A SEPARATE READING, not a plane above: the panel and the date
   // sheet float over the overlay, so what identifies them is that composite.
   //
-  // ANCHORED ON `inset-0`, not on the first `bg-` in the file. While the veil was
-  // `bg-<token>/<n>` its alpha made the class unique; `bg-scrim` is not, and a bare `bg-`
-  // match reads `DatePicker`'s `hover:bg-page` three hundred lines above the overlay —
-  // which it did, silently, until this was anchored. Either quote, because `Dialog` holds
-  // its string in a const and `DatePicker` writes the attribute inline.
+  // ANCHORED ON `inset-0`, not on the first `bg-` in the file: `bg-scrim` is not a unique
+  // class, and a bare `bg-` match reads one of `DatePicker`'s hover fills, far above the
+  // overlay. Either quote, because `Dialog` holds its string in a const and `DatePicker`
+  // writes the attribute inline.
   const overlayOf = (file: string) => {
     const m = source(file).match(/['"][^'"]*\binset-0\b[^'"]*['"]/);
     expect(m, `${file} no longer paints an overlay this can read`).not.toBeNull();
