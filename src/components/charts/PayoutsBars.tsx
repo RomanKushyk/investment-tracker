@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis } from 'recharts';
 
-import { CHART, CHART_CURSOR_FILL, SERIES } from '@quirenote/core/colors';
+import { CHART, CHART_CURSOR_FILL, PAYOUT } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
@@ -95,7 +95,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
         <Bar
           dataKey="dividends"
           stackId="pay"
-          fill={SERIES.reit.main}
+          fill={PAYOUT.dividend}
           radius={[6, 6, 6, 6]}
           {...CHART_MOTION}
         >
@@ -106,7 +106,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
         <Bar
           dataKey="coupons"
           stackId="pay"
-          fill={SERIES.ovdp8976.main}
+          fill={PAYOUT.coupon}
           radius={[6, 6, 6, 6]}
           {...CHART_MOTION}
         >

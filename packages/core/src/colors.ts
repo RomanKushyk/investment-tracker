@@ -49,6 +49,12 @@ export const CHART = {
   fieldBorder: 'var(--color-chart-field-border)',
 };
 
+// A payout type's own paint, apart from `SERIES`: re-valuing an asset moves no payout.
+export const PAYOUT = {
+  dividend: 'var(--color-chart-payout-dividend)',
+  coupon: 'var(--color-chart-payout-coupon)',
+};
+
 // Rows in the surface's ink, not recharts' per-series paint: a series' fill or stroke is not a
 // text colour, so a row's key carries its colour and its name ties it to its series.
 export const CHART_TOOLTIP_ITEM = { color: 'var(--color-ink)' };

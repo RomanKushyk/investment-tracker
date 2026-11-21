@@ -229,6 +229,14 @@
   --color-ovdp6475: #6f6b70;
   --color-ovdp6475-tint: #e8e4e0;
   --color-ovdp6475-tint-text: #686569;
+  /* Payout types, never assets: literals at the asset values they replaced, so
+     re-valuing an asset leaves /payouts alone. */
+  --color-payout-dividend: #b07a52;
+  --color-payout-dividend-tint: #efe6dc;
+  --color-payout-dividend-tint-text: #895f40;
+  --color-payout-coupon: #4a6178;
+  --color-payout-coupon-tint: #e3e3e1;
+  --color-payout-coupon-tint-text: #4a6178;
   /* A share printed on an asset's fill (the allocation bar): near-black or white, whichever has
      more contrast on that fill. The same two in both themes, since the fills are what change. */
   --color-on-fill-dark: #1c1a19;
@@ -391,6 +399,8 @@
   --color-chart-energy-label: var(--color-energy-label);
   --color-chart-ovdp8976-label: var(--color-ovdp8976-label);
   --color-chart-ovdp6475-label: var(--color-ovdp6475-label);
+  --color-chart-payout-dividend: var(--color-payout-dividend);
+  --color-chart-payout-coupon: var(--color-payout-coupon);
   --color-chart-accent: var(--color-accent);
   --color-chart-neg: var(--color-neg);
   --color-chart-hairline: var(--color-hairline);
@@ -482,6 +492,12 @@
   --color-ovdp6475: #8a8886;
   --color-ovdp6475-tint: #292829;
   --color-ovdp6475-tint-text: #918f8d;
+  --color-payout-dividend: #b07a52;
+  --color-payout-dividend-tint: #2e2622;
+  --color-payout-dividend-tint-text: #bb8157;
+  --color-payout-coupon: #93a4b5;
+  --color-payout-coupon-tint: #2a2c30;
+  --color-payout-coupon-tint-text: #93a4b5;
   --color-on-fill-dark: #1c1a19;
   --color-on-fill-light: #ffffff;
   --color-reit-label: var(--color-on-fill-dark);

@@ -31,8 +31,8 @@ export function Payouts() {
   const logRows = view.log;
   const assetName = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
   // The type Tag's paint is the row's KIND, not the asset's, exactly as the table does.
-  const typeColorKey = (type: string): 'reit' | 'ovdp8976' =>
-    type === 'dividend_accrual' ? 'reit' : 'ovdp8976';
+  const typeColorKey = (type: string): 'payout-dividend' | 'payout-coupon' =>
+    type === 'dividend_accrual' ? 'payout-dividend' : 'payout-coupon';
   const typeLabel = (type: string) =>
     type === 'dividend_accrual' ? t.analytics.prose.dividendTag : t.analytics.prose.couponTag;
   const destination = (row: (typeof logRows)[number]) =>
@@ -48,11 +48,11 @@ export function Payouts() {
         <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
           <div className="mb-2 flex gap-4 text-[11.5px] text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-[3px] bg-reit" />
+              <span className="inline-block size-2.5 rounded-[3px] bg-payout-dividend" />
               {t.analytics.dividends}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-[3px] bg-ovdp8976" />
+              <span className="inline-block size-2.5 rounded-[3px] bg-payout-coupon" />
               {t.analytics.coupons}
             </span>
           </div>

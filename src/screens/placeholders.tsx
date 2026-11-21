@@ -401,11 +401,11 @@ export function PayoutsPlaceholder() {
         <Card radius={24} className="p-[22px]">
           <div className="mb-2 flex gap-4 text-[11.5px] text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-[3px] bg-reit" />
+              <span className="inline-block size-2.5 rounded-[3px] bg-payout-dividend" />
               {a.dividends}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block size-2.5 rounded-[3px] bg-ovdp8976" />
+              <span className="inline-block size-2.5 rounded-[3px] bg-payout-coupon" />
               {a.coupons}
             </span>
           </div>

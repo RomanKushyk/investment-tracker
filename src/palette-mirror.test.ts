@@ -549,3 +549,29 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     expect(ruleBody(CSS, ':focus-visible')).toMatch(/outline:\s*2px solid var\(--color-focus\)/);
   });
 });
+
+// A payout type is not an asset: its families are literals at the asset values they replaced
+// (`palette.md`, «Decoupled, values kept»), so re-valuing `reit` or `ovdp8976` moves no payout.
+describe('the payout families hold their signed values', () => {
+  it.each([
+    ['payout-dividend', 'light', '#b07a52'],
+    ['payout-dividend-tint', 'light', '#efe6dc'],
+    ['payout-dividend-tint-text', 'light', '#895f40'],
+    ['payout-coupon', 'light', '#4a6178'],
+    ['payout-coupon-tint', 'light', '#e3e3e1'],
+    ['payout-coupon-tint-text', 'light', '#4a6178'],
+    ['payout-dividend', 'dark', '#b07a52'],
+    ['payout-dividend-tint', 'dark', '#2e2622'],
+    ['payout-dividend-tint-text', 'dark', '#bb8157'],
+    ['payout-coupon', 'dark', '#93a4b5'],
+    ['payout-coupon-tint', 'dark', '#2a2c30'],
+    ['payout-coupon-tint-text', 'dark', '#93a4b5'],
+  ] as [string, keyof typeof BLOCKS, string][])('`%s` in %s is %s', (name, block, hex) => {
+    expect(declaredHex(BLOCKS, block, name)).toBe(hex);
+  });
+
+  it('declares the `chart-` aliases the payout bars fill from', () => {
+    expect(CSS).toContain('--color-chart-payout-dividend: var(--color-payout-dividend);');
+    expect(CSS).toContain('--color-chart-payout-coupon: var(--color-payout-coupon);');
+  });
+});
