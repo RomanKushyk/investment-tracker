@@ -31,7 +31,7 @@ export function Payouts() {
   const logRows = view.log;
   const assetName = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
   // The type Tag's paint is the row's KIND, not the asset's, exactly as the table does.
-  const typeColorKey = (type: string): 'payout-dividend' | 'payout-coupon' =>
+  const typeVariant = (type: string): 'payout-dividend' | 'payout-coupon' =>
     type === 'dividend_accrual' ? 'payout-dividend' : 'payout-coupon';
   const typeLabel = (type: string) =>
     type === 'dividend_accrual' ? t.analytics.prose.dividendTag : t.analytics.prose.couponTag;
@@ -146,7 +146,7 @@ export function Payouts() {
                     <td className={`${TD} whitespace-nowrap`}>{f.date(row.date)}</td>
                     <td className={`${TD} font-semibold`}>{assetName(row.assetId)}</td>
                     <td className={TD}>
-                      <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
+                      <Tag variant={typeVariant(row.type)}>{typeLabel(row.type)}</Tag>
                     </td>
                     <td className={`${TD} text-right font-bold`}>{f.num(row.amount)}</td>
                     {/* EMPTY WHERE THERE IS NONE, the net cell included: such a row's net IS the
@@ -175,7 +175,7 @@ export function Payouts() {
               index={i}
               eyebrow={<span className="font-mono">{f.date(row.date)}</span>}
               title={assetName(row.assetId)}
-              tag={<Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>}
+              tag={<Tag variant={typeVariant(row.type)}>{typeLabel(row.type)}</Tag>}
             >
               <Fact label={t.analytics.amountUah}>{f.num(row.amount)}</Fact>
               <Fact label={t.analytics.destination}>{destination(row)}</Fact>

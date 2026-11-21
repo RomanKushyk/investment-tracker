@@ -150,7 +150,7 @@ export function Portfolio() {
                       {r.asset.name}
                     </th>
                     <td className={TD}>
-                      <Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>
+                      <Tag variant={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>
                     </td>
                     <td className={`${TD} text-right`}>{f.num(r.invested)}</td>
                     <td className={`${TD} text-right`}>
@@ -223,7 +223,7 @@ export function Portfolio() {
                 index={i}
                 avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
                 title={r.asset.name}
-                tag={<Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>}
+                tag={<Tag variant={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>}
                 // A FOOTER BAND, not the header row, which two buttons would overflow at 360.
                 // The band is ALREADY `flex flex-wrap`, so the actions
                 // go in bare — a nested flex box makes the pair one unwrappable item and
