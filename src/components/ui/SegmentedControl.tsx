@@ -93,7 +93,7 @@ export function SegmentedControl<T extends string>({
           title={o.title}
           // Radix moves its tab stop only on focus; a value written elsewhere would leave it behind.
           tabIndex={o.value === value ? 0 : -1}
-          className={`z-10 cursor-pointer transition-control active:scale-[.97] ${segment} ${tap} ${
+          className={`z-10 transition-control active:scale-[.97] ${segment} ${tap} ${
             o.value === value
               ? 'font-bold text-segment-label'
               : 'font-semibold text-muted hover:bg-ink/5'

@@ -10,7 +10,7 @@ import { useT } from '../../i18n/useT';
 // reads a field's classes only in the file that calls the recipe (#125).
 const INPUT = 'block w-full px-3 text-[13px] text-ink';
 
-export const LINK = `cursor-pointer text-accent underline underline-offset-2 ${TAP_44}`;
+export const LINK = `text-accent underline underline-offset-2 ${TAP_44}`;
 
 export function Title({ children }: { children: ReactNode }) {
   return (
@@ -227,7 +227,7 @@ export function PasswordInput({
           aria-label={shown ? t.auth.password.hide : t.auth.password.show}
           aria-controls={id}
           onClick={() => setShown((was) => !was)}
-          className={`grid size-9 cursor-pointer place-items-center text-muted ${TAP_44}`}
+          className={`grid size-9 place-items-center text-muted ${TAP_44}`}
         >
           <Icon aria-hidden className="size-4" strokeWidth={2} />
         </button>

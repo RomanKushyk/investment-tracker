@@ -19,7 +19,7 @@ export function Checkbox({
         checked={checked}
         disabled={disabled}
         onChange={(e) => onCheckedChange(e.target.checked)}
-        className={`size-4 cursor-pointer appearance-none rounded-[4px] border transition-control active:scale-[.97] disabled:cursor-default ${
+        className={`size-4 appearance-none rounded-[4px] border transition-control active:scale-[.97] ${
           checked ? 'border-accent bg-accent' : 'border-field-border bg-page'
         }`}
       />

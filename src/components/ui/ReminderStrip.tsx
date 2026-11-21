@@ -93,7 +93,7 @@ function ReminderBanner({
         // A real box and not the overlay, which reached into the text column
         // beside it and put a dismiss under a tap on plain prose. Nothing is
         // redrawn: the control has no fill and no border.
-        className={`${TAP_44_BOX} flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition-control hover:opacity-100 active:scale-[.97]`}
+        className={`${TAP_44_BOX} flex-none py-[2px] pr-[2px] pl-1.5 opacity-85 transition-control hover:opacity-100 active:scale-[.97]`}
       >
         <X size={13} strokeWidth={2.5} />
       </button>
@@ -157,7 +157,7 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
           onClick={() => setExpanded(true)}
           // The ghost's veil on its own box, not the variant, which would turn it `ink`; the
           // overlay gives the hit area, and the top margin the gap the overlay owes the banner.
-          className={`-ml-1.5 animate-in cursor-pointer self-start rounded-[6px] px-2.5 py-1 text-small text-muted transition-control fade-in hover:bg-ink/5 active:scale-[.97] max-md:mt-0.5 ${TAP_44}`}
+          className={`-ml-1.5 animate-in self-start rounded-[6px] px-2.5 py-1 text-small text-muted transition-control fade-in hover:bg-ink/5 active:scale-[.97] max-md:mt-0.5 ${TAP_44}`}
         >
           {moreRemindersLabel(hidden, t)}
         </button>

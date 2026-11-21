@@ -998,7 +998,7 @@ export function TransactionPanel() {
                           aria-label={t.transaction.delete.aria}
                           data-delete-row={tx.id}
                           onClick={() => setConfirmingId(tx.id)}
-                          className={`${TAP_44_BOX} flex-none cursor-pointer p-1 text-faint opacity-0 transition-control group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
+                          className={`${TAP_44_BOX} flex-none p-1 text-faint opacity-0 transition-control group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
                         >
                           <X size={12} strokeWidth={2.75} />
                         </button>

@@ -250,7 +250,7 @@ function Preview({
         {envelope.settings ? (
           <label
             className={`mt-4 flex items-start gap-2.5 rounded-xl p-2 transition-control hover:bg-page/60 ${
-              pending ? 'pointer-events-none opacity-70' : 'cursor-pointer'
+              pending ? 'pointer-events-none opacity-70' : ''
             }`}
           >
             <Checkbox

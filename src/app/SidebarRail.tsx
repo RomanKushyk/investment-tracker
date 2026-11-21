@@ -173,7 +173,7 @@ function RailAccount({ rows, leaving, leave }: SignOut) {
             aria-label={t.auth.signOut}
             aria-disabled={leaving || undefined}
             onClick={() => void leave()}
-            className="mt-1.5 block w-full cursor-pointer rounded-[9px] transition-control aria-disabled:opacity-70"
+            className="mt-1.5 block w-full rounded-[9px] transition-control aria-disabled:opacity-70"
           >
             <RailBox Icon={LogOut} />
           </button>
@@ -265,7 +265,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             id={NAV_TRIGGER_ID}
             onClick={onExpand}
             aria-label={t.nav.expandNav}
-            className={`cursor-pointer text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97] ${TAP_RAIL}`}
+            className={`text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97] ${TAP_RAIL}`}
           >
             <span aria-hidden className="flex h-3 w-[14px] flex-col justify-between">
               <span className="h-[2px] rounded-[1px] bg-current" />

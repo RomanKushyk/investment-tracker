@@ -209,7 +209,7 @@ function NavGroup({
         // pushes the first pill down instead of overlapping it, which is what
         // tap-target.ts requires. `TAP_44_BOX` squares the box and this one has a
         // label to hold.
-        className="group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-label-caps text-sb-label uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
+        className="group mx-3.5 mb-1.5 flex h-[18px] items-center rounded-[9px] text-label-caps text-sb-label uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
       >
         {label}
         <ChevronDown
@@ -547,7 +547,7 @@ function AccountRows() {
             type="button"
             aria-disabled={leaving || undefined}
             onClick={() => void leave()}
-            className={`${ACCOUNT_PILL} cursor-pointer aria-disabled:opacity-70`}
+            className={`${ACCOUNT_PILL} aria-disabled:opacity-70`}
           >
             <NavItem Icon={LogOut} label={t.auth.signOut} isActive={false} />
           </button>
@@ -598,7 +598,7 @@ function HeadStrip({ onCollapse, children }: { onCollapse?: () => void; children
           id={SIDEBAR_COLLAPSE_ID}
           onClick={onCollapse}
           aria-label={t.nav.collapseNav}
-          className="-mr-px ml-auto grid size-[26px] flex-none cursor-pointer place-items-center text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97]"
+          className="-mr-px ml-auto grid size-[26px] flex-none place-items-center text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97]"
         >
           <ChevronLeft size={24} strokeWidth={2} aria-hidden />
         </button>

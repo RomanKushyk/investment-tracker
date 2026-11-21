@@ -132,7 +132,7 @@ export function Select({
                 // proportional, so the height does not move it. The highlight is the
                 // hover too (Radix focuses the row under the pointer), so it takes the
                 // hover's veil. *Interaction rules*
-                className="flex cursor-pointer items-center justify-between gap-2 rounded-[9px] px-3 py-2 font-mono text-body transition-control focus-ring-none data-[highlighted]:bg-ink/5 max-md:py-3"
+                className="flex cursor-default items-center justify-between gap-2 rounded-[9px] px-3 py-2 font-mono text-body transition-control focus-ring-none data-[highlighted]:bg-ink/5 max-md:py-3"
               >
                 <span>
                   <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>

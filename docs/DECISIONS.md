@@ -2922,6 +2922,11 @@ its hover, since the Select moves keyboard focus to the row under the pointer, s
 row takes the veil whether the pointer or the arrow keys put it there. Gain and loss belong to
 DELTAS: an informational chip reads `info`, a text selection reads `selection`, and neither borrows
 `pos`, so a fetch that worked flashes in `ink` with a check.
+ONLY A LINK SHOWS THE HAND: every other pressable keeps the browser's arrow, a button styled as a
+link included. A button, a label and a checkbox take it from the browser; a Select row, a `div`,
+and sonner's toast buttons, whose own CSS draws the hand, set `cursor-default`; a disabled close
+keeps sonner's `not-allowed`. `cursor-pointer.test.ts` holds the rule and pins those sites; its
+header states what it reads.
 **Why.** A fade reads as "less available", the opposite of a hover. A hover that paints a ground
 token is invisible on that ground: the outline's `panel` hover vanished on the import drop target's
 `panel`. In dark the veil sets a row further from the glass than the `page` fill does, and a highlight
@@ -2930,7 +2935,17 @@ a throttled tab, so it commits on a timer.
 WCAG 1.4.1 does not accept a state said in colour alone, so the indicator is the half that survives
 a colour-blind reading. A green highlight on a reminder or a run of selected text says "up" about
 something that has no direction.
+The hand means a link: CSS UI 4 defines `pointer` as "a pointer that indicates a link"
+([css-ui-4](https://www.w3.org/TR/css-ui-4/)); Microsoft's guidelines say "The hand pointer must
+mean ‘this target is a link’ and nothing else"
+([Mouse and pointers](https://learn.microsoft.com/en-us/windows/win32/uxguide/inter-mouse)); and
+Radix Themes gives interactive elements that "don’t link to another page" the regular arrow
+([Cursors](https://www.radix-ui.com/themes/docs/theme/cursors)). A `div`'s `auto` "behaves as text
+over selectable text" (CSS UI 4), so a row left on it shows the I-beam, not the arrow; Radix Themes
+and shadcn/ui set their select rows to `default`.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it.
+A hand on every pressable, as Bootstrap 5.3's reboot, MUI's and Primer's `ButtonBase` and the GOV.UK
+button draw it: it spends the one cursor that says "link" on controls that are not links.
 The `page` highlight with the veil laid over it on hover: in dark the veil lifts `page` back to
 `card`, so the row under the pointer is the hardest to see.
 The 1.5px `ink` outline for the secondary: the darkest line on a glass card (controls.md B1).

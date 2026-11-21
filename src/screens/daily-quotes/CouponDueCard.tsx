@@ -183,7 +183,7 @@ export function CouponDueCard({
         </div>
       )}
 
-      <label className="mt-3 flex cursor-pointer items-start gap-2">
+      <label className="mt-3 flex items-start gap-2">
         <Checkbox
           checked={reinvest}
           onCheckedChange={(on) => {

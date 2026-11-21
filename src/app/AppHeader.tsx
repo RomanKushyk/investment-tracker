@@ -23,7 +23,7 @@ function MenuGlyph() {
 }
 
 const TRIGGER_CLASS =
-  'relative grid size-11 flex-none cursor-pointer place-items-center rounded-[11px] text-ink transition-control hover:opacity-85 active:scale-[.97]';
+  'relative grid size-11 flex-none place-items-center rounded-[11px] text-ink transition-control hover:opacity-85 active:scale-[.97]';
 
 /**
  * The sidebar's stand-in, mounted whenever the sidebar is not on screen: always below

@@ -368,7 +368,7 @@ describe("the account is the footer band's last row", () => {
       /<Link to="\/sign-in" className=\{ACCOUNT_PILL\}>/,
     );
     expect(rows, 'the sign-out added geometry to the pill').toMatch(
-      /className=\{`\$\{ACCOUNT_PILL\} cursor-pointer aria-disabled:opacity-70`\}/,
+      /className=\{`\$\{ACCOUNT_PILL\} aria-disabled:opacity-70`\}/,
     );
     expect(SIDEBAR, 'the account pill is drawn active').toMatch(
       /const ACCOUNT_PILL = `[^`]*\(\{ isActive: false \}\)\}`;/,

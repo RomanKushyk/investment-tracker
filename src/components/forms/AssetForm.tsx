@@ -324,7 +324,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
         }}
         // The ghost's veil on its own box, not the variant, which would set its height and weight;
         // pulled back by its padding, so the text keeps its edge.
-        className="-ml-2.5 cursor-pointer self-start rounded-[6px] px-2.5 py-1 text-[11px] text-ink transition-control hover:bg-ink/5 active:scale-[.97]"
+        className="-ml-2.5 self-start rounded-[6px] px-2.5 py-1 text-[11px] text-ink transition-control hover:bg-ink/5 active:scale-[.97]"
       >
         {showManual ? PICK.toPicker : PICK.toManual}
       </button>
