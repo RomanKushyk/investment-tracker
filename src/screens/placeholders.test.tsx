@@ -142,6 +142,16 @@ describe('what a placeholder keeps of its screen', () => {
     expect(root.querySelectorAll('[data-placeholder="chart"]')).toHaveLength(1);
   });
 
+  // Wave 23 L2 (`loading-and-compositions.md` § Signed): a chart is a block of its size at r6, not
+  // the concentric 2 (*Shape system*).
+  it('Balances holds the capital chart as one block of its size at r6', () => {
+    const blocks = mount('balances').querySelectorAll('[data-placeholder="chart"]');
+    expect(blocks).toHaveLength(1);
+    const classes = blocks[0].className.split(/\s+/);
+    expect(classes).toContain('h-[260px]');
+    expect(classes.filter((c) => c.startsWith('rounded'))).toEqual(['rounded-[6px]']);
+  });
+
   it('Transactions keeps the form’s title and holds its fields as one block', () => {
     const root = mount('transactions');
     expect(root.querySelectorAll('[data-placeholder="fields"]')).toHaveLength(1);

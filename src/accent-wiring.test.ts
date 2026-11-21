@@ -148,22 +148,41 @@ describe('the capital area chart is the accent', () => {
     return colors.slice(at, colors.indexOf('};', at));
   };
 
-  it('gives `CHART` an accent pair and takes the gain pair away', () => {
+  it('gives `CHART` the accent and takes the gain pair away', () => {
     // Gain and loss belong to DELTAS (*Interaction rules*): total capital over time has no
     // direction to report, so the line was a green saying "up" about the axis.
     const map = chartMap();
     expect(map).toMatch(/\baccent:\s*'var\(--color-chart-accent\)'/);
-    expect(map).toMatch(/\baccentTint:\s*'var\(--color-chart-accent-tint\)'/);
+    expect(map, 'the area fades the accent itself, so a tint has no reader').not.toMatch(
+      /\baccentTint:/,
+    );
     expect(map).not.toMatch(/\bpos:/);
     expect(map).not.toMatch(/\bposTint:/);
   });
 
-  it('paints the line, both dots and the fill from that pair', () => {
-    // FOUR READS, COUNTED rather than merely present: three are the same token, so a bare
-    // `toContain` passes with two of the three reverted.
-    expect(area.match(/CHART\.accent\b/g) ?? []).toHaveLength(3);
-    expect(area.match(/CHART\.accentTint\b/g) ?? []).toHaveLength(1);
+  it('paints the line, both dots and both stops of the fill from the accent', () => {
+    // FIVE READS, COUNTED rather than merely present: all are the same token, so a bare
+    // `toContain` passes with four of the five reverted.
+    expect(area.match(/CHART\.accent\b/g) ?? []).toHaveLength(5);
+    expect(area).not.toMatch(/CHART\.accentTint\b/);
     expect(area).not.toMatch(/CHART\.pos/);
+  });
+
+  it('fades the area from 32 % at the line to 0 at the baseline', () => {
+    // `charts.md` § Signed › Anatomy: "A gradient of the series colour from 32 % to 0".
+    const stops = [...area.matchAll(/<stop\b[^>]*\/>/g)].map((m) => m[0]);
+    expect(stops).toHaveLength(2);
+    expect(stops[0]).toMatch(/offset="0"/);
+    expect(stops[0]).toMatch(/stopColor=\{CHART\.accent\}/);
+    expect(stops[0]).toMatch(/stopOpacity=\{0\.32\}/);
+    expect(stops[1]).toMatch(/offset="1"/);
+    expect(stops[1]).toMatch(/stopColor=\{CHART\.accent\}/);
+    expect(stops[1]).toMatch(/stopOpacity=\{0\}/);
+    expect(area).toMatch(/<linearGradient\b[^>]*\bid=\{(\w+)\}/);
+    const id = area.match(/<linearGradient\b[^>]*\bid=\{(\w+)\}/)![1];
+    expect(area, 'the area is not filled with its own gradient').toContain(
+      'fill={`url(#${' + id + '})`}',
+    );
   });
 
   it('rings the hover dot in `card`, never the seeded white', () => {
@@ -174,14 +193,13 @@ describe('the capital area chart is the accent', () => {
     ).toMatch(/activeDot=\{(?:[^{}]*\?\s*false\s*:\s*)?ringed\(CHART\.accent\)\}/);
   });
 
-  it('lets the tint be the only alpha the fill has', () => {
-    // `accent-tint` IS ALREADY AN RGBA, where the tint it replaced was an opaque hex whose
-    // only alpha was this attribute — left as it was, the two multiply and the area reads as
-    // no fill at all.
+  it('lets the stops be the only alpha the fill has', () => {
+    // recharts' `Area` defaults `fillOpacity` to 0.6, which multiplies with the stops: left
+    // out, the 32 % at the line reads as 19 %.
     expect(area).toMatch(/fillOpacity=\{1\}/);
   });
 
-  // The two `chart-` aliases are asserted in `palette-mirror.test.ts`, which reads `index.css`
+  // The `chart-` alias is asserted in `palette-mirror.test.ts`, which reads `index.css`
   // through `stripCss` and this file does not: `index.css` argues from its own token text on
   // nearly every line, so an unstripped `toContain` there is satisfied by a comment.
 });

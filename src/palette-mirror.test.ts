@@ -508,16 +508,20 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     expect(+halo![1], 'the halo no longer reaches the ring').toBeGreaterThanOrEqual(+offset![1]);
   });
 
-  it('declares the two `chart-` aliases the capital chart resolves through', () => {
-    // ONCE, in `@theme`, following the base tokens by `var()` — which is why
+  it('declares the one `chart-` alias the capital chart resolves through', () => {
+    // ONCE, in `@theme`, following the base token by `var()` — which is why
     // `floating-edges.test.ts`'s parity test filters `chart-` out, so nothing else asserts
-    // these two exist.
+    // it exists.
     //
     // ON THE STRIPPED TEXT, the point of asserting it here: this stylesheet argues from its
     // own token text on nearly every line, so a raw `toContain` is satisfied by a comment
     // quoting the declaration while the declaration itself is gone.
     expect(CSS).toContain('--color-chart-accent: var(--color-accent);');
-    expect(CSS).toContain('--color-chart-accent-tint: var(--color-accent-tint);');
+    expect(
+      CSS,
+      'the area fades the accent itself (`charts.md` § Signed › Anatomy), so its tint alias ' +
+        'has no reader',
+    ).not.toContain('--color-chart-accent-tint');
     expect(
       CSS,
       'the gain pair is back beside the aliases that replaced it, leaving two answers for ' +

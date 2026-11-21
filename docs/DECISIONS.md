@@ -730,12 +730,15 @@ being padding plus any border. A segmented control is both at once — segment p
 concentric. A full-bleed bar takes square corners. Only asset avatars and colour dots stay round.
 The logo's plate takes the rule; the «q» inside it is drawn geometry. The rule binds controls
 and surfaces, not data marks: a chart's bar takes a fixed 4 on the corners its wave rounds, and
-its baseline stays square. Measure the RENDERED
+its baseline stays square. A placeholder's chart block stands in for the plot, not a surface: it
+takes a fixed 6 wherever it nests. Measure the RENDERED
 height: `text-[11px]` sets a font size, not a height. A control whose label wraps keeps the radius
 of its one-line height, as Primer's wrapping button keeps its own.
 **Why.** Proportional describes an object and concentric describes containment, so reaching for the
 wrong one gives an answer that looks derived while being arbitrary. A data mark's radius is read as
-data, so it stays small and does not grow with the mark (eBay Playbook, Polaris Viz).
+data, so it stays small and does not grow with the mark (eBay Playbook, Polaris Viz). A skeleton
+takes one small radius whatever it nests in (MUI, Ant Design, Chakra), as Apple's concentric corner
+falls back to a minimum.
 **Rejected.** A track given its own proportional value: the two curves then diverge at every corner.
 A chart's parts at the proportional value: parts of one bar would take different radii.
 

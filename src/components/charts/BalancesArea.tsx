@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
@@ -17,6 +18,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
   // Hover on a pointer, tap-to-pin on a touch screen: every value on the line
   // is inside the tooltip and nowhere else.
   const pin = useTooltipTrigger(data);
+  const fillId = useId();
   return (
     <ResponsiveContainer width="100%" height={260}>
       <AreaChart
@@ -25,6 +27,13 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
         onClick={pin.onClick}
       >
         <TapPinPlot probe={pin.probe} />
+        {/* The area's own box: the line's peak to the baseline. `charts.md` § Signed › Anatomy */}
+        <defs>
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={CHART.accent} stopOpacity={0.32} />
+            <stop offset="1" stopColor={CHART.accent} stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="date"
@@ -56,10 +65,8 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
-          fill={CHART.accentTint}
-          // 1, because `accent-tint` IS ALREADY an alpha — it lies over more
-          // than one plane — and this attribute multiplies with it: softening
-          // it again here reads as no fill.
+          fill={`url(#${fillId})`}
+          // 1, because recharts defaults it to 0.6 and it multiplies with the stops.
           fillOpacity={1}
           {...CHART_MOTION}
           dot={(props: DotItemDotProps) =>

@@ -146,6 +146,41 @@ describe.each([
   });
 });
 
+// `charts.md` § Signed: the area is a gradient of the series colour from 32 % to 0 under the line,
+// and the capital chart is the C2 area with a single series and no legend.
+describe('the capital area', () => {
+  it('is one series with no legend', () => {
+    const { container } = settle(balances());
+    expect(container.querySelectorAll('.recharts-area')).toHaveLength(1);
+    expect(container.querySelector('.recharts-legend-wrapper')).toBeNull();
+  });
+
+  it('fills from the accent at 32 % at the line to 0 at the baseline', () => {
+    const { container } = settle(balances());
+    const fill = container.querySelector('.recharts-area-area')?.getAttribute('fill') ?? '';
+    const [, id] = fill.match(/^url\(#(.+)\)$/) ?? [];
+    expect(id, `the area is filled with ${fill || 'nothing'}, not a gradient`).toBeDefined();
+    const gradient = [...container.querySelectorAll('svg linearGradient')].find((g) => g.id === id);
+    expect(gradient, `no gradient #${id} in the chart`).toBeDefined();
+    // Top to bottom of the area's own box: the line's peak to the baseline.
+    expect(attrs(gradient!, ['x1', 'y1', 'x2', 'y2'])).toEqual({
+      x1: '0',
+      y1: '0',
+      x2: '0',
+      y2: '1',
+    });
+    const stops = [...gradient!.querySelectorAll('stop')].map((s) =>
+      attrs(s, ['offset', 'stop-color', 'stop-opacity']),
+    );
+    expect(stops).toEqual([
+      { offset: '0', 'stop-color': 'var(--color-chart-accent)', 'stop-opacity': '0.32' },
+      { offset: '1', 'stop-color': 'var(--color-chart-accent)', 'stop-opacity': '0' },
+    ]);
+    // recharts' `Area` defaults to 0.6, which would multiply the stops.
+    expect(container.querySelector('.recharts-area-area')!.getAttribute('fill-opacity')).toBe('1');
+  });
+});
+
 describe('the bar charts', () => {
   it('mark the hovered category with a full-height `hairline` band', () => {
     const { container } = settle(payouts());

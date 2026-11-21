@@ -32,7 +32,6 @@ export const CHART = {
   // Gain and loss belong to DELTAS (*Interaction rules*), and total capital over
   // time has no direction to report, so the capital line reads the accent instead.
   accent: 'var(--color-chart-accent)',
-  accentTint: 'var(--color-chart-accent-tint)',
   neg: 'var(--color-chart-neg)',
   hairline: 'var(--color-chart-hairline)',
   faint: 'var(--color-chart-faint)',

@@ -356,7 +356,7 @@ export function BalancesPlaceholder() {
     <PlaceholderScreen>
       <ScreenHeader title={t.screen.balances.title} subtitle={t.screen.balances.subtitle} />
       <Card radius={24} className="mb-3.5 p-[22px]">
-        <Block kind="chart" className="h-[260px] rounded-[2px]" />
+        <Block kind="chart" className="h-[260px] rounded-[6px]" />
       </Card>
       <BalancesTablePlaceholder desktop={desktop} headers={[a.snapshot, a.cash, a.totalUah]} />
     </PlaceholderScreen>
