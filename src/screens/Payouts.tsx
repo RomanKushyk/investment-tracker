@@ -22,10 +22,10 @@ export function Payouts() {
   const { income, reinvested, reinvestedPct, nextPayouts: payoutRows } = view;
 
   const chartData = view.months.map((m) => ({
-    monthLabel: t.dates.monthShort[Number(m.month.slice(5, 7)) - 1],
+    month: m.month,
     dividends: m.dividends,
     coupons: m.coupons,
-    totalLabel: f.num(m.total),
+    total: m.total,
   }));
 
   const logRows = view.log;

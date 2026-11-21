@@ -48,11 +48,11 @@ const CHARTS: [string, ReactElement][] = [
   [
     'Payouts',
     <PayoutsBars
-      data={['Jan', 'Feb', 'Mar'].map((monthLabel, i) => ({
-        monthLabel,
+      data={['2026-01', '2026-02', '2026-03'].map((month, i) => ({
+        month,
         dividends: 100 + i,
         coupons: 50 + i,
-        totalLabel: `${150 + i} ₴`,
+        total: 150 + i,
       }))}
     />,
   ],

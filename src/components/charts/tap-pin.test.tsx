@@ -66,12 +66,14 @@ const CHARTS: [string, (n?: number) => ReactElement][] = [
     'Payouts',
     (n = 5) => (
       <PayoutsBars
-        data={['Jan', 'Feb', 'Mar', 'Apr', 'May'].slice(0, n).map((monthLabel, i) => ({
-          monthLabel,
-          dividends: 100 + i,
-          coupons: 50 + i,
-          totalLabel: String(150 + 2 * i),
-        }))}
+        data={['2026-01', '2026-02', '2026-03', '2026-04', '2026-05']
+          .slice(0, n)
+          .map((month, i) => ({
+            month,
+            dividends: 100 + i,
+            coupons: 50 + i,
+            total: 150 + 2 * i,
+          }))}
       />
     ),
   ],
@@ -249,6 +251,27 @@ describe.each(CHARTS)('%s below md', (_name, chart) => {
     const reached = pinned(container).label;
     tap(container, 130);
     expect(pinned(container)).toMatchObject({ shown: true, label: reached });
+  });
+});
+
+// #661: past twelve months a month name repeats; the later one is its own point, so it releases.
+describe('Payouts with a repeated month name', () => {
+  it('releases the later of two same-named months on a second tap', () => {
+    const { container } = render(
+      <PayoutsBars
+        data={['2025-11', '2025-12', '2026-11', '2026-12', '2027-01'].map((month, i) => ({
+          month,
+          dividends: 100 + i,
+          coupons: 0,
+          total: 100 + i,
+        }))}
+      />,
+    );
+    tap(container, 300);
+    expect(pinned(container)).toMatchObject({ shown: true, label: 'гру' });
+    expect(container.querySelector('[data-tooltip-value]')?.textContent).toBe('103,00');
+    tap(container, 300);
+    expect(pinned(container)).toMatchObject({ shown: false, highlight: false });
   });
 });
 

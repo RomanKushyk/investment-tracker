@@ -409,7 +409,7 @@ export function PayoutsPlaceholder() {
               {a.coupons}
             </span>
           </div>
-          <Block kind="chart" className="h-[240px] rounded-[2px]" />
+          <Block kind="chart" className="h-[240px] rounded-[6px]" />
         </Card>
         <div className="flex flex-col gap-3.5">
           <KpiCard label={a.receivedTotal} value={<Dash />} sub={<Dash className="h-4" />} />
