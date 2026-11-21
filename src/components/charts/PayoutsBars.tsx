@@ -1,24 +1,12 @@
 import type { ComponentProps } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis } from 'recharts';
 
-import {
-  CHART,
-  CHART_CURSOR_FILL,
-  CHART_TOOLTIP,
-  CHART_TOOLTIP_ITEM,
-  SERIES,
-} from '@quirenote/core/colors';
+import { CHART, CHART_CURSOR_FILL, SERIES } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
+import { CHART_MOTION, TICK } from './anatomy';
+import { ChartTooltip } from './ChartTooltip';
 
 export interface PayoutsChartPoint {
   monthLabel: string;
@@ -83,38 +71,33 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="monthLabel"
-          tick={{ fontSize: 10.5, fill: CHART.muted, className: 'font-mono' }}
+          tick={TICK}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
         />
         {/* The monthly split lives ONLY in this tooltip, so on a touch screen it
             is reached by a tap rather than a hover.
 
-            THE FORMATTER IS NOT DECORATION: without one, recharts prints its own
-            raw dataKeys and JS numbers — English series names in a
+            THE FORMATTERS ARE NOT DECORATION: without them the rows print
+            recharts' raw dataKeys and JS numbers — English series names in a
             Ukrainian-default app, and a decimal point where every other figure
             on the screen uses a comma. The two names are the legend's own, not
             new copy. */}
-        <Tooltip
-          trigger={pin.trigger}
-          active={pin.active}
-          formatter={(v, name) => [
-            f.num(Number(v)),
-            name === 'coupons' ? t.analytics.coupons : t.analytics.dividends,
-          ]}
-          wrapperClassName="font-mono"
-          contentStyle={CHART_TOOLTIP}
-          itemStyle={CHART_TOOLTIP_ITEM}
+        <ChartTooltip
+          pin={pin}
           cursor={CHART_CURSOR_FILL}
+          formatLabel={(label) => String(label)}
+          formatValue={(v) => f.num(v)}
+          formatName={(e) =>
+            e.dataKey === 'coupons' ? t.analytics.coupons : t.analytics.dividends
+          }
         />
         <Bar
           dataKey="dividends"
           stackId="pay"
           fill={SERIES.reit.main}
           radius={[6, 6, 6, 6]}
-          isAnimationActive
-          animationDuration={900}
-          animationEasing="ease-out"
+          {...CHART_MOTION}
         >
           <LabelList
             content={dividendsLabel as unknown as ComponentProps<typeof LabelList>['content']}
@@ -125,9 +108,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
           stackId="pay"
           fill={SERIES.ovdp8976.main}
           radius={[6, 6, 6, 6]}
-          isAnimationActive
-          animationDuration={900}
-          animationEasing="ease-out"
+          {...CHART_MOTION}
         >
           <LabelList
             content={couponsLabel as unknown as ComponentProps<typeof LabelList>['content']}

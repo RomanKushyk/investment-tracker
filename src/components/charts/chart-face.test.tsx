@@ -83,8 +83,10 @@ describe.each(CHARTS)('%s chart text', (_name, chart) => {
 
   it('opens its tooltip in the mono face', () => {
     const { container } = render(chart);
-    // recharts 3 puts `wrapperClassName` on the content box, the one holding the text.
-    const wrapper = container.querySelector('.recharts-default-tooltip');
+    const wrapper = container.querySelector('[data-chart-tooltip]');
+    // recharts' accessibility layer is on by default: the keyboard walk is announced.
+    expect(wrapper?.getAttribute('role')).toBe('status');
+    expect(wrapper?.getAttribute('aria-live')).toBe('assertive');
     expect(wrapper, 'no tooltip content').not.toBeNull();
     expect(wrapper?.classList.contains('font-mono')).toBe(true);
   });

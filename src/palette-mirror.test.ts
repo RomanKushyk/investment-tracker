@@ -525,6 +525,13 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     ).not.toContain('--color-chart-pos');
   });
 
+  // The ring under a chart's end and crosshair markers, and the crosshair and /yield's 0 % line
+  // (`charts.md` § Signed › Anatomy). SVG paint reads the `chart-` names, as the pair above.
+  it('declares the `chart-` aliases of the ring and the crosshair', () => {
+    expect(CSS).toContain('--color-chart-card: var(--color-card);');
+    expect(CSS).toContain('--color-chart-field-border: var(--color-field-border);');
+  });
+
   it('keeps the rule that reads the token', () => {
     // It must name the TOKEN rather than the accent directly, or the alias is one the app
     // declares and nothing consumes.

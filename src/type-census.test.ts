@@ -77,10 +77,8 @@ const FIELDS: Record<string, Record<string, number>> = {
 const ALLOWED: Record<string, Record<string, number>> = {
   // #740: the portfolio screens, the forms, the charts and the segmented control.
   'src/components/charts/AllocationDonut.tsx': { 'fontSize=11': 1, 'fontSize=20': 1 },
-  'src/components/charts/BalancesArea.tsx': { 'fontSize=10': 2 },
-  'src/components/charts/PayoutsBars.tsx': { 'fontSize=10.5': 2 },
-  'src/components/charts/SeasonalityBars.tsx': { 'fontSize=10': 3 },
-  'src/components/charts/YieldLines.tsx': { 'fontSize=10': 2 },
+  'src/components/charts/PayoutsBars.tsx': { 'fontSize=10.5': 1 },
+  'src/components/charts/SeasonalityBars.tsx': { 'fontSize=10': 2 },
   'src/components/forms/AssetForm.tsx': {
     'leading-normal': 1,
     'text-[11px]': 8,

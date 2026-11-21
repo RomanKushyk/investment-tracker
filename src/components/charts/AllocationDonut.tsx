@@ -2,6 +2,7 @@ import { Cell, Label, Pie, PieChart, ResponsiveContainer } from 'recharts';
 
 import { CHART, SERIES } from '@quirenote/core/colors';
 import type { Asset } from '@quirenote/core/types';
+import { CHART_MOTION } from './anatomy';
 
 export interface DonutSlice {
   asset: Asset;
@@ -34,9 +35,7 @@ export function AllocationDonut({
             startAngle={90}
             endAngle={-270}
             stroke="none"
-            isAnimationActive
-            animationDuration={900}
-            animationEasing="ease-out"
+            {...CHART_MOTION}
           >
             {slices.map((s) => (
               <Cell key={s.asset.id} fill={SERIES[s.asset.colorKey].main} />

@@ -76,7 +76,10 @@ describe('the Seasonality tooltip rows', () => {
     expect(barProps('expected')).toMatch(/\bname=\{names\.expected\}/);
   });
 
-  it('orders the rows by key, not by the translated name', () => {
-    expect(CHART).toMatch(/<Tooltip\s[^>]*\bitemSorter="dataKey"/);
+  // By value, as every chart's tooltip is (`charts.md` § Signed › Anatomy, Tooltip): the shared
+  // tooltip sorts, so a sorter of its own would put the translated names or the keys back in charge.
+  it('orders the rows by value, through the shared tooltip', () => {
+    expect(CHART).toMatch(/<ChartTooltip\s/);
+    expect(CHART).not.toMatch(/\bitemSorter=/);
   });
 });

@@ -2,25 +2,21 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import {
-  CHART,
-  CHART_CURSOR_LINE,
-  CHART_TOOLTIP,
-  CHART_TOOLTIP_ITEM,
-  SERIES,
-} from '@quirenote/core/colors';
+import { CHART, CHART_CURSOR_LINE, SERIES } from '@quirenote/core/colors';
 import { signed } from '@quirenote/core/money';
 import type { Asset } from '@quirenote/core/types';
 import type { YieldSeriesPoint } from '@quirenote/core/view/yield';
 import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
+import { CHART_MOTION, TICK, ringed } from './anatomy';
+import { ChartTooltip } from './ChartTooltip';
 
 // Each line gets its OWN end dot: an asset purchased later has a shorter series,
 // so the chart's last index is not that line's last point.
@@ -47,7 +43,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
         <XAxis
           dataKey="date"
           tickFormatter={f.dateShort}
-          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
+          tick={TICK}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           minTickGap={48}
@@ -59,28 +55,21 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           tickFormatter={(v: number) =>
             v === 0 ? f.pctPlain(0, 0) : signed(v, f.pctPlain(Math.abs(v), 0))
           }
-          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
+          tick={TICK}
           axisLine={false}
           tickLine={false}
           width={40}
         />
+        {/* A cumulative return reads against zero (`charts.md` § Signed › Anatomy). */}
+        <ReferenceLine y={0} stroke={CHART.fieldBorder} strokeWidth={1} />
         {/* Per-asset cumulative yield exists ONLY here, so the tooltip has to
             be reachable by tap as well as by hover. */}
-        <Tooltip
-          trigger={pin.trigger}
-          active={pin.active}
-          labelFormatter={(label) => f.dateShort(String(label))}
-          formatter={(v, name) => {
-            const n = Number(v);
-            return [
-              n === 0 ? f.pctPlain(0, 2) : signed(n, f.pctPlain(Math.abs(n), 2)),
-              assets.find((a) => a.id === name)?.name ?? String(name),
-            ];
-          }}
-          wrapperClassName="font-mono"
-          contentStyle={CHART_TOOLTIP}
-          itemStyle={CHART_TOOLTIP_ITEM}
+        <ChartTooltip
+          pin={pin}
           cursor={CHART_CURSOR_LINE}
+          formatLabel={(label) => f.dateShort(String(label))}
+          formatValue={(n) => (n === 0 ? f.pctPlain(0, 2) : signed(n, f.pctPlain(Math.abs(n), 2)))}
+          formatName={(e) => assets.find((a) => a.id === e.dataKey)?.name ?? String(e.name)}
         />
         {assets.map((asset) => {
           const color = SERIES[asset.colorKey].main;
@@ -91,14 +80,14 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
               type="monotone"
               dataKey={asset.id}
               stroke={color}
-              strokeWidth={2.5}
-              isAnimationActive
-              animationDuration={900}
-              animationEasing="ease-out"
-              activeDot={pin.released ? false : { r: 5, fill: color }}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              {...CHART_MOTION}
+              activeDot={pin.released ? false : ringed(color)}
               dot={(props: DotItemDotProps) =>
                 props.index === lastIdx ? (
-                  <circle cx={props.cx} cy={props.cy} r={4} fill={color} />
+                  <circle cx={props.cx} cy={props.cy} {...ringed(color)} />
                 ) : (
                   <g />
                 )

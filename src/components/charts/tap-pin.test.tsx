@@ -93,7 +93,7 @@ function pinned(container: HTMLElement) {
   const box = container.querySelector<HTMLElement>('.recharts-tooltip-wrapper');
   return {
     shown: box?.style.visibility === 'visible',
-    label: container.querySelector('.recharts-tooltip-label')?.textContent ?? null,
+    label: container.querySelector('[data-tooltip-date]')?.textContent ?? null,
     highlight: container.querySelector('.recharts-active-dot, .recharts-tooltip-cursor') !== null,
   };
 }
@@ -131,6 +131,60 @@ describe.each(CHARTS)('%s below md', (_name, chart) => {
     // recharts keeps its own box dismissed while the point is unchanged, so the highlight tells.
     tap(container, 130);
     expect(pinned(container).highlight).toBe(true);
+  });
+
+  // #660: a tap outside the chart releases as a second tap and Escape do.
+  it('releases the pin on a tap outside the chart, and the next tap pins again', () => {
+    const { container } = render(
+      <>
+        <button type="button">outside</button>
+        {chart()}
+      </>,
+    );
+    tap(container, 130);
+    expect(pinned(container).shown).toBe(true);
+    fireEvent.click(container.querySelector('button')!);
+    expect(pinned(container)).toMatchObject({ shown: false, highlight: false });
+    tap(container, 130);
+    expect(pinned(container)).toMatchObject({ shown: true, highlight: true });
+  });
+
+  // A control outside that stops its click's propagation is still a tap outside.
+  it('releases on a tap outside whose handler stops the click', () => {
+    const { container } = render(
+      <>
+        <button type="button">outside</button>
+        {chart()}
+      </>,
+    );
+    const button = container.querySelector('button')!;
+    button.addEventListener('click', (e) => e.stopPropagation());
+    tap(container, 130);
+    expect(pinned(container).shown).toBe(true);
+    fireEvent.click(button);
+    expect(pinned(container)).toMatchObject({ shown: false, highlight: false });
+  });
+
+  // A real tap lands on something inside the chart, not on its wrapper: the chart it pinned is
+  // the wrapper around that target, so the axis strip under it still counts as inside.
+  it('reads a pin made on an inner node as this chart, so the axis strip changes nothing', () => {
+    const { container } = render(chart());
+    const surface = container.querySelector('svg.recharts-surface')!;
+    fireEvent.click(surface, { clientX: 130, clientY: 100 });
+    const at = pinned(container);
+    expect(at.shown).toBe(true);
+    tap(container, 300, 198);
+    expect(pinned(container)).toEqual(at);
+  });
+
+  // A pan never ends in a click, so a scroll that starts outside leaves the pin where it is.
+  it('keeps the pin through a scroll that starts outside the chart', () => {
+    const { container } = render(chart());
+    tap(container, 130);
+    fireEvent.pointerDown(document.body, { pointerType: 'touch' });
+    fireEvent.scroll(window);
+    fireEvent.pointerUp(document.body, { pointerType: 'touch' });
+    expect(pinned(container)).toMatchObject({ shown: true, highlight: true });
   });
 
   it('ignores a tap off the plot, on the axis under it', () => {

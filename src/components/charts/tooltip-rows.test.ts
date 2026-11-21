@@ -1,15 +1,20 @@
+// @vitest-environment jsdom
+import { cleanup, render } from '@testing-library/react';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { CHART_TOOLTIP, CHART_TOOLTIP_ITEM } from '@quirenote/core/colors';
+import { CHART_TOOLTIP_ITEM } from '@quirenote/core/colors';
 import { ratio, resolve, stripCss, themeBlocks } from '../../__fixtures__/palette';
+import { ChartTooltipContent } from './ChartTooltip';
 
-// A CHART TOOLTIP'S ROWS TAKE ONE TEXT COLOUR. recharts paints a row in its series' own paint —
-// never chosen to be read as text — or black where a `<Bar>` draws through a custom `shape`, unless
-// the caller's `itemStyle` overrides it. One colour for every row leaves the name to tell them apart.
+// ONE TOOLTIP FOR EVERY CHART (`charts.md` § Signed › Anatomy, Tooltip): glass, the date, then a
+// row per series — a colour key, the name and the value in 700 — sorted by value. Its rows take
+// one text colour: a series' paint is never chosen to be read as text, so the key carries the
+// colour and the name tells the rows apart.
 //
 // The colour maths and token readers are the shared `__fixtures__/palette.ts`; the TypeScript
 // reader below is a copy, held to one text by `ts-reader-census.test.ts`.
@@ -90,26 +95,107 @@ const CHARTS = readdirSync(SRC, { recursive: true, encoding: 'utf8' })
   .map(({ rel, source }) => ({ rel, tags: tooltipTags(source) }))
   .filter(({ tags }) => tags.length > 0);
 
-describe('every chart tooltip takes the shared row style', () => {
+/** Every `<ChartTooltip …>`, the shared one, across the same census. */
+const SHARED = readdirSync(SRC, { recursive: true, encoding: 'utf8' })
+  .filter((rel) => rel.endsWith('.tsx') && !/\.test\.tsx$/.test(rel))
+  .flatMap((rel) =>
+    [...stripTs(readFileSync(join(SRC, rel), 'utf8'), rel).matchAll(/<ChartTooltip\s/g)].map(() =>
+      rel.split(sep).join('/'),
+    ),
+  );
+
+describe('every chart draws the one shared tooltip', () => {
   // THE FOUR IT WAS WRITTEN AGAINST, as a floor: a chart that leaves the census by a route the
   // matchers miss would otherwise take its tooltip out of this check with nothing going red.
   it('finds the four chart tooltips, at least', () => {
-    expect(CHARTS.flatMap(({ tags }) => tags).length).toBeGreaterThanOrEqual(4);
+    expect(SHARED.length).toBeGreaterThanOrEqual(4);
   });
 
-  it.each(CHARTS.map(({ rel, tags }) => [rel, tags]))('%s', (_rel, tags) => {
-    for (const tag of tags) {
-      expect(tag, "a row falls back to its series' paint, or to black").toMatch(
-        /\bitemStyle=\{CHART_TOOLTIP_ITEM\}/,
-      );
-      // Each of these puts a colour on a row that the shared style does not decide: a second
-      // `itemStyle` or a spread after it overrides it, a custom `content` draws rows it never
-      // reaches, and a series colour or inline style in a formatter paints the text itself.
-      expect(tag.match(/\bitemStyle=/g)).toHaveLength(1);
-      expect(tag).not.toMatch(/\{\s*\.\.\./);
-      expect(tag).not.toMatch(/\bcontent=/);
-      expect(tag).not.toMatch(/\bSERIES\b|\bstyle=/);
+  // A second `<Tooltip>` is a second set of rows the shared content never reaches.
+  it("holds recharts' own `<Tooltip>` in the shared module alone", () => {
+    expect(CHARTS.map(({ rel }) => rel)).toEqual(['components/charts/ChartTooltip.tsx']);
+    expect(CHARTS[0].tags).toHaveLength(1);
+  });
+});
+
+/* ─────────────────────────── the rows ─────────────────────────── */
+
+afterEach(cleanup);
+
+function draw(
+  payload: { name: string; value: number; color: string }[],
+  accessibilityLayer = true,
+) {
+  const { container } = render(
+    createElement(ChartTooltipContent, {
+      active: true,
+      label: '2026-03-05',
+      payload,
+      accessibilityLayer,
+      formatLabel: (l: string | number) => `on ${l}`,
+      formatValue: (v: number) => `${v} ₴`,
+    }),
+  );
+  const box = container.querySelector<HTMLElement>('[data-chart-tooltip]');
+  if (!box) throw new Error('no tooltip content');
+  return box;
+}
+
+const PAYLOAD = [
+  { name: 'Small', value: 1, color: 'var(--color-chart-reit)' },
+  { name: 'Large', value: 300, color: 'var(--color-chart-energy)' },
+  { name: 'Middle', value: 20, color: 'var(--color-chart-ovdp8976)' },
+];
+
+describe('the shared tooltip', () => {
+  it('is glass at r12, with the glass edge and no override of it (wave 25)', () => {
+    const box = draw(PAYLOAD);
+    expect([...box.classList]).toEqual(
+      expect.arrayContaining(['glass', 'rounded-[12px]', 'font-mono', 'text-small']),
+    );
+    expect(box.className).not.toMatch(/--glass-edge/);
+  });
+
+  // What recharts' own content does under its accessibility layer: the keyboard walk is read out.
+  it('is a live region while the accessibility layer is on, and only then', () => {
+    const live = draw(PAYLOAD);
+    expect(live.getAttribute('role')).toBe('status');
+    expect(live.getAttribute('aria-live')).toBe('assertive');
+    cleanup();
+    expect(draw(PAYLOAD, false).hasAttribute('role')).toBe(false);
+  });
+
+  it('opens on the date in `muted` at the label size', () => {
+    const box = draw(PAYLOAD);
+    const date = box.querySelector('[data-tooltip-date]');
+    expect(date?.textContent).toBe('on 2026-03-05');
+    expect([...date!.classList]).toEqual(expect.arrayContaining(['text-label', 'text-muted']));
+    expect(box.firstElementChild).toBe(date);
+  });
+
+  it('gives each series a row, largest first', () => {
+    const rows = [...draw(PAYLOAD).querySelectorAll('[data-tooltip-row]')];
+    expect(rows.map((r) => r.querySelector('[data-tooltip-name]')?.textContent)).toEqual([
+      'Large',
+      'Middle',
+      'Small',
+    ]);
+  });
+
+  it('keys each row with a 12 × 2 mark in its series colour', () => {
+    const [row] = draw(PAYLOAD).querySelectorAll<HTMLElement>('[data-tooltip-row]');
+    const key = row.querySelector<HTMLElement>('[data-tooltip-key]')!;
+    expect(key.style.width).toBe('12px');
+    expect(key.style.height).toBe('2px');
+    expect(key.style.backgroundColor).toBe('var(--color-chart-energy)');
+  });
+
+  it('prints the value in 700, and every row in the one text colour', () => {
+    for (const row of draw(PAYLOAD).querySelectorAll<HTMLElement>('[data-tooltip-row]')) {
+      expect(row.querySelector<HTMLElement>('[data-tooltip-value]')!.style.fontWeight).toBe('700');
+      expect(row.style.color).toBe(CHART_TOOLTIP_ITEM.color);
     }
+    expect(draw(PAYLOAD).querySelector('[data-tooltip-value]')?.textContent).toBe('300 ₴');
   });
 });
 
@@ -125,11 +211,11 @@ describe('the row colour is a theme token that reads as text', () => {
     expect(CHART_TOOLTIP_ITEM.color).toMatch(/^var\(--color-[a-z0-9-]+\)$/);
   });
 
-  // Against the ground the surface actually declares, read rather than named. The rows are
-  // under the large-text size, so 1.4.3 asks 4.5 : 1 rather than 3.
+  // On the glass's ground: its fill is `card` at an alpha over the card it covers, and its
+  // fallback is `card` itself. The rows are under the large-text size, so 1.4.3 asks 4.5 : 1.
   it.each(['light', 'dark'] as const)('%s: clears 4.5 : 1 on the tooltip ground', (block) => {
     const token = (css: string) => css.match(/^var\(--color-([a-z0-9-]+)\)$/)![1];
-    const [row, ground] = [token(CHART_TOOLTIP_ITEM.color), token(CHART_TOOLTIP.background)];
+    const [row, ground] = [token(CHART_TOOLTIP_ITEM.color), 'card'];
     expect(
       ratio(resolve(BLOCKS, block, row), resolve(BLOCKS, block, ground)),
     ).toBeGreaterThanOrEqual(4.5);

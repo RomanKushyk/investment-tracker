@@ -30,9 +30,12 @@ export function useTooltipTrigger(data: readonly unknown[]): TooltipPin {
   }, []);
   // Until a click lands on the plot, what recharts shows is its keyboard walk, never a pin.
   const clicked = useRef(false);
+  // The chart a tap pinned, so a tap outside it can be told from one on its axis strip.
+  const wrapper = useRef<Element | null>(null);
 
   const onClick = useCallback(
     ({ activeIndex }: MouseHandlerDataParam, event: MouseEvent<SVGGraphicsElement>) => {
+      wrapper.current = (event.target as Element).closest('.recharts-wrapper');
       // Off the plot recharts keeps its click state and reports the old index: its own range test.
       const { plot, pinned } = chart.current;
       const { relativeX: x, relativeY: y } = getRelativeCoordinate(event);
@@ -49,15 +52,24 @@ export function useTooltipTrigger(data: readonly unknown[]): TooltipPin {
     [desktop, data],
   );
 
-  // recharts' Escape hides its box alone; the cursor and the dot follow the release.
+  // recharts' Escape hides its box alone; the cursor and the dot follow the release. A tap outside
+  // releases on `click`, which a pan never ends in, read in capture so no bubbling handler can swallow it.
   const released = !desktop && releasedPin;
   useEffect(() => {
     if (desktop || releasedPin) return;
+    const pinnedByTap = () => clicked.current && (chart.current.pinned?.length ?? 0) > 0;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && clicked.current && chart.current.pinned?.length) setReleased(true);
+      if (e.key === 'Escape' && pinnedByTap()) setReleased(true);
+    };
+    const onOutside = (e: Event) => {
+      if (!wrapper.current?.contains(e.target as Node) && pinnedByTap()) setReleased(true);
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener('click', onOutside, true);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onOutside, true);
+    };
   }, [desktop, releasedPin]);
 
   return {

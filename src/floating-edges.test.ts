@@ -273,9 +273,10 @@ const POPOVERS = FILES.flatMap((f) =>
 );
 const POPOVER_FILES = [...new Set(POPOVERS.map((p) => p.file))];
 
-// NOT "every floating surface" — this cannot know what one is. Two of the five paint from a
-// style object with no utility to match on, so the class is named site by site and the
-// floor below fails when one is dropped. Closing it properly means one shared recipe (#84).
+// NOT "every floating surface" — this cannot know what one is. The toast paints from a
+// style object with no utility to match on, and the chart tooltip is glass outside the
+// popovers' line shape, so each is named site by site and the floor below fails when one
+// is dropped. Closing it properly means one shared recipe (#84).
 describe('the floating surfaces point at the token', () => {
   it('finds the class-based ones by walking, so an empty pass cannot look green', () => {
     expect(
@@ -335,10 +336,17 @@ describe('the floating surfaces point at the token', () => {
     ).toEqual([]);
   });
 
-  // The two the utility assertions are blind to, and why the class is listed rather than
-  // detected. Both reached `panel-border` by their own route, which is what a class with no
-  // shared recipe does.
-  it('carries the toast and the chart tooltip, which paint from style objects', () => {
+  // The two the utility assertions are blind to, named rather than detected.
+  // Wave 25 (`open-values-charts-type.md` § Signed): the chart tooltip wears the glass edge as
+  // wave 15 left it, `ink` 6 % and the bevel; `field-border` is not its edge.
+  it('puts the chart tooltip on the glass, with the glass edge', () => {
+    const tooltip = source('components/charts/ChartTooltip.tsx');
+    expect(tooltip).toMatch(GLASS);
+    expect(tooltip, 'the chart tooltip overrides the glass edge').not.toMatch(/--glass-edge/);
+    expect(CHART_COLORS, 'the old panel tooltip is back').not.toContain('var(--color-panel)');
+  });
+
+  it('carries the toast, which paints from a style object', () => {
     const main = source('app/AppToaster.tsx');
     expect(main, 'the toast no longer reads the popover shadow').toContain(
       "boxShadow: 'var(--shadow-popover)'",
@@ -349,9 +357,6 @@ describe('the floating surfaces point at the token', () => {
       'the toast is back on the rank it left — matched on the DECLARATION, so a sonner ' +
         'action button legitimately reading `panel-border` is not a border regression',
     ).not.toContain("border: '1px solid var(--color-panel-border)'");
-    expect(CHART_COLORS, 'the chart tooltip lost the token').toContain(
-      '1px solid var(--color-field-border)',
-    );
   });
 
   // Neither is a popover, but both ride this token. ON THE ELEMENT, not merely in the file:

@@ -1,25 +1,13 @@
 import type { ComponentProps } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, XAxis } from 'recharts';
 import type { BarShapeProps } from 'recharts';
 
-import {
-  CHART,
-  CHART_CURSOR_FILL,
-  CHART_TOOLTIP,
-  CHART_TOOLTIP_ITEM,
-  SERIES,
-} from '@quirenote/core/colors';
+import { CHART, CHART_CURSOR_FILL, SERIES } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ColorKey } from '@quirenote/core/types';
+import { CHART_MOTION, TICK, type TooltipEntry } from './anatomy';
+import { ChartTooltip } from './ChartTooltip';
 import { clampLabelX, expectedOnlyLabel, seasonalitySeriesNames } from './seasonality-labels';
 
 export interface SeasonalityChartPoint {
@@ -50,8 +38,16 @@ function ActualBarShape(props: BarShapeProps) {
       />
     );
   }
-  const fill = point.colorKey ? SERIES[point.colorKey].main : CHART.muted;
-  return <rect x={x} y={y} width={width} height={height} rx={6} fill={fill} />;
+  return <rect x={x} y={y} width={width} height={height} rx={6} fill={colorOf(point.colorKey)} />;
+}
+
+const colorOf = (key: ColorKey | undefined) => (key ? SERIES[key].main : CHART.muted);
+
+// The tooltip's key in the hovered bar's own colour: the bars paint each point through a shape,
+// so the series carries no colour of its own.
+function barColor(entry: TooltipEntry): string {
+  const point = entry.payload as SeasonalityChartPoint;
+  return colorOf(entry.dataKey === 'expected' ? point.expectedColorKey : point.colorKey);
 }
 
 // Dashed, which is the app's language for a proposed value rather than a
@@ -60,7 +56,7 @@ function ExpectedBarShape(props: BarShapeProps) {
   const { x, y, width, height } = props;
   if (height <= 0) return <g />;
   const point = props.payload as SeasonalityChartPoint;
-  const color = point.expectedColorKey ? SERIES[point.expectedColorKey].main : CHART.muted;
+  const color = colorOf(point.expectedColorKey);
   return (
     <rect
       x={x}
@@ -209,46 +205,27 @@ export function SeasonalityBars({
           dataKey="day"
           ticks={axis === 'month' ? MONTH_TICKS : DAY_TICKS}
           tickFormatter={axis === 'month' ? (v) => t.dates.monthShort[Number(v) - 1] : undefined}
-          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
+          tick={TICK}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           interval={0}
         />
-        {/* Sorted by key, not recharts' default `name`: the names are translated and would
-            order the rows per language. `actual` < `expected` is what puts Received first. */}
-        <Tooltip
-          itemSorter="dataKey"
-          formatter={(v) => f.money(Number(v))}
-          labelFormatter={(label) =>
+        <ChartTooltip
+          cursor={CHART_CURSOR_FILL}
+          formatLabel={(label) =>
             axis === 'month'
               ? t.dates.monthFull[Number(label) - 1]
               : t.analytics.seasonality.anchorDay(Number(label))
           }
-          wrapperClassName="font-mono"
-          contentStyle={CHART_TOOLTIP}
-          itemStyle={CHART_TOOLTIP_ITEM}
-          cursor={CHART_CURSOR_FILL}
+          formatValue={(v) => f.money(v)}
+          keyColor={barColor}
         />
-        <Bar
-          dataKey="actual"
-          name={names.actual}
-          shape={ActualBarShape}
-          isAnimationActive
-          animationDuration={900}
-          animationEasing="ease-out"
-        >
+        <Bar dataKey="actual" name={names.actual} shape={ActualBarShape} {...CHART_MOTION}>
           <LabelList
             content={incomeLabel as unknown as ComponentProps<typeof LabelList>['content']}
           />
         </Bar>
-        <Bar
-          dataKey="expected"
-          name={names.expected}
-          shape={ExpectedBarShape}
-          isAnimationActive
-          animationDuration={900}
-          animationEasing="ease-out"
-        >
+        <Bar dataKey="expected" name={names.expected} shape={ExpectedBarShape} {...CHART_MOTION}>
           <LabelList
             content={ExpectedOnlyLabel as unknown as ComponentProps<typeof LabelList>['content']}
           />

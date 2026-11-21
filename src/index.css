@@ -359,6 +359,8 @@
   --color-chart-faint: var(--color-faint);
   --color-chart-muted: var(--color-muted);
   --color-chart-ink: var(--color-ink);
+  --color-chart-card: var(--color-card);
+  --color-chart-field-border: var(--color-field-border);
 }
 
 /* ── Dark theme ───────────────────────────────────────────────────────────

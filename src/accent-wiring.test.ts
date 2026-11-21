@@ -166,12 +166,12 @@ describe('the capital area chart is the accent', () => {
     expect(area).not.toMatch(/CHART\.pos/);
   });
 
-  it('keeps the seeded white ring off the hover dot', () => {
+  it('rings the hover dot in `card`, never the seeded white', () => {
     expect(
       area,
-      "`activeDot` IS SPREAD AFTER recharts' own white ring, so passing `r` and `fill` alone " +
-        'leaves a literal white ring on a card that follows the theme',
-    ).toMatch(/activeDot=\{(?:[^{}]*\?\s*false\s*:\s*)?\{[^}]*strokeWidth:\s*0/);
+      "`activeDot` IS SPREAD AFTER recharts' own white ring, so a dot without a stroke of its " +
+        'own leaves a literal white ring on a card that follows the theme',
+    ).toMatch(/activeDot=\{(?:[^{}]*\?\s*false\s*:\s*)?ringed\(CHART\.accent\)\}/);
   });
 
   it('lets the tint be the only alpha the fill has', () => {

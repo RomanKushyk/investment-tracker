@@ -1,24 +1,13 @@
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import {
-  CHART,
-  CHART_CURSOR_LINE,
-  CHART_TOOLTIP,
-  CHART_TOOLTIP_ITEM,
-} from '@quirenote/core/colors';
+import { CHART, CHART_CURSOR_LINE } from '@quirenote/core/colors';
 import type { BalanceChartPoint } from '@quirenote/core/view/balances';
 import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
+import { CHART_MOTION, TICK, ringed } from './anatomy';
+import { ChartTooltip } from './ChartTooltip';
 
 // The line and its fill are the ACCENT, not the gain green: a total has no
 // direction, and gain and loss belong to deltas. *Interaction rules*
@@ -40,7 +29,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
         <XAxis
           dataKey="date"
           tickFormatter={f.dateShort}
-          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
+          tick={TICK}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           minTickGap={48}
@@ -48,45 +37,41 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
         <YAxis
           domain={['dataMin - 5000', 'dataMax + 2000']}
           tickFormatter={(v: number) => `₴${Math.round(v / 1000)}k`}
-          tick={{ fontSize: 10, fill: CHART.muted, className: 'font-mono' }}
+          tick={TICK}
           axisLine={false}
           tickLine={false}
           width={44}
         />
-        <Tooltip
-          trigger={pin.trigger}
-          active={pin.active}
-          formatter={(v) => [f.money(Number(v)), t.analytics.overview.totalCapital]}
-          labelFormatter={(label) => f.dateShort(String(label))}
-          wrapperClassName="font-mono"
-          contentStyle={CHART_TOOLTIP}
-          itemStyle={CHART_TOOLTIP_ITEM}
+        <ChartTooltip
+          pin={pin}
           cursor={CHART_CURSOR_LINE}
+          formatLabel={(label) => f.dateShort(String(label))}
+          formatValue={(v) => f.money(v)}
+          formatName={() => t.analytics.overview.totalCapital}
         />
         <Area
           type="monotone"
           dataKey="total"
           stroke={CHART.accent}
-          strokeWidth={2.5}
+          strokeWidth={2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
           fill={CHART.accentTint}
           // 1, because `accent-tint` IS ALREADY an alpha — it lies over more
           // than one plane — and this attribute multiplies with it: softening
           // it again here reads as no fill.
           fillOpacity={1}
-          isAnimationActive
-          animationDuration={900}
-          animationEasing="ease-out"
+          {...CHART_MOTION}
           dot={(props: DotItemDotProps) =>
             props.index === data.length - 1 ? (
-              <circle cx={props.cx} cy={props.cy} r={4} fill={CHART.accent} />
+              <circle cx={props.cx} cy={props.cy} {...ringed(CHART.accent)} />
             ) : (
               <g />
             )
           }
-          // `strokeWidth: 0` because recharts seeds this dot `stroke: '#fff'`
-          // and spreads the caller's props after `r` and `fill` only — leaving a
-          // pure white ring on a card that moves with the theme.
-          activeDot={pin.released ? false : { r: 4, fill: CHART.accent, strokeWidth: 0 }}
+          // The ring's own stroke, because recharts seeds this dot `stroke: '#fff'` and spreads the
+          // caller's props after it: a dot without one keeps a white ring on a themed card.
+          activeDot={pin.released ? false : ringed(CHART.accent)}
         />
       </AreaChart>
     </ResponsiveContainer>

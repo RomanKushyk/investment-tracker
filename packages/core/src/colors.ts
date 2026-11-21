@@ -38,27 +38,16 @@ export const CHART = {
   faint: 'var(--color-chart-faint)',
   muted: 'var(--color-chart-muted)',
   ink: 'var(--color-chart-ink)',
-};
-
-// One tooltip surface for every chart, declared rather than left to recharts,
-// which paints its own #ffffff and would leave a white slab over a dark chart.
-// `panel`, not `card`: in dark it is the highest plane, so the tooltip lifts off
-// the card it covers. Plain palette tokens — the tooltip is HTML, and only SVG
-// props need the `chart-*` aliases.
-export const CHART_TOOLTIP = {
-  borderRadius: 16,
-  background: 'var(--color-panel)',
-  border: `1px solid var(--color-field-border)`,
-  color: 'var(--color-ink)',
-  fontSize: 12,
+  // The ring under a marker, and the crosshair and the 0 % line (`charts.md` § Signed › Anatomy).
+  card: 'var(--color-chart-card)',
+  fieldBorder: 'var(--color-chart-field-border)',
 };
 
 // Rows in the surface's ink, not recharts' per-series paint: a series' fill or stroke is not a
-// text colour, so a row's name, never its colour, ties it to its series.
-export const CHART_TOOLTIP_ITEM = { color: CHART_TOOLTIP.color };
+// text colour, so a row's key carries its colour and its name ties it to its series.
+export const CHART_TOOLTIP_ITEM = { color: 'var(--color-ink)' };
 
-// The hover indicator recharts draws BEHIND the tooltip. Left alone it is a
-// hard-coded rgba wash that no theme token reaches. Two shapes: recharts fills
-// the cursor on a categorical chart and strokes it on a continuous one.
+// The hover indicator, which recharts would draw as an rgba wash no theme reaches: bar charts fill
+// the hovered category's band, line and area charts stroke the crosshair.
 export const CHART_CURSOR_FILL = { fill: CHART.hairline };
-export const CHART_CURSOR_LINE = { stroke: CHART.hairline, strokeWidth: 1 };
+export const CHART_CURSOR_LINE = { stroke: CHART.fieldBorder, strokeWidth: 1 };
