@@ -6,6 +6,11 @@ import { CHART } from '@quirenote/core/colors';
 
 export const TICK = { fontSize: 11, fill: CHART.muted, className: 'font-mono' };
 
+// JetBrains Mono's advance, in em: every glyph of chart text is this wide, so a label's width is
+// known before it is drawn. `chart-face.test.tsx` holds recharts' text to that face, and the
+// allocation screen test the bar's.
+export const MONO_ADVANCE = 0.6;
+
 // `'auto'` is recharts' own `prefers-reduced-motion` check; a bare `true` animates regardless.
 // The curve is `--ease-soft`, mirrored because recharts takes a string, never a `var()`.
 export const CHART_MOTION = {

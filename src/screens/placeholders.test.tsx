@@ -152,6 +152,19 @@ describe('what a placeholder keeps of its screen', () => {
     expect(classes.filter((c) => c.startsWith('rounded'))).toEqual(['rounded-[6px]']);
   });
 
+  // L2 again: «Розподіл» holds the tall bar, not the retired ring, above its list's rows.
+  it('Allocation holds the tall bar as one 28 px block at r6, above the rows, and no round block', () => {
+    const root = mount('allocation');
+    const blocks = root.querySelectorAll('[data-placeholder="chart"]');
+    expect(blocks).toHaveLength(1);
+    const classes = blocks[0].className.split(/\s+/);
+    expect(classes).toContain('h-7');
+    expect(classes.filter((c) => c.startsWith('rounded'))).toEqual(['rounded-[6px]']);
+    const card = blocks[0].parentElement!;
+    expect(card.querySelectorAll('[data-placeholder-row]')).toHaveLength(3);
+    expect(root.querySelector('[data-placeholder].rounded-full')).toBeNull();
+  });
+
   it('Transactions keeps the form’s title and holds its fields as one block', () => {
     const root = mount('transactions');
     expect(root.querySelectorAll('[data-placeholder="fields"]')).toHaveLength(1);

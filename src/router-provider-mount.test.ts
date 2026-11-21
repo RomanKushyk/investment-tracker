@@ -26,6 +26,7 @@ const MOUNTS = [
   'src/hooks/useSignOut.test.tsx',
   'src/screens/admin-tables.test.tsx',
   'src/screens/admin-users.test.tsx',
+  'src/screens/allocation/allocation.test.tsx',
   'src/screens/archive-admin.test.tsx',
   'src/screens/archive-repairs.test.tsx',
   'src/screens/kpi-unit.test.tsx',

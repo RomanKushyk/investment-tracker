@@ -83,7 +83,7 @@ describe('headline derivations (latest quote per asset, partials included)', () 
     });
   });
 
-  it('headline total = Σ latest quotes + the ledger’s free cash (sidebar / Overview / donut)', () => {
+  it('headline total = Σ latest quotes + the ledger’s free cash (sidebar / Overview / Allocation)', () => {
     expect(headlineTotal(snaps, LEDGER)).toBeCloseTo(149016.36, 2);
     expect(freeCashFromLedger(LEDGER)).toBeCloseTo(7.75, 2);
   });

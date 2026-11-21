@@ -566,7 +566,7 @@ export const en = {
       buy: 'Buy',
       trim: 'Trim',
       withinRange: 'within ±0.5% — no action',
-      // The donut's centre: a rounded thousands figure, so the unit word is
+      // The allocation total: a rounded thousands figure, so the unit word is
       // part of the phrase and not something the money formatter can place.
       centerTotal: (thousands: number) => `₴${thousands}k`,
       assetsPlusCash: (n: number) => `${n} ${n === 1 ? 'asset' : 'assets'} + cash`,

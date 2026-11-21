@@ -84,10 +84,9 @@ const CARTESIAN = CHARTS.filter(({ source }) => /<(?:Area|Line|Bar)Chart\b/.test
 const SERIES_TAGS = ['Area', 'Line', 'Bar', 'Pie'];
 
 describe('the census', () => {
-  it('finds the five charts, at least', () => {
+  it('finds the four charts, at least', () => {
     expect(CHARTS.map((c) => c.file)).toEqual(
       expect.arrayContaining([
-        'AllocationDonut.tsx',
         'BalancesArea.tsx',
         'PayoutsBars.tsx',
         'SeasonalityBars.tsx',

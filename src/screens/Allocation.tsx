@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { AllocationDonut } from '../components/charts/AllocationDonut';
+import { AllocationBar } from '../components/charts/AllocationBar';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -41,7 +41,7 @@ export function Allocation() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   // No free-cash figure lives on this screen, so `cashShort` heads the plan built on it.
-  const { total, cashShort, usable, slices, rows, plan } = allocation;
+  const { total, cashShort, usable, rows, plan } = allocation;
   const { actions, withinRange } = plan;
 
   // THE LANGUAGE, because the grammar is a language rule: under Ukrainian `17,500`
@@ -111,23 +111,29 @@ export function Allocation() {
       />
 
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
-        <Card
-          radius={24}
-          className="flex animate-in flex-col items-center p-[22px] duration-300 fade-in"
-        >
-          {/* No donut while no share can be taken, and "no snapshots yet" only when there is no
+        <Card radius={24} className="flex animate-in flex-col p-[22px] duration-300 fade-in">
+          {/* No bar while no share can be taken, and "no snapshots yet" only when there is no
               total at all: assets offset by negative cash can sum to 0 without being empty. */}
           {usable ? (
-            <AllocationDonut
-              slices={slices}
-              centerTop={t.analytics.allocation.centerTotal(Math.round(total / 1000))}
-              centerSub={t.analytics.allocation.assetsPlusCash(assets.length)}
-            />
+            <>
+              <div className="text-kpi">
+                {t.analytics.allocation.centerTotal(Math.round(total / 1000))}
+              </div>
+              <div className="mb-3 text-label text-muted">
+                {t.analytics.allocation.assetsPlusCash(assets.length)}
+              </div>
+              <AllocationBar
+                // An asset no snapshot quotes has no share, and one worth 0 no width.
+                parts={rows.flatMap(({ asset, share }) =>
+                  share !== null && share > 0 ? [{ asset, share, label: f.pctPlain(share) }] : [],
+                )}
+              />
+            </>
           ) : (
             total === 0 &&
             !cashShort && <EmptyState message={t.analytics.empty.allocation} height={220} />
           )}
-          <div className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
+          <div data-allocation-legend className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
             {rows.map(({ asset: a, share }) => (
               <div key={a.id} className="flex items-center gap-2">
                 <ColorDot colorKey={a.colorKey} />

@@ -1,4 +1,5 @@
 import type { Dict } from '../../i18n/messages';
+import { MONO_ADVANCE } from './anatomy';
 import type { SeasonalityChartPoint } from './SeasonalityBars';
 
 /**
@@ -47,14 +48,12 @@ export function expectedOnlyLabel(data: SeasonalityChartPoint[], index: number):
  * which on an expected label is the `*` marking it as expected. A truncated
  * figure is worse than an absent one.
  *
- * The width is ESTIMATED, deliberately. JetBrains Mono has a 0.6em advance, so
- * `chars × size × 0.6` is exact for the digits and generous for the rest — and
+ * The width is ESTIMATED, deliberately. JetBrains Mono's advance is `MONO_ADVANCE`, so
+ * `chars × size × MONO_ADVANCE` is exact for the digits and generous for the rest — and
  * generous is the safe direction, over-estimating only nudging a label further
  * inside the plot. Measuring the real box would mean rendering it first, a
  * layout pass per label per frame for the length of the animation.
  */
-const MONO_ADVANCE = 0.6;
-
 export function clampLabelX(
   centre: number,
   text: string,

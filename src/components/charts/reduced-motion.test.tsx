@@ -33,7 +33,6 @@ vi.mock('recharts', async (importOriginal) => ({
   }) => cloneElement(children, { width: 400, height: 200 }),
 }));
 
-const { AllocationDonut } = await import('./AllocationDonut');
 const { BalancesArea } = await import('./BalancesArea');
 const { PayoutsBars } = await import('./PayoutsBars');
 const { SeasonalityBars } = await import('./SeasonalityBars');
@@ -94,20 +93,10 @@ const CHARTS: [string, (k: number) => ReactElement][] = [
     'Yield',
     (k) => <YieldLines data={DATES.map((date, i) => ({ date, a1: i * k }))} assets={[ASSETS[0]]} />,
   ],
-  [
-    'Allocation',
-    (k) => (
-      <AllocationDonut
-        slices={ASSETS.map((asset, i) => ({ asset, value: 100 + i * 50 * k }))}
-        centerTop="1"
-        centerSub="2"
-      />
-    ),
-  ],
 ];
 
 /** Everything the chart drew, as markup: a frame mid-animation differs from the settled one in a
- *  path, a bar's height, a sector's angle or a line's dash. */
+ *  path, a bar's height or a line's dash. */
 const frame = (container: HTMLElement) =>
   container.querySelector('svg.recharts-surface')?.innerHTML ?? '';
 const settle = () => act(() => vi.advanceTimersByTime(2000));

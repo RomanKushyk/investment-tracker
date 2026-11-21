@@ -2,26 +2,33 @@
 // attributes resolve var(), so charts re-theme with the tokens.
 import type { ColorKey } from './types';
 
-export const SERIES: Record<ColorKey, { main: string; tint: string; tintText: string }> = {
+export const SERIES: Record<
+  ColorKey,
+  { main: string; tint: string; tintText: string; label: string }
+> = {
   reit: {
     main: 'var(--color-chart-reit)',
     tint: 'var(--color-chart-reit-tint)',
     tintText: 'var(--color-chart-reit-tint-text)',
+    label: 'var(--color-chart-reit-label)',
   },
   energy: {
     main: 'var(--color-chart-energy)',
     tint: 'var(--color-chart-energy-tint)',
     tintText: 'var(--color-chart-energy-tint-text)',
+    label: 'var(--color-chart-energy-label)',
   },
   ovdp8976: {
     main: 'var(--color-chart-ovdp8976)',
     tint: 'var(--color-chart-ovdp8976-tint)',
     tintText: 'var(--color-chart-ovdp8976-tint-text)',
+    label: 'var(--color-chart-ovdp8976-label)',
   },
   ovdp6475: {
     main: 'var(--color-chart-ovdp6475)',
     tint: 'var(--color-chart-ovdp6475-tint)',
     tintText: 'var(--color-chart-ovdp6475-tint-text)',
+    label: 'var(--color-chart-ovdp6475-label)',
   },
 };
 

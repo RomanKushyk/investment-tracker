@@ -220,6 +220,9 @@ const RETIRED = [
 const GOOGLE = /^[ \t]*--color-google-btn-[a-z]+: #[0-9a-f]{6};\r?$/gm;
 /** The light glass rim's white, as one whole declaration (glass-light.md § Signed). */
 const GLASS_RIM = /^[ \t]*--color-glass-rim: #ffffff;\r?$/gm;
+/** The white a share is printed in on a dark asset fill, as one whole declaration per theme
+ *  (charts.md § Signed › Forms, A3: "near-black or white"). */
+const ON_FILL_LIGHT = /^[ \t]*--color-on-fill-light: #ffffff;\r?$/gm;
 
 describe('the palette and its two mirrors carry no retired value', () => {
   // COMMENTS INCLUDED, DELIBERATELY: `index.css` argues from its own hexes beside nearly
@@ -232,7 +235,11 @@ describe('the palette and its two mirrors carry no retired value', () => {
   // mirrors. `mark.test.ts` keeps those honest meanwhile, reading their colours out of
   // `index.css` rather than freezing them.
   it.each(Object.keys(FILES) as (keyof typeof FILES)[])('%s holds none of them', (file) => {
-    const source = FILES[file].toLowerCase().replace(GOOGLE, '').replace(GLASS_RIM, '');
+    const source = FILES[file]
+      .toLowerCase()
+      .replace(GOOGLE, '')
+      .replace(GLASS_RIM, '')
+      .replace(ON_FILL_LIGHT, '');
     const found = RETIRED.filter((hex) => source.includes(hex));
     expect(found, `${file} still carries retired values`).toEqual([]);
   });

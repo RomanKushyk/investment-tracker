@@ -594,8 +594,14 @@ export function AllocationPlaceholder() {
         actions={buttonSlot(64)}
       />
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
-        <Card radius={24} className="flex flex-col items-center p-[22px]">
-          <Block kind="donut" className="aspect-square w-full max-w-[220px] rounded-full" />
+        <Card radius={24} className="flex flex-col p-[22px]">
+          <div className="flex h-[26px] items-center">
+            <Bar w="40%" />
+          </div>
+          <div className="mb-3 flex h-[14px] items-center">
+            <Bar w="55%" />
+          </div>
+          <Block kind="chart" className="h-7 w-full rounded-[6px]" />
           <Rows className="mt-2.5 flex w-full flex-col gap-1.5" rowClassName="h-4" />
         </Card>
         <div className="flex flex-col gap-3.5">

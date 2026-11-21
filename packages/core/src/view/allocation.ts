@@ -95,7 +95,7 @@ export function rebalancePlan(
 export interface AllocationView {
   total: number;
   cashShort: boolean;
-  /** Whether any share can be taken: the donut and the plan are gated on it. */
+  /** Whether any share can be taken: the bar and the plan are gated on it. */
   usable: boolean;
   slices: { asset: Asset; value: number }[];
   rows: AllocationRow[];

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 // Chart text is data, so it is set in JetBrains Mono (`type.md` § Signed, R2), and
-// `clampLabelX`'s `MONO_ADVANCE` is only true in that face. AllocationDonut's centre is a
-// display figure, Manrope by the same rule, so it is not in this list.
+// `clampLabelX`'s `MONO_ADVANCE` is only true in that face.
 import { act, cleanup, render } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

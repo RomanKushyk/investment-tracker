@@ -38,6 +38,33 @@
     }
   }
 
+  /* The allocation bar's entry: its parts uncover left to right at their final widths, so a label
+     is never squeezed on the way (`charts.md` § Signed › Anatomy, Motion). */
+  --animate-bar-reveal: bar-reveal 400ms var(--ease-soft) both;
+
+  @keyframes bar-reveal {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  /* A share label shows once its part has grown to hold it: fitted against the final width, it
+     would be clipped by the part while the growth runs. The delay is the growth's, set where the
+     growth is (`AllocationBar.tsx`). */
+  --animate-label-in: label-in 150ms var(--ease-soft) both;
+
+  @keyframes label-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   /* Manrope for prose, JetBrains Mono for data, both Cyrillic-capable for the default
      language (*Language, numbers, fonts*). Tailwind's own `sans` and `mono` slots, so its
      preflight and `font-mono` read them too. Manrope's figures are PROPORTIONAL and it ships
@@ -202,6 +229,14 @@
   --color-ovdp6475: #6f6b70;
   --color-ovdp6475-tint: #e8e4e0;
   --color-ovdp6475-tint-text: #686569;
+  /* A share printed on an asset's fill (the allocation bar): near-black or white, whichever has
+     more contrast on that fill. The same two in both themes, since the fills are what change. */
+  --color-on-fill-dark: #1c1a19;
+  --color-on-fill-light: #ffffff;
+  --color-reit-label: var(--color-on-fill-dark);
+  --color-energy-label: var(--color-on-fill-light);
+  --color-ovdp8976-label: var(--color-on-fill-light);
+  --color-ovdp6475-label: var(--color-on-fill-light);
 
   /* THE ACCENT, spent on the mark, one main CTA per
      screen, the active route, the capital chart's line and the focus ring below — the
@@ -352,6 +387,10 @@
   --color-chart-ovdp6475: var(--color-ovdp6475);
   --color-chart-ovdp6475-tint: var(--color-ovdp6475-tint);
   --color-chart-ovdp6475-tint-text: var(--color-ovdp6475-tint-text);
+  --color-chart-reit-label: var(--color-reit-label);
+  --color-chart-energy-label: var(--color-energy-label);
+  --color-chart-ovdp8976-label: var(--color-ovdp8976-label);
+  --color-chart-ovdp6475-label: var(--color-ovdp6475-label);
   --color-chart-accent: var(--color-accent);
   --color-chart-neg: var(--color-neg);
   --color-chart-hairline: var(--color-hairline);
@@ -430,7 +469,7 @@
      RECORDED SHORTFALL: `reit` alone reads 2.79 on the light `panel`, the plane
      that binds because `ColorDot` and `ShareBar` paint the bare hue inside panels.
      Colour alone never distinguishes the four in EITHER theme, so every chart,
-     legend and donut must keep its non-colour distinguisher. */
+     legend and bar must keep its non-colour distinguisher. */
   --color-reit: #b07a52;
   --color-reit-tint: #2e2622;
   --color-reit-tint-text: #bb8157;
@@ -443,6 +482,12 @@
   --color-ovdp6475: #8a8886;
   --color-ovdp6475-tint: #292829;
   --color-ovdp6475-tint-text: #918f8d;
+  --color-on-fill-dark: #1c1a19;
+  --color-on-fill-light: #ffffff;
+  --color-reit-label: var(--color-on-fill-dark);
+  --color-energy-label: var(--color-on-fill-dark);
+  --color-ovdp8976-label: var(--color-on-fill-dark);
+  --color-ovdp6475-label: var(--color-on-fill-dark);
 
   /* See the light block for why each exists. */
   --color-accent: #d8b494;
