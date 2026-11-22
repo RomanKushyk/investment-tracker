@@ -96,5 +96,5 @@ it('reaches the Seasonality value labels, not only the ticks', () => {
   const { container } = render(CHARTS[2][1]);
   act(() => vi.advanceTimersByTime(2000));
   const labels = [...container.querySelectorAll('svg text')].map((t) => t.textContent);
-  expect(labels).toEqual(expect.arrayContaining(['596 ₴', '1 764 ₴ · 1 240 ₴*', '216 ₴*']));
+  expect(labels).toEqual(expect.arrayContaining(['596 ₴', '1 764 ₴', '1 240 ₴*', '216 ₴*']));
 });

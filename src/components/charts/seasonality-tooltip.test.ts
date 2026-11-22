@@ -83,3 +83,18 @@ describe('the Seasonality tooltip rows', () => {
     expect(CHART).not.toMatch(/\bitemSorter=/);
   });
 });
+
+// `charts.md` § Signed › Identity: one colour, `accent`, for every bar; colouring a day by its
+// dominant asset is rejected as colour-only identity (§ Rejected).
+describe('the Seasonality paint', () => {
+  it('paints both series in the accent', () => {
+    expect(barProps('actual')).toMatch(/\bfill=\{CHART\.accent\}/);
+    expect(barProps('expected')).toMatch(/\bfill=\{CHART\.accent\}/);
+  });
+
+  it('reads no asset colour anywhere in the chart', () => {
+    expect(CHART).not.toMatch(/\bSERIES\b/);
+    expect(CHART).not.toMatch(/colorKey/i);
+    expect(CHART).not.toMatch(/\bkeyColor\b/);
+  });
+});

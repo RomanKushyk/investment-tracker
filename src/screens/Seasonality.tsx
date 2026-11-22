@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 
 import { SeasonalityBars } from '../components/charts/SeasonalityBars';
-import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars';
+import {
+  seasonalityDayPoints,
+  seasonalityMonthPoints,
+} from '../components/charts/seasonality-labels';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
@@ -39,41 +42,10 @@ export function Seasonality() {
   const [axis, setAxis] = useState<'day' | 'month'>('day');
   const { anchor, anchorAsset, anchorGrowth: growth, bigBond: big, bigBondInfo: bigInfo } = view;
 
-  // The month axis carries no per-bucket colour: a month aggregates several assets, so a
-  // "dominant asset" hue would be a claim the bucket does not support.
-  const monthData: SeasonalityChartPoint[] = useMemo(
-    () =>
-      view.months.map((m): SeasonalityChartPoint => ({
-        day: m.month,
-        actual: m.actual,
-        expected: m.expected,
-        actualLabel: m.actual > 0 ? f.moneyWhole(m.actual) : undefined,
-        expectedLabel: m.expected !== undefined ? `${f.moneyWhole(m.expected)}*` : undefined,
-      })),
-    [view, f],
-  );
-
-  const chartData: SeasonalityChartPoint[] = useMemo(
-    () =>
-      view.days.map((d): SeasonalityChartPoint => {
-        const dominantAsset = assets.find((a) => a.id === d.dominantAssetId);
-        const expectedAsset = assets.find((a) => a.id === d.expectedAssetId);
-        return {
-          day: d.day,
-          actual: d.actual,
-          expected: d.expected,
-          colorKey: dominantAsset?.colorKey,
-          expectedColorKey: expectedAsset?.colorKey,
-          actualLabel:
-            d.actual > 0
-              ? anchor?.day === d.day
-                ? `${f.moneyWhole(d.actual)} · ${t.analytics.seasonality.dayShort(d.day)}`
-                : f.moneyWhole(d.actual)
-              : undefined,
-          expectedLabel: d.expected !== undefined ? `${f.moneyWhole(d.expected)}*` : undefined,
-        };
-      }),
-    [view, assets, anchor, f, t],
+  const monthData = useMemo(() => seasonalityMonthPoints(view.months, f.numWhole), [view, f]);
+  const chartData = useMemo(
+    () => seasonalityDayPoints(view.days, assets, f.numWhole),
+    [view, assets, f],
   );
 
   return (

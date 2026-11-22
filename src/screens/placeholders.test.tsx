@@ -160,6 +160,14 @@ describe('what a placeholder keeps of its screen', () => {
     expect(classes.filter((c) => c.startsWith('rounded'))).toEqual(['rounded-[6px]']);
   });
 
+  it('Seasonality holds the column chart as one block of its size at r6', () => {
+    const blocks = mount('seasonality').querySelectorAll('[data-placeholder="chart"]');
+    expect(blocks).toHaveLength(1);
+    const classes = blocks[0].className.split(/\s+/);
+    expect(classes).toContain('h-[230px]');
+    expect(classes.filter((c) => c.startsWith('rounded'))).toEqual(['rounded-[6px]']);
+  });
+
   // L2 again: «Розподіл» holds the tall bar, not the retired ring, above its list's rows.
   it('Allocation holds the tall bar as one 28 px block at r6, above the rows, and no round block', () => {
     const root = mount('allocation');

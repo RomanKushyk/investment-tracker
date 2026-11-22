@@ -10,8 +10,6 @@ interface Format {
   formatLabel: (label: string | number) => string;
   formatValue: (value: number, entry: TooltipEntry) => string;
   formatName?: (entry: TooltipEntry) => string;
-  /** The key's colour where the series paints each point its own, as a custom bar shape does. */
-  keyColor?: (entry: TooltipEntry) => string | undefined;
 }
 
 export function ChartTooltipContent({
@@ -23,7 +21,6 @@ export function ChartTooltipContent({
   formatLabel,
   formatValue,
   formatName,
-  keyColor,
 }: Format & {
   active?: boolean;
   payload?: readonly TooltipEntry[];
@@ -59,7 +56,7 @@ export function ChartTooltipContent({
               data-tooltip-key
               aria-hidden
               className="shrink-0"
-              style={{ width: 12, height: 2, backgroundColor: keyColor?.(e) ?? e.color }}
+              style={{ width: 12, height: 2, backgroundColor: e.color }}
             />
             <span data-tooltip-name className="flex-1">
               {formatName ? formatName(e) : String(e.name)}

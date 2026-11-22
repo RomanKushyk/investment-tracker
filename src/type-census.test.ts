@@ -76,7 +76,6 @@ const FIELDS: Record<string, Record<string, number>> = {
 /** What still carries a pre-role size, and which slice sweeps it. */
 const ALLOWED: Record<string, Record<string, number>> = {
   // #740: the portfolio screens, the forms, the charts and the segmented control.
-  'src/components/charts/SeasonalityBars.tsx': { 'fontSize=10': 2 },
   'src/components/forms/AssetForm.tsx': {
     'leading-normal': 1,
     'text-[11px]': 8,

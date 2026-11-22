@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// Tap to pin on the three charts that carry a tooltip, below `md`
-// (`docs/superpowers/specs/2026-11-05-layout-refresh/charts.md` § Перенесено).
+// Tap to pin on the four charts that carry a tooltip, below `md`
+// (`docs/superpowers/specs/2026-11-05-layout-refresh/charts.md` § Перенесено; /seasonality by
+// wave 25, `open-values-charts-type.md` § Signed).
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -40,6 +41,7 @@ vi.mock('recharts', async (importOriginal) => ({
 
 const { BalancesArea } = await import('./BalancesArea');
 const { PayoutsBars } = await import('./PayoutsBars');
+const { SeasonalityBars } = await import('./SeasonalityBars');
 const { YieldLines } = await import('./YieldLines');
 
 afterEach(() => {
@@ -74,6 +76,14 @@ const CHARTS: [string, (n?: number) => ReactElement][] = [
             coupons: 50 + i,
             total: 150 + 2 * i,
           }))}
+      />
+    ),
+  ],
+  [
+    'Seasonality',
+    (n = 5) => (
+      <SeasonalityBars
+        data={[1, 2, 3, 4, 5].slice(0, n).map((day, i) => ({ day, actual: 100 + i }))}
       />
     ),
   ],

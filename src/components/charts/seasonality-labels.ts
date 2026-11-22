@@ -1,6 +1,50 @@
+import type { Asset } from '@quirenote/core/types';
+import type { SeasonalityDayRow, SeasonalityMonth } from '@quirenote/core/view/seasonality';
 import type { Dict } from '../../i18n/messages';
+import { bondAbbrev, shortLabel } from '../../screens/daily-quotes/quotes';
 import { MONO_ADVANCE } from './anatomy';
 import type { SeasonalityChartPoint } from './SeasonalityBars';
+
+const expectedLabel = (n: number | undefined, whole: (n: number) => string) =>
+  n === undefined ? undefined : `${whole(n)}*`;
+
+/**
+ * The day axis's points. Every bar is the accent, so the asset is named on the bar, after its
+ * value (`charts.md` § Signed › Identity).
+ */
+export function seasonalityDayPoints(
+  days: SeasonalityDayRow[],
+  assets: Asset[],
+  whole: (n: number) => string,
+): SeasonalityChartPoint[] {
+  return days.map((d) => {
+    const asset = assets.find((a) => a.id === d.dominantAssetId);
+    const name =
+      asset && (asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : shortLabel(asset));
+    return {
+      day: d.day,
+      actual: d.actual,
+      expected: d.expected,
+      actualLabel:
+        d.actual > 0 ? (name ? `${whole(d.actual)} · ${name}` : whole(d.actual)) : undefined,
+      expectedLabel: expectedLabel(d.expected, whole),
+    };
+  });
+}
+
+/** The month axis's points: a month holds several assets, so its bar prints the total alone. */
+export function seasonalityMonthPoints(
+  months: SeasonalityMonth[],
+  whole: (n: number) => string,
+): SeasonalityChartPoint[] {
+  return months.map((m) => ({
+    day: m.month,
+    actual: m.actual,
+    expected: m.expected,
+    actualLabel: m.actual > 0 ? whole(m.actual) : undefined,
+    expectedLabel: expectedLabel(m.expected, whole),
+  }));
+}
 
 /**
  * The names each `<Bar>` passes to recharts as `name`, which the tooltip prefers
@@ -29,8 +73,7 @@ export function seasonalitySeriesNames(
  * PROJECTION that must be indexed, never the data behind it.
  *
  * A bucket whose actual bar is non-zero returns null — the income label already
- * joins both amounts into one line there, and a second would draw the
- * expectation twice.
+ * draws the expectation's line there, and a second would draw it twice.
  */
 export function expectedOnlyLabel(data: SeasonalityChartPoint[], index: number): string | null {
   const point = data.filter((p) => p.expected !== undefined)[index];

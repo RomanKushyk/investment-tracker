@@ -533,8 +533,6 @@ export const en = {
       received: 'Received',
       expected: 'Expected',
       anchorDay: (day: number) => `Day ${day}`,
-      // Lowercase: it sits after a figure on the chart's own bar label.
-      dayShort: (day: number) => `day ${day}`,
       anchorRest: (asset: string, frequency: string, first: string, last: string) =>
         ` is the paycheck: ${asset} dividends land ${frequency}, ${first} → ${last} and growing.`,
       anchorEmpty: 'No recurring income yet.',
@@ -2210,7 +2208,6 @@ export const uk: Dict = {
       received: 'Отримано',
       expected: 'Очікувано',
       anchorDay: (day: number) => `День ${day}`,
-      dayShort: (day: number) => `день ${day}`,
       anchorRest: (asset: string, frequency: string, first: string, last: string) =>
         ` — це зарплата: дивіденди ${asset} надходять ${frequency}, ${first} → ${last} і зростають.`,
       anchorEmpty: 'Регулярних надходжень ще немає.',

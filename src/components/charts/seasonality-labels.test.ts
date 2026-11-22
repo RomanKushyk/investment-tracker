@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Asset } from '@quirenote/core/types';
 import { en, uk } from '../../i18n/messages';
+import { MONO_ADVANCE } from './anatomy';
 import type { SeasonalityChartPoint } from './SeasonalityBars';
-import { expectedOnlyLabel, seasonalitySeriesNames } from './seasonality-labels';
+import {
+  clampLabelX,
+  expectedOnlyLabel,
+  seasonalityDayPoints,
+  seasonalityMonthPoints,
+  seasonalitySeriesNames,
+} from './seasonality-labels';
 
 // SIX POINTS, THREE OF THEM CARRYING AN EXPECTATION — a reduction of the month
 // axis rather than a copy, the months in between changing nothing about the
@@ -27,8 +35,7 @@ describe('expectedOnlyLabel', () => {
 
   it('declines the bucket whose income label already carries both amounts', () => {
     // Index 0 is the `day: 2` bucket — actual AND expected. `makeIncomeLabel`
-    // joins the two into one line there, so drawing here would state the
-    // expectation twice.
+    // draws both lines there, so drawing here would state the expectation twice.
     expect(expectedOnlyLabel(POINTS, 0)).toBeNull();
   });
 
@@ -59,5 +66,91 @@ describe('seasonalitySeriesNames', () => {
 
   it('names the two series in English', () => {
     expect(seasonalitySeriesNames(en)).toEqual({ actual: 'Received', expected: 'Expected' });
+  });
+});
+
+// `charts.md` § Signed › Identity, as wave 25 answers it (`open-values-charts-type.md` § Signed):
+// a day bar names its asset after its value, a month bar prints its total alone, and an expected
+// amount keeps its «*». Whole numbers with no ₴, as the signed render prints them.
+const whole = (n: number) => String(Math.round(n));
+const REIT = { id: 'reit', name: 'Inzhur REIT', yieldType: 'dividend' } as unknown as Asset;
+const BOND = { id: 'b6475', name: 'OVDP UA4000236475', yieldType: 'fixed_coupon' } as Asset;
+const row = (
+  day: number,
+  actual: number,
+  dominantAssetId?: string,
+  expected?: number,
+  expectedAssetId?: string,
+) => ({ day, actual, expected, dominantAssetId, expectedAssetId });
+
+describe('seasonalityDayPoints', () => {
+  const points = seasonalityDayPoints(
+    [
+      row(3, 216, 'b6475', 216, 'b6475'),
+      row(4, 0),
+      row(10, 3641.44, 'reit'),
+      row(25, 0, undefined, 1240, 'b6475'),
+    ],
+    [REIT, BOND],
+    whole,
+  );
+
+  it('names a fund by its short name and a bond by its abbreviation, after the value', () => {
+    expect(points.find((p) => p.day === 10)?.actualLabel).toBe('3641 · REIT');
+    expect(points.find((p) => p.day === 3)?.actualLabel).toBe('216 · OVDP …6475');
+  });
+
+  it('marks an expected amount with «*», and labels no day that received nothing', () => {
+    expect(points.find((p) => p.day === 3)?.expectedLabel).toBe('216*');
+    expect(points.find((p) => p.day === 25)).toMatchObject({
+      actualLabel: undefined,
+      expectedLabel: '1240*',
+    });
+    expect(points.find((p) => p.day === 4)).toMatchObject({
+      actualLabel: undefined,
+      expectedLabel: undefined,
+    });
+  });
+
+  it('carries no asset colour', () => {
+    for (const p of points) expect(Object.keys(p).some((k) => /color/i.test(k))).toBe(false);
+  });
+
+  it('prints the value alone when the dominant asset is not among the assets', () => {
+    const [p] = seasonalityDayPoints([row(5, 100, 'gone')], [REIT], whole);
+    expect(p?.actualLabel).toBe('100');
+  });
+});
+
+describe('seasonalityMonthPoints', () => {
+  it('prints a month’s total alone, with its expected amount on its own label', () => {
+    const points = seasonalityMonthPoints(
+      [
+        { month: 1, actual: 0 },
+        { month: 2, actual: 1764.2, expected: 1240 },
+        { month: 8, actual: 0, expected: 1240 },
+      ],
+      whole,
+    );
+    expect(points.map((p) => [p.day, p.actualLabel, p.expectedLabel])).toEqual([
+      [1, undefined, undefined],
+      [2, '1764', '1240*'],
+      [8, undefined, '1240*'],
+    ]);
+  });
+});
+
+describe('clampLabelX at 360', () => {
+  // The longest day label on seed, at the label's 11 px, against the 360 card's plot.
+  const label = '1 184 · OVDP …8976';
+  const plot = { x: 0, width: 280 };
+  const half = (label.length * 11 * MONO_ADVANCE) / 2;
+
+  it('keeps the label inside the plot at either edge', () => {
+    for (const centre of [2, 140, 278]) {
+      const x = clampLabelX(centre, label, 11, plot);
+      expect(x - half).toBeGreaterThanOrEqual(plot.x);
+      expect(x + half).toBeLessThanOrEqual(plot.x + plot.width);
+    }
   });
 });

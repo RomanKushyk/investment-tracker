@@ -498,7 +498,7 @@ export function SeasonalityPlaceholder() {
         <Slot className="mb-3 flex justify-end">
           <Block className="h-[38px] w-[132px] rounded-[11px]" />
         </Slot>
-        <Block kind="chart" className="h-[230px] rounded-[2px]" />
+        <Block kind="chart" className="h-[230px] rounded-[6px]" />
         <div className="mt-2 text-[11.5px] text-muted">{t.analytics.prose.seasonalityNote}</div>
       </Card>
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
