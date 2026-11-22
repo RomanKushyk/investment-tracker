@@ -4,7 +4,6 @@ import {
   LineChart,
   ReferenceLine,
   ResponsiveContainer,
-  XAxis,
   YAxis,
 } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
@@ -17,6 +16,7 @@ import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 import { CHART_MOTION, TICK, ringed } from './anatomy';
 import { ChartTooltip } from './ChartTooltip';
+import { DateAxis } from './DateAxis';
 import { yieldAxisWidth, yieldTickLabel, yieldValueLabel, type YieldAxis } from './yield-axis';
 import { lastDefinedIndex, nameOf, sharedAxis, withLine } from './yield-lines';
 import { PANEL_PLOT as PLOT, PANEL_TITLE, YieldGrid } from './YieldGrid';
@@ -111,14 +111,7 @@ function Panel({
         >
           <TapPinPlot probe={pin.probe} />
           <CartesianGrid stroke={CHART.hairline} vertical={false} />
-          <XAxis
-            dataKey="date"
-            tickFormatter={f.dateShort}
-            tick={TICK}
-            axisLine={{ stroke: CHART.hairline }}
-            tickLine={false}
-            minTickGap={48}
-          />
+          <DateAxis data={data} />
           <YAxis
             domain={axis.domain}
             ticks={axis.ticks}

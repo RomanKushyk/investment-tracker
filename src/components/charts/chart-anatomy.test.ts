@@ -106,8 +106,10 @@ describe.each(CARTESIAN.map((c) => [c.file, c.source] as const))('%s', (_file, s
   });
 
   it('draws an x baseline hairline and no tick marks, with the shared tick', () => {
+    // A date chart's axis is the shared `DateAxis`, whose own `<XAxis>` is held to this below.
+    const dateAxes = tags(source, 'DateAxis');
     const xs = tags(source, 'XAxis');
-    expect(xs).toHaveLength(1);
+    expect(xs.length + dateAxes.length).toBe(1);
     for (const x of xs) {
       expect(x).toMatch(/\baxisLine=\{\{\s*stroke:\s*CHART\.hairline\s*\}\}/);
       expect(x).toMatch(/\btickLine=\{false\}/);
@@ -137,6 +139,17 @@ describe.each(CARTESIAN.map((c) => [c.file, c.source] as const))('%s', (_file, s
     expect(tooltip).toMatch(
       bars ? /\bcursor=\{CHART_CURSOR_FILL\}/ : /\bcursor=\{CHART_CURSOR_LINE\}/,
     );
+  });
+});
+
+describe('the shared date axis', () => {
+  it('draws an x baseline hairline and no tick marks, with the shared tick', () => {
+    const source = stripTs(readFileSync(join(here, 'DateAxis.tsx'), 'utf8'), 'DateAxis.tsx');
+    const xs = tags(source, 'XAxis');
+    expect(xs).toHaveLength(1);
+    expect(xs[0]).toMatch(/\baxisLine=\{\{\s*stroke:\s*CHART\.hairline\s*\}\}/);
+    expect(xs[0]).toMatch(/\btickLine=\{false\}/);
+    expect(xs[0], 'a tick style of its own').toMatch(/\btick=\{TICK\}/);
   });
 });
 

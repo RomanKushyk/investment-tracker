@@ -108,6 +108,9 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
           tick={TICK}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
+          // Up to twelve months every label stays (`loading-and-compositions.md` § Settled by the
+          // brief); the spec signs nothing longer, which keeps recharts' thinning.
+          interval={data.length <= 12 ? 0 : undefined}
         />
         {/* The monthly split lives ONLY in this tooltip, so on a touch screen it
             is reached by a tap rather than a hover.

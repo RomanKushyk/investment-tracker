@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
 import { CHART, CHART_CURSOR_LINE } from '@quirenote/core/colors';
@@ -8,7 +8,9 @@ import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 import { CHART_MOTION, TICK, ringed } from './anatomy';
+import { capitalAxis } from './axis-ticks';
 import { ChartTooltip } from './ChartTooltip';
+import { DateAxis } from './DateAxis';
 
 // The line and its fill are the ACCENT, not the gain green: a total has no
 // direction, and gain and loss belong to deltas. *Interaction rules*
@@ -19,6 +21,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
   // is inside the tooltip and nowhere else.
   const pin = useTooltipTrigger(data);
   const fillId = useId();
+  const axis = capitalAxis(data.map((p) => p.total));
   return (
     <ResponsiveContainer width="100%" height={260}>
       <AreaChart
@@ -34,17 +37,12 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
             <stop offset="1" stopColor={CHART.accent} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke={CHART.hairline} vertical={false} />
-        <XAxis
-          dataKey="date"
-          tickFormatter={f.dateShort}
-          tick={TICK}
-          axisLine={{ stroke: CHART.hairline }}
-          tickLine={false}
-          minTickGap={48}
-        />
+        {/* Lines on the ticks alone: the cropped domain's top edge is no multiple of the step. */}
+        <CartesianGrid stroke={CHART.hairline} vertical={false} syncWithTicks />
+        <DateAxis data={data} />
         <YAxis
-          domain={['dataMin - 5000', 'dataMax + 2000']}
+          domain={axis.domain}
+          ticks={axis.ticks}
           tickFormatter={(v: number) => `₴${Math.round(v / 1000)}k`}
           tick={TICK}
           axisLine={false}

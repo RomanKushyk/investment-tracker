@@ -32,18 +32,23 @@ export function ringed(color: string) {
   return { r: 5, fill: color, stroke: CHART.card, strokeWidth: 2 };
 }
 
+/** A plot narrower than this is narrow: the tooltip holds inside it, and a date axis prints its
+ *  first, middle and last date. */
+export const NARROW_PLOT = 500;
+
 interface Placement {
   position?: { x: number };
   reverseDirection: { x: boolean; y: boolean };
   maxWidth?: number;
 }
 
-// Right of the crosshair, left of it past mid-plot; on a plot under 500 px, held inside its left
+// Right of the crosshair, left of it past mid-plot; on a narrow plot, held inside its left
 // edge and wrapped to its width, so the box never leaves the card.
 export function tooltipPlacement(plot: PlotArea | undefined, x: number | undefined): Placement {
   const reverseDirection = { x: false, y: false };
   if (!plot) return { reverseDirection };
-  if (plot.width < 500) return { position: { x: plot.x }, reverseDirection, maxWidth: plot.width };
+  if (plot.width < NARROW_PLOT)
+    return { position: { x: plot.x }, reverseDirection, maxWidth: plot.width };
   return { reverseDirection: { x: x !== undefined && x > plot.x + plot.width / 2, y: false } };
 }
 

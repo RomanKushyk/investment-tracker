@@ -13,7 +13,6 @@ import {
   LineChart,
   ReferenceLine,
   ResponsiveContainer,
-  XAxis,
   YAxis,
   getRelativeCoordinate,
   useActiveTooltipLabel,
@@ -29,6 +28,7 @@ import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, onPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { CHART_MOTION, FOCUS_COPY, TICK } from './anatomy';
 import { ChartTooltip } from './ChartTooltip';
+import { DateAxis } from './DateAxis';
 import { GlyphKey, SeriesGlyph } from './SeriesGlyph';
 import { yieldAxisWidth, yieldTickLabel, yieldValueLabel } from './yield-axis';
 import {
@@ -201,14 +201,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           <TapPinPlot probe={pin.probe} />
           <FocusProbe data={data} probeRef={probe} onShown={onShown} />
           <CartesianGrid stroke={CHART.hairline} vertical={false} />
-          <XAxis
-            dataKey="date"
-            tickFormatter={f.dateShort}
-            tick={TICK}
-            axisLine={{ stroke: CHART.hairline }}
-            tickLine={false}
-            minTickGap={48}
-          />
+          <DateAxis data={data} />
           <YAxis
             domain={axis.domain}
             ticks={axis.ticks}
