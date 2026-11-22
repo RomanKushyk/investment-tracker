@@ -1,5 +1,6 @@
 // The one chart tooltip (`docs/superpowers/specs/2026-11-05-layout-refresh/charts.md` § Signed ›
 // Anatomy, Tooltip): glass, the date, then a row per series sorted by value.
+import type { ReactNode } from 'react';
 import { Tooltip, useActiveTooltipCoordinate, usePlotArea } from 'recharts';
 
 import { CHART_CURSOR_FILL, CHART_CURSOR_LINE, CHART_TOOLTIP_ITEM } from '@quirenote/core/colors';
@@ -10,6 +11,10 @@ interface Format {
   formatLabel: (label: string | number) => string;
   formatValue: (value: number, entry: TooltipEntry) => string;
   formatName?: (entry: TooltipEntry) => string;
+  /** A row's key in place of the colour mark: «Разом» keys by its glyph (wave 14). */
+  keyOf?: (entry: TooltipEntry) => ReactNode;
+  /** The focused series' dataKey: its row bold, the others dimmed (wave 14, H2). */
+  focused?: string;
 }
 
 export function ChartTooltipContent({
@@ -21,6 +26,8 @@ export function ChartTooltipContent({
   formatLabel,
   formatValue,
   formatName,
+  keyOf,
+  focused,
 }: Format & {
   active?: boolean;
   payload?: readonly TooltipEntry[];
@@ -55,15 +62,29 @@ export function ChartTooltipContent({
           <div
             key={String(e.dataKey ?? e.name)}
             data-tooltip-row
-            className="flex items-center gap-2"
-            style={{ color: CHART_TOOLTIP_ITEM.color }}
+            // A row keeps its node as the focus moves, so the dimming fades.
+            className={`flex items-center gap-2 ${keyOf ? 'transition-opacity duration-150 ease-soft' : ''}`}
+            style={{
+              color: CHART_TOOLTIP_ITEM.color,
+              ...(focused === undefined
+                ? {}
+                : e.dataKey === focused
+                  ? { fontWeight: 700 }
+                  : { opacity: 0.55 }),
+            }}
           >
-            <span
-              data-tooltip-key
-              aria-hidden
-              className="shrink-0"
-              style={{ width: 12, height: 2, backgroundColor: e.color }}
-            />
+            {keyOf ? (
+              <span data-tooltip-key aria-hidden className="flex shrink-0">
+                {keyOf(e)}
+              </span>
+            ) : (
+              <span
+                data-tooltip-key
+                aria-hidden
+                className="shrink-0"
+                style={{ width: 12, height: 2, backgroundColor: e.color }}
+              />
+            )}
             <span data-tooltip-name className="flex-1">
               {formatName ? formatName(e) : String(e.name)}
             </span>

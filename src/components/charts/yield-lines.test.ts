@@ -9,7 +9,7 @@ import { SEED_ASSETS, SEED_TRANSACTIONS, buildSeedSnapshots } from '@quirenote/c
 import type { Transaction } from '@quirenote/core/types';
 import { cumulativeYieldSeriesIn } from '@quirenote/core/view/yield';
 import { en, uk } from '../../i18n/messages';
-import { noLineMessage, withLine } from './yield-lines';
+import { SHAPES, glyphPath, noLineMessage, shapeByAsset, withLine } from './yield-lines';
 
 const snaps = buildSeedSnapshots();
 const START = '2026-02-03';
@@ -75,5 +75,79 @@ describe('noLineMessage', () => {
     expect(noLineMessage(period, en.analytics.yield)).toBe(
       'No asset has a line in this period — choose a longer one.',
     );
+  });
+});
+
+// Wave 14 (`yield-series-shapes.md` § Signed): a shape per asset by its order, never by its colour
+// slot, and one glyph drawing in a box of its signed size.
+describe('shapeByAsset', () => {
+  const asset = (id: string, createdAt: string, colorKey = 'reit') =>
+    ({ ...SEED_ASSETS[0], id, createdAt, colorKey }) as (typeof SEED_ASSETS)[number];
+
+  it('follows createdAt through the six shapes, then repeats', () => {
+    // Ids run against createdAt, so an order by id would read the shapes backwards.
+    const id = (i: number) => `x${7 - i}`;
+    const assets = Array.from({ length: 8 }, (_, i) =>
+      asset(id(i), `2026-0${i + 1}-01T00:00:00`),
+    ).reverse();
+    const shapes = shapeByAsset(assets);
+    expect(Array.from({ length: 8 }, (_, i) => shapes.get(id(i)))).toEqual([
+      'circle',
+      'square',
+      'triangle',
+      'diamond',
+      'triangle-down',
+      'cross',
+      'circle',
+      'square',
+    ]);
+    expect(SHAPES).toEqual(['circle', 'square', 'triangle', 'diamond', 'triangle-down', 'cross']);
+  });
+
+  it('breaks a createdAt tie by id, and reads no colour slot', () => {
+    const shapes = shapeByAsset([
+      asset('b', '2026-01-01T00:00:00', 'reit'),
+      asset('a', '2026-01-01T00:00:00', 'reit'),
+    ]);
+    expect([shapes.get('a'), shapes.get('b')]).toEqual(['circle', 'square']);
+  });
+
+  // Core serves assets in this order (`view/serve.ts`, `sortedAssets`): code points, not locale.
+  it('breaks the tie by code point, as core orders the assets', () => {
+    const shapes = shapeByAsset([
+      asset('a', '2026-01-01T00:00:00'),
+      asset('B', '2026-01-01T00:00:00'),
+    ]);
+    expect([shapes.get('B'), shapes.get('a')]).toEqual(['circle', 'square']);
+  });
+});
+
+/** The extent of every `x,y` pair in a path; arc radii are written without a comma. */
+function box(d: string) {
+  const pts = [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  return {
+    w: Math.max(...xs) - Math.min(...xs),
+    h: Math.max(...ys) - Math.min(...ys),
+    cx: (Math.max(...xs) + Math.min(...xs)) / 2,
+    cy: (Math.max(...ys) + Math.min(...ys)) / 2,
+  };
+}
+
+describe('glyphPath', () => {
+  it.each(SHAPES.filter((s) => s !== 'circle'))('draws %s to fill its box, centred', (shape) => {
+    for (const size of [9, 10, 12]) {
+      const b = box(glyphPath(shape, size, 50, 20));
+      expect(b.w).toBeCloseTo(size, 9);
+      expect(b.h).toBeCloseTo(size, 9);
+      expect(b.cx).toBeCloseTo(50, 9);
+      expect(b.cy).toBeCloseTo(20, 9);
+    }
+  });
+
+  it('draws the circle as two arcs of half its size', () => {
+    const d = glyphPath('circle', 9, 50, 20);
+    expect(d).toMatch(/^M45\.5,20A4\.5 4\.5 0 1 0 54\.5,20A4\.5 4\.5 0 1 0 45\.5,20Z$/);
   });
 });

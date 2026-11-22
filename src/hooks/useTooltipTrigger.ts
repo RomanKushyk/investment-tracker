@@ -18,6 +18,17 @@ export interface TooltipPin {
   probe: Probe;
 }
 
+/** Whether a point, relative to the chart, is on its plot: off it recharts reports its last index. */
+export function onPlot(plot: PlotArea | undefined, x: number, y: number): boolean {
+  return (
+    plot !== undefined &&
+    x >= plot.x &&
+    x <= plot.x + plot.width &&
+    y >= plot.y &&
+    y <= plot.y + plot.height
+  );
+}
+
 // Tap to pin below `md` (`docs/superpowers/specs/2026-11-05-layout-refresh/charts.md`
 // § Перенесено): recharts re-pins on every click and cannot clear its click state, so the release
 // is held here.
@@ -39,8 +50,7 @@ export function useTooltipTrigger(data: readonly unknown[]): TooltipPin {
       // Off the plot recharts keeps its click state and reports the old index: its own range test.
       const { plot, pinned } = chart.current;
       const { relativeX: x, relativeY: y } = getRelativeCoordinate(event);
-      if (!plot || x < plot.x || x > plot.x + plot.width || y < plot.y || y > plot.y + plot.height)
-        return;
+      if (!onPlot(plot, x, y)) return;
       const wasPinned = clicked.current;
       clicked.current = true;
       if (desktop || activeIndex == null) return;

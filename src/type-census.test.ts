@@ -156,7 +156,7 @@ const ALLOWED: Record<string, Record<string, number>> = {
     'tracking-[.08em]': 2,
     'uppercase without the caps recipe': 3,
   },
-  'src/screens/Yield.tsx': { 'text-[11.5px]': 3, 'text-[12.5px]': 1 },
+  'src/screens/Yield.tsx': { 'text-[11.5px]': 2, 'text-[12.5px]': 1 },
   'src/screens/daily-quotes/CouponDueCard.tsx': {
     'leading-[1.45]': 1,
     'leading-[1.4]': 1,

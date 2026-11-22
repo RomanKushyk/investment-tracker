@@ -199,6 +199,65 @@ describe('the shared tooltip', () => {
   });
 });
 
+// «Разом» (wave 14, `yield-series-shapes.md` § Signed › Hover): each row keyed by the series' glyph,
+// and the focused line's row bold with the others at 55 %.
+describe('keyed, focus-aware rows', () => {
+  const KEYED = [
+    { name: 'Small', value: 1, color: 'red', dataKey: 's' },
+    { name: 'Large', value: 300, color: 'green', dataKey: 'l' },
+    { name: 'Middle', value: 20, color: 'blue', dataKey: 'm' },
+  ];
+  function drawKeyed(focused?: string) {
+    const { container } = render(
+      createElement(ChartTooltipContent, {
+        active: true,
+        label: '2026-03-05',
+        payload: KEYED,
+        formatLabel: String,
+        formatValue: String,
+        keyOf: (e) => createElement('i', { 'data-own-key': String(e.dataKey) }),
+        focused,
+      }),
+    );
+    return [...container.querySelectorAll<HTMLElement>('[data-tooltip-row]')];
+  }
+
+  it('keys each row with what keyOf draws, in place of the 12 × 2 mark', () => {
+    const rows = drawKeyed();
+    expect(
+      rows.map((r) => r.querySelector('[data-own-key]')?.getAttribute('data-own-key')),
+    ).toEqual(['l', 'm', 's']);
+    for (const r of rows)
+      expect(r.querySelector('[data-tooltip-key]')?.getAttribute('style')).toBeNull();
+  });
+
+  it('sets the focused row bold and the others at 55 %, still largest first', () => {
+    const rows = drawKeyed('m');
+    expect(rows.map((r) => r.querySelector('[data-tooltip-name]')?.textContent)).toEqual([
+      'Large',
+      'Middle',
+      'Small',
+    ]);
+    expect(rows.map((r) => [r.style.fontWeight, r.style.opacity])).toEqual([
+      ['', '0.55'],
+      ['700', ''],
+      ['', '0.55'],
+    ]);
+  });
+
+  it('leaves every row at full strength while no line is focused', () => {
+    for (const r of drawKeyed()) expect([r.style.fontWeight, r.style.opacity]).toEqual(['', '']);
+  });
+
+  // The focus change fades (wave 14 › Motion); a row keeps its node from one focus to the next.
+  it('fades a keyed row as the focus moves', () => {
+    for (const r of drawKeyed('m'))
+      expect([...r.classList]).toEqual(
+        expect.arrayContaining(['transition-opacity', 'duration-150', 'ease-soft']),
+      );
+  });
+});
+
 /* ─────────────────────────── the token ─────────────────────────── */
 
 const CSS = stripCss(readFileSync(join(SRC, 'index.css'), 'utf8'), 'index.css');

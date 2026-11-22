@@ -15,14 +15,11 @@ import type { YieldSeriesPoint } from '@quirenote/core/view/yield';
 import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
-import { bondAbbrev } from '../../screens/daily-quotes/quotes';
 import { CHART_MOTION, TICK, ringed } from './anatomy';
 import { ChartTooltip } from './ChartTooltip';
 import { yieldAxisWidth, yieldTickLabel, yieldValueLabel, type YieldAxis } from './yield-axis';
-import { lastDefinedIndex, sharedAxis, withLine } from './yield-lines';
+import { lastDefinedIndex, nameOf, sharedAxis, withLine } from './yield-lines';
 import { PANEL_PLOT as PLOT, PANEL_TITLE, YieldGrid } from './YieldGrid';
-
-const nameOf = (a: Asset) => (a.yieldType === 'fixed_coupon' ? bondAbbrev(a) : a.name);
 
 /** «Окремо» (`charts.md` § Signed › Identity, Y4): one panel per asset on one y domain, the others
  *  behind it as context, and a panel with no line kept in its place (wave 25). */

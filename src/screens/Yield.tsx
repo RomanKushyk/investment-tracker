@@ -2,11 +2,10 @@ import { useState } from 'react';
 
 import { noLineMessage, withLine } from '../components/charts/yield-lines';
 import { TWO_PANEL_ROWS, YieldGridBlocks } from '../components/charts/YieldGrid';
-import { YieldLines } from '../components/charts/YieldLines';
+import { YieldLegend, YieldLines } from '../components/charts/YieldLines';
 import { YieldPanels } from '../components/charts/YieldPanels';
 import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
-import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -48,6 +47,8 @@ export function Yield() {
   // The curve is a read of its own: its box is held, once the read has been out for a while, even
   // when the table beside it came with the view.
   const curveHeld = useHold(series === undefined);
+  // Read once: the «Разом» legend and the no-line message both turn on it.
+  const hasLine = series !== undefined && withLine(series, assets).length > 0;
   const xirrHeader = view.xirrExtrapolated ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
 
   // The basis is DERIVED, so it can be absent, and a footnote naming no start is
@@ -89,8 +90,9 @@ export function Yield() {
           <EmptyState message={t.analytics.empty.chart} height={280} />
         ) : (
           <>
-            {/* A control that changes one chart sits on that chart, as on /seasonality. */}
-            <div className="mb-3 flex justify-end">
+            {/* A control that changes one chart sits on that chart, as on /seasonality. «Разом»'s
+                legend sits left of it, and under it below md (wave 14). */}
+            <div className="mb-3 flex flex-col items-end gap-2 md:flex-row-reverse md:items-start md:justify-between">
               <SegmentedControl
                 aria-label={t.analytics.yield.viewAriaLabel}
                 value={chart}
@@ -100,10 +102,15 @@ export function Yield() {
                   { value: 'combined', label: t.analytics.yield.viewCombined },
                 ]}
               />
+              {chart === 'combined' && hasLine && (
+                <div className="self-start">
+                  <YieldLegend data={series} assets={assets} />
+                </div>
+              )}
             </div>
             {/* The message stands in place of either view, with no legend (#338): «Разом»'s chart
                 height, or two panel rows at every width, as wave 25's render draws it. */}
-            {withLine(series, assets).length === 0 ? (
+            {!hasLine ? (
               <div data-yield-no-line>
                 <EmptyState
                   message={noLineMessage(period, t.analytics.yield)}
@@ -114,17 +121,6 @@ export function Yield() {
               <YieldPanels data={series} assets={assets} />
             ) : (
               <div data-yield-combined>
-                <div
-                  data-yield-legend
-                  className="mb-2 flex flex-wrap gap-4 text-[11.5px] text-muted"
-                >
-                  {assets.map((a) => (
-                    <span key={a.id} data-yield-legend-item className="flex items-center gap-1.5">
-                      <ColorDot colorKey={a.colorKey} />
-                      {a.name}
-                    </span>
-                  ))}
-                </div>
                 <YieldLines data={series} assets={assets} />
               </div>
             )}

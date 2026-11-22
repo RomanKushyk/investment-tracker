@@ -19,6 +19,14 @@ export const CHART_MOTION = {
   animationEasing: 'cubic-bezier(0.22,1,0.36,1)',
 } as const;
 
+// A series drawn again over the others to bring it forward («Разом»'s focus, wave 14): no row of
+// its own and no entry draw, since its motion is the fade it mounts with.
+export const FOCUS_COPY = {
+  isAnimationActive: false,
+  tooltipType: 'none',
+  legendType: 'none',
+} as const;
+
 /** An r4 marker in the series colour on an r6 `card` disc, drawn as one circle. */
 export function ringed(color: string) {
   return { r: 5, fill: color, stroke: CHART.card, strokeWidth: 2 };

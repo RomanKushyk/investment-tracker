@@ -145,7 +145,10 @@ describe.each(CHARTS.map((c) => [c.file, c.source] as const))('%s motion', (_fil
     const series = SERIES_TAGS.flatMap((name) => tags(source, name));
     expect(series.length, 'the chart drew no series').toBeGreaterThan(0);
     for (const tag of series) {
-      expect(tag).toMatch(/\{\.\.\.CHART_MOTION\}/);
+      // One of the two shared settings, never both: the entry motion, or «Разом»'s focus copy
+      // (wave 14), whose motion is its 150 ms fade.
+      const motions = tag.match(/\{\.\.\.(?:CHART_MOTION|FOCUS_COPY)\}/g) ?? [];
+      expect(motions).toHaveLength(1);
       expect(tag).not.toMatch(/\b(?:isAnimationActive|animationDuration|animationEasing)\b/);
     }
   });

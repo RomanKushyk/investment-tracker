@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // The marks of the C2 anatomy, drawn (`charts.md` § Signed › Anatomy; the bar band is wave 25's,
 // `open-values-charts-type.md` § Signed): 2 px round lines with no dots along them, a ringed end
-// marker, a crosshair with ringed markers on every line, and /yield's line at 0 %.
+// marker, a crosshair with ringed markers on every line, and /yield's line at 0 %. «Разом»'s marks
+// are wave 14's glyphs (`yield-series-shapes.md`), pinned in `yield-lines-render.test.tsx`.
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,8 +44,8 @@ afterEach(() => {
 
 const DATES = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-04-05', '2026-05-05'];
 const ASSETS = [
-  { id: 'a1', name: 'Asset one', colorKey: 'reit' },
-  { id: 'a2', name: 'Asset two', colorKey: 'energy' },
+  { id: 'a1', name: 'Asset one', colorKey: 'reit', createdAt: '2026-01-01T00:00:00' },
+  { id: 'a2', name: 'Asset two', colorKey: 'energy', createdAt: '2026-01-02T00:00:00' },
 ] as Asset[];
 
 const balances = () => (
@@ -94,9 +95,9 @@ function plotOf(container: HTMLElement) {
 }
 
 describe.each([
-  ['Balances', balances, '.recharts-area-curve', 1],
-  ['Yield', yieldLines, '.recharts-line-curve', 2],
-] as const)('%s lines', (_name, chart, curve, lines) => {
+  ['Balances', balances, '.recharts-area-curve', 1, false],
+  ['Yield', yieldLines, '.recharts-line-curve', 2, true],
+] as const)('%s lines', (_name, chart, curve, lines, glyph) => {
   it('are 2 px with round joins and caps', () => {
     const { container } = settle(chart());
     const curves = [...container.querySelectorAll(curve)];
@@ -110,20 +111,28 @@ describe.each([
     }
   });
 
-  it('carry no dots along them, and end on one ringed marker each', () => {
+  it('carry no dots along them, and end on one marker each', () => {
     const { container } = settle(chart());
     const dots = [
-      ...container.querySelectorAll('.recharts-line-dots circle, .recharts-area-dots circle'),
+      ...container.querySelectorAll(
+        '.recharts-line-dots circle, .recharts-line-dots [data-glyph], .recharts-area-dots circle',
+      ),
     ];
     expect(dots).toHaveLength(lines);
+    if (glyph) return;
     for (const d of dots) expect(ringOf(d)).toEqual(RING);
   });
 
-  it('draw a ringed marker on every line at the crosshair', () => {
+  it('draw a marker on every line at the crosshair', () => {
     const { container } = settle(chart());
     tap(container, 300);
-    const active = [...container.querySelectorAll('.recharts-active-dot circle')];
+    const active = [
+      ...container.querySelectorAll(
+        '.recharts-active-dot circle, .recharts-active-dot [data-glyph]',
+      ),
+    ];
     expect(active).toHaveLength(lines);
+    if (glyph) return;
     for (const d of active) expect(ringOf(d)).toEqual(RING);
   });
 
