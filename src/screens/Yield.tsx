@@ -1,11 +1,16 @@
+import { useState } from 'react';
+
+import { noLineMessage, withLine } from '../components/charts/yield-lines';
+import { TWO_PANEL_ROWS, YieldGridBlocks } from '../components/charts/YieldGrid';
 import { YieldLines } from '../components/charts/YieldLines';
+import { YieldPanels } from '../components/charts/YieldPanels';
 import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
-import { Block } from '../components/loading/Placeholder';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { useHold } from '../hooks/loading';
 import { useSeries, useView } from '../hooks/queries';
 import { yieldOf } from '../hooks/slices';
@@ -32,6 +37,8 @@ export function Yield() {
   const desktop = useIsDesktop();
 
   const { period, control } = usePeriodWindow();
+  // «Окремо» on every visit, as /seasonality's axis opens on its days.
+  const [chart, setChart] = useState<'separate' | 'combined'>('separate');
   const { yield: view, assets } = useView(yieldOf[period]);
   const win = view.window;
   const rows = view.rows;
@@ -68,25 +75,60 @@ export function Yield() {
         radius={24}
         className="mb-3.5 animate-in p-[22px] duration-300 fade-in"
         aria-busy={curveHeld || undefined}
+        data-yield-card
       >
-        <div className="mb-2 flex flex-wrap gap-4 text-[11.5px] text-muted">
-          {assets.map((a) => (
-            <span key={a.id} className="flex items-center gap-1.5">
-              <ColorDot colorKey={a.colorKey} />
-              {a.name}
-            </span>
-          ))}
-        </div>
-        {/* A curve not read yet holds the chart's height and says nothing: "no snapshots" is for a
-            curve that was read and is empty. Past the delay its box is drawn. */}
+        {/* A curve not read yet holds the card's boxes and says nothing: "no snapshots" is for a
+            curve that was read and is empty. Past the delay its boxes are drawn. */}
         {curveHeld ? (
-          <Block kind="chart" className="h-[280px] rounded-[2px]" />
+          // Only the first read is held (`useSeries` keeps a period's curve until the next lands),
+          // and a card opens on «Окремо».
+          <YieldGridBlocks panels={assets.length} />
         ) : series === undefined ? (
           <div style={{ height: 280 }} />
         ) : series.length === 0 ? (
           <EmptyState message={t.analytics.empty.chart} height={280} />
         ) : (
-          <YieldLines data={series} assets={assets} />
+          <>
+            {/* A control that changes one chart sits on that chart, as on /seasonality. */}
+            <div className="mb-3 flex justify-end">
+              <SegmentedControl
+                aria-label={t.analytics.yield.viewAriaLabel}
+                value={chart}
+                onChange={setChart}
+                options={[
+                  { value: 'separate', label: t.analytics.yield.viewSeparate },
+                  { value: 'combined', label: t.analytics.yield.viewCombined },
+                ]}
+              />
+            </div>
+            {/* The message stands in place of either view, with no legend (#338): «Разом»'s chart
+                height, or two panel rows at every width, as wave 25's render draws it. */}
+            {withLine(series, assets).length === 0 ? (
+              <div data-yield-no-line>
+                <EmptyState
+                  message={noLineMessage(period, t.analytics.yield)}
+                  height={chart === 'separate' ? TWO_PANEL_ROWS : 280}
+                />
+              </div>
+            ) : chart === 'separate' ? (
+              <YieldPanels data={series} assets={assets} />
+            ) : (
+              <div data-yield-combined>
+                <div
+                  data-yield-legend
+                  className="mb-2 flex flex-wrap gap-4 text-[11.5px] text-muted"
+                >
+                  {assets.map((a) => (
+                    <span key={a.id} data-yield-legend-item className="flex items-center gap-1.5">
+                      <ColorDot colorKey={a.colorKey} />
+                      {a.name}
+                    </span>
+                  ))}
+                </div>
+                <YieldLines data={series} assets={assets} />
+              </div>
+            )}
+          </>
         )}
       </Card>
 

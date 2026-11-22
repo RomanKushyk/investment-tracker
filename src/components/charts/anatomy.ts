@@ -45,4 +45,6 @@ export interface TooltipEntry {
   color?: string;
   dataKey?: unknown;
   payload?: unknown;
+  /** recharts' `tooltipType`: `'none'` keeps a series out of the rows. */
+  type?: string;
 }

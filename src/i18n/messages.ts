@@ -573,6 +573,12 @@ export const en = {
       xirr: 'XIRR',
       // "(ann.)" only while history < 365 days — an extrapolation, said as one.
       xirrAnn: 'XIRR (ann.)',
+      viewAriaLabel: 'Chart view',
+      viewSeparate: 'Separate',
+      viewCombined: 'Combined',
+      panelNoLine: 'No line in this period.',
+      noLine: 'No asset has a line in this period.',
+      noLineLonger: 'No asset has a line in this period — choose a longer one.',
     },
     balances: {
       pending: 'pending',
@@ -2247,6 +2253,12 @@ export const uk: Dict = {
     yield: {
       xirr: 'XIRR',
       xirrAnn: 'XIRR (річн.)',
+      viewAriaLabel: 'Вигляд графіка',
+      viewSeparate: 'Окремо',
+      viewCombined: 'Разом',
+      panelNoLine: 'За цей період лінії немає.',
+      noLine: 'За цей період жоден актив не має лінії.',
+      noLineLonger: 'За цей період жоден актив не має лінії — оберіть довший період.',
     },
     balances: {
       pending: 'очікується',

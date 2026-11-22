@@ -21,6 +21,16 @@ vi.stubGlobal('matchMedia', (query: string) => ({
   dispatchEvent: () => false,
   onchange: null,
 }));
+// /yield's panel grid observes its box; jsdom has no observer.
+vi.stubGlobal(
+  'ResizeObserver',
+  globalThis.ResizeObserver ??
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+);
 afterAll(() => vi.unstubAllGlobals());
 
 // jsdom lays nothing out, so the container hands its chart a fixed size instead of measuring one.
@@ -37,6 +47,7 @@ const { BalancesArea } = await import('./BalancesArea');
 const { PayoutsBars } = await import('./PayoutsBars');
 const { SeasonalityBars } = await import('./SeasonalityBars');
 const { YieldLines } = await import('./YieldLines');
+const { YieldPanels } = await import('./YieldPanels');
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -92,6 +103,16 @@ const CHARTS: [string, (k: number) => ReactElement][] = [
   [
     'Yield',
     (k) => <YieldLines data={DATES.map((date, i) => ({ date, a1: i * k }))} assets={[ASSETS[0]]} />,
+  ],
+  // One panel per asset, each with the other as a context line.
+  [
+    'Yield panels',
+    (k) => (
+      <YieldPanels
+        data={DATES.map((date, i) => ({ date, a1: i * k, a2: -i * k }))}
+        assets={ASSETS}
+      />
+    ),
   ],
 ];
 

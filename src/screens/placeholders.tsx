@@ -12,6 +12,7 @@ import {
   Rows,
   Slot,
 } from '../components/loading/Placeholder';
+import { YieldGridBlocks } from '../components/charts/YieldGrid';
 import { Card } from '../components/ui/Card';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -305,11 +306,9 @@ export function YieldPlaceholder() {
         subtitle={t.screen.yield.subtitle}
         actions={<PeriodSlot />}
       />
+      {/* Four panels, as wave 23's L2 render draws: the assets are not known before the read. */}
       <Card radius={24} className="mb-3.5 p-[22px]">
-        <div className="mb-2 flex h-[17.25px] items-center">
-          <Bar w="30%" />
-        </div>
-        <Block kind="chart" className="h-[280px] rounded-[2px]" />
+        <YieldGridBlocks panels={4} />
       </Card>
       {desktop ? (
         <Card radius={24} className="px-[22px] py-2.5">

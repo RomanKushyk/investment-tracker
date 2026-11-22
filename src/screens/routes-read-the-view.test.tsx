@@ -51,6 +51,12 @@ vi.mock('../components/charts/YieldLines', () => ({
     <div data-testid="curve" data-ends={data.at(-1)?.date} />
   ),
 }));
+// «Окремо», the view /yield opens on.
+vi.mock('../components/charts/YieldPanels', () => ({
+  YieldPanels: ({ data }: { data: { date: string }[] }) => (
+    <div data-testid="curve" data-ends={data.at(-1)?.date} />
+  ),
+}));
 
 // Set before the route graph loads: the persisted stores read `localStorage` as they load.
 const kept = new Map<string, string>();

@@ -33,6 +33,10 @@ const { repo } = await import('../lib/api');
 vi.mock('../components/charts/YieldLines', () => ({
   YieldLines: () => <div data-testid="curve" />,
 }));
+// «Окремо», the view /yield opens on.
+vi.mock('../components/charts/YieldPanels', () => ({
+  YieldPanels: () => <div data-testid="curve" />,
+}));
 vi.mock('../components/charts/BalancesArea', () => ({ BalancesArea: () => null }));
 vi.mock('../hooks/useIsDesktop', () => ({ useIsDesktop: () => desktop }));
 vi.mock('../components/ui/Scroller', () => ({

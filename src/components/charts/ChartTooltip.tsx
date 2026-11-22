@@ -29,9 +29,15 @@ export function ChartTooltipContent({
   /** recharts' own content announces the keyboard walk under this layer; so does this one. */
   accessibilityLayer?: boolean;
 }) {
+  // `type: 'none'` is recharts' own opt-out, which its default content honours too.
   const rows = (payload ?? [])
-    .filter((e): e is TooltipEntry & { value: number } => typeof e.value === 'number')
+    .filter(
+      (e): e is TooltipEntry & { value: number } =>
+        typeof e.value === 'number' && e.type !== 'none',
+    )
     .sort((a, b) => b.value - a.value);
+  // A date with no row names nothing: a /yield panel over a date its own asset has no point on.
+  if (active && rows.length === 0) return null;
   return (
     <div
       data-chart-tooltip
