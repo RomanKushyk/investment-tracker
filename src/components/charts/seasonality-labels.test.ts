@@ -75,24 +75,35 @@ describe('seasonalitySeriesNames', () => {
 const whole = (n: number) => String(Math.round(n));
 const REIT = { id: 'reit', name: 'Inzhur REIT', yieldType: 'dividend' } as unknown as Asset;
 const BOND = { id: 'b6475', name: 'OVDP UA4000236475', yieldType: 'fixed_coupon' } as Asset;
-const row = (
-  day: number,
-  actual: number,
-  dominantAssetId?: string,
-  expected?: number,
-  expectedAssetId?: string,
-) => ({ day, actual, expected, dominantAssetId, expectedAssetId });
+const BOND2 = { id: 'b8976', name: 'OVDP UA4000238976', yieldType: 'fixed_coupon' } as Asset;
+const ASSETS = [REIT, BOND, BOND2];
+type Paid = [assetId: string, amount: number][];
+const amounts = (paid: Paid) => paid.map(([assetId, amount]) => ({ assetId, amount }));
+const total = (paid: Paid) => paid.reduce((s, [, a]) => s + a, 0);
+// A day row as the core serves it: the totals are the per-asset amounts summed.
+const row = (day: number, paid: Paid = [], due?: Paid) => ({
+  day,
+  actual: total(paid),
+  expected: due && total(due),
+  actualByAsset: amounts(paid),
+  expectedByAsset: amounts(due ?? []),
+  dominantAssetId: paid[0]?.[0],
+  expectedAssetId: due?.[0]?.[0],
+});
+const countUk = uk.importing.count.assets;
+const countEn = en.importing.count.assets;
 
 describe('seasonalityDayPoints', () => {
   const points = seasonalityDayPoints(
     [
-      row(3, 216, 'b6475', 216, 'b6475'),
-      row(4, 0),
-      row(10, 3641.44, 'reit'),
-      row(25, 0, undefined, 1240, 'b6475'),
+      row(3, [['b6475', 216]], [['b6475', 216]]),
+      row(4),
+      row(10, [['reit', 3641.44]]),
+      row(25, [], [['b6475', 1240]]),
     ],
-    [REIT, BOND],
+    ASSETS,
     whole,
+    countUk,
   );
 
   it('names a fund by its short name and a bond by its abbreviation, after the value', () => {
@@ -100,15 +111,18 @@ describe('seasonalityDayPoints', () => {
     expect(points.find((p) => p.day === 3)?.actualLabel).toBe('216 · OVDP …6475');
   });
 
-  it('marks an expected amount with «*», and labels no day that received nothing', () => {
+  it('marks a paired expected amount with «*» alone, and labels no day that received nothing', () => {
     expect(points.find((p) => p.day === 3)?.expectedLabel).toBe('216*');
-    expect(points.find((p) => p.day === 25)).toMatchObject({
-      actualLabel: undefined,
-      expectedLabel: '1240*',
-    });
     expect(points.find((p) => p.day === 4)).toMatchObject({
       actualLabel: undefined,
       expectedLabel: undefined,
+    });
+  });
+
+  it('names the asset of an expected-only bar after its «*»', () => {
+    expect(points.find((p) => p.day === 25)).toMatchObject({
+      actualLabel: undefined,
+      expectedLabel: '1240* · OVDP …6475',
     });
   });
 
@@ -116,20 +130,97 @@ describe('seasonalityDayPoints', () => {
     for (const p of points) expect(Object.keys(p).some((k) => /color/i.test(k))).toBe(false);
   });
 
-  it('prints the value alone when the dominant asset is not among the assets', () => {
-    const [p] = seasonalityDayPoints([row(5, 100, 'gone')], [REIT], whole);
+  it('prints the value alone when its one asset is not among the assets', () => {
+    const [p] = seasonalityDayPoints([row(5, [['gone', 100]])], [REIT], whole, countUk);
     expect(p?.actualLabel).toBe('100');
   });
 });
 
+// Wave 27, step 1 B and step 2 B: a day several assets share prints the whole total and a count.
+describe('seasonalityDayPoints on a day several assets share', () => {
+  const days = [
+    row(10, [
+      ['reit', 1853.04],
+      ['b6475', 900],
+    ]),
+    row(
+      25,
+      [],
+      [
+        ['b8976', 1240],
+        ['b6475', 216],
+      ],
+    ),
+    row(
+      3,
+      [
+        ['b6475', 216],
+        ['reit', 100],
+      ],
+      [
+        ['b6475', 216],
+        ['b8976', 50],
+      ],
+    ),
+  ];
+
+  it('counts the payers in Ukrainian', () => {
+    const points = seasonalityDayPoints(days, ASSETS, whole, countUk);
+    expect(points.find((p) => p.day === 10)?.actualLabel).toBe('2753 · 2 активи');
+    expect(points.find((p) => p.day === 25)?.expectedLabel).toBe('1456* · 2 активи');
+  });
+
+  it('counts the payers in English', () => {
+    const points = seasonalityDayPoints(days, ASSETS, whole, countEn);
+    expect(points.find((p) => p.day === 10)?.actualLabel).toBe('2753 · 2 assets');
+    expect(points.find((p) => p.day === 25)?.expectedLabel).toBe('1456* · 2 assets');
+  });
+
+  it('keeps a paired expected line at «*» alone', () => {
+    const points = seasonalityDayPoints(days, ASSETS, whole, countUk);
+    expect(points.find((p) => p.day === 3)).toMatchObject({
+      actualLabel: '316 · 2 активи',
+      expectedLabel: '266*',
+    });
+  });
+
+  it('hands the tooltip each series’ assets, named as the bar names them', () => {
+    const points = seasonalityDayPoints(days, ASSETS, whole, countUk);
+    expect(points.find((p) => p.day === 10)?.actualParts).toEqual([
+      { name: 'REIT', value: 1853.04 },
+      { name: 'OVDP …6475', value: 900 },
+    ]);
+    expect(points.find((p) => p.day === 25)?.expectedParts).toEqual([
+      { name: 'OVDP …8976', value: 1240 },
+      { name: 'OVDP …6475', value: 216 },
+    ]);
+  });
+});
+
 describe('seasonalityMonthPoints', () => {
+  const month = (m: number, paid: Paid = [], due?: Paid) => ({
+    month: m,
+    actual: total(paid),
+    expected: due && total(due),
+    actualByAsset: amounts(paid),
+    expectedByAsset: amounts(due ?? []),
+  });
+
   it('prints a month’s total alone, with its expected amount on its own label', () => {
     const points = seasonalityMonthPoints(
       [
-        { month: 1, actual: 0 },
-        { month: 2, actual: 1764.2, expected: 1240 },
-        { month: 8, actual: 0, expected: 1240 },
+        month(1),
+        month(
+          2,
+          [
+            ['reit', 524.2],
+            ['b8976', 1240],
+          ],
+          [['b8976', 1240]],
+        ),
+        month(8, [], [['b8976', 1240]]),
       ],
+      ASSETS,
       whole,
     );
     expect(points.map((p) => [p.day, p.actualLabel, p.expectedLabel])).toEqual([
@@ -137,6 +228,28 @@ describe('seasonalityMonthPoints', () => {
       [2, '1764', '1240*'],
       [8, undefined, '1240*'],
     ]);
+  });
+
+  it('hands the tooltip each series’ assets', () => {
+    const [p] = seasonalityMonthPoints(
+      [
+        month(
+          2,
+          [
+            ['b8976', 1240],
+            ['reit', 524.2],
+          ],
+          [['b8976', 1240]],
+        ),
+      ],
+      ASSETS,
+      whole,
+    );
+    expect(p?.actualParts).toEqual([
+      { name: 'OVDP …8976', value: 1240 },
+      { name: 'REIT', value: 524.2 },
+    ]);
+    expect(p?.expectedParts).toEqual([{ name: 'OVDP …8976', value: 1240 }]);
   });
 });
 

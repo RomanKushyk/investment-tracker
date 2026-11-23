@@ -7,8 +7,11 @@ import { act, cleanup, render } from '@testing-library/react';
 import { cloneElement, type ReactElement } from 'react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Asset } from '@quirenote/core/types';
+import { uk } from '../../i18n/messages';
 import { MONO_ADVANCE } from './anatomy';
 import type { SeasonalityChartPoint } from './SeasonalityBars';
+import { seasonalityDayPoints } from './seasonality-labels';
 
 // The language lives in a persisted store, which writes through on every change.
 const kept = new Map<string, string>();
@@ -249,6 +252,38 @@ describe('the labels at 360', () => {
     );
     const grid = container.querySelector('.recharts-cartesian-grid-horizontal line')!;
     const text = container.querySelector('text[data-seasonality-label="main"]')!;
+    const half = (label.length * 11 * MONO_ADVANCE) / 2;
+    expect(num(text, 'x') - half).toBeGreaterThanOrEqual(num(grid, 'x1'));
+    expect(num(text, 'x') + half).toBeLessThanOrEqual(num(grid, 'x2'));
+  });
+
+  // Wave 27's longest label: an expected-only bar naming its bond, on the plot's last day, built
+  // the way the screen builds it.
+  it('keep the named expected-only label inside the plot at its edge', () => {
+    size.width = 292;
+    const bond = { id: 'b8976', name: 'OVDP UA4000238976', yieldType: 'fixed_coupon' } as Asset;
+    const whole = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format;
+    const due = [{ assetId: 'b8976', amount: 1240 }];
+    const points = seasonalityDayPoints(
+      Array.from({ length: 31 }, (_, i) => ({
+        day: i + 1,
+        actual: 0,
+        expected: i === 30 ? 1240 : undefined,
+        actualByAsset: [],
+        expectedByAsset: i === 30 ? due : [],
+        dominantAssetId: undefined,
+        expectedAssetId: undefined,
+      })),
+      [bond],
+      whole,
+      uk.importing.count.assets,
+    );
+    const label = points[30]!.expectedLabel!;
+    expect(label.replace(/\s/g, ' ')).toBe('1 240* · OVDP …8976');
+    const { container } = settle(points);
+    const grid = container.querySelector('.recharts-cartesian-grid-horizontal line')!;
+    const text = container.querySelector('text[data-seasonality-label="expected"]')!;
+    expect(text.textContent).toBe(label);
     const half = (label.length * 11 * MONO_ADVANCE) / 2;
     expect(num(text, 'x') - half).toBeGreaterThanOrEqual(num(grid, 'x1'));
     expect(num(text, 'x') + half).toBeLessThanOrEqual(num(grid, 'x2'));

@@ -1,40 +1,78 @@
 import type { Asset } from '@quirenote/core/types';
-import type { SeasonalityDayRow, SeasonalityMonth } from '@quirenote/core/view/seasonality';
+import type {
+  AssetAmount,
+  SeasonalityDayRow,
+  SeasonalityMonth,
+} from '@quirenote/core/view/seasonality';
 import type { Dict } from '../../i18n/messages';
 import { bondAbbrev, shortLabel } from '../../screens/daily-quotes/quotes';
 import { MONO_ADVANCE } from './anatomy';
-import type { SeasonalityChartPoint } from './SeasonalityBars';
+import type { SeasonalityChartPoint, SeasonalityPart } from './SeasonalityBars';
 
 const expectedLabel = (n: number | undefined, whole: (n: number) => string) =>
   n === undefined ? undefined : `${whole(n)}*`;
 
+const assetName = (asset: Asset) =>
+  asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : shortLabel(asset);
+
+/** A bucket's assets as the bar and the tooltip name them; one the portfolio no longer holds has
+ *  no name to give. */
+function partsOf(amounts: AssetAmount[], assets: Asset[]): SeasonalityPart[] {
+  return amounts.flatMap(({ assetId, amount }) => {
+    const asset = assets.find((a) => a.id === assetId);
+    return asset ? [{ name: assetName(asset), value: amount }] : [];
+  });
+}
+
+/** Who a bar names after its value: its one asset, or the count of several (wave 27, step 1 B). */
+function payers(
+  amounts: AssetAmount[],
+  parts: SeasonalityPart[],
+  countAssets: (n: number) => string,
+): string | undefined {
+  return amounts.length > 1 ? countAssets(amounts.length) : parts[0]?.name;
+}
+
+const named = (value: string, who: string | undefined) => (who ? `${value} · ${who}` : value);
+
 /**
  * The day axis's points. Every bar is the accent, so the asset is named on the bar, after its
- * value (`charts.md` § Signed › Identity).
+ * value (`charts.md` § Signed › Identity); an expected bar alone on its day names its own, and
+ * one paired with a received bar stays «N*» (`open-values-charts-type.md` § Wave 27).
  */
 export function seasonalityDayPoints(
   days: SeasonalityDayRow[],
   assets: Asset[],
   whole: (n: number) => string,
+  countAssets: (n: number) => string,
 ): SeasonalityChartPoint[] {
   return days.map((d) => {
-    const asset = assets.find((a) => a.id === d.dominantAssetId);
-    const name =
-      asset && (asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : shortLabel(asset));
+    const actualParts = partsOf(d.actualByAsset, assets);
+    const expectedParts = partsOf(d.expectedByAsset, assets);
+    const due = expectedLabel(d.expected, whole);
     return {
       day: d.day,
       actual: d.actual,
       expected: d.expected,
       actualLabel:
-        d.actual > 0 ? (name ? `${whole(d.actual)} · ${name}` : whole(d.actual)) : undefined,
-      expectedLabel: expectedLabel(d.expected, whole),
+        d.actual > 0
+          ? named(whole(d.actual), payers(d.actualByAsset, actualParts, countAssets))
+          : undefined,
+      expectedLabel:
+        due !== undefined && d.actual === 0
+          ? named(due, payers(d.expectedByAsset, expectedParts, countAssets))
+          : due,
+      actualParts,
+      expectedParts,
     };
   });
 }
 
-/** The month axis's points: a month holds several assets, so its bar prints the total alone. */
+/** The month axis's points: a month holds several assets, so its bar prints the total alone and
+ *  the tooltip names them. */
 export function seasonalityMonthPoints(
   months: SeasonalityMonth[],
+  assets: Asset[],
   whole: (n: number) => string,
 ): SeasonalityChartPoint[] {
   return months.map((m) => ({
@@ -43,6 +81,8 @@ export function seasonalityMonthPoints(
     expected: m.expected,
     actualLabel: m.actual > 0 ? whole(m.actual) : undefined,
     expectedLabel: expectedLabel(m.expected, whole),
+    actualParts: partsOf(m.actualByAsset, assets),
+    expectedParts: partsOf(m.expectedByAsset, assets),
   }));
 }
 

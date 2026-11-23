@@ -82,6 +82,11 @@ describe('the Seasonality tooltip rows', () => {
     expect(CHART).toMatch(/<ChartTooltip\s/);
     expect(CHART).not.toMatch(/\bitemSorter=/);
   });
+
+  // Wave 27: the asset rows extend the shared content, so no chart grows a tooltip of its own.
+  it('hands each series’ assets and the counted noun to the shared tooltip', () => {
+    expect(CHART).toMatch(/\bparts=\{\{\s*of: partsOf, more: t\.importing\.count\.assets\s*\}\}/);
+  });
 });
 
 // `charts.md` § Signed › Identity: one colour, `accent`, for every bar; colouring a day by its

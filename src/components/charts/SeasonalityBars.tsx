@@ -14,9 +14,15 @@ import { CHART, CHART_CURSOR_FILL } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { TapPinPlot, useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
-import { CHART_MOTION, TICK } from './anatomy';
+import { CHART_MOTION, TICK, type TooltipEntry } from './anatomy';
 import { ChartTooltip } from './ChartTooltip';
 import { clampLabelX, expectedOnlyLabel, seasonalitySeriesNames } from './seasonality-labels';
+
+/** One asset's share of a bucket, named as its bar names it; the tooltip's own row shape. */
+export interface SeasonalityPart {
+  name: string;
+  value: number;
+}
 
 export interface SeasonalityChartPoint {
   day: number;
@@ -24,7 +30,16 @@ export interface SeasonalityChartPoint {
   expected?: number;
   actualLabel?: string;
   expectedLabel?: string;
+  /** Each series' assets, the largest first, which the tooltip lists under the series. */
+  actualParts?: SeasonalityPart[];
+  expectedParts?: SeasonalityPart[];
 }
+
+// The tooltip's asset rows under a series row: the point's own list for that series.
+const partsOf = (entry: TooltipEntry) => {
+  const point = entry.payload as SeasonalityChartPoint | undefined;
+  return (entry.dataKey === 'expected' ? point?.expectedParts : point?.actualParts) ?? [];
+};
 
 // `charts.md` § Signed › Forms, Seasonality; the 4 px value end is chart marks' fixed corner
 // (`open-values-charts-type.md` § Signed).
@@ -277,6 +292,7 @@ export function SeasonalityBars({
               : t.analytics.seasonality.anchorDay(Number(label))
           }
           formatValue={(v) => f.money(v)}
+          parts={{ of: partsOf, more: t.importing.count.assets }}
         />
         <Bar
           dataKey="actual"

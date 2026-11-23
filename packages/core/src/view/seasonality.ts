@@ -11,10 +11,44 @@ import type { Asset, Transaction } from '../types';
 import type { LedgerInput, PaymentDatesInput, PeriodInput } from './input';
 import { windowView } from './window';
 
+/** One asset's share of a bucket. A list, not a record keyed by id: it keeps its order through
+ *  JSON, where an integer-like key would jump ahead. */
+export interface AssetAmount {
+  assetId: string;
+  amount: number;
+}
+
+/** Each bucket's amounts per asset. */
+type Split = Map<number, Map<string, number>>;
+
+function addTo(split: Split, bucket: number, assetId: string, amount: number) {
+  let byAsset = split.get(bucket);
+  if (!byAsset) split.set(bucket, (byAsset = new Map()));
+  byAsset.set(assetId, (byAsset.get(assetId) ?? 0) + amount);
+}
+
+/** The largest first; ties by id, so the order never depends on the ledger's. */
+function amountsIn(split: Split, bucket: number): AssetAmount[] {
+  return [...(split.get(bucket) ?? [])]
+    .map(([assetId, amount]) => ({ assetId, amount }))
+    .sort((a, b) => b.amount - a.amount || (a.assetId < b.assetId ? -1 : 1));
+}
+
+// Summed in the order the split was filled, the assets' order, so no total moves by a float.
+function totalIn(split: Split, bucket: number): number | undefined {
+  const byAsset = split.get(bucket);
+  if (!byAsset) return undefined;
+  let total = 0;
+  for (const amount of byAsset.values()) total += amount;
+  return total;
+}
+
 export interface SeasonalityDay {
   day: number; // 1-31
   actual: number; // Σ dividend_accrual + interest_payout on this day-of-month, all months
   expected?: number; // projected coupon of a bond paying on this day-of-month
+  actualByAsset: AssetAmount[];
+  expectedByAsset: AssetAmount[];
 }
 
 function dayOfMonth(iso: string): number {
@@ -31,14 +65,24 @@ export function incomeByDayOfMonth(transactions: Transaction[]): Record<number, 
   return out;
 }
 
+// The received totals keep their own sum in ledger order; this only splits them.
+function incomeSplit(transactions: Transaction[], bucketOf: (iso: string) => number): Split {
+  const split: Split = new Map();
+  for (const t of transactions) {
+    if (t.type !== 'dividend_accrual' && t.type !== 'interest_payout') continue;
+    addTo(split, bucketOf(t.date), t.assetId, t.amount);
+  }
+  return split;
+}
+
 // Expected coupon bars come from `couponProjection`, so a bond missing
 // `couponAmount` and/or `nextCoupon` still projects instead of vanishing.
 function expectedByDayOfMonth(
   assets: Asset[],
   transactions: Transaction[],
   paymentDates?: PaymentDatesInput['paymentDates'],
-): Record<number, number> {
-  const out: Record<number, number> = {};
+): Split {
+  const split: Split = new Map();
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
@@ -51,10 +95,9 @@ function expectedByDayOfMonth(
       paymentDates?.get(a.id),
     );
     if (coupon === undefined) continue;
-    const day = dayOfMonth(coupon.date);
-    out[day] = (out[day] ?? 0) + coupon.amount;
+    addTo(split, dayOfMonth(coupon.date), a.id, coupon.amount);
   }
-  return out;
+  return split;
 }
 
 export function seasonalityDays(transactions: Transaction[], assets: Asset[]): SeasonalityDay[] {
@@ -79,10 +122,17 @@ export function seasonalityDaysIn(
 ): SeasonalityDay[] {
   const inside = transactionsFromWindow(transactions, w);
   const actual = incomeByDayOfMonth(inside);
+  const received = incomeSplit(inside, dayOfMonth);
   const expected = expectedByDayOfMonth(assets, transactions, paymentDates);
   const days: SeasonalityDay[] = [];
   for (let day = 1; day <= 31; day++) {
-    days.push({ day, actual: actual[day] ?? 0, expected: expected[day] });
+    days.push({
+      day,
+      actual: actual[day] ?? 0,
+      expected: totalIn(expected, day),
+      actualByAsset: amountsIn(received, day),
+      expectedByAsset: amountsIn(expected, day),
+    });
   }
   return days;
 }
@@ -102,8 +152,8 @@ function expectedByMonth(
   assets: Asset[],
   transactions: Transaction[],
   paymentDates?: PaymentDatesInput['paymentDates'],
-): Record<number, number> {
-  const out: Record<number, number> = {};
+): Split {
+  const split: Split = new Map();
   const invested = investedByAsset(transactions);
   const units = unitsByAsset(transactions);
   for (const a of assets) {
@@ -120,17 +170,21 @@ function expectedByMonth(
     );
     if (coupon === undefined) continue;
     for (const month of scheduledCouponMonths(a, transactions, schedule)) {
-      out[month] = (out[month] ?? 0) + coupon.amount;
+      addTo(split, month, a.id, coupon.amount);
     }
   }
-  return out;
+  return split;
 }
 
 export interface SeasonalityMonth {
   month: number;
   actual: number;
   expected?: number;
+  actualByAsset: AssetAmount[];
+  expectedByAsset: AssetAmount[];
 }
+
+const monthOf = (iso: string) => Number(iso.slice(5, 7));
 
 /**
  * The same two series bucketed by MONTH OF YEAR.
@@ -160,10 +214,17 @@ export function seasonalityMonthsIn(
 ): SeasonalityMonth[] {
   const inside = transactionsFromWindow(transactions, w);
   const actual = incomeByMonth(inside);
+  const received = incomeSplit(inside, monthOf);
   const expected = expectedByMonth(assets, transactions, paymentDates);
   const months: SeasonalityMonth[] = [];
   for (let month = 1; month <= 12; month++) {
-    months.push({ month, actual: actual[month] ?? 0, expected: expected[month] });
+    months.push({
+      month,
+      actual: actual[month] ?? 0,
+      expected: totalIn(expected, month),
+      actualByAsset: amountsIn(received, month),
+      expectedByAsset: amountsIn(expected, month),
+    });
   }
   return months;
 }
@@ -287,6 +348,10 @@ export interface SeasonalityDayRow {
   day: number;
   actual: number;
   expected: number | undefined;
+  /** Who paid this day, inside the window, the largest first. */
+  actualByAsset: AssetAmount[];
+  /** Whose projected coupons fall on this day, over the whole ledger, the largest first. */
+  expectedByAsset: AssetAmount[];
   /** Whose payouts this day's ACTUAL bar is mostly, read inside the window. */
   dominantAssetId: string | undefined;
   /** Whose projected coupon the EXPECTED bar is, read over the whole ledger. */
@@ -348,6 +413,8 @@ export function seasonalityView(
       day: d.day,
       actual: d.actual,
       expected: d.expected,
+      actualByAsset: d.actualByAsset,
+      expectedByAsset: d.expectedByAsset,
       dominantAssetId: d.actual > 0 ? dominantAssetOnDay(windowed, d.day) : undefined,
       expectedAssetId:
         d.expected !== undefined

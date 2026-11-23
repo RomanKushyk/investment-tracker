@@ -2912,7 +2912,7 @@ The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, never a fi
 never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces are the sixty, text
 and borders and the chart series the thirty, the accent the ten, so a second action beside a filled
 one takes the glass knob or a ghost. A chart with one hue draws in the ten: the capital line and
-/seasonality's bars, whose received day bars name their asset in words rather than in colour.
+/seasonality's bars, whose day bars name who pays in words rather than in colour.
 Every neutral control (the ghost, the knob, a list row, a text control, the toast's close) hovers with an `ink` 5 % veil and never fades; the primary steps to
 `accent-hover`. On a control with a fill of its own, the knob or the toast's `card` close, the veil
 is folded into that fill, so it steps on any ground. A text control takes the veil on its own padded

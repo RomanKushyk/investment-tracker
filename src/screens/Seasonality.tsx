@@ -42,10 +42,13 @@ export function Seasonality() {
   const [axis, setAxis] = useState<'day' | 'month'>('day');
   const { anchor, anchorAsset, anchorGrowth: growth, bigBond: big, bigBondInfo: bigInfo } = view;
 
-  const monthData = useMemo(() => seasonalityMonthPoints(view.months, f.numWhole), [view, f]);
-  const chartData = useMemo(
-    () => seasonalityDayPoints(view.days, assets, f.numWhole),
+  const monthData = useMemo(
+    () => seasonalityMonthPoints(view.months, assets, f.numWhole),
     [view, assets, f],
+  );
+  const chartData = useMemo(
+    () => seasonalityDayPoints(view.days, assets, f.numWhole, t.importing.count.assets),
+    [view, assets, f, t],
   );
 
   return (

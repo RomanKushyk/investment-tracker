@@ -146,7 +146,13 @@ describe('a transaction or a quote snapshot dated after today counts in no figur
     expect(view.payouts.log.map((r) => r.date)).not.toContain(payout.date);
     for (const period of PERIOD_OPTIONS) {
       const august = view.periods[period].seasonality.months.find((m) => m.month === 8);
-      expect(august, period).toEqual({ month: 8, actual: 0, expected: 1240 });
+      expect(august, period).toEqual({
+        month: 8,
+        actual: 0,
+        expected: 1240,
+        actualByAsset: [],
+        expectedByAsset: [{ assetId: 'ovdp8976', amount: 1240 }],
+      });
     }
   });
 

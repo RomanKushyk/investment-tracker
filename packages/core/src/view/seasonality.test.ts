@@ -17,7 +17,7 @@ import {
 } from './seasonality';
 import { scheduledCouponMonths } from '../accrual';
 import { buildSeedSnapshots } from '../seed';
-import { resolveWindow } from '../period';
+import { PERIOD_OPTIONS, resolveWindow } from '../period';
 import type { PeriodOption } from '../period';
 import { portfolioStart, transactionsFrom } from '../derive';
 import { latestSnapshotDate } from '../dates';
@@ -361,6 +361,80 @@ describe('seasonalityMonths (A41) — the month axis, and D-5 in it', () => {
     const october = m.find((x) => x.month === 10)!;
     expect(october.actual).toBe(0);
     expect(october.expected).toBeUndefined();
+  });
+});
+
+// Wave 27 (`open-values-charts-type.md` § Wave 27): every bucket serves whose amounts it sums, so a
+// bar can count its payers and the tooltip can list them.
+describe('the per-asset amounts of each bucket', () => {
+  // A second payer on day 10 beside REIT, and a second coupon due on day 25 beside …8976.
+  const bond2: Asset = {
+    id: 'bond2',
+    name: 'OVDP UA0000000000',
+    code: 'GB',
+    colorKey: 'energy',
+    yieldType: 'fixed_coupon',
+    expectedPct: 16,
+    targetPct: 5,
+    payoutSchedule: 'semiannual',
+    firstPurchase: '2026-05-04',
+    createdAt: '2026-05-04T10:00:00',
+    nextCoupon: '2026-09-25',
+  };
+  const transactions: Transaction[] = [
+    ...SEED_TRANSACTIONS,
+    { id: 'x1', date: '2026-05-04', type: 'buy', assetId: 'bond2', amount: 10000 },
+    { id: 'x2', date: '2026-07-10', type: 'interest_payout', assetId: 'bond2', amount: 900 },
+  ];
+  const assets = [...SEED_ASSETS, bond2];
+  const view = (period: PeriodOption) =>
+    seasonalityView({ assets, snapshots: buildSeedSnapshots(), transactions, period });
+  const sum = (xs: { amount: number }[]) => xs.reduce((s, x) => s + x.amount, 0);
+  const pairs = (xs: { assetId: string; amount: number }[]) =>
+    xs.map((x) => [x.assetId, Math.round(x.amount * 100) / 100]);
+
+  it('lists a day several assets paid, largest first, inside the window', () => {
+    expect(pairs(view('all').days.find((d) => d.day === 10)!.actualByAsset)).toEqual([
+      ['reit', 3641.44],
+      ['bond2', 900],
+    ]);
+    expect(pairs(view('3m').days.find((d) => d.day === 10)!.actualByAsset)).toEqual([
+      ['reit', 1853.04],
+      ['bond2', 900],
+    ]);
+  });
+
+  it('lists a day several coupons are due on, over the whole ledger in every window', () => {
+    const due = (p: PeriodOption) => view(p).days.find((d) => d.day === 25)!.expectedByAsset;
+    expect(pairs(due('all'))).toEqual([
+      ['ovdp8976', 1240],
+      ['bond2', 800],
+    ]);
+    expect(due('1m')).toEqual(due('all'));
+  });
+
+  it('lists a month’s payers and its scheduled coupons', () => {
+    const july = view('all').months.find((m) => m.month === 7)!;
+    expect(pairs(july.actualByAsset)).toEqual([
+      ['bond2', 900],
+      ['reit', 700.36],
+    ]);
+    const august = view('all').months.find((m) => m.month === 8)!;
+    expect(pairs(august.expectedByAsset)).toEqual([['ovdp8976', 1240]]);
+  });
+
+  it('adds up to each bucket’s totals, sorted by amount, on both axes in every window', () => {
+    for (const p of PERIOD_OPTIONS) {
+      const v = view(p);
+      for (const b of [...v.days, ...v.months]) {
+        expect(sum(b.actualByAsset)).toBeCloseTo(b.actual, 6);
+        expect(sum(b.expectedByAsset)).toBeCloseTo(b.expected ?? 0, 6);
+        expect(b.expectedByAsset.length === 0).toBe(b.expected === undefined);
+        for (const xs of [b.actualByAsset, b.expectedByAsset]) {
+          expect(xs.map((x) => x.amount)).toEqual(xs.map((x) => x.amount).sort((a, c) => c - a));
+        }
+      }
+    }
   });
 });
 
