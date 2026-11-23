@@ -271,8 +271,6 @@ describe('the labels at 360', () => {
         expected: i === 30 ? 1240 : undefined,
         actualByAsset: [],
         expectedByAsset: i === 30 ? due : [],
-        dominantAssetId: undefined,
-        expectedAssetId: undefined,
       })),
       [bond],
       whole,

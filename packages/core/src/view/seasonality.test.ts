@@ -6,7 +6,6 @@ import {
   anchorAssetGrowth,
   bondCouponInfo,
   dominantAssetOnDay,
-  dominantExpectedAssetOnDay,
   incomeAnchorDay,
   quietStretch,
   seasonalityDays,
@@ -58,20 +57,6 @@ describe('dominantAssetOnDay', () => {
   });
 });
 
-describe('dominantExpectedAssetOnDay', () => {
-  it('day 3 expected coupon is attributed to …6475 (nextCoupon 2026-12-03)', () => {
-    expect(dominantExpectedAssetOnDay(SEED_ASSETS, SEED_TRANSACTIONS, 3)).toBe('ovdp6475');
-  });
-
-  it('day 25 expected coupon is attributed to …8976 (nextCoupon 2026-08-25)', () => {
-    expect(dominantExpectedAssetOnDay(SEED_ASSETS, SEED_TRANSACTIONS, 25)).toBe('ovdp8976');
-  });
-
-  it('a day with no upcoming coupon has no attribution', () => {
-    expect(dominantExpectedAssetOnDay(SEED_ASSETS, SEED_TRANSACTIONS, 10)).toBeUndefined();
-  });
-});
-
 describe('anchorAssetGrowth', () => {
   it('REIT dividends grew ₴580.20 (Feb) -> ₴700.36 (Jul)', () => {
     const g = anchorAssetGrowth(SEED_TRANSACTIONS, 'reit');
@@ -84,6 +69,27 @@ describe('quietStretch', () => {
   it('finds the trailing zero-income run, days 26-31', () => {
     const days = seasonalityDays(SEED_TRANSACTIONS, SEED_ASSETS);
     expect(quietStretch(days)).toEqual({ from: 26, to: 31 });
+  });
+});
+
+// A day row rides every /view read, so its keys are pinned to the five /seasonality reads; a
+// new field joins this list together with its reader.
+describe('a day row serves the fields /seasonality reads, and no other', () => {
+  it('carries the totals and the per-asset amounts alone', () => {
+    const v = seasonalityView({
+      assets: SEED_ASSETS,
+      snapshots: buildSeedSnapshots(),
+      transactions: SEED_TRANSACTIONS,
+      period: 'all',
+    });
+    for (const d of v.days)
+      expect(Object.keys(d).sort()).toEqual([
+        'actual',
+        'actualByAsset',
+        'day',
+        'expected',
+        'expectedByAsset',
+      ]);
   });
 });
 
@@ -113,9 +119,9 @@ describe('expected bars — user-created fixed-coupon assets (P3 fix)', () => {
 
   it('projects the estimated coupon on its day-of-month (16 % of ₴10 000 half-yearly = ₴800)', () => {
     expect(days.find((d) => d.day === 15)!.expected).toBeCloseTo(800, 2);
-    expect(
-      dominantExpectedAssetOnDay([...SEED_ASSETS, userBond], [...SEED_TRANSACTIONS, buy], 15),
-    ).toBe('bond2');
+    expect(days.find((d) => d.day === 15)!.expectedByAsset.map((x) => x.assetId)).toEqual([
+      'bond2',
+    ]);
   });
 
   it('leaves the seed bars untouched (additive-only, D5)', () => {
@@ -277,7 +283,9 @@ describe('the expected coupons step through the published dates the build carrie
   const expectedMonths = (v: ReturnType<typeof view>) =>
     v.months.filter((m) => m.expected !== undefined).map((m) => m.month);
   const expectedDays = (v: ReturnType<typeof view>) =>
-    v.days.filter((d) => d.expected !== undefined).map((d) => [d.day, d.expectedAssetId]);
+    v.days
+      .filter((d) => d.expected !== undefined)
+      .map((d) => [d.day, d.expectedByAsset[0]?.assetId]);
   const withDates = view(PUBLISHED_INPUT);
   const without = view({ ...PUBLISHED_INPUT, paymentDates: undefined });
 

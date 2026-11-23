@@ -87,8 +87,6 @@ const row = (day: number, paid: Paid = [], due?: Paid) => ({
   expected: due && total(due),
   actualByAsset: amounts(paid),
   expectedByAsset: amounts(due ?? []),
-  dominantAssetId: paid[0]?.[0],
-  expectedAssetId: due?.[0]?.[0],
 });
 const countUk = uk.importing.count.assets;
 const countEn = en.importing.count.assets;

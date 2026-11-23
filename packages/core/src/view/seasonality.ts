@@ -254,36 +254,6 @@ export function dominantAssetOnDay(transactions: Transaction[], day: number): st
   return bestId;
 }
 
-// Mirrors `dominantAssetOnDay` over projected coupon dates rather than posted
-// transactions.
-export function dominantExpectedAssetOnDay(
-  assets: Asset[],
-  transactions: Transaction[],
-  day: number,
-  paymentDates?: PaymentDatesInput['paymentDates'],
-): string | undefined {
-  let bestId: string | undefined;
-  let bestAmount = -Infinity;
-  const invested = investedByAsset(transactions);
-  const units = unitsByAsset(transactions);
-  for (const a of assets) {
-    const coupon = couponProjection(
-      a,
-      invested[a.id] ?? 0,
-      units[a.id],
-      transactions,
-      undefined,
-      paymentDates?.get(a.id),
-    );
-    if (coupon === undefined || dayOfMonth(coupon.date) !== day) continue;
-    if (coupon.amount > bestAmount) {
-      bestAmount = coupon.amount;
-      bestId = a.id;
-    }
-  }
-  return bestId;
-}
-
 export function anchorAssetGrowth(
   transactions: Transaction[],
   assetId: string,
@@ -352,10 +322,6 @@ export interface SeasonalityDayRow {
   actualByAsset: AssetAmount[];
   /** Whose projected coupons fall on this day, over the whole ledger, the largest first. */
   expectedByAsset: AssetAmount[];
-  /** Whose payouts this day's ACTUAL bar is mostly, read inside the window. */
-  dominantAssetId: string | undefined;
-  /** Whose projected coupon the EXPECTED bar is, read over the whole ledger. */
-  expectedAssetId: string | undefined;
 }
 
 export interface OtherBond {
@@ -383,8 +349,8 @@ export function seasonalityView(
 ): SeasonalityView {
   const { assets, transactions, paymentDates } = input;
   const w = windowView(input);
-  // Every FLOW reads this windowed ledger, or a windowed bar wears an unwindowed colour and a
-  // card names an asset that paid nothing inside the window.
+  // Every FLOW a card reads comes from this windowed ledger, as the bars' does, or a card names
+  // an asset or a month that paid nothing inside the window.
   const windowed = transactionsFromWindow(transactions, w);
   const days = seasonalityDaysIn(transactions, assets, w, paymentDates);
   const anchor = incomeAnchorDay(days);
@@ -415,11 +381,6 @@ export function seasonalityView(
       expected: d.expected,
       actualByAsset: d.actualByAsset,
       expectedByAsset: d.expectedByAsset,
-      dominantAssetId: d.actual > 0 ? dominantAssetOnDay(windowed, d.day) : undefined,
-      expectedAssetId:
-        d.expected !== undefined
-          ? dominantExpectedAssetOnDay(assets, transactions, d.day, paymentDates)
-          : undefined,
     })),
     months: seasonalityMonthsIn(transactions, assets, w, paymentDates),
     anchor,
