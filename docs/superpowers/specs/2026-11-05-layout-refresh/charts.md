@@ -63,6 +63,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 - **Crosshair.** On hover anywhere on the plot (≥ 768) or on tap (below), as `useTooltipTrigger` does today. A full-height 1 px `field-border` line, plus ringed markers on each series at that x.
   - *Overturned by wave 25 for bar charts: the hovered category takes a `hairline` band, and /seasonality tap-pins like the others ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Tooltip.** Glass (the signed material, r12), padding 9/12, 12 px. The date in `muted` 11 px, then one row per series: a 12×2 colour key, the name, the value in 700, sorted by value. It sits right of the crosshair, left of it past mid-plot, and inside the plot's left edge on plots under 500 px wide (wrapping), so it never leaves the card.
+  - *Answered by wave 27 for /seasonality: each series row lists its assets under it, five at most ([open-values-charts-type.md](open-values-charts-type.md#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip)).*
 - **Motion.** Entry and update 400 ms on `ease-soft`. Recharts' `isAnimationActive: 'auto'` keeps honouring reduced motion.
 - **Contrast.** Every series mark is ≥ 3 : 1 against the card in both themes. Text is in text tokens only.
   - *Overturned by wave 20: in dark, three asset slots sit under the non-text floor and take the relief rule ([palette.md](palette.md#signed)).*
@@ -75,6 +76,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 - **Recorded.** The combined view relies on hue along the lines. It is accepted only because it isn't the default and the tooltip names each asset. Adding direct end labels (Y2) to it would close the gap.
 - **/seasonality.** One colour (`accent`) for every bar; the asset is named on the bar, after the value (for example «3 641 · REIT»). Labels are clamped inside the plot.
   - *Answered by wave 25: the month axis prints the total alone and names no asset ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
+  - *Answered by wave 27: a day several assets paid prints its total and a count, and an expected-only bar names its asset ([open-values-charts-type.md](open-values-charts-type.md#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip)).*
 
 ### Forms
 
@@ -83,6 +85,7 @@ The tooltip is shown open at a fixed date, so the hover layer can be judged. The
 - **Payouts (B1).** Stacked columns ≤ 24 px: dividends at the bottom, coupons on top with a 2 px gap. Square at the baseline, 4 px round at the data end (the top part only). The month total on the cap at 11/700 `ink`. A legend row of two keys.
   - *Answered by wave 25: the month total is whole, with no ₴, and the 4 px holds ([open-values-charts-type.md](open-values-charts-type.md#signed)).*
 - **Seasonality.** Columns ≤ 18 px (12 when paired with an expected bar). Expected bars stay outlined and dashed at 40 % with a «*» label. Empty days get an 8×4 hairline stub.
+  - *Answered by wave 27: an expected-only bar names its asset after the «*» ([open-values-charts-type.md](open-values-charts-type.md#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip)).*
 - **Capital.** The C2 area, cropped as above, with a single series and no legend.
 
 ## Rejected

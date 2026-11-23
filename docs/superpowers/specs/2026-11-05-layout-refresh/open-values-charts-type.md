@@ -43,7 +43,9 @@ The rounds draw assets in today's hues, except the «Колір» swatches, whic
   - Under #338's message the toggle stays and works; both views show the message.
 - **/seasonality (step 2, D and A; item 4).**
   - The month axis prints the month's total alone, «1 764», on every month and at every width; a month bar names no asset.
+    - *Answered by wave 27: the tooltip lists each month's assets ([below](#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip)).*
   - The day axis keeps «3 641 · REIT».
+    - *Answered by wave 27: a day several assets paid prints «2 753 · 2 активи» ([below](#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip)).*
   - The pointer is the other charts': hover at md and up, tap-pin below. The labels stay.
 - **The Payouts cap (step 2, A; item 5).** The month total is whole, with no ₴: «1 764». The tooltip and the payout table keep cents.
 - **The hover indicator on bars (step 2, A; item 8).** Bar charts mark the hovered category with a full-height band in `hairline`. The 1 px `field-border` line stays for line and area charts.
@@ -73,6 +75,7 @@ The rounds draw assets in today's hues, except the «Колір» swatches, whic
 - **The 600 px box on md:** at 768 with the sidebar open the panels are too narrow to read, and a title wraps.
 - **The toggle under the message, hidden or disabled:** hidden, the card's top row comes and goes with the period; disabled, a control gives no reason.
 - **The month label.** A, the asset on a one-asset month: a served field the core does not have (`SeasonalityMonth` is month, actual and expected). B, the largest asset with «+N», and C, «N активи»: the same field, and the longest labels.
+  - *Wave 27 serves the field (#775) and keeps D: the tooltip names a month's assets ([below](#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip)).*
 - **/seasonality without a tap-pin** (today's below md), or with no tooltip at all: the one chart a touch reader cannot read exactly, or the cents and the month's full name lost.
 - **The Payouts cap in cents** (widest labels, nearly touching at 360) or abbreviated («1,8 тис.», a unit word the app does not use).
 - **The bar indicator as a 1 px line** (it runs through the cap label), **as fading the others** (their labels fade too), or **both band and fade** (two signals for one state).
@@ -111,3 +114,65 @@ The rounds draw assets in today's hues, except the «Колір» swatches, whic
 
 - In «Колір», the chosen name «Бурштиновий» at 600 is wider than its 72 px cell (#13).
 - At 360 the day axis's «216 · OVDP …6475» runs across the day-10 bar, as it already does in wave 3's frame (#711).
+
+## Wave 27: a day several assets pay, the expected bar and the tooltip
+
+Brief #773. A received day bar printed «value · asset» with the largest payer's name alone, so a day two assets paid read as one asset paying the whole sum. An expected bar printed «N*» and named no one, and the tooltip named no asset on either axis. Three steps answered it, one round each, the bars drawn in the app's own `SeasonalityBars` from the core's `seasonalityView`, the tooltip rows and the per-asset amounts by the review harness in the shared tooltip's classes, as a stand-in for what #775 serves. The owner widened the brief to the tooltip on both axes in the question round.
+
+It answers wave 25's /seasonality lines above and `charts.md`'s identity, Seasonality and tooltip lines ([charts.md](charts.md#signed)). Each of those carries a pointer here.
+
+### Renders
+
+The fixture is the seed plus two composed bonds, under «3 місяці». «OVDP UA4000227045» was bought 04.05, paid 900 on 10.07 and is next due 10.01, so day 10 holds REIT and …7045. «OVDP UA4000233391» was bought 01.07 and is first due on day 3, beside …6475. Day 25 is …8976's expected-only bar. The cap's month is composed, amounts included.
+
+![The day bars at 1440 and 360, dark and light, in Ukrainian](renders/w27f1.jpeg)
+
+![The tooltip: day 10 at 1440 and 360, July on the month axis, day 3 at 360, in Ukrainian](renders/w27f2.jpeg)
+
+![The day bars in English](renders/w27f3.jpeg)
+
+![The tooltip in English](renders/w27f4.jpeg)
+
+The rounds: [step 1, the day several assets paid](renders/w27s1.jpeg); [step 2, the expected line](renders/w27s2.jpeg); [step 3, the tooltip](renders/w27s3.jpeg) and [its row cap](renders/w27s3cap.jpeg).
+
+### Signed
+
+- **A day several assets paid (step 1, B).** The bar prints the whole total and a count: «2 753 · 2 активи» / "2,753 · 2 assets", the dictionary's counted noun. A day one asset paid keeps «value · asset».
+- **The expected bar (step 2, B).**
+  - On the day axis an expected-only bar names its asset after «N*»: «1 240* · OVDP …8976». Several assets take step 1's form, «N* · 2 активи».
+  - An expected line under a received one stays «N*».
+- **The tooltip (step 3, A), on both axes.**
+  - Each series row keeps its total. Under it, one row per asset: its name as the bar names it and its amount in the series row's money form, at 400, indented to the series name, sorted by amount.
+  - At most five asset rows under a series. With more assets, the fifth row becomes «+» and the counted noun, `importing.count.assets(N)` («+2 активи», «+5 активів» / "+2 assets"), in `muted`, and N counts every asset past the fourth.
+  - Held: the shell, the date line, the 12×2 key on the series rows, the order of the series rows, and the placement.
+- **Held.** The bars' paint and geometry; the month bar's total alone, wave 25's pick D, which #773 left out of scope, now beside a tooltip that names the month's assets; the `*` and the footnote; the tap-pin.
+- **New copy:** none. The count is `importing.count.assets`.
+
+### Rejected
+
+- **Step 1.** A, the total alone: the bar stops saying it is several assets, and beside named one-asset days it reads as unnamed. C, the largest payer and «+N», «2 753 · REIT +1»: the name still claims the total, and with a bond's longer name it is the widest form.
+- **Step 2.** A, «N*» everywhere: a bar alone on its day says whose coupon it is nowhere. C, also naming a paired line whose payers the received bar lacks: at 360 the longer line widens day 3's run across day 10, and the rule turns on set membership.
+- **Step 3.** B, flat asset rows: the totals leave the tooltip, expected rows need a dashed key, and an asset can appear twice. C, asset rows only under two or more assets: the tooltip changes shape from bucket to bucket. No cap: a large portfolio's tooltip covers the plot. A cap of four: it folds too soon in a portfolio that often holds five.
+
+### Settled by research
+
+- **Where a summed bucket's payers live.**
+  - No product checked names several payers on a summed mark. Portfolio Performance's payments chart draws the sum with no label and lists each security in its tooltip, with a Sum row. Sharesight's calendar shows a total badge and opens a panel, "especially useful if you have multiple payments on the same date". Actual Budget and Firefly III list the parts in the tooltip. Ghostfolio and Wealthfolio name no payer on the chart.
+  - The domain lays it out the same way. IRS Schedule B: "List each payer's name and the amount". IBKR's statement puts totals under per-payment rows. Ukraine's Ф1 annex puts «Усього» under per-asset rows.
+  - Shneiderman: "Overview first, zoom and filter, then details-on-demand". Carbon: a tooltip repeats the values "and any other relevant details".
+- **What the bar keeps without interaction.** Apple HIG: "don't require interaction to reveal critical information". ONS: the chart "shows the main message without needing any interaction". WCAG 2.2 SC 1.4.13 governs a tooltip's behaviour, not its content.
+- **Overflow.** FullCalendar's more-link text "+5 events"; MUI and Atlassian AvatarGroup «+N». The cap: Actual Budget's `maxTooltipItems = 5`; ONS: "five or fewer" segments.
+- **Forecasts.** Ghostfolio dashes its future segments and names no payer; MarketChameleon marks a projection with an asterisk; Sharesight keeps an estimated payment beside its ticker.
+
+### Implementation checks
+
+- #775:
+  - The core serves each bucket's per-asset amounts, received and expected, on the day and month axes. That is what the count, the expected-only name and the tooltip rows read.
+  - `seasonality-labels.test.ts` pins the two-asset day, the expected-only name in both forms, and the one-asset day unchanged.
+  - The tooltip's rows are pinned beside `seasonality-tooltip.test.ts`, the cap included; `tooltip-rows.test.ts` keeps recharts' `<Tooltip>` in `ChartTooltip.tsx` alone, so the nested rows extend the shared content rather than a chart's own.
+  - `navigation-map.md`: under «3 місяці» the seed's day 25 reads «1 240* · OVDP …8976».
+- #774: `expectedAssetId` is read again by the expected-only name, or replaced by the per-asset field, so #774's removal changes.
+
+### Not drawn
+
+- At 360, day 3's «216 · OVDP …6475» still runs across the day-10 bar, as in wave 25's frames.
