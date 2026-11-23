@@ -11,6 +11,7 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogActions,
   DialogBody,
   DialogFooter,
   DialogHeader,
@@ -351,14 +352,17 @@ function ConfirmStart({
         </dl>
       </DialogBody>
       <DialogFooter>
-        <div className="flex flex-wrap justify-end gap-2.5">
-          <AlertDialogCancel asChild>
-            <Button variant="outline">{c.cancel}</Button>
-          </AlertDialogCancel>
+        <DialogActions
+          cancel={
+            <AlertDialogCancel asChild>
+              <Button variant="outline">{c.cancel}</Button>
+            </AlertDialogCancel>
+          }
+        >
           {/* Radix keeps the closing panel pressable through its exit, so a second click of a
               double-click lands on a dialog already closed: it sends nothing. */}
           <Button onClick={() => open && onStart()}>{c.start}</Button>
-        </div>
+        </DialogActions>
       </DialogFooter>
     </AlertDialog>
   );

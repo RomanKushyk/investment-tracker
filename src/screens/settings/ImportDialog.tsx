@@ -19,6 +19,7 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogActions,
   DialogBody,
   DialogFooter,
   DialogHeader,
@@ -278,20 +279,16 @@ function Preview({
         </div>
       </DialogBody>
       <DialogFooter>
-        {/* At 360 the buttons stack full width with the destructive one LAST. */}
-        <div className="flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="ghost" disabled={pending} className="@max-[419px]:w-full">
-              {t.importing.preview.cancel}
-            </Button>
-          </AlertDialogCancel>
-          <Button
-            variant="danger"
-            disabled={pending}
-            disabledTone="busy"
-            className="@max-[419px]:w-full"
-            onClick={onConfirm}
-          >
+        <DialogActions
+          cancel={
+            <AlertDialogCancel asChild>
+              <Button variant="ghost" disabled={pending}>
+                {t.importing.preview.cancel}
+              </Button>
+            </AlertDialogCancel>
+          }
+        >
+          <Button variant="danger" disabled={pending} disabledTone="busy" onClick={onConfirm}>
             {/* No percentage bar: the import lands whole or not at all and a progress number
                 would be fiction. */}
             <span
@@ -305,7 +302,7 @@ function Preview({
               {pending ? t.importing.preview.pending : t.importing.preview.confirm}
             </span>
           </Button>
-        </div>
+        </DialogActions>
       </DialogFooter>
     </>
   );
@@ -498,17 +495,18 @@ function Report({
         )}
       </DialogBody>
       <DialogFooter>
-        <div className="flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
-          <AlertDialogCancel asChild>
-            <Button variant="ghost" className="@max-[419px]:w-full">
-              {t.importing.report.close}
-            </Button>
-          </AlertDialogCancel>
+        <DialogActions
+          cancel={
+            <AlertDialogCancel asChild>
+              <Button variant="ghost">{t.importing.report.close}</Button>
+            </AlertDialogCancel>
+          }
+        >
           {/* Re-opens the file dialog directly — never a dead end. */}
-          <Button variant="outline" className="@max-[419px]:w-full" onClick={onChooseAnother}>
+          <Button variant="outline" onClick={onChooseAnother}>
             {t.importing.report.another}
           </Button>
-        </div>
+        </DialogActions>
       </DialogFooter>
     </>
   );

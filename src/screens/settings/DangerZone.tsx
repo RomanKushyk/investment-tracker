@@ -8,6 +8,7 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogActions,
   DialogBody,
   DialogFooter,
   DialogHeader,
@@ -116,14 +117,17 @@ function ClearDataDialog({ open, onClose }: { open: boolean; onClose: () => void
         </Button>
       </DialogBody>
       <DialogFooter>
-        <div className="flex flex-wrap justify-end gap-2.5">
-          <AlertDialogCancel asChild>
-            <Button variant="ghost">{t.assets.cancel}</Button>
-          </AlertDialogCancel>
+        <DialogActions
+          cancel={
+            <AlertDialogCancel asChild>
+              <Button variant="ghost">{t.assets.cancel}</Button>
+            </AlertDialogCancel>
+          }
+        >
           <Button variant="danger" disabled={!armed || clearAll.isPending} onClick={confirm}>
             {t.danger.action}
           </Button>
-        </div>
+        </DialogActions>
       </DialogFooter>
     </AlertDialog>
   );

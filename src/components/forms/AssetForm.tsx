@@ -18,7 +18,7 @@ import { useInzhurAssets } from '../../hooks/useInzhurAssets';
 import { AssetAvatar } from '../ui/AssetAvatar';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
-import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '../ui/Dialog';
+import { DialogActions, DialogBody, DialogFooter, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { fieldVariants } from '../ui/field-variants';
 import { Reveal } from '../ui/Reveal';
 import { Select } from '../ui/Select';
@@ -663,14 +663,17 @@ export function AssetForm({
         />
       </DialogBody>
       <DialogFooter>
-        <div className="flex flex-wrap justify-end gap-2.5">
-          <Button variant="ghost" onClick={onCancel}>
-            {t.assets.cancel}
-          </Button>
+        <DialogActions
+          cancel={
+            <Button variant="ghost" onClick={onCancel}>
+              {t.assets.cancel}
+            </Button>
+          }
+        >
           <Button type="submit" disabled={pending}>
             {mode === 'create' ? t.assets.add : t.assets.saveChanges}
           </Button>
-        </div>
+        </DialogActions>
         {/* With the buttons, not the fields: it reports on the press, and a
             summary that scrolled away would be announced about a control the
             reader can no longer see. */}

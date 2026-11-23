@@ -7,6 +7,7 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogActions,
   DialogBody,
   DialogFooter,
   DialogHeader,
@@ -127,17 +128,20 @@ export function ConfirmRuling({
       )}
       <DialogFooter>
         {refused !== undefined && <RefusalLine ruling={ruling} refused={refused} />}
-        <div className="flex flex-wrap justify-end gap-2.5">
-          <AlertDialogCancel asChild>
-            <Button
-              ref={cancel}
-              variant="outline"
-              aria-disabled={sending || undefined}
-              className="aria-disabled:opacity-70"
-            >
-              {u.cancel}
-            </Button>
-          </AlertDialogCancel>
+        <DialogActions
+          cancel={
+            <AlertDialogCancel asChild>
+              <Button
+                ref={cancel}
+                variant="outline"
+                aria-disabled={sending || undefined}
+                className="aria-disabled:opacity-70"
+              >
+                {u.cancel}
+              </Button>
+            </AlertDialogCancel>
+          }
+        >
           {!withdrawn && (
             // `aria-disabled` on its way, never `disabled`, which would drop the focus.
             <Button
@@ -151,7 +155,7 @@ export function ConfirmRuling({
               {u.action[ruling]}
             </Button>
           )}
-        </div>
+        </DialogActions>
       </DialogFooter>
     </AlertDialog>
   );

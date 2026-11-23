@@ -21,8 +21,12 @@ vi.stubGlobal('localStorage', {
   setItem: (k: string, v: string) => void kept.set(k, v),
   removeItem: (k: string) => void kept.delete(k),
 });
+// A getter, since `useIsDesktop` keeps the first list it gets.
+let wide = true;
 vi.stubGlobal('matchMedia', (query: string) => ({
-  matches: query.includes('min-width'),
+  get matches() {
+    return query.includes('min-width') ? wide : false;
+  },
   media: query,
   addEventListener() {},
   removeEventListener() {},
@@ -80,6 +84,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   useSettings.setState(useSettings.getInitialState(), true);
+  wide = true;
 });
 
 function mount() {
@@ -152,6 +157,30 @@ describe('picking a file', () => {
 
     expect(await screen.findByText(uk.importing.report.title)).toBeTruthy();
     expect(requests('POST', '/imports')).toEqual([]);
+  });
+});
+
+// W1: the drawn order is the focus order, switched by the shell at md and never by the dialog's
+// own width: the action first below md, the dismissive one leading at md and up.
+describe('the buttons', () => {
+  const p = uk.importing.preview;
+  const r = uk.importing.report;
+  const broken = () => {
+    const file = JSON.parse(JSON.stringify(SEED)) as { assets: Record<string, unknown>[] };
+    file.assets[0].createdAt = '2026-02-03T10:00:00Z';
+    return fileOf(JSON.stringify(file));
+  };
+  it.each([
+    ['the preview', false, fileOf, [p.confirm, p.cancel]],
+    ['the preview', true, fileOf, [p.cancel, p.confirm]],
+    ['the report', false, broken, [r.another, r.close]],
+    ['the report', true, broken, [r.close, r.another]],
+  ])('%s orders them by the shell (desktop %s)', async (_, desktop, file, buttons) => {
+    wide = desktop;
+    const { pick } = mount();
+    await pick(file());
+    const action = await screen.findByRole('button', { name: buttons[desktop ? 1 : 0] });
+    expect([...action.parentElement!.children].map((b) => b.textContent)).toEqual(buttons);
   });
 });
 

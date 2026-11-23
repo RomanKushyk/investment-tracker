@@ -817,6 +817,8 @@ trigger's name saying it; none while that read is out or failed or none wait. NE
 its empty strip and the footer's track row unseen at a user's layout, the rail holds a user's foot,
 the header bar its height, so a user's shell never moves and the super-admin's band arrives with its
 nav; a failed `/me` keeps the shell so (*Not found and failures*).
+A dialog's button row switches at `md` too, through `useIsDesktop`, never at the dialog's own
+container width (*Forms and layout*).
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry an account's work — a
@@ -2993,15 +2995,24 @@ NOTHING where a payout carries none — no dash, no zero, no empty line, the net
 row's net being its amount already. Every type asks for a NOTE, absent rather than empty and refused
 by a sentence rather than capped by the control. Every field is drawn by ONE RECIPE,
 `fieldVariants`: its states are one axis (rest, invalid, saved, proposed, quiet), and no file spells
-the recipe by hand.
+the recipe by hand. A DIALOG'S BUTTONS ARE ONE ROW, `DialogActions` (W1): below `md` a column of
+full-width buttons, the action first and «Скасувати» last, destructive or not, several actions
+keeping their order above it and the discard dialog's «Продовжити редагування» taking the dismissive
+place; at `md` and up a right-aligned row with «Скасувати» leading. The elements swap in the DOM,
+never by `-reverse` or `order-`; account deletion stays stacked at every width. A dialog is r24
+and a field r9. W1 supersedes three records: `import-dialog`'s "the destructive one LAST",
+`floating-edges`' "Dialog · over its overlay, r20" and `asset-form`'s "radius 10".
 **Why.** A figure that is written, stored and derived from but shown nowhere cannot be checked: a
 wrong withholding understates the tax, overstates the net and lifts that asset's XIRR in silence.
 The note's cap is a DRAWN number rather than a stored one, counted in characters and not lines
 because `transaction_note_ck` must enforce the same bound and SQL cannot check a line count. A
 copied field recipe drifts, and a hover on an invalid edge replaces the only error cue with ink.
+The drawn order of a dialog's buttons is its focus order (WCAG 2.4.3), and Material, Apple, GOV.UK
+and Fluent all stack the action above the dismissive one; none puts Cancel on top.
 **Rejected.** A `textarea` for the note: a hundred characters is a line, not a paragraph, and THE
 ONE FIELD RECIPE that holds every field edge draws a box of one fixed height, which a textarea is
-not.
+not. A dialog row that stacks only when its pair does not fit (W2), or equal halves while each fits
+(W3): the layout would hang on a label's width, which a narrower phone or a larger text size moves.
 
 ## Where the old numbers went
 

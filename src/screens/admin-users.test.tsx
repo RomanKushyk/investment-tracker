@@ -423,6 +423,18 @@ describe('/admin/users, the five confirmations', () => {
     await waitFor(() => expect(page.dialog()).toBeNull());
   });
 
+  // W1: the drawn order is the focus order, the action first below md, «Скасувати» leading at md.
+  it.each([
+    [false, [ACTION.approve, CANCEL]],
+    [true, [CANCEL, ACTION.approve]],
+  ])('orders the dialog’s buttons by the shell (desktop %s)', async (desktop, buttons) => {
+    wide = desktop;
+    const page = mount();
+    await open(page, CASES[0]);
+    const action = within(page.dialog()!).getByRole('button', { name: ACTION.approve });
+    expect([...action.parentElement!.children].map((b) => b.textContent)).toEqual(buttons);
+  });
+
   it('reads only the first page again after a ruling made past it', async () => {
     api.users = [...SEEDED(), ...pendingMany(57)];
     const page = mount();

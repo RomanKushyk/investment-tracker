@@ -31,6 +31,7 @@ const MOUNTS = [
   'src/screens/archive-repairs.test.tsx',
   'src/screens/kpi-unit.test.tsx',
   'src/screens/daily-quotes/coupon-confirm.test.tsx',
+  'src/screens/dialog-order.test.tsx',
   'src/screens/ledger-delete-coupon.test.tsx',
   'src/screens/overview-figures-mark.test.tsx',
   'src/screens/overview-rate.test.tsx',

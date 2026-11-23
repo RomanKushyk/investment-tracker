@@ -1,6 +1,7 @@
 import { AlertDialog as RadixAlertDialog, Dialog as RadixDialog } from 'radix-ui';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
+import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { Scroller } from './Scroller';
 import { keepOpenForToasts } from './toaster-press';
 
@@ -52,6 +53,19 @@ export function DialogHeader({ children }: { children: ReactNode }) {
 
 export function DialogFooter({ children }: { children: ReactNode }) {
   return <div className={`${GUTTER} pt-4 pb-6`}>{children}</div>;
+}
+
+/** The drawn order is the focus order (W1, WCAG 2.4.3), so the buttons swap in the DOM; keyed, so
+ *  crossing md moves a focused button rather than relabelling it as the other one. */
+export function DialogActions({ cancel, children }: { cancel: ReactNode; children?: ReactNode }) {
+  const desktop = useIsDesktop();
+  const dismiss = <Fragment key="cancel">{cancel}</Fragment>;
+  const actions = <Fragment key="actions">{children}</Fragment>;
+  return (
+    <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:justify-end">
+      {desktop ? [dismiss, actions] : [actions, dismiss]}
+    </div>
+  );
 }
 
 /** The scrolling band. It passes the PANEL's radius even though it usually reaches no

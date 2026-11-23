@@ -2,13 +2,13 @@ import { useNavigate } from 'react-router';
 
 import { leaveThroughLogout, session } from '../../auth/app';
 import { SIGNED_OUT } from '../../auth/signed-out';
+import { DialogActions } from '../../components/ui/Dialog';
 import { useT } from '../../i18n/useT';
 import {
   Footer,
   Header,
   Primary,
   Reauthentication,
-  Row,
   Title,
   type ActOutcome,
   type Ways,
@@ -58,11 +58,11 @@ export function SignOutEverywhere({
         <>
           <Header title={<Title>{s.confirm.title}</Title>} lead={s.confirm.body} />
           <Footer>
-            <Row cancel={cancel}>
+            <DialogActions cancel={cancel}>
               <Primary busy={false} onPress={proceed}>
                 {s.confirm.continue}
               </Primary>
-            </Row>
+            </DialogActions>
           </Footer>
         </>
       )}

@@ -1,4 +1,11 @@
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from './Dialog';
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './Dialog';
 import { Button } from './Button';
 import type { EditMode } from '../../hooks/useEditMode';
 import { useT } from '../../i18n/useT';
@@ -85,14 +92,17 @@ export function EditActions(props: EditActionsProps) {
           {/* The band pads itself and the row lives inside it: `DialogFooter`
               takes children only, so its gutter cannot be overridden per
               caller. */}
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="ghost" size="md" weight="semibold" onClick={mode.keepEditing}>
-              {t.edit.keepEditing}
-            </Button>
+          <DialogActions
+            cancel={
+              <Button variant="ghost" size="md" weight="semibold" onClick={mode.keepEditing}>
+                {t.edit.keepEditing}
+              </Button>
+            }
+          >
             <Button variant="outlineDanger" size="md" weight="semibold" onClick={mode.discard}>
               {t.edit.discard}
             </Button>
-          </div>
+          </DialogActions>
         </DialogFooter>
       </Dialog>
     </>

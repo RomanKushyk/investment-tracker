@@ -20,8 +20,12 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => void kept.delete(k),
 });
 vi.stubGlobal('__APP_VERSION__', '0.0.0');
+// A getter, since `useIsDesktop` keeps the first list it gets.
+let wide = true;
 vi.stubGlobal('matchMedia', (query: string) => ({
-  matches: query.includes('min-width'),
+  get matches() {
+    return query.includes('min-width') ? wide : false;
+  },
   media: query,
   addEventListener() {},
   removeEventListener() {},
@@ -53,6 +57,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  wide = true;
 });
 
 function mount() {
@@ -144,6 +149,21 @@ describe('the archive panel’s repairs', () => {
     ]);
     fireEvent.click(echo.getByRole('button', { name: re.confirm.cancel }));
     expect(starts()).toHaveLength(0);
+  });
+
+  // W1: the drawn order is the focus order, «Запустити» first below md, «Скасувати» leading at md.
+  it.each([
+    [false, [re.confirm.start, re.confirm.cancel]],
+    [true, [re.confirm.cancel, re.confirm.start]],
+  ])('orders the confirmation’s buttons by the shell (desktop %s)', async (desktop, order) => {
+    wide = desktop;
+    const page = mount();
+    await waitFor(() => expect(page.main()).toContain(runs.empty));
+    fireEvent.click(within(page.form(OBSERVE)).getByRole('button', { name: re.start }));
+    const action = within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: re.confirm.start,
+    });
+    expect([...action.parentElement!.children].map((b) => b.textContent)).toEqual(order);
   });
 
   it('sends the source chosen, and the run reads as its backfill', async () => {

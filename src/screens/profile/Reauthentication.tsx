@@ -28,10 +28,10 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogActions,
   DialogHeader,
 } from '../../components/ui/Dialog';
 import { useFormat } from '../../hooks/useFormat';
-import { useIsDesktop } from '../../hooks/useIsDesktop';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 import { BotCheck } from '../sign-in/BotCheck';
@@ -460,7 +460,7 @@ export function Reauthentication({
               )}
             </div>
             <Footer>
-              <Row cancel={cancel}>
+              <DialogActions cancel={cancel}>
                 {googleFirst ? (
                   google
                 ) : (
@@ -468,7 +468,7 @@ export function Reauthentication({
                     {pressedLabel ?? t.reauth.continue}
                   </Primary>
                 )}
-              </Row>
+              </DialogActions>
               {stepError && <StepAlert n={stepError.n}>{words(stepError.reason)}</StepAlert>}
             </Footer>
           </>
@@ -486,7 +486,7 @@ export function Reauthentication({
             </div>
             <Footer>
               {/* The account's second way: its password, else Google, else none. */}
-              <Row cancel={cancel}>
+              <DialogActions cancel={cancel}>
                 {ways.password ? (
                   <Button
                     variant="outline"
@@ -499,7 +499,7 @@ export function Reauthentication({
                 ) : (
                   ways.google && google
                 )}
-              </Row>
+              </DialogActions>
               {/* The retry's widget enters with the sentence, as on sign-in
                   (`docs/superpowers/specs/2026-11-05-layout-refresh/signed-out.md`
                   § Перенесено). */}
@@ -554,9 +554,9 @@ export function Reauthentication({
               {passwordCheck.props && <BotCheck {...passwordCheck.props} action="sign-in" />}
             </div>
             <Footer>
-              <Row cancel={cancel}>
+              <DialogActions cancel={cancel}>
                 <Primary busy={proving || acting}>{pressedLabel ?? t.reauth.continue}</Primary>
-              </Row>
+              </DialogActions>
               {stepError && <StepAlert n={stepError.n}>{words(stepError.reason)}</StepAlert>}
             </Footer>
           </form>
@@ -574,11 +574,11 @@ export function Reauthentication({
               </div>
             )}
             <Footer>
-              <Row cancel={cancel}>
+              <DialogActions cancel={cancel}>
                 <Primary busy={acting} onPress={() => void act()}>
                   {pressedLabel ?? lines.action}
                 </Primary>
-              </Row>
+              </DialogActions>
               {stepError && <StepAlert n={stepError.n}>{words(stepError.reason)}</StepAlert>}
             </Footer>
           </>
@@ -730,25 +730,4 @@ export function Primary({
 
 export function Footer({ children }: { children: ReactNode }) {
   return <div className={`${GUTTER} pt-4`}>{children}</div>;
-}
-
-/** The drawn order is the focus order (WCAG 2.4.3): below md the action stacks first
- *  (`docs/superpowers/specs/2026-11-05-layout-refresh/dialog-buttons-and-radii.md` § Signed). */
-export function Row({ cancel, children }: { cancel: ReactNode; children?: ReactNode }) {
-  const desktop = useIsDesktop();
-  return (
-    <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:justify-end">
-      {desktop ? (
-        <>
-          {cancel}
-          {children}
-        </>
-      ) : (
-        <>
-          {children}
-          {cancel}
-        </>
-      )}
-    </div>
-  );
 }
