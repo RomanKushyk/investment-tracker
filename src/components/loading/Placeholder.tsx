@@ -1,9 +1,9 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 // THE PIECES OF THE FIRST-PAINT LOADING STATE. Every one is decoration: hidden from assistive
-// technology, interactive in nothing, and drawn in the tokens the real screen is. A block is `panel`;
-// it is no component boundary, so the 3 : 1 rule does not bind it, and meaning goes through the
-// status line.
+// technology, interactive in nothing, and drawn in the tokens the real screen is. A block is `ink` at
+// 7 %, a tint of the text, so it reads on the glass in both themes. It is no component boundary, so
+// the 3 : 1 rule does not bind it, and meaning goes through the status line.
 
 /** The app's pulse, 1.2 s as the import dialog's busy states run it. Under reduced motion the global
  *  kill switch in `index.css` leaves it still. */
@@ -23,7 +23,7 @@ export function Block({
     <span
       data-placeholder={kind}
       aria-hidden="true"
-      className={`block ${PULSE} bg-panel ${className}`}
+      className={`block ${PULSE} bg-ink/7 ${className}`}
       style={style}
     />
   );
