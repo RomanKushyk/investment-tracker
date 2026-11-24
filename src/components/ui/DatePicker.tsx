@@ -331,7 +331,8 @@ export function DatePicker({
           <RadixDialog.Content
             aria-describedby={undefined}
             onInteractOutside={keepOpenForToasts}
-            className={`${SHEET} grid grid-rows-[minmax(0,1fr)] p-2`}
+            // 9, not 8: the glass draws its 1 px edge inside the box, as on the popover.
+            className={`${SHEET} grid grid-rows-[minmax(0,1fr)] p-[9px]`}
           >
             {/* The sheet draws a month caption, so the title is screen-reader only. */}
             <RadixDialog.Title className="sr-only">{placeholder ?? t.dates.pick}</RadixDialog.Title>

@@ -196,13 +196,23 @@ export function saturate(hex: string, s: number, space: 'srgb' | 'linear'): stri
   return rgbHex(out.map((c) => 255 * (space === 'linear' ? toSrgb(c) : c)));
 }
 
-/** Every plane the glass can show over the page and each glow peak (the blur only averages them),
- *  for a reading to take the least contrasting; light's white grain only lightens, so it is left out. */
-export function glassPlanes(css: string, theme: Theme): string[] {
-  const blocks = themeBlocks(css);
+/** The glass's `saturate()` as a factor, read off the utility. */
+export function glassSaturation(css: string): number {
   const filter = ruleBody(css, '@utility glass').match(/\bbackdrop-filter:[^;]*saturate\(([0-9.]+)%\)/);
   expect(filter, 'the glass utility declares no saturate()').not.toBeNull();
-  const s = +filter![1] / 100;
+  return +filter![1] / 100;
+}
+
+/** Every plane the glass can show over the page and each glow peak (the blur only averages them),
+ *  for a reading to take the least contrasting; light's white grain only lightens, so it is left out.
+ *  A dialog passes its own `fill`, the opaque planes it can also float over, and its `veil`. */
+export function glassPlanes(
+  css: string,
+  theme: Theme,
+  { fill: fillName = 'glass-fill', over = [], veil }: { fill?: string; over?: string[]; veil?: string } = {},
+): string[] {
+  const blocks = themeBlocks(css);
+  const s = glassSaturation(css);
   const page = resolve(blocks, theme, 'page');
   let backdrops = [page, ...[1, 2, 3, 4].map((n) => composite(mixOf(blocks, theme, `glow-${n}-peak`), page))];
   if (theme === 'dark') {
@@ -211,7 +221,9 @@ export function glassPlanes(css: string, theme: Theme): string[] {
     const opacity = +decodeURIComponent(url![1]).match(/<rect [^>]*opacity='([0-9.]+)'/)![1];
     backdrops = backdrops.map((b) => composite({ ch: [128, 128, 128], alpha: opacity }, b));
   }
-  const fill = mixOf(blocks, theme, 'glass-fill');
+  backdrops.push(...over.map((name) => resolve(blocks, theme, name)));
+  if (veil) backdrops = backdrops.map((b) => composite(veilOf(blocks, theme, veil), b));
+  const fill = mixOf(blocks, theme, fillName);
   const sheen = mixOf(blocks, theme, 'glass-sheen');
   return backdrops.flatMap((b) =>
     (['srgb', 'linear'] as const).flatMap((space) => {

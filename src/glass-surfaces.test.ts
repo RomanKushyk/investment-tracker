@@ -5,7 +5,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { createElement as h } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   glassPlanes,
@@ -17,6 +17,7 @@ import {
 } from './__fixtures__/palette';
 import { ScreenFailure } from './app/Boundaries';
 import { Card } from './components/ui/Card';
+import { AlertDialog, AlertDialogTitle, Dialog, DialogTitle, SHEET } from './components/ui/Dialog';
 import { KpiCard } from './components/ui/KpiCard';
 import { RecordCard } from './components/ui/RecordCard';
 
@@ -31,6 +32,17 @@ const THEMES: Theme[] = ['light', 'dark'];
 const RETIRED = ['bg-card', 'bg-sb-bg', 'bg-pos-tint', 'shadow-(--shadow-card)'];
 
 afterEach(cleanup);
+// The top-anchored dialog's Scroller observes its box.
+vi.stubGlobal(
+  'ResizeObserver',
+  globalThis.ResizeObserver ??
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+);
+afterAll(() => vi.unstubAllGlobals());
 
 describe('the content cards wear the glass', () => {
   const wears = (el: Element | null) => {
@@ -54,6 +66,46 @@ describe('the content cards wear the glass', () => {
 
   it('the boundaries’ card', () => {
     wears(render(h(ScreenFailure)).container.querySelector('.glass, [class*="rounded-3xl"]'));
+  });
+});
+
+// THE DIALOGS' THICKER GLASS (open-values-shell-controls.md § Signed, item 6), with wave 8's
+// `field-border` edge in place of the glass stroke; the date sheet below md is the same surface.
+describe('every dialog surface wears the dialog glass', () => {
+  const DIALOG_GLASS = [
+    'glass',
+    '[--glass-fill:var(--color-glass-dialog-fill)]',
+    '[--glass-edge:var(--color-field-border)]',
+  ];
+  /** What the opaque panel painted, each of which would override the glass or double its edge,
+   *  under any variant. */
+  const OPAQUE = /(?:^|:)(?:bg-|border|shadow-)/;
+  const wears = (className: string) => {
+    const classes = className.split(/\s+/);
+    for (const c of DIALOG_GLASS) expect(classes, c).toContain(c);
+    expect(classes.filter((c) => OPAQUE.test(c))).toEqual([]);
+  };
+  const panel = () => document.body.querySelector('[role="dialog"], [role="alertdialog"]')!;
+
+  it('`Dialog`', () => {
+    render(h(Dialog, { open: true, onOpenChange: () => {}, children: h(DialogTitle, null, 't') }));
+    wears(panel().className);
+  });
+
+  it.each(['centre', 'top'] as const)('`AlertDialog`, %s', (anchor) => {
+    render(
+      h(AlertDialog, {
+        open: true,
+        onOpenChange: () => {},
+        anchor,
+        children: h(AlertDialogTitle, null, 't'),
+      }),
+    );
+    wears(panel().className);
+  });
+
+  it('the date sheet', () => {
+    wears(SHEET);
   });
 });
 
@@ -149,16 +201,11 @@ describe('no card is painted off the glass', () => {
     expect(texts.length, 'the walk found almost nothing').toBeGreaterThan(100);
   });
 
-  // Dialogs take their own thicker glass in #716; until then theirs is the one card by hand.
   it('every card is a `Card`, a `KpiCard` or a `RecordCard`', () => {
     const found = texts.flatMap(([file, text]) =>
       [...text.matchAll(HAND_ROLLED)].map((m) => `${name(file)}: ${m[0]}`),
     );
-    expect(found).toEqual([
-      expect.stringMatching(
-        /^components\/ui\/Dialog\.tsx: 'border-field-border border bg-card fixed /,
-      ),
-    ]);
+    expect(found).toEqual([]);
   });
 
   // Passed in, it would fight the glass's own over generated-CSS order.
@@ -206,5 +253,29 @@ describe('a KPI card reads on the glass over the glow', () => {
     const text = resolve(BLOCKS, theme, token);
     const least = Math.min(...glassPlanes(CSS, theme).map((plane) => ratio(text, plane)));
     expect(least).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// A dialog's text inks on its glass over the scrim, wherever the page behind can put it: the
+// page and each glow peak, a card or the panel under the veil (WCAG 1.4.3). The light dialog's
+// `muted` is the reading wave 26 thickened the fill for (open-values-shell-controls.md § Signed).
+describe('a dialog reads on its glass over the scrim', () => {
+  it.each(
+    THEMES.flatMap((theme) =>
+      (
+        [
+          ['ink', 'the title and fields'],
+          ['muted', 'labels and the description'],
+        ] as const
+      ).map(([token, role]) => [theme, token, role] as const),
+    ),
+  )('%s: `%s` (%s) clears 4.5 : 1 on its least contrasting plane', (theme, token) => {
+    const text = resolve(BLOCKS, theme, token);
+    const planes = glassPlanes(CSS, theme, {
+      fill: 'glass-dialog-fill',
+      over: ['card', 'panel'],
+      veil: 'scrim',
+    });
+    expect(Math.min(...planes.map((plane) => ratio(text, plane)))).toBeGreaterThanOrEqual(4.5);
   });
 });

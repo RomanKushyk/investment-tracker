@@ -59,6 +59,8 @@ describe('the glass tokens', () => {
     ['glass-rim', '#ffffff', 'var(--color-ink)'],
     ['glass-shade', 'var(--color-ink)', 'var(--color-page)'],
     ['glass-fill', mix('card', 70), mix('card', 80)],
+    // A dialog's own, thicker: it sits over the scrim (open-values-shell-controls.md § Signed).
+    ['glass-dialog-fill', mix('card', 90), mix('card', 92)],
     ['glass-sheen', mix('glass-rim', 60), mix('glass-rim', 5)],
     ['glass-bevel-top', 'var(--color-glass-rim)', mix('glass-rim', 12)],
     ['glass-bevel-bottom', mix('glass-shade', 16), mix('glass-shade', 60)],
@@ -109,7 +111,7 @@ const BLUR = 'blur(30px) saturate(180%)';
 describe('the glass material', () => {
   it('declares the fill, the sheen, the blur, the stroke, the bevel and the light-only shadow', () => {
     expect(ownDeclarations(utility('glass'))).toEqual({
-      'background-color': 'var(--color-glass-fill)',
+      'background-color': 'var(--glass-fill, var(--color-glass-fill))',
       'background-image': 'linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%)',
       '-webkit-backdrop-filter': BLUR,
       'backdrop-filter': BLUR,
@@ -151,12 +153,15 @@ describe('the glass material', () => {
   });
 
   // An override on a dialog must not reach a glass card inside it.
-  it('keeps the `--glass-edge` override on the element that sets it', () => {
-    expect(ownDeclarations(ruleBody(CSS, '@property --glass-edge'))).toEqual({
-      syntax: "'*'",
-      inherits: 'false',
-    });
-  });
+  it.each(['--glass-edge', '--glass-fill'])(
+    'keeps the `%s` override on the element that sets it',
+    (name) => {
+      expect(ownDeclarations(ruleBody(CSS, `@property ${name}`))).toEqual({
+        syntax: "'*'",
+        inherits: 'false',
+      });
+    },
+  );
 });
 
 describe('the glass knob and its well', () => {
@@ -211,6 +216,13 @@ describe('the build keeps what the utilities read', () => {
     expect(used.filter((name) => !theme.includes(`${name}:`))).toEqual([]);
     expect(built).toContain('@supports not (backdrop-filter: blur(1px))');
     expect(built).toContain('@media (prefers-reduced-transparency: reduce)');
+  });
+
+  // Only an arbitrary property reads the dialog's fill, so the build must keep it from that alone.
+  it('keeps the dialog fill a dialog hands the glass', async () => {
+    const compiler = await compile(CSS, { base: here, onDependency: () => {} });
+    const built = compiler.build(['glass', '[--glass-fill:var(--color-glass-dialog-fill)]']);
+    expect(ruleBody(built, '@layer theme')).toContain('--color-glass-dialog-fill:');
   });
 });
 
@@ -288,6 +300,7 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
       'components/charts/ChartTooltip.tsx',
       'components/ui/Card.tsx',
       'components/ui/DatePicker.tsx',
+      'components/ui/Dialog.tsx',
       'components/ui/KpiCard.tsx',
       'components/ui/SegmentedControl.tsx',
       'components/ui/Select.tsx',

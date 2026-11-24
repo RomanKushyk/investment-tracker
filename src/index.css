@@ -146,7 +146,7 @@
   --text-unit--line-height: 0;
   --text-unit--letter-spacing: 0em;
   --text-unit--font-weight: 500;
-  /* Elevation as three tokens, so all three go transparent under
+  /* Elevation as two tokens, so both go transparent under
      [data-theme=dark] in one place: DARK ELEVATION COMES FROM THE SURFACE STEP
      (page -> card -> panel), never from shadow.
      CALL THEM AS `shadow-(--shadow-card)`, NEVER `shadow-card`: the utility form
@@ -155,7 +155,6 @@
      a legal item in the composed five-part list. */
   --shadow-card: 0 1px 3px rgba(60, 40, 20, 0.06);
   --shadow-popover: 0 4px 16px rgba(60, 40, 20, 0.12);
-  --shadow-dialog: 0 12px 40px rgba(60, 40, 20, 0.18);
   /* The glass drops (glass-light.md, controls.md § Signed), each the shade alias at its alpha. */
   --shadow-glass: 0 8px 24px color-mix(in srgb, var(--color-glass-shade) 7%, transparent);
   --shadow-glass-knob: 0 2px 6px color-mix(in srgb, var(--color-glass-shade) 12%, transparent);
@@ -361,6 +360,11 @@
   --color-glass-rim: #ffffff;
   --color-glass-shade: var(--color-ink);
   --color-glass-fill: color-mix(in srgb, var(--color-card) 70%, transparent);
+  /* A DIALOG'S OWN, THICKER FILL: it sits over the scrim, where the 70 % left `muted` under AA
+     (open-values-shell-controls.md § Signed). RECORDED SHORTFALL (#99): over the veiled `card` it
+     reads 2.95 : 1 and the `field-border` stroke adds nothing in light. A dialog is a container,
+     its title and actions identify it, and the owner ruled the value stands. */
+  --color-glass-dialog-fill: color-mix(in srgb, var(--color-card) 90%, transparent);
   --color-glass-sheen: color-mix(in srgb, var(--color-glass-rim) 60%, transparent);
   --color-glass-bevel-top: var(--color-glass-rim);
   --color-glass-bevel-bottom: color-mix(in srgb, var(--color-glass-shade) 16%, transparent);
@@ -563,6 +567,7 @@
   --color-glass-rim: var(--color-ink);
   --color-glass-shade: var(--color-page);
   --color-glass-fill: color-mix(in srgb, var(--color-card) 80%, transparent);
+  --color-glass-dialog-fill: color-mix(in srgb, var(--color-card) 92%, transparent);
   --color-glass-sheen: color-mix(in srgb, var(--color-glass-rim) 5%, transparent);
   --color-glass-bevel-top: color-mix(in srgb, var(--color-glass-rim) 12%, transparent);
   --color-glass-bevel-bottom: color-mix(in srgb, var(--color-glass-shade) 60%, transparent);
@@ -602,7 +607,6 @@
      than `none` — see the token block above. */
   --shadow-card: 0 0 #0000;
   --shadow-popover: 0 0 #0000;
-  --shadow-dialog: 0 0 #0000;
   /* Glass casts no shadow in dark; the knob and the well keep theirs, being controls. */
   --shadow-glass: 0 0 #0000;
   --shadow-glass-knob: 0 2px 6px color-mix(in srgb, var(--color-glass-shade) 80%, transparent);
@@ -662,16 +666,22 @@
   --focus-halo: 0 0 #0000;
 }
 
-/* `--glass-edge` swaps the stroke, as dialogs and the popover do for `field-border`; it does not
-   inherit, so a dialog's edge stays off the glass inside it. */
+/* `--glass-edge` swaps the stroke, as dialogs and the popover do for `field-border`, and `--glass-fill`
+   the fill, as dialogs do for their thicker one. Neither inherits, so a glass card inside a dialog
+   keeps its own. */
 @property --glass-edge {
+  syntax: '*';
+  inherits: false;
+}
+
+@property --glass-fill {
   syntax: '*';
   inherits: false;
 }
 
 /* THE GLASS MATERIAL. The edge is box-shadow, never `border`, so wearing it moves no content. */
 @utility glass {
-  background-color: var(--color-glass-fill);
+  background-color: var(--glass-fill, var(--color-glass-fill));
   background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);
   /* A literal, never var(): Safari 18 on Sonoma drops a backdrop filter that reads one. */
   -webkit-backdrop-filter: blur(30px) saturate(180%);

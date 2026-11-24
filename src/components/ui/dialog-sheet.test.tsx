@@ -77,9 +77,10 @@ function resolved(className: string, width: Width, state: State): Record<string,
   return Object.fromEntries(rules.flatMap((r) => r.decls));
 }
 
-// What shipped before the sheet, held as the oracle for md and up: no dialog moves there.
+// What shipped before the sheet, held as the oracle for md and up: no dialog moves there. Its
+// material is #716's dialog glass.
 const SHIPPED_SURFACE =
-  'border-field-border border bg-card fixed left-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+  'glass [--glass-fill:var(--color-glass-dialog-fill)] [--glass-edge:var(--color-field-border)] fixed left-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-3xl p-px data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 const SHIPPED = {
   centre: `${SHIPPED_SURFACE} top-1/2 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto]`,
   top: `${SHIPPED_SURFACE} top-4 md:top-16`,
@@ -181,6 +182,19 @@ describe('below md a dialog is the inset sheet', () => {
       const b = resolved(date, 'narrow', state);
       for (const p of [...SHARED, 'animation']) expect(b[p], `${state} ${p}`).toBe(a[p]);
     }
+  });
+
+  // The glass draws its edge inside the box, where the border sat: the content keeps its place
+  // and stays off the edge, the date sheet at the 9 its popover takes.
+  it.each([
+    ...Object.entries(sheets).map(
+      ([name, open]) => [name, open, name === 'DatePicker' ? '9px' : '1px'] as const,
+    ),
+    ['AlertDialog top', () => openAlert('top'), '1px'] as const,
+  ])('%s: its content sits inside the edge', (_, open, inset) => {
+    const { panel } = open();
+    for (const width of ['narrow', 'wide'] as const)
+      expect(resolved(panel, width, 'open').padding, width).toBe(inset);
   });
 
   it('re-authentication stays top-anchored, 16 down, with the sheet inset and r24', () => {

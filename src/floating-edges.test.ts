@@ -4,7 +4,17 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { composite, ratio, resolve, stripCss, themeBlocks, veilOf } from './__fixtures__/palette';
+import {
+  composite,
+  glassSaturation,
+  mixOf,
+  ratio,
+  resolve,
+  saturate,
+  stripCss,
+  themeBlocks,
+  veilOf,
+} from './__fixtures__/palette';
 
 // THE FLOATING SURFACES' BOUNDARY, ON THE SAME TOKEN AS THE FIELD EDGE. An `AssetForm`
 // `Select` opens INSIDE a `Dialog`, so a `bg-card` popover lands on a `bg-card` plane — and
@@ -115,24 +125,54 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     ).toEqual(overlayOf('components/ui/DatePicker.tsx'));
   });
 
-  // EITHER BOUNDARY, AT THE REAL BAR. 1.4.11 asks for the information that IDENTIFIES a
-  // component, not for a stroke, and a panel offers two candidates: its FILL against the
-  // composite, and its STROKE. The veil moves them in opposite directions — light
-  // identifies by fill, dark by stroke — so neither alone holds in both themes and the max
-  // of the two does. #99 keeps the question the arithmetic cannot answer: whether the light
-  // stroke should stay at all. Compositing is plain sRGB and exact: Tailwind mixes in
-  // oklab, but mixing with `transparent` only sets alpha.
+  // EITHER BOUNDARY, NO SHADOW COUNTED. 1.4.11 asks for the information that IDENTIFIES a
+  // component, not for a stroke, and the glass offers two candidates: its fill composited
+  // over the saturated veil, and its stroke. Least contrasting area: no sheen, saturate in
+  // both spaces. Mixing with `transparent` only sets alpha, so sRGB compositing is exact.
+  const identifies = (theme: (typeof THEMES)[number]) => {
+    const veil = veilOf(BLOCKS, theme, overlayOf('components/ui/Dialog.tsx'));
+    const edge = resolve(BLOCKS, theme, 'field-border');
+    const fill = mixOf(BLOCKS, theme, 'glass-dialog-fill');
+    const s = glassSaturation(CSS);
+    return (['page', 'card', 'panel'] as const).map((plane) => {
+      const ground = composite(veil, resolve(BLOCKS, theme, plane));
+      const glass = Math.min(
+        ...(['srgb', 'linear'] as const).map((space) =>
+          ratio(composite(fill, saturate(ground, s, space)), ground),
+        ),
+      );
+      return { plane, best: Math.max(glass, ratio(edge, ground)) };
+    });
+  };
+
+  it('dark: the panel and the date sheet stay identifiable on their veil', () => {
+    for (const { plane, best } of identifies('dark')) {
+      expect(
+        best,
+        `neither the glass nor its stroke identifies it over ${plane}`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  // A RULED SHORTFALL, RECORDED AT ITS VALUE (#99): in light the stroke adds nothing over the
+  // veil and the glass reads just under 3 : 1 over a veiled `card`. A dialog is a container,
+  // not a control, and its title and actions identify it; the owner ruled the value stands.
+  it('light: the glass over its veil, at the value the owner ruled', () => {
+    expect(Math.min(...identifies('light').map((r) => r.best))).toBeCloseTo(2.947, 2);
+  });
+
+  // The glass's fallback (no blur support, reduced transparency) is the opaque `card`, and that
+  // one clears the bar by its fill in light and its stroke in dark.
   for (const theme of THEMES) {
-    it(`${theme}: the panel and the date sheet stay identifiable on their veil`, () => {
+    it(`${theme}: the opaque fallback stays identifiable on its veil`, () => {
       const veil = veilOf(BLOCKS, theme, overlayOf('components/ui/Dialog.tsx'));
       const edge = resolve(BLOCKS, theme, 'field-border');
       const fill = resolve(BLOCKS, theme, 'card');
       for (const plane of ['page', 'card', 'panel'] as const) {
         const ground = composite(veil, resolve(BLOCKS, theme, plane));
-        const best = Math.max(ratio(fill, ground), ratio(edge, ground));
         expect(
-          best,
-          `neither the panel's fill nor its stroke identifies it over ${plane}`,
+          Math.max(ratio(fill, ground), ratio(edge, ground)),
+          `neither the fallback's fill nor its stroke identifies it over ${plane}`,
         ).toBeGreaterThanOrEqual(3);
       }
     });
@@ -286,10 +326,15 @@ describe('the floating surfaces point at the token', () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
-  // P2: the Select list and the md-and-up date popover are the glass, on the field edge.
-  it('puts the Select list and the date popover on the glass', () => {
+  // P2: the Select list and the md-and-up date popover are the glass, on the field edge; so is
+  // the dialog (D2), on its own fill.
+  it('puts the Select list, the date popover and the dialog on the glass', () => {
     const glass = POPOVERS.filter((p) => GLASS.test(p.line)).map((p) => p.file);
-    expect(glass.sort()).toEqual(['components/ui/DatePicker.tsx', 'components/ui/Select.tsx']);
+    expect(glass.sort()).toEqual([
+      'components/ui/DatePicker.tsx',
+      'components/ui/Dialog.tsx',
+      'components/ui/Select.tsx',
+    ]);
     // The utility, not its override or a sibling utility.
     expect('z-50 glass p-2').toMatch(GLASS);
     expect('[--glass-edge:var(--x)] glass-knob md:glass-well').not.toMatch(GLASS);
@@ -363,17 +408,23 @@ describe('the floating surfaces point at the token', () => {
   // a whole-file match stays green with the token on any sibling of the rail. EVERY line
   // for the panel, ANY for the rail, deliberately — `PANEL_CLASS` is consumed by `Dialog`
   // and `AlertDialog`, so split per dialog kind ALL of them must have an edge, while the
-  // rail's anchor is a WIDTH `Sidebar.tsx` could write on a sibling that needs none.
-  const PANEL_AND_RAIL: [string, RegExp, 'every' | 'some'][] = [
-    ['components/ui/Dialog.tsx', /shadow-\(--shadow-dialog\)/, 'every'],
-    ['app/Sidebar.tsx', /w-\[244px\]/, 'some'],
+  // rail's anchor is a WIDTH `Sidebar.tsx` could write on a sibling that needs none. The panel
+  // is glass, so its edge is the glass's stroke swapped for the token.
+  const PANEL_AND_RAIL: [string, RegExp, RegExp, 'every' | 'some'][] = [
+    [
+      'components/ui/Dialog.tsx',
+      /(?<![-\w[])glass(?![-\w]).*\brounded-3xl\b/,
+      /\[--glass-edge:var\(--color-field-border\)\]/,
+      'every',
+    ],
+    ['app/Sidebar.tsx', /w-\[244px\]/, /\bborder-field-border\b/, 'some'],
   ];
-  it.each(PANEL_AND_RAIL)('keeps %s on `field-border`', (file, anchor, quantifier) => {
+  it.each(PANEL_AND_RAIL)('keeps %s on `field-border`', (file, anchor, token, quantifier) => {
     const lines = source(file)
       .split('\n')
       .filter((l) => anchor.test(l));
     expect(lines.length, `the ${file} line vanished`).toBeGreaterThan(0);
-    const named = lines.filter((l) => /\bborder-field-border\b/.test(l)).length;
+    const named = lines.filter((l) => token.test(l)).length;
     expect(named, `${file} left the token`).toBeGreaterThan(0);
     if (quantifier === 'every') {
       expect(named, `${file} has a panel line without the token`).toBe(lines.length);

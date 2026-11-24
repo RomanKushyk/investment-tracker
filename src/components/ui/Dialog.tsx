@@ -16,11 +16,12 @@ export const DialogTitle = RadixDialog.Title;
 // Below md the scrim fades over 220 both ways, the sheet's own timing.
 const OVERLAY_CLASS =
   'bg-scrim fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 max-md:data-[state=open]:duration-220 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
-// `border-field-border` repairs this panel INWARD only and stays under 1.4.11 against
-// the overlay in light — recorded rather than repaired, both readings held in
-// `floating-edges.test.ts`. The DatePicker sheet takes the identical pair.
+// The dialog glass: its own thicker fill over the scrim, and wave 8's `field-border` edge in place
+// of the glass stroke. Its light reading over the veil is a ruled shortfall, at the fill's value.
+// The edge is drawn inside the box, where the border sat, so each panel pads 1 px: its content
+// keeps its place and cannot paint over the edge. SHEET leaves the padding to its user.
 const SURFACE =
-  'border-field-border border bg-card fixed z-50 overflow-hidden rounded-3xl shadow-(--shadow-dialog)';
+  'glass [--glass-fill:var(--color-glass-dialog-fill)] [--glass-edge:var(--color-field-border)] fixed z-50 overflow-hidden rounded-3xl';
 
 /** Below md, the inset sheet (M2): 12 from the sides, above the larger of the bottom safe area
  *  and the keyboard — iOS keeps reporting the safe area under the keyboard, so a sum would float
@@ -34,10 +35,10 @@ const CENTRED_ACROSS = 'md:left-1/2 md:w-[calc(100vw-32px)] md:-translate-x-1/2'
 // fraction of it runs under the chrome. `dvh` knows nothing about the keyboard, which on iOS does
 // not resize the layout viewport, so both the BOUND and the CENTRE subtract `--keyboard-inset`.
 // `* 0.5` and NOT `/ 2`: Tailwind reads a slash in an arbitrary value as the opacity modifier.
-const PANEL_CLASS = `${SHEET} ${CENTRED_ACROSS} md:top-1/2 md:max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] md:translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] md:data-[state=open]:animate-in md:data-[state=open]:fade-in md:data-[state=open]:zoom-in-95 data-[state=open]:duration-300 md:data-[state=closed]:animate-out md:data-[state=closed]:fade-out md:data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220 grid grid-rows-[auto_minmax(0,1fr)_auto]`;
+const PANEL_CLASS = `${SHEET} ${CENTRED_ACROSS} md:top-1/2 md:max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] md:translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] md:data-[state=open]:animate-in md:data-[state=open]:fade-in md:data-[state=open]:zoom-in-95 data-[state=open]:duration-300 md:data-[state=closed]:animate-out md:data-[state=closed]:fade-out md:data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220 grid grid-rows-[auto_minmax(0,1fr)_auto] p-px`;
 // TOP-ANCHORED at every width, so a flow whose steps grow downward keeps its top edge; below md it
 // takes the sheet's side inset. The keyboard only shortens the cap, which the Scroller holds.
-const TOP_PANEL_CLASS = `${SURFACE} max-md:inset-x-[12px] ${CENTRED_ACROSS} top-4 md:top-16 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220`;
+const TOP_PANEL_CLASS = `${SURFACE} max-md:inset-x-[12px] ${CENTRED_ACROSS} top-4 md:top-16 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220 p-px`;
 const TOP_CAP =
   'max-h-[calc(100dvh-var(--keyboard-inset,0px)-34px)] md:max-h-[calc(100dvh-var(--keyboard-inset,0px)-130px)]';
 
