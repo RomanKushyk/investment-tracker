@@ -818,7 +818,10 @@ its empty strip and the footer's track row unseen at a user's layout, the rail h
 the header bar its height, so a user's shell never moves and the super-admin's band arrives with its
 nav; a failed `/me` keeps the shell so (*Not found and failures*).
 A dialog's button row switches at `md` too, through `useIsDesktop`, never at the dialog's own
-container width (*Forms and layout*).
+container width (*Forms and layout*). BELOW `md` A DIALOG IS AN INSET SHEET THAT RISES FROM THE
+BOTTOM, 12 from the sides and 12 above the larger of the bottom safe area and the keyboard, the
+date picker the same sheet; at and above it the dialog is centred. Re-authentication alone stays
+top-anchored at both, with the sheet's side inset below `md`.
 **Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry an account's work — a
@@ -839,6 +842,13 @@ drawer that closes is not a Stop the user chose: a traversal while the logout lo
 must be invoked in the browser to do; a push fires `navigateerror`, the Stop's own signal, then its own `navigate` (HTML,
 *fire a push/replace/reload navigate event*), which is what tells the two apart. A route change
 answers the slot but not the load, which still runs.
+A centred dialog leaves its buttons mid-screen, away from the thumb; a sheet is the platform's
+answer for a scoped task (Apple HIG, *Sheets*). The keyboard covers the home indicator, so its
+edge replaces the safe area rather than stacking on it, as UIKit's keyboard layout guide rests on
+the safe area and Ionic drops its safe-area padding while the keyboard shows; iOS keeps reporting
+the inset under the keyboard (WebKit 217754), so a sum would float the sheet above the keyboard by the home indicator's inset.
+Re-authentication keeps its top edge because its steps swap and grow while its title and timer
+must stand still.
 Signed out, a portfolio route paints none of the shell. The gate above `Layout` draws nothing
 until the relay has answered, as Auth0's `withAuthenticationRequired` and Clerk's `<Protect>`
 render nothing while auth loads, then sends a definite signed-out answer to `/sign-in` in the

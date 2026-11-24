@@ -13,27 +13,31 @@ export const DialogTitle = RadixDialog.Title;
 
 // `scrim`, THE APP'S ONE VEIL: it must darken in BOTH themes, so it cannot be an alpha
 // over a token that inverts — a per-theme alpha over a fixed dark hue is the job.
+// Below md the scrim fades over 220 both ways, the sheet's own timing.
 const OVERLAY_CLASS =
-  'bg-scrim fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
+  'bg-scrim fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 max-md:data-[state=open]:duration-220 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
 // `border-field-border` repairs this panel INWARD only and stays under 1.4.11 against
 // the overlay in light — recorded rather than repaired, both readings held in
 // `floating-edges.test.ts`. The DatePicker sheet takes the identical pair.
-//
-// `dvh`, not `vh`: `100vh` is the height the viewport has with the toolbars RETRACTED,
-// so a fraction of it is a fraction of a taller box and the panel runs under the
-// chrome. `dvh` tracks the TOOLBARS and knows nothing about the keyboard, which on iOS
-// does not resize the layout viewport at all — so BOTH numbers subtract
-// `--keyboard-inset`: the BOUND, or the panel is a fraction of a box whose lower half
-// is under the keyboard, and the CENTRE, or a correctly bounded panel is still centred
-// on the layout viewport and hangs into it anyway. `* 0.5` and NOT `/ 2`, because
-// Tailwind reads a slash in an arbitrary value as the opacity modifier. Both fall back
-// to 0px, so a desktop compiles to what was here before.
 const SURFACE =
-  'border-field-border border bg-card fixed left-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
-const PANEL_CLASS = `${SURFACE} top-1/2 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto]`;
-// TOP-ANCHORED, so a flow whose steps grow downward keeps its top edge; the keyboard only shortens
-// the cap, which the Scroller holds inside the border.
-const TOP_PANEL_CLASS = `${SURFACE} top-4 md:top-16`;
+  'border-field-border border bg-card fixed z-50 overflow-hidden rounded-3xl shadow-(--shadow-dialog)';
+
+/** Below md, the inset sheet (M2): 12 from the sides, above the larger of the bottom safe area
+ *  and the keyboard — iOS keeps reporting the safe area under the keyboard, so a sum would float
+ *  it above the keyboard by the home indicator's inset — and capped so its top stays 68 down. It
+ *  travels its height plus that offset, so it starts wholly off screen, and takes no tap while it
+ *  leaves. The DatePicker's sheet is this one. */
+export const SHEET = `${SURFACE} max-md:inset-x-[12px] max-md:[--sheet-bottom:max(calc(12px+env(safe-area-inset-bottom)),calc(var(--keyboard-inset,0px)+12px))] max-md:bottom-(--sheet-bottom) max-md:max-h-[calc(100dvh-68px-var(--sheet-bottom))] max-md:data-[state=open]:animate-sheet-in max-md:data-[state=closed]:animate-sheet-out max-md:data-[state=closed]:pointer-events-none`;
+
+const CENTRED_ACROSS = 'md:left-1/2 md:w-[calc(100vw-32px)] md:-translate-x-1/2';
+// At md and up, centred. `dvh`, not `vh`: `100vh` is the height with the toolbars RETRACTED, so a
+// fraction of it runs under the chrome. `dvh` knows nothing about the keyboard, which on iOS does
+// not resize the layout viewport, so both the BOUND and the CENTRE subtract `--keyboard-inset`.
+// `* 0.5` and NOT `/ 2`: Tailwind reads a slash in an arbitrary value as the opacity modifier.
+const PANEL_CLASS = `${SHEET} ${CENTRED_ACROSS} md:top-1/2 md:max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] md:translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] md:data-[state=open]:animate-in md:data-[state=open]:fade-in md:data-[state=open]:zoom-in-95 data-[state=open]:duration-300 md:data-[state=closed]:animate-out md:data-[state=closed]:fade-out md:data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220 grid grid-rows-[auto_minmax(0,1fr)_auto]`;
+// TOP-ANCHORED at every width, so a flow whose steps grow downward keeps its top edge; below md it
+// takes the sheet's side inset. The keyboard only shortens the cap, which the Scroller holds.
+const TOP_PANEL_CLASS = `${SURFACE} max-md:inset-x-[12px] ${CENTRED_ACROSS} top-4 md:top-16 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220`;
 const TOP_CAP =
   'max-h-[calc(100dvh-var(--keyboard-inset,0px)-34px)] md:max-h-[calc(100dvh-var(--keyboard-inset,0px)-130px)]';
 
@@ -110,7 +114,7 @@ export function Dialog({
   width?: 420 | 520;
   children: ReactNode;
 }) {
-  const widthClass = width === 520 ? 'max-w-[520px]' : 'max-w-[420px]';
+  const widthClass = width === 520 ? 'md:max-w-[520px]' : 'md:max-w-[420px]';
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
@@ -156,7 +160,7 @@ export function AlertDialog({
   children: ReactNode;
 }) {
   // A container-query context, because the import diff reflows by the DIALOG's width.
-  const widthClass = width === 480 ? 'max-w-[480px] @container' : 'max-w-[420px]';
+  const widthClass = width === 480 ? 'md:max-w-[480px] @container' : 'md:max-w-[420px]';
   return (
     <RadixAlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixAlertDialog.Portal>

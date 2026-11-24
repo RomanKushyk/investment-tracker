@@ -38,6 +38,29 @@
     }
   }
 
+  /* The inset sheet below md, on the drawer's timings. It travels its height plus its bottom
+     offset, which the sheet sets as `--sheet-bottom` (`Dialog.tsx`). */
+  --animate-sheet-in: sheet-in 260ms var(--ease-soft) both;
+  --animate-sheet-out: sheet-out 220ms var(--ease-soft) both;
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(calc(100% + var(--sheet-bottom)));
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes sheet-out {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(calc(100% + var(--sheet-bottom)));
+    }
+  }
+
   /* The allocation bar's entry: its parts uncover left to right at their final widths, so a label
      is never squeezed on the way (`charts.md` § Signed › Anatomy, Motion). */
   --animate-bar-reveal: bar-reveal 400ms var(--ease-soft) both;

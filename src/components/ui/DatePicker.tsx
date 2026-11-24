@@ -9,6 +9,7 @@ import { useFormat } from '../../hooks/useFormat';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { useT } from '../../i18n/useT';
 import { YEARS_PER_PAGE, yearBounds, yearPage } from './date-picker-years';
+import { SHEET } from './Dialog';
 import { fieldVariants, type FieldFill } from './field-variants';
 import { Scroller } from './Scroller';
 import { TAP_44 } from './tap-target';
@@ -309,17 +310,17 @@ export function DatePicker({
     </div>
   );
 
-  // THE PICKER STOPS ANCHORING BELOW THE BREAKPOINT and becomes a centred sheet: a
+  // THE PICKER STOPS ANCHORING BELOW THE BREAKPOINT and becomes the dialogs' inset sheet: a
   // seven-column grid anchored to a right-aligned field cannot stay inside the phone.
   // A Dialog rather than a Popover, because a sheet anchored to the VIEWPORT is what a
   // dialog is — it brings the scrim, the focus trap and the scroll lock a floating
-  // popover does not. Its width is the app's standard overlay margin.
+  // popover does not.
   if (!desktop) {
     return (
       <RadixDialog.Root open={open} onOpenChange={openChange}>
         <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>
         <RadixDialog.Portal>
-          <RadixDialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:duration-200 data-[state=open]:fade-in" />
+          <RadixDialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=closed]:animate-out data-[state=closed]:duration-220 data-[state=closed]:fade-out data-[state=open]:animate-in data-[state=open]:duration-220 data-[state=open]:fade-in" />
           {/* BOUNDED AND SCROLLABLE, because a six-week month is taller than a
               landscape phone and the sheet is `fixed`, so the page scroll cannot
               bring a clipped last row back. A grid row rather than a flex child,
@@ -330,7 +331,7 @@ export function DatePicker({
           <RadixDialog.Content
             aria-describedby={undefined}
             onInteractOutside={keepOpenForToasts}
-            className="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 animate-in grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-field-border bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
+            className={`${SHEET} grid grid-rows-[minmax(0,1fr)] p-2`}
           >
             {/* The sheet draws a month caption, so the title is screen-reader only. */}
             <RadixDialog.Title className="sr-only">{placeholder ?? t.dates.pick}</RadixDialog.Title>

@@ -80,6 +80,8 @@ describe('dialog actions', () => {
       [
         DIALOG,
         ...Object.keys(FOOTERS),
+        // The date sheet below md is the dialogs' sheet; it draws no button row.
+        'src/components/ui/DatePicker.tsx',
         'src/screens/profile/DeleteAccount.tsx',
         'src/screens/profile/Reauthentication.tsx',
         'src/screens/profile/SignOutEverywhere.tsx',

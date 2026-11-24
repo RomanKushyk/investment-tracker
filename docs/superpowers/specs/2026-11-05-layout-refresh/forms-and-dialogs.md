@@ -72,8 +72,10 @@ The 360 sheet at real speed: a flip-book of renders, one per 60 Hz frame. The de
 - **Dialog below md (M2), an inset sheet like «Ще».**
   - *Overturned by wave 26: re-authentication stays top-anchored in M2's glass, and the fill is `card` 90 % / 92 % ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
   - Geometry: 12 px from the sides, `bottom: calc(12px + env(safe-area-inset-bottom))` above the keyboard inset, r24, `max-height: calc(100dvh − 80px)`, with the body scrolling inside.
+    - *Settled by #715: the safe area and the keyboard take the larger, not the sum, and the cap keeps the top 68 down whatever the insets ([below](#settled-in-implementation-715)).*
   - The buttons end up within thumb reach. Fields stay 36 px with the 44 hit area, at the 16 px type the app forces below md.
   - Motion: it rises `translateY(calc(100% + 12px))` → 0 in 260 ms and leaves in 220 ms on `ease-soft`; the scrim fades over 220 ms. Reduced motion uses the global kill-switch.
+    - *Settled by #715: it travels its height plus its bottom offset, and takes no tap while it leaves ([below](#settled-in-implementation-715)).*
   - The same sheet serves forms and confirmations; Radix keeps trap, Escape and focus return.
 - **Toast (T2 + T3), T2's status glyph in T3's glass.**
   - *Overturned by wave 22: the toast's edge is wave 15's glass edge ([controls-and-overlays.md](controls-and-overlays.md#signed)).*
@@ -113,6 +115,14 @@ The 360 sheet at real speed: a flip-book of renders, one per 60 Hz frame. The de
 - `toaster-press.test.ts`: the offset gains the dock. Today's offset knows the action bar and the drawer band, not the dock.
 - The Dialog's below-md geometry, which no test pins today.
 - `transaction-form-reset.test.ts`: the errors are unchanged.
+
+## Settled in implementation (#715)
+
+M2's values hold where both insets are 0. With either inset, the sheet follows three rules:
+
+- **The bottom offset is the larger of `12px + env(safe-area-inset-bottom)` and `12px` above the keyboard, not their sum.** The keyboard covers the home indicator, so its edge replaces the safe area. UIKit's keyboard layout guide rests on the safe area while no keyboard shows. Ionic drops its safe-area padding while the keyboard is up. iOS keeps reporting the inset under the keyboard (WebKit 217754), so a sum would leave the sheet floating above the keyboard.
+- **The cap is `100dvh − 68px −` that offset.** The top stays 68 down whatever the insets.
+- **It travels `100% +` that offset, and takes no tap while it leaves.** So it starts wholly off screen, and a second tap during the exit lands on nothing it draws.
 
 ## Left open
 

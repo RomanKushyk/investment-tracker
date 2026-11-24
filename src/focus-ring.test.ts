@@ -117,8 +117,11 @@ describe('a control with a shadow of its own', () => {
   // map is compared exactly, so a new shadow on a control fails until it lists the halo.
   const NO_HALO: Record<string, [owner: string, count: number]> = {
     'switch-knob': ['the Switch thumb, a span inside the focusable root', 1],
-    'shadow-(--shadow-dialog)': ['the dialog surfaces, focused only when nothing in them is', 1],
-    'shadow-(--shadow-popover)': ['the date sheet below md, the same fallback; Tooltip', 2],
+    'shadow-(--shadow-dialog)': [
+      'the dialog surfaces and the date sheet below md, focused only when nothing in them is',
+      1,
+    ],
+    'shadow-(--shadow-popover)': ['Tooltip', 1],
     'shadow-[0_0_0_1px_var(--color-card)]': ['Coverage KEYLINE, on divs', 1],
     'shadow-[1px_0_0_var(--color-table-band)]': ['the table head, a th', 1],
     'last:shadow-none': ['the table head, a th', 1],
