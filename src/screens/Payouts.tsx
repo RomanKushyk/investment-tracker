@@ -1,5 +1,8 @@
+import { CircleDollarSign } from 'lucide-react';
+
 import { PayoutsBars } from '../components/charts/PayoutsBars';
 import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Amount } from '../components/ui/Amount';
 import { KpiCard } from '../components/ui/KpiCard';
 import { Fact, RecordCard, RecordList } from '../components/ui/RecordCard';
@@ -56,7 +59,16 @@ export function Payouts() {
               {t.analytics.coupons}
             </span>
           </div>
-          <PayoutsBars data={chartData} />
+          {/* PayoutsBars' own height, so the card keeps its size. */}
+          {chartData.length === 0 ? (
+            <EmptyState
+              message={t.analytics.empty.payoutsChart}
+              icon={CircleDollarSign}
+              height={240}
+            />
+          ) : (
+            <PayoutsBars data={chartData} />
+          )}
         </Card>
 
         <div className="flex flex-col gap-3.5">
@@ -76,7 +88,9 @@ export function Payouts() {
               {t.analytics.upcoming}
             </div>
             <div className="flex flex-col gap-2 text-[13px]">
-              {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
+              {payoutRows.length === 0 && (
+                <EmptyState message={t.analytics.noUpcoming} icon={CircleDollarSign} height={72} />
+              )}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
                   <span>
@@ -164,6 +178,23 @@ export function Payouts() {
               </tbody>
             </table>
           </TableBox>
+          {/* Under the box, not in a row: a cell spans the table's min-width, so it would centre
+              off the visible box and take the rows' hover band. */}
+          {logRows.length === 0 && (
+            <EmptyState
+              message={t.analytics.empty.payoutsTable}
+              icon={CircleDollarSign}
+              height={104}
+            />
+          )}
+        </Card>
+      ) : logRows.length === 0 ? (
+        <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
+          <EmptyState
+            message={t.analytics.empty.payoutsTable}
+            icon={CircleDollarSign}
+            height={104}
+          />
         </Card>
       ) : (
         /* Below the breakpoint the log becomes one record per payout: the DATE and the

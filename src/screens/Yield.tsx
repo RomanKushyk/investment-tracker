@@ -1,3 +1,4 @@
+import { ChartLine } from 'lucide-react';
 import { useState } from 'react';
 
 import { noLineMessage, withLine } from '../components/charts/yield-lines';
@@ -87,7 +88,7 @@ export function Yield() {
         ) : series === undefined ? (
           <div style={{ height: 280 }} />
         ) : series.length === 0 ? (
-          <EmptyState message={t.analytics.empty.chart} height={280} />
+          <EmptyState message={t.analytics.empty.chart} icon={ChartLine} height={280} />
         ) : (
           <>
             {/* A control that changes one chart sits on that chart, as on /seasonality. «Разом»'s
@@ -114,6 +115,7 @@ export function Yield() {
               <div data-yield-no-line>
                 <EmptyState
                   message={noLineMessage(period, t.analytics.yield)}
+                  icon={ChartLine}
                   height={chart === 'separate' ? TWO_PANEL_ROWS : 280}
                 />
               </div>

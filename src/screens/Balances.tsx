@@ -1,3 +1,4 @@
+import { Wallet } from 'lucide-react';
 import { useState } from 'react';
 
 import { BalancesArea } from '../components/charts/BalancesArea';
@@ -96,7 +97,7 @@ export function Balances() {
 
       <Card radius={24} className="mb-3.5 animate-in p-[22px] duration-300 fade-in">
         {chartData.length === 0 ? (
-          <EmptyState message={t.analytics.empty.chart} height={260} />
+          <EmptyState message={t.analytics.empty.chart} icon={Wallet} height={260} />
         ) : (
           <BalancesArea data={chartData} />
         )}
@@ -143,13 +144,6 @@ export function Balances() {
                 </tr>
               </thead>
               <tbody>
-                {empty && (
-                  <tr className={TR}>
-                    <td colSpan={columns.length + 3} className={`${TD} text-center text-muted`}>
-                      {t.analytics.empty.table}
-                    </td>
-                  </tr>
-                )}
                 {rows.map((row) => (
                   <tr key={row.date} className={TR}>
                     <td className={`${TD} font-semibold whitespace-nowrap`}>{f.date(row.date)}</td>
@@ -191,6 +185,9 @@ export function Balances() {
               </tbody>
             </table>
           </TableBox>
+          {/* Under the box, not in a row: a cell spans the table's min-width, so it would centre
+              off the visible box and take the rows' hover band. */}
+          {empty && <EmptyState message={t.analytics.empty.table} icon={Wallet} height={104} />}
 
           {note && <div className="mt-2.5">{note}</div>}
           <div className="mt-2.5">{pager}</div>
@@ -203,7 +200,7 @@ export function Balances() {
         <div className="flex flex-col gap-2.5">
           {empty && (
             <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
-              <div className="text-center text-muted">{t.analytics.empty.table}</div>
+              <EmptyState message={t.analytics.empty.table} icon={Wallet} height={104} />
             </Card>
           )}
           <RecordList>

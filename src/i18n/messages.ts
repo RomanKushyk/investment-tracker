@@ -671,6 +671,10 @@ export const en = {
       table: 'No snapshots yet — save your first daily quote to fill this table.',
       rebalance: 'No snapshots yet — save your first daily quote to see the rebalance hint.',
       allocation: 'No snapshots yet — save your first daily quote to see the allocation mix.',
+      payoutsChart: 'No payouts recorded yet — dividends and coupons will appear here, by month.',
+      payoutsTable: 'No payouts yet — each recorded payout becomes a row of this table.',
+      targets: 'No targets yet — you can set them as soon as the portfolio holds an asset.',
+      plan: 'No plan yet — it appears once there are both assets and targets.',
     },
   },
   assets: {
@@ -2329,6 +2333,10 @@ export const uk: Dict = {
         'Зрізів ще немає — збережіть перше щоденне котирування, щоб побачити підказку ребалансу.',
       allocation:
         'Зрізів ще немає — збережіть перше щоденне котирування, щоб побачити структуру розподілу.',
+      payoutsChart: 'Виплат ще не записано — дивіденди й купони з’являться тут, за місяцями.',
+      payoutsTable: 'Виплат ще немає — кожна записана виплата стане рядком цієї таблиці.',
+      targets: 'Цілей ще немає — їх можна задати, щойно в портфелі з’явиться актив.',
+      plan: 'Плану ще немає — він з’явиться, коли будуть і активи, і цілі.',
     },
   },
   assets: {

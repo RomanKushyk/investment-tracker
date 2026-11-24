@@ -1,3 +1,4 @@
+import { ChartPie, CircleDollarSign, Table } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { buttonVariants } from '../components/ui/button-variants';
@@ -198,46 +199,52 @@ export function Overview() {
           <div className="mb-3.5 text-[10px] tracking-[.12em] text-muted uppercase">
             {t.analytics.overview.assets}
           </div>
-          {/* Only the ROWS scroll: they carry `min-w-fit` with fixed value columns, so
-              they are the one thing that can outgrow the card, and the divider, the totals
-              and the ShareBar must stay put. */}
-          <Scroller orientation="horizontal">
-            <div className="flex flex-col gap-3">
-              {view.rows.map(({ asset: a, value, share, yield: yield_ }, i) => {
-                return (
-                  // THE FIXED VALUE COLUMNS DROP BELOW THE BREAKPOINT, and the row folds to two
-                  // lines instead of losing a field. Those widths exist to align five rows'
-                  // figures into a column, which is worth part of a wide card and not of a phone,
-                  // where they make the row `min-w-fit` and push a horizontal rail under a list
-                  // that would otherwise fit. Nothing is hidden — full parity, not a phone subset.
-                  <div
-                    key={a.id}
-                    className={`flex min-w-fit animate-in items-center gap-3.5 duration-300 fade-in slide-in-from-bottom-1 max-md:min-w-0 max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-1 ${STAGGER[i % STAGGER.length]}`}
-                  >
-                    <ColorDot colorKey={a.colorKey} />
-                    {/* `basis-[calc(100%-18px)]` is the dot plus the row's gap: it fills line 1
-                        exactly, which is what makes the three figures wrap together. */}
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold max-md:basis-[calc(100%-18px)]">
-                      {a.name}
-                    </span>
-                    <span className="font-mono text-xs whitespace-nowrap text-muted">
-                      {t.asset.yieldShort[a.yieldType]} · <Share pct={share} />
-                    </span>
-                    <strong className="w-[110px] text-right font-mono text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
-                      {value === undefined ? '—' : f.money(value)}
-                    </strong>
-                    <span
-                      className={`w-[60px] text-right font-mono text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ === undefined ? 'text-muted' : yield_ < 0 ? 'text-neg' : 'text-pos'}`}
-                    >
-                      {yield_ === undefined ? '—' : f.pct(yield_)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </Scroller>
-          <div className="my-4 h-px bg-hairline" />
-          <ShareBar segments={shareSegments} />
+          {view.rows.length === 0 ? (
+            <EmptyState message={t.assets.empty} icon={Table} height={130} />
+          ) : (
+            <>
+              {/* Only the ROWS scroll: they carry `min-w-fit` with fixed value columns, so
+                  they are the one thing that can outgrow the card, and the divider, the totals
+                  and the ShareBar must stay put. */}
+              <Scroller orientation="horizontal">
+                <div className="flex flex-col gap-3">
+                  {view.rows.map(({ asset: a, value, share, yield: yield_ }, i) => {
+                    return (
+                      // THE FIXED VALUE COLUMNS DROP BELOW THE BREAKPOINT, and the row folds to two
+                      // lines instead of losing a field. Those widths exist to align five rows'
+                      // figures into a column, which is worth part of a wide card and not of a phone,
+                      // where they make the row `min-w-fit` and push a horizontal rail under a list
+                      // that would otherwise fit. Nothing is hidden — full parity, not a phone subset.
+                      <div
+                        key={a.id}
+                        className={`flex min-w-fit animate-in items-center gap-3.5 duration-300 fade-in slide-in-from-bottom-1 max-md:min-w-0 max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-1 ${STAGGER[i % STAGGER.length]}`}
+                      >
+                        <ColorDot colorKey={a.colorKey} />
+                        {/* `basis-[calc(100%-18px)]` is the dot plus the row's gap: it fills line 1
+                            exactly, which is what makes the three figures wrap together. */}
+                        <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold max-md:basis-[calc(100%-18px)]">
+                          {a.name}
+                        </span>
+                        <span className="font-mono text-xs whitespace-nowrap text-muted">
+                          {t.asset.yieldShort[a.yieldType]} · <Share pct={share} />
+                        </span>
+                        <strong className="w-[110px] text-right font-mono text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
+                          {value === undefined ? '—' : f.money(value)}
+                        </strong>
+                        <span
+                          className={`w-[60px] text-right font-mono text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ === undefined ? 'text-muted' : yield_ < 0 ? 'text-neg' : 'text-pos'}`}
+                        >
+                          {yield_ === undefined ? '—' : f.pct(yield_)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Scroller>
+              <div className="my-4 h-px bg-hairline" />
+              <ShareBar segments={shareSegments} />
+            </>
+          )}
         </Card>
 
         <div className="flex flex-col gap-3.5">
@@ -246,7 +253,9 @@ export function Overview() {
               {t.analytics.overview.nextPayouts}
             </div>
             <div className="flex flex-col gap-2 text-[13px]">
-              {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
+              {payoutRows.length === 0 && (
+                <EmptyState message={t.analytics.noUpcoming} icon={CircleDollarSign} height={72} />
+              )}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
                   <span>
@@ -272,7 +281,9 @@ export function Overview() {
               cashShort ? (
                 <CashShortChip />
               ) : (
-                total === 0 && <EmptyState message={t.analytics.empty.rebalance} height={44} />
+                total === 0 && (
+                  <EmptyState message={t.analytics.empty.rebalance} icon={ChartPie} height={44} />
+                )
               )
             ) : underweight ? (
               <p className="text-[13px] leading-[1.5]">

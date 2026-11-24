@@ -1,3 +1,4 @@
+import { ChartPie } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -131,7 +132,9 @@ export function Allocation() {
             </>
           ) : (
             total === 0 &&
-            !cashShort && <EmptyState message={t.analytics.empty.allocation} height={220} />
+            !cashShort && (
+              <EmptyState message={t.analytics.empty.allocation} icon={ChartPie} height={220} />
+            )
           )}
           <div data-allocation-legend className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
             {rows.map(({ asset: a, share }) => (
@@ -152,6 +155,9 @@ export function Allocation() {
               {t.analytics.allocation.currentVsTarget}
               {editing && <span className="ml-auto">{t.targets.title}</span>}
             </div>
+            {rows.length === 0 && (
+              <EmptyState message={t.analytics.empty.targets} icon={ChartPie} height={104} />
+            )}
             <div className="flex flex-col gap-3.5">
               {rows.map((r, i) => {
                 const target = shownTarget(i);
@@ -257,6 +263,11 @@ export function Allocation() {
               {t.analytics.allocation.rebalancePlan}
             </div>
             {cashShort && <CashShortChip className="mb-2" />}
+            {/* Only with no asset: assets with no quote yet also plan nothing, and the line
+                would then be untrue — the mix card says why there. */}
+            {!cashShort && rows.length === 0 && (
+              <EmptyState message={t.analytics.empty.plan} icon={ChartPie} height={104} />
+            )}
             <div className="flex flex-col gap-2 text-[13px]">
               {actions.map((a, i) => (
                 <div key={a.asset.id} className="flex justify-between gap-2.5">
