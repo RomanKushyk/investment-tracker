@@ -15,9 +15,10 @@ This folder is the only design reference (*Design pipeline* in `docs/DECISIONS.m
 - Wave 25 adds each round's sheet, its variants side by side, beside the five composite frames of its «Final».
 - Wave 26 adds each round's sheet beside the six composite frames of its «Final»; its motion is shown as stills, and the review page plays it.
 - Wave 27 adds each round's sheet beside the four composite frames of its «Final», two per language.
+- Wave 28 adds each round's sheet beside the four composite frames of its «Final»; step 3's three rounds keep a sheet each.
 
 A third private review page, [part 3](https://claude.ai/artifact/TgGrhxuQGwSY1MBWxdz1os), holds wave 25, with every round's variants.
-Wave 26 is on the same page, above wave 25, and wave 27 above both.
+Wave 26 is on the same page, above wave 25, and wave 27 above both. Wave 28 is on a fourth, [part 4](https://claude.ai/artifact/75rbRfaz7WSfEjFikWTEjN), with every round's variants.
 
 ## Waves
 
@@ -50,5 +51,6 @@ Wave 26 is on the same page, above wave 25, and wave 27 above both.
 | 25 | Open values: charts, tables, type and the palette | [open-values-charts-type.md](open-values-charts-type.md) | [/yield, 1440 and 360](renders/w25f1.jpeg) |
 | 26 | Open values: the shell, dialogs, motion, the overview and controls | [open-values-shell-controls.md](open-values-shell-controls.md) | [the shell, 1440 and 360](renders/w26f1.jpeg) |
 | 27 | /seasonality: a day several assets pay, the expected bar and the tooltip | [open-values-charts-type.md](open-values-charts-type.md#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip) | [the day bars, 1440 and 360](renders/w27f1.jpeg) |
+| 28 | The scroll surface: a glass thumb on a rail half its width | [controls.md](controls.md#wave-28-the-scroll-surface) | [the ledger's box, 1280](renders/w28f1.jpeg) |
 
 Each file shows all of its wave's frames.
