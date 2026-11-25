@@ -145,16 +145,23 @@ describe('K2 on the figures drawn today', () => {
     expect(main().querySelector(`table ${UNIT}`)).toBeNull();
   });
 
-  it('the sidebar capital keeps one string, at a 600 role', async () => {
+  // The panel's capital is an 11 px line under the wordmark (shell.md § Signed, G1): one string,
+  // its name `sr-only` before it.
+  it('the sidebar capital keeps one string, on the 11 px line', async () => {
     await mount('/overview');
-    const label = [...document.querySelectorAll('div')].find(
-      (d) => d.textContent === uk.sidebar.totalCapital && !main().contains(d),
+    const name = [...document.querySelectorAll('span.sr-only')].find((s) =>
+      s.textContent?.startsWith(uk.sidebar.totalCapital),
     )!;
-    const value = label.nextElementSibling!.firstElementChild!;
+    const line = name.parentElement!;
+    expect(main().contains(line)).toBe(false);
     // The sidebar mounts before the view answers, so its figure tweens up from 0.
-    await waitFor(() => expect(value.textContent).toBe(f.moneyWhole(o.total)), { timeout: 5000 });
-    expect(value.querySelector(UNIT)).toBeNull();
-    expect(value.className).toContain('text-h3');
+    await waitFor(() => expect(line.textContent).toContain(f.moneyWhole(o.total)), {
+      timeout: 5000,
+    });
+    expect(line.querySelector(UNIT)).toBeNull();
+    // The whole class, not a prefix: `text-label-caps` and `text-label-figure` are other roles.
+    expect(line.className).toMatch(/(?:^|\s)text-label(?:\s|$)/);
+    expect(line.className).toMatch(/(?:^|\s)text-muted(?:\s|$)/);
   });
 
   it('the header capital, below md, sets its ₴ apart at a 600 role', async () => {

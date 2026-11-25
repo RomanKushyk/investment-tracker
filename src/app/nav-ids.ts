@@ -5,8 +5,8 @@
  *
  * `NAV_TRIGGER_ID` is on whichever control EXPANDS the navigation — the header's
  * burger below the breakpoint, the rail's own at and above it.
- * `SIDEBAR_COLLAPSE_ID` is on the control that collapses it, in the expanded
- * panel's capital strip.
+ * `SIDEBAR_COLLAPSE_ID` is on the control that collapses it, at the end of the expanded
+ * panel's head.
  * `SIDEBAR_ID` is the desktop shell around both, which `Layout` asks whether focus is in.
  *
  * EXACTLY ONE ELEMENT CARRIES EACH, ALWAYS: the rail is mounted only when

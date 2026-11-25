@@ -10,8 +10,8 @@ import { describe, expect, it } from 'vitest';
 // HIDES. This file holds what the rail draws, not why.
 //
 // A SEPARATE FILE ON PURPOSE: `sidebar-structure.test.ts` and `nav-glyphs.test.ts` COUNT
-// things across `app/Sidebar.tsx` — one footer band, two `sb-divider` sites, one `<Icon>`
-// tag, eleven route/glyph pairs — and the rail draws a second of each. Its own module is
+// things across `app/Sidebar.tsx` — two `hairline` rules, one `<Icon>` tag, eleven
+// route/glyph pairs — and the rail draws a second of each. Its own module is
 // what keeps those counts saying what they were written to say.
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -91,15 +91,22 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
   // The width still animates: the shell keeps its transition and only the collapsed value
   // changes, from a `w-0` mask to a rail that is on screen.
   it('collapses the shell to the drawn 56 rather than to nothing', () => {
-    const shell = SIDEBAR.split('\n').filter(
-      (l) => /collapsed \?/.test(l) && /w-\[244px\]/.test(l),
-    );
-    expect(shell.length, 'the shell no longer branches on `collapsed`').toBe(1);
-    expect(shell[0], 'the collapsed shell is still a zero-width mask').not.toMatch(/'w-0'/);
+    // The `<aside>`'s own tag, read whole: the formatter breaks the branch across lines.
+    const at = SIDEBAR.indexOf('<aside');
+    expect(at, 'the shell is gone').toBeGreaterThan(-1);
+    const shell = SIDEBAR.slice(at, SIDEBAR.indexOf('>', at));
+    const branch = shell.match(/collapsed\s*\?\s*'([^']*)'\s*:\s*'([^']*)'/);
+    expect(branch, 'the shell no longer branches on `collapsed`').not.toBeNull();
+    const [, rail, panel] = branch!;
+    expect(rail, 'the collapsed shell is still a zero-width mask').not.toBe('w-0');
     // 56 PLUS the inset, never 56 with the inset taken out of it: a 56px shell has no room
     // to give, and a notched phone in landscape is wide enough to BE this shell.
-    expect(shell[0], 'the collapsed shell is not the drawn 56').toMatch(
-      /w-\[calc\(56px\+env\(safe-area-inset-left\)\)\]/,
+    expect(rail, 'the collapsed shell is not the drawn 56').toBe(
+      'w-[calc(56px+env(safe-area-inset-left))]',
+    );
+    // The panel's 260 plus the inset it floats at, so one tween moves both (shell.md § Signed).
+    expect(panel, 'the expanded shell is not the inset plus 260').toBe(
+      'w-[calc(max(16px,env(safe-area-inset-left))+260px)]',
     );
   });
 

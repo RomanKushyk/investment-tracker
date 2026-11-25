@@ -774,15 +774,19 @@ tables too.
 **Decision.** Two layouts and one switch — `md`, 768px, WRITTEN TWICE, in the markup and in
 `useIsDesktop`, and the two must stay one number. Below it the sidebar is an off-canvas drawer, a
 Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's; at and
-above it the sidebar is a panel in flow or an icon rail, and the choice persists. Collapsed, the
+above it the sidebar is a floating glass panel or an icon rail, and the choice persists. The panel
+stands 16 from the top, the left and the bottom, so the shell's one width tween moves its width and
+its inset together, and it is one surface: no band in it, a hairline says where the account begins. Collapsed, the
 header carries the figure, which a 56px shell cannot hold, and for the super-admin the role. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
-every radius where the shape system put it. Exactly one branch mounts per shell. A page with no
+every radius where the shape system put it. The sidebar's rows are drawn 44 because the signed
+design draws them so, at their own r12: a geometry, not a hit area grown into one. Exactly one
+branch mounts per shell. A page with no
 account's work behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
 failed, and `/privacy` and `/terms` for every reader, signed in or not — mounts NEITHER: a top bar
 with the mark and the language control over one top-anchored card and the privacy notice's and the
 terms' links under it, `md` still its only breakpoint.
-THE ACCOUNT IS EVERY FOOTER BAND'S LAST ROW, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
+THE ACCOUNT IS EVERY FOOT'S LAST ROW, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
 in the panel and the drawer two rows above the links line, which carries the privacy notice's and
 the terms' links over the version's line (*Legal documents*), the second a pill in Settings' recipe; in
 the rail two items, the rail's foot reading in the panel's order — currency, which the super-admin
@@ -806,15 +810,15 @@ page still here. A Stop is the `navigateerror` no `navigate` follows. «Увій
 says so is a sign-out's own arrival's, the logout's landing included. A logout the relay names that
 is no URL is none: the sign-out goes its own way to `/sign-in`.
 THE ROLE DECIDES WHAT THE SHELL HOLDS, from `GET /me`. A user's holds
-the capital, «Ввід», «Аналітика» and the currency. The super-admin's holds none of them: a band in
-the capital's slot names the role, a shield and «Суперадміністратор», in the panel and the drawer,
+the capital, «Ввід», «Аналітика» and the currency. The super-admin's holds none of them: a band under
+the lockup names the role, a shield and «Суперадміністратор», in the panel and the drawer,
 folded to the shield in the rail with the word as its text and tooltip, and inline in the header bar;
 its one group is «Адміністрування» with «Користувачі» and «Архів цін»; its footer keeps the theme
 alone, Settings and the account. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT:
 one page of the pending list, «99+» when full, on the pill, at the
 corner of the rail's box and of the burger, the visible figure hidden and the link's or the
-trigger's name saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel holds the capital's slot as
-its empty strip and the footer's track row unseen at a user's layout, the rail holds a user's foot,
+trigger's name saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel's head stands at
+its plate with no capital line and the foot's track row unseen at a user's layout, the rail holds a user's foot,
 the header bar its height, so a user's shell never moves and the super-admin's band arrives with its
 nav; a failed `/me` keeps the shell so (*Not found and failures*).
 A dialog's button row switches at `md` too, through `useIsDesktop`, never at the dialog's own
@@ -829,7 +833,7 @@ user's capital and reminders, the super-admin's administration — that such a c
 and the card is top-anchored
 because a centred one moves its button under the pointer whenever its height changes. A sign-out
 must be visible and reachable from every page that has a session (OWASP's *Logout Button*, ASVS
-7.4.4), and the owner ruled it last; a footer band is anchored to the bottom and grows upward, so
+7.4.4), and the owner ruled it last; a foot is anchored to the bottom and grows upward, so
 rows appearing on the session's answer would move every target above them — held, they fade into
 their slot, whose height is the same answered either way, so nothing above it moves under a resting
 pointer. By the time a guard for unsaved work could ask, the relay has revoked the session and the

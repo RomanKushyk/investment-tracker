@@ -417,7 +417,12 @@ describe('the floating surfaces point at the token', () => {
       /\[--glass-edge:var\(--color-field-border\)\]/,
       'every',
     ],
-    ['app/Sidebar.tsx', /w-\[244px\]/, /\bborder-field-border\b/, 'some'],
+    [
+      'app/Sidebar.tsx',
+      /\bh-full w-\[calc\(56px\+env\(safe-area-inset-left\)\)\]/,
+      /\bborder-field-border\b/,
+      'some',
+    ],
   ];
   it.each(PANEL_AND_RAIL)('keeps %s on `field-border`', (file, anchor, token, quantifier) => {
     const lines = source(file)

@@ -290,28 +290,13 @@ describe('the recorded readings still read as recorded', () => {
       4.445,
     ],
     ['warn from accent — a caution and the brand are one colour', 'light', 'warn', 'accent', 1.013],
-    [
-      'sb-label on its wall — the nav group captions, 11px since #107',
-      'light',
-      'sb-label',
-      'sb-bg',
-      3.091,
-    ],
-    ['sb-label on its wall, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
-    // THE SAME TOKEN, TWO PLANES FURTHER DOWN, with a consumer on each: the capital strip's
-    // caption on the `sb-field` recess, the version badge on the footer band. Both recorded
-    // and neither repaired — `sb-label` is the caption rank throughout this panel, and a
-    // second grey for one caption is the re-mint the palette forbids.
-    ['sb-label on the capital strip, light', 'light', 'sb-label', 'sb-field', 3.476],
-    ['sb-label on the capital strip, dark', 'dark', 'sb-label', 'sb-field', 4.053],
-    [
-      'sb-label on the footer band — the version, light',
-      'light',
-      'sb-label',
-      'sb-footer-bg',
-      2.867,
-    ],
-    ['sb-label on the footer band — the version, dark', 'dark', 'sb-label', 'sb-footer-bg', 4.139],
+    // THE SAME TOKEN ON ITS TWO GROUNDS, the version and the legal links' dot: the drawer's wall
+    // and the floating panel's opaque `card` fallback. Recorded and not repaired — a second grey
+    // for one caption is the re-mint the palette forbids.
+    ['sb-label on the drawer wall — the version, light', 'light', 'sb-label', 'sb-bg', 3.091],
+    ['sb-label on the drawer wall — the version, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
+    ['sb-label on the panel card — the version, light', 'light', 'sb-label', 'card', 3.689],
+    ['sb-label on the panel card — the version, dark', 'dark', 'sb-label', 'card', 3.936],
     // Two more recorded at their values.
     [
       'reit on panel — ColorDot and ShareBar paint the bare hue there',
@@ -329,16 +314,15 @@ describe('the recorded readings still read as recorded', () => {
     ],
   ];
 
-  // The eight the sheet prints beside the tokens. The two it does not print are the dark
-  // halves of the capital strip and the footer band; the set is frozen rather than derived,
-  // so a figure added to or removed from the stylesheet has to move this list with it.
+  // The eight the sheet prints beside the tokens; the set is frozen rather than derived, so a
+  // figure added to or removed from the stylesheet has to move this list with it.
   const STATED_IN_THE_SHEET = [
     'accent on panel, under 4.5 — its usage rule makes it every link in light',
     'warn from accent — a caution and the brand are one colour',
-    'sb-label on its wall — the nav group captions, 11px since #107',
-    'sb-label on its wall, dark',
-    'sb-label on the capital strip, light',
-    'sb-label on the footer band — the version, light',
+    'sb-label on the drawer wall — the version, light',
+    'sb-label on the drawer wall — the version, dark',
+    'sb-label on the panel card — the version, light',
+    'sb-label on the panel card — the version, dark',
     'reit on panel — ColorDot and ShareBar paint the bare hue there',
     "the switch's OFF edge on its own track, dark",
   ];
@@ -367,7 +351,7 @@ describe('the recorded readings still read as recorded', () => {
   // recomputes what the sheet states, but never checked the sheet still states it. The
   // stylesheet prints these to two decimals, so a reading is "stated" when its own rounding
   // appears IN A COMMENT — the declarations carry decimals of their own and would match by
-  // accident. Eight of the ten are stated; the set is frozen, so deleting one or reverting
+  // accident. All eight are stated; the set is frozen, so deleting one or reverting
   // one to an older figure moves it and reddens here.
   it('index.css still states the readings it records, beside the tokens', () => {
     const stated = RECORDED.filter(([, , , , expected]) =>
@@ -469,19 +453,18 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
     ).toBe(resolve(BLOCKS, block, 'accent'));
   });
 
-  // `sb-bg` and `sb-field` are the wall and its field rank, the planes the sidebar's controls sit
-  // on with the BASE rule's ring. This is the half that keeps that true after a re-valuing.
+  // `sb-bg` is the rail's and the drawer's wall, the plane their controls sit on with the BASE
+  // rule's ring; the floating panel's is `card`. This is the half that keeps that true after a
+  // re-valuing.
   it.each([
     ['page', 'light'],
     ['card', 'light'],
     ['panel', 'light'],
     ['sb-bg', 'light'],
-    ['sb-field', 'light'],
     ['page', 'dark'],
     ['card', 'dark'],
     ['panel', 'dark'],
     ['sb-bg', 'dark'],
-    ['sb-field', 'dark'],
   ] as [string, keyof typeof BLOCKS][])('reads on `%s` in %s', (plane, block) => {
     expect(
       ratio(resolve(BLOCKS, block, 'focus'), resolve(BLOCKS, block, plane)),
@@ -491,18 +474,23 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
   // #114: the sidebar's segments sit 2 apart, inside the ring's 4 px reach, so a ring can land on
   // its neighbour. The `card` halo fills the offset, so the ring's inner edge always reads on
   // `card`. Its outer edge reads on the well, the neighbour's knob, or, beside an end segment
-  // whose padding is 3, 1 px of the band; never on an accent fill.
-  it.each(['light', 'dark'] as const)(
-    'reads on the halo, the well, the knob and the band of a sidebar segment in %s',
-    (block) => {
+  // whose padding is 3, 1 px of the ground: the floating panel's `card` fallback or the drawer's
+  // `sb-bg`; never on an accent fill.
+  it.each(
+    (['light', 'dark'] as const).flatMap((block) =>
+      (['card', 'sb-bg'] as const).map((ground) => [block, ground] as const),
+    ),
+  )(
+    'reads on the halo, the well, the knob and the ground of a sidebar segment in %s on %s',
+    (block, plane) => {
       const focus = resolve(BLOCKS, block, 'focus');
-      const band = resolve(BLOCKS, block, 'sb-footer-bg');
-      const well = composite(mixOf(BLOCKS, block, 'glass-well'), band);
+      const ground = resolve(BLOCKS, block, plane);
+      const well = composite(mixOf(BLOCKS, block, 'glass-well'), ground);
       const knob = composite(knobTintOf(BLOCKS, block), well);
       expect(ratio(focus, resolve(BLOCKS, block, 'card')), 'the halo').toBeGreaterThanOrEqual(3);
       expect(ratio(focus, well), 'the well').toBeGreaterThanOrEqual(3);
       expect(ratio(focus, knob), 'the knob').toBeGreaterThanOrEqual(3);
-      expect(ratio(focus, band), 'the band past the well').toBeGreaterThanOrEqual(3);
+      expect(ratio(focus, ground), 'the ground past the well').toBeGreaterThanOrEqual(3);
     },
   );
 

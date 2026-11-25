@@ -8,6 +8,7 @@ import {
   channels,
   composite,
   declaredIn,
+  glassPlanes,
   knobTintOf,
   mixOf,
   ratio,
@@ -94,26 +95,6 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
     ).toBeGreaterThanOrEqual(4.5);
   });
 
-  // EXACT, NOT A BOUND, and this is how the file treats every ruled shortfall. The active
-  // label is under 1.4.3 on its own tint; what buys it is 1.4.1, since the lozenge it
-  // replaced said the state in colour alone. A `>=` bound would let a later palette edit
-  // walk the label down to it with the suite green and nothing recording what was accepted,
-  // and a bound asserting the label STAYS short would go red on a repair. An exact reading
-  // makes both a repair and a drift come here and say why.
-  it.each([
-    ['light', 3.88],
-    ['dark', 8.283],
-  ] as const)('%s: the active label on its own tint, at the ruled value', (theme, expected) => {
-    const ground = composite(
-      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
-      resolve(BLOCKS, theme, 'sb-bg'),
-    );
-    expect(
-      ratio(resolve(BLOCKS, theme, 'sb-item-active'), ground),
-      'the ruled reading moved — a repair and a drift both have to come here and say why',
-    ).toBeCloseTo(expected, 2);
-  });
-
   it.each(THEMES)('%s: the 2px indicator clears 3 : 1 on the wall', (theme) => {
     expect(
       ratio(resolve(BLOCKS, theme, 'sb-indicator'), resolve(BLOCKS, theme, 'sb-bg')),
@@ -132,6 +113,121 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
         composite(veilOf(BLOCKS, theme, 'sb-item-hover-bg'), wall),
       ),
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// THE ROWS STAND ON TWO GROUNDS: the floating panel's glass, read at its opaque fallback `card`
+// (glass.md § Signed: the default is built to pass on its own), and the drawer's `sb-bg` until
+// #721 retires it. The active row is `accent-tint` with its label in `ink` 700 and its glyph in
+// `accent` (shell.md § Signed, G1).
+describe('the rows read on the panel and on the drawer', () => {
+  const GROUNDS = ['card', 'sb-bg'] as const;
+  const cases = THEMES.flatMap((theme) => GROUNDS.map((ground) => [theme, ground] as const));
+  const onTint = (theme: (typeof THEMES)[number], ground: (typeof GROUNDS)[number]) =>
+    composite(veilOf(BLOCKS, theme, 'accent-tint'), resolve(BLOCKS, theme, ground));
+
+  it.each(cases)('%s on %s: an idle route clears 4.5 : 1', (theme, ground) => {
+    expect(
+      ratio(resolve(BLOCKS, theme, 'sb-item'), resolve(BLOCKS, theme, ground)),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(cases)('%s on %s: the active label clears 4.5 : 1 on its tint', (theme, ground) => {
+    expect(ratio(resolve(BLOCKS, theme, 'ink'), onTint(theme, ground))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(cases)('%s on %s: the active glyph clears 3 : 1 on its tint', (theme, ground) => {
+    expect(ratio(resolve(BLOCKS, theme, 'accent'), onTint(theme, ground))).toBeGreaterThanOrEqual(
+      3,
+    );
+  });
+
+  it.each(cases)('%s on %s: the 2px indicator clears 3 : 1', (theme, ground) => {
+    expect(
+      ratio(resolve(BLOCKS, theme, 'sb-indicator'), resolve(BLOCKS, theme, ground)),
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(cases)('%s on %s: a hovered route clears 4.5 : 1 on its ground', (theme, ground) => {
+    const hovered = composite(
+      veilOf(BLOCKS, theme, 'sb-item-hover-bg'),
+      resolve(BLOCKS, theme, ground),
+    );
+    expect(ratio(resolve(BLOCKS, theme, 'sb-item-hover'), hovered)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // The capital line is 11 px text under the wordmark, the panel's alone.
+  it.each(THEMES)('%s: the capital line and its change clear 4.5 : 1 on `card`', (theme) => {
+    const card = resolve(BLOCKS, theme, 'card');
+    for (const token of ['muted', 'pos', 'neg'] as const) {
+      expect(ratio(resolve(BLOCKS, theme, token), card), token).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // The super-admin's role band: the shield on `ink` 5 % over the panel.
+  it.each(cases)('%s on %s: the role band shield clears 3 : 1', (theme, ground) => {
+    const band = composite(
+      { ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 },
+      resolve(BLOCKS, theme, ground),
+    );
+    expect(ratio(resolve(BLOCKS, theme, 'sb-icon-active'), band)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// AND ON THE GLASS ITSELF, wherever the glow can put it: the fallback above is what Safari's
+// unreported reduced transparency may still show, this is what every blurring browser paints
+// (glass.md § Signed: the default must pass on its own). The same planes the KPI cards read on.
+describe('the panel reads on its glass over the glow', () => {
+  const least = (theme: (typeof THEMES)[number], ink: string, veil?: string) =>
+    Math.min(
+      ...glassPlanes(CSS, theme).map((plane) =>
+        ratio(ink, veil ? composite(veilOf(BLOCKS, theme, veil), plane) : plane),
+      ),
+    );
+
+  it.each(
+    THEMES.flatMap((theme) =>
+      (
+        [
+          ['sb-item', 'an idle route'],
+          ['muted', 'the capital line and the captions'],
+          ['pos', 'a gain on the capital line'],
+          ['neg', 'a loss on the capital line'],
+        ] as const
+      ).map(([token, role]) => [theme, token, role] as const),
+    ),
+  )('%s: `%s` (%s) clears 4.5 : 1 on its least contrasting plane', (theme, token) => {
+    expect(least(theme, resolve(BLOCKS, theme, token))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(THEMES)('%s: the active label clears 4.5 : 1 on its tint', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'ink'), 'accent-tint')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(THEMES)('%s: the active glyph and the indicator clear 3 : 1', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'accent'), 'accent-tint')).toBeGreaterThanOrEqual(3);
+    expect(least(theme, resolve(BLOCKS, theme, 'sb-indicator'))).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(THEMES)('%s: a hovered route clears 4.5 : 1 on its ground', (theme) => {
+    expect(
+      least(theme, resolve(BLOCKS, theme, 'sb-item-hover'), 'sb-item-hover-bg'),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // The super-admin's role band, `ink` 5 % over the glass.
+  it.each(THEMES)('%s: the role band reads, its word 4.5 : 1 and its shield 3 : 1', (theme) => {
+    const band = (ink: string) =>
+      Math.min(
+        ...glassPlanes(CSS, theme).map((plane) =>
+          ratio(
+            ink,
+            composite({ ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 }, plane),
+          ),
+        ),
+      );
+    expect(band(resolve(BLOCKS, theme, 'ink')), 'the word').toBeGreaterThanOrEqual(4.5);
+    expect(band(resolve(BLOCKS, theme, 'sb-icon-active')), 'the shield').toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -175,109 +271,84 @@ describe('the rail draws its glyphs alone, so they are held to 1.4.11', () => {
   });
 });
 
-// THE ELEVENTH ROUTE IS ON A DIFFERENT GROUND, AND EVERY READING ABOVE IS OF THE OTHER TEN:
-// Settings sits on a `sb-footer-bg` band, and the arms above composite over `sb-bg` so they
-// would go on asserting a plane the app stopped painting.
-describe('the footer band is a second ground, and the eleventh route reads on it', () => {
+// THE RAIL'S FOOT IS A SECOND GROUND: its Settings and account glyphs sit on a `sb-footer-bg`
+// band until #720 redraws the rail.
+describe("the rail's foot band is a second ground, and its glyphs read on it", () => {
   const band = (theme: (typeof THEMES)[number]) => resolve(BLOCKS, theme, 'sb-footer-bg');
-
-  // The same exact-value treatment as the wall's active label, for the same reason: a ruled
-  // shortfall, not a floor to drift under. Repairing it means moving `sb-item-active`, a
-  // palette decision this file has no standing to make.
-  it.each([
-    ['light', 3.62],
-    ['dark', 7.75],
-  ] as const)('%s: the active label on its tint over the band, at its value', (theme, expected) => {
-    const ground = composite(veilOf(BLOCKS, theme, 'sb-item-active-bg'), band(theme));
-    expect(ratio(resolve(BLOCKS, theme, 'sb-item-active'), ground)).toBeCloseTo(expected, 2);
-  });
-
-  it.each(THEMES)('%s: the idle route on the band clears 4.5 : 1', (theme) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'sb-item'), band(theme)),
-      'the idle route is unreadable on the band — ordinary body text on a new plane, so ' +
-        '1.4.3 binds it with no excuse',
-    ).toBeGreaterThanOrEqual(4.5);
-  });
 
   it.each(THEMES)('%s: the glyph on the band clears 3 : 1', (theme) => {
     expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), band(theme))).toBeGreaterThanOrEqual(3);
   });
 
-  // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL, which is why a `sb-divider` runs
-  // along its top edge and `sidebar-structure.test.ts` asserts the two together.
+  // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL.
   it.each(THEMES)('%s: the band is a step, not a boundary', (theme) => {
     expect(
       ratio(band(theme), resolve(BLOCKS, theme, 'sb-bg')),
       'the fill now does the identifying — a re-valuing has to come and change this rule',
     ).toBeLessThan(1.1);
   });
+});
 
-  // The row's two sets are the one segmented control (controls.md § Signed, D2): the glass well
-  // over the band, the selected segment the tinted knob over the well.
-  const well = (theme: (typeof THEMES)[number]) =>
-    composite(mixOf(BLOCKS, theme, 'glass-well'), band(theme));
-  const knob = (theme: (typeof THEMES)[number]) =>
-    composite(knobTintOf(BLOCKS, theme), well(theme));
+// The foot's two sets are the one segmented control (controls.md § Signed, D2), on the panel's
+// ground (the glass's `card` fallback) and on the drawer's `sb-bg`: the glass well over the
+// ground, the selected segment the tinted knob over the well.
+describe("the foot's segmented control reads on the panel and on the drawer", () => {
+  type Ground = 'card' | 'sb-bg';
+  const well = (theme: (typeof THEMES)[number], ground: Ground) =>
+    composite(mixOf(BLOCKS, theme, 'glass-well'), resolve(BLOCKS, theme, ground));
+  const knob = (theme: (typeof THEMES)[number], ground: Ground) =>
+    composite(knobTintOf(BLOCKS, theme), well(theme, ground));
+  const cases = THEMES.flatMap((theme) =>
+    (['card', 'sb-bg'] as const).map((ground) => [theme, ground] as const),
+  );
 
-  // A RULED SHORTFALL, exact rather than a floor: the signed `muted` label is just under 1.4.3 in
-  // light, and the owner kept it rather than give this one placement a colour of its own.
+  // The ruled shortfall the band's ground gave (4.42 : 1 in light) is repaired by leaving it.
+  it.each(cases)(
+    '%s on %s: the idle currency symbol clears 4.5 : 1 on the well',
+    (theme, ground) => {
+      expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme, ground))).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    },
+  );
+
+  // The same label under H2's `ink` 5 % hover veil, RECORDED AT ITS VALUE: the drawer's light
+  // reading stays under 1.4.3 until #721 retires the drawer.
   it.each([
-    ['light', 4.42],
-    ['dark', 7.27],
-  ] as const)('%s: the idle currency symbol on the well, at its value', (theme, expected) => {
-    expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme))).toBeCloseTo(expected, 2);
-  });
-
-  // The same label under H2's `ink` 5 % hover veil, recorded beside the idle reading.
-  it.each([
-    ['light', 4.04],
-    ['dark', 6.55],
+    ['light', 'card', 5.15],
+    ['light', 'sb-bg', 4.33],
+    ['dark', 'card', 6.38],
+    ['dark', 'sb-bg', 6.76],
   ] as const)(
-    '%s: the hovered currency symbol on the veiled well, at its value',
-    (theme, expected) => {
+    '%s on %s: the hovered currency symbol on the veiled well, at its value',
+    (theme, ground, expected) => {
       const veiled = composite(
         { ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 },
-        well(theme),
+        well(theme, ground),
       );
       expect(ratio(resolve(BLOCKS, theme, 'muted'), veiled)).toBeCloseTo(expected, 2);
     },
   );
 
-  it.each(THEMES)('%s: the selected label clears 4.5 : 1 on the knob', (theme) => {
-    expect(ratio(resolve(BLOCKS, theme, 'segment-label'), knob(theme))).toBeGreaterThanOrEqual(4.5);
+  it.each(cases)('%s on %s: the selected label clears 4.5 : 1 on the knob', (theme, ground) => {
+    expect(
+      ratio(resolve(BLOCKS, theme, 'segment-label'), knob(theme, ground)),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   // A theme segment is a GLYPH with no visible word, so 1.4.11 asks 3 of it, not 1.4.3's 4.5.
-  it.each(THEMES)('%s: an idle theme glyph clears 3 : 1 on the well', (theme) => {
-    expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme))).toBeGreaterThanOrEqual(3);
+  it.each(cases)('%s on %s: an idle theme glyph clears 3 : 1 on the well', (theme, ground) => {
+    expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme, ground))).toBeGreaterThanOrEqual(3);
   });
 });
 
-describe("the wall's field rank carries the figures drawn on it", () => {
-  // TWO CONSUMERS, ONE READING, AND THE TEXT ONE SETS THE BAR: `sb-item` carries the bare
-  // collapse chevron, a non-text indicator held to 3, and the strip's dash when there is no
-  // figure yet, which is text and asks 4.5. A separate 3 arm could never fail on its own.
-  it.each(THEMES)('%s: `sb-item` clears 4.5 : 1 on `sb-field`, for both its uses', (theme) => {
+// The wall's field rank has one consumer left: the rail's super-admin strip, a shield that
+// names the role on its own (its word is the tooltip), so 1.4.11 holds it to 3.
+describe("the rail's role strip reads on the wall's field rank", () => {
+  it.each(THEMES)('%s: the shield clears 3 : 1 on `sb-field`', (theme) => {
     expect(
-      ratio(resolve(BLOCKS, theme, 'sb-item'), resolve(BLOCKS, theme, 'sb-field')),
-    ).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it.each(THEMES)('%s: a negative delta clears 4.5 : 1 on `sb-field`', (theme) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'neg'), resolve(BLOCKS, theme, 'sb-field')),
-      'a negative delta is unreadable on `sb-field` — a loss is as drawable as a gain, and ' +
-        '`neg` is the half nothing else holds',
-    ).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it.each(THEMES)('%s: the capital figure and its gain clear 4.5 : 1 on `sb-field`', (theme) => {
-    const field = resolve(BLOCKS, theme, 'sb-field');
-    expect(ratio(resolve(BLOCKS, theme, 'ink'), field), 'the figure').toBeGreaterThanOrEqual(4.5);
-    // `pos`, not `pos-on-dark`: the plane is no longer dark in both themes, so the gain
-    // follows the theme like every other delta in the app.
-    expect(ratio(resolve(BLOCKS, theme, 'pos'), field), 'the gain').toBeGreaterThanOrEqual(4.5);
+      ratio(resolve(BLOCKS, theme, 'sb-icon-active'), resolve(BLOCKS, theme, 'sb-field')),
+    ).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -379,7 +450,7 @@ describe('the rail paints its pill recipe', () => {
       q.length,
       'the two arms of `pillClass` are no longer two strings',
     ).toBeGreaterThanOrEqual(2);
-    const active = q.find((a) => a.includes('sb-item-active'));
+    const active = q.find((a) => a.includes('accent-tint'));
     expect(active, 'no arm names the active state').toBeDefined();
     // Everything before the first arm. Comments are already stripped, so an apostrophe in
     // prose cannot be mistaken for the start of one.
@@ -388,11 +459,10 @@ describe('the rail paints its pill recipe', () => {
 
   it('says the active route twice — a tint and an indicator', () => {
     const { active } = arms();
-    expect(active, 'the active fill').toContain('bg-sb-item-active-bg');
-    // `text-`, not the bare name: `bg-sb-item-active-bg` CONTAINS `sb-item-active`, so a
-    // name-only check was satisfied by the line above it and the label could have been
-    // deleted with this test green.
-    expect(active, 'the active label').toContain('text-sb-item-active');
+    expect(active, 'the active fill').toContain('bg-accent-tint');
+    // The label is `ink` 700 (shell.md § Signed, G1); the glyph's `accent` is `nav-glyphs`'.
+    expect(active, 'the active label').toMatch(/\btext-ink\b/);
+    expect(active, 'the active label is not 700').toMatch(/\bfont-bold\b/);
     // The inset edge, not merely the token: a `text-sb-indicator` somewhere would satisfy a
     // name-only check while drawing no indicator at all.
     expect(active, 'the 2px inset left edge').toMatch(
@@ -409,7 +479,17 @@ describe('the rail paints its pill recipe', () => {
     expect(
       fills.map((f) => f.trim().replace(/^'/, '')),
       'the active arm paints a fill that is not the tint',
-    ).toEqual(['bg-sb-item-active-bg']);
+    ).toEqual(['bg-accent-tint']);
+  });
+
+  // G1 (shell.md § Signed): 44 tall at r12, padding 0 12, one recipe for every row.
+  it('draws every row 44 tall at r12 with 12 px sides', () => {
+    // The template both arms extend, not `shared`, which stops at the signature's own quotes.
+    expect(arms().body, 'the row is not padded 0 12').toMatch(/`block w-full[^`]*\spx-3\s/);
+    const src = source('app/Sidebar.tsx');
+    expect(src, 'the row is not 44 tall at r12').toMatch(
+      /const ROW = pillClass\('py-\[13px\]', 'rounded-\[12px\]'\);/,
+    );
   });
 
   it('lifts a hovered route onto its own ground rather than fading the pill', () => {
@@ -426,6 +506,39 @@ describe('the rail paints its pill recipe', () => {
   // together. Nothing renders in this suite, so it is pinned structurally.
   it('keeps hover out of the part both pills share', () => {
     expect(arms().shared).not.toMatch(/hover:/);
+  });
+});
+
+// THE PANEL FLOATS ON THE GLASS (shell.md § Signed, G1; glass.md § Signed): 260 wide, 16 from the
+// top, the left and the bottom, r26, padding 16 14 12. The glass utility carries the opaque
+// fallback, so the panel names the utility and nothing that would override its edge.
+describe('the expanded panel is a floating glass card', () => {
+  const panel = () => {
+    const src = source('app/Sidebar.tsx');
+    const lines = src.split('\n').filter((l) => /\bw-\[260px\]/.test(l));
+    expect(lines.length, 'the 260 panel is not one element').toBe(1);
+    return lines[0]!;
+  };
+
+  it('wears the glass at r26, with no edge or fill of its own', () => {
+    expect(panel()).toMatch(/(?<![-\w[])glass(?![-\w])/);
+    expect(panel()).toMatch(/\brounded-\[26px\]/);
+    expect(panel(), 'the panel overrides the glass edge').not.toMatch(/--glass-edge|\bborder\b/);
+    expect(panel(), 'the panel paints a fill over the glass').not.toMatch(/\bbg-/);
+  });
+
+  it('stands 16 from the top, the left and the bottom', () => {
+    expect(panel()).toMatch(/\bmt-4\b/);
+    expect(panel()).toMatch(/\bml-\[max\(16px,env\(safe-area-inset-left\)\)\]/);
+    expect(panel()).toMatch(
+      /\bh-\[calc\(100dvh-16px-max\(16px,env\(safe-area-inset-bottom\)\)\)\]/,
+    );
+  });
+
+  it('is padded 16 14 12', () => {
+    expect(panel()).toMatch(/\bpt-4\b/);
+    expect(panel()).toMatch(/\bpx-3\.5\b/);
+    expect(panel()).toMatch(/\bpb-3\b/);
   });
 });
 

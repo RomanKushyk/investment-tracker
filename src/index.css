@@ -321,15 +321,10 @@
   --color-sb-item: #5e5955;
   --color-sb-item-hover: #1c1a19;
   --color-sb-item-hover-bg: rgba(28, 26, 25, 0.05);
-  /* RECORDED SHORTFALL: the active route's label sits on its own 12% tint, not
-     the bare wall, and there it reads 3.88 in light against 1.4.3's 4.5 for
-     13.5px text (dark 8.28). The lozenge it replaced cleared the bar with room;
-     what buys this is 1.4.1, which the lozenge failed outright by saying the
-     state in colour alone, and the 2px indicator is the half that answers that.
-     `sidebar-plane.test.ts` records both readings — and a THIRD, because
-     Settings sits on the footer band where its active label reads 3.62. The same
-     shortfall one plane down, recorded rather than repaired: repairing it means
-     moving this value, which is a palette decision. */
+  /* No label reads `sb-item-active` any more: the panel's active row is `ink` 700 on
+     `accent-tint` (shell.md § Signed, G1). The rail's active box still wears
+     `sb-item-active-bg` until its own slice; both leave the theme with the other
+     retired `sb-*` tokens. */
   --color-sb-item-active: #8a5a3a;
   --color-sb-item-active-bg: rgba(138, 90, 58, 0.12);
   /* The half of the active state that survives a colour-blind reading — 1.4.1
@@ -337,14 +332,11 @@
   --color-sb-indicator: #8a5a3a;
   --color-sb-icon: #6f6a64;
   --color-sb-icon-active: #8a5a3a;
-  /* RECORDED SHORTFALL: 3.09 here and 4.33 in dark, on the nav group headers and
-     the version badge. The owner ruled the value stands. The headers are 11px
-     sentence case, and eleven pixels is still small text, so 1.4.3 still asks
-     4.5; the version sits on `sb-footer-bg`, where the same token reads 2.87 and
-     is the worst text in the panel; the capital strip's caption is this token on
-     `sb-field` at 3.48. All three are recorded rather than repaired — a second
-     grey for one caption is a re-mint. `sidebar-plane.test.ts` deliberately holds
-     no floor over it; `palette-mirror.test.ts` records it at its value. */
+  /* RECORDED SHORTFALL: the version and the legal links' dot, 11px and still small
+     text, so 1.4.3 asks 4.5. On the drawer's wall 3.09 here and 4.33 in dark; on the
+     floating panel's opaque `card` fallback 3.69 and 3.94. The owner ruled the value
+     stands: a second grey for one caption is a re-mint. `sidebar-plane.test.ts`
+     deliberately holds no floor over it; `palette-mirror.test.ts` records it. */
   --color-sb-label: #847e77;
   --color-sb-badge: #8a5a3a;
   --color-sb-badge-bg: rgba(138, 90, 58, 0.12);

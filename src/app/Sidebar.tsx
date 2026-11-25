@@ -91,18 +91,21 @@ export function Mark({ size }: { size: keyof typeof PLATE }) {
 // where they are. *Shape system*
 function pillClass(padY: string, radius: string, type = 'text-body') {
   return ({ isActive }: { isActive: boolean }) =>
-    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left ${type} transition-control select-none active:scale-[.97] ` +
+    `block w-full ${radius} ${TAP_44} px-3 ${padY} text-left ${type} transition-control select-none active:scale-[.97] ` +
     (isActive
       ? // SAID TWICE, WHICH IS THE WHOLE POINT: a tint AND an inset left edge, because
         // 1.4.1 does not accept a state carried by colour alone. An INSET SHADOW and not
         // a pseudo-element — `TAP_44` owns `::after` on every pill below the breakpoint,
         // and a real border would move the label and break the radii.
-        'bg-sb-item-active-bg font-bold text-sb-item-active shadow-[inset_2px_0_0_var(--color-sb-indicator),var(--focus-halo)]'
+        'bg-accent-tint font-bold text-ink shadow-[inset_2px_0_0_var(--color-sb-indicator),var(--focus-halo)]'
       : // HOVER LIVES IN THIS ARM ONLY. In the shared prefix it outranks the active
         // arm — `hover:` is a class higher and Tailwind emits it later — so pointing
         // at the route you are already on repaints it and takes away both halves.
         'bg-transparent font-normal text-sb-item hover:bg-sb-item-hover-bg hover:text-sb-item-hover');
 }
+
+// The panel's row (shell.md § Signed, G1): 13 + the body's 18 + 13 is 44, at r12 = 0.26 × 44.
+const ROW = pillClass('py-[13px]', 'rounded-[12px]');
 
 // The glyph takes its colour ON ITSELF: the glyph rank names an idle and an active
 // state and no third, so the pill's hover must reach the label alone. It eases on its
@@ -120,12 +123,12 @@ function NavItem({
   count?: string;
 }) {
   return (
-    <span className="flex items-center gap-2.5">
+    <span className="flex items-center gap-3">
       <Icon
-        size={16}
+        size={18}
         strokeWidth={2}
         aria-hidden
-        className={`flex-none transition-control-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
+        className={`flex-none transition-control-colors ${isActive ? 'text-accent' : 'text-sb-icon'}`}
       />
       <span className="flex-1 truncate">{label}</span>
       {count !== undefined && (
@@ -146,8 +149,8 @@ function NavItem({
  * the content it labels; the sidebar leaves sideways, a group closes down. Three bands
  * — before the active row, the row, after — and only the outer two fold: copying the
  * active link gives two `aria-current="page"` links, and auto-expanding rewrites the
- * persisted set on every navigation into the group. Radius 9 is borrowed from the nav
- * pill, not derived — the row draws no box. *Shape system*
+ * persisted set on every navigation into the group. Radius 9 is borrowed from the account
+ * row, not derived — the row draws no box. *Shape system*
  */
 function NavGroup({
   groupKey,
@@ -191,7 +194,7 @@ function NavGroup({
             `overflow-hidden` clips PAINT, so every link stays in the tab order. */}
         <div
           inert={collapsed || undefined}
-          className="flex min-h-0 flex-col gap-[3px] overflow-hidden max-md:gap-2"
+          className="flex min-h-0 flex-col gap-0.5 overflow-hidden"
         >
           {rows}
         </div>
@@ -209,7 +212,7 @@ function NavGroup({
         // pushes the first pill down instead of overlapping it, which is what
         // tap-target.ts requires. `TAP_44_BOX` squares the box and this one has a
         // label to hold.
-        className="group mx-3.5 mb-1.5 flex h-[18px] items-center rounded-[9px] text-label-caps text-sb-label uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
+        className="group mx-3 mb-1.5 flex h-[18px] items-center rounded-[9px] text-label-caps text-muted uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
       >
         {label}
         <ChevronDown
@@ -239,12 +242,12 @@ function PortfolioNav() {
       {/* THE RETIRED `"settings"` KEY can still sit in a returning user's
           `collapsedNavGroups`, inert, so do not reuse the name. */}
       <NavGroup groupKey="entry" label={t.nav.groupEntry}>
-        <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+        <NavLink to="/" className={ROW}>
           {({ isActive }) => (
             <NavItem Icon={CalendarDays} label={t.nav.dailyQuotes} isActive={isActive} />
           )}
         </NavLink>
-        <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+        <NavLink to="/transactions" className={ROW}>
           {({ isActive }) => (
             <NavItem Icon={ArrowDownUp} label={t.nav.transactions} isActive={isActive} />
           )}
@@ -253,11 +256,11 @@ function PortfolioNav() {
 
       {/* A caption says a group begins; this says the one above it ENDED, which a
           gap cannot. A border and never an SVG — see `Mark`. */}
-      <div className="mx-3.5 my-2 border-t border-sb-divider" />
+      <div className="mx-3 my-2 border-t border-hairline" />
 
       <NavGroup groupKey="analytics" label={t.nav.groupAnalytics}>
         {ANALYTICS.map(({ to, key, Icon }) => (
-          <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
+          <NavLink key={to} to={to} className={ROW}>
             {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
           </NavLink>
         ))}
@@ -273,16 +276,12 @@ function AdminNav() {
   const badge = usePendingBadge();
   return (
     <NavGroup groupKey="admin" label={t.nav.groupAdmin}>
-      <NavLink
-        to="/admin/users"
-        aria-label={usersName(t, badge)}
-        className={pillClass('py-2', 'rounded-[9px]')}
-      >
+      <NavLink to="/admin/users" aria-label={usersName(t, badge)} className={ROW}>
         {({ isActive }) => (
           <NavItem Icon={Users} label={t.nav.users} isActive={isActive} count={badge?.shown} />
         )}
       </NavLink>
-      <NavLink to="/admin/archive" className={pillClass('py-2', 'rounded-[9px]')}>
+      <NavLink to="/admin/archive" className={ROW}>
         {({ isActive }) => <NavItem Icon={Archive} label={t.nav.archive} isActive={isActive} />}
       </NavLink>
     </NavGroup>
@@ -313,7 +312,7 @@ function SidebarPanel({
   onCollapse?: () => void;
 }) {
   const t = useT();
-  // A GLANCE AND A PREFERENCE SIDE BY SIDE, the one place the footer band's two tracks
+  // A GLANCE AND A PREFERENCE SIDE BY SIDE, the one place the foot's two tracks
   // differ: `setCurrency` writes the session value only, so reading one KPI in `$` is
   // gone on reload, while `setTheme` writes the field the Appearance card writes.
   const { currency, setCurrency, theme, setTheme } = useSettings();
@@ -328,55 +327,49 @@ function SidebarPanel({
   // it, and an address is one — a long one widened the whole band.
   return (
     <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
-      {/* ── band 1 — the lockup and the capital strip, fixed ────────────── */}
-      <div>
-        <div className="mb-[14px] flex items-center gap-3">
-          <Mark size={40} />
-          <span className="font-display text-h3 text-ink">quirenote</span>
-        </div>
-        {/* THE CAPITAL IS THE PANEL'S ALONE — below the breakpoint the header bar
-            carries it, and both read the same hook so they cannot disagree. The super-admin
-            has the role in its slot, in the drawer too, which covers the header bar that names
-            it; while the role is unknown the panel holds the slot empty. */}
-        {admin ? (
-          <RoleBand onCollapse={onCollapse} />
-        ) : !panel ? null : role === 'user' ? (
-          <CapitalBand onCollapse={onCollapse} />
-        ) : (
-          <HeadStrip onCollapse={onCollapse} />
-        )}
+      {/* ── band 1 — the lockup and the capital line, fixed ─────────────── */}
+      {/* THE CAPITAL IS THE PANEL'S ALONE — below the breakpoint the header bar carries it, and
+          both read the same hook so they cannot disagree. The super-admin has the role band in
+          the drawer too, which covers the header bar that names it. */}
+      <div className="mb-[14px] flex flex-col gap-3">
+        <PanelHead
+          line={!panel || admin ? 'none' : role === 'user' ? 'capital' : 'held'}
+          onCollapse={onCollapse}
+        />
+        {admin && <RoleBand />}
       </div>
 
       {/* ── band 2 — the navigation, the only part that scrolls ─────────── */}
-      {/* `gap-2` below the breakpoint is not decoration: 36 drawn + 8 gap = 44, so the
-          hit regions tile — no overlap handing a tap to the wrong route and no dead
-          strip. It is tap-target.ts's second case. */}
+      {/* The rows are drawn 44 tall, so their hit regions are their boxes and the 2 gap
+          keeps them apart at every width. */}
       <Scroller>
         {role !== 'user' && !admin ? null : (
           <div
             key={role}
-            className="flex animate-in flex-col gap-[3px] duration-300 ease-soft fade-in max-md:gap-2"
+            className="flex animate-in flex-col gap-0.5 duration-300 ease-soft fade-in"
           >
             {admin ? <AdminNav /> : <PortfolioNav />}
           </div>
         )}
       </Scroller>
 
-      {/* ── band 3 — the footer band, pinned ───────────────────────────── */}
-      {/* A BAND, NOT A CLUSTER, AND THE DIFFERENCE IS THE EDGE: its fill barely steps
-          off the wall, so the rule along its top is what identifies it. The fill
-          bleeds to the shell's edges while the CONTENT keeps the left inset. */}
+      {/* ── band 3 — the foot, pinned ─────────────────────────────────── */}
+      {/* ON THE PANEL'S OWN SURFACE, no band of its own: the panel is one glass card, and a
+          hairline says where the account begins (rail-and-account-foot.md § Signed, A2). `px-1`
+          is `Scroller`'s focus-ring allowance, so the foot's glyphs stand under the nav's. In the
+          drawer it reaches through the drawer's bottom padding, so the height it publishes for
+          the toast is measured to the screen's edge. */}
       <div
         ref={band}
-        className="mt-[14px] -mr-4 mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg py-2 pr-5 pl-[calc(max(16px,env(safe-area-inset-left))+4px)]"
+        className={`mt-[14px] px-1 ${panel ? '' : 'mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] pb-[max(16px,env(safe-area-inset-bottom))]'}`}
       >
         {/* Every utility past `flex gap-2` is `TAP_44` arithmetic: below the breakpoint the
-            segments' and Settings' overlays both reach, so the margin doubles, and the row
-            wraps where a safe-area inset narrows the band. */}
+            22 px segments' overlays reach 11 past them, and Settings, drawn 44, has none, so
+            the margin is 11; the row wraps 22 apart where a safe-area inset narrows the foot. */}
         {/* Held at a user's layout, unseen, while the role is unknown; the super-admin's theme
             track alone takes the row. */}
         <div
-          className={`mb-2 flex gap-2 max-md:mb-4 max-md:flex-wrap max-md:gap-y-[22px] ${role !== 'user' && !admin ? 'invisible' : ''}`}
+          className={`mb-2 flex gap-2 max-md:mb-[11px] max-md:flex-wrap max-md:gap-y-[22px] ${role !== 'user' && !admin ? 'invisible' : ''}`}
         >
           {/* The one segmented control at the sidebar's size (controls.md § Signed, D2). The
               glyph's word and the symbol's ISO code are `sr-only`, so each name CONTAINS
@@ -429,19 +422,20 @@ function SidebarPanel({
           )}
         </div>
 
-        {/* Settings keeps the nav's pill recipe: the eleventh route reads like ten. */}
-        <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
+        {/* Settings keeps the nav's row recipe: the eleventh route reads like ten. */}
+        <NavLink to="/settings" className={ROW}>
           {({ isActive }) => <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />}
         </NavLink>
 
         <AccountRows />
 
         {/* The privacy notice's and the terms' links (*Legal documents*), on a line of their own
-            over the version's, which they would not fit beside. Below the breakpoint they and
-            «Вийти» all carry `TAP_44`, so the gap is their two overlays' halves. `sb-label` is the
-            caption rank in here, and its shortfall is recorded rather than repaired: a second
-            grey is a re-mint the palette forbids. */}
-        <div className="mt-2.5 flex h-[14px] items-center justify-center gap-2 max-md:mt-[19px]">
+            over the version's, which they would not fit beside. Below the breakpoint they carry
+            `TAP_44`, whose overlay reaches 15 past the 14 px line, and «Вийти» or «Увійти» above
+            is drawn 44 with none, so the gap is 15. `sb-label` is the caption rank in here, and
+            its shortfall is recorded rather than repaired: a second grey is a re-mint the palette
+            forbids. */}
+        <div className="mt-2.5 flex h-[14px] items-center justify-center gap-2 max-md:mt-[15px]">
           {LEGAL_LINKS.map(([to, document], i) => (
             <Fragment key={to}>
               {i > 0 && (
@@ -467,7 +461,7 @@ function SidebarPanel({
 }
 
 /**
- * The account's place in a footer band, in both shells. HELD, invisible and inert, until the
+ * The account's place in a foot, in both shells. HELD, invisible and inert, until the
  * relay answers, and closed only where there is no auth environment; `accountRows` says why.
  * Keyed by that state, so what it holds fades in when it shows.
  */
@@ -499,14 +493,15 @@ export function AccountFold({
 
 // ONE GEOMETRY FOR BOTH ANSWERS: the held slot is the signed-in rows' height, so the signed-out
 // rows take the same row and pill, or Settings moves when the relay answers.
-const ACCOUNT_STEP = 'mt-[3px] max-md:mt-2';
-const ACCOUNT_ROW = `${ACCOUNT_STEP} flex h-[36px] items-center px-3.5 text-small text-sb-item`;
-const ACCOUNT_PILL = `${ACCOUNT_STEP} ${pillClass('py-2', 'rounded-[9px]')({ isActive: false })}`;
-// The address as the profile's link: the pill's states at the row's height and size.
-const ACCOUNT_LINK = pillClass('py-2.5', 'rounded-[9px]', 'text-small');
+const ACCOUNT_STEP = 'mt-0.5 max-md:mt-2';
+const ACCOUNT_ROW = `${ACCOUNT_STEP} flex h-[36px] items-center px-3 text-small text-sb-item`;
+const ACCOUNT_PILL = `${ACCOUNT_STEP} ${ROW({ isActive: false })}`;
+// The address as the profile's link: the pill's states at the row's height and size, 9 + the 18
+// glyph + 9 = 36.
+const ACCOUNT_LINK = pillClass('py-[9px]', 'rounded-[9px]', 'text-small');
 
 /**
- * THE ACCOUNT IS THE BAND'S LAST ROW, above the links line: the address, the profile's link,
+ * THE ACCOUNT IS THE FOOT'S LAST ROW, above the links line: the address, the profile's link,
  * then «Вийти» in Settings' recipe. Signed out, the status and «Увійти», a plain `Link`:
  * `/sign-in/x` falls into the shell, where a `NavLink` would mark it current.
  */
@@ -517,6 +512,8 @@ function AccountRows() {
 
   return (
     <AccountFold rows={rows}>
+      {/* In the fold, so it is held and closed with the rows it rules off. */}
+      <div className="mx-3 my-2 border-t border-hairline" />
       {rows === 'entry' ? (
         <>
           <div className={ACCOUNT_ROW}>
@@ -558,8 +555,8 @@ function AccountRows() {
 }
 
 /**
- * Publishes the drawer's footer band's RENDERED height as `--drawer-band-h` while the drawer is
- * open, so a toast stands on the band instead of covering «Вийти» — `AppToaster` adds it to the
+ * Publishes the drawer's foot's RENDERED height, to the screen's edge, as `--drawer-band-h` while
+ * the drawer is open, so a toast stands on the foot instead of covering «Вийти» — `AppToaster` adds it to the
  * toaster's offset, as `DailyQuotes` does for its action bar and for the same reason.
  */
 function useBandHeight(publish: boolean) {
@@ -581,26 +578,36 @@ function useBandHeight(publish: boolean) {
 }
 
 /**
- * The head's strip: the capital's slot, the super-admin's band in it, or the slot held empty while
- * the role is unknown, so nothing moves when it lands. A STRIP, NOT A CARD — it bleeds through the
- * panel's padding to the shell's edges, and a full-bleed bar takes square corners. *Shape system*
+ * The lockup, with the capital under the wordmark where the panel shows it (shell.md § Signed, G1).
+ * While the role is unknown the line's slot is HELD at its height, so the wordmark does not move
+ * when a user's figure lands.
  */
-function HeadStrip({ onCollapse, children }: { onCollapse?: () => void; children?: ReactNode }) {
+function PanelHead({
+  line,
+  onCollapse,
+}: {
+  line: 'capital' | 'held' | 'none';
+  onCollapse?: () => void;
+}) {
   const t = useT();
   return (
-    <div className="-mr-4 mb-[14px] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] flex h-14 items-center gap-2.5 bg-sb-field pl-[calc(max(16px,env(safe-area-inset-left))+18px)]">
-      {children}
+    <div className="flex items-center gap-3">
+      <Mark size={40} />
+      <div className="min-w-0 flex-1">
+        <div className="font-display text-h3 text-ink">quirenote</div>
+        {line === 'capital' && <CapitalLine />}
+        {line === 'held' && <div aria-hidden className="h-[14px]" />}
+      </div>
       {onCollapse !== undefined && (
-        // UNBOXED, AND THE INK IS THE OBJECT: a stroke here reads as a badge. The glyph
-        // fills its box to 2.5.8's floor, which is what lets the box carry no paint.
+        // UNBOXED, AND THE INK IS THE OBJECT: a stroke here reads as a badge.
         <button
           type="button"
           id={SIDEBAR_COLLAPSE_ID}
           onClick={onCollapse}
           aria-label={t.nav.collapseNav}
-          className="-mr-px ml-auto grid size-[26px] flex-none place-items-center text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97]"
+          className="grid size-7 flex-none place-items-center rounded-[7px] text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97]"
         >
-          <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+          <ChevronLeft size={16} strokeWidth={2} aria-hidden />
         </button>
       )}
     </div>
@@ -608,63 +615,54 @@ function HeadStrip({ onCollapse, children }: { onCollapse?: () => void; children
 }
 
 /**
- * The super-admin's band, in the capital's slot this role leaves empty: the role in words beside a
- * shield, never colour alone (WCAG 1.4.1), and never a gear, which is Settings.
+ * The super-admin's band under the lockup: the role in words beside a shield, never colour alone
+ * (WCAG 1.4.1), and never a gear, which is Settings.
  */
-function RoleBand({ onCollapse }: { onCollapse?: () => void }) {
+function RoleBand() {
   const t = useT();
   return (
-    <HeadStrip onCollapse={onCollapse}>
+    // `mx-1` is `Scroller`'s focus-ring allowance, so the band spans the rows under it.
+    <div className="mx-1 flex h-11 items-center gap-3 rounded-[12px] bg-ink/5 px-3">
       <Shield size={18} strokeWidth={2} aria-hidden className="flex-none text-sb-icon-active" />
       <span className="min-w-0 flex-1 truncate font-display text-body font-semibold text-ink">
         {t.nav.superAdmin}
       </span>
-    </HeadStrip>
+    </div>
   );
 }
 
 /**
  * ITS OWN COMPONENT so the hook is gated with the markup: `useCapitalCard` mounts an
  * rAF tween, and called from the panel it ran in the DRAWER variant too, animating a
- * number that is not on screen.
+ * number that is not on screen. The name is `sr-only`: a bare figure under the wordmark is
+ * unlabelled.
  */
-function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
+function CapitalLine() {
   const t = useT();
   const capital = useCapitalCard();
   return (
-    <HeadStrip onCollapse={onCollapse}>
-      <div className="flex min-w-0 flex-col gap-[3px]">
-        <div className="text-label-figure text-sb-label">{t.sidebar.totalCapital}</div>
-
-        <div className="flex items-baseline gap-2.5">
-          {/* `min-w-0 truncate` so the figure GIVES FIRST: it shares a baseline with the
-              delta, and a big total would otherwise paint under the chevron. */}
-          <div className="min-w-0 truncate font-display text-h3 text-ink">{capital.value}</div>
-          {/* BY SIGN, because `AppHeader` colours the same figure by sign. */}
-          <div
-            className={`flex-none text-small font-semibold ${
-              capital.pct === undefined
-                ? 'text-sb-item'
-                : (capital.net ?? 0) < 0
-                  ? 'text-neg'
-                  : 'text-pos'
-            }`}
-          >
-            {capital.pct ?? '—'}
-          </div>
-        </div>
-      </div>
-    </HeadStrip>
+    <div className="truncate text-label text-muted">
+      <span className="sr-only">{t.sidebar.totalCapital}: </span>
+      {capital.value}
+      <span aria-hidden> · </span>
+      {/* BY SIGN, because `AppHeader` colours the same figure by sign. */}
+      <span
+        className={
+          capital.pct === undefined ? '' : (capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'
+        }
+      >
+        {capital.pct ?? '—'}
+      </span>
+    </div>
   );
 }
 
 /**
  * The DESKTOP shell, in flow and at two widths. The rail arrives as `children` so this
  * file never imports it and it can import the route table from here without the two
- * forming a cycle; the shell stays mounted across the flip so the width animates. THE
- * SHELL'S RADIUS IS CHOSEN, NOT DERIVED — the footer band is concentric with it, and
- * the proportional rule is wrong here: a full-height panel has no short side to scale
- * from. *Shape system*
+ * forming a cycle; the shell stays mounted across the flip, so its one width, the inset
+ * included, animates. THE RAIL'S RADIUS IS CHOSEN, NOT DERIVED: a full-height box has no
+ * short side to scale from. *Shape system*
  */
 export function Sidebar({
   collapsed,
@@ -679,7 +677,9 @@ export function Sidebar({
     <aside
       id={SIDEBAR_ID}
       className={`sticky top-0 h-dvh flex-none overflow-hidden transition-[width] duration-[260ms] ease-soft ${
-        collapsed ? 'w-[calc(56px+env(safe-area-inset-left))]' : 'w-[244px]'
+        collapsed
+          ? 'w-[calc(56px+env(safe-area-inset-left))]'
+          : 'w-[calc(max(16px,env(safe-area-inset-left))+260px)]'
       }`}
     >
       {collapsed ? (
@@ -691,16 +691,13 @@ export function Sidebar({
           {children}
         </div>
       ) : (
-        <>
-          {/* The LEFT inset is paid here and not on the content column, because this
-          panel is that column's SIBLING and sits flush to the page's left edge, where
-          `viewport-fit=cover` puts a cutout over the lockup and the pills. `border-r`
-          and not `border`: the other three sides are flush to the viewport, so those
-          edges separate nothing and wear a frame against the chrome. */}
-          <div className="h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sb-bg p-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink">
-            <SidebarPanel variant="panel" onCollapse={onCollapse} />
-          </div>
-        </>
+        // A FLOATING GLASS CARD (shell.md § Signed, G1): 16 from the top, the left and the bottom,
+        // at the signed r26. The LEFT inset is paid here and not on the content
+        // column, because this panel is that column's sibling, where `viewport-fit=cover` puts a
+        // cutout. `glass` carries the opaque fallback.
+        <div className="mt-4 ml-[max(16px,env(safe-area-inset-left))] h-[calc(100dvh-16px-max(16px,env(safe-area-inset-bottom)))] w-[260px] rounded-[26px] glass px-3.5 pt-4 pb-3 text-ink">
+          <SidebarPanel variant="panel" onCollapse={onCollapse} />
+        </div>
       )}
     </aside>
   );

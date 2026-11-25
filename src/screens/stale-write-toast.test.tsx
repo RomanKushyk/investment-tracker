@@ -90,8 +90,8 @@ async function open(path: string) {
   // draws its controls before that.
   await waitFor(() =>
     expect(
-      within(document.querySelector('aside')!).getByText(uk.sidebar.totalCapital)
-        .nextElementSibling!.firstElementChild!.textContent,
+      within(document.querySelector('aside')!).getByText(new RegExp(`^${uk.sidebar.totalCapital}`))
+        .nextSibling!.textContent,
     ).not.toBe('—'),
   );
 }

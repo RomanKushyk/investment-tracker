@@ -159,6 +159,14 @@ describe('the super-admin shell, once GET /me answers super_admin', () => {
     for (const gone of [uk.nav.groupEntry, uk.nav.groupAnalytics, uk.sidebar.totalCapital]) {
       expect(page.sidebar()).not.toContain(gone);
     }
+    // The role band (super-admin.md § Signed): 44 px at r12 on `ink` 5 %, under the lockup.
+    const band = [...document.getElementById('app-sidebar')!.querySelectorAll('div')].find(
+      (d) => d.textContent === SUPER_ADMIN,
+    );
+    expect(band, 'no element holds the role alone').toBeDefined();
+    expect(band!.className).toMatch(/\bh-11\b/);
+    expect(band!.className).toMatch(/\brounded-\[12px\]/);
+    expect(band!.className).toMatch(/\bbg-ink\/5\b/);
     const links = page.links(document.getElementById('app-sidebar'));
     expect(links).toContain('/admin/archive');
     for (const route of ['/', ...PORTFOLIO_ROUTES]) expect(links).not.toContain(route);
@@ -252,6 +260,19 @@ describe('a role that is neither', () => {
 });
 
 describe('a user session', () => {
+  // THE CAPITAL IS THE PANEL'S ALONE: below md the header bar carries it, and a second copy in
+  // the drawer would be two truths about one number.
+  it('draws the capital line in the panel and not in the drawer', async () => {
+    const panel = mount('/');
+    await waitFor(() => expect(panel.sidebar()).toContain(uk.sidebar.totalCapital));
+    cleanup();
+    wide = false;
+    const page = mount('/');
+    fireEvent.click(document.getElementById('app-nav-trigger')!);
+    await waitFor(() => expect(page.drawer()).toContain(uk.nav.groupEntry));
+    expect(page.drawer()).not.toContain(uk.sidebar.totalCapital);
+  });
+
   it('shows no super-admin indicator in the panel, the rail or the header', async () => {
     const page = mount('/');
     await waitFor(() => expect(page.sidebar()).toContain(uk.nav.groupEntry));

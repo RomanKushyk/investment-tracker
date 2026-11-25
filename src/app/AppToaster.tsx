@@ -23,8 +23,9 @@ export function AppToaster() {
         // THE BOTTOM IS A `max()`, so a toast never covers the sticky action bar that raised
         // it, the control reached for next. `/` publishes the bar's measured height
         // while it is up, and `--keyboard-inset` is the strip iOS gives the keyboard
-        // without shrinking the layout viewport. The open drawer publishes its footer
-        // band's, for the same reason: «Вийти» is the control reached for next.
+        // without shrinking the layout viewport. The open drawer publishes its foot's,
+        // measured to the screen's edge, for the same reason: «Вийти» is the control
+        // reached for next.
         //
         // `max()` and NOT a sum, which is the part worth reading twice: summed, the two
         // safe-area terms double-count — the bar already pads itself past the home

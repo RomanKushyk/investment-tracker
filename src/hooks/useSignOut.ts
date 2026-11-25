@@ -100,7 +100,7 @@ function setOut(from: string | undefined) {
 }
 
 /** Every «Вийти» is busy while a sign-out runs and while its page leaves, and a failure's one toast
- *  makes each the retry; `rows` is what the footer band draws. */
+ *  makes each the retry; `rows` is what the foot draws. */
 export function useSignOut() {
   const t = useT();
   const navigate = useNavigate();

@@ -205,9 +205,9 @@ describe('every route wears the glyph it was given', () => {
 
   // ONE DRAWING SITE, so the anatomy cannot drift per item. The item glyph differs between
   // idle and active in stroke COLOUR only.
-  it('draws all eleven through one tag — 16px, stroke 2, aria-hidden', () => {
+  it('draws all eleven through one tag — 18px, stroke 2, aria-hidden', () => {
     const tag = one();
-    expect(tag, 'the glyph is not 16px').toMatch(/size=\{16\}/);
+    expect(tag, 'the glyph is not 18px').toMatch(/size=\{18\}/);
     expect(tag, 'the glyph left the drawn stroke weight').toMatch(/strokeWidth=\{2\}/);
     // The BARE attribute: `aria-hidden="false"` contains the substring and puts the glyph
     // back in the tree, which is the defect this line catches.
@@ -220,7 +220,7 @@ describe('every route wears the glyph it was given', () => {
   // THE ROW IS AN ORDER AND A GAP, both of which `navigation-map.md` records as this route's
   // expected value. Without this the glyph can move after the label or lose its gap with
   // every other assertion still green.
-  it('puts the glyph before the label, on the drawn 10px gap', () => {
+  it('puts the glyph before the label, on the drawn 12px gap', () => {
     const at = SIDEBAR.indexOf('function NavItem');
     expect(at, '`NavItem` is gone — the row moved and this pin must follow').toBeGreaterThan(-1);
     // Bounded on the RETURNED JSX, never on a brace: the destructured signature closes with
@@ -229,7 +229,7 @@ describe('every route wears the glyph it was given', () => {
     const open = SIDEBAR.indexOf('return (', at);
     expect(open, '`NavItem` no longer returns JSX').toBeGreaterThan(-1);
     const body = until(open, '\n  );', '`NavItem`');
-    expect(body, 'the row lost the drawn 10px gap').toMatch(/gap-2\.5\b/);
+    expect(body, 'the row lost the drawn 12px gap').toMatch(/\bgap-3\b/);
     expect(body.indexOf('<Icon'), 'the glyph is no longer drawn in the row').toBeGreaterThan(-1);
     expect(
       body.indexOf('<Icon') < body.indexOf('{label}'),
@@ -239,9 +239,9 @@ describe('every route wears the glyph it was given', () => {
 
   // BOUND TO THE STATE, not merely present in the tag: asserting both names appear is
   // satisfied by a tag that SWAPS them, painting the current route muted and the rest accent.
-  it('binds `sb-icon-active` to the current route and `sb-icon` to the rest', () => {
+  it('binds `accent` to the current route and `sb-icon` to the rest', () => {
     expect(one(), 'the two colours are not bound to `isActive` in that order').toMatch(
-      /isActive\s*\?\s*'text-sb-icon-active'\s*:\s*'text-sb-icon'/,
+      /isActive\s*\?\s*'text-accent'\s*:\s*'text-sb-icon'/,
     );
   });
 

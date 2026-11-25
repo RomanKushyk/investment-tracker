@@ -131,10 +131,10 @@ function capitalSub(dict: typeof uk | typeof en = uk) {
     line: sub.lastElementChild as HTMLElement,
   };
 }
-/** The figure the sidebar's capital strip shows, read off the caption that heads it. */
+/** The figure the sidebar's capital line shows, the text right after its `sr-only` name. */
 const sidebarCapital = () =>
-  within(document.querySelector('aside')!).getByText(uk.sidebar.totalCapital).nextElementSibling!
-    .firstElementChild!.textContent;
+  within(document.querySelector('aside')!).getByText(new RegExp(`^${uk.sidebar.totalCapital}`))
+    .nextSibling!.textContent;
 /** How many elements of the header bar read exactly this. The bar is mounted below 768 and while the
  *  rail is collapsed, which no other test opens; the default matcher folds the non-breaking space a
  *  figure is spelled with, so it would match none. */
