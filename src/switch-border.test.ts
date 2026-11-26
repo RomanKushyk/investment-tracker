@@ -201,14 +201,4 @@ describe('the markup points at the recipe', () => {
     expect(src, 'the `ink` on-fill is back').not.toMatch(/\bbg-ink\b/);
     expect(src, 'the switch is back on `panel-border`').not.toMatch(/\bborder-panel-border\b/);
   });
-
-  // THE RAIL DOES NOT MOVE: it is a region's decorative edge, which *Design pipeline* puts
-  // outside the 3 : 1 bar, so a later pass cannot "finish the job" without its own ruling.
-  it('leaves the `Scroller` rail on `panel-border`', () => {
-    const rail = stripTs(read('components/ui/Scroller.tsx'), 'components/ui/Scroller.tsx')
-      .split('\n')
-      .filter((l) => /touch-none select-none/.test(l));
-    expect(rail.length, 'the rail line vanished').toBeGreaterThan(0);
-    for (const line of rail) expect(line).toMatch(/\bborder-panel-border\b/);
-  });
 });

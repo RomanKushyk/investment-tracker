@@ -41,6 +41,7 @@ The count at «3» and «99+» on the super-admin's rail with its role strip, in
   - The foot: the currency box (40 × 32, r9, `field-border`), Settings, profile, «Вийти».
   - 669 px tall: it fits from 670; below that it scrolls inside `Scroller` with the overlay thumb (4 px, `ink` 28 %, never a gutter).
     - *Overturned by wave 28: the overlay bar is the 8 px `accent` glass thumb on its 4 px `glass-well` rail, still never a gutter ([controls.md](controls.md#wave-28-the-scroll-surface)).*
+    - *Overturned by the owner on #527: the thumb is 6 px on a 3 px rail ([controls.md](controls.md#the-thumb-at-6-the-owners-ruling-on-527)).*
   - Signed out, «Увійти» alone replaces profile and «Вийти».
   - The super-admin: a 64 × 40 full-bleed role strip under the menu (`accent-tint`, the shield 18 in `accent`), then «Користувачі» (with the count) and «Архів цін».
 - **The expanded panel's foot (A2, as shipped).**

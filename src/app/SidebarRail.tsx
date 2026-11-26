@@ -276,10 +276,10 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
           {admin && <RailRoleBand />}
         </div>
 
-        {/* `overlay` BECAUSE 40 CANNOT SPARE 28. Every other Scroller reserves
-            the bar's strip so no row is read through it; a rail item's ink is
-            one centred 18px glyph, the floating bar clears it, and reserving
-            here would leave 12px for a 40px item. The prop carries the whole of
+        {/* `overlay` BECAUSE THE RAIL'S COLUMN CANNOT SPARE THE RESERVE. Every other
+            Scroller reserves the bar's strip so no row is read through it; a rail
+            item's ink is one centred glyph, the floating bar clears it, and reserving
+            here would take the gutter out of the item itself. The prop carries the whole of
             it, the ring allowance included — this band adds nothing back.
             `min-w-0` beside `min-h-0` per *Scrolling*: a grid item's automatic
             minimum is its content, so without it the column cannot shrink. */}

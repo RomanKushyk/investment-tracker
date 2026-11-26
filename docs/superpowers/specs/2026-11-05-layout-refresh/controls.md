@@ -109,15 +109,21 @@ The rounds: [step 1, the thumb's width](renders/w28s1.jpeg); [step 2, its radius
 
 - **Geometry (steps 1 and 2).**
   - The thumb is 8 wide, r2: *Shape system*'s `round(8 × 0.26)`, which the owner's quarter ratio also gives.
+    - *Overturned by the owner on #527: the thumb is 6 wide, r2 by *Shape system*’s `round(6 × 0.26)` ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - The rail is 4 wide (half the thumb), r1 (a quarter of the rail), centred on the thumb's axis.
+    - *Overturned by the owner on #527: the rail is 3 wide, half the thumb, and keeps r1 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - The Scrollbar box is the thumb's width with no padding, so the thumb runs the rail's full length. The rail is a pseudo-element or an absolutely positioned layer inside it, never in the flow, where it would push the thumb.
   - The margin stays 8 on all four sides, `overlay`'s 2. The reserve is `2 × 8 + 8 − 4 = 20`, the 4 being the ring allowance.
+    - *Overturned by the owner on #527: the reserve is `2 × 8 + 6 − 4 = 18` ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - The hit area is the Scrollbar box, so it narrows from today's 12 to 8. A reserving bar keeps 8 on either side, the band WCAG 2.5.8's spacing rule asks of a modified bar. `overlay`'s 2 px margin falls short of that band, as it does today.
+    - *Overturned by the owner on #527: the hit area is 6 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - The horizontal bar is the same construction turned. The `Corner` is 8 × 8 and unfilled.
+    - *Overturned by the owner on #527: the `Corner` is 6 × 6 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
 - **The thumb (step 3, round 3, F3).**
   - Fill `accent`; hovered `accent-hover`; dragged `accent-pressed`. It is the accent the language switch's knob is tinted with, as the toggle switch's on track fills with it, stepping as the primary does.
   - The glass knob's finish: `glass-knob-sheen` to transparent at 40 % across the thumb's short side (from the left on a vertical bar, from the top on a horizontal one), the `ink` 6 % inset ring, the bevel (`glass-bevel-top`, `glass-bevel-bottom`) and `shadow-glass-knob`.
 - **The rail.** `glass-well`: its fill, its `ink` 8 % inset ring and `shadow-glass-well`.
+  - *Overturned by the owner on #527: the rail keeps the fill and the ring, without `shadow-glass-well` ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
 - **No border.** The rail, the thumb and the Scrollbar take `border-width` 0, and the Scrollbar no background. The glass's 1 px inset edges are drawn by `box-shadow`, so the thumb and the rail carry the knob's and the well's edges.
 - **Contrast.**
   - At rest the thumb's body holds 3 : 1 against its rail and against the card in both themes. Hovered it holds more. Dragged it holds more in light and less in dark, where `accent-pressed` is the darker step, but still above 3 : 1.
@@ -127,7 +133,9 @@ The rounds: [step 1, the thumb's width](renders/w28s1.jpeg); [step 2, its radius
 - **Motion.** The colour changes at `transition-control-colors` 200 ms, instantly under reduced motion. Nothing changes width on hover.
 - **The native bar (step 4, G3).**
   - `::-webkit-scrollbar` draws the same bar: 12 px; the track takes a 4 px transparent border, `background-clip: padding-box` and radius 5, which leaves a 4 px r1 rail.
+    - *Overturned by the owner on #527: the track takes a 4.5 px border and radius 5.5 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - The thumb takes a 2 px transparent border and radius 4, which leaves 8 px r2, with the finish's bevel, ring and sheen. The knob's outer drop is left out, as the platform clips the bar to its box.
+    - *Overturned by the owner on #527: the thumb takes a 3 px border and radius 5 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - The track and the thumb both take `background-clip: padding-box`. `:hover` sets only `background-color` to `accent-hover` and `:active` to `accent-pressed`, so the clip holds; the `background` shorthand would reset it.
   - The sheen follows the orientation through `::-webkit-scrollbar-thumb:vertical` and `:horizontal`.
   - The standard pair, `scrollbar-width: thin` and `scrollbar-color: accent transparent`, applies only under `@supports not selector(::-webkit-scrollbar)`.
@@ -171,13 +179,31 @@ The rounds: [step 1, the thumb's width](renders/w28s1.jpeg); [step 2, its radius
 
 - #527:
   - One source of the thumb's width, the rail and its radius derived from it, pinned by a test. The rail is a centred layer inside a thumb-wide Scrollbar, never a Scrollbar narrower than the thumb, which would shrink the hit area further.
+    - *Overturned by the owner on #527: the rail’s width derives from the thumb’s, and its radius is a fixed 1 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - Rail, thumb and Scrollbar at `border-width` 0, and the Scrollbar unfilled, in both orientations.
   - The sheen's direction follows the orientation.
   - `Scroller.tsx`'s header and `field-border.test.ts`'s `faint` pin lose the resting-thumb argument: the thumb is `accent` now, and `faint` no longer paints it.
   - *Scrolling* in `docs/DECISIONS.md` is rewritten to this construction, the 20 reserve included.
+    - *Overturned by the owner on #527: the reserve is 18 ([The thumb at 6](#the-thumb-at-6-the-owners-ruling-on-527)).*
   - Contrast pinned: the thumb body's 3 : 1 against the rail and the card at rest, in both themes, and the light edge's shortfall recorded beside it.
   - The forced-colours block and the `@media not (forced-colors: active)` guard on the webkit rules.
 - The Select's list draws no bar. Radix injects `scrollbar-width: none` and `::-webkit-scrollbar { display: none }` on its viewport, unlayered, so they outrank the app's base-layer rules, and step 4's native bar never reaches it. Measured in the shipped Chrome: the list's viewport scrolls and computes `scrollbar-width: none`.
+
+### The thumb at 6: the owner's ruling on #527
+
+While #527 built the section above, the owner asked for a thumb 6 wide. The values follow from it, except where the owner ruled; there are no new renders.
+
+- **The thumb** is 6 wide, r2 by *Shape system*'s `round(6 × 0.26)`. Its fill, finish, motion and forced colours are as signed above.
+- **The rail** is 3 wide, half the thumb, and keeps r1. The owner's ruling keeps r1 over the quarter ratio's 0.75.
+  - Its colours are the segmented well's edge and body: the `glass-well` fill and its `ink` 8 % ring, without `shadow-glass-well`. That shadow is sized for a 28 px well, and its blur fills a 3 px rail, which then reads as the ring's grey.
+- **Centred on the true axis.** A 3 px rail in a 6 px thumb has its edges on half pixels.
+  - The owner ruled to centre it at the cost of soft edges below DPR 2. The other option was a whole-pixel rail half a pixel off the axis, as Android's `FastScroller` floors `(thumb.getWidth() - trackWidth) / 2`.
+- **The box.** The Scrollbar is 6 wide and the hit area 6. The margin stays 8, `overlay`'s 2, and the reserve is `2 × 8 + 6 − 4 = 18`. The `Corner` is 6 × 6.
+  - RECORDED SHORTFALL: WCAG 2.5.8's spacing. A reserving bar's 24 px circle, centred 11 from the edge, reaches 23, and the content begins at 22, so it overlaps a row by 1 px. The 8 px thumb met the band exactly; the 6 px ruling gives that pixel up.
+- **The native bar** keeps its 12 px box.
+  - The track takes a 4.5 px transparent border and radius 5.5, which leaves a 3 px r1 rail. The thumb takes a 3 px border and radius 5, which leaves 6 px r2.
+  - CSS Values 4 floors a border width over one device pixel "down to the nearest integer number of device pixels", so below DPR 2 the page's own rail draws 4.
+- **Overturned above:** the thumb's width, the rail's width, radius and inset shadow, the reserve, the hit area, the `Corner`, the native borders and radii, and the implementation check's derived radius. Each of those lines points here.
 
 ## Перенесено
 

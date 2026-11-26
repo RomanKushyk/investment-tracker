@@ -67,13 +67,12 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
     expect(BLOCKS.dark).toMatch(/--color-field-border:\s*#[0-9a-fA-F]{6}/);
   });
 
-  // `faint` is a TEXT and INDICATOR rank, and LIGHT MUST STAY UNDER 3 : 1: `Scroller.tsx`
-  // rests its thumb below the bar deliberately and argues it, so lifting this token blanks
-  // the drawer's dragged thumb. Pinned by hex rather than by ratio for that reason.
+  // `faint` is a TEXT and INDICATOR rank, apart from `field-border`'s control rank: lifted to
+  // the control rank, the two greys stop saying different things.
   it('leaves `faint` at the rank it was derived for, in both blocks', () => {
     expect(
       resolve(BLOCKS, 'light', 'faint'),
-      'light `faint` was lifted to a control rank, which blanks the drawer\u2019s dragged thumb',
+      'light `faint` was lifted to a control rank, beside `field-border`\u2019s',
     ).toBe('#b4aa9a');
     expect(resolve(BLOCKS, 'dark', 'faint')).toBe('#6e6a65');
   });

@@ -128,6 +128,8 @@ describe('a control with a shadow of its own', () => {
     ],
     'glass-well': ['the segmented root, which hands its focus to the checked radio at once', 1],
     'glass-knob-tint': ['the segmented knob, an aria-hidden div', 1],
+    'scroll-thumb': ['the Scroller thumb, a div; its viewport takes the focus', 1],
+    'before:scroll-rail': ['the Scroller rail, a pseudo-element of the bar, a div', 1],
   };
 
   it('ends every other box-shadow class in src with the halo', () => {

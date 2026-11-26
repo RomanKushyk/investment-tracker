@@ -31,6 +31,7 @@ import {
   DialogActions,
   DialogHeader,
 } from '../../components/ui/Dialog';
+import { DIALOG_GUTTER } from '../../components/ui/scroller-geometry';
 import { useFormat } from '../../hooks/useFormat';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
@@ -108,8 +109,6 @@ function sentence(t: Dict, reason: Reason, failed: string): string {
 // drawn as sign-in's busy, and every handler returns while it holds.
 const BUSY = 'aria-disabled:pointer-events-none aria-disabled:opacity-70';
 const WIDE = 'max-md:w-full';
-// Dialog.tsx's gutter: a top-anchored panel's rail floats, so every band draws it.
-const GUTTER = 'px-[28px]';
 
 export function Reauthentication({
   open,
@@ -453,7 +452,7 @@ export function Reauthentication({
               title={<Title focus={expired === 0}>{t.reauth.title}</Title>}
               lead={lines.lead}
             />
-            <div className={`${GUTTER} flex flex-col`}>
+            <div className="flex flex-col" style={DIALOG_GUTTER}>
               <Address email={email} spaced={!googleFirst} />
               {!googleFirst && firstCheck.props && (
                 <BotCheck {...firstCheck.props} action="sign-in" />
@@ -481,7 +480,7 @@ export function Reauthentication({
               lead={t.auth.passkey.lead}
               status={acting ? lines.busy : checking ? t.auth.signIn.checking : ''}
             />
-            <div className={`${GUTTER} flex flex-col`}>
+            <div className="flex flex-col" style={DIALOG_GUTTER}>
               <Address email={email} />
             </div>
             <Footer>
@@ -526,7 +525,7 @@ export function Reauthentication({
         {step.name === 'password' && (
           <form noValidate onSubmit={confirmPassword}>
             <Header title={<Title>{t.auth.password.title}</Title>} />
-            <div className={`${GUTTER} flex flex-col`}>
+            <div className="flex flex-col" style={DIALOG_GUTTER}>
               <Address email={email} spaced />
               {/* The address rides along for the password manager, as on sign-in. */}
               <input
@@ -569,7 +568,7 @@ export function Reauthentication({
               lead={lines.confirmedLead}
             />
             {authTime !== undefined && (
-              <div className={`${GUTTER} flex flex-col`}>
+              <div className="flex flex-col" style={DIALOG_GUTTER}>
                 <TimeLeft until={(authTime + WINDOW_S) * 1000} held={acting} onOut={expire} />
               </div>
             )}
@@ -586,7 +585,7 @@ export function Reauthentication({
       </div>
       {/* In place before its words and across the steps, so the expired sentence is announced;
           the footer's foot is under it. */}
-      <div className={`${GUTTER} pb-6`}>
+      <div className="pb-6" style={DIALOG_GUTTER}>
         <div
           ref={expiredRef}
           role="status"
@@ -695,7 +694,11 @@ export function Header({
 
 /** A band between the header and the footer, in the panel's gutter. */
 export function Body({ children }: { children: ReactNode }) {
-  return <div className={`${GUTTER} flex flex-col`}>{children}</div>;
+  return (
+    <div className="flex flex-col" style={DIALOG_GUTTER}>
+      {children}
+    </div>
+  );
 }
 
 function Address({ email, spaced = false }: { email: string; spaced?: boolean }) {
@@ -729,5 +732,9 @@ export function Primary({
 }
 
 export function Footer({ children }: { children: ReactNode }) {
-  return <div className={`${GUTTER} pt-4`}>{children}</div>;
+  return (
+    <div className="pt-4" style={DIALOG_GUTTER}>
+      {children}
+    </div>
+  );
 }

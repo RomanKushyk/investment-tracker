@@ -16,6 +16,7 @@ import { YieldGridBlocks } from '../components/charts/YieldGrid';
 import { Card } from '../components/ui/Card';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { contentInset, LEDGER_RADIUS } from '../components/ui/scroller-geometry';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useToday } from '../hooks/useToday';
@@ -262,6 +263,8 @@ export function DailyQuotesPlaceholder() {
 
 // ---------------------------------------------------------------------------------------------
 
+const LEDGER_INSET = contentInset(LEDGER_RADIUS);
+
 export function TransactionsPlaceholder() {
   const t = useT();
   return (
@@ -283,10 +286,13 @@ export function TransactionsPlaceholder() {
           <Block kind="fields" className="h-[318.5px] rounded-[1px] max-md:h-[322.5px]" />
         </Card>
         <Card className="min-w-0 py-4 lg:col-start-1 lg:row-start-1">
-          <Rows
-            className="flex flex-col px-7 max-md:px-5"
-            rowClassName="h-9 border-t border-hairline first:border-t-0 max-md:h-[60px]"
-          />
+          {/* The ledger's rows stand its Scroller's content inset in, so these do too. */}
+          <div style={{ paddingLeft: LEDGER_INSET, paddingRight: LEDGER_INSET }}>
+            <Rows
+              className="flex flex-col"
+              rowClassName="h-9 border-t border-hairline first:border-t-0 max-md:h-[60px]"
+            />
+          </div>
         </Card>
       </div>
     </PlaceholderScreen>

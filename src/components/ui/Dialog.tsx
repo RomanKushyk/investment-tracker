@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from 'react';
 
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { Scroller } from './Scroller';
+import { DIALOG_GUTTER, DIALOG_RADIUS } from './scroller-geometry';
 import { keepOpenForToasts } from './toaster-press';
 
 // The app's dialog idiom; Radix provides the focus trap, Escape and the scroll lock,
@@ -48,16 +49,23 @@ const TOP_CAP =
 // whose height is DEFINITE — `flex-1` under a `max-h`-clamped container is not, so
 // `h-full` quietly becomes `auto` and the footer paints over the fields.
 //
-// This matches the gutter the Scroller opens from its own box, so all three line up.
-// Hardcoded because these two bands sit OUTSIDE it and never see `--rail-gutter`.
-const GUTTER = 'px-[28px]';
+// The two bands sit OUTSIDE the body's Scroller and never see `--rail-gutter`, so they pad by
+// the inset it gives its content at the panel's radius, and all three line up.
 
 export function DialogHeader({ children }: { children: ReactNode }) {
-  return <div className={`${GUTTER} pt-6 pb-4`}>{children}</div>;
+  return (
+    <div className="pt-6 pb-4" style={DIALOG_GUTTER}>
+      {children}
+    </div>
+  );
 }
 
 export function DialogFooter({ children }: { children: ReactNode }) {
-  return <div className={`${GUTTER} pt-4 pb-6`}>{children}</div>;
+  return (
+    <div className="pt-4 pb-6" style={DIALOG_GUTTER}>
+      {children}
+    </div>
+  );
 }
 
 /** The drawn order is the focus order (W1, WCAG 2.4.3), so the buttons swap in the DOM; keyed, so
@@ -94,7 +102,7 @@ export function DialogBody({
     <div className="min-h-0 min-w-0">
       {/* `both`, not `vertical`: a dialog holds whatever a caller puts in it, and the
           axis a Scroller does not manage is `overflow: hidden`. */}
-      <Scroller radius={24} orientation="both">
+      <Scroller radius={DIALOG_RADIUS} orientation="both">
         {/* The caller's layout goes on an inner box, never the viewport: the viewport
             is a fixed-height parent, so a `flex flex-col` there makes the content a
             flex ITEM and the fields compress to fit instead of overflowing. */}

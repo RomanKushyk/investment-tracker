@@ -1,34 +1,40 @@
 // The app's one scroll surface: a platform bar cuts a rounded panel's corner and takes
 // layout width on one OS and none on another, so a screen reflows per platform. THE
-// RAIL'S GEOMETRY IS DERIVED UNDER *Scrolling* in docs/DECISIONS.md — the constants
-// below carry it and nothing here re-derives it. The resting thumb is deliberately
-// under the 3 : 1 WCAG 1.4.11 asks of a non-text indicator, and `field-border.test.ts`
-// pins it there: a scroll region is identified by its content moving.
+// BAR'S GEOMETRY IS DERIVED UNDER *Scrolling* in docs/DECISIONS.md — `scroller-geometry.ts`
+// carries it and nothing here re-derives it. The thumb's body holds the 3 : 1 WCAG
+// 1.4.11 asks against its rail and the glass, pinned by `scroller-contrast.test.ts`.
 import { ScrollArea } from 'radix-ui';
 import type { CSSProperties, ReactNode } from 'react';
 
-// One margin on all four sides, so the distance to the parent's edge and to the text
-// are one number. A floating bar has nothing beside it and takes the smaller one.
-const RAIL_MARGIN = 8;
-const RAIL_WIDTH = 12;
-const OVERLAY_MARGIN = 2;
-// A scrollport clips ink overflow and a focus ring is ink overflow, so a `w-full`
-// control flush with the viewport's box loses its ring. The viewport takes this as
-// padding and the root gives it back out of the gutter, so the content does not move.
-const RING = 4;
+import {
+  OVERLAY_MARGIN,
+  RAIL_RADIUS,
+  RAIL_WIDTH,
+  THUMB_WIDTH,
+  gutterOf,
+  railInset,
+} from './scroller-geometry';
 
-// One uniform margin does three jobs, because Radix pins each rail by its own edges:
-// the pinned edge moves it in, the two along the axis shorten it, the fourth is inert.
+// One margin, as Radix pins a bar by its own edges; the rail is a layer, never in the flow,
+// where it would push the thumb, so the hit area stays the thumb-wide box.
 const RAIL =
-  'm-(--rail-inset) flex touch-none select-none border-panel-border p-[2px] ' +
-  'data-[orientation=vertical]:w-(--rail-w) data-[orientation=vertical]:border-2 data-[orientation=vertical]:rounded-[5px] ' +
-  'data-[orientation=horizontal]:h-(--rail-w) data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:border-2 data-[orientation=horizontal]:rounded-[5px]';
+  'm-(--rail-inset) flex touch-none select-none ' +
+  'before:pointer-events-none before:absolute before:rounded-(--rail-r) before:scroll-rail forced-colors:before:bg-[GrayText] ' +
+  'data-[orientation=vertical]:w-(--thumb-w) data-[orientation=vertical]:before:inset-y-0 data-[orientation=vertical]:before:left-1/2 data-[orientation=vertical]:before:w-(--rail-w) data-[orientation=vertical]:before:-translate-x-1/2 ' +
+  'data-[orientation=horizontal]:h-(--thumb-w) data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:before:inset-x-0 data-[orientation=horizontal]:before:top-1/2 data-[orientation=horizontal]:before:h-(--rail-w) data-[orientation=horizontal]:before:-translate-y-1/2';
 
 // Do not bind a fill to the visible data-state: Radix marks the thumb visible the
 // whole time a rail is up, and that variant outranks `hover:` in generated-CSS
-// order, so the dragged thumb never reaches the value 1.4.11 is cleared on.
+// order, so the dragged thumb never reaches its own step.
 const THUMB =
-  'bg-faint hover:bg-muted active:bg-muted relative flex-1 rounded-[1px] transition-control-colors duration-200';
+  'relative flex-1 rounded-[2px] bg-accent hover:bg-accent-hover active:bg-accent-pressed scroll-thumb ' +
+  'transition-control-colors duration-200 forced-colors:bg-none ' +
+  'forced-colors:bg-[CanvasText] forced-colors:hover:bg-[CanvasText] forced-colors:active:bg-[CanvasText]';
+// The glass knob's sheen runs across the thumb's short side.
+const SHEEN = {
+  vertical: 'bg-[linear-gradient(90deg,var(--color-glass-knob-sheen)_0%,transparent_40%)]',
+  horizontal: 'bg-[linear-gradient(180deg,var(--color-glass-knob-sheen)_0%,transparent_40%)]',
+};
 
 export interface ScrollerProps {
   children: ReactNode;
@@ -67,17 +73,15 @@ export function Scroller({
   radius,
   overlay = false,
 }: ScrollerProps) {
-  const inset = overlay
-    ? OVERLAY_MARGIN
-    : radius === undefined
-      ? RAIL_MARGIN
-      : Math.max(RAIL_MARGIN, Math.ceil(radius * (1 - Math.SQRT1_2)));
+  const inset = overlay ? OVERLAY_MARGIN : railInset(radius);
   // A custom property because the number is per caller while the `:has()` test that
   // applies it can only live in a class.
   const rootStyle = {
     '--rail-inset': `${inset}px`,
+    '--thumb-w': `${THUMB_WIDTH}px`,
     '--rail-w': `${RAIL_WIDTH}px`,
-    '--rail-gutter': `${2 * inset + RAIL_WIDTH - RING}px`,
+    '--rail-r': `${RAIL_RADIUS}px`,
+    '--rail-gutter': `${gutterOf(inset)}px`,
   } as CSSProperties;
   return (
     <ScrollArea.Root
@@ -108,12 +112,12 @@ export function Scroller({
       </ScrollArea.Viewport>
       {orientation !== 'horizontal' && (
         <ScrollArea.Scrollbar orientation="vertical" className={RAIL}>
-          <ScrollArea.Thumb className={THUMB} />
+          <ScrollArea.Thumb className={`${THUMB} ${SHEEN.vertical}`} />
         </ScrollArea.Scrollbar>
       )}
       {orientation !== 'vertical' && (
         <ScrollArea.Scrollbar orientation="horizontal" className={RAIL}>
-          <ScrollArea.Thumb className={THUMB} />
+          <ScrollArea.Thumb className={`${THUMB} ${SHEEN.horizontal}`} />
         </ScrollArea.Scrollbar>
       )}
       {orientation === 'both' && <ScrollArea.Corner />}

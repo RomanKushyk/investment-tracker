@@ -744,11 +744,17 @@ A chart's parts at the proportional value: parts of one bar would take different
 
 ## Scrolling
 **Decision.** Nothing scrolls with the platform's bar — every constrained box goes through
-`Scroller`. The rail is 12 across (`2+2+4+2+2`), thumb r1 and rail r5, with a margin of 8 equal on
-all four sides and a reserved gutter of `2m + 12`; `max(8, ceil(R × (1 − 1/√2)))` guards a corner
+`Scroller`. The bar is the thumb's width, 6, and the thumb runs its full length at r2: `accent`,
+`accent-hover` hovered and `accent-pressed` dragged, in the glass knob's ring, bevel and drop, its
+sheen across the short side. A 3 px rail at r1, half the thumb, in the well's fill and ring without its inset shadow, is a layer centred
+inside the bar on its true axis, half pixels and all, so the hit area stays the bar's 6. Nothing
+else is stroked or filled. The margin is 8, equal on all four sides, and the reserved gutter is
+`2m + 6 − 4`, the 4 being the ring allowance; `max(8, ceil(R × (1 − 1/√2)))` guards a corner
 rounder than any the app has. The gutter is the ScrollArea ROOT's padding, both inline sides, fixed.
 One column is too narrow to hold it and passes `overlay`, which floats the bar at the edge on a 2px
-margin instead.
+margin instead. The page's own bar draws the same rail and thumb through `::-webkit-scrollbar`, the
+standard `thin` pair only where those rules do not exist. Under forced colours the thumb is
+`CanvasText` and the rail `GrayText`, and the page keeps the platform's forced bar.
 Every table scrolls in its own box on both axes (`TableBox`), with the header sticky at its top
 (the owner's ruling). The box follows the ledger's rule: it fills the viewport down to 80 px from
 its bottom, `max(200px, 100dvh − top − 80px)`, its top measured off the layout (`useDocumentTop`).
@@ -759,6 +765,11 @@ mid-page, and the page scrolls them (the owner's ruling).
 **Why.** A square-cornered platform track cuts a rounded panel's corner, and takes layout width on
 one OS and none on another, so a screen reflows differently per platform. Padding on the scrolling
 element is INSIDE the scroll box: away from the ends of the range, content slides under the rail.
+A restyled bar is the author's, so WCAG 1.4.11's 3 : 1 applies to its thumb: the body holds it
+against the rail and every glass plane, and the light theme's lit edge falls short (`scroller-contrast.test.ts`). The bar's WCAG 2.5.8 spacing circle reaches into the content, a recorded shortfall of the owner's ruling. A non-`auto` `scrollbar-width` or `-color` silences every
+`::-webkit-scrollbar` rule (MDN). The look is `controls.md` § Wave 28, with the owner's thumb of 6
+and rail r1 from its amendment. An odd rail in an even thumb is centred at the cost of soft edges
+below DPR 2, the owner's ruling over an integer floor off its axis; the native track's border floors to whole device pixels (CSS Values 4), so there the page's rail draws wider.
 A header cannot stick to the page while a horizontal `Scroller` wraps its table, and the tables
 need that sideways scroll at narrow desktop widths. A radius on a `tr` paints nothing, and a
 pseudo-element on one becomes a cell of its own and shifts every column. Mid-page, the box floors

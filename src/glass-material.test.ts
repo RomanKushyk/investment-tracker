@@ -303,6 +303,7 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
       'components/ui/DatePicker.tsx',
       'components/ui/Dialog.tsx',
       'components/ui/KpiCard.tsx',
+      'components/ui/Scroller.tsx',
       'components/ui/SegmentedControl.tsx',
       'components/ui/Select.tsx',
       'components/ui/button-variants.ts',

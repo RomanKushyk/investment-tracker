@@ -52,5 +52,6 @@ Wave 26 is on the same page, above wave 25, and wave 27 above both. Wave 28 is o
 | 26 | Open values: the shell, dialogs, motion, the overview and controls | [open-values-shell-controls.md](open-values-shell-controls.md) | [the shell, 1440 and 360](renders/w26f1.jpeg) |
 | 27 | /seasonality: a day several assets pay, the expected bar and the tooltip | [open-values-charts-type.md](open-values-charts-type.md#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip) | [the day bars, 1440 and 360](renders/w27f1.jpeg) |
 | 28 | The scroll surface: a glass thumb on a rail half its width | [controls.md](controls.md#wave-28-the-scroll-surface) | [the ledger's box, 1280](renders/w28f1.jpeg) |
+| 28, amended | The scroll thumb at 6, the owner's ruling on #527 | [controls.md](controls.md#the-thumb-at-6-the-owners-ruling-on-527) | none: a ruling on values, built and checked in the app |
 
 Each file shows all of its wave's frames.

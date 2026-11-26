@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { contentInset, LEDGER_RADIUS } from '../components/ui/scroller-geometry';
 import { uk } from '../i18n/messages';
 
 // Set before the stores load: they read `localStorage` as they do.
@@ -200,6 +201,25 @@ describe('what a placeholder keeps of its screen', () => {
     const root = mount('transactions');
     expect(root.querySelectorAll('[data-placeholder="fields"]')).toHaveLength(1);
     expect(root.textContent).toContain(uk.transaction.title);
+  });
+
+  // The ledger's rows stand its Scroller's content inset in, at every width, so the skeleton pads
+  // by the same figure and nothing jumps sideways when the read answers.
+  it('Transactions holds its ledger rows at the ledger Scroller’s content inset', () => {
+    const rows = mount('transactions').querySelector<HTMLElement>(
+      '[data-placeholder-row].h-9',
+    )!.parentElement!;
+    const inset = `${contentInset(LEDGER_RADIUS)}px`;
+    const padded = rows.closest<HTMLElement>('[style*="padding"]');
+    expect(padded?.style.paddingLeft).toBe(inset);
+    expect(padded?.style.paddingRight).toBe(inset);
+    expect(rows.className).not.toMatch(/\bpx-|max-md:px-/);
+  });
+
+  // The table skeletons pad by the card's 22, and `TableBox` reaches the card's edge and scrolls
+  // at the card's radius: they line up only while that Scroller's content inset is the same 22.
+  it('the table skeletons’ card padding is the table Scroller’s content inset', () => {
+    expect(contentInset(24)).toBe(22);
   });
 
   it('every list is three rows', () => {

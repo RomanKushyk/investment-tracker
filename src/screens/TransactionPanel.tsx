@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { fieldVariants } from '../components/ui/field-variants';
 import { Reveal } from '../components/ui/Reveal';
 import { Scroller } from '../components/ui/Scroller';
+import { LEDGER_RADIUS } from '../components/ui/scroller-geometry';
 import { DatePicker } from '../components/ui/DatePicker';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Select } from '../components/ui/Select';
@@ -875,7 +876,7 @@ export function TransactionPanel() {
         onPointerLeave={rows.leave}
       >
         <Scroller
-          radius={20}
+          radius={LEDGER_RADIUS}
           className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft lg:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
         >
           {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS. Radix wraps a
