@@ -34,6 +34,7 @@ Every pick in its place: the sidebar, the rail, the 360 bar, the signed-out head
   | the 56 px bars: the 360 bar and the signed-out header | 28 | r7 | 15 | 15 / 600 |
 
   In the rail the plate stands over the 14 × 12 burger, so the rail head grows by 18 px. Wave 21's O3 fit point (670) moves to about 688, to be measured at implementation ([rail-and-account-foot.md](rail-and-account-foot.md#signed)).
+  - *Overturned by wave 29: the rail is a floating card that fits from 725 ([rail-and-account-foot.md](rail-and-account-foot.md#wave-29-the-floating-rail)).*
 - **The tab (T3), a separate drawing on the 16 grid.**
   - A 16 × 16 plate at r4.
   - The bowl `M6 3 H10 A2 2 0 0 1 12 5 V8 A2 2 0 0 1 10 10 H6 A2 2 0 0 1 4 8 V5 A2 2 0 0 1 6 3 Z` with the counter `M7 5 H9 A1 1 0 0 1 10 6 V7 A1 1 0 0 1 9 8 H7 A1 1 0 0 1 6 7 V6 A1 1 0 0 1 7 5 Z` (even-odd).

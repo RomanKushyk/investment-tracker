@@ -16,9 +16,10 @@ This folder is the only design reference (*Design pipeline* in `docs/DECISIONS.m
 - Wave 26 adds each round's sheet beside the six composite frames of its «Final»; its motion is shown as stills, and the review page plays it.
 - Wave 27 adds each round's sheet beside the four composite frames of its «Final», two per language.
 - Wave 28 adds each round's sheet beside the four composite frames of its «Final»; step 3's three rounds keep a sheet each.
+- Wave 29 adds each round's sheet beside the two composite frames of its «Final» and its two motion strips, collapsing and expanding; its motion is shown as strips of stills, and the review page plays them.
 
 A third private review page, [part 3](https://claude.ai/artifact/TgGrhxuQGwSY1MBWxdz1os), holds wave 25, with every round's variants.
-Wave 26 is on the same page, above wave 25, and wave 27 above both. Wave 28 is on a fourth, [part 4](https://claude.ai/artifact/75rbRfaz7WSfEjFikWTEjN), with every round's variants.
+Wave 26 is on the same page, above wave 25, and wave 27 above both. Wave 28 is on a fourth, [part 4](https://claude.ai/artifact/75rbRfaz7WSfEjFikWTEjN), with every round's variants, and wave 29 above it.
 
 ## Waves
 
@@ -53,5 +54,6 @@ Wave 26 is on the same page, above wave 25, and wave 27 above both. Wave 28 is o
 | 27 | /seasonality: a day several assets pay, the expected bar and the tooltip | [open-values-charts-type.md](open-values-charts-type.md#wave-27-a-day-several-assets-pay-the-expected-bar-and-the-tooltip) | [the day bars, 1440 and 360](renders/w27f1.jpeg) |
 | 28 | The scroll surface: a glass thumb on a rail half its width | [controls.md](controls.md#wave-28-the-scroll-surface) | [the ledger's box, 1280](renders/w28f1.jpeg) |
 | 28, amended | The scroll thumb at 6, the owner's ruling on #527 | [controls.md](controls.md#the-thumb-at-6-the-owners-ruling-on-527) | none: a ruling on values, built and checked in the app |
+| 29 | The floating rail: a glass card with the plate, the header dissolved into the page, and the morph | [rail-and-account-foot.md](rail-and-account-foot.md#wave-29-the-floating-rail) | [the shell, 1440, 768 and 700](renders/w29f1.jpeg) |
 
 Each file shows all of its wave's frames.
