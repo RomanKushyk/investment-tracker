@@ -235,57 +235,80 @@ describe('the panel reads on its glass over the glow', () => {
 // expanded pills: beside its own visible label a glyph is decorative, and the rail has no
 // labels — the name is an `aria-label` and the tooltip is for the pointer — so the glyph is
 // the whole of what identifies a route.
+// On the rail's glass over the glow, and on the opaque `card` its fallback shows
+// (rail-and-account-foot.md § Signed, O3; glass.md § Signed: the default must pass on its own).
 describe('the rail draws its glyphs alone, so they are held to 1.4.11', () => {
-  it.each(THEMES)('%s: an idle rail glyph clears 3 : 1 on the wall', (theme) => {
+  const least = (theme: (typeof THEMES)[number], ink: string, veil?: string) =>
+    Math.min(
+      ...[...glassPlanes(CSS, theme), resolve(BLOCKS, theme, 'card')].map((plane) =>
+        ratio(ink, veil ? composite(veilOf(BLOCKS, theme, veil), plane) : plane),
+      ),
+    );
+
+  it.each(THEMES)('%s: an idle rail glyph clears 3 : 1 on the glass', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'sb-icon'))).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(THEMES)('%s: the active glyph and the indicator clear 3 : 1 on the tint', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'accent'), 'accent-tint')).toBeGreaterThanOrEqual(3);
     expect(
-      ratio(resolve(BLOCKS, theme, 'sb-icon'), resolve(BLOCKS, theme, 'sb-bg')),
+      least(theme, resolve(BLOCKS, theme, 'sb-indicator'), 'accent-tint'),
     ).toBeGreaterThanOrEqual(3);
   });
 
-  it.each(THEMES)('%s: the active glyph clears 3 : 1 on its tint', (theme) => {
-    const ground = composite(
-      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
-      resolve(BLOCKS, theme, 'sb-bg'),
-    );
-    expect(ratio(resolve(BLOCKS, theme, 'sb-icon-active'), ground)).toBeGreaterThanOrEqual(3);
-  });
-
   it.each(THEMES)('%s: a hovered rail glyph clears 3 : 1 on its ground', (theme) => {
-    const ground = composite(
-      veilOf(BLOCKS, theme, 'sb-item-hover-bg'),
-      resolve(BLOCKS, theme, 'sb-bg'),
-    );
-    expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), ground)).toBeGreaterThanOrEqual(3);
+    expect(
+      least(theme, resolve(BLOCKS, theme, 'sb-icon'), 'sb-item-hover-bg'),
+    ).toBeGreaterThanOrEqual(3);
   });
 
-  it.each(THEMES)('%s: the rail currency symbol clears 4.5 : 1 on its tint', (theme) => {
-    const ground = composite(
-      veilOf(BLOCKS, theme, 'sb-item-active-bg'),
-      resolve(BLOCKS, theme, 'sb-bg'),
-    );
+  // It shows a value rather than offering two, so it is TEXT and reads `ink`.
+  it.each(THEMES)('%s: the rail currency symbol clears 4.5 : 1 on the glass', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'ink'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // The super-admin's strip: the shield names the role on its own (its word is the tooltip).
+  it.each(THEMES)('%s: the role strip shield clears 3 : 1 on `accent-tint`', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'accent'), 'accent-tint')).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// C1 (rail-and-account-foot.md § Signed): a solid box, so it reads on its own fill wherever it sits.
+describe('the count is solid accent', () => {
+  it.each(THEMES)('%s: `accent-fg` clears 4.5 : 1 on `accent`', (theme) => {
     expect(
-      ratio(resolve(BLOCKS, theme, 'ink'), ground),
-      'the rail currency symbol is unreadable on its tint — it shows a value rather than ' +
-        'offering two, so it is TEXT and reads `ink`, not the expanded track\u2019s `sb-item`',
+      ratio(resolve(BLOCKS, theme, 'accent-fg'), resolve(BLOCKS, theme, 'accent')),
     ).toBeGreaterThanOrEqual(4.5);
   });
 });
 
-// THE RAIL'S FOOT IS A SECOND GROUND: its Settings and account glyphs sit on a `sb-footer-bg`
-// band until #720 redraws the rail.
-describe("the rail's foot band is a second ground, and its glyphs read on it", () => {
-  const band = (theme: (typeof THEMES)[number]) => resolve(BLOCKS, theme, 'sb-footer-bg');
+// R1 (rail-and-account-foot.md § Signed): the collapsed header is a glass band that content scrolls
+// under, so its planes are the glow and a content card beneath it, and the fallback's `card`.
+describe('the collapsed header reads on its glass', () => {
+  const least = (theme: (typeof THEMES)[number], ink: string) =>
+    Math.min(
+      ...[...glassPlanes(CSS, theme, { over: ['card'] }), resolve(BLOCKS, theme, 'card')].map(
+        (plane) => ratio(ink, plane),
+      ),
+    );
 
-  it.each(THEMES)('%s: the glyph on the band clears 3 : 1', (theme) => {
-    expect(ratio(resolve(BLOCKS, theme, 'sb-icon'), band(theme))).toBeGreaterThanOrEqual(3);
+  it.each(
+    THEMES.flatMap((theme) =>
+      (
+        [
+          ['ink', 'the figure and the role'],
+          ['muted', 'the label and the rate line'],
+          ['pos', 'a gain'],
+          ['neg', 'a loss'],
+        ] as const
+      ).map(([token, role]) => [theme, token, role] as const),
+    ),
+  )('%s: `%s` (%s) clears 4.5 : 1', (theme, token) => {
+    expect(least(theme, resolve(BLOCKS, theme, token))).toBeGreaterThanOrEqual(4.5);
   });
 
-  // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL.
-  it.each(THEMES)('%s: the band is a step, not a boundary', (theme) => {
-    expect(
-      ratio(band(theme), resolve(BLOCKS, theme, 'sb-bg')),
-      'the fill now does the identifying — a re-valuing has to come and change this rule',
-    ).toBeLessThan(1.1);
+  it.each(THEMES)('%s: the role shield clears 3 : 1', (theme) => {
+    expect(least(theme, resolve(BLOCKS, theme, 'accent'))).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -339,16 +362,6 @@ describe("the foot's segmented control reads on the panel and on the drawer", ()
   // A theme segment is a GLYPH with no visible word, so 1.4.11 asks 3 of it, not 1.4.3's 4.5.
   it.each(cases)('%s on %s: an idle theme glyph clears 3 : 1 on the well', (theme, ground) => {
     expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme, ground))).toBeGreaterThanOrEqual(3);
-  });
-});
-
-// The wall's field rank has one consumer left: the rail's super-admin strip, a shield that
-// names the role on its own (its word is the tooltip), so 1.4.11 holds it to 3.
-describe("the rail's role strip reads on the wall's field rank", () => {
-  it.each(THEMES)('%s: the shield clears 3 : 1 on `sb-field`', (theme) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'sb-icon-active'), resolve(BLOCKS, theme, 'sb-field')),
-    ).toBeGreaterThanOrEqual(3);
   });
 });
 

@@ -75,13 +75,11 @@ const CSS = stripCss(read('index.css'), 'index.css');
 
 const BLOCKS = themeBlocks(CSS);
 
-/** TWO GROUPS, not one union. Collapsing them would demand the rank clear the bar on the
- *  wall for surfaces never drawn there and on `card` for a rail that never touches it, so
- *  re-planing the wall would fail this test about six surfaces it cannot affect. `card`
- *  binds twice over — a popover's own fill AND, inside a `Dialog`, the plane behind it. */
+/** `card` binds twice over — a popover's own fill AND, inside a `Dialog`, the plane behind it.
+ *  The collapsed rail left the rank for the glass band's hairline (rail-and-account-foot.md
+ *  § Signed, O3), so it has no group here. */
 const DRAWN_ON = {
   'the floating surfaces': ['page', 'card', 'panel'],
-  'the desktop rail': ['sb-bg'],
 } as const;
 const THEMES = ['light', 'dark'] as const;
 /** Not a token list — a list of what must NOT come back. */
@@ -404,24 +402,16 @@ describe('the floating surfaces point at the token', () => {
     ).not.toContain("border: '1px solid var(--color-panel-border)'");
   });
 
-  // Neither is a popover, but both ride this token. ON THE ELEMENT, not merely in the file:
-  // a whole-file match stays green with the token on any sibling of the rail. EVERY line
-  // for the panel, ANY for the rail, deliberately — `PANEL_CLASS` is consumed by `Dialog`
-  // and `AlertDialog`, so split per dialog kind ALL of them must have an edge, while the
-  // rail's anchor is a WIDTH `Sidebar.tsx` could write on a sibling that needs none. The panel
-  // is glass, so its edge is the glass's stroke swapped for the token.
+  // Not a popover, but it rides this token. ON THE ELEMENT, not merely in the file: EVERY
+  // line, deliberately — `PANEL_CLASS` is consumed by `Dialog` and `AlertDialog`, so split per
+  // dialog kind ALL of them must have an edge. The panel is glass, so its edge is the glass's
+  // stroke swapped for the token.
   const PANEL_AND_RAIL: [string, RegExp, RegExp, 'every' | 'some'][] = [
     [
       'components/ui/Dialog.tsx',
       /(?<![-\w[])glass(?![-\w]).*\brounded-3xl\b/,
       /\[--glass-edge:var\(--color-field-border\)\]/,
       'every',
-    ],
-    [
-      'app/Sidebar.tsx',
-      /\bh-full w-\[calc\(56px\+env\(safe-area-inset-left\)\)\]/,
-      /\bborder-field-border\b/,
-      'some',
     ],
   ];
   it.each(PANEL_AND_RAIL)('keeps %s on `field-border`', (file, anchor, token, quantifier) => {

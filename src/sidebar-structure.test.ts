@@ -98,9 +98,13 @@ describe('the panel is one surface, ruled by two hairlines', () => {
   });
 
   // SPENT TWICE AND NO MORE: one rule between the two nav groups, one between Settings and the
-  // account. `sb-divider` retires for `hairline` (rail-and-account-foot.md § Signed).
+  // account. `sb-divider` retires for `hairline` (rail-and-account-foot.md § Signed). The collapsed
+  // rail's right edge is the shell's, a side and not a rule, and `sidebar-rail.test.ts` holds it.
   it('spends `hairline` exactly twice, and `sb-divider` not at all', () => {
-    expect(linesWith(/\bborder-hairline\b/).length, '`hairline` moved off its two sites').toBe(2);
+    expect(
+      linesWith(/\bborder-t border-hairline\b/).length,
+      '`hairline` moved off its two sites',
+    ).toBe(2);
     expect(SIDEBAR, '`sb-divider` is still drawn').not.toMatch(/\bborder-sb-divider\b/);
   });
 
@@ -176,8 +180,10 @@ describe('the foot carries two segmented controls on one row', () => {
   it('leaves no hand-rolled segment, pressed pair or accent chip', () => {
     expect(SIDEBAR, 'the currency is still a pressed pair').not.toMatch(/aria-pressed/);
     expect(SIDEBAR, 'a hand-rolled radio is left').not.toMatch(/role="radio/);
-    // The solid chip, not the active row's `bg-accent-tint`.
-    expect(SIDEBAR, 'the accent chip is still drawn').not.toMatch(/\bbg-accent(?![-\w])/);
+    // The solid chip, not the active row's `bg-accent-tint`, nor the count, which C1 draws solid
+    // accent (rail-and-account-foot.md § Signed) and the last suite of this file holds.
+    const chips = linesWith(/\bbg-accent(?![-\w])/).filter((l) => !/\bmin-w-5\b/.test(l));
+    expect(chips, 'the accent chip is still drawn').toEqual([]);
     expect(SIDEBAR, 'a track still paints the route tint').not.toMatch(
       /rounded-\[8px\] bg-sb-item-active-bg/,
     );
@@ -433,5 +439,23 @@ describe("the account is the foot's last row", () => {
     expect(SIDEBAR, "the account's fold lost its explicit column").toMatch(
       /grid grid-cols-\[minmax\(0,1fr\)\] \$\{rows === 'closed'/,
     );
+  });
+});
+
+// C1 (rail-and-account-foot.md § Signed): in the row the count is a 20 × 18 box at r5,
+// right-aligned, solid `accent` with `accent-fg` text, padded 5 so «99+» grows it to the left.
+describe("the row's count is solid accent", () => {
+  it('draws the count 20 x 18 at r5 on `accent`', () => {
+    const at = SIDEBAR.indexOf('function NavItem');
+    expect(at, '`NavItem` is gone').toBeGreaterThan(-1);
+    const item = SIDEBAR.slice(at, at + SIDEBAR.slice(at).search(/\n\}\r?\n/));
+    const count = item.match(/count !== undefined && \([\s\S]*?className="([^"]*)"/)?.[1];
+    expect(count, 'the row draws no count').toBeDefined();
+    expect(count, 'the count is not solid accent').toMatch(/\bbg-accent\b/);
+    expect(count, 'the count does not read `accent-fg`').toMatch(/\btext-accent-fg\b/);
+    expect(count, 'the count is not 20 × 18').toMatch(/\bh-\[18px\] min-w-5\b/);
+    expect(count, 'the count is not at r5').toMatch(/rounded-\[5px\]/);
+    expect(count, 'the count is not padded 5').toMatch(/\bpx-\[5px\]/);
+    expect(count, 'the count still paints the wall badge').not.toMatch(/sb-badge/);
   });
 });

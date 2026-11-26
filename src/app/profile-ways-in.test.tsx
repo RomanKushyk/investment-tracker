@@ -126,14 +126,17 @@ describe('the rail', () => {
     }
   });
 
-  it('signed out, holds the glyph alone, with no link', async () => {
+  // O3 (rail-and-account-foot.md § Signed): «Увійти» alone replaces the profile and «Вийти».
+  it('signed out, draws no profile, and «Увійти» follows Settings', async () => {
     await session.signOut();
     const sidebar = await rail('/settings', true);
     expect(profileLinks(sidebar)).toHaveLength(0);
-    const slot = sidebar.querySelector('[data-rail-profile]');
-    expect(slot).not.toBeNull();
-    expect(slot!.querySelector('a, button')).toBeNull();
-    expect(slot!.querySelector('svg')).not.toBeNull();
+    expect(sidebar.querySelector('[data-rail-profile]')).toBeNull();
+    const entry = sidebar.querySelector(`a[aria-label="${uk.auth.signInEntry}"]`);
+    expect(entry).not.toBeNull();
+    expect(
+      settingsLink(sidebar).compareDocumentPosition(entry!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
 

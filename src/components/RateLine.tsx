@@ -18,13 +18,15 @@ const OPEN_DATA: Record<Language, string> = {
  * The link is inline in a sentence, which WCAG 2.5.5 and 2.5.8 both exempt from a target size, as
  * `ReminderStrip` explains, so it takes no tap-target class. It opens in the same tab, with no icon.
  */
-export function RateLine() {
+export function RateLine({ inline = false }: { inline?: boolean }) {
   const fx = useFx();
   const f = useFormat();
   const p = useT().analytics.prose;
   const language = useSettings((s) => s.language);
+  // Inline where it follows a figure on one line, as the collapsed header's right side does.
+  const Box = inline ? 'span' : 'div';
   return (
-    <div className="text-muted">
+    <Box className="text-muted">
       <a
         href={OPEN_DATA[language]}
         aria-label={p.nbuLabel}
@@ -35,6 +37,6 @@ export function RateLine() {
         {p.nbu}
       </a>
       {fx === null ? p.rateNone : p.rateLine(f.units(fx.rate), f.date(fx.date))}
-    </div>
+    </Box>
   );
 }

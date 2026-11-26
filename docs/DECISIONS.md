@@ -787,13 +787,19 @@ tables too.
 **Decision.** Two layouts and one switch — `md`, 768px, WRITTEN TWICE, in the markup and in
 `useIsDesktop`, and the two must stay one number. Below it the sidebar is an off-canvas drawer, a
 Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's; at and
-above it the sidebar is a floating glass panel or an icon rail, and the choice persists. The panel
+above it the sidebar is a floating glass panel or a flush 64px icon rail, and the choice persists. The panel
 stands 16 from the top, the left and the bottom, so the shell's one width tween moves its width and
 its inset together, and it is one surface: no band in it, a hairline says where the account begins. Collapsed, the
-header carries the figure, which a 56px shell cannot hold, and for the super-admin the role. 44 × 44
+rail and the header beside it are full-bleed glass bands: the glass's fill, sheen and blur, its card
+ring, bevel and shadow off, and one hairline on the side that meets the content, as sticky bars draw
+it (Apple's local nav, Linear, GitHub; WinUI strokes its pane on the content side alone). The header
+carries the figure and the dated NBU rate, which a 64px shell cannot hold, and for the super-admin
+the role. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
-every radius where the shape system put it. The sidebar's rows are drawn 44 because the signed
-design draws them so, at their own r12: a geometry, not a hit area grown into one. Exactly one
+every radius where the shape system put it. The sidebar's rows and the rail's items, its menu
+included, are drawn 44 because the signed design draws them so, at their own r12: a geometry, not a
+hit area grown into one. The menu is an item like its neighbours, as Material's rail header and
+WinUI's pane toggle are, so no control in the rail lacks their hover. Exactly one
 branch mounts per shell. A page with no
 account's work behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
 failed, and `/privacy` and `/terms` for every reader, signed in or not — mounts NEITHER: a top bar
@@ -807,10 +813,11 @@ has not, Settings, profile, account. Signed in the rows are the address and «В
 «Профіль: » and the address, at the row's height with the pill's states, current there where
 Settings is not, and the rail's item the same link with the address in its tooltip; signed out «Ви
 не ввійшли» and «Увійти», a LINK to `/sign-in` with the counterpart of the sign-out's glyph, the
-rail showing the profile's glyph alone, no link and no hover, above «Увійти». The entry is a plain
+rail drawing «Увійти» alone after Settings. The entry is a plain
 link and never a nav link, since `/sign-in/x` falls into the shell. Their slot, and the rail's
-profile item beside it, is HELD until the relay answers, after a load it never answered too, so
-Settings stands at one top in all three states, and closed from the first render only on a host
+profile item beside it, is HELD at the signed-in height until the relay answers, after a load it
+never answered too, so Settings does not move when a signed-in answer lands; in the rail a
+signed-out one sets it one item lower, as the signed foot draws it. It is closed from the first render only on a host
 with no auth environment, which has nothing to sign in to. While a sign-out runs every «Вийти» in
 the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
 failure raises one toast. Nothing holds a sign-out that succeeded, unsaved work included: every
@@ -828,7 +835,7 @@ the lockup names the role, a shield and «Суперадміністратор»
 folded to the shield in the rail with the word as its text and tooltip, and inline in the header bar;
 its one group is «Адміністрування» with «Користувачі» and «Архів цін»; its footer keeps the theme
 alone, Settings and the account. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT:
-one page of the pending list, «99+» when full, on the pill, at the
+one page of the pending list, «99+» when full, solid `accent`, on the pill, at the
 corner of the rail's box and of the burger, the visible figure hidden and the link's or the
 trigger's name saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel's head stands at
 its plate with no capital line and the foot's track row unseen at a user's layout, the rail holds a user's foot,

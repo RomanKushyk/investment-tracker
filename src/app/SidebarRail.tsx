@@ -21,7 +21,6 @@ import { CornerBadge } from './CornerBadge';
 import { usePendingBadge, usersName } from './pending-count';
 import { Scroller } from '../components/ui/Scroller';
 import { Tooltip, TooltipProvider } from '../components/ui/Tooltip';
-import { TAP_RAIL } from '../components/ui/tap-target';
 import { useSettings } from '../state/settings';
 import { useT } from '../i18n/useT';
 
@@ -43,11 +42,8 @@ const ENTRY = [
 ] as const;
 
 /**
- * One item, and the drawn box is 40 × 36 at radius 9.
- *
- * `h-[36px]` AND NOT `h-9`, which renders identically: `field-border.test.ts`
- * calls any class list carrying both `rounded-[9px]` and `h-9` a field drawn by
- * hand, and fails the file for not calling `fieldVariants`.
+ * One item, and the drawn box is 44 × 44 at radius 12, the hit areas touching (O3,
+ * rail-and-account-foot.md § Signed).
  *
  * THE RADIUS IS SPENT TWICE, on the link and on the box inside it. The link is
  * the focusable element, so it is the link the focus outline follows; without
@@ -86,7 +82,8 @@ function RailItem({
 }) {
   return (
     <Tooltip label={tooltip}>
-      <NavLink to={to} aria-label={label} className="block rounded-[9px]">
+      {/* As wide as the box, so its ring and its hit area are the item's. */}
+      <NavLink to={to} aria-label={label} className="mx-auto block w-11 rounded-[12px]">
         {({ isActive }) => <RailBox Icon={Icon} isActive={isActive} badge={badge} />}
       </NavLink>
     </Tooltip>
@@ -94,33 +91,29 @@ function RailItem({
 }
 
 /** The drawn box and its glyph, shared by the links and the sign-out so the two cannot drift.
- *  `still` draws no hover, for a glyph that is no control. */
+ *  Active as the panel's row: the tint, the inset indicator and an `accent` glyph. */
 function RailBox({
   Icon,
   isActive = false,
-  still = false,
   badge,
 }: {
   Icon: LucideIcon;
   isActive?: boolean;
-  still?: boolean;
   badge?: string;
 }) {
   return (
     <span
-      className={`relative mx-auto grid h-[36px] w-10 place-items-center rounded-[9px] transition-control ${
+      className={`relative grid size-11 place-items-center rounded-[12px] transition-control ${
         isActive
-          ? 'bg-sb-item-active-bg shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
-          : still
-            ? ''
-            : 'hover:bg-sb-item-hover-bg'
+          ? 'bg-accent-tint shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
+          : 'hover:bg-sb-item-hover-bg'
       }`}
     >
       <Icon
-        size={18}
+        size={20}
         strokeWidth={2}
         aria-hidden
-        className={`flex-none transition-control-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
+        className={`flex-none transition-control-colors ${isActive ? 'text-accent' : 'text-sb-icon'}`}
       />
       {/* Inside the box, since the rail clips past its wall. */}
       {badge !== undefined && <CornerBadge shown={badge} top="top-[2px]" />}
@@ -161,7 +154,7 @@ function RailAccount({ rows, leaving, leave }: SignOut) {
           <Link
             to="/sign-in"
             aria-label={t.auth.signInEntry}
-            className="mt-1.5 block rounded-[9px]"
+            className="mx-auto block w-11 rounded-[12px]"
           >
             <RailBox Icon={LogIn} />
           </Link>
@@ -173,7 +166,7 @@ function RailAccount({ rows, leaving, leave }: SignOut) {
             aria-label={t.auth.signOut}
             aria-disabled={leaving || undefined}
             onClick={() => void leave()}
-            className="mt-1.5 block w-full rounded-[9px] transition-control aria-disabled:opacity-70"
+            className="mx-auto block w-11 rounded-[12px] transition-control aria-disabled:opacity-70"
           >
             <RailBox Icon={LogOut} />
           </button>
@@ -184,27 +177,23 @@ function RailAccount({ rows, leaving, leave }: SignOut) {
 }
 
 /**
- * The profile, after Settings, in a fold of its own on the account's rows, so Settings stands at
- * one top whichever way the relay answers: held, empty and inert; signed out, the glyph alone
- * beside the panel's status row, no link and no hover. Named as the panel's link, with the
+ * The profile, after Settings, in a fold of its own on the account's rows: held, empty and inert,
+ * at the signed-in height until the relay answers. Signed out it is not drawn, and «Увійти» alone
+ * stands in the foot (O3, rail-and-account-foot.md § Signed). Named as the panel's link, with the
  * address alone in its tooltip.
  */
 function RailProfile({ rows }: Pick<SignOut, 'rows'>) {
   const t = useT();
   const address = useSessionAddress();
-  return (
+  return rows === 'entry' ? null : (
     <AccountFold rows={rows}>
-      <div data-rail-profile className="mt-1.5">
-        {rows === 'entry' ? (
-          <RailBox Icon={CircleUser} still />
-        ) : (
-          <RailItem
-            to="/profile"
-            label={address === undefined ? t.profile.title : t.auth.profileLink(address)}
-            tooltip={address ?? t.profile.title}
-            Icon={CircleUser}
-          />
-        )}
+      <div data-rail-profile>
+        <RailItem
+          to="/profile"
+          label={address === undefined ? t.profile.title : t.auth.profileLink(address)}
+          tooltip={address ?? t.profile.title}
+          Icon={CircleUser}
+        />
       </div>
     </AccountFold>
   );
@@ -213,17 +202,18 @@ function RailProfile({ rows }: Pick<SignOut, 'rows'>) {
 type SignOut = ReturnType<typeof useSignOut>;
 
 /**
- * The super-admin's band, folded: a strip under the burger, the shield on the rail's axis and the
- * strip ending at the wall's edge, which stays drawn. The rail has no room for the word, so a
- * screen reader reads it as the strip's text and a resting pointer shows it as the items' tooltips
- * show theirs; the strip is no control, so it takes no focus.
+ * The super-admin's band, folded: a 40 tall full-bleed strip under the menu, the rail's 64 and any safe-area inset, on `accent-tint`, the
+ * shield 18 in `accent` (O3, rail-and-account-foot.md § Signed). The rail has no room for the word,
+ * so a screen reader reads it as the strip's text and a resting pointer shows it as the items'
+ * tooltips show theirs; the strip is no control, so it takes no focus.
  */
 function RailRoleBand() {
   const t = useT();
   return (
     <Tooltip label={t.nav.superAdmin}>
-      <div className="-ml-2 grid h-10 w-[55px] flex-none place-items-center self-start bg-sb-field pl-px">
-        <Shield size={18} strokeWidth={2} aria-hidden className="text-sb-icon-active" />
+      {/* Under the safe-area inset too, the shield kept on the rail's axis. */}
+      <div className="-ml-[env(safe-area-inset-left)] grid h-10 w-[calc(100%+env(safe-area-inset-left))] flex-none place-items-center self-start bg-accent-tint pl-[env(safe-area-inset-left)]">
+        <Shield size={18} strokeWidth={2} aria-hidden className="text-accent" />
         <span className="sr-only">{t.nav.superAdmin}</span>
       </div>
     </Tooltip>
@@ -243,8 +233,10 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
 
   return (
     <TooltipProvider>
-      <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] px-2 py-4">
-        {/* THE BURGER IS THE RAIL'S, and the header at this width has none: a
+      {/* Padded 8 / 0 and no gaps (O3, rail-and-account-foot.md § Signed): the plate, the menu,
+          the items and the foot stack edge to edge, so their hit areas touch without overlapping. */}
+      <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] py-2">
+        {/* THE MENU IS THE RAIL'S, and the header at this width has none: a
             control that expands the rail belongs to the rail. `NAV_TRIGGER_ID`
             moves here so the focus handoff still finds it by id; the two never
             share a screen, so the id stays unique.
@@ -253,19 +245,17 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             it, so announcing it collapsed would be false and pointing
             `aria-controls` at an ancestor is not a relationship to act on. The
             rail is a state of the shell, not a disclosure.
-            14 × 12, not the header's 18 × 12: three solid bars at 18 read as
-            the heaviest thing in a rail of outline glyphs.
-            `TAP_RAIL` and not a real box: the head is a term in the height
-            budget, so growing the drawn 12 into a 36px control would spend the
-            rail's clearance. The overlay moves nothing. */}
-        <div className="mb-[14px] flex flex-col items-center gap-3">
+            A 44 item like its neighbours, with their hover, under the 40 plate (the owner's
+            ruling on #720). The bars are 14 × 12, not the header's 18 × 12: three solid bars at
+            18 read as the heaviest thing in a rail of outline glyphs. */}
+        <div className="flex flex-col items-center">
           <Mark size={40} />
           <button
             type="button"
             id={NAV_TRIGGER_ID}
             onClick={onExpand}
             aria-label={t.nav.expandNav}
-            className={`text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97] ${TAP_RAIL}`}
+            className="grid size-11 place-items-center rounded-[12px] text-sb-item transition-control hover:bg-sb-item-hover-bg hover:text-sb-item-hover"
           >
             <span aria-hidden className="flex h-3 w-[14px] flex-col justify-between">
               <span className="h-[2px] rounded-[1px] bg-current" />
@@ -282,14 +272,12 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
             here would take the gutter out of the item itself. The prop carries the whole of
             it, the ring allowance included — this band adds nothing back.
             `min-w-0` beside `min-h-0` per *Scrolling*: a grid item's automatic
-            minimum is its content, so without it the column cannot shrink. */}
-        <div className="min-h-0 min-w-0">
+            minimum is its content, so without it the column cannot shrink. `px-1` pays the
+            overlay's `-mx-1` back inside the unpadded rail, so the bar floats within its 64. */}
+        <div className="min-h-0 min-w-0 px-1">
           <Scroller overlay>
             {role !== 'user' && !admin ? null : (
-              <div
-                key={role}
-                className="flex animate-in flex-col gap-[3px] duration-300 ease-soft fade-in"
-              >
+              <div key={role} className="flex animate-in flex-col duration-300 ease-soft fade-in">
                 {admin ? (
                   <AdminRail />
                 ) : (
@@ -297,7 +285,7 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
                     {ENTRY.map(({ to, key, Icon }) => (
                       <RailItem key={to} to={to} label={t.nav[key]} Icon={Icon} />
                     ))}
-                    <div className="mx-auto my-[6px] w-6 border-t border-sb-divider" />
+                    <div className="mx-auto my-[2px] w-7 border-t border-hairline" />
                     {ANALYTICS.map(({ to, key, Icon }) => (
                       <RailItem key={to} to={to} label={t.nav[key]} Icon={Icon} />
                     ))}
@@ -308,34 +296,25 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
           </Scroller>
         </div>
 
-        {/* IT BLEEDS TO THE SHELL, NOT TO THE GRID. `-mx-2 -mb-4` cancels only
-            this grid's own padding, while the safe-area insets are paid a level
-            up on the wall — so in landscape on a notched device the band stopped
-            short of the left edge with `sb-bg` showing through, and its 29 no
-            longer met the shell's 30. The margins cancel both; the padding puts
-            the inset back inside, so the items stay in the column the nav band
-            above them uses. */}
-        <div className="mt-[14px] -mr-2 mb-[calc(-16px-env(safe-area-inset-bottom))] ml-[calc(-8px-env(safe-area-inset-left))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg pt-2 pr-2 pb-[calc(8px+env(safe-area-inset-bottom))] pl-[calc(8px+env(safe-area-inset-left))]">
-          {/* THE PANEL'S ORDER: the currency above Settings, as its track sits above
-              Settings in the panel, then the profile and the account last
-              (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md`
-              § Signed).
-              `sr-only` and not `aria-label`: a bare div is `role=generic`, which
+        {/* THE PANEL'S ORDER: the currency above Settings, as its track sits above
+            Settings in the panel, then the profile and the account last
+            (`docs/superpowers/specs/2026-11-05-layout-refresh/rail-and-account-foot.md`
+            § Signed). On the rail's own surface, with no band of its own. */}
+        <div>
+          {/* `sr-only` and not `aria-label`: a bare div is `role=generic`, which
               ARIA-in-HTML forbids naming, so the label was dropped and the box
               announced as a bare glyph. The same idiom the expanded track uses,
-              and for the same reason. */}
-          {/* The super-admin has no currency, and Settings takes the foot's own inset. */}
+              and for the same reason.
+              The super-admin has no currency. */}
           {!admin && (
             <div
-              className={`mx-auto grid h-8 w-10 place-items-center rounded-[8px] bg-sb-item-active-bg text-body font-semibold text-ink ${role !== 'user' ? 'invisible' : ''}`}
+              className={`mx-auto grid h-8 w-10 place-items-center rounded-[9px] border border-field-border text-body font-semibold text-ink ${role !== 'user' ? 'invisible' : ''}`}
             >
               {currency === 'UAH' ? '₴' : '$'}
               <span className="sr-only">{t.nav.currencyShown(currency)}</span>
             </div>
           )}
-          <div className={admin ? '' : 'mt-1.5'}>
-            <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
-          </div>
+          <RailItem to="/settings" label={t.nav.settings} Icon={Settings} />
           <RailProfile rows={signOut.rows} />
           <RailAccount {...signOut} />
         </div>

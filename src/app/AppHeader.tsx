@@ -2,6 +2,7 @@ import { Shield } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 
+import { RateLine } from '../components/RateLine';
 import { Amount } from '../components/ui/Amount';
 import { useRole } from '../hooks/queries';
 import { useCapitalCard } from '../hooks/useCapitalCard';
@@ -31,6 +32,8 @@ const TRIGGER_CLASS =
  * `sb-*` FAMILY, because the wall's ranks would make it read as a detached piece of the
  * drawer. SQUARE CORNERS, because the proportional rule reads off two DESIGNED
  * dimensions and this bar's long side runs edge to edge. *Shape system*
+ * At md and up it is R1's glass band, padded 0 36 (rail-and-account-foot.md § Signed); below md
+ * the 360 bar keeps the page's plane; its own drawing is mobile-bar-and-sheet.md's.
  */
 export function AppHeader({
   desktop,
@@ -74,11 +77,11 @@ export function AppHeader({
       // the notch and the CONTENT starts below it. It resolves at all only because
       // `viewport-fit=cover` is on the meta tag; the two are one change. The entry
       // animation is `md:`-only, because below the breakpoint this is always mounted.
-      className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:duration-220 md:fade-in md:slide-in-from-top-1"
+      className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:glass-band md:duration-220 md:ease-soft md:fade-in md:slide-in-from-top-1"
     >
-      <div className="flex h-14 items-center gap-2.5 px-2.5">
+      <div className="flex h-14 items-center gap-2.5 px-2.5 md:px-9">
         {trigger}
-        {role === 'user' && <HeaderCapital />}
+        {role === 'user' && <HeaderCapital desktop={desktop} />}
         {role === 'super_admin' && (
           // The band's content on the page plane: the bar refuses the `sb-*` family.
           <div className="flex min-w-0 animate-in items-center gap-2.5 duration-300 ease-soft fade-in">
@@ -92,7 +95,7 @@ export function AppHeader({
 }
 
 /** ITS OWN COMPONENT so `useCapitalCard` and the view it reads mount with a user's figure alone. */
-function HeaderCapital() {
+function HeaderCapital({ desktop }: { desktop: boolean }) {
   const t = useT();
   const capital = useCapitalCard();
   const empty = capital.net === undefined;
@@ -114,6 +117,17 @@ function HeaderCapital() {
       <div className="ml-auto pr-1 text-right text-label">
         {empty ? (
           <span className="text-faint">—</span>
+        ) : desktop ? (
+          // Under the change, the hero's dated line, «НБУ» its link
+          // (open-values-shell-controls.md § Signed).
+          <>
+            <div className={`font-semibold ${(capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'}`}>
+              {capital.pct}
+            </div>
+            <div className="whitespace-nowrap text-muted">
+              {capital.counter} · <RateLine inline />
+            </div>
+          </>
         ) : (
           <>
             <span className={`font-semibold ${(capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'}`}>

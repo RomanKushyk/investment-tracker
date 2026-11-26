@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { stripCss } from './__fixtures__/palette';
+
 // THE THIRD GEOMETRY. *Two shells, one breakpoint* once refused one, about the MOBILE job,
 // and now prescribes this rail as a DESKTOP one: navigation a press away while the rest of
 // the width goes back to the content. What that section still rejects is a rail that only
@@ -62,6 +64,11 @@ const RAIL_PATH = join(here, 'app', 'SidebarRail.tsx');
 const RAIL = existsSync(RAIL_PATH) ? stripTs(readFileSync(RAIL_PATH, 'utf8'), RAIL_PATH) : '';
 const SIDEBAR = stripTs(readFileSync(join(here, 'app', 'Sidebar.tsx'), 'utf8'), 'Sidebar.tsx');
 const HEADER = stripTs(readFileSync(join(here, 'app', 'AppHeader.tsx'), 'utf8'), 'AppHeader.tsx');
+const BADGE = stripTs(
+  readFileSync(join(here, 'app', 'CornerBadge.tsx'), 'utf8'),
+  'CornerBadge.tsx',
+);
+const CSS = stripCss(readFileSync(join(here, 'index.css'), 'utf8'), 'index.css');
 
 const railLines = (re: RegExp) => RAIL.split('\n').filter((l) => re.test(l));
 
@@ -90,7 +97,7 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
 
   // The width still animates: the shell keeps its transition and only the collapsed value
   // changes, from a `w-0` mask to a rail that is on screen.
-  it('collapses the shell to the drawn 56 rather than to nothing', () => {
+  it('collapses the shell to the drawn 64 and its hairline rather than to nothing', () => {
     // The `<aside>`'s own tag, read whole: the formatter breaks the branch across lines.
     const at = SIDEBAR.indexOf('<aside');
     expect(at, 'the shell is gone').toBeGreaterThan(-1);
@@ -99,10 +106,11 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
     expect(branch, 'the shell no longer branches on `collapsed`').not.toBeNull();
     const [, rail, panel] = branch!;
     expect(rail, 'the collapsed shell is still a zero-width mask').not.toBe('w-0');
-    // 56 PLUS the inset, never 56 with the inset taken out of it: a 56px shell has no room
-    // to give, and a notched phone in landscape is wide enough to BE this shell.
-    expect(rail, 'the collapsed shell is not the drawn 56').toBe(
-      'w-[calc(56px+env(safe-area-inset-left))]',
+    // 64 AND ITS HAIRLINE PLUS the inset, never 64 with the inset taken out of it: a 64px shell
+    // has no room to give, and a notched phone in landscape is wide enough to BE this shell. The
+    // hairline sits outside the 64, as the header's sits under its 56, so the axis is whole.
+    expect(rail, 'the collapsed shell is not the drawn 64 and its hairline').toBe(
+      'w-[calc(65px+env(safe-area-inset-left))]',
     );
     // The panel's 260 plus the inset it floats at, so one tween moves both (shell.md § Signed).
     expect(panel, 'the expanded shell is not the inset plus 260').toBe(
@@ -110,26 +118,27 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
     );
   });
 
-  // THE WALL IS THE SHELL'S, NOT THE RAIL'S, and both branches must wear it: rendered bare
-  // the rail draws on `page` with no edge, and every contrast arm compositing over `sb-bg`
-  // would be describing a plane the app never shows.
-  it('paints the collapsed branch on the wall, with the shell edge and corner', () => {
+  // THE SURFACE IS THE SHELL'S, NOT THE RAIL'S (rail-and-account-foot.md § Signed, O3): flush, on
+  // the glass, with one hairline on the right and square, a full-bleed band (*Shape system*). The
+  // band draws no edge of its own, by the owner's ruling on #720, so the hairline is the one edge.
+  it('paints the collapsed branch on the glass band, with one right hairline and no corner', () => {
     const at = SIDEBAR.indexOf('{collapsed ? (');
     expect(at, 'the shell no longer branches').toBeGreaterThan(-1);
     const branch = SIDEBAR.slice(at, SIDEBAR.indexOf(') : (', at));
-    expect(branch, 'the collapsed branch has no wall').toMatch(/\bbg-sb-bg\b/);
-    expect(branch, 'the collapsed branch has no right edge').toMatch(
-      /\bborder-r border-field-border\b/,
+    expect(branch, 'the collapsed branch is not on the glass band').toMatch(/\bglass-band\b/);
+    expect(branch, 'the collapsed branch has no right hairline').toMatch(
+      /\bborder-r border-hairline\b/,
     );
-    expect(branch, 'the collapsed branch has no corner').toMatch(/rounded-r-\[30px\]/);
+    expect(branch, 'a full-bleed band takes a corner').not.toMatch(/\brounded-/);
+    expect(branch, 'the collapsed branch still paints the wall').not.toMatch(/\bbg-sb-/);
     // AND ITS WIDTH IS SPELLED OUT, never inherited: `w-full` resolves against an `<aside>`
     // easing between two widths, so the whole rail re-flows sideways for the length of the
     // transition instead of arriving whole — invisible to every other pin here.
     expect(branch, 'the wall tracks the animating shell instead of its own width').not.toMatch(
       /\bw-full\b/,
     );
-    expect(branch, 'the wall is not held at the collapsed width').toMatch(
-      /w-\[calc\(56px\+env\(safe-area-inset-left\)\)\]/,
+    expect(branch, 'the band is not held at the collapsed width').toMatch(
+      /w-\[calc\(65px\+env\(safe-area-inset-left\)\)\]/,
     );
   });
 
@@ -195,33 +204,28 @@ describe('the rail, as drawn', () => {
   });
 
   // A glyph that stands alone can afford the larger size and needs it, the label being gone.
-  it('draws its glyphs at the drawn 18', () => {
+  it('draws its glyphs at the drawn 20', () => {
     const tags = RAIL.match(/<Icon\b[\s\S]*?\/>/g) ?? [];
     expect(tags.length, 'the rail does not draw its glyphs through one tag').toBe(1);
-    expect(tags[0], 'the rail glyph is not 18px').toMatch(/size=\{18\}/);
+    expect(tags[0], 'the rail glyph is not 20px').toMatch(/size=\{20\}/);
     expect(tags[0], 'the rail glyph is not `aria-hidden`').toMatch(
       /aria-hidden(?!\s*=\s*\{?["']?false)/,
     );
   });
 
-  // `h-[36px]` AND NOT `h-9`, WHICH RENDERS IDENTICALLY: `field-border.test.ts` calls a class
-  // list carrying both `rounded-[9px]` and `h-9` a FIELD drawn by hand, and fails the file.
-  // Do not "tidy" it.
-  it('sizes its items 40 x 36 at the drawn radius, and stays out of the field scope', () => {
-    const radius = railLines(/rounded-\[9px\]/);
-    // FOUR SITES, all the item: the box that paints it, and the route link, the sign-out button
-    // and the sign-in link that ring it — one box shared, so the focusables cannot draw it
-    // three ways.
+  // O3 (rail-and-account-foot.md § Signed): 44 × 44 at r12, the hit areas touching.
+  it('sizes its items 44 x 44 at r12', () => {
+    const radius = railLines(/rounded-\[12px\]/);
+    // FIVE SITES: the box that paints an item, and the route link, the sign-out button and the
+    // sign-in link that ring it — one box shared, so the focusables cannot draw it three ways —
+    // and the menu, an item of its own.
     expect(
       radius.length,
-      'the drawn item radius is not on exactly the box, the two links and the button',
-    ).toBe(4);
-    const item = radius.filter((l) => /\bw-10\b/.test(l));
-    expect(item.length, 'the rail item is not one element').toBe(1);
-    expect(item[0], 'the rail item is not 36 tall').toMatch(/h-\[36px\]/);
-    expect(item[0], 'the rail item wears `h-9`, which makes this file a field file').not.toMatch(
-      /\bh-9\b/,
-    );
+      'the item radius is not on exactly the box, the two links, the button and the menu',
+    ).toBe(5);
+    const boxes = radius.filter((l) => /\bsize-11\b/.test(l));
+    expect(boxes.length, 'the item box and the menu are not both 44 × 44').toBe(2);
+    expect(RAIL, 'an item still draws at the old 40 × 36').not.toMatch(/h-\[36px\]/);
   });
 
   // THE RING FOLLOWS THE FOCUSABLE ELEMENT, the link and not the box inside it: an outline
@@ -231,8 +235,19 @@ describe('the rail, as drawn', () => {
     const link = railLines(/<NavLink\b/);
     expect(link.length, 'the rail no longer renders one `NavLink`').toBe(1);
     expect(link[0], 'the link carries no radius, so its focus ring is square').toMatch(
-      /rounded-\[9px\]/,
+      /rounded-\[12px\]/,
     );
+  });
+
+  // Said as the panel's row says it: the tint and the inset indicator, the glyph `accent`.
+  it('draws the active item as the row draws it', () => {
+    const at = RAIL.indexOf('function RailBox');
+    const box = RAIL.slice(at, RAIL.indexOf('</span>', at));
+    expect(box, 'the active fill is not the tint').toMatch(
+      /isActive\s*\?\s*'bg-accent-tint shadow-\[inset_2px_0_0_var\(--color-sb-indicator\)\]'/,
+    );
+    expect(box, 'the active glyph is not `accent`').toMatch(/isActive \? 'text-accent' :/);
+    expect(box, 'the old wall tint is back').not.toMatch(/sb-item-active-bg|sb-icon-active/);
   });
 
   // A 40px COLUMN CANNOT RESERVE THE BAR. Every other Scroller pushes content off it; here
@@ -244,18 +259,21 @@ describe('the rail, as drawn', () => {
     expect(band[0], 'the rail reserves the bar a strip 40px cannot spare').toMatch(/\boverlay\b/);
   });
 
-  // SPENT TWICE, exactly as the panel spends it: once between the two groups and once along
-  // the foot band's top edge, which is what identifies a band whose fill barely steps off
-  // the wall.
-  it('spends `sb-divider` twice — the group rule and the band', () => {
-    const rule = railLines(/\bborder-sb-divider\b/);
-    expect(rule.length, '`sb-divider` moved off its two sites in the rail').toBe(2);
+  // O3: one 28 × 1 hairline between the two groups, 2 px clear above and below.
+  it('rules the groups apart with one 28 x 1 hairline', () => {
+    const rule = railLines(/\bborder-hairline\b/);
+    expect(rule.length, 'the rail draws more or less than its one group rule').toBe(1);
+    expect(rule[0], 'the rule is not 28 wide').toMatch(/\bw-7\b/);
+    expect(rule[0], 'the rule is not 2 px clear').toMatch(/\bmy-\[2px\]/);
+    expect(rule[0], 'the rule is not a 1 px top border').toMatch(/\bborder-t\b/);
   });
 
-  // The foot band carries Settings and the currency box and nothing else — the capital and
-  // the version are refused by arithmetic rather than taste: neither fits the drawn width.
-  it('carries a foot band, and neither the capital nor the version', () => {
-    expect(railLines(/\bbg-sb-footer-bg\b/).length, 'the rail has no foot band').toBe(1);
+  // ONE SURFACE: the wall's band, rule and field rank leave the rail with the wall — the
+  // capital and the version are refused by arithmetic rather than taste: neither fits the width.
+  it('carries no foot band and no wall token, and neither the capital nor the version', () => {
+    expect(RAIL, 'the rail still paints a wall token').not.toMatch(
+      /\bsb-(?:bg|field|footer-bg|divider|item-active-bg)\b/,
+    );
     expect(RAIL, 'the version followed the rail, and it does not fit').not.toMatch(
       /__APP_VERSION__/,
     );
@@ -296,6 +314,135 @@ describe('the rail, as drawn', () => {
       /desktop \? null :/,
     );
   });
+
+  // Wave 24 (brand.md § Signed): the 40 plate over the menu. The menu is an item like its
+  // neighbours, 44 × 44 at r12 with their hover, by the owner's ruling on #720.
+  it('stands the 40 plate over a 44 menu that keeps the trigger id', () => {
+    const plate = RAIL.indexOf('<Mark size={40} />');
+    const menu = RAIL.indexOf('id={NAV_TRIGGER_ID}');
+    expect(plate, 'the plate left the rail head').toBeGreaterThan(-1);
+    expect(menu, 'the menu lost the trigger id').toBeGreaterThan(plate);
+    const at = RAIL.lastIndexOf('<button', menu);
+    const tag = RAIL.slice(at, RAIL.indexOf('>', menu));
+    expect(tag, 'the menu is not a 44 item').toMatch(/\bsize-11\b/);
+    expect(tag, 'the menu is not at r12').toMatch(/rounded-\[12px\]/);
+    expect(tag, "the menu has not the items' hover").toMatch(/hover:bg-sb-item-hover-bg/);
+    expect(tag, 'the menu still grows an invisible overlay').not.toMatch(/TAP_RAIL/);
+  });
+
+  // O3: a 64 × 40 full-bleed strip under the menu, `accent-tint`, the shield 18 in `accent`.
+  it('gives the super-admin a 64 x 40 `accent-tint` strip under the menu', () => {
+    expect(RAIL.indexOf('<RailRoleBand />'), 'the strip is not under the menu').toBeGreaterThan(
+      RAIL.indexOf('id={NAV_TRIGGER_ID}'),
+    );
+    const at = RAIL.indexOf('function RailRoleBand');
+    const strip = RAIL.slice(at, RAIL.indexOf('</Tooltip>', at));
+    expect(strip, 'the strip is not 40 tall').toMatch(/\bh-10\b/);
+    // The rail's 64 and, on a notched landscape screen, the inset under it, the shield kept on axis.
+    expect(strip, 'the strip stops at the inset').toMatch(/-ml-\[env\(safe-area-inset-left\)\]/);
+    expect(strip, 'the strip is not full-bleed').toMatch(
+      /\bw-\[calc\(100%\+env\(safe-area-inset-left\)\)\]/,
+    );
+    expect(strip, 'the shield left the axis').toMatch(/\bpl-\[env\(safe-area-inset-left\)\]/);
+    expect(strip, 'the strip is not `accent-tint`').toMatch(/\bbg-accent-tint\b/);
+    expect(strip, 'the shield is not 18 in `accent`').toMatch(
+      /<Shield size=\{18\}[^>]*className="[^"]*\btext-accent\b/,
+    );
+  });
+
+  // THE FIT POINT, from what the rail draws (rail-and-account-foot.md § Signed, O3, and brand.md's
+  // plate): a user's rail is 709 tall, so every item shows from a 709 px window; below that the
+  // band scrolls. The browser measured the same.
+  it('fits a 709 px window whole', () => {
+    expect(RAIL, 'the rail is not padded 8 / 0').toMatch(
+      /grid-rows-\[auto_minmax\(0,1fr\)_auto\] py-2"/,
+    );
+    const count = (src: string, name: string) =>
+      (src.match(new RegExp(`${name} = \\[([\\s\\S]*?)\\] as const`))?.[1].match(/\{ to:/g) ?? [])
+        .length;
+    const items = count(RAIL, 'ENTRY') + count(SIDEBAR, 'ANALYTICS');
+    expect(items, 'the rail no longer draws ten routes').toBe(10);
+    expect(RAIL, 'the currency box is not 32 tall').toMatch(/\bh-8 w-10\b/);
+    const pad = 8 + 8;
+    const head = 40 + 44;
+    const rule = 2 + 1 + 2;
+    const foot = 32 + 3 * 44;
+    expect(pad + head + items * 44 + rule + foot).toBe(709);
+    // NO GAPS: any margin or gap between the items is a term this sum leaves out.
+    expect(RAIL, 'a gap entered the rail').not.toMatch(/\b(?:gap|mt|mb|space-y)-(?!0\b)/);
+  });
+
+  // C1 (rail-and-account-foot.md § Signed): a 16 px box at r4, 2 px inside the item's corner,
+  // solid `accent` with `accent-fg` text, padded 3 so «99+» grows it to the left.
+  it('draws the count solid accent at the corner', () => {
+    expect(BADGE, 'the count is not solid accent').toMatch(/\bbg-accent\b/);
+    expect(BADGE, 'the count does not read `accent-fg`').toMatch(/\btext-accent-fg\b/);
+    expect(BADGE, 'the count is not a 16 box at r4').toMatch(/\bh-4 min-w-4\b[^"]*rounded-\[4px\]/);
+    expect(BADGE, 'the count is not padded 3').toMatch(/\bpx-\[3px\]/);
+    expect(BADGE, 'the count is not 2 px inside the corner').toMatch(/\bright-\[2px\]/);
+    expect(RAIL, 'the rail count is not 2 px from the top').toMatch(
+      /<CornerBadge[^>]*top="top-\[2px\]"/,
+    );
+  });
+});
+
+// The band's surface, shared by the rail and the collapsed header: the glass's fill, sheen and
+// blur, with the card's ring, bevel and drop shadow off (the owner's ruling on #720).
+describe('a full-bleed band wears the glass without its card edge', () => {
+  const body = (name: string) => {
+    const at = CSS.indexOf(`@utility ${name} {`);
+    expect(at, `\`${name}\` is not declared`).toBeGreaterThan(-1);
+    return CSS.slice(at, CSS.indexOf('\n}', at));
+  };
+  const base = (rule: string) => rule.slice(0, rule.search(/@supports|@media/));
+
+  // Its own utility, never custom properties set on the band: those would inherit into every
+  // glass knob and scroll thumb inside it.
+  it("draws the glass's fill, sheen and blur", () => {
+    const glass = base(body('glass'));
+    const band = base(body('glass-band'));
+    for (const line of [
+      'background-color: var(--glass-fill, var(--color-glass-fill));',
+      'background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);',
+      'backdrop-filter: blur(30px) saturate(180%);',
+    ]) {
+      expect(glass, `the glass no longer reads ${line}`).toContain(line);
+    }
+    expect(band).toContain('background-color: var(--color-glass-fill);');
+    expect(band).toContain(
+      'background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);',
+    );
+    expect(band).toContain('-webkit-backdrop-filter: blur(30px) saturate(180%);');
+    expect(band).toContain('backdrop-filter: blur(30px) saturate(180%);');
+  });
+
+  it('draws no edge, and falls back to the opaque card', () => {
+    const band = body('glass-band');
+    expect(band, 'the band draws an edge of its own').not.toMatch(/box-shadow|border/);
+    expect(band.match(/background-color: var\(--color-card\);/g)?.length).toBe(2);
+  });
+
+  // ONE MATERIAL: each fallback block is the glass's, less the edge the band does not draw.
+  it("falls back exactly as the glass does, less the glass's edge", () => {
+    const blocks = (rule: string) =>
+      (rule.match(/@(?:supports|media)[^{]*\{[^}]*\}/g) ?? []).map((b) =>
+        b
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l !== '' && !l.startsWith('box-shadow'))
+          .join('\n'),
+      );
+    const glass = blocks(body('glass'));
+    expect(glass.length, 'the glass lost its two fallbacks').toBe(2);
+    expect(blocks(body('glass-band'))).toEqual(glass);
+  });
+
+  it('is what the rail and the collapsed header wear, and nothing sets the glass variables', () => {
+    expect(HEADER).toMatch(/\bmd:glass-band\b/);
+    for (const src of [RAIL, SIDEBAR, HEADER]) {
+      expect(src).not.toMatch(/\[--(?:glass-edge|color-glass-bevel-\w+|shadow-glass):/);
+    }
+  });
 });
 
 // ONE ORDER IN BOTH STATES: the currency above Settings, as its track sits above Settings in the
@@ -309,6 +456,24 @@ describe("the rail's foot reads in the panel's order", () => {
     expect(currency, 'the currency box is gone').toBeGreaterThan(-1);
     expect(settings, 'Settings moved above the currency box').toBeGreaterThan(currency);
     expect(account, 'the account is not last in the foot band').toBeGreaterThan(settings);
+  });
+
+  // O3: the currency box is 40 × 32 at r9, edged `field-border`, with no fill of its own.
+  it('draws the currency box 40 x 32 at r9 on a `field-border` edge', () => {
+    const box = railLines(/\bh-8 w-10\b/);
+    expect(box.length, 'the currency box is not one element').toBe(1);
+    expect(box[0], 'the box is not at r9').toMatch(/rounded-\[9px\]/);
+    expect(box[0], 'the box has no `field-border` edge').toMatch(/\bborder border-field-border\b/);
+    expect(box[0], 'the box paints a fill').not.toMatch(/\bbg-/);
+  });
+
+  // O3 and its render: signed out, «Увійти» alone replaces the profile and «Вийти».
+  it('draws no profile glyph signed out', () => {
+    const at = RAIL.indexOf('function RailProfile');
+    expect(at, '`RailProfile` is gone').toBeGreaterThan(-1);
+    const profile = RAIL.slice(at, RAIL.indexOf('\n}', at));
+    expect(profile, 'the signed-out profile glyph is still drawn').not.toMatch(/\bstill\b/);
+    expect(profile, 'the profile is drawn signed out').toMatch(/rows === 'entry'\s*\?\s*null/);
   });
 
   // ONE SIGN-OUT FOR THE FOOT: its latch is the hook instance's, so the profile beside «Вийти»
@@ -337,7 +502,7 @@ describe("the rail's foot reads in the panel's order", () => {
       /aria-label=\{t\.auth\.signOut\}/,
     );
     expect(button, 'the button is not ringed on the item radius').toMatch(
-      /className="[^"]*rounded-\[9px\]/,
+      /className="[^"]*rounded-\[12px\]/,
     );
     expect(button, 'busy no longer announces itself').toMatch(/aria-disabled=/);
     expect(button, 'busy disables the button and drops its focus').not.toMatch(/\sdisabled=/);
@@ -359,7 +524,7 @@ describe("the rail's foot reads in the panel's order", () => {
     expect(item, 'the entry no longer answers the signed-out state').toMatch(/rows === 'entry' \?/);
     const link = item.slice(start, item.indexOf('</Link>', start));
     expect(link, 'the link is not ringed on the item radius').toMatch(
-      /className="[^"]*rounded-\[9px\]/,
+      /className="[^"]*rounded-\[12px\]/,
     );
   });
 });

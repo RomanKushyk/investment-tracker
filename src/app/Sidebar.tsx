@@ -132,10 +132,10 @@ function NavItem({
       />
       <span className="flex-1 truncate">{label}</span>
       {count !== undefined && (
-        // `ink` on the tint: `sb-badge` on it is under 4,5 : 1 in light.
+        // C1, solid accent (rail-and-account-foot.md § Signed): it reads on its own fill on any row.
         <span
           aria-hidden
-          className="grid h-[18px] min-w-5 flex-none animate-in place-items-center rounded-[5px] bg-sb-badge-bg px-[5px] text-label font-bold text-ink duration-300 fade-in"
+          className="grid h-[18px] min-w-5 flex-none animate-in place-items-center rounded-[5px] bg-accent px-[5px] text-label font-bold text-accent-fg duration-300 fade-in"
         >
           {count}
         </span>
@@ -661,8 +661,7 @@ function CapitalLine() {
  * The DESKTOP shell, in flow and at two widths. The rail arrives as `children` so this
  * file never imports it and it can import the route table from here without the two
  * forming a cycle; the shell stays mounted across the flip, so its one width, the inset
- * included, animates. THE RAIL'S RADIUS IS CHOSEN, NOT DERIVED: a full-height box has no
- * short side to scale from. *Shape system*
+ * included, animates. *Shape system*
  */
 export function Sidebar({
   collapsed,
@@ -678,16 +677,17 @@ export function Sidebar({
       id={SIDEBAR_ID}
       className={`sticky top-0 h-dvh flex-none overflow-hidden transition-[width] duration-[260ms] ease-soft ${
         collapsed
-          ? 'w-[calc(56px+env(safe-area-inset-left))]'
+          ? 'w-[calc(65px+env(safe-area-inset-left))]'
           : 'w-[calc(max(16px,env(safe-area-inset-left))+260px)]'
       }`}
     >
       {collapsed ? (
-        // THE RAIL WEARS THE WALL, said here rather than in the rail: the fill, the
-        // edge and the corner belong to the SHELL, and the branch below carries the
-        // identical four. The width is SPELLED OUT rather than `w-full`, which would
+        // THE RAIL'S SURFACE IS THE SHELL'S, said here rather than in the rail: flush, on the glass
+        // band with one hairline on the right, square as a full-bleed band (rail-and-account-foot.md
+        // § Signed, O3). 64 PLUS the hairline, as the header is 56 plus its own, so the items centre
+        // on the 64's whole-pixel axis. The width is SPELLED OUT rather than `w-full`, which would
         // resolve against a box mid-animation and slide every centred item sideways.
-        <div className="h-full w-[calc(56px+env(safe-area-inset-left))] rounded-r-[30px] border-r border-field-border bg-sb-bg pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] text-ink">
+        <div className="h-full w-[calc(65px+env(safe-area-inset-left))] border-r border-hairline glass-band pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] text-ink">
           {children}
         </div>
       ) : (

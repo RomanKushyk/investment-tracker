@@ -15,8 +15,3 @@ export const TAP_44 =
 /** The other half: a REAL box reserved for a control that draws none, so growing it
  *  moves no pixel and pushes its neighbours apart instead of overlapping them. */
 export const TAP_44_BOX = 'max-md:grid max-md:size-11 max-md:place-items-center';
-
-/** The rail item's own drawn box, so the burger tiles with the ten below it. */
-export const TAP_RAIL =
-  'relative after:absolute after:top-1/2 after:left-1/2 after:h-9 after:w-10 ' +
-  'after:-translate-x-1/2 after:-translate-y-1/2 after:content-[""]';

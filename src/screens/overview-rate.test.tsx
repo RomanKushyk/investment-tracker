@@ -135,11 +135,11 @@ function capitalSub(dict: typeof uk | typeof en = uk) {
 const sidebarCapital = () =>
   within(document.querySelector('aside')!).getByText(new RegExp(`^${uk.sidebar.totalCapital}`))
     .nextSibling!.textContent;
-/** How many elements of the header bar read exactly this. The bar is mounted below 768 and while the
- *  rail is collapsed, which no other test opens; the default matcher folds the non-breaking space a
- *  figure is spelled with, so it would match none. */
-const inHeaderBar = (text: string) =>
-  within(document.querySelector('header')!).queryAllByText(text, { normalizer: (t) => t }).length;
+/** The header bar's line under the change: the dollar total, then the dated rate. The bar is mounted
+ *  below 768 and while the rail is collapsed, which no other test opens. */
+const headerRateLine = () =>
+  within(document.querySelector('header')!).queryByRole('link', { name: 'НБУ, відкриті дані' })
+    ?.parentElement?.parentElement;
 /** The page's subtitle, which carries the date and no rate. */
 const subtitle = () =>
   within(document.querySelector('main')!).getByText(/Портфель одним поглядом/).textContent;
@@ -321,7 +321,31 @@ describe('the header bar of a collapsed rail, in the ₴ view', () => {
     api.fx = { rate: 40, date: TODAY };
     await open('UAH', true);
 
-    await waitFor(() => expect(inHeaderBar(f.money(o.total / 40, 'USD'))).toBe(1));
+    await waitFor(() =>
+      expect(headerRateLine()?.textContent?.startsWith(`${f.money(o.total / 40, 'USD')} · `)).toBe(
+        true,
+      ),
+    );
+  });
+
+  // R1 as wave 26 answered it (open-values-shell-controls.md § Signed): under the change, the
+  // hero's dated line, «НБУ» its link, and no caution.
+  it('reads the change over the dollar total and the dated NBU rate, «НБУ» linked', async () => {
+    api.fx = { rate: 40, date: TODAY };
+    await open('UAH', true);
+
+    const header = document.querySelector('header')!;
+    const link = await waitFor(() =>
+      within(header).getByRole('link', { name: 'НБУ, відкриті дані' }),
+    );
+    expect(link.getAttribute('href')).toBe(NBU_PAGE.uk);
+    const line = headerRateLine()!;
+    expect(line.textContent).toBe(`${f.money(o.total / 40, 'USD')} · НБУ${NB}40 на${NB}28.07.2026`);
+    expect(line.className).toContain('text-muted');
+    // The change stands over it, by sign.
+    const change = line.previousElementSibling!;
+    expect(change.textContent).toBe(f.pct(o.net.pct));
+    expect(change.className).toMatch(/\bfont-semibold\b/);
   });
 
   it('reads «—» for it when none is served, beside the ₴ total', async () => {
@@ -334,6 +358,6 @@ describe('the header bar of a collapsed rail, in the ₴ view', () => {
         f.moneyWhole(o.total),
       ),
     );
-    expect(inHeaderBar(NONE)).toBe(1);
+    expect(headerRateLine()!.textContent!.startsWith(`${NONE} · `)).toBe(true);
   });
 });

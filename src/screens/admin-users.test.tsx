@@ -57,6 +57,7 @@ afterAll(() => vi.unstubAllGlobals());
 
 const { routes } = await import('../routes');
 const { session } = await import('../auth/app');
+const { useSettings } = await import('../state/settings');
 
 // The page's copy, written out so the test pins the words.
 const NAV = 'Користувачі';
@@ -281,6 +282,36 @@ describe('/admin/users, the three filters and the count', () => {
       expect(page.navLink()?.getAttribute('aria-label')).toBe(`${NAV}, понад 99`),
     );
     expect(page.navLink()!.textContent).toContain('99+');
+  });
+
+  // C1 (rail-and-account-foot.md § Signed): solid `accent` with `accent-fg` text, in the row and
+  // on the rail alike.
+  it('draws «99+» solid accent in the row and on the collapsed rail', async () => {
+    api.users = [...SEEDED(), ...pendingMany(97)];
+    const count = () =>
+      // The innermost: on the rail the item box around the count reads «99+» too.
+      [...page.navLink()!.querySelectorAll('span')].filter((s) => s.textContent === '99+').at(-1);
+    let page = mount();
+    const solid = (className: string) =>
+      expect(className.split(/\s+/)).toEqual(
+        expect.arrayContaining(['bg-accent', 'text-accent-fg']),
+      );
+    await waitFor(() => expect(count()).toBeDefined());
+    solid(count()!.className);
+    cleanup();
+    useSettings.setState({ sidebarCollapsed: true });
+    try {
+      api.settings = JSON.stringify({ sidebarCollapsed: true });
+      page = mount();
+      await waitFor(() =>
+        expect(page.navLink()?.getAttribute('aria-label')).toBe(`${NAV}, понад 99`),
+      );
+      // The panel's group label: its absence says the rail, not the panel, holds the link.
+      expect(page.navLink()!.closest('#app-sidebar')!.textContent).not.toContain('Адміністрування');
+      solid(count()!.className);
+    } finally {
+      useSettings.setState({ sidebarCollapsed: false });
+    }
   });
 
   it('ends a list past 50 rows with «Показати ще», which appends the next page', async () => {

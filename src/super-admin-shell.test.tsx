@@ -189,6 +189,17 @@ describe('the super-admin shell, once GET /me answers super_admin', () => {
     );
     expect(page.sidebar()).toContain(SUPER_ADMIN);
     expect(page.sidebar()).not.toContain('₴');
+    // The role strip (rail-and-account-foot.md § Signed, O3): 64 × 40, full-bleed, `accent-tint`,
+    // the shield in `accent`, its word for a screen reader.
+    // The innermost element that holds the role alone: the head around it holds nothing else.
+    const strip = [...document.getElementById('app-sidebar')!.querySelectorAll('div')]
+      .filter((d) => d.textContent === SUPER_ADMIN)
+      .at(-1);
+    expect(strip, 'no element holds the role alone').toBeDefined();
+    expect(strip!.className).toMatch(/\bh-10\b/);
+    expect(strip!.className).toMatch(/\bw-\[calc\(100%\+env\(safe-area-inset-left\)\)\]/);
+    expect(strip!.className).toMatch(/\bbg-accent-tint\b/);
+    expect(strip!.querySelector('svg')!.getAttribute('class')).toMatch(/\btext-accent\b/);
     const links = page.links(document.getElementById('app-sidebar'));
     for (const route of ['/', ...PORTFOLIO_ROUTES]) expect(links).not.toContain(route);
     expect(page.header()).toContain(SUPER_ADMIN);
