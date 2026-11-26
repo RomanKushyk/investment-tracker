@@ -746,8 +746,10 @@ A chart's parts at the proportional value: parts of one bar would take different
 **Decision.** Nothing scrolls with the platform's bar — every constrained box goes through
 `Scroller`. The bar is the thumb's width, 6, and the thumb runs its full length at r2: `accent`,
 `accent-hover` hovered and `accent-pressed` dragged, in the glass knob's ring, bevel and drop, its
-sheen across the short side. A 3 px rail at r1, half the thumb, in the well's fill and ring without its inset shadow, is a layer centred
-inside the bar on its true axis, half pixels and all, so the hit area stays the bar's 6. Nothing
+sheen across the short side. A 3 px rail at r1, half the thumb, is a layer centred inside the bar
+on its true axis, half pixels and all, so the hit area stays the bar's 6. It takes the well's fill
+and its own edge, `scroll-rail-edge`: the well's `ink` 8 % ring in light, 16 % in dark, where a
+hairline reads weaker; the well's inset shadow is left out, as its blur fills a rail. Nothing
 else is stroked or filled. The margin is 8, equal on all four sides, and the reserved gutter is
 `2m + 6 − 4`, the 4 being the ring allowance; `max(8, ceil(R × (1 − 1/√2)))` guards a corner
 rounder than any the app has. The gutter is the ScrollArea ROOT's padding, both inline sides, fixed.

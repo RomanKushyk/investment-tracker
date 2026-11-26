@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { ruleBody, stripCss } from '../../__fixtures__/palette';
+import { declaredIn, mixOf, ruleBody, stripCss, themeBlocks } from '../../__fixtures__/palette';
 import { Scroller } from './Scroller';
 
 const CSS = stripCss(
@@ -98,16 +98,29 @@ describe('the scroll surface (wave 28)', () => {
     },
   );
 
-  // The segmented well's edge and body; its inset shadow's blur would fill a rail this narrow.
-  it('paints the rail in the well’s fill and ring, without the well’s inset shadow', () => {
+  // The well's fill and an edge of its own; the well's inset shadow's blur would fill a rail this narrow.
+  it('paints the rail in the well’s fill and an edge of its own, without the well’s inset shadow', () => {
     const well = ruleBody(CSS, '@utility glass-well');
     const rail = ruleBody(CSS, '@utility scroll-rail');
     const fill = /background-color:\s*([^;]+);/;
     expect(rail.match(fill)?.[1]).toBe(well.match(fill)?.[1]);
-    const ring = well.match(/inset 0 0 0 1px color-mix\([^;]*?transparent\)/)?.[0];
-    expect(ring, 'the well lost its ring').toBeDefined();
-    expect(rail).toContain(`box-shadow: ${ring}`);
+    expect(rail).toContain('box-shadow: inset 0 0 0 1px var(--color-scroll-rail-edge)');
     expect(rail).not.toMatch(/--shadow-glass-well/);
+  });
+
+  // Light's edge is the well's ring. A hairline reads weaker on a dark plane, so dark doubles its
+  // alpha (*Scrolling*).
+  it('draws the rail’s edge as the well’s ring in light and at twice its alpha in dark', () => {
+    const blocks = themeBlocks(CSS);
+    const ring = ruleBody(CSS, '@utility glass-well').match(
+      /inset 0 0 0 1px (color-mix\([^;]*?transparent\))/,
+    )?.[1];
+    expect(ring, 'the well lost its ring').toBeDefined();
+    expect(declaredIn(blocks.light, 'scroll-rail-edge')).toBe(ring);
+    const light = mixOf(blocks, 'light', 'scroll-rail-edge');
+    const dark = mixOf(blocks, 'dark', 'scroll-rail-edge');
+    expect(dark.alpha).toBeCloseTo(2 * light.alpha, 5);
+    expect(declaredIn(blocks.dark, 'scroll-rail-edge')).toBe(ring!.replace(/ [0-9.]+%/, ' 16%'));
   });
 
   it.each(['vertical', 'horizontal'] as const)(

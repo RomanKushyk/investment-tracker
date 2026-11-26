@@ -196,6 +196,7 @@ While #527 built the section above, the owner asked for a thumb 6 wide. The valu
 - **The thumb** is 6 wide, r2 by *Shape system*'s `round(6 × 0.26)`. Its fill, finish, motion and forced colours are as signed above.
 - **The rail** is 3 wide, half the thumb, and keeps r1. The owner's ruling keeps r1 over the quarter ratio's 0.75.
   - Its colours are the segmented well's edge and body: the `glass-well` fill and its `ink` 8 % ring, without `shadow-glass-well`. That shadow is sized for a 28 px well, and its blur fills a 3 px rail, which then reads as the ring's grey.
+    - *Overturned in dark by the owner: see The rail's edge in dark, below.*
 - **Centred on the true axis.** A 3 px rail in a 6 px thumb has its edges on half pixels.
   - The owner ruled to centre it at the cost of soft edges below DPR 2. The other option was a whole-pixel rail half a pixel off the axis, as Android's `FastScroller` floors `(thumb.getWidth() - trackWidth) / 2`.
 - **The box.** The Scrollbar is 6 wide and the hit area 6. The margin stays 8, `overlay`'s 2, and the reserve is `2 × 8 + 6 − 4 = 18`. The `Corner` is 6 × 6.
@@ -203,6 +204,7 @@ While #527 built the section above, the owner asked for a thumb 6 wide. The valu
 - **The native bar** keeps its 12 px box.
   - The track takes a 4.5 px transparent border and radius 5.5, which leaves a 3 px r1 rail. The thumb takes a 3 px border and radius 5, which leaves 6 px r2.
   - CSS Values 4 floors a border width over one device pixel "down to the nearest integer number of device pixels", so below DPR 2 the page's own rail draws 4.
+- **The rail's edge in dark (the owner's ruling).** The edge is its own token, `scroll-rail-edge`: the well's `ink` 8 % ring in light, `ink` 16 % in dark, where a hairline on a dark plane reads weaker. Apple's separator colour likewise roughly doubles its alpha in dark, rgba(60, 60, 67, 0.29) to rgba(84, 84, 88, 0.6) ([WebKit's system-colour listing](https://webkit.googlesource.com/WebKit/+/master/LayoutTests/fast/css/apple-system-control-colors-expected.txt)). The segmented well keeps its 8 % in both themes.
 - **Overturned above:** the thumb's width, the rail's width, radius and inset shadow, the reserve, the hit area, the `Corner`, the native borders and radii, and the implementation check's derived radius. Each of those lines points here.
 
 ## Перенесено

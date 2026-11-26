@@ -12,13 +12,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
-  channels,
   composite,
   glassPlanes,
   mixOf,
   ratio,
   resolve,
-  ruleBody,
   stripCss,
   themeBlocks,
   type Theme,
@@ -42,11 +40,9 @@ describe.each<Theme>(['light', 'dark'])('the scroll thumb, %s', (theme) => {
       }),
       ...['panel', 'card', 'page'].map((name) => resolve(BLOCKS, theme, name)),
     ];
-    // The rail's fill, and its `ink` ring over the fill, read off the utility the rail wears.
+    // The rail's fill, and its edge over the fill.
     const well = mixOf(BLOCKS, theme, 'glass-well');
-    const ringAlpha = ruleBody(CSS, '@utility scroll-rail').match(/var\(--color-ink\) ([0-9.]+)%/);
-    expect(ringAlpha, 'the rail lost its ink ring').not.toBeNull();
-    const ring = { ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: +ringAlpha![1] / 100 };
+    const ring = mixOf(BLOCKS, theme, 'scroll-rail-edge');
     const rails = planes.flatMap((plane) => {
       const fill = composite(well, plane);
       return [fill, composite(ring, fill)];

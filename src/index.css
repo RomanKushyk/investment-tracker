@@ -363,6 +363,8 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 72%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 62%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 6%, transparent);
+  /* The scroll rail's edge: the well's ring here, doubled in dark, where a hairline reads weaker. */
+  --color-scroll-rail-edge: color-mix(in srgb, var(--color-ink) 8%, transparent);
   /* The selected segment's knob (controls.md § Signed, D2): `accent` into `card`, at this alpha. */
   --color-glass-knob-tint: color-mix(
     in srgb,
@@ -566,6 +568,7 @@
   --color-glass-knob-fill: color-mix(in srgb, var(--color-card) 82%, transparent);
   --color-glass-knob-sheen: color-mix(in srgb, var(--color-glass-rim) 6%, transparent);
   --color-glass-well: color-mix(in srgb, var(--color-glass-shade) 55%, transparent);
+  --color-scroll-rail-edge: color-mix(in srgb, var(--color-ink) 16%, transparent);
   --color-glass-knob-tint: color-mix(
     in srgb,
     color-mix(in srgb, var(--color-accent) 22%, var(--color-card)) 92%,
@@ -776,11 +779,11 @@
     var(--shadow-glass-knob);
 }
 
-/* The scroll rail: the well's fill and ring without its inset shadow, whose blur fills a rail this
-   narrow. */
+/* The scroll rail: the well's fill and an edge of its own, without the well's inset shadow, whose
+   blur fills a rail this narrow. */
 @utility scroll-rail {
   background-color: var(--color-glass-well);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-ink) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-scroll-rail-edge);
 }
 
 /* The segmented control's well, the track the knob slides in. */
