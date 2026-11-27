@@ -123,8 +123,8 @@ describe('a control with a shadow of its own', () => {
     'last:shadow-none': ['the table head, a th', 1],
     'shadow-[inset_2px_0_0_var(--color-sb-indicator)]': ['the rail span inside its link', 1],
     glass: [
-      'Card and KpiCard, divs; the Select and DatePicker lists, the same fallback; the chart tooltip, a div; the dialog surfaces and the date sheet below md, focused only when nothing in them is; the floating sidebar panel, a div',
-      7,
+      'Card and KpiCard, divs; the Select and DatePicker lists, the same fallback; the chart tooltip, a div; the dialog surfaces, the date sheet and the «Ще» sheet below md, focused only when nothing in them is; the floating sidebar panel, a div; the dock, a nav; the quotes keyboard bar, a div',
+      10,
     ],
     'glass-well': ['the segmented root, which hands its focus to the checked radio at once', 1],
     'glass-knob-tint': ['the segmented knob, an aria-hidden div', 1],

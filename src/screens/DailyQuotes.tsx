@@ -38,6 +38,7 @@ import { QuoteRowsPlaceholder } from './placeholders';
 import { inputValue } from '@quirenote/core/money';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import { useKeyboardOpen } from '../app/keyboard-inset';
 import { useT } from '../i18n/useT';
 
 /**
@@ -178,12 +179,14 @@ export function DailyQuotes() {
     return out;
   }, [assets, fetch.feed, feedDate]);
 
-  // A STICKY ACTION BAR, not scroll-into-view, and the choice is forced by where
-  // the controls sit: both are BELOW all four quote rows, so no amount of
-  // scrolling the focused row brings them out from under the keyboard. It carries
-  // the same two controls, so they are rendered here or in flow, never both.
+  // A KEYBOARD BAR, not scroll-into-view, and the choice is forced by where the controls
+  // sit: both are BELOW all four quote rows, so no amount of scrolling the focused row brings
+  // them out from under the keyboard. With the keyboard closed they sit inline under the list
+  // and the dock stays (open-values-shell-controls.md § Signed, item 4). It carries the same
+  // two controls, so they are rendered here or in flow, never both.
   const desktop = useIsDesktop();
-  const stickyActions = !desktop && filledCount > 0;
+  const keyboard = useKeyboardOpen();
+  const stickyActions = !desktop && keyboard;
   const actionBarRef = useActionBarHeight(stickyActions);
 
   // The latest save of any day, which every day's read answers alike: the stamp is the dataset's.
@@ -351,8 +354,8 @@ export function DailyQuotes() {
               )}
               {/* ONE COLUMN ONLY. Where the side blocks sit beside the rows this line lives
                   at their foot; where the grid has collapsed it comes back here, because this
-                  row must never be left holding only its top margin — and below `md` the
-                  sticky bar has taken its two buttons. CSS cannot move a node between two
+                  row must never be left holding only its top margin — and while the keyboard is
+                  open its bar has taken the two buttons. CSS cannot move a node between two
                   parents, so it is rendered in both places and each copy hidden where it does
                   not belong; `hidden` is display:none, so no reader meets it twice. */}
               <span className="ml-auto text-xs text-muted lg:hidden">
@@ -417,6 +420,11 @@ export function DailyQuotes() {
           {createPortal(
             <div
               ref={actionBarRef}
+              // A press keeps the field's focus, as a keyboard accessory does: focus on the button
+              // would read as the keyboard closing and unmount the bar before the click lands. The
+              // compat mousedown too, which some WebKit builds send after a cancelled pointerdown.
+              onPointerDown={(e) => e.preventDefault()}
+              onMouseDown={(e) => e.preventDefault()}
               // The bar rides the VISUAL viewport, not the layout one: on iOS the keyboard
               // does not shrink the layout viewport, so `bottom: 0` would put these two
               // buttons underneath it. `bottom` rather than a transform, because a transform
@@ -426,10 +434,11 @@ export function DailyQuotes() {
               // subscription in this bar would re-render the whole route on every
               // visual-viewport event to move one fixed box, and CSS moves every surface that
               // needs the number without React hearing about it.
-              className="fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-30 flex animate-in gap-2 border-t border-hairline bg-page px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220 slide-in-from-bottom-2"
+              className="fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-30 flex animate-in gap-2 glass px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220 slide-in-from-bottom-2"
             >
-              {/* SQUARE CORNERS, hairline top edge: a full-bleed bar has no designed short
-                  side, so the proportional rule has nothing to read. */}
+              {/* SQUARE CORNERS, in the 360 bar's glass (controls-and-overlays.md § Settled by the
+                  brief): a full-bleed bar has no designed short side, so the proportional rule
+                  has nothing to read. */}
               <Button
                 className="flex-1"
                 disabled={saveSnapshot.isPending || dayPending}

@@ -46,19 +46,18 @@ export const en = {
     // The super-admin's group and its one route, and the role its band names.
     groupAdmin: 'Administration',
     archive: 'Price archive',
-    // «Користувачі» and the applications waiting, which the link's and the trigger's names carry
-    // since the drawn number is hidden.
+    // «Користувачі» and the applications waiting, which the link's name carries since the drawn
+    // number is hidden.
     users: 'Users',
     usersCount: (n: number) => `Users, ${n}`,
     usersCountOver: 'Users, over 99',
-    openWithCount: (count: string) => `Open navigation, applications: ${count}`,
-    countOver: 'over 99',
     superAdmin: 'Super-admin',
-    // `navigation` is the drawer's accessible NAME, never drawn: the wordmark is
-    // already on screen, so a visible second title would say the same thing twice
-    // while a screen reader would still have nothing to announce the dialog by.
+    // The dock's landmark NAME, never drawn: its tabs are the navigation on screen.
     navigation: 'Navigation',
-    openNav: 'Open navigation',
+    // The dock's last tab and the sheet it opens. On a route the sheet holds, the tab is drawn
+    // current and its name says so, the page's own link in the sheet carrying `aria-current`.
+    more: 'More',
+    moreCurrent: 'More, including the current page',
     closeNav: 'Close navigation',
     collapseNav: 'Collapse navigation',
     expandNav: 'Expand navigation',
@@ -1801,11 +1800,10 @@ export const uk: Dict = {
     users: 'Користувачі',
     usersCount: (n) => `Користувачі, ${n}`,
     usersCountOver: 'Користувачі, понад 99',
-    openWithCount: (count) => `Відкрити навігацію, заявок: ${count}`,
-    countOver: 'понад 99',
     superAdmin: 'Суперадміністратор',
     navigation: 'Навігація', // ✎
-    openNav: 'Відкрити навігацію', // ✎
+    more: 'Ще',
+    moreCurrent: 'Ще, зокрема поточна сторінка',
     closeNav: 'Закрити навігацію', // ✎
     collapseNav: 'Згорнути навігацію', // ✎
     expandNav: 'Розгорнути навігацію',

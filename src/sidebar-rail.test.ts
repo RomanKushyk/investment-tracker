@@ -359,13 +359,11 @@ describe('the rail, as drawn', () => {
   });
 
   // ONE TRIGGER ON SCREEN, ENFORCED RATHER THAN ASSERTED IN PROSE: `Layout` hands focus to
-  // `NAV_TRIGGER_ID` by `getElementById`, which returns the FIRST match, so a header trigger
-  // merely HIDDEN at desktop would take the handoff from the rail's.
+  // `NAV_TRIGGER_ID` by `getElementById`, which returns the FIRST match, so the header bar holds
+  // none: below md the dock's «Ще» carries it, and the dock is mounted only there.
   it('owns the trigger id, and the header renders none beside it', () => {
     expect(railLines(/\bNAV_TRIGGER_ID\b/).length, 'the rail names the trigger id twice').toBe(2);
-    expect(HEADER, 'the header no longer gates its trigger on the breakpoint').toMatch(
-      /desktop \? null :/,
-    );
+    expect(HEADER, 'the header bar carries a trigger again').not.toMatch(/\bNAV_TRIGGER_ID\b/);
   });
 
   // Wave 24 (brand.md § Signed): the 40 plate over the menu. The menu is an item like its

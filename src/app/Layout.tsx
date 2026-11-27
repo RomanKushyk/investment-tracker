@@ -10,18 +10,18 @@ import { useReminderToast } from '../hooks/useReminders';
 import { pageLeaving, subscribeToLeaving } from '../hooks/useSignOut';
 import { AppHeader } from './AppHeader';
 import { Backdrop } from './Backdrop';
+import { Dock } from './Dock';
 import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID, SIDEBAR_ID } from './nav-ids';
-import { Sidebar, SidebarDrawer } from './Sidebar';
+import { MoreSheet, Sidebar } from './Sidebar';
 import { SidebarRail } from './SidebarRail';
 import { useSettings } from '../state/settings';
 
-/** Marks the one history entry the drawer pushes, so Back can be told apart. */
-interface DrawerHistoryState {
+/** Marks the one history entry the sheet pushes, so Back can be told apart. */
+interface SheetHistoryState {
   quirenoteDrawer?: boolean;
 }
 
-const isMarked = () =>
-  (window.history.state as DrawerHistoryState | null)?.quirenoteDrawer === true;
+const isMarked = () => (window.history.state as SheetHistoryState | null)?.quirenoteDrawer === true;
 const pushMarker = () =>
   window.history.pushState({ ...window.history.state, quirenoteDrawer: true }, '');
 
@@ -39,34 +39,34 @@ export function Layout() {
   useAccountRead();
 
   // `desktop` is read from the media query rather than expressed only in CSS, because
-  // a drawer needs a focus trap and a focus trap has to know which shell is mounted.
+  // a sheet needs a focus trap and a focus trap has to know which shell is mounted.
   const desktop = useIsDesktop();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   // `persist` reads localStorage synchronously, so the first render carries the device's copy;
   // the account's answer may change it after (*Persistence today*).
   const collapsed = useSettings((s) => s.sidebarCollapsed);
   const setCollapsed = useSettings((s) => s.setSidebarCollapsed);
 
-  // A route change closes the drawer, ADJUSTED DURING RENDER and not in an effect: an
-  // effect runs after the commit, so the drawer would paint once over the new route
-  // and then close. The RAW setter, never `toggleDrawer` — render must stay free of
+  // A route change closes the sheet, ADJUSTED DURING RENDER and not in an effect: an
+  // effect runs after the commit, so the sheet would paint once over the new route
+  // and then close. The RAW setter, never `toggleSheet` — render must stay free of
   // history side effects, and the router has already pushed its own entry on top of
   // the marker, so popping would walk back to the route just left.
   const [lastPath, setLastPath] = useState(pathname);
-  // A DRAWER LINK TO THE ROUTE ON SCREEN closes it too, and it REPLACED the marker (NavLink's
+  // A SHEET LINK TO THE ROUTE ON SCREEN closes it too, and it REPLACED the marker (NavLink's
   // same-path default), so the entry it wrote is spent further down, or the next Back would stay put.
   const [lastKey, setLastKey] = useState(key);
   const [replacedMarker, setReplacedMarker] = useState<string | null>(null);
   if (lastKey !== key) {
     setLastKey(key);
-    if (lastPath === pathname && drawerOpen && navigationType === NavigationType.Replace) {
-      setDrawerOpen(false);
+    if (lastPath === pathname && sheetOpen && navigationType === NavigationType.Replace) {
+      setSheetOpen(false);
       setReplacedMarker(key);
     }
   }
   if (lastPath !== pathname) {
     setLastPath(pathname);
-    setDrawerOpen(false);
+    setSheetOpen(false);
   }
 
   // CROSSING THE BREAKPOINT IS THE OTHER CASE, and it cannot fold into the line above:
@@ -77,28 +77,28 @@ export function Layout() {
   // callback is a place where both `setState` and `history.back()` are allowed, and
   // add/remove is symmetric, so StrictMode's double-subscribe still fires it once.
   //
-  // The close stays OUTSIDE the marker guard: `drawerOpen` left true behind a shell
-  // that no longer renders the drawer springs it open again on the way back down.
+  // The close stays OUTSIDE the marker guard: `sheetOpen` left true behind a shell
+  // that no longer renders the sheet springs it open again on the way back down.
   useEffect(
     () =>
       subscribeToBreakpoint(() => {
         if (!pageLeaving() && isMarked()) window.history.back();
-        setDrawerOpen(false);
+        setSheetOpen(false);
       }),
     [],
   );
 
-  // The drawer makes no history act while the page leaves, and puts its marker back in step when it
-  // stays (*Two shells, one breakpoint*); an effect, so it reads the drawer this commit drew.
+  // The sheet makes no history act while the page leaves, and puts its marker back in step when it
+  // stays (*Two shells, one breakpoint*); an effect, so it reads the sheet this commit drew.
   const leaving = useSyncExternalStore(subscribeToLeaving, pageLeaving);
   const wasLeaving = useRef(leaving);
   useEffect(() => {
     const stayed = wasLeaving.current && !leaving;
     wasLeaving.current = leaving;
     if (!stayed) return;
-    if (drawerOpen && !isMarked()) pushMarker();
-    else if (!drawerOpen && isMarked()) window.history.back();
-  }, [leaving, drawerOpen]);
+    if (sheetOpen && !isMarked()) pushMarker();
+    else if (!sheetOpen && isMarked()) window.history.back();
+  }, [leaving, sheetOpen]);
 
   // The entry an own-route tap wrote is spent only while it is still the current one: once the page
   // stays, after a Back already left it, and on a re-run that has already spent it.
@@ -137,12 +137,12 @@ export function Layout() {
     setCollapsed(next);
   }
 
-  // The hardware Back button closes the drawer INSTEAD OF LEAVING THE ROUTE, through
+  // The hardware Back button closes the sheet INSTEAD OF LEAVING THE ROUTE, through
   // one synthetic history entry. It keeps the URL and SPREADS the router's own state,
   // so `idx`/`key` survive and popping back is a no-op navigation. A HANDLER AND NOT
   // AN EFFECT: StrictMode runs an effect's body, cleanup, then body again, so the push
   // ran twice and the pop once and the stack grew a dead entry per open.
-  function toggleDrawer(next: boolean) {
+  function toggleSheet(next: boolean) {
     if (next && !pageLeaving()) {
       pushMarker();
     } else if (!next && !pageLeaving() && isMarked()) {
@@ -151,13 +151,13 @@ export function Layout() {
       // entry sits on top, and popping would walk back to the route just left.
       window.history.back();
     }
-    setDrawerOpen(next);
+    setSheetOpen(next);
   }
 
   // Back has already popped the marker, so this only mirrors it into state — never
-  // `history.back()` again. Always listening: a pop with the drawer closed is a no-op.
+  // `history.back()` again. Always listening: a pop with the sheet closed is a no-op.
   useEffect(() => {
-    const onPop = () => setDrawerOpen(false);
+    const onPop = () => setSheetOpen(false);
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
@@ -165,7 +165,7 @@ export function Layout() {
   const showHeader = !desktop || collapsed;
 
   return (
-    <RadixDialog.Root open={drawerOpen} onOpenChange={toggleDrawer}>
+    <RadixDialog.Root open={sheetOpen} onOpenChange={toggleSheet}>
       {/* Outside every screen, so it is not under a busy root; mounted empty, so its text is a change. */}
       <LoadingStatus />
       <Backdrop />
@@ -181,8 +181,9 @@ export function Layout() {
             every screen: `viewport-fit=cover` extends the page under a notch, so the
             inline edges are paid back where the content column begins. */}
         <div className="flex min-w-0 flex-1 flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
-          {showHeader && <AppHeader desktop={desktop} open={drawerOpen} />}
-          <main className="min-w-0 flex-1 px-9 pt-8 pb-12 max-md:px-3 max-md:pt-4">
+          {showHeader && <AppHeader desktop={desktop} />}
+          {/* Below md the content clears the dock by 96 above the bottom safe area (shell.md § Mobile). */}
+          <main className="min-w-0 flex-1 px-9 pt-8 pb-12 max-md:px-3 max-md:pt-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]">
             <ViewClock>
               {/* keyed by route, so every screen change animates in */}
               <div
@@ -195,7 +196,8 @@ export function Layout() {
           </main>
         </div>
       </div>
-      {!desktop && <SidebarDrawer />}
+      {!desktop && <Dock />}
+      {!desktop && <MoreSheet />}
     </RadixDialog.Root>
   );
 }

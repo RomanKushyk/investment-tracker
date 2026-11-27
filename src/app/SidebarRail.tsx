@@ -27,7 +27,7 @@ import { useT } from '../i18n/useT';
 /**
  * THE THIRD GEOMETRY, and *Two shells, one breakpoint* rejected one — for the
  * mobile job. This rail's job is desktop density: navigation one press away
- * while 188 px go back to the content, which is a job the drawer never had.
+ * while 188 px go back to the content, which is a job the dock and its sheet do not have.
  *
  * It imports the route table rather than restating it, and `Sidebar.tsx` does
  * NOT import this file back — the shell takes it as `children`, which is what

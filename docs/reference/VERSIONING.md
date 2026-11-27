@@ -106,8 +106,8 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
 ## Verify after bumping
 
-- Sidebar bottom shows `V X.Y.Z` (micro-label style, muted) in BOTH shells — the
-  244px panel at and above `md`, and the 280px drawer below it. The COLLAPSED
-  56px rail carries none by ruling — the badge does not fit its column. Expand
-  it, or read it in the drawer, and do not file the absence.
+- The sidebar's foot shows `V X.Y.Z` (micro-label style, muted) in BOTH shells — the
+  panel at and above `md`, and the «Ще» sheet below it. The COLLAPSED rail
+  carries none by ruling — the badge does not fit its column. Expand it, or
+  read it in the sheet, and do not file the absence.
 - `pnpm build` green — `tsc --noEmit` also type-checks `vite.config.ts`'s `package.json` import (`resolveJsonModule`).

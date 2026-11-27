@@ -190,10 +190,11 @@ describe('the foot carries two segmented controls on one row', () => {
     expect(SIDEBAR, 'a thumb of the sidebar’s own is left').not.toMatch(/data-owns-motion/);
   });
 
-  // THE FIT, from the control's own numbers: in the drawer each segment is `44 − gap` wide (the
-  // 44 overlays then tile), and the five with both wells' padding and gaps and the row's `gap-2`
-  // must fit the 239 the band measures, or the row wraps where nothing narrows it.
-  it('fits the five segments in the drawer band, and wraps rather than clipping below it', () => {
+  // THE FIT, from the control's own numbers: below md each segment is `44 − gap` wide (the 44
+  // overlays then tile), and the five with both wells' padding and gaps and the row's `gap-2` must
+  // fit the «Ще» sheet's row at 360 — 360 less its two 12 insets, its 8 padding a side and the
+  // Scroller's 4 a side — or the row wraps where nothing narrows it.
+  it('fits the five segments in the sheet at 360, and wraps rather than clipping below it', () => {
     const control = stripTs(
       readFileSync(join(here, 'components', 'ui', 'SegmentedControl.tsx'), 'utf8'),
       'SegmentedControl.tsx',
@@ -205,11 +206,11 @@ describe('the foot carries two segmented controls on one row', () => {
       `max-md:min-w-[${44 - gap}px]`,
     );
     const well = (n: number) => 2 * pad + n * (44 - gap) + (n - 1) * gap;
-    expect(well(3) + 8 + well(2), 'the drawer row no longer fits its band').toBeLessThanOrEqual(
-      239,
+    expect(well(3) + 8 + well(2), 'the sheet row no longer fits at 360').toBeLessThanOrEqual(
+      360 - 2 * 12 - 2 * 8 - 2 * 4,
     );
-    // A left safe-area inset takes the band down in landscape, and the drawer's
-    // `overflow-hidden` would clip an overflowing row; it wraps, with room between its lines.
+    // A safe-area inset narrows the sheet in landscape, and its `overflow-hidden` would clip an
+    // overflowing row; it wraps, with room between its lines.
     const row = linesWith(/max-md:mb-\[11px\]/)[0] ?? '';
     expect(row, 'the row cannot wrap, so a narrower band clips it').toMatch(/max-md:flex-wrap\b/);
     expect(row, 'a wrapped row has no clearance between its two lines').toMatch(
@@ -275,19 +276,17 @@ describe('the head is the lockup with the capital line, and the blob is gone', (
       /line === 'held' && <div aria-hidden className="h-\[14px\]" \/>/,
     );
     expect(SIDEBAR, 'the panel no longer holds the slot for an unknown role').toMatch(
-      /line=\{!panel \|\| admin \? 'none' : role === 'user' \? 'capital' : 'held'\}/,
+      /line=\{admin \? 'none' : role === 'user' \? 'capital' : 'held'\}/,
     );
   });
 
-  // The drawer's foot is measured for the toast's offset, so it reaches through the drawer's
-  // bottom padding to the screen's edge, or the toast stands short of it and covers the tracks.
-  it("reaches the drawer's foot to the screen's edge", () => {
-    const foot = linesWith(/ref=\{band\}/);
-    expect(foot.length, 'the measured foot is not one element').toBe(1);
-    const at = SIDEBAR.indexOf('ref={band}');
-    const tag = SIDEBAR.slice(at, SIDEBAR.indexOf('>', at));
-    expect(tag).toMatch(
-      /panel \? '' : 'mb-\[calc\(-1\*max\(16px,env\(safe-area-inset-bottom\)\)\)\] pb-\[max\(16px,env\(safe-area-inset-bottom\)\)\]'/,
+  // The «Ще» sheet is measured for the toast's offset to the screen's edge, or the toast stands
+  // short of it and covers «Вийти»: its layout height and its resolved bottom offset, never its
+  // box, which the rise's transform moves.
+  it("measures the sheet to the screen's edge", () => {
+    expect(SIDEBAR).toMatch(/ref=\{publishBand\}/);
+    expect(SIDEBAR).toMatch(
+      /el\.offsetHeight \+ \(parseFloat\(getComputedStyle\(el\)\.bottom\) \|\| 0\)/,
     );
   });
 

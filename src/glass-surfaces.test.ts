@@ -16,6 +16,7 @@ import {
   type Theme,
 } from './__fixtures__/palette';
 import { ScreenFailure } from './app/Boundaries';
+import { MORE_SHEET } from './app/Sidebar';
 import { Card } from './components/ui/Card';
 import { AlertDialog, AlertDialogTitle, Dialog, DialogTitle, SHEET } from './components/ui/Dialog';
 import { KpiCard } from './components/ui/KpiCard';
@@ -106,6 +107,33 @@ describe('every dialog surface wears the dialog glass', () => {
 
   it('the date sheet', () => {
     wears(SHEET);
+  });
+});
+
+// The «Ще» sheet over the scrim takes the dialogs' fill, for the reason they do: on the plain glass
+// its rows' and labels' grey fell under 4.5 : 1 in light (mobile-bar-and-sheet.md, § Implementation
+// amendment). Its fill is read off its own class, so the class and the reading cannot part.
+describe('the «Ще» sheet reads on its glass over the scrim', () => {
+  const fill = /\[--glass-fill:var\(--color-([\w-]+)\)\]/.exec(MORE_SHEET)?.[1] ?? 'glass-fill';
+
+  it('wears the glass', () => {
+    expect(MORE_SHEET.split(/\s+/)).toContain('glass');
+  });
+
+  it.each(
+    THEMES.flatMap((theme) =>
+      (
+        [
+          ['ink', 'the title and the active row'],
+          ['muted', 'the group labels'],
+          ['sb-item', 'the rows'],
+        ] as const
+      ).map(([token, role]) => [theme, token, role] as const),
+    ),
+  )('%s: `%s` (%s) clears 4.5 : 1 on its least contrasting plane', (theme, token) => {
+    const text = resolve(BLOCKS, theme, token);
+    const planes = glassPlanes(CSS, theme, { fill, over: ['card', 'panel'], veil: 'scrim' });
+    expect(Math.min(...planes.map((plane) => ratio(text, plane)))).toBeGreaterThanOrEqual(4.5);
   });
 });
 

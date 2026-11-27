@@ -84,8 +84,8 @@ const TABLE = [
 /** The glyphs that wear none of the routes. A chevron folds a group or collapses the shell and the
  *  theme track's three are segments — controls, which is why group headers stay glyphless; the
  *  account's two label its sign-out and its sign-in entry, whose link `sidebar-structure.test.ts`
- *  pins; the shield marks the super-admin's band, a state and no route. Listed so the import
- *  assertion can tell them from a route's icon. */
+ *  pins; the shield marks the super-admin's band, a state and no route; the X closes the «Ще»
+ *  sheet. Listed so the import assertion can tell them from a route's icon. */
 const CONTROLS = [
   'ChevronDown',
   'ChevronLeft',
@@ -95,6 +95,7 @@ const CONTROLS = [
   'Moon',
   'Shield',
   'Sun',
+  'X',
 ];
 
 /** Matched TO ITS OWN `/>` rather than the first `>`: an arbitrary variant may hold one

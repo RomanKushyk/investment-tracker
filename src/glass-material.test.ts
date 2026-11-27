@@ -297,6 +297,7 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
       .filter((file) => NAMES_GLASS.test(stripTs(readFileSync(file, 'utf8'), file)))
       .map((file) => relative(here, file).split(sep).join('/'));
     expect(wearing.sort()).toEqual([
+      'app/Dock.tsx',
       'app/Sidebar.tsx',
       'components/charts/ChartTooltip.tsx',
       'components/ui/Card.tsx',
@@ -307,6 +308,7 @@ describe('only the surfaces whose issue has landed wear the glass', () => {
       'components/ui/SegmentedControl.tsx',
       'components/ui/Select.tsx',
       'components/ui/button-variants.ts',
+      'screens/DailyQuotes.tsx',
       'screens/daily-quotes/CouponDueCard.tsx',
     ]);
   });

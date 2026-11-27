@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The quotes screen's Save control waits on its write as every control does: from the press until
 // the view the save changed has been read again, in the layout that holds it in flow and in the one
-// that holds it on the sticky bar (*Cloud target*).
+// that holds it on the keyboard bar (*Cloud target*).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
@@ -37,6 +37,9 @@ vi.mock('../hooks/useIsDesktop', () => ({
   useIsDesktop: () => desktop,
   subscribeToBreakpoint: () => () => {},
 }));
+// Below md the actions ride the keyboard's bar while it is open, and sit inline while it is closed
+// (open-values-shell-controls.md § Signed, item 4); jsdom has no keyboard to open.
+vi.mock('../app/keyboard-inset', () => ({ useKeyboardOpen: () => keyboard }));
 
 const seed = TEST_LEDGERS.find((l) => l.name === 'seed')!.input;
 
@@ -69,6 +72,7 @@ vi.stubGlobal(
     },
 );
 let desktop = true;
+let keyboard = false;
 afterAll(() => vi.unstubAllGlobals());
 
 // Loaded while the file is collected, as routes.test.ts loads it, so the import counts against no
@@ -98,8 +102,9 @@ function deferred() {
 }
 
 /** The page at the desktop shell or below it. */
-async function open(atDesktop: boolean) {
+async function open(atDesktop: boolean, keys = false) {
   desktop = atDesktop;
+  keyboard = keys;
   // What an earlier case left queued is not this one's.
   vi.mocked(repo.readView).mockReset();
   vi.mocked(repo.readView).mockImplementation(async () => bodyOf());
@@ -129,14 +134,16 @@ async function open(atDesktop: boolean) {
 
 // A day other than the caller's is a read of its own, and the save writes over what it holds.
 describe.each([
-  ['in flow at the desktop shell', true],
-  ['on the sticky bar below it', false],
-])('Save on a past day %s', (_, atDesktop) => {
+  ['in flow at the desktop shell', true, false],
+  ['inline below it with the keyboard closed', false, false],
+  ['on the keyboard bar below it', false, true],
+])('Save on a past day %s', (_, atDesktop, keys) => {
   const PAST = '2026-07-20';
 
   /** The page on `PAST`, its day read answering when the test lets it. */
   async function openPast() {
     desktop = atDesktop;
+    keyboard = keys;
     vi.mocked(repo.readView).mockReset();
     vi.mocked(repo.readView).mockImplementation(async () => bodyOf());
     vi.mocked(repo.saveSnapshot).mockReset();
@@ -164,8 +171,8 @@ describe.each([
     const { day, container } = await openPast();
     // A quote typed before the day lands has nothing to be compared with.
     act(() => useDraft.setState({ quotes: { [seed.assets[0].id]: '68000.00' } }));
-    // The case is in the layout it names: the sticky bar is portalled out of the page.
-    expect(container.contains(save())).toBe(atDesktop);
+    // The case is in the layout it names: the keyboard bar is portalled out of the page.
+    expect(container.contains(save())).toBe(!keys);
     expect(save().disabled).toBe(true);
 
     await act(async () => day.resolve());
@@ -195,11 +202,25 @@ describe.each([
 });
 
 describe.each([
-  ['in flow at the desktop shell', true],
-  ['on the sticky bar below it', false],
-])('Save %s', (_, atDesktop) => {
+  ['in flow at the desktop shell', true, false],
+  ['inline below it with the keyboard closed', false, false],
+  ['on the keyboard bar below it', false, true],
+])('Save %s', (_, atDesktop, keys) => {
+  // A press on the keyboard bar must not take the field's focus: the keyboard would read as closed
+  // and the bar unmount under the finger before the click lands. Inline, the press focuses as usual.
+  it('keeps the field focused on a press only on the keyboard bar', async () => {
+    await open(atDesktop, keys);
+    const save = screen.getByRole('button', { name: uk.dailyQuotes.saveSnapshot });
+    const copy = screen.getByRole('button', { name: uk.dailyQuotes.copyYesterday });
+    // The compat `mousedown` too, which an engine may still send after a cancelled pointerdown.
+    for (const press of [fireEvent.pointerDown, fireEvent.mouseDown]) {
+      expect(press(save), 'Save').toBe(!keys);
+      expect(press(copy), 'Copy yesterday').toBe(!keys);
+    }
+  });
+
   it('stays disabled from the press until the view the save changed has been read again', async () => {
-    const { container } = await open(atDesktop);
+    const { container } = await open(atDesktop, keys);
     const save = deferred();
     const read = deferred();
     vi.mocked(repo.saveSnapshot).mockImplementationOnce(() => save.promise);
@@ -211,8 +232,8 @@ describe.each([
 
     const button = () =>
       screen.getByRole<HTMLButtonElement>('button', { name: uk.dailyQuotes.saveSnapshot });
-    // The case is in the layout it names: the sticky bar is portalled out of the page.
-    expect(container.contains(button())).toBe(atDesktop);
+    // The case is in the layout it names: the keyboard bar is portalled out of the page.
+    expect(container.contains(button())).toBe(!keys);
     expect(button().disabled).toBe(false);
     fireEvent.click(button());
     // The write is out.
@@ -235,7 +256,7 @@ describe.each([
     ['a server error', { kind: 'failed', status: 500 }],
     ['a value the API refuses', { kind: 'invalidOp', index: 0, issues: [] }],
   ])('says it could not save after %s, and is pressable again', async (_, refusal) => {
-    await open(atDesktop);
+    await open(atDesktop, keys);
     vi.mocked(toast.error).mockClear();
     vi.mocked(toast.success).mockClear();
     vi.mocked(repo.saveSnapshot).mockRejectedValueOnce(new ApiError(refusal));
@@ -251,7 +272,7 @@ describe.each([
   });
 
   it('leaves a save refused for a stale tag to the one toast that says so', async () => {
-    await open(atDesktop);
+    await open(atDesktop, keys);
     vi.mocked(toast.error).mockClear();
     vi.mocked(repo.saveSnapshot).mockRejectedValueOnce(new ApiError({ kind: 'conflict' }));
 

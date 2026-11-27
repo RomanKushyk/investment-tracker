@@ -20,10 +20,6 @@ const ALLOWED: Record<string, { classes: string[]; why: string }> = {
     classes: ['hover:opacity-90'],
     why: '`danger`, held by B4 (controls.md § Signed)',
   },
-  'src/app/AppHeader.tsx': {
-    classes: ['hover:opacity-85'],
-    why: 'the 360 burger, which #721 removes',
-  },
   // The ✕ glyphs rest at the signed .85 (notices-and-toasts.md) and brighten: the reverse of a fade.
   'src/components/ui/ReminderStrip.tsx': {
     classes: ['hover:opacity-100'],

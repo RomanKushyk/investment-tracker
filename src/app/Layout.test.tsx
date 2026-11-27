@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createBrowserRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { stripCss } from '../__fixtures__/palette';
 import { RouterProvider } from '../__fixtures__/router';
 import { useEditMode } from '../hooks/useEditMode';
 
@@ -16,6 +20,12 @@ vi.mock('sonner', () => ({
 const load = vi.hoisted(() => ({ pending: false, cancelled: false, pushed: false }));
 // The viewport side of 768, and whoever listens for a crossing.
 const shell = vi.hoisted(() => ({ desktop: false, crossing: new Set<() => void>() }));
+// What `GET /me` and the relay have answered, which the dock draws by.
+const who = vi.hoisted(() => ({
+  role: 'user' as 'user' | 'super_admin' | undefined,
+  status: 'signedIn' as 'signedIn' | 'signedOut' | 'unknown',
+  pending: undefined as number | undefined,
+}));
 
 vi.mock('../auth/app', () => ({
   hasAuthEnvironment: true,
@@ -29,7 +39,7 @@ vi.mock('../auth/app', () => ({
     signOut: () => Promise.resolve({ logout: 'https://auth.test/logout?client_id=c' }),
     signingOut: () => false,
   },
-  useSessionStatus: () => 'signedIn',
+  useSessionStatus: () => who.status,
   useSessionSigningOut: () => false,
   useSessionUnanswered: () => false,
 }));
@@ -49,16 +59,17 @@ vi.mock('../hooks/queries', () => ({
   useSettingsCopy: () => {},
   useViewDayRollover: () => {},
   useViewPending: () => false,
+  useRole: () => who.role,
+  usePendingCount: (enabled: boolean) => (enabled ? who.pending : undefined),
+  COUNT_PAGE: 100,
 }));
 vi.mock('../hooks/useReminders', () => ({ useReminderToast: () => {} }));
 vi.mock('../components/loading/LoadingStatus', () => ({ LoadingStatus: () => null }));
 vi.mock('./SidebarRail', () => ({ SidebarRail: () => null }));
-// The header's trigger and the two shells' account controls, each a «Вийти» of `useSignOut`'s.
-vi.mock('./AppHeader', async () => {
-  const { Dialog } = await import('radix-ui');
-  return { AppHeader: () => <Dialog.Trigger>menu</Dialog.Trigger> };
-});
-vi.mock('./Sidebar', async () => {
+vi.mock('./AppHeader', () => ({ AppHeader: () => null }));
+// The real dock, whose «Ще» is the sheet's trigger, and the two shells' account controls, each a
+// «Вийти» of `useSignOut`'s.
+vi.mock('./Sidebar', async (original) => {
   const { Dialog } = await import('radix-ui');
   const { useSignOut } = await import('../hooks/useSignOut');
   function Account({ shell: name }: { shell: string }) {
@@ -70,12 +81,13 @@ vi.mock('./Sidebar', async () => {
     );
   }
   return {
+    ...(await original<typeof import('./Sidebar')>()),
     Sidebar: () => <Account shell="panel" />,
-    SidebarDrawer: () => (
+    MoreSheet: () => (
       <Dialog.Portal>
         <Dialog.Content aria-describedby={undefined}>
           <Dialog.Title>nav</Dialog.Title>
-          <Account shell="drawer" />
+          <Account shell="sheet" />
         </Dialog.Content>
       </Dialog.Portal>
     ),
@@ -83,6 +95,8 @@ vi.mock('./Sidebar', async () => {
 });
 
 const { Layout } = await import('./Layout');
+const { NAV_TRIGGER_ID } = await import('./nav-ids');
+const here = dirname(fileURLToPath(import.meta.url));
 
 const navigation = () => (globalThis as unknown as { navigation: EventTarget }).navigation;
 const marked = () =>
@@ -101,7 +115,9 @@ function mount(page = <p>screen</p>) {
 
 // jsdom traverses on a task, so `popstate` comes after the call that asked for it.
 const settle = () => act(() => new Promise((done) => setTimeout(done, 20)));
-const openDrawer = () => act(() => void fireEvent.click(screen.getByText('menu')));
+const more = () => document.getElementById(NAV_TRIGGER_ID)!;
+const openSheet = () => act(() => void fireEvent.click(more()));
+const dock = () => screen.queryByRole('navigation', { name: 'Навігація' });
 const escape = () => act(() => void fireEvent.keyDown(document.body, { key: 'Escape' }));
 const signOut = (from: string) => act(() => void fireEvent.click(screen.getByTestId(from)));
 const cross = async (desktop: boolean) => {
@@ -123,6 +139,9 @@ beforeEach(() => {
   load.cancelled = false;
   load.pushed = false;
   shell.desktop = false;
+  who.role = 'user';
+  who.status = 'signedIn';
+  who.pending = undefined;
   history.replaceState(null, '', '/allocation');
   vi.stubGlobal('navigation', new EventTarget());
   const realPush = History.prototype.pushState;
@@ -154,11 +173,11 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("the drawer's history", () => {
-  // The hardware Back closes the drawer and stays on the route, through one entry it pushes.
+describe("the sheet's history", () => {
+  // The hardware Back closes the sheet and stays on the route, through one entry it pushes.
   it('pushes one marker on open and spends it on close', async () => {
     mount();
-    await openDrawer();
+    await openSheet();
     expect(marked(), 'the open pushed no marker').toBe(true);
     await escape();
     await settle();
@@ -166,9 +185,9 @@ describe("the drawer's history", () => {
     expect(marked(), 'the close left the marker current').toBe(false);
   });
 
-  it('spends the marker when crossing 768 with the drawer open', async () => {
+  it('spends the marker when crossing 768 with the sheet open', async () => {
     mount();
-    await openDrawer();
+    await openSheet();
     await cross(true);
     await settle();
     expect(back).toHaveBeenCalledTimes(1);
@@ -176,17 +195,17 @@ describe("the drawer's history", () => {
   });
 });
 
-// While the page leaves through Cognito's logout the drawer makes no history act: a traversal would
+// While the page leaves through Cognito's logout the sheet makes no history act: a traversal would
 // cancel the logout, and a push would read as a Stop.
-describe("the drawer while the page leaves through Cognito's logout", () => {
+describe("the sheet while the page leaves through Cognito's logout", () => {
   it('closes without cancelling the logout', async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await escape();
     await settle();
-    expect(screen.queryByTestId('drawer'), 'the drawer stayed open').toBeNull();
-    expect(load.cancelled, 'closing the drawer cancelled the logout').toBe(false);
+    expect(screen.queryByTestId('sheet'), 'the sheet stayed open').toBeNull();
+    expect(load.cancelled, 'closing the sheet cancelled the logout').toBe(false);
   });
 
   it('opens on a busy «Вийти»', async () => {
@@ -194,40 +213,40 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
     mount();
     await signOut('panel');
     await cross(false);
-    await openDrawer();
+    await openSheet();
     expect(push, 'the open pushed while the page leaves').not.toHaveBeenCalled();
-    expect(screen.getByTestId('drawer').textContent, "the drawer's «Вийти» is not busy").toBe(
+    expect(screen.getByTestId('sheet').textContent, "the sheet's «Вийти» is not busy").toBe(
       'shown:busy',
     );
   });
 
   it('reopens on a busy «Вийти» after closing', async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await escape();
     await settle();
-    await openDrawer();
-    expect(screen.getByTestId('drawer').textContent).toBe('shown:busy');
+    await openSheet();
+    expect(screen.getByTestId('sheet').textContent).toBe('shown:busy');
     expect(load.cancelled).toBe(false);
   });
 
   it('crosses 768 without cancelling the logout, the panel busy', async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await cross(true);
     await settle();
     expect(load.cancelled, 'crossing 768 cancelled the logout').toBe(false);
     expect(screen.getByTestId('panel').textContent).toBe('shown:busy');
   });
 
-  // Found still here, the drawer's marker is put back in step, so the next Back is the drawer's
+  // Found still here, the sheet's marker is put back in step, so the next Back is the sheet's
   // again: closed, a marker left current would swallow it; open, a missing one would leave the route.
   it('spends a marker left current once a Stop leaves the page here', async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await escape();
     await settle();
     expect(marked(), 'the close spent the marker while the page leaves').toBe(true);
@@ -238,24 +257,24 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
     expect(load.cancelled).toBe(false);
   });
 
-  it('pushes the marker an open drawer lacks once a Stop leaves the page here', async () => {
+  it('pushes the marker an open sheet lacks once a Stop leaves the page here', async () => {
     shell.desktop = true;
     mount();
     await signOut('panel');
     await cross(false);
-    await openDrawer();
+    await openSheet();
     expect(push, 'the open pushed while the page leaves').not.toHaveBeenCalled();
     await stop();
     expect(push).toHaveBeenCalledTimes(1);
-    expect(marked(), 'the open drawer has no marker after the Stop').toBe(true);
+    expect(marked(), 'the open sheet has no marker after the Stop').toBe(true);
   });
 
   // A route change leaves the pause running; when a Stop ends it, the router's entry sits on top of
-  // the marker and the drawer is closed: nothing is left to put in step.
+  // the marker and the sheet is closed: nothing is left to put in step.
   it('keeps the pause across a route change and makes no history act when a Stop ends it', async () => {
     const router = mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await act(() => router.navigate('/overview'));
     await stop();
     await settle();
@@ -264,19 +283,19 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
     expect(router.state.location.pathname).toBe('/overview');
   });
 
-  // A route change ends the slot's latch, not the load: the drawer still makes no history act.
+  // A route change ends the slot's latch, not the load: the sheet still makes no history act.
   it('closes and crosses 768 without cancelling the logout after a route change', async () => {
     const router = mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await act(() => router.navigate('/overview'));
-    await openDrawer();
+    await openSheet();
     await escape();
     await settle();
-    expect(load.cancelled, 'closing the drawer after a route change cancelled the logout').toBe(
+    expect(load.cancelled, 'closing the sheet after a route change cancelled the logout').toBe(
       false,
     );
-    await openDrawer();
+    await openSheet();
     await cross(true);
     await settle();
     expect(load.cancelled, 'crossing 768 after a route change cancelled the logout').toBe(false);
@@ -284,8 +303,8 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
 
   it('spends a marker left current when Back restores the page', async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await escape();
     await settle();
     expect(marked(), 'the close spent the marker while the page leaves').toBe(true);
@@ -294,17 +313,17 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
     expect(marked(), 'the marker outlived the restore').toBe(false);
   });
 
-  // The user's Back cancels the load and pops the marker: the page is here, and the drawer's own.
-  it("takes the drawer's history back after a Back while the page leaves", async () => {
+  // The user's Back cancels the load and pops the marker: the page is here, and the sheet's own.
+  it("takes the sheet's history back after a Back while the page leaves", async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await act(() => history.back());
     await settle();
-    expect(screen.queryByTestId('drawer'), 'Back left the drawer open').toBeNull();
+    expect(screen.queryByTestId('sheet'), 'Back left the sheet open').toBeNull();
     push.mockClear();
-    await openDrawer();
-    expect(push, 'the drawer stayed without its marker').toHaveBeenCalledTimes(1);
+    await openSheet();
+    expect(push, 'the sheet stayed without its marker').toHaveBeenCalledTimes(1);
     expect(marked()).toBe(true);
   });
 
@@ -312,11 +331,11 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
   // The tap REPLACED the marker; the entry it wrote is spent once a Stop finds the page here.
   it('spends the entry a tap on its own route wrote once a Stop leaves the page here', async () => {
     const router = mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await act(() => router.navigate('/allocation', { replace: true }));
     await settle();
-    expect(back, 'the drawer walked back over the logout').not.toHaveBeenCalled();
+    expect(back, 'the sheet walked back over the logout').not.toHaveBeenCalled();
     await stop();
     await settle();
     expect(back, 'the entry the tap wrote outlived the Stop').toHaveBeenCalledTimes(1);
@@ -324,19 +343,19 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
 
   it('walks back no further once a Back has left the entry a tap on its own route wrote', async () => {
     const router = mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await act(() => router.navigate('/allocation', { replace: true }));
     await act(() => history.back());
     await settle();
-    expect(back, "the drawer walked back after the user's Back").toHaveBeenCalledTimes(1);
+    expect(back, "the sheet walked back after the user's Back").toHaveBeenCalledTimes(1);
     expect(location.pathname).toBe('/allocation');
   });
 
   it('keeps the pause when another load replaces the logout', async () => {
     mount();
-    await openDrawer();
-    await signOut('drawer');
+    await openSheet();
+    await signOut('sheet');
     await escape();
     await settle();
     await act(async () => {
@@ -346,7 +365,7 @@ describe("the drawer while the page leaves through Cognito's logout", () => {
       );
     });
     await settle();
-    expect(back, 'the drawer walked back over the replacing load').not.toHaveBeenCalled();
+    expect(back, 'the sheet walked back over the replacing load').not.toHaveBeenCalled();
   });
 });
 
@@ -370,7 +389,7 @@ function Editing() {
   );
 }
 
-describe('the drawer over unsaved work', () => {
+describe('the sheet over unsaved work', () => {
   let go: ReturnType<typeof vi.spyOn>;
   const press = (name: string) => act(() => void fireEvent.click(screen.getByText(name)));
   const edit = () => screen.getByTestId('edit').textContent;
@@ -393,7 +412,7 @@ describe('the drawer over unsaved work', () => {
 
   it('closes by Escape without reloading the page or asking', async () => {
     await arrive();
-    await openDrawer();
+    await openSheet();
     await escape();
     await settle();
     expect(go, 'the close reloaded the page').not.toHaveBeenCalled();
@@ -403,18 +422,18 @@ describe('the drawer over unsaved work', () => {
 
   it('closes by Back without reloading the page or asking', async () => {
     await arrive();
-    await openDrawer();
+    await openSheet();
     await act(() => history.back());
     await settle();
     expect(go, 'the close reloaded the page').not.toHaveBeenCalled();
     expect(edit()).toBe('/allocation:editing:quiet');
-    expect(screen.queryByTestId('drawer'), 'Back left the drawer open').toBeNull();
+    expect(screen.queryByTestId('sheet'), 'Back left the sheet open').toBeNull();
     expect(marked()).toBe(false);
   });
 
   it('closes by crossing 768 without reloading the page or asking', async () => {
     await arrive();
-    await openDrawer();
+    await openSheet();
     await cross(true);
     await settle();
     expect(go, 'the close reloaded the page').not.toHaveBeenCalled();
@@ -422,9 +441,9 @@ describe('the drawer over unsaved work', () => {
     expect(marked()).toBe(false);
   });
 
-  it('asks before a link in the open drawer leaves the route', async () => {
+  it('asks before a link in the open sheet leaves the route', async () => {
     const router = await arrive();
-    await openDrawer();
+    await openSheet();
     await act(() => router.navigate('/portfolio'));
     expect(edit()).toBe('/allocation:editing:asking');
     await press('keep');
@@ -435,7 +454,7 @@ describe('the drawer over unsaved work', () => {
     expect(edit()).toBe('/portfolio:idle:quiet');
   });
 
-  it('asks before Back leaves the route with the drawer closed', async () => {
+  it('asks before Back leaves the route with the sheet closed', async () => {
     await arrive();
     await act(() => history.back());
     await settle();
@@ -446,14 +465,14 @@ describe('the drawer over unsaved work', () => {
     expect(location.pathname).toBe('/allocation');
   });
 
-  // A drawer link to the route on screen REPLACES the marker (NavLink's same-path default).
+  // A sheet link to the route on screen REPLACES the marker (NavLink's same-path default).
   it('closes on a tap on its own route and spends the entry the tap wrote', async () => {
     const router = await arrive();
     await press('discard');
-    await openDrawer();
+    await openSheet();
     await act(() => router.navigate('/allocation', { replace: true }));
     await settle();
-    expect(screen.queryByTestId('drawer'), 'the tap left the drawer open').toBeNull();
+    expect(screen.queryByTestId('sheet'), 'the tap left the sheet open').toBeNull();
     expect(back, 'the entry the tap wrote stayed on the stack').toHaveBeenCalledTimes(1);
     await press('edit');
     await act(() => history.back());
@@ -467,7 +486,7 @@ describe('the drawer over unsaved work', () => {
 
   it('asks before a tap on its own route, and closes on Discard', async () => {
     const router = await arrive();
-    await openDrawer();
+    await openSheet();
     await act(() => router.navigate('/allocation', { replace: true }));
     expect(edit()).toBe('/allocation:editing:asking');
     await press('discard');
@@ -478,14 +497,14 @@ describe('the drawer over unsaved work', () => {
     ).toEqual([]);
     expect(back, 'the entry the tap wrote stayed on the stack').toHaveBeenCalledTimes(1);
     expect(edit()).toBe('/allocation:idle:quiet');
-    expect(screen.queryByTestId('drawer')).toBeNull();
+    expect(screen.queryByTestId('sheet')).toBeNull();
   });
 
   // Forward lands on the entry the tap wrote: another key, the same URL, the same index.
   it('keeps the work when Forward pops to an entry of the same URL', async () => {
     const router = await arrive();
     await press('discard');
-    await openDrawer();
+    await openSheet();
     await act(() => router.navigate('/allocation', { replace: true }));
     await settle();
     await press('edit');
@@ -507,9 +526,9 @@ describe('the drawer over unsaved work', () => {
   });
 
   // The close spent the marker, so the next Back is the route's own and the guard asks first.
-  it('leaves the route on the next Back after the drawer closes, asking first', async () => {
+  it('leaves the route on the next Back after the sheet closes, asking first', async () => {
     await arrive();
-    await openDrawer();
+    await openSheet();
     await escape();
     await settle();
     await act(() => history.back());
@@ -519,6 +538,93 @@ describe('the drawer over unsaved work', () => {
     await settle();
     expect(edit()).toBe('/portfolio:idle:quiet');
     expect(location.pathname).toBe('/portfolio');
+  });
+});
+
+// Below md the dock carries the role's screens and «Ще», the sheet's one trigger
+// (mobile-bar-and-sheet.md § Signed; open-values-shell-controls.md § Signed, E1).
+describe('the dock', () => {
+  const tabs = () =>
+    Array.from(dock()!.querySelectorAll('a, button')).map(
+      (el) => el.getAttribute('aria-label') ?? el.textContent,
+    );
+  const placeholders = () => dock()!.querySelectorAll('[data-placeholder]').length;
+
+  it("draws a user's four screens and «Ще», the route's own tab current", async () => {
+    history.replaceState(null, '', '/overview');
+    mount();
+    expect(tabs()).toEqual(['Огляд', 'Розподіл', 'Дохідність', 'Атрибути', 'Ще']);
+    expect(screen.getByRole('link', { name: 'Огляд' }).getAttribute('aria-current')).toBe('page');
+    expect(more().hasAttribute('data-current'), '«Ще» marked on a dock route').toBe(false);
+    expect(placeholders()).toBe(0);
+  });
+
+  // The current page's link is in the sheet; «Ще» says it holds it, by its look and its name, never
+  // by a second `aria-current` (WAI-ARIA 1.2: one current element in a set).
+  it('marks «Ще» on a route the dock does not hold', async () => {
+    history.replaceState(null, '', '/balances');
+    mount();
+    expect(dock()!.querySelector('[aria-current]')).toBeNull();
+    expect(more().hasAttribute('data-current')).toBe(true);
+    expect(more().getAttribute('aria-label')).toBe('Ще, зокрема поточна сторінка');
+  });
+
+  it('carries the one `NAV_TRIGGER_ID` and opens the sheet', async () => {
+    mount();
+    expect(document.querySelectorAll(`#${NAV_TRIGGER_ID}`)).toHaveLength(1);
+    expect(more().textContent).toBe('Ще');
+    await openSheet();
+    expect(screen.getByTestId('sheet')).not.toBeNull();
+  });
+
+  it("stands at a user's layout with four placeholders while `/me` is out", async () => {
+    who.role = undefined;
+    mount();
+    expect(placeholders()).toBe(4);
+    expect(dock()!.querySelectorAll('a')).toHaveLength(0);
+    expect(tabs()).toEqual(['Ще']);
+  });
+
+  it('is «Ще» alone signed out', async () => {
+    who.role = undefined;
+    who.status = 'signedOut';
+    mount();
+    expect(placeholders()).toBe(0);
+    expect(tabs()).toEqual(['Ще']);
+  });
+
+  it("draws the super-admin's two screens with the count, then «Ще»", async () => {
+    who.role = 'super_admin';
+    who.pending = 3;
+    mount();
+    expect(tabs()).toEqual(['Архів цін', 'Користувачі, 3', 'Ще']);
+    expect(placeholders()).toBe(0);
+  });
+
+  // shell.md § Mobile: a focused control never sits under the dock (WCAG 2.4.11), so the root's
+  // scroll padding is the dock's height, 6 + 48 + 6 (its glass edge is a shadow), its 12 inset,
+  // and the focus ring's 2 offset + 2 outline past the control's box.
+  it("pads the root's scroll by the dock's height, its inset and the ring", async () => {
+    mount();
+    const nav = dock()!;
+    expect(nav.className.split(/\s+/)).toContain('p-1.5');
+    for (const tab of nav.querySelectorAll('a, button')) {
+      expect(tab.className.split(/\s+/)).toContain('h-12');
+    }
+    expect(nav.hasAttribute('data-dock')).toBe(true);
+    const css = stripCss(readFileSync(join(here, '../index.css'), 'utf8'), 'index.css');
+    const rule = /:root:has\(\[data-dock\]\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toMatch(/scroll-padding-bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom\)\)/);
+  });
+
+  it('is not drawn at 768 and up', async () => {
+    shell.desktop = true;
+    mount();
+    expect(dock()).toBeNull();
+    await cross(false);
+    expect(dock()).not.toBeNull();
+    await cross(true);
+    expect(dock()).toBeNull();
   });
 });
 

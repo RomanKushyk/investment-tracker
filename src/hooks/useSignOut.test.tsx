@@ -110,7 +110,7 @@ function mount(at: string, into = seen) {
   const router = createMemoryRouter(
     [
       { path: '/sign-in', element: <p>signed out</p> },
-      // A route with no account slot: the drawer closed on a route change leaves none mounted.
+      // A route with no account slot: the sheet closed on a route change leaves none mounted.
       { path: '/balances', element: <p>no slot</p> },
       { path: '*', element: <Probe into={into} /> },
     ],
@@ -200,7 +200,7 @@ describe("the shell's account slot", () => {
     });
   });
 
-  // The drawer: a route change closes it and the next open mounts its «Вийти» afresh, while the
+  // The sheet: a route change closes it and the next open mounts its «Вийти» afresh, while the
   // sign-out pressed in the old one still runs. The new one is busy, joins nothing, and the one
   // failure raises one toast, after which it is the retry.
   it('shows a «Вийти» mounted mid-run busy, whose press joins nothing, and one toast on failure', async () => {
@@ -394,7 +394,7 @@ describe("the shell's account slot", () => {
     expect(other.leaving).toBe(true);
   });
 
-  // The drawer closed, no control sees a route change; a return to the route the redirect set out
+  // The sheet closed, no control sees a route change; a return to the route the redirect set out
   // from is a traversal, which a browser tells by `popstate` and a memory history does not.
   it('ends the latch by a traversal no control saw', async () => {
     auth.logout = LOGOUT;

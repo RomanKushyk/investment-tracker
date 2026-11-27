@@ -785,9 +785,12 @@ tables too.
 
 ## Two shells, one breakpoint
 **Decision.** Two layouts and one switch — `md`, 768px, WRITTEN TWICE, in the markup and in
-`useIsDesktop`, and the two must stay one number. Below it the sidebar is an off-canvas drawer, a
-Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's; at and
-above it the sidebar is one floating glass card, a panel or a 64px icon rail, and the choice persists. The panel
+`useIsDesktop`, and the two must stay one number. Below it a floating glass dock, 12 from the sides
+and the bottom at r18, holds the role's screens and «Ще», and «Ще» opens an inset sheet with the rest
+of the sidebar's composition: a Radix `Dialog`, so the focus trap, Escape, scroll lock and focus
+return to «Ще» are the library's. A route the sheet holds marks «Ще» by its look and its name, the
+page's own link in the sheet carrying `aria-current`. A focused control scrolls clear of the dock,
+whose height, inset and the ring's reach pad the root's scroll. At and above it the sidebar is one floating glass card, a panel or a 64px icon rail, and the choice persists. The panel
 stands 16 from the top, the left and the bottom at r26, the rail 8 from them at r22, and the card
 morphs between the two: its inset, width, height and radius ride the shell's one width tween, and
 the contents cross-fade inside it. It is one surface: no band in it, a hairline says where the
@@ -806,7 +809,7 @@ failed, and `/privacy` and `/terms` for every reader, signed in or not — mount
 with the mark and the language control over one top-anchored card and the privacy notice's and the
 terms' links under it, `md` still its only breakpoint.
 THE ACCOUNT IS EVERY FOOT'S LAST ROW, AT ONE GEOMETRY WHICHEVER WAY THE RELAY ANSWERS:
-in the panel and the drawer two rows above the links line, which carries the privacy notice's and
+in the panel and the sheet two rows above the links line, which carries the privacy notice's and
 the terms' links over the version's line (*Legal documents*), the second a pill in Settings' recipe; in
 the rail two items, the rail's foot reading in the panel's order — currency, which the super-admin
 has not, Settings, profile, account. Signed in the rows are the address and «Вийти», the address a NAV LINK to `/profile` named
@@ -822,24 +825,27 @@ with no auth environment, which has nothing to sign in to. While a sign-out runs
 the shell is busy, the session telling each of them, so one mounted meanwhile joins nothing and a
 failure raises one toast. Nothing holds a sign-out that succeeded, unsaved work included: every
 «Вийти» stays busy over the signed-in rows while the page leaves, one the rail, a crossing of 768 or
-a reopened drawer mounts meanwhile too, and the slot answers signed out only when the page is still
+a reopened sheet mounts meanwhile too, and the slot answers signed out only when the page is still
 here after Back, a Stop or a route change, by the next route change at the latest. UNTIL THE LOAD
-ENDS THE DRAWER MAKES NO HISTORY ACT: it opens and closes, and crosses 768, without its marker, a
+ENDS THE SHEET MAKES NO HISTORY ACT: it opens and closes, and crosses 768, without its marker, a
 route change included, and puts the marker back in step once a Stop, Back or a restore finds the
 page still here. A Stop is the `navigateerror` no `navigate` follows. «Увійти» there is a plain visit to `/sign-in`; the line that
 says so is a sign-out's own arrival's, the logout's landing included. A logout the relay names that
 is no URL is none: the sign-out goes its own way to `/sign-in`.
 THE ROLE DECIDES WHAT THE SHELL HOLDS, from `GET /me`. A user's holds
 the capital, «Ввід», «Аналітика» and the currency. The super-admin's holds none of them: a band under
-the lockup names the role, a shield and «Суперадміністратор», in the panel and the drawer,
+the lockup names the role, a shield and «Суперадміністратор», in the panel,
 folded to the shield in the rail with the word as its text and tooltip, and inline in the header bar;
-its one group is «Адміністрування» with «Користувачі» and «Архів цін»; its footer keeps the theme
-alone, Settings and the account. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT:
+its one group is «Адміністрування» with «Користувачі» and «Архів цін», which below md are the dock's
+two screens beside «Ще», so its sheet holds no group; its footer keeps the theme
+alone, Settings and the account. A dock shorter than a user's fits its tabs and is centred, every tab
+as wide as the widest label or a user's tab. WHILE APPLICATIONS WAIT, «КОРИСТУВАЧІ» CARRIES THEIR COUNT:
 one page of the pending list, «99+» when full, solid `accent`, on the pill, at the
-corner of the rail's box and of the burger, the visible figure hidden and the link's or the
-trigger's name saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel's head stands at
+corner of the rail's box and of the dock's tab, the visible figure hidden and the link's name
+saying it; none while that read is out or failed or none wait. NEITHER ROLE'S ITEMS ARE DRAWN UNTIL `/me` ANSWERS: the panel's head stands at
 its plate with no capital line and the foot's track row unseen at a user's layout, the rail holds a user's foot,
-the header bar its height, so a user's shell never moves and the super-admin's band arrives with its
+the header bar its height, the dock a user's layout of four placeholder tabs and «Ще», rising at the
+first paint, so a user's shell never moves and the super-admin's band arrives with its
 nav; a failed `/me` keeps the shell so (*Not found and failures*).
 A dialog's button row switches at `md` too, through `useIsDesktop`, never at the dialog's own
 container width (*Forms and layout*). BELOW `md` A DIALOG IS AN INSET SHEET THAT RISES FROM THE
@@ -850,7 +856,10 @@ top-anchored at both, with the sheet's side inset below `md`.
 WWDC25: "sidebars are now inset"; shadcn/ui's floating sidebar keeps one inset), and one container
 morphs rather than two swapping, as Material 3's `WideNavigationRail` animates one container's
 width; a swap jumped the card's corner 8 at the press. The header beside it follows the page, as the
-360 bar already leaves on scroll, so the rail is the one glass beside the content. Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
+360 bar already leaves on scroll, so the rail is the one glass beside the content. Below md a tab bar
+of the role's screens with a «More» tab is the platform's navigation, and the sheet may cover the bar
+while open (Apple HIG, *Tab bars*); placeholders hold the user's dock while the role is unknown, so
+the role's tabs fade in over a bar that never jumps, and the super-admin's shrinks to its three. Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry an account's work — a
 user's capital and reminders, the super-admin's administration — that such a caller does not have,
@@ -865,7 +874,7 @@ work has gone with the account's figures, so a sign-out passes it. Where the pag
 after a later act of the user's, the slot answers signed out: a busy «Вийти» under a signed-in label
 would misstate the session (NN/g's visibility of system status), and the swap moves no target. It
 never answers the press itself, which asked to leave. A
-drawer that closes is not a Stop the user chose: a traversal while the logout loads cancels it (HTML,
+sheet that closes is not a Stop the user chose: a traversal while the logout loads cancels it (HTML,
 *apply the history step*), and only that load clears Cognito's session cookie, which its `/logout`
 must be invoked in the browser to do; a push fires `navigateerror`, the Stop's own signal, then its own `navigate` (HTML,
 *fire a push/replace/reload navigate event*), which is what tells the two apart. A route change
@@ -2426,7 +2435,7 @@ with its purpose, with the link;
 they ask no agreement to the processing and carry no checkbox, and the link opens a new tab, so what was typed stays. The link also stands under every
 signed-out card (under a refused caller's answer it opens a new tab: the answer may hold a sign-out
 still running, which leaving would lose), on the links line over the version in the panel and the
-drawer, and as a row in the profile's «Ваші дані»; the collapsed rail has none, the panel being one
+«Ще» sheet, and as a row in the profile's «Ваші дані»; the collapsed rail has none, the panel being one
 press away. The notice is written under Law 2297-VI and gives every GDPR Art. 13 item; the
 controller is named, Роман Кушик, a private individual, with no street address or city, and support@
 is the contact. Ukrainian prevails and the English says no more; a test fails if a mapped item is
@@ -2447,7 +2456,7 @@ an address that holds no account when it writes is deleted by hand once answered
 else waits for the sweep. A deletion in Profile tells the mailbox nothing, so the period runs from
 the mail alone.
 `/terms` shares `/privacy`'s frame. «Умови» stands beside «Конфіденційність» under every signed-out
-card and on the panel's and the drawer's links line, and as its own row after the privacy row in the
+card and on the panel's and the «Ще» sheet's links line, and as its own row after the privacy row in the
 profile's «Ваші дані». The operator is a private individual, so the terms are a free contract of
 adhesion under the Civil Code and NO PUBLIC OFFER: Law 675-VIII is not claimed to apply, and an
 offer waits for a paid plan. One sentence DIRECTLY ABOVE «Подати заявку» names that button and links
@@ -2948,8 +2957,8 @@ Skip on its card or a recorded payout, and with coupon suggestions on, a closed 
 arrives on its date. The
 theme is ONE list of values redefined per theme, and BOTH
 controls that write it write that one field, so neither has a value of its own to fall out of step.
-The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, never a fill, so a state is
-never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces are the sixty, text
+The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, and the dock's the same tint
+with the indicator on top, never a fill, so a state is never colour alone. COLOUR IS RATIONED 60 / 30 / 10: the canvas and its surfaces are the sixty, text
 and borders and the chart series the thirty, the accent the ten, so a second action beside a filled
 one takes the glass knob or a ghost. A chart with one hue draws in the ten: the capital line and
 /seasonality's bars, whose day bars name who pays in words rather than in colour.
@@ -2957,9 +2966,9 @@ Every neutral control (the ghost, the knob, a list row, a text control, the toas
 `accent-hover`. On a control with a fill of its own, the knob or the toast's `card` close, the veil
 is folded into that fill, so it steps on any ground. A text control takes the veil on its own padded
 box, pulled back so its text keeps its edge, rather than the ghost variant, which would set its
-colour, weight and height. An opacity under a hover stands at five sites only: the two ✕ glyphs
-brighten from their signed .85 rest, the reverse of a fade; a ledger row reveals its delete; the
-360 burger still fades until #721 removes it; and `danger` keeps its fade under B4.
+colour, weight and height. An opacity under a hover stands at four sites only: the two ✕ glyphs
+brighten from their signed .85 rest, the reverse of a fade; a ledger row reveals its delete; and
+`danger` keeps its fade under B4.
 `hover-fade.test.ts` reads every class in `src`, and the stylesheet as Tailwind builds it, through
 the CSS Tailwind writes, and names each site with its owner. A list row's highlight is
 its hover, since the Select moves keyboard focus to the row under the pointer, so the highlighted

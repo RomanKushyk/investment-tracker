@@ -4,7 +4,7 @@ import type { Dict } from '../i18n/messages';
 /** The applications waiting, as the nav draws them: none while the count's first read is out or
  *  failed or none wait, «99+» from a full page. */
 export interface PendingBadge {
-  /** The number drawn, `aria-hidden`: the link's or the trigger's name carries it. */
+  /** The number drawn, `aria-hidden`: the link's name carries it. */
   shown: string;
   n: number;
   over: boolean;
@@ -22,9 +22,3 @@ export function usePendingBadge(): PendingBadge | undefined {
  *  the link; none while none wait, the label naming the link. */
 export const usersName = (t: Dict, badge: PendingBadge | undefined): string | undefined =>
   badge === undefined ? undefined : badge.over ? t.nav.usersCountOver : t.nav.usersCount(badge.n);
-
-/** The trigger's name below md while the drawer is shut, the count in it. */
-export const openNavName = (t: Dict, badge: PendingBadge | undefined): string =>
-  badge === undefined
-    ? t.nav.openNav
-    : t.nav.openWithCount(badge.over ? t.nav.countOver : String(badge.n));

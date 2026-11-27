@@ -458,7 +458,7 @@ describe('a page the account’s answer changes the settings of', () => {
     document.getElementById(NAV_TRIGGER_ID)?.focus();
     expect(document.activeElement?.closest('#app-sidebar')).not.toBeNull();
     act(() => useSettings.getState().setCurrency('USD'));
-    // Below the breakpoint the header's burger carries the id the rail's did.
+    // Below the breakpoint the dock's «Ще» carries the id the rail's did.
     breakpoint.desktop = false;
     await act(async () => breakpoint.listeners.forEach((listener) => listener()));
     expect(document.getElementById('app-sidebar')).toBeNull();

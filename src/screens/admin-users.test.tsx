@@ -327,13 +327,15 @@ describe('/admin/users, the three filters and the count', () => {
     ).toBeNull();
   });
 
-  it('names the count on the burger below md while the drawer is shut', async () => {
+  it("names the count on the dock's «Користувачі» below md", async () => {
     wide = false;
     mount();
     await waitFor(() =>
-      expect(document.getElementById('app-nav-trigger')?.getAttribute('aria-label')).toBe(
-        'Відкрити навігацію, заявок: 3',
-      ),
+      expect(
+        document
+          .querySelector('nav[aria-label="Навігація"] a[href="/admin/users"]')
+          ?.getAttribute('aria-label'),
+      ).toBe('Користувачі, 3'),
     );
   });
 });

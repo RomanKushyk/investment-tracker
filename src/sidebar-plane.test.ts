@@ -8,7 +8,6 @@ import {
   barePlanes,
   channels,
   composite,
-  declaredIn,
   glassPlanes,
   knobTintOf,
   mixOf,
@@ -118,43 +117,62 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
 });
 
 // THE ROWS STAND ON TWO GROUNDS: the floating panel's glass, read at its opaque fallback `card`
-// (glass.md § Signed: the default is built to pass on its own), and the drawer's `sb-bg` until
-// #721 retires it. The active row is `accent-tint` with its label in `ink` 700 and its glyph in
-// `accent` (shell.md § Signed, G1).
-describe('the rows read on the panel and on the drawer', () => {
-  const GROUNDS = ['card', 'sb-bg'] as const;
-  const cases = THEMES.flatMap((theme) => GROUNDS.map((ground) => [theme, ground] as const));
-  const onTint = (theme: (typeof THEMES)[number], ground: (typeof GROUNDS)[number]) =>
-    composite(veilOf(BLOCKS, theme, 'accent-tint'), resolve(BLOCKS, theme, ground));
+// (glass.md § Signed: the default is built to pass on its own), and the «Ще» sheet's dialog glass
+// over the scrim, read on each plane the page behind can put under it (mobile-bar-and-sheet.md,
+// § Implementation amendment). The active row is `accent-tint` with its label in `ink` 700 and its
+// glyph in `accent` (shell.md § Signed, G1).
+type Ground = 'panel' | 'sheet';
+const planesOf = (theme: (typeof THEMES)[number], ground: Ground): string[] =>
+  ground === 'panel'
+    ? [resolve(BLOCKS, theme, 'card')]
+    : glassPlanes(CSS, theme, {
+        fill: 'glass-dialog-fill',
+        over: ['card', 'panel'],
+        veil: 'scrim',
+      });
+/** The least reading of `text` over `ground`, each plane first veiled by `over` where it is given. */
+const leastOn = (
+  theme: (typeof THEMES)[number],
+  ground: Ground,
+  text: string,
+  over?: (plane: string) => string,
+) => Math.min(...planesOf(theme, ground).map((plane) => ratio(text, over ? over(plane) : plane)));
+const GROUND_CASES = THEMES.flatMap((theme) =>
+  (['panel', 'sheet'] as const).map((ground) => [theme, ground] as const),
+);
+
+describe('the rows read on the panel and on the sheet', () => {
+  const cases = GROUND_CASES;
+  const tint = (theme: (typeof THEMES)[number]) => (plane: string) =>
+    composite(veilOf(BLOCKS, theme, 'accent-tint'), plane);
 
   it.each(cases)('%s on %s: an idle route clears 4.5 : 1', (theme, ground) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'sb-item'), resolve(BLOCKS, theme, ground)),
-    ).toBeGreaterThanOrEqual(4.5);
+    expect(leastOn(theme, ground, resolve(BLOCKS, theme, 'sb-item'))).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(cases)('%s on %s: the active label clears 4.5 : 1 on its tint', (theme, ground) => {
-    expect(ratio(resolve(BLOCKS, theme, 'ink'), onTint(theme, ground))).toBeGreaterThanOrEqual(4.5);
+    expect(
+      leastOn(theme, ground, resolve(BLOCKS, theme, 'ink'), tint(theme)),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each(cases)('%s on %s: the active glyph clears 3 : 1 on its tint', (theme, ground) => {
-    expect(ratio(resolve(BLOCKS, theme, 'accent'), onTint(theme, ground))).toBeGreaterThanOrEqual(
+    expect(
+      leastOn(theme, ground, resolve(BLOCKS, theme, 'accent'), tint(theme)),
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(cases)('%s on %s: the 2px indicator clears 3 : 1', (theme, ground) => {
+    expect(leastOn(theme, ground, resolve(BLOCKS, theme, 'sb-indicator'))).toBeGreaterThanOrEqual(
       3,
     );
   });
 
-  it.each(cases)('%s on %s: the 2px indicator clears 3 : 1', (theme, ground) => {
-    expect(
-      ratio(resolve(BLOCKS, theme, 'sb-indicator'), resolve(BLOCKS, theme, ground)),
-    ).toBeGreaterThanOrEqual(3);
-  });
-
   it.each(cases)('%s on %s: a hovered route clears 4.5 : 1 on its ground', (theme, ground) => {
-    const hovered = composite(
-      veilOf(BLOCKS, theme, 'sb-item-hover-bg'),
-      resolve(BLOCKS, theme, ground),
-    );
-    expect(ratio(resolve(BLOCKS, theme, 'sb-item-hover'), hovered)).toBeGreaterThanOrEqual(4.5);
+    const hovered = (plane: string) => composite(veilOf(BLOCKS, theme, 'sb-item-hover-bg'), plane);
+    expect(
+      leastOn(theme, ground, resolve(BLOCKS, theme, 'sb-item-hover'), hovered),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   // The capital line is 11 px text under the wordmark, the panel's alone.
@@ -165,11 +183,11 @@ describe('the rows read on the panel and on the drawer', () => {
     }
   });
 
-  // The super-admin's role band: the shield on `ink` 5 % over the panel.
-  it.each(cases)('%s on %s: the role band shield clears 3 : 1', (theme, ground) => {
+  // The super-admin's role band: the shield on `ink` 5 % over the panel, the band's one ground.
+  it.each(THEMES)('%s: the role band shield clears 3 : 1', (theme) => {
     const band = composite(
       { ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 },
-      resolve(BLOCKS, theme, ground),
+      resolve(BLOCKS, theme, 'card'),
     );
     expect(ratio(resolve(BLOCKS, theme, 'sb-icon-active'), band)).toBeGreaterThanOrEqual(3);
   });
@@ -310,81 +328,48 @@ describe('the collapsed header reads on the bare page', () => {
 });
 
 // The foot's two sets are the one segmented control (controls.md § Signed, D2), on the panel's
-// ground (the glass's `card` fallback) and on the drawer's `sb-bg`: the glass well over the
-// ground, the selected segment the tinted knob over the well.
-describe("the foot's segmented control reads on the panel and on the drawer", () => {
-  type Ground = 'card' | 'sb-bg';
-  const well = (theme: (typeof THEMES)[number], ground: Ground) =>
-    composite(mixOf(BLOCKS, theme, 'glass-well'), resolve(BLOCKS, theme, ground));
-  const knob = (theme: (typeof THEMES)[number], ground: Ground) =>
-    composite(knobTintOf(BLOCKS, theme), well(theme, ground));
-  const cases = THEMES.flatMap((theme) =>
-    (['card', 'sb-bg'] as const).map((ground) => [theme, ground] as const),
-  );
+// ground and on the sheet's: the glass well over the ground, the selected segment the tinted knob
+// over the well.
+describe("the foot's segmented control reads on the panel and on the sheet", () => {
+  const well = (theme: (typeof THEMES)[number]) => (plane: string) =>
+    composite(mixOf(BLOCKS, theme, 'glass-well'), plane);
+  const knob = (theme: (typeof THEMES)[number]) => (plane: string) =>
+    composite(knobTintOf(BLOCKS, theme), well(theme)(plane));
+  const cases = GROUND_CASES;
 
-  // The ruled shortfall the band's ground gave (4.42 : 1 in light) is repaired by leaving it.
   it.each(cases)(
     '%s on %s: the idle currency symbol clears 4.5 : 1 on the well',
     (theme, ground) => {
-      expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme, ground))).toBeGreaterThanOrEqual(
-        4.5,
-      );
+      expect(
+        leastOn(theme, ground, resolve(BLOCKS, theme, 'muted'), well(theme)),
+      ).toBeGreaterThanOrEqual(4.5);
     },
   );
 
-  // The same label under H2's `ink` 5 % hover veil, RECORDED AT ITS VALUE: the drawer's light
-  // reading stays under 1.4.3 until #721 retires the drawer.
-  it.each([
-    ['light', 'card', 5.15],
-    ['light', 'sb-bg', 4.33],
-    ['dark', 'card', 6.38],
-    ['dark', 'sb-bg', 6.76],
-  ] as const)(
-    '%s on %s: the hovered currency symbol on the veiled well, at its value',
-    (theme, ground, expected) => {
-      const veiled = composite(
-        { ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 },
-        well(theme, ground),
-      );
-      expect(ratio(resolve(BLOCKS, theme, 'muted'), veiled)).toBeCloseTo(expected, 2);
+  // The same label under H2's `ink` 5 % hover veil: the drawer's wall left it under 1.4.3, and
+  // the sheet's glass clears it.
+  it.each(cases)(
+    '%s on %s: the hovered currency symbol clears 4.5 : 1 on the veiled well',
+    (theme, ground) => {
+      const veiled = (plane: string) =>
+        composite({ ch: channels(resolve(BLOCKS, theme, 'ink')), alpha: 0.05 }, well(theme)(plane));
+      expect(
+        leastOn(theme, ground, resolve(BLOCKS, theme, 'muted'), veiled),
+      ).toBeGreaterThanOrEqual(4.5);
     },
   );
 
   it.each(cases)('%s on %s: the selected label clears 4.5 : 1 on the knob', (theme, ground) => {
     expect(
-      ratio(resolve(BLOCKS, theme, 'segment-label'), knob(theme, ground)),
+      leastOn(theme, ground, resolve(BLOCKS, theme, 'segment-label'), knob(theme)),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
   // A theme segment is a GLYPH with no visible word, so 1.4.11 asks 3 of it, not 1.4.3's 4.5.
   it.each(cases)('%s on %s: an idle theme glyph clears 3 : 1 on the well', (theme, ground) => {
-    expect(ratio(resolve(BLOCKS, theme, 'muted'), well(theme, ground))).toBeGreaterThanOrEqual(3);
-  });
-});
-
-// A RULED SHORTFALL, RECORDED AT ITS VALUE, and here rather than in `palette-mirror.test.ts`
-// because the ground is a COMPOSITE and that file's table resolves two token names. Giving
-// the wall to the theme took light under 1.4.11, and the owner ruled the value stands rather
-// than putting an `ink` hairline around a parchment drawer.
-describe('the drawer over its veil, at the value the owner ruled', () => {
-  it.each([
-    ['light', 2.936],
-    ['dark', 1.029],
-  ] as const)('%s: the drawer fill against the composited scrim', (theme, expected) => {
-    const veil = veilOf(BLOCKS, theme, 'scrim');
-    const ground = composite(veil, resolve(BLOCKS, theme, 'page'));
-    expect(ratio(resolve(BLOCKS, theme, 'sb-bg'), ground)).toBeCloseTo(expected, 2);
-  });
-
-  it('keeps the drawer edge on in dark, where the fill cannot identify it', () => {
-    const veil = veilOf(BLOCKS, 'dark', 'scrim');
-    const ground = composite(veil, resolve(BLOCKS, 'dark', 'page'));
     expect(
-      ratio(resolve(BLOCKS, 'dark', 'drawer-edge'), ground),
-      'the dark drawer has lost the edge that identifies it — its fill cannot, which is why ' +
-        'this token holds a value in one theme and `transparent` in the other',
+      leastOn(theme, ground, resolve(BLOCKS, theme, 'muted'), well(theme)),
     ).toBeGreaterThanOrEqual(3);
-    expect(declaredIn(BLOCKS.light, 'drawer-edge')).toBe('transparent');
   });
 });
 

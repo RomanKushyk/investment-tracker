@@ -56,7 +56,7 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => void kept.delete(k),
 });
 vi.stubGlobal('__APP_VERSION__', '0.0.0');
-// Desktop unless a test says otherwise; below `md` the shell is the header bar and the drawer. A
+// Desktop unless a test says otherwise; below `md` the shell is the header bar, the dock and the «Ще» sheet. A
 // getter, since `useIsDesktop` keeps the first list it is handed.
 let wide = true;
 vi.stubGlobal('matchMedia', (query: string) => ({
@@ -122,7 +122,12 @@ function mount(path: string) {
     main: () => text(view.container.querySelector('main')),
     sidebar: () => text(document.getElementById('app-sidebar')),
     header: () => text(view.container.querySelector('header')),
-    drawer: () => text(document.querySelector('[role="dialog"]')),
+    sheet: () => text(document.querySelector('[role="dialog"]')),
+    dock: () =>
+      [
+        ...(document.querySelector('nav[aria-label="Навігація"]')?.querySelectorAll('a, button') ??
+          []),
+      ].map((el) => el.getAttribute('aria-label') ?? el.textContent),
     links: (root: Element | null) =>
       [...(root?.querySelectorAll('a[href]') ?? [])].map((a) => a.getAttribute('href')),
   };
@@ -206,17 +211,19 @@ describe('the super-admin shell, once GET /me answers super_admin', () => {
     expect(page.header()).not.toContain(uk.sidebar.totalCapital);
   });
 
-  it('names the role in the header bar below md, and the drawer draws the band and the group', async () => {
+  // mobile-bar-and-sheet.md § Signed: the dock holds the role's two screens, so the sheet holds
+  // neither them nor a portfolio group; the header bar names the role.
+  it('names the role in the header bar below md, docks its two screens, and the sheet holds neither', async () => {
     wide = false;
     const page = mount('/admin/archive');
     await waitFor(() => expect(page.header()).toContain(SUPER_ADMIN));
     expect(page.header()).not.toContain(uk.sidebar.totalCapital);
+    await waitFor(() => expect(page.dock()).toEqual([ARCHIVE, uk.nav.users, uk.nav.more]));
     fireEvent.click(document.getElementById('app-nav-trigger')!);
-    await waitFor(() => expect(page.drawer()).toContain(GROUP_ADMIN));
-    expect(page.drawer()).toContain(SUPER_ADMIN);
-    expect(page.drawer()).toContain(ARCHIVE);
-    expect(page.drawer()).not.toContain(uk.nav.groupEntry);
-    expect(page.drawer()).not.toContain(uk.nav.groupAnalytics);
+    await waitFor(() => expect(page.sheet()).toContain(uk.nav.settings));
+    for (const word of [GROUP_ADMIN, ARCHIVE, uk.nav.groupEntry, uk.nav.groupAnalytics]) {
+      expect(page.sheet()).not.toContain(word);
+    }
   });
 
   it('makes no portfolio read on any route it can reach', async () => {
@@ -272,16 +279,16 @@ describe('a role that is neither', () => {
 
 describe('a user session', () => {
   // THE CAPITAL IS THE PANEL'S ALONE: below md the header bar carries it, and a second copy in
-  // the drawer would be two truths about one number.
-  it('draws the capital line in the panel and not in the drawer', async () => {
+  // the sheet would be two truths about one number.
+  it('draws the capital line in the panel and not in the sheet', async () => {
     const panel = mount('/');
     await waitFor(() => expect(panel.sidebar()).toContain(uk.sidebar.totalCapital));
     cleanup();
     wide = false;
     const page = mount('/');
     fireEvent.click(document.getElementById('app-nav-trigger')!);
-    await waitFor(() => expect(page.drawer()).toContain(uk.nav.groupEntry));
-    expect(page.drawer()).not.toContain(uk.sidebar.totalCapital);
+    await waitFor(() => expect(page.sheet()).toContain(uk.nav.groupEntry));
+    expect(page.sheet()).not.toContain(uk.sidebar.totalCapital);
   });
 
   it('shows no super-admin indicator in the panel, the rail or the header', async () => {
@@ -357,13 +364,16 @@ describe('while GET /me is out, and after it fails', () => {
     expect(page.sidebar()).not.toContain(SUPER_ADMIN);
   });
 
-  it('shows the header bar its trigger alone below md, with no indicator', async () => {
+  // open-values-shell-controls.md § Signed, E1: the user's dock from the first paint, «Ще» in its slot.
+  it("draws a user's dock of placeholders and «Ще» below md, and an empty header bar", async () => {
     api.role = 'super_admin';
     wide = false;
     hold('/me');
     const page = mount('/admin/archive');
     await waitFor(() => expect(hit).toContain('/me'));
     await settle();
+    expect(page.dock()).toEqual([uk.nav.more]);
+    expect(document.querySelectorAll('[data-placeholder]')).toHaveLength(4);
     expect(document.getElementById('app-nav-trigger')).not.toBeNull();
     expect(page.header()).not.toContain(SUPER_ADMIN);
     expect(page.header()).not.toContain(uk.sidebar.totalCapital);

@@ -1,10 +1,12 @@
+import { useSyncExternalStore } from 'react';
+
 // How far the virtual keyboard reaches up from the bottom of the LAYOUT viewport.
 //
-// WHY THE MODULE EXISTS: `fixed; bottom: 0` pins to the layout viewport, and the two
-// platforms disagree about what the keyboard does to it — Android shrinks it so a fixed
-// bar rides up by itself, iOS leaves it alone and draws the keyboard OVER the page. The
-// formula below reads 0 on Android because the layout viewport already moved, which is
-// why one serves both. THIS MODULE IS THE SINGLE WRITER of `--keyboard-inset`.
+// WHY THE MODULE EXISTS: `fixed; bottom: 0` pins to the layout viewport, and the keyboard
+// does not resize it — iOS draws the keyboard OVER the page, and so does Chrome on Android
+// under the default `interactive-widget=resizes-visual` — so a bar meant to stay in reach
+// has to be lifted by this number. Where an engine does shrink the layout viewport the
+// formula reads 0, so one serves both. THIS MODULE IS THE SINGLE WRITER of `--keyboard-inset`.
 //
 // `!vv` and NOT `vv === null`: the property is typed `VisualViewport | null` so the
 // strict compare typechecks, but an engine without the API has none at all and
@@ -40,4 +42,60 @@ export function publishKeyboardInset(): void {
   };
   write();
   subscribe(write);
+}
+
+/** How far the visual viewport must lose to count as a keyboard, Ionic's own threshold: less is a
+ *  toolbar. Its height alone, never its scroll, and only at full width, which a pinch is not. */
+const KEYBOARD_PX = 150;
+const NOT_TEXT = new Set([
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'hidden',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit',
+]);
+
+// A field in a modal is the modal's: its own sheet rides the keyboard, and the page behind is hidden.
+function takesText(el: Element | null): boolean {
+  if (!(el instanceof HTMLElement) || el.closest('[role="dialog"], [role="alertdialog"]')) {
+    return false;
+  }
+  if (el.isContentEditable || el instanceof HTMLTextAreaElement) return true;
+  return el instanceof HTMLInputElement && !NOT_TEXT.has(el.type);
+}
+
+function keyboardOpen(): boolean {
+  const vv = window.visualViewport;
+  if (!vv || !takesText(document.activeElement)) return false;
+  return vv.width >= window.innerWidth - 1 && window.innerHeight - vv.height > KEYBOARD_PX;
+}
+
+// Focus moving between two fields fires `focusout` before `focusin`, with `<body>` focused
+// between them: told a task later, the move reads as one open keyboard, not a close and a reopen.
+function subscribeKeyboard(onChange: () => void) {
+  const off = subscribe(onChange);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const later = () => {
+    clearTimeout(timer);
+    timer = setTimeout(onChange, 0);
+  };
+  document.addEventListener('focusin', onChange);
+  document.addEventListener('focusout', later);
+  return () => {
+    off();
+    clearTimeout(timer);
+    document.removeEventListener('focusin', onChange);
+    document.removeEventListener('focusout', later);
+  };
+}
+
+/** Whether the on-screen keyboard is up, for a surface that changes with it rather than moving by
+ *  `--keyboard-inset`. A focused field alone is also a hardware keyboard, which covers nothing. */
+export function useKeyboardOpen(): boolean {
+  return useSyncExternalStore(subscribeKeyboard, keyboardOpen, () => false);
 }

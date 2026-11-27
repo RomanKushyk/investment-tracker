@@ -290,11 +290,8 @@ describe('the recorded readings still read as recorded', () => {
       4.445,
     ],
     ['warn from accent — a caution and the brand are one colour', 'light', 'warn', 'accent', 1.013],
-    // THE SAME TOKEN ON ITS TWO GROUNDS, the version and the legal links' dot: the drawer's wall
-    // and the floating panel's opaque `card` fallback. Recorded and not repaired — a second grey
-    // for one caption is the re-mint the palette forbids.
-    ['sb-label on the drawer wall — the version, light', 'light', 'sb-label', 'sb-bg', 3.091],
-    ['sb-label on the drawer wall — the version, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
+    // THE VERSION AND THE LEGAL LINKS' DOT on the floating panel's opaque `card` fallback. Recorded
+    // and not repaired — a second grey for one caption is the re-mint the palette forbids.
     ['sb-label on the panel card — the version, light', 'light', 'sb-label', 'card', 3.689],
     ['sb-label on the panel card — the version, dark', 'dark', 'sb-label', 'card', 3.936],
     // Two more recorded at their values.
@@ -314,13 +311,11 @@ describe('the recorded readings still read as recorded', () => {
     ],
   ];
 
-  // The eight the sheet prints beside the tokens; the set is frozen rather than derived, so a
+  // The six the sheet prints beside the tokens; the set is frozen rather than derived, so a
   // figure added to or removed from the stylesheet has to move this list with it.
   const STATED_IN_THE_SHEET = [
     'accent on panel, under 4.5 — its usage rule makes it every link in light',
     'warn from accent — a caution and the brand are one colour',
-    'sb-label on the drawer wall — the version, light',
-    'sb-label on the drawer wall — the version, dark',
     'sb-label on the panel card — the version, light',
     'sb-label on the panel card — the version, dark',
     'reit on panel — ColorDot and ShareBar paint the bare hue there',
@@ -351,7 +346,7 @@ describe('the recorded readings still read as recorded', () => {
   // recomputes what the sheet states, but never checked the sheet still states it. The
   // stylesheet prints these to two decimals, so a reading is "stated" when its own rounding
   // appears IN A COMMENT — the declarations carry decimals of their own and would match by
-  // accident. All eight are stated; the set is frozen, so deleting one or reverting
+  // accident. All six are stated; the set is frozen, so deleting one or reverting
   // one to an older figure moves it and reddens here.
   it('index.css still states the readings it records, beside the tokens', () => {
     const stated = RECORDED.filter(([, , , , expected]) =>

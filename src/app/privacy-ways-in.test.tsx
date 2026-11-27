@@ -232,7 +232,7 @@ describe('the links line', () => {
     expect(await follow(link!, router)).toBe('/privacy');
   });
 
-  it('carries the link in the drawer', async () => {
+  it('carries the link in the «Ще» sheet', async () => {
     breakpoint.desktop = false;
     const { page } = await open('/settings');
     await act(async () => void fireEvent.click(page.ownerDocument.getElementById(NAV_TRIGGER_ID)!));

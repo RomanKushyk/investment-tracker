@@ -14,32 +14,9 @@
   --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Keyframes rather than a `transition` because Radix mounts the panel on open
-     and unmounts it on close, so there is no "before" state to run from. `both`
-     on both: the fill is what stops a frame at translateX(0) at each end. */
-  --animate-drawer-in: drawer-in 260ms var(--ease-soft) both;
-  --animate-drawer-out: drawer-out 220ms var(--ease-soft) both;
-
-  @keyframes drawer-in {
-    from {
-      transform: translateX(-100%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes drawer-out {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(-100%);
-    }
-  }
-
-  /* The inset sheet below md, on the drawer's timings. It travels its height plus its bottom
-     offset, which the sheet sets as `--sheet-bottom` (`Dialog.tsx`). */
+  /* The inset sheets below md and the dock's rise: keyframes rather than a `transition`, because
+     Radix mounts a sheet on open, so there is no "before" state to run from. Each travels its
+     height plus its bottom offset, which it sets as `--sheet-bottom`; `both` holds the ends. */
   --animate-sheet-in: sheet-in 260ms var(--ease-soft) both;
   --animate-sheet-out: sheet-out 220ms var(--ease-soft) both;
 
@@ -199,23 +176,9 @@
      held a light and a dark value until 1.4.11 forced light onto this rank, and
      only then were they redundant. `floating-edges.test.ts` fails if any comes
      back. */
-  /* The veil behind the mobile drawer — an ALPHA rather than a hue, `ink` at 50%,
-     because nothing in the palette was a translucent film. The drawer clears
-     1.4.11 against what that composites to over `page`, so in LIGHT the scrim IS
-     the separation. It is the app's ONLY veil: the one it replaced opened on
-     `sidebar/40` while the rail was an inverted plane in both themes, and 40% of a
-     theme-following wall would LIGHTEN a light backdrop. */
+  /* The veil behind the sheets and dialogs — an ALPHA rather than a hue, because nothing in the
+     palette was a translucent film. It is the app's ONLY veil. */
   --color-scrim: rgba(28, 26, 25, 0.5);
-  /* AN ALIAS, NOT A COLOUR: transparent here, the control-boundary rank in dark.
-     The drawer needs an edge in ONE theme, and the alternative is a `dark:`
-     variant on the component — the first crack in token redefinition, chosen
-     precisely so no component knows which theme is on.
-     RECORDED SHORTFALL: light used to identify the drawer by its FILL at 5.10
-     against the composited scrim. The wall follows the theme now, so that fill is
-     2.94 — under 1.4.11's 3 : 1 by two per cent, on a surface a metre wide. The
-     owner ruled the value stands rather than putting an `ink` hairline round a
-     parchment drawer; `sidebar-plane.test.ts` records it at its value. */
-  --color-drawer-edge: transparent;
   /* `pos` and `neg` clear 4.5 : 1 on the bare page at every glow peak, as `muted` does, since the
      dissolved header's change line sits there (rail-and-account-foot.md § Wave 30). Their
      `-tint-text` twins sit on tints, not the page, and keep their values. */
@@ -336,9 +299,8 @@
   --color-sb-icon: #6f6a64;
   --color-sb-icon-active: #8a5a3a;
   /* RECORDED SHORTFALL: the version and the legal links' dot, 11px and still small
-     text, so 1.4.3 asks 4.5. On the drawer's wall 3.09 here and 4.33 in dark; on the
-     floating panel's opaque `card` fallback 3.69 and 3.94. The owner ruled the value
-     stands: a second grey for one caption is a re-mint. `sidebar-plane.test.ts`
+     text, so 1.4.3 asks 4.5. On the floating panel's opaque `card` fallback 3.69 here
+     and 3.94 in dark, and under 4.5 on the «Ще» sheet's glass too. The owner ruled the value stands: a second grey for one caption is a re-mint. `sidebar-plane.test.ts`
      deliberately holds no floor over it; `palette-mirror.test.ts` records it. */
   --color-sb-label: #847e77;
   --color-sb-badge: #8a5a3a;
@@ -474,16 +436,9 @@
      that clears the bar on all three. `switch-border.test.ts` holds the ratios. */
   --color-switch-border: var(--color-field-border);
 
-  /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
-     anyone moving the alpha: the drawer's wall is DARKER than the page here, so a
-     darkening scrim moves the background TOWARDS the drawer and the two become
-     one field. An ink-based scrim is worse — `ink` inverts to near-white in dark,
-     so a veil of it is a grey wash over the app. The veil therefore only dims,
-     and the drawer takes an EDGE at the control-boundary rank. */
+  /* The veil only dims: an `ink`-based scrim would be a grey wash here, `ink` inverting to
+     near-white in dark. */
   --color-scrim: rgba(17, 17, 16, 0.64);
-  /* Read through the alias rather than repeated as a hex, so it cannot drift from
-     the token it was measured as. */
-  --color-drawer-edge: var(--color-field-border);
 
   --color-pos: #86b98f;
   --color-pos-tint: #282f2a;
@@ -881,6 +836,14 @@
      is where `scroll-behavior` reaches the viewport. Reduced motion below makes it instant. */
   :root:has([data-document]) {
     scroll-behavior: smooth;
+  }
+
+  /* Below md a focused control scrolls clear of the dock (WCAG 2.4.11): its height, 6 + 48 + 6,
+     its 12 inset above the bottom safe area (shell.md § Mobile), and the ring's 4 past the box. */
+  @media (width < 48rem) {
+    :root:has([data-dock]) {
+      scroll-padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
   }
 
   body {

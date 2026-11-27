@@ -44,8 +44,10 @@ The top bar: scrolling down sends it away; scrolling up brings the glass bar bac
   - the sign-out pause and `keepOpenForToasts`;
   - `--drawer-band-h`, if it is still used.
 - **Geometry.** Fixed at left/right 12 and bottom `calc(12px + env(safe-area-inset-bottom))`. Radius 19: the rows' r11 plus the sheet's 8 padding. `max-height: calc(100dvh − 80px)`, with the body in `Scroller`. At 360 × 740 nothing overflows. It grows upward from the dock line and covers the dock while open.
+  - *Overturned by the owner on #721: radius 20, the sidebar's r12 rows plus the 8 padding; and the cap keeps the top at 68 or lower with insets, the signed 80 without ([Implementation amendment](#implementation-amendment-the-sheet-over-the-scrim-721)).*
 - **Material.** The wave-4 glass (card 80 %, `blur(30px) saturate(180%)`, bevel + sheen). The fallbacks are wave 2's opaque cards.
   - *Overturned in light by wave 15: the light fill is `card` 70 %, with the lit edge ([glass-light.md](glass-light.md#signed)).*
+  - *Overturned by the owner on #721: the sheet takes the dialogs' fill, `card` 90 % light and 92 % dark ([Implementation amendment](#implementation-amendment-the-sheet-over-the-scrim-721)).*
 - **Head (44 px).**
   - A grabber, 32 × 4 r1 in `field-border`, decorative. A drag down may close the sheet; the close X is its single-pointer twin (WCAG 2.5.7).
   - The title «Ще» in Manrope 16/600.
@@ -109,3 +111,12 @@ The top bar: scrolling down sends it away; scrolling up brings the glass bar bac
 
 - The pages behind the super-admin and signed-out frames: «Користувачі» is #541's own brief.
 - Not decided here: the screens behind the links, a drag gesture's thresholds, and the implementation.
+
+## Implementation amendment: the sheet over the scrim (#721)
+
+Two values the owner ruled on once the build measured them, and two the build follows from the signed frames.
+
+- **The fill.** Over the scrim, on the plane the page behind can put under it, the plain glass at `card` 70 % put the rows (`sb-item`) and the group labels (`muted`) under WCAG 1.4.3's 4.5 : 1 in light. The sheet takes the dialogs' fill, `--color-glass-dialog-fill` (`card` 90 % light, 92 % dark), which wave 26 gave dialogs over the scrim for the same reason ([open-values-shell-controls.md](open-values-shell-controls.md#signed), item 6). On it they clear 4.5 in both themes. The sheet keeps the glass edge, not the dialogs' `field-border`. `glass-surfaces.test.ts` pins the reading.
+- **The radius.** The rows the sheet reuses are the sidebar's, drawn at r12 (shell.md § Signed, G1), so the sheet is r20: the rows plus its 8 padding.
+- **The pitch, as the user's frame draws it.** Below md the groups stand on a 44 pitch, with no rule between them and no gap between rows, and the foot starts 8 under the last row: the segments' `TAP_44` reach. At 360 × 740 the body then fits whole.
+- **The cap, with insets.** The sheet's top never rises above 68: `max-height: calc(100dvh − 68px − its bottom offset)`, which is the signed `100dvh − 80px` where the bottom safe area is 0, and keeps the head clear of a notch where it is not, as the M2 sheet holds it ([forms-and-dialogs.md](forms-and-dialogs.md#settled-in-implementation-715)).

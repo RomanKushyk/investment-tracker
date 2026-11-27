@@ -22,17 +22,10 @@ import {
   Tags,
   Users,
   Wallet,
+  X,
 } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
-import {
-  Children,
-  Fragment,
-  isValidElement,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Children, Fragment, isValidElement, type ReactNode, useEffect, useState } from 'react';
 import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import { useSessionAddress } from '../auth/app';
@@ -62,6 +55,11 @@ export const ANALYTICS = [
   { to: '/portfolio', key: 'portfolio', Icon: Table },
   { to: '/allocation', key: 'allocation', Icon: ChartPie },
 ] as const;
+
+/** The four a user's dock holds below md, in its order; the «Ще» sheet holds the rest
+ *  (mobile-bar-and-sheet.md § Signed). */
+export const DOCKED = ['/overview', '/allocation', '/yield', '/attributes'] as const;
+const docked = (to: string) => (DOCKED as readonly string[]).includes(to);
 
 // The plate's corner is round(side × 0.26) (*Shape system*) and the «q» is 22/40 of the side.
 const PLATE = {
@@ -202,7 +200,7 @@ function NavGroup({
             `overflow-hidden` clips PAINT, so every link stays in the tab order. */}
         <div
           inert={collapsed || undefined}
-          className="flex min-h-0 flex-col gap-0.5 overflow-hidden"
+          className="flex min-h-0 flex-col gap-0.5 overflow-hidden max-md:gap-0"
         >
           {rows}
         </div>
@@ -220,7 +218,7 @@ function NavGroup({
         // pushes the first pill down instead of overlapping it, which is what
         // tap-target.ts requires. `TAP_44_BOX` squares the box and this one has a
         // label to hold.
-        className="group mx-3 mb-1.5 flex h-[18px] items-center rounded-[9px] text-label-caps text-muted uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
+        className="group mx-3 mb-1.5 flex h-[18px] items-center rounded-[9px] text-label-caps text-muted uppercase transition-control select-none hover:text-sb-item-hover active:scale-[.97] max-md:mb-0 max-md:h-11"
       >
         {label}
         <ChevronDown
@@ -242,8 +240,8 @@ function NavGroup({
   );
 }
 
-/** A user's two groups. */
-function PortfolioNav() {
+/** A user's two groups; in the sheet, without the four the dock holds. */
+function PortfolioNav({ sheet = false }: { sheet?: boolean }) {
   const t = useT();
   return (
     <>
@@ -263,15 +261,19 @@ function PortfolioNav() {
       </NavGroup>
 
       {/* A caption says a group begins; this says the one above it ENDED, which a
-          gap cannot. A border and never an SVG — see `Mark`. */}
-      <div className="mx-3 my-2 border-t border-hairline" />
+          gap cannot. A border and never an SVG — see `Mark`. Below md, in the «Ще» sheet, the
+          rows stand on a 44 pitch with neither (mobile-bar-and-sheet.md § Signed, the user's
+          frame), or the sheet outgrows 360 × 740. */}
+      <div className="mx-3 my-2 border-t border-hairline max-md:hidden" />
 
       <NavGroup groupKey="analytics" label={t.nav.groupAnalytics}>
-        {ANALYTICS.map(({ to, key, Icon }) => (
-          <NavLink key={to} to={to} className={ROW}>
-            {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
-          </NavLink>
-        ))}
+        {ANALYTICS.map(({ to, key, Icon }) =>
+          sheet && docked(to) ? null : (
+            <NavLink key={to} to={to} className={ROW}>
+              {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
+            </NavLink>
+          ),
+        )}
       </NavGroup>
     </>
   );
@@ -305,31 +307,50 @@ const THEME_GLYPH: Record<Theme, LucideIcon> = {
 };
 
 /**
- * THE SIDEBAR'S ONE COMPOSITION, laid out two ways: the drawer is this panel in another
- * box, and all `variant` decides is the two items belonging to a shell rather than to
- * the navigation — the collapse control, and the capital, which below the breakpoint IS
- * the header bar and would otherwise be two truths about one number. THREE ROWS AND
- * ONLY THE MIDDLE ONE SCROLLS, for the reason `Dialog` records: a scrolling box needs
- * a parent whose height is DEFINITE.
+ * THE SIDEBAR'S ONE COMPOSITION, laid out two ways. The panel is THREE ROWS AND ONLY THE
+ * MIDDLE ONE SCROLLS, for the reason `Dialog` records: a scrolling box needs a parent whose
+ * height is DEFINITE. The «Ще» sheet's body is this composition less what the shell around it
+ * carries — the lockup and the capital are the header bar's, the dock's screens and the
+ * super-admin's two are the dock's — and all of it scrolls (mobile-bar-and-sheet.md § Signed).
  */
 function SidebarPanel({
   variant,
   onCollapse,
 }: {
-  variant: 'panel' | 'drawer';
+  variant: 'panel' | 'sheet';
   onCollapse?: () => void;
 }) {
-  const t = useT();
-  // A GLANCE AND A PREFERENCE SIDE BY SIDE, the one place the foot's two tracks
-  // differ: `setCurrency` writes the session value only, so reading one KPI in `$` is
-  // gone on reload, while `setTheme` writes the field the Appearance card writes.
-  const { currency, setCurrency, theme, setTheme } = useSettings();
   // NEITHER ROLE'S ITEMS UNTIL `GET /me` NAMES ONE, and none for any other role, so no role sees the
   // other's arrive or leave. The super-admin holds no portfolio: no capital, no currency.
   const role = useRole();
   const admin = role === 'super_admin';
   const panel = variant === 'panel';
-  const band = useBandHeight(!panel);
+
+  // The rows are drawn 44 tall, so their hit regions are their boxes and the 2 gap keeps them
+  // apart at every width. The super-admin's two are the dock's below md, so its sheet has none.
+  const nav =
+    role === 'user' || (admin && panel) ? (
+      <div
+        key={role}
+        className="flex animate-in flex-col gap-0.5 duration-300 ease-soft fade-in max-md:gap-0"
+      >
+        {admin ? <AdminNav /> : <PortfolioNav sheet={!panel} />}
+      </div>
+    ) : null;
+
+  // Held at a user's layout, unseen, while the role is unknown.
+  const held = role !== 'user' && !admin;
+
+  if (!panel) {
+    return (
+      <Scroller>
+        {nav}
+        {/* 8 under the last row: the segments' `TAP_44` reach, 11 past a 22 segment 3 inside its
+            well, and the row drawn 44 with none, so the sheet fits 360 × 740 whole. */}
+        <PanelFoot className={nav === null ? '' : 'mt-2'} held={held} />
+      </Scroller>
+    );
+  }
 
   // THE COLUMN IS SPELLED OUT: an implicit `auto` column grows to the widest unbreakable line in
   // it, and an address is one — a long one widened the whole band.
@@ -337,132 +358,129 @@ function SidebarPanel({
     <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
       {/* ── band 1 — the lockup and the capital line, fixed ─────────────── */}
       {/* THE CAPITAL IS THE PANEL'S ALONE — below the breakpoint the header bar carries it, and
-          both read the same hook so they cannot disagree. The super-admin has the role band in
-          the drawer too, which covers the header bar that names it. */}
+          both read the same hook so they cannot disagree. */}
       <div className="mb-[14px] flex flex-col gap-3">
         <PanelHead
-          line={!panel || admin ? 'none' : role === 'user' ? 'capital' : 'held'}
+          line={admin ? 'none' : role === 'user' ? 'capital' : 'held'}
           onCollapse={onCollapse}
         />
         {admin && <RoleBand />}
       </div>
 
       {/* ── band 2 — the navigation, the only part that scrolls ─────────── */}
-      {/* The rows are drawn 44 tall, so their hit regions are their boxes and the 2 gap
-          keeps them apart at every width. */}
-      <Scroller>
-        {role !== 'user' && !admin ? null : (
-          <div
-            key={role}
-            className="flex animate-in flex-col gap-0.5 duration-300 ease-soft fade-in"
-          >
-            {admin ? <AdminNav /> : <PortfolioNav />}
-          </div>
-        )}
-      </Scroller>
+      <Scroller>{nav}</Scroller>
 
       {/* ── band 3 — the foot, pinned ─────────────────────────────────── */}
-      {/* ON THE PANEL'S OWN SURFACE, no band of its own: the panel is one glass card, and a
-          hairline says where the account begins (rail-and-account-foot.md § Signed, A2). `px-1`
-          is `Scroller`'s focus-ring allowance, so the foot's glyphs stand under the nav's. In the
-          drawer it reaches through the drawer's bottom padding, so the height it publishes for
-          the toast is measured to the screen's edge. */}
-      <div
-        ref={band}
-        className={`mt-[14px] px-1 ${panel ? '' : 'mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] pb-[max(16px,env(safe-area-inset-bottom))]'}`}
-      >
-        {/* Every utility past `flex gap-2` is `TAP_44` arithmetic: below the breakpoint the
+      <PanelFoot className="mt-[14px] px-1" held={held} />
+    </div>
+  );
+}
+
+/**
+ * ON THE SURFACE IT STANDS ON, no band of its own: a hairline says where the account begins
+ * (rail-and-account-foot.md § Signed, A2). In the panel `px-1` is `Scroller`'s focus-ring
+ * allowance, so the foot's glyphs stand under the nav's; in the sheet it is inside the Scroller.
+ */
+function PanelFoot({ className, held }: { className: string; held: boolean }) {
+  const t = useT();
+  // A GLANCE AND A PREFERENCE SIDE BY SIDE, the one place the foot's two tracks
+  // differ: `setCurrency` writes the session value only, so reading one KPI in `$` is
+  // gone on reload, while `setTheme` writes the field the Appearance card writes.
+  const { currency, setCurrency, theme, setTheme } = useSettings();
+  const admin = useRole() === 'super_admin';
+  return (
+    <div className={className}>
+      {/* Every utility past `flex gap-2` is `TAP_44` arithmetic: below the breakpoint the
             22 px segments' overlays reach 11 past them, and Settings, drawn 44, has none, so
             the margin is 11; the row wraps 22 apart where a safe-area inset narrows the foot. */}
-        {/* Held at a user's layout, unseen, while the role is unknown; the super-admin's theme
+      {/* Held at a user's layout, unseen, while the role is unknown; the super-admin's theme
             track alone takes the row. */}
-        <div
-          className={`mb-2 flex gap-2 max-md:mb-[11px] max-md:flex-wrap max-md:gap-y-[22px] ${role !== 'user' && !admin ? 'invisible' : ''}`}
-        >
-          {/* The one segmented control at the sidebar's size (controls.md § Signed, D2). The
+      <div
+        className={`mb-2 flex gap-2 max-md:mb-[11px] max-md:flex-wrap max-md:gap-y-[22px] ${held ? 'invisible' : ''}`}
+      >
+        {/* The one segmented control at the sidebar's size (controls.md § Signed, D2). The
               glyph's word and the symbol's ISO code are `sr-only`, so each name CONTAINS
               the visible label (2.5.3). */}
+        <SegmentedControl
+          aria-label={t.settings.theme.ariaLabel}
+          size="sm"
+          className="flex-1"
+          value={theme}
+          onChange={(v) => setTheme(v)}
+          options={THEME_ORDER.map((value) => {
+            const Glyph = THEME_GLYPH[value];
+            return {
+              value,
+              label: (
+                <>
+                  <Glyph aria-hidden className="size-3.5" />
+                  <span className="sr-only">{t.settings.theme[value]}</span>
+                </>
+              ),
+            };
+          })}
+        />
+        {!admin && (
           <SegmentedControl
-            aria-label={t.settings.theme.ariaLabel}
+            aria-label={t.settings.currency.title}
             size="sm"
             className="flex-1"
-            value={theme}
-            onChange={(v) => setTheme(v)}
-            options={THEME_ORDER.map((value) => {
-              const Glyph = THEME_GLYPH[value];
-              return {
-                value,
+            value={currency}
+            onChange={(c) => setCurrency(c)}
+            options={[
+              {
+                value: 'UAH',
                 label: (
                   <>
-                    <Glyph aria-hidden className="size-3.5" />
-                    <span className="sr-only">{t.settings.theme[value]}</span>
+                    ₴<span className="sr-only"> UAH</span>
                   </>
                 ),
-              };
-            })}
+              },
+              {
+                value: 'USD',
+                label: (
+                  <>
+                    $<span className="sr-only"> USD</span>
+                  </>
+                ),
+              },
+            ]}
           />
-          {!admin && (
-            <SegmentedControl
-              aria-label={t.settings.currency.title}
-              size="sm"
-              className="flex-1"
-              value={currency}
-              onChange={(c) => setCurrency(c)}
-              options={[
-                {
-                  value: 'UAH',
-                  label: (
-                    <>
-                      ₴<span className="sr-only"> UAH</span>
-                    </>
-                  ),
-                },
-                {
-                  value: 'USD',
-                  label: (
-                    <>
-                      $<span className="sr-only"> USD</span>
-                    </>
-                  ),
-                },
-              ]}
-            />
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Settings keeps the nav's row recipe: the eleventh route reads like ten. */}
-        <NavLink to="/settings" className={ROW}>
-          {({ isActive }) => <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />}
-        </NavLink>
+      {/* Settings keeps the nav's row recipe: the eleventh route reads like ten. */}
+      <NavLink to="/settings" className={ROW}>
+        {({ isActive }) => <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />}
+      </NavLink>
 
-        <AccountRows />
+      <AccountRows />
 
-        {/* The privacy notice's and the terms' links (*Legal documents*), on a line of their own
+      {/* The privacy notice's and the terms' links (*Legal documents*), on a line of their own
             over the version's, which they would not fit beside. Below the breakpoint they carry
             `TAP_44`, whose overlay reaches 15 past the 14 px line, and «Вийти» or «Увійти» above
             is drawn 44 with none, so the gap is 15. `sb-label` is the caption rank in here, and
             its shortfall is recorded rather than repaired: a second grey is a re-mint the palette
             forbids. */}
-        <div className="mt-2.5 flex h-[14px] items-center justify-center gap-2 max-md:mt-[15px]">
-          {LEGAL_LINKS.map(([to, document], i) => (
-            <Fragment key={to}>
-              {i > 0 && (
-                <span aria-hidden className="text-label text-sb-label">
-                  ·
-                </span>
-              )}
-              <NavLink
-                to={to}
-                className={`block text-label text-sb-item underline underline-offset-2 transition-control-colors hover:text-sb-item-hover ${TAP_44}`}
-              >
-                {t[document].link}
-              </NavLink>
-            </Fragment>
-          ))}
-        </div>
-        <div className="mt-1 text-center text-label-caps text-sb-label uppercase">
-          v{__APP_VERSION__}
-        </div>
+      <div className="mt-2.5 flex h-[14px] items-center justify-center gap-2 max-md:mt-[15px]">
+        {LEGAL_LINKS.map(([to, document], i) => (
+          <Fragment key={to}>
+            {i > 0 && (
+              <span aria-hidden className="text-label text-sb-label">
+                ·
+              </span>
+            )}
+            <NavLink
+              to={to}
+              className={`block text-label text-sb-item underline underline-offset-2 transition-control-colors hover:text-sb-item-hover ${TAP_44}`}
+            >
+              {t[document].link}
+            </NavLink>
+          </Fragment>
+        ))}
+      </div>
+      <div className="mt-1 text-center text-label-caps text-sb-label uppercase">
+        v{__APP_VERSION__}
       </div>
     </div>
   );
@@ -563,26 +581,26 @@ function AccountRows() {
 }
 
 /**
- * Publishes the drawer's foot's RENDERED height, to the screen's edge, as `--drawer-band-h` while
- * the drawer is open, so a toast stands on the foot instead of covering «Вийти» — `AppToaster` adds it to the
- * toaster's offset, as `DailyQuotes` does for its action bar and for the same reason.
+ * Publishes the open sheet's RENDERED height, to the screen's edge, as `--drawer-band-h`, so a
+ * toast stands on the sheet instead of covering «Вийти» — `AppToaster` adds it to the toaster's
+ * offset, as `DailyQuotes` does for its keyboard bar. A ref callback, so it runs while Radix keeps
+ * the sheet mounted. The layout height and the resolved `bottom`, never the box: the rise's
+ * transform would read a sheet still below the screen.
  */
-function useBandHeight(publish: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    const root = document.documentElement;
-    if (!publish || !el) return;
-    const write = () => root.style.setProperty('--drawer-band-h', `${el.offsetHeight}px`);
-    write();
-    const observer = new ResizeObserver(write);
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      root.style.removeProperty('--drawer-band-h');
-    };
-  }, [publish]);
-  return ref;
+function publishBand(el: HTMLDivElement | null) {
+  if (!el) return;
+  const root = document.documentElement;
+  const write = () => {
+    const height = el.offsetHeight + (parseFloat(getComputedStyle(el).bottom) || 0);
+    root.style.setProperty('--drawer-band-h', `${height}px`);
+  };
+  write();
+  const observer = new ResizeObserver(write);
+  observer.observe(el);
+  return () => {
+    observer.disconnect();
+    root.style.removeProperty('--drawer-band-h');
+  };
 }
 
 /**
@@ -753,28 +771,45 @@ export function Sidebar({
   );
 }
 
+/** The «Ще» sheet's box (mobile-bar-and-sheet.md § Signed, S1, and § Implementation amendment): the
+ *  dialogs' fill, for their reason over the scrim, and its top never above 68, clear of a notch. */
+export const MORE_SHEET =
+  'glass [--glass-fill:var(--color-glass-dialog-fill)] fixed right-[max(12px,env(safe-area-inset-right))] bottom-(--sheet-bottom) left-[max(12px,env(safe-area-inset-left))] z-40 grid max-h-[calc(100dvh-68px-var(--sheet-bottom))] grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[20px] p-2 text-ink [--sheet-bottom:calc(12px+env(safe-area-inset-bottom))] data-[state=closed]:pointer-events-none data-[state=closed]:animate-sheet-out data-[state=open]:animate-sheet-in';
+
 /**
- * The MOBILE shell — the same panel, off-canvas. The box is a Radix `Dialog` by
- * deliberate reuse: it supplies the focus trap, Escape, focus return, the `aria-hidden`
- * background and the scroll lock, and writing those by hand is a second untested copy.
- * `drawer-edge` is an ALIAS, not a new colour: transparent in light, where the scrim
- * separates the two on its own, and the control-boundary rank in dark, where the wall
- * is darker than the page it veils and the scrim cannot.
+ * The MOBILE shell's sheet, opened by the dock's «Ще». The box is a Radix `Dialog` by deliberate
+ * reuse: it supplies the focus trap, Escape, focus return to «Ще», the `aria-hidden` background
+ * and the scroll lock, and writing those by hand is a second untested copy. The grabber draws the
+ * sheet's kind and does nothing; the close control is the X.
  */
-export function SidebarDrawer() {
+export function MoreSheet() {
   const t = useT();
   return (
     <RadixDialog.Portal>
       <RadixDialog.Overlay className="fixed inset-0 z-40 bg-scrim data-[state=closed]:animate-out data-[state=closed]:duration-220 data-[state=closed]:fade-out data-[state=open]:animate-in data-[state=open]:duration-220 data-[state=open]:fade-in" />
-      {/* One step under the app's dialogs: a drawer is chrome, a dialog a question. */}
+      {/* One step under the app's dialogs: the sheet is chrome, a dialog a question. */}
       <RadixDialog.Content
+        ref={publishBand}
         aria-describedby={undefined}
         onInteractOutside={keepOpenForToasts}
-        className="fixed top-0 left-0 z-40 h-dvh w-[280px] overflow-hidden rounded-r-[30px] border-r border-drawer-edge bg-sb-bg pt-[max(16px,env(safe-area-inset-top))] pr-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
+        className={MORE_SHEET}
       >
-        {/* The drawer draws the wordmark, so Radix's title is screen-reader only. */}
-        <RadixDialog.Title className="sr-only">{t.nav.navigation}</RadixDialog.Title>
-        <SidebarPanel variant="drawer" />
+        <div className="relative flex h-11 items-center pl-3">
+          <span
+            aria-hidden
+            className="absolute top-0.5 left-1/2 h-1 w-8 -translate-x-1/2 rounded-[1px] bg-field-border"
+          />
+          <RadixDialog.Title className="min-w-0 flex-1 font-display text-sub text-ink">
+            {t.nav.more}
+          </RadixDialog.Title>
+          <RadixDialog.Close
+            aria-label={t.nav.closeNav}
+            className={`grid size-10 flex-none place-items-center rounded-[10px] text-sb-item transition-control hover:text-sb-item-hover active:scale-[.97] ${TAP_44}`}
+          >
+            <X size={18} strokeWidth={2} aria-hidden />
+          </RadixDialog.Close>
+        </div>
+        <SidebarPanel variant="sheet" />
       </RadixDialog.Content>
     </RadixDialog.Portal>
   );

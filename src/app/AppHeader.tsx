@@ -1,75 +1,31 @@
 import { Shield } from 'lucide-react';
-import { Dialog as RadixDialog } from 'radix-ui';
-import type { ReactNode } from 'react';
 
 import { RateLine } from '../components/RateLine';
 import { Amount } from '../components/ui/Amount';
 import { useRole } from '../hooks/queries';
 import { useCapitalCard } from '../hooks/useCapitalCard';
-import { NAV_TRIGGER_ID } from './nav-ids';
-import { CornerBadge } from './CornerBadge';
-import { openNavName, usePendingBadge } from './pending-count';
 import { useT } from '../i18n/useT';
-
-/** The trigger's DRAWN box. It does not grow below the breakpoint: the pressable region
- *  is the button's own box, which carries no fill and no edge to redraw. */
-function MenuGlyph() {
-  return (
-    <span aria-hidden className="flex h-3 w-[18px] flex-col justify-between">
-      <span className="h-[2px] rounded-[1px] bg-current" />
-      <span className="h-[2px] rounded-[1px] bg-current" />
-      <span className="h-[2px] rounded-[1px] bg-current" />
-    </span>
-  );
-}
-
-const TRIGGER_CLASS =
-  'relative grid size-11 flex-none place-items-center rounded-[11px] text-ink transition-control hover:opacity-85 active:scale-[.97]';
 
 /**
  * The sidebar's stand-in, mounted whenever the sidebar is not on screen: always below
  * the breakpoint, above it only while the rail is collapsed. THIS SURFACE REFUSES THE
  * `sb-*` FAMILY, because the wall's ranks would make it read as a detached piece of the
- * drawer. SQUARE CORNERS, because the proportional rule reads off two DESIGNED
+ * sidebar. SQUARE CORNERS, because the proportional rule reads off two DESIGNED
  * dimensions and this bar's long side runs edge to edge. *Shape system*
  * At md and up it is dissolved into the page, padded 0 36 (J2, rail-and-account-foot.md § Wave 29);
  * below md the 360 bar keeps the page's plane; its own drawing is mobile-bar-and-sheet.md's.
  */
 export function AppHeader({
   desktop,
-  open,
 }: {
-  /** Above the breakpoint the header carries the FIGURE and nothing else, because the
-   *  control that expands the rail belongs to the rail. The trigger is RENDERED
-   *  conditionally and never merely hidden: `getElementById` returns the FIRST match,
-   *  so a hidden copy would take `NAV_TRIGGER_ID` from the rail's own. */
+  /** Which bar: above the breakpoint the figure runs on into the dated rate line. Neither bar holds
+   *  a navigation control: the rail's is the rail's, and below md the dock's «Ще» opens the sheet. */
   desktop: boolean;
-  /** Drawer state, for the trigger's label only. */
-  open: boolean;
 }) {
   const t = useT();
   // The capital is a user's; the super-admin's bar names the role in its place, and while the
   // role is unknown the bar holds its height with neither.
   const role = useRole();
-  // Radix publishes `aria-expanded` on the trigger, so the NAME has to agree with it,
-  // or a screen reader reads out the contradiction in full.
-  // The applications waiting ride the name while the drawer is shut; open, its link carries them.
-  const badge = usePendingBadge();
-  const triggerLabel = open ? t.nav.closeNav : openNavName(t, badge);
-
-  const trigger: ReactNode = desktop ? null : (
-    // `asChild`, so the button IS the trigger and Radix returns focus to it. Its ARIA
-    // is Radix's — setting `aria-expanded` here silently wins over the live one,
-    // because Slot lets the child's props take precedence.
-    <RadixDialog.Trigger asChild>
-      <button type="button" id={NAV_TRIGGER_ID} aria-label={triggerLabel} className={TRIGGER_CLASS}>
-        <MenuGlyph />
-        {/* The super-admin's count is the one `sb-*` mark here: the rail's own badge, which the
-            burger stands in for. */}
-        {badge !== undefined && <CornerBadge shown={badge.shown} top="top-1" />}
-      </button>
-    </RadixDialog.Trigger>
-  );
 
   return (
     <header
@@ -77,8 +33,8 @@ export function AppHeader({
       // At md it offsets the row as the card's does, which puts its centre line on the plate's.
       className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:static md:mt-[max(8px,env(safe-area-inset-top))] md:border-b-0 md:bg-transparent md:pt-0 md:duration-220 md:ease-soft md:fade-in md:slide-in-from-top-1"
     >
-      <div className="flex h-14 items-center gap-2.5 px-2.5 md:px-9">
-        {trigger}
+      {/* Below md on the page's 12 gutter: the dock holds the navigation (mobile-bar-and-sheet.md § Signed). */}
+      <div className="flex h-14 items-center gap-2.5 px-3 md:px-9">
         {role === 'user' && <HeaderCapital desktop={desktop} />}
         {role === 'super_admin' && (
           // The band's content on the page plane: the bar refuses the `sb-*` family.
@@ -110,7 +66,7 @@ function HeaderCapital({ desktop }: { desktop: boolean }) {
         </div>
       </div>
       {/* The delta STACKS rather than running on one line as the sidebar card does:
-            at 360 the row has little left after the trigger and the figure,
+            at 360 the row has little left after the figure,
             and two lines fit the height the bar already has. */}
       <div className="ml-auto pr-1 text-right text-label">
         {empty ? (

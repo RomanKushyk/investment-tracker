@@ -140,7 +140,7 @@ describe('the rail', () => {
   });
 });
 
-describe('the drawer', () => {
+describe('the «Ще» sheet', () => {
   it('carries the panel’s link', async () => {
     breakpoint.desktop = false;
     const page = await open('/settings');
