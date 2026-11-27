@@ -787,20 +787,20 @@ tables too.
 **Decision.** Two layouts and one switch — `md`, 768px, WRITTEN TWICE, in the markup and in
 `useIsDesktop`, and the two must stay one number. Below it the sidebar is an off-canvas drawer, a
 Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's; at and
-above it the sidebar is a floating glass panel or a flush 64px icon rail, and the choice persists. The panel
-stands 16 from the top, the left and the bottom, so the shell's one width tween moves its width and
-its inset together, and it is one surface: no band in it, a hairline says where the account begins. Collapsed, the
-rail and the header beside it are full-bleed glass bands: the glass's fill, sheen and blur, its card
-ring, bevel and shadow off, and one hairline on the side that meets the content, as sticky bars draw
-it (Apple's local nav, Linear, GitHub; WinUI strokes its pane on the content side alone). The header
-carries the figure and the dated NBU rate, which a 64px shell cannot hold, and for the super-admin
-the role. 44 × 44
+above it the sidebar is one floating glass card, a panel or a 64px icon rail, and the choice persists. The panel
+stands 16 from the top, the left and the bottom at r26, the rail 8 from them at r22, and the card
+morphs between the two: its inset, width, height and radius ride the shell's one width tween, and
+the contents cross-fade inside it. It is one surface: no band in it, a hairline says where the
+account begins. Collapsed, the header beside the rail is dissolved into the page, no fill, no edge,
+not sticky, a row 8 from the top whose centre line is the plate's. It carries the figure and the
+dated NBU rate, which a 64px shell cannot hold, and for the super-admin the role. 44 × 44
 is HIT AREA, never geometry: a transparent centred overlay grows the pressable region and leaves
 every radius where the shape system put it. The sidebar's rows and the rail's items, its menu
 included, are drawn 44 because the signed design draws them so, at their own r12: a geometry, not a
 hit area grown into one. The menu is an item like its neighbours, as Material's rail header and
 WinUI's pane toggle are, so no control in the rail lacks their hover. Exactly one
-branch mounts per shell. A page with no
+branch mounts per shell; within the desktop card, the contents a toggle leaves stay for the tween,
+inert, then go, so the keyboard and a screen reader meet one state. A page with no
 account's work behind it — `/sign-in` and `/apply`, a refused caller, the first sign-in, the app that
 failed, and `/privacy` and `/terms` for every reader, signed in or not — mounts NEITHER: a top bar
 with the mark and the language control over one top-anchored card and the privacy notice's and the
@@ -846,7 +846,11 @@ container width (*Forms and layout*). BELOW `md` A DIALOG IS AN INSET SHEET THAT
 BOTTOM, 12 from the sides and 12 above the larger of the bottom safe area and the keyboard, the
 date picker the same sheet; at and above it the dialog is centred. Re-authentication alone stays
 top-anchored at both, with the sheet's side inset below `md`.
-**Why.** Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
+**Why.** The rail floats as the panel does because a sidebar floats inset in both states (Apple,
+WWDC25: "sidebars are now inset"; shadcn/ui's floating sidebar keeps one inset), and one container
+morphs rather than two swapping, as Material 3's `WideNavigationRail` animates one container's
+width; a swap jumped the card's corner 8 at the press. The header beside it follows the page, as the
+360 bar already leaves on scroll, so the rail is the one glass beside the content. Growing controls to 44 would rewrite five radii and a concentric chain as a side effect of
 an accessibility fix. A control with no drawn box gets real padding instead, an overlay reaching
 past its own control handing the tap to the neighbour. Both shells carry an account's work — a
 user's capital and reminders, the super-admin's administration — that such a caller does not have,

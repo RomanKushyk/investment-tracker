@@ -72,6 +72,13 @@ const CSS = stripCss(readFileSync(join(here, 'index.css'), 'utf8'), 'index.css')
 
 const railLines = (re: RegExp) => RAIL.split('\n').filter((l) => re.test(l));
 
+/** A module constant's class string, read whole. */
+function constant(src: string, name: string): string {
+  const value = src.match(new RegExp(`const ${name} =\\s*'([^']*)'`))?.[1];
+  expect(value, `\`${name}\` is not declared`).toBeDefined();
+  return value!;
+}
+
 /** The route-to-glyph table — the same thirteen `nav-glyphs.test.ts` holds for the
  *  expanded panel, so both files are pinned against one table and neither drifts alone. */
 const TABLE = [
@@ -95,9 +102,9 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
     expect(existsSync(RAIL_PATH), '`src/app/SidebarRail.tsx` is not written yet').toBe(true);
   });
 
-  // The width still animates: the shell keeps its transition and only the collapsed value
-  // changes, from a `w-0` mask to a rail that is on screen.
-  it('collapses the shell to the drawn 64 and its hairline rather than to nothing', () => {
+  // The width still animates: the aside is the card's inset plus the card in either state, so one
+  // tween moves both (rail-and-account-foot.md § Wave 29; shell.md § Signed).
+  it('collapses the shell to the 64 card and its 8 inset', () => {
     // The `<aside>`'s own tag, read whole: the formatter breaks the branch across lines.
     const at = SIDEBAR.indexOf('<aside');
     expect(at, 'the shell is gone').toBeGreaterThan(-1);
@@ -105,40 +112,86 @@ describe('the collapsed shell is a rail, not a masked panel', () => {
     const branch = shell.match(/collapsed\s*\?\s*'([^']*)'\s*:\s*'([^']*)'/);
     expect(branch, 'the shell no longer branches on `collapsed`').not.toBeNull();
     const [, rail, panel] = branch!;
-    expect(rail, 'the collapsed shell is still a zero-width mask').not.toBe('w-0');
-    // 64 AND ITS HAIRLINE PLUS the inset, never 64 with the inset taken out of it: a 64px shell
-    // has no room to give, and a notched phone in landscape is wide enough to BE this shell. The
-    // hairline sits outside the 64, as the header's sits under its 56, so the axis is whole.
-    expect(rail, 'the collapsed shell is not the drawn 64 and its hairline').toBe(
-      'w-[calc(65px+env(safe-area-inset-left))]',
+    // The INSET PLUS 64, never 64 with the inset taken out of it: a 64px card has no room to give,
+    // and a notched phone in landscape is wide enough to BE this shell.
+    expect(rail, 'the collapsed shell is not the 8 inset plus the 64 card').toBe(
+      'w-[calc(max(8px,env(safe-area-inset-left))+64px)]',
     );
-    // The panel's 260 plus the inset it floats at, so one tween moves both (shell.md § Signed).
     expect(panel, 'the expanded shell is not the inset plus 260').toBe(
       'w-[calc(max(16px,env(safe-area-inset-left))+260px)]',
     );
   });
 
-  // THE SURFACE IS THE SHELL'S, NOT THE RAIL'S (rail-and-account-foot.md § Signed, O3): flush, on
-  // the glass, with one hairline on the right and square, a full-bleed band (*Shape system*). The
-  // band draws no edge of its own, by the owner's ruling on #720, so the hairline is the one edge.
-  it('paints the collapsed branch on the glass band, with one right hairline and no corner', () => {
-    const at = SIDEBAR.indexOf('{collapsed ? (');
-    expect(at, 'the shell no longer branches').toBeGreaterThan(-1);
-    const branch = SIDEBAR.slice(at, SIDEBAR.indexOf(') : (', at));
-    expect(branch, 'the collapsed branch is not on the glass band').toMatch(/\bglass-band\b/);
-    expect(branch, 'the collapsed branch has no right hairline').toMatch(
-      /\bborder-r border-hairline\b/,
+  // ONE CARD IN BOTH STATES (§ Wave 29, B at r22, and M2): the rail floats as the panel does, on the
+  // panel's full glass with no band and no hairline, and every term of its geometry tweens, so
+  // the card morphs rather than swapping.
+  it('floats one glass card, which the tween morphs between the rail and the panel', () => {
+    const rail = constant(SIDEBAR, 'CARD_RAIL').split(' ');
+    for (const term of [
+      'mt-[max(8px,env(safe-area-inset-top))]',
+      'ml-[max(8px,env(safe-area-inset-left))]',
+      'h-[calc(100dvh-max(8px,env(safe-area-inset-top))-max(8px,env(safe-area-inset-bottom)))]',
+      'w-16',
+      'rounded-[22px]',
+    ]) {
+      expect(rail, `the rail's card is not ${term}`).toContain(term);
+    }
+    const cards = SIDEBAR.split('\n').filter((l) =>
+      /\$\{collapsed \? CARD_RAIL : CARD_PANEL\}/.test(l),
     );
-    expect(branch, 'a full-bleed band takes a corner').not.toMatch(/\brounded-/);
-    expect(branch, 'the collapsed branch still paints the wall').not.toMatch(/\bbg-sb-/);
-    // AND ITS WIDTH IS SPELLED OUT, never inherited: `w-full` resolves against an `<aside>`
-    // easing between two widths, so the whole rail re-flows sideways for the length of the
-    // transition instead of arriving whole — invisible to every other pin here.
-    expect(branch, 'the wall tracks the animating shell instead of its own width').not.toMatch(
-      /\bw-full\b/,
+    expect(cards.length, 'the two states are not one card').toBe(1);
+    const card = cards[0]!;
+    expect(card, 'the card is not on the glass').toMatch(/(?<![-\w[])glass(?![-\w])/);
+    expect(card, 'the band is back').not.toMatch(/\bglass-band\b/);
+    // The tween's own property list names `border-radius`, which is no edge.
+    const drawn = `${card.replace(/transition-\[[^\]]*\]/, '')} ${rail.join(' ')}`;
+    expect(drawn, 'the card draws a hairline').not.toMatch(/\bborder\b|\bborder-/);
+    expect(card, 'the card does not tween its geometry').toMatch(
+      /\btransition-\[margin,width,height,border-radius\] duration-\[260ms\] ease-soft\b/,
     );
-    expect(branch, 'the band is not held at the collapsed width').toMatch(
-      /w-\[calc\(65px\+env\(safe-area-inset-left\)\)\]/,
+    expect(card, 'the card does not clip the contents it is leaving').toMatch(
+      /\boverflow-hidden\b/,
+    );
+  });
+
+  // LAID OUT AT THE STATE'S OWN WIDTH, never the card's: the card eases between two widths, so
+  // contents that followed it would re-flow sideways for the length of the tween.
+  it("lays each state's contents out at its own width", () => {
+    expect(constant(SIDEBAR, 'CONTENTS_RAIL').split(' ')).toContain('w-16');
+    expect(constant(SIDEBAR, 'CONTENTS_PANEL').split(' ')).toContain('w-[260px]');
+    expect(SIDEBAR, 'the contents follow the animating card').not.toMatch(
+      /CONTENTS_(?:RAIL|PANEL) =\s*'[^']*\bw-full\b/,
+    );
+  });
+
+  // § Wave 29, M2, at #799's split of `ease-soft` at 45 % of its progress: the leaving contents fade
+  // over its first 30 ms, the arriving over the remaining 230, each on its half of the curve.
+  it('cross-fades the contents at 45 % of the tween', () => {
+    const leave = constant(SIDEBAR, 'LEAVE').split(' ');
+    for (const term of [
+      'animate-out',
+      'fade-out',
+      'duration-30',
+      'ease-[cubic-bezier(.3461,.4015,.6695,.7305)]',
+      'fill-mode-forwards',
+    ]) {
+      expect(leave, `the leaving contents are not ${term}`).toContain(term);
+    }
+    const arrive = constant(SIDEBAR, 'ARRIVE').split(' ');
+    for (const term of [
+      'animate-in',
+      'fade-in',
+      'duration-230',
+      'delay-30',
+      'ease-[cubic-bezier(.1944,1,.4076,1)]',
+      'fill-mode-backwards',
+      // The kill-switch zeroes durations, not delays: reduced motion is instant only without it.
+      'motion-reduce:delay-0',
+    ]) {
+      expect(arrive, `the arriving contents are not ${term}`).toContain(term);
+    }
+    expect(SIDEBAR, 'the leaving contents are not held for the tween').toMatch(
+      /const MORPH_MS = 260;/,
     );
   });
 
@@ -330,7 +383,8 @@ describe('the rail, as drawn', () => {
     expect(tag, 'the menu still grows an invisible overlay').not.toMatch(/TAP_RAIL/);
   });
 
-  // O3: a 64 × 40 full-bleed strip under the menu, `accent-tint`, the shield 18 in `accent`.
+  // O3: a 64 × 40 strip under the menu, `accent-tint`, the shield 18 in `accent`. Across the card's
+  // inner width, with no bleed: the card pays the safe area outside itself (§ Wave 29).
   it('gives the super-admin a 64 x 40 `accent-tint` strip under the menu', () => {
     expect(RAIL.indexOf('<RailRoleBand />'), 'the strip is not under the menu').toBeGreaterThan(
       RAIL.indexOf('id={NAV_TRIGGER_ID}'),
@@ -338,22 +392,18 @@ describe('the rail, as drawn', () => {
     const at = RAIL.indexOf('function RailRoleBand');
     const strip = RAIL.slice(at, RAIL.indexOf('</Tooltip>', at));
     expect(strip, 'the strip is not 40 tall').toMatch(/\bh-10\b/);
-    // The rail's 64 and, on a notched landscape screen, the inset under it, the shield kept on axis.
-    expect(strip, 'the strip stops at the inset').toMatch(/-ml-\[env\(safe-area-inset-left\)\]/);
-    expect(strip, 'the strip is not full-bleed').toMatch(
-      /\bw-\[calc\(100%\+env\(safe-area-inset-left\)\)\]/,
-    );
-    expect(strip, 'the shield left the axis').toMatch(/\bpl-\[env\(safe-area-inset-left\)\]/);
+    expect(strip, "the strip does not span the card's inner width").toMatch(/\bw-full\b/);
+    expect(strip, 'the strip still bleeds under the safe area').not.toMatch(/safe-area/);
     expect(strip, 'the strip is not `accent-tint`').toMatch(/\bbg-accent-tint\b/);
     expect(strip, 'the shield is not 18 in `accent`').toMatch(
       /<Shield size=\{18\}[^>]*className="[^"]*\btext-accent\b/,
     );
   });
 
-  // THE FIT POINT, from what the rail draws (rail-and-account-foot.md § Signed, O3, and brand.md's
-  // plate): a user's rail is 709 tall, so every item shows from a 709 px window; below that the
-  // band scrolls. The browser measured the same.
-  it('fits a 709 px window whole', () => {
+  // THE FIT POINT, from what the rail draws (rail-and-account-foot.md § Signed, O3, brand.md's plate,
+  // and § Wave 29): a user's rail is 709 tall and its card stands 8 from the top and the bottom, so
+  // every item shows from a 725 px window; below that the band scrolls inside the card.
+  it('fits a 725 px window whole', () => {
     expect(RAIL, 'the rail is not padded 8 / 0').toMatch(
       /grid-rows-\[auto_minmax\(0,1fr\)_auto\] py-2"/,
     );
@@ -368,6 +418,14 @@ describe('the rail, as drawn', () => {
     const rule = 2 + 1 + 2;
     const foot = 32 + 3 * 44;
     expect(pad + head + items * 44 + rule + foot).toBe(709);
+    const card = constant(SIDEBAR, 'CARD_RAIL');
+    expect(card, 'the card is not 8 from the top').toMatch(
+      /mt-\[max\(8px,env\(safe-area-inset-top\)\)\]/,
+    );
+    expect(card, 'the card does not leave 8 below it').toMatch(
+      /-max\(8px,env\(safe-area-inset-bottom\)\)\)\]/,
+    );
+    expect(pad + head + items * 44 + rule + foot + 8 + 8).toBe(725);
     // NO GAPS: any margin or gap between the items is a term this sum leaves out.
     expect(RAIL, 'a gap entered the rail').not.toMatch(/\b(?:gap|mt|mb|space-y)-(?!0\b)/);
   });
@@ -386,61 +444,71 @@ describe('the rail, as drawn', () => {
   });
 });
 
-// The band's surface, shared by the rail and the collapsed header: the glass's fill, sheen and
-// blur, with the card's ring, bevel and drop shadow off (the owner's ruling on #720).
-describe('a full-bleed band wears the glass without its card edge', () => {
-  const body = (name: string) => {
-    const at = CSS.indexOf(`@utility ${name} {`);
-    expect(at, `\`${name}\` is not declared`).toBeGreaterThan(-1);
-    return CSS.slice(at, CSS.indexOf('\n}', at));
-  };
-  const base = (rule: string) => rule.slice(0, rule.search(/@supports|@media/));
-
-  // Its own utility, never custom properties set on the band: those would inherit into every
-  // glass knob and scroll thumb inside it.
-  it("draws the glass's fill, sheen and blur", () => {
-    const glass = base(body('glass'));
-    const band = base(body('glass-band'));
-    for (const line of [
-      'background-color: var(--glass-fill, var(--color-glass-fill));',
-      'background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);',
-      'backdrop-filter: blur(30px) saturate(180%);',
-    ]) {
-      expect(glass, `the glass no longer reads ${line}`).toContain(line);
-    }
-    expect(band).toContain('background-color: var(--color-glass-fill);');
-    expect(band).toContain(
-      'background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);',
-    );
-    expect(band).toContain('-webkit-backdrop-filter: blur(30px) saturate(180%);');
-    expect(band).toContain('backdrop-filter: blur(30px) saturate(180%);');
-  });
-
-  it('draws no edge, and falls back to the opaque card', () => {
-    const band = body('glass-band');
-    expect(band, 'the band draws an edge of its own').not.toMatch(/box-shadow|border/);
-    expect(band.match(/background-color: var\(--color-card\);/g)?.length).toBe(2);
-  });
-
-  // ONE MATERIAL: each fallback block is the glass's, less the edge the band does not draw.
-  it("falls back exactly as the glass does, less the glass's edge", () => {
-    const blocks = (rule: string) =>
-      (rule.match(/@(?:supports|media)[^{]*\{[^}]*\}/g) ?? []).map((b) =>
-        b
-          .split(/\r?\n/)
-          .map((l) => l.trim())
-          .filter((l) => l !== '' && !l.startsWith('box-shadow'))
-          .join('\n'),
-      );
-    const glass = blocks(body('glass'));
-    expect(glass.length, 'the glass lost its two fallbacks').toBe(2);
-    expect(blocks(body('glass-band'))).toEqual(glass);
-  });
-
-  it('is what the rail and the collapsed header wear, and nothing sets the glass variables', () => {
-    expect(HEADER).toMatch(/\bmd:glass-band\b/);
+// THE BAND IS RETIRED (§ Wave 29): the rail and the collapsed header were its only wearers, and
+// the rail now wears the panel's glass while the header wears nothing.
+describe('the glass band is gone', () => {
+  it('is declared nowhere, and nothing wears it', () => {
+    expect(CSS, '`glass-band` is still declared').not.toMatch(/@utility glass-band\b/);
     for (const src of [RAIL, SIDEBAR, HEADER]) {
+      expect(src, 'a shell surface still wears the band').not.toMatch(/\bglass-band\b/);
       expect(src).not.toMatch(/\[--(?:glass-edge|color-glass-bevel-\w+|shadow-glass):/);
+    }
+  });
+});
+
+// J2 (rail-and-account-foot.md § Wave 29): at md and up, while collapsed, the header is dissolved
+// into the page, a 56 row 8 from the top that scrolls with the content. Below md the 360 bar holds.
+describe('the collapsed header is dissolved into the page', () => {
+  const header = () => {
+    const at = HEADER.indexOf('<header');
+    expect(at, 'the header is gone').toBeGreaterThan(-1);
+    const tag = HEADER.slice(at, HEADER.indexOf('>', at));
+    const classes = tag.match(/className="([^"]*)"/)?.[1];
+    expect(classes, 'the header has no literal className').toBeDefined();
+    return classes!.split(' ');
+  };
+
+  it('has no fill, no edge and no stickiness at md', () => {
+    for (const term of ['md:static', 'md:border-b-0', 'md:bg-transparent']) {
+      expect(header(), `the header is not ${term}`).toContain(term);
+    }
+    expect(
+      header().filter((c) => c.startsWith('md:glass')),
+      'the header wears a glass',
+    ).toEqual([]);
+  });
+
+  it("stands 8 from the top, the card's offset, in place of its own safe-area padding", () => {
+    expect(header()).toContain('md:mt-[max(8px,env(safe-area-inset-top))]');
+    expect(header()).toContain('md:pt-0');
+  });
+
+  // The owner's ruling: the plate sits on the header's line. Both are read off what draws them.
+  it("puts its centre line on the plate's", () => {
+    expect(HEADER, 'the row is not 56 tall').toMatch(/className="flex h-14 /);
+    const row = 8 + 56 / 2;
+    expect(constant(SIDEBAR, 'CARD_RAIL')).toMatch(/mt-\[max\(8px,/);
+    expect(RAIL, 'the rail is not padded 8 / 0').toMatch(/\bpy-2"/);
+    expect(RAIL, 'the plate is not 40').toMatch(/<Mark size=\{40\} \/>/);
+    const plate = 8 + 8 + 40 / 2;
+    expect(row).toBe(plate);
+    expect(row).toBe(36);
+  });
+
+  it('keeps its arrival, and the 360 bar below md', () => {
+    for (const term of [
+      'md:duration-220',
+      'md:ease-soft',
+      'md:fade-in',
+      'md:slide-in-from-top-1',
+      'sticky',
+      'top-0',
+      'border-b',
+      'border-hairline',
+      'bg-page',
+      'pt-[env(safe-area-inset-top)]',
+    ]) {
+      expect(header(), `the header lost ${term}`).toContain(term);
     }
   });
 });

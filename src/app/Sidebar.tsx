@@ -24,7 +24,15 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
-import { Children, Fragment, isValidElement, type ReactNode, useEffect, useRef } from 'react';
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Link, matchPath, NavLink, useLocation } from 'react-router';
 
 import { useSessionAddress } from '../auth/app';
@@ -657,11 +665,32 @@ function CapitalLine() {
   );
 }
 
+/** The one card in each state: the rail 64 wide, 8 from the top, the left and the bottom at r22
+ *  (rail-and-account-foot.md § Wave 29), the panel 260 at 16 and r26 (shell.md § Signed, G1). The
+ *  insets are paid on the card, not the content column, because the card is that column's
+ *  sibling, where `viewport-fit=cover` puts a cutout. */
+const CARD_RAIL =
+  'mt-[max(8px,env(safe-area-inset-top))] ml-[max(8px,env(safe-area-inset-left))] h-[calc(100dvh-max(8px,env(safe-area-inset-top))-max(8px,env(safe-area-inset-bottom)))] w-16 rounded-[22px]';
+const CARD_PANEL =
+  'mt-4 ml-[max(16px,env(safe-area-inset-left))] h-[calc(100dvh-16px-max(16px,env(safe-area-inset-bottom)))] w-[260px] rounded-[26px]';
+/** Each state's contents at its own width, never the card's: the card eases between two widths,
+ *  and contents that followed it would re-flow sideways for the length of the tween. */
+const CONTENTS_RAIL = 'w-16';
+const CONTENTS_PANEL = 'w-[260px] px-3.5 pt-4 pb-3';
+/** The cross-fade: `ease-soft` split where its progress crosses 45 %, each half its own curve. The
+ *  reduced-motion kill-switch zeroes durations, not delays, so the arrival drops its own. */
+const LEAVE =
+  'animate-out fade-out duration-30 ease-[cubic-bezier(.3461,.4015,.6695,.7305)] fill-mode-forwards';
+const ARRIVE =
+  'animate-in fade-in duration-230 delay-30 ease-[cubic-bezier(.1944,1,.4076,1)] fill-mode-backwards motion-reduce:delay-0';
+/** The tween's length, for which the leaving contents are held. */
+const MORPH_MS = 260;
+
 /**
  * The DESKTOP shell, in flow and at two widths. The rail arrives as `children` so this
  * file never imports it and it can import the route table from here without the two
- * forming a cycle; the shell stays mounted across the flip, so its one width, the inset
- * included, animates. *Shape system*
+ * forming a cycle. One glass card holds either state and morphs between them (§ Wave 29, M2):
+ * its inset, width, height and radius ride the aside's width tween. *Shape system*
  */
 export function Sidebar({
   collapsed,
@@ -672,33 +701,54 @@ export function Sidebar({
   onCollapse: () => void;
   children: ReactNode;
 }) {
+  // THE CONTENTS A TOGGLE LEAVES are held for their fade, inert, so the keyboard and a screen
+  // reader meet one state only; `undefined` at rest, so a first paint fades nothing.
+  const [shown, setShown] = useState(collapsed);
+  const [leaving, setLeaving] = useState<boolean>();
+  if (shown !== collapsed) {
+    setShown(collapsed);
+    setLeaving(shown);
+  }
+  useEffect(() => {
+    if (leaving === undefined) return;
+    // A timer, never `animationend`, which a throttled tab may never fire (*Interaction rules*).
+    const id = setTimeout(() => setLeaving(undefined), MORPH_MS);
+    return () => clearTimeout(id);
+  }, [leaving, shown]);
+
+  // ONE SLOT PER STATE, rail then panel, never reordered: a moved node is re-inserted, losing its
+  // scroll and restarting its animations, so a toggle back mid-tween takes its contents up in place.
+  // Not `aria-hidden` as well: `inert` already hides them, and the press still holds focus there.
+  const contents = (rail: boolean) => {
+    const motion = rail === collapsed ? (leaving === undefined ? '' : ARRIVE) : LEAVE;
+    return (
+      (rail === collapsed || rail === leaving) && (
+        <div
+          inert={rail !== collapsed || undefined}
+          className={`absolute top-0 left-0 h-full ${rail ? CONTENTS_RAIL : CONTENTS_PANEL} ${motion}`}
+        >
+          {rail ? children : <SidebarPanel variant="panel" onCollapse={onCollapse} />}
+        </div>
+      )
+    );
+  };
+
   return (
     <aside
       id={SIDEBAR_ID}
       className={`sticky top-0 h-dvh flex-none overflow-hidden transition-[width] duration-[260ms] ease-soft ${
         collapsed
-          ? 'w-[calc(65px+env(safe-area-inset-left))]'
+          ? 'w-[calc(max(8px,env(safe-area-inset-left))+64px)]'
           : 'w-[calc(max(16px,env(safe-area-inset-left))+260px)]'
       }`}
     >
-      {collapsed ? (
-        // THE RAIL'S SURFACE IS THE SHELL'S, said here rather than in the rail: flush, on the glass
-        // band with one hairline on the right, square as a full-bleed band (rail-and-account-foot.md
-        // § Signed, O3). 64 PLUS the hairline, as the header is 56 plus its own, so the items centre
-        // on the 64's whole-pixel axis. The width is SPELLED OUT rather than `w-full`, which would
-        // resolve against a box mid-animation and slide every centred item sideways.
-        <div className="h-full w-[calc(65px+env(safe-area-inset-left))] border-r border-hairline glass-band pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] text-ink">
-          {children}
-        </div>
-      ) : (
-        // A FLOATING GLASS CARD (shell.md § Signed, G1): 16 from the top, the left and the bottom,
-        // at the signed r26. The LEFT inset is paid here and not on the content
-        // column, because this panel is that column's sibling, where `viewport-fit=cover` puts a
-        // cutout. `glass` carries the opaque fallback.
-        <div className="mt-4 ml-[max(16px,env(safe-area-inset-left))] h-[calc(100dvh-16px-max(16px,env(safe-area-inset-bottom)))] w-[260px] rounded-[26px] glass px-3.5 pt-4 pb-3 text-ink">
-          <SidebarPanel variant="panel" onCollapse={onCollapse} />
-        </div>
-      )}
+      {/* `glass` carries the opaque fallback, and the clip hides the contents the card leaves. */}
+      <div
+        className={`relative overflow-hidden glass text-ink transition-[margin,width,height,border-radius] duration-[260ms] ease-soft ${collapsed ? CARD_RAIL : CARD_PANEL}`}
+      >
+        {contents(true)}
+        {contents(false)}
+      </div>
     </aside>
   );
 }

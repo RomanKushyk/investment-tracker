@@ -62,12 +62,26 @@ describe('the glow tokens', () => {
   );
 });
 
+/** The text that sits on the bare page: `muted`, which the caps were set for (shell.md § Backdrop),
+ *  and the dissolved header's change line, whose values meet the same floor (rail-and-account-foot.md
+ *  § Wave 30). */
+const BARE_TEXT = ['muted', 'pos', 'neg'] as const;
+
 describe('text on the glow', () => {
-  // The caps exist for this reading (shell.md § Backdrop, WCAG F83).
-  it.each(THEMES.flatMap((theme) => SPOTS.map(([spot, hue]) => [theme, spot, hue] as const)))(
-    '%s: `muted` on spot %i (%s) at its peak clears 4.5 : 1',
-    (theme, spot) => {
-      expect(ratio(muted(theme), bare(theme, spot))).toBeGreaterThanOrEqual(4.5);
+  // WCAG F83: text over a background image keeps 4.5 : 1 where the image is least contrasting.
+  it.each(
+    THEMES.flatMap((theme) =>
+      BARE_TEXT.flatMap((token) => SPOTS.map(([spot, hue]) => [theme, token, spot, hue] as const)),
+    ),
+  )('%s: `%s` on spot %i (%s) at its peak clears 4.5 : 1', (theme, token, spot) => {
+    expect(ratio(resolve(BLOCKS, theme, token), bare(theme, spot))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // § Wave 30: the change line sits at the header's right end, under the accent spot.
+  it.each(THEMES.flatMap((theme) => (['pos', 'neg'] as const).map((t) => [theme, t] as const)))(
+    '%s: the dissolved header’s change, `%s`, on the accent peak',
+    (theme, token) => {
+      expect(ratio(resolve(BLOCKS, theme, token), bare(theme, 1))).toBeGreaterThanOrEqual(4.5);
     },
   );
 
@@ -203,7 +217,7 @@ describe('the grain', () => {
 
   // WinUI Acrylic's neutral ramp (NoiseAsset_256X256_PNG.png, mean 128): opaque grey, the mean of
   // the channels. F83's per-letter step reads the speck's mean.
-  it('dark: the specks are an opaque grey ramp, and `muted` clears 4.5 : 1 over its mean on each peak', () => {
+  it('dark: the specks are an opaque grey ramp, and the bare-page text clears 4.5 : 1 over its mean on each peak', () => {
     const svg = grain('dark');
     const third = 1 / 3;
     expect(matrix(svg)).toEqual(
@@ -232,7 +246,12 @@ describe('the grain', () => {
     );
     for (const [spot] of SPOTS) {
       const speck = composite({ ch: [128, 128, 128], alpha: opacity(svg) }, bare('dark', spot));
-      expect(ratio(muted('dark'), speck), `spot ${spot}`).toBeGreaterThanOrEqual(4.5);
+      for (const token of BARE_TEXT) {
+        expect(
+          ratio(resolve(BLOCKS, 'dark', token), speck),
+          `${token} on spot ${spot}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 });

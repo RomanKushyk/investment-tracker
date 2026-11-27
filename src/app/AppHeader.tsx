@@ -32,8 +32,8 @@ const TRIGGER_CLASS =
  * `sb-*` FAMILY, because the wall's ranks would make it read as a detached piece of the
  * drawer. SQUARE CORNERS, because the proportional rule reads off two DESIGNED
  * dimensions and this bar's long side runs edge to edge. *Shape system*
- * At md and up it is R1's glass band, padded 0 36 (rail-and-account-foot.md § Signed); below md
- * the 360 bar keeps the page's plane; its own drawing is mobile-bar-and-sheet.md's.
+ * At md and up it is dissolved into the page, padded 0 36 (J2, rail-and-account-foot.md § Wave 29);
+ * below md the 360 bar keeps the page's plane; its own drawing is mobile-bar-and-sheet.md's.
  */
 export function AppHeader({
   desktop,
@@ -73,11 +73,9 @@ export function AppHeader({
 
   return (
     <header
-      // The inset goes on the BAR rather than as a fixed offset, so the fill runs under
-      // the notch and the CONTENT starts below it. It resolves at all only because
-      // `viewport-fit=cover` is on the meta tag; the two are one change. The entry
-      // animation is `md:`-only, because below the breakpoint this is always mounted.
-      className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:glass-band md:duration-220 md:ease-soft md:fade-in md:slide-in-from-top-1"
+      // Below md the inset pads the BAR, so its fill runs under the notch (`viewport-fit=cover`).
+      // At md it offsets the row as the card's does, which puts its centre line on the plate's.
+      className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:static md:mt-[max(8px,env(safe-area-inset-top))] md:border-b-0 md:bg-transparent md:pt-0 md:duration-220 md:ease-soft md:fade-in md:slide-in-from-top-1"
     >
       <div className="flex h-14 items-center gap-2.5 px-2.5 md:px-9">
         {trigger}

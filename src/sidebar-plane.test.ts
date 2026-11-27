@@ -5,6 +5,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  barePlanes,
   channels,
   composite,
   declaredIn,
@@ -282,15 +283,11 @@ describe('the count is solid accent', () => {
   });
 });
 
-// R1 (rail-and-account-foot.md § Signed): the collapsed header is a glass band that content scrolls
-// under, so its planes are the glow and a content card beneath it, and the fallback's `card`.
-describe('the collapsed header reads on its glass', () => {
+// J2 (rail-and-account-foot.md § Wave 29, and § Wave 30): the collapsed header has no surface and
+// scrolls with the page, so its planes are the bare page and each glow peak, never a card.
+describe('the collapsed header reads on the bare page', () => {
   const least = (theme: (typeof THEMES)[number], ink: string) =>
-    Math.min(
-      ...[...glassPlanes(CSS, theme, { over: ['card'] }), resolve(BLOCKS, theme, 'card')].map(
-        (plane) => ratio(ink, plane),
-      ),
-    );
+    Math.min(...barePlanes(CSS, theme).map((plane) => ratio(ink, plane)));
 
   it.each(
     THEMES.flatMap((theme) =>
@@ -523,35 +520,48 @@ describe('the rail paints its pill recipe', () => {
 });
 
 // THE PANEL FLOATS ON THE GLASS (shell.md § Signed, G1; glass.md § Signed): 260 wide, 16 from the
-// top, the left and the bottom, r26, padding 16 14 12. The glass utility carries the opaque
-// fallback, so the panel names the utility and nothing that would override its edge.
+// top, the left and the bottom, r26, padding 16 14 12. It is the expanded state of the one card the
+// rail collapses into (rail-and-account-foot.md § Wave 29), so the card wears the glass and the
+// panel's geometry is that card's `CARD_PANEL`. The glass utility carries the opaque fallback, so
+// the card names the utility and nothing that would override its edge.
 describe('the expanded panel is a floating glass card', () => {
-  const panel = () => {
-    const src = source('app/Sidebar.tsx');
-    const lines = src.split('\n').filter((l) => /\bw-\[260px\]/.test(l));
-    expect(lines.length, 'the 260 panel is not one element').toBe(1);
+  const constant = (name: string) => {
+    const value = source('app/Sidebar.tsx').match(new RegExp(`const ${name} =\\s*'([^']*)'`))?.[1];
+    expect(value, `\`${name}\` is not declared`).toBeDefined();
+    return value!;
+  };
+  const card = () => {
+    const lines = source('app/Sidebar.tsx')
+      .split('\n')
+      .filter((l) => /\$\{collapsed \? CARD_RAIL : CARD_PANEL\}/.test(l));
+    expect(lines.length, 'the card is not one element').toBe(1);
     return lines[0]!;
   };
 
   it('wears the glass at r26, with no edge or fill of its own', () => {
-    expect(panel()).toMatch(/(?<![-\w[])glass(?![-\w])/);
-    expect(panel()).toMatch(/\brounded-\[26px\]/);
-    expect(panel(), 'the panel overrides the glass edge').not.toMatch(/--glass-edge|\bborder\b/);
-    expect(panel(), 'the panel paints a fill over the glass').not.toMatch(/\bbg-/);
+    expect(card()).toMatch(/(?<![-\w[])glass(?![-\w])/);
+    expect(constant('CARD_PANEL')).toMatch(/\brounded-\[26px\]/);
+    // The tween's own property list names `border-radius`, which is no edge.
+    const drawn = card().replace(/transition-\[[^\]]*\]/, '');
+    for (const classes of [drawn, constant('CARD_PANEL')]) {
+      expect(classes, 'the panel overrides the glass edge').not.toMatch(/--glass-edge|\bborder\b/);
+      expect(classes, 'the panel paints a fill over the glass').not.toMatch(/\bbg-/);
+    }
   });
 
-  it('stands 16 from the top, the left and the bottom', () => {
-    expect(panel()).toMatch(/\bmt-4\b/);
-    expect(panel()).toMatch(/\bml-\[max\(16px,env\(safe-area-inset-left\)\)\]/);
-    expect(panel()).toMatch(
-      /\bh-\[calc\(100dvh-16px-max\(16px,env\(safe-area-inset-bottom\)\)\)\]/,
-    );
+  it('stands 16 from the top, the left and the bottom, 260 wide', () => {
+    const panel = constant('CARD_PANEL');
+    expect(panel).toMatch(/\bmt-4\b/);
+    expect(panel).toMatch(/\bml-\[max\(16px,env\(safe-area-inset-left\)\)\]/);
+    expect(panel).toMatch(/\bh-\[calc\(100dvh-16px-max\(16px,env\(safe-area-inset-bottom\)\)\)\]/);
+    expect(panel).toMatch(/\bw-\[260px\]/);
   });
 
   it('is padded 16 14 12', () => {
-    expect(panel()).toMatch(/\bpt-4\b/);
-    expect(panel()).toMatch(/\bpx-3\.5\b/);
-    expect(panel()).toMatch(/\bpb-3\b/);
+    const contents = constant('CONTENTS_PANEL');
+    expect(contents).toMatch(/\bpt-4\b/);
+    expect(contents).toMatch(/\bpx-3\.5\b/);
+    expect(contents).toMatch(/\bpb-3\b/);
   });
 });
 

@@ -203,8 +203,21 @@ export function glassSaturation(css: string): number {
   return +filter![1] / 100;
 }
 
+/** The bare page and each glow peak on it, what text with no surface under it reads against; dark's
+ *  grain at its mean, and light's white grain left out, since it only lightens. */
+export function barePlanes(css: string, theme: Theme): string[] {
+  const blocks = themeBlocks(css);
+  const page = resolve(blocks, theme, 'page');
+  const planes = [page, ...[1, 2, 3, 4].map((n) => composite(mixOf(blocks, theme, `glow-${n}-peak`), page))];
+  if (theme === 'light') return planes;
+  const url = blocks.dark.match(/--glow-grain:\s*url\("data:image\/svg\+xml,([^"]+)"\)/);
+  expect(url, 'dark declares no --glow-grain tile').not.toBeNull();
+  const opacity = +decodeURIComponent(url![1]).match(/<rect [^>]*opacity='([0-9.]+)'/)![1];
+  return planes.map((b) => composite({ ch: [128, 128, 128], alpha: opacity }, b));
+}
+
 /** Every plane the glass can show over the page and each glow peak (the blur only averages them),
- *  for a reading to take the least contrasting; light's white grain only lightens, so it is left out.
+ *  for a reading to take the least contrasting.
  *  A dialog passes its own `fill`, the opaque planes it can also float over, and its `veil`. */
 export function glassPlanes(
   css: string,
@@ -213,14 +226,7 @@ export function glassPlanes(
 ): string[] {
   const blocks = themeBlocks(css);
   const s = glassSaturation(css);
-  const page = resolve(blocks, theme, 'page');
-  let backdrops = [page, ...[1, 2, 3, 4].map((n) => composite(mixOf(blocks, theme, `glow-${n}-peak`), page))];
-  if (theme === 'dark') {
-    const url = blocks.dark.match(/--glow-grain:\s*url\("data:image\/svg\+xml,([^"]+)"\)/);
-    expect(url, 'dark declares no --glow-grain tile').not.toBeNull();
-    const opacity = +decodeURIComponent(url![1]).match(/<rect [^>]*opacity='([0-9.]+)'/)![1];
-    backdrops = backdrops.map((b) => composite({ ch: [128, 128, 128], alpha: opacity }, b));
-  }
+  let backdrops = barePlanes(css, theme);
   backdrops.push(...over.map((name) => resolve(blocks, theme, name)));
   if (veil) backdrops = backdrops.map((b) => composite(veilOf(blocks, theme, veil), b));
   const fill = mixOf(blocks, theme, fillName);

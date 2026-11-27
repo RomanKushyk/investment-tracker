@@ -216,11 +216,14 @@
      owner ruled the value stands rather than putting an `ink` hairline round a
      parchment drawer; `sidebar-plane.test.ts` records it at its value. */
   --color-drawer-edge: transparent;
-  --color-pos: #2f6b3f;
+  /* `pos` and `neg` clear 4.5 : 1 on the bare page at every glow peak, as `muted` does, since the
+     dissolved header's change line sits there (rail-and-account-foot.md § Wave 30). Their
+     `-tint-text` twins sit on tints, not the page, and keep their values. */
+  --color-pos: #286439;
   --color-pos-tint: #e0e4da;
   --color-pos-tint-text: #2f6b3f;
   --color-pos-border: #3d8c52; /* never weaker than the idle edge */
-  --color-neg: #a03c30;
+  --color-neg: #9b382c;
   /* Irreversible-harm family: block-level framing for overdue reminders and
      irreversible-harm surfaces — never validation messages (those stay `neg` text
      on `card`), never numbers, deltas or counts, never a routine control's own
@@ -486,7 +489,7 @@
   --color-pos-tint: #282f2a;
   --color-pos-tint-text: #86b98f;
   --color-pos-border: #5e8264; /* never weaker than the idle edge */
-  --color-neg: #d9776a;
+  --color-neg: #e68275;
   --color-neg-tint: #342525;
   --color-neg-tint-text: #d9776a;
   --color-warn: #d9a55f;
@@ -703,31 +706,6 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: inset 0 0 0 1px var(--glass-edge, var(--color-hairline));
-  }
-}
-
-/* A FULL-BLEED BAND ON THE GLASS, the collapsed rail and header (rail-and-account-foot.md § Signed,
-   O3 and R1): the glass's fill, sheen and blur with no edge of its own, since a band runs off the
-   screen; it draws one hairline toward the content. Its own utility, so nothing it sets reaches the
-   glass inside it. */
-@utility glass-band {
-  background-color: var(--color-glass-fill);
-  background-image: linear-gradient(180deg, var(--color-glass-sheen) 0%, transparent 38%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-
-  @supports not (backdrop-filter: blur(1px)) {
-    background-color: var(--color-card);
-    background-image: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  @media (prefers-reduced-transparency: reduce) {
-    background-color: var(--color-card);
-    background-image: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
 }
 

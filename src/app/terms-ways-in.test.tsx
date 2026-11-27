@@ -211,7 +211,8 @@ describe('the links line', () => {
   it('is not in the collapsed rail', async () => {
     const { page } = await open('/settings');
     await act(async () => void fireEvent.click(page.querySelector(`#${SIDEBAR_COLLAPSE_ID}`)!));
-    expect(termsLinks(page.querySelector('#app-sidebar')!)).toHaveLength(0);
+    // The panel the collapse leaves stays, inert, for its fade (rail-and-account-foot.md § Wave 29).
+    await waitFor(() => expect(termsLinks(page.querySelector('#app-sidebar')!)).toHaveLength(0));
   });
 });
 

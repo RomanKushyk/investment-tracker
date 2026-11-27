@@ -202,8 +202,9 @@ function RailProfile({ rows }: Pick<SignOut, 'rows'>) {
 type SignOut = ReturnType<typeof useSignOut>;
 
 /**
- * The super-admin's band, folded: a 40 tall full-bleed strip under the menu, the rail's 64 and any safe-area inset, on `accent-tint`, the
- * shield 18 in `accent` (O3, rail-and-account-foot.md § Signed). The rail has no room for the word,
+ * The super-admin's band, folded: a 40 tall strip under the menu across the card's inner width, on
+ * `accent-tint`, the shield 18 in `accent` (O3 and § Wave 29, rail-and-account-foot.md). The card
+ * pays the safe area outside itself, so the strip has none to bleed under. The rail has no room for the word,
  * so a screen reader reads it as the strip's text and a resting pointer shows it as the items'
  * tooltips show theirs; the strip is no control, so it takes no focus.
  */
@@ -211,8 +212,7 @@ function RailRoleBand() {
   const t = useT();
   return (
     <Tooltip label={t.nav.superAdmin}>
-      {/* Under the safe-area inset too, the shield kept on the rail's axis. */}
-      <div className="-ml-[env(safe-area-inset-left)] grid h-10 w-[calc(100%+env(safe-area-inset-left))] flex-none place-items-center self-start bg-accent-tint pl-[env(safe-area-inset-left)]">
+      <div className="grid h-10 w-full flex-none place-items-center self-start bg-accent-tint">
         <Shield size={18} strokeWidth={2} aria-hidden className="text-accent" />
         <span className="sr-only">{t.nav.superAdmin}</span>
       </div>
