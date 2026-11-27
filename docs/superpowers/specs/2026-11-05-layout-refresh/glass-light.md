@@ -23,6 +23,7 @@ Light only; dark is exactly as waves 2 and 4 signed it.
   - Sheen: `glass-rim` (white) at 60 %, fading to transparent by 38 %.
   - Shadow: `0 8px 24px` `ink` 7 %, in light only.
 - **Glow (B3).** The same four spots, geometry and hues. The light peaks become `accent` 19 %, `reit` 25 %, `ovdp8976` 18.5 % and `energy` 19 % (were 14 / 12.6 / 11.2 / 8.4 %). Each is that hue's own cap: the strongest at which `muted` still reads at AA on a bare peak.
+  - *Overturned by wave 30: `pos` and `neg` are held to the same floor on a bare peak, and their values move to meet it; the caps hold ([rail-and-account-foot.md](rail-and-account-foot.md#wave-30-the-change-line-on-the-bare-glow)).*
 - **Scope.** Everything that wears the glass takes these values: the cards, the sidebar, the 360 bar and dock, the tooltip, dialogs, toasts and the sign-in card. Dialogs keep wave 8's `field-border` edge in place of the stroke.
   - *Overturned by wave 26: dialogs take their own fill, `card` 90 % / 92 % ([open-values-shell-controls.md](open-values-shell-controls.md#signed)).*
 - **Fallbacks.** Held as signed. Under `@supports not` and `prefers-reduced-transparency` the surfaces are wave 1's opaque cards, without this edge or shadow.

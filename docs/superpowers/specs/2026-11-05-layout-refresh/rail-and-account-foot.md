@@ -179,6 +179,64 @@ The rounds: [step 1, the inset](renders/w29s1.jpeg); [step 2, the radius](render
   - `docs/DECISIONS.md` (*Two shells, one breakpoint*) and `navigation-map.md` (the shell, the header bar) rewritten to the floating card.
 - In the morph's frames the overlay bar stays clear of the card's rounded corners, as it sits in the middle band.
 
+## Wave 30: the change line on the bare glow
+
+Brief #803, an amendment to wave 29. J2 takes the collapsed header's fill away, so its change line (`text-label`, `pos` or `neg`) reads on the bare page and the glow, where glow spot 1 (85 % 0 %) sits under it. There, light `pos` and `neg` and dark `neg` missed WCAG 1.4.3's 4.5 : 1, because the glow's caps were set for `muted` alone. One step settled it, drawn on the live app over the shipped fake API and seed, with wave 29's card and J2's header restyled in place. The final corrected step 1's values: their planes left out dark's grain, which `glassPlanes` composites at its mean.
+
+It overturns the three token values below and the glow caps' reason, which named `muted` alone: in [shell.md](shell.md#backdrop) under Backdrop and Settled by research, and in [glass-light.md](glass-light.md#signed) (each line points here). The caps themselves hold. J2 holds whole.
+
+### Renders
+
+A user's /balances at 1440 × 900 and 768 × 900, light over dark, with wave 29's card and the dissolved header in A's tokens.
+
+![A user's /balances at 1440 and 768, light over dark, the dissolved header with A's tokens](renders/w30f1.jpeg)
+
+The header's right end under A, at 1440 and 768, gain and loss, in light and then in dark.
+
+![The header's right end under A in light, at 1440 and 768, gain and loss](renders/w30f2.png)
+
+![The header's right end under A in dark, at 1440 and 768, gain and loss](renders/w30f3.png)
+
+The super-admin's /admin/archive at 1440 and 768: the shield header, unchanged by A.
+
+![The super-admin's /admin/archive at 1440 and 768, light over dark](renders/w30f4.jpeg)
+
+/overview at 1440, today on the left and A on the right, because A moves every `pos` / `neg` site in the app.
+
+![/overview at 1440: today beside A, light over dark](renders/w30f5.jpeg)
+
+The round: step 1's variants in [light](renders/w30s1-light.png) and [dark](renders/w30s1-dark.png), and J2 beside C over the whole window in [light](renders/w30s1-frames-light.jpeg) and [dark](renders/w30s1-frames-dark.jpeg).
+
+### Signed
+
+- **The remedy (step 1, A): three token values move**, by OKLCH lightness alone, with hue and chroma held:
+  - light `pos` `#2f6b3f` → `#286439`
+  - light `neg` `#a03c30` → `#9b382c`
+  - dark `neg` `#d9776a` → `#e68275`
+- **What holds.** Dark `pos`, both `muted`, `ink` and `accent` hold. No new token. `pos-tint`, `neg-tint`, `pos-tint-text`, `neg-tint-text` and `pos-border` keep their values, as none sits on the bare page.
+- **The rule.** `pos` and `neg` clear 4.5 : 1 on the bare page at every glow peak, with the grain at its mean, as `muted` already must. Text on the bare page is held to the darkest background it can land on, not to the window a render happens to show.
+- **J2 holds whole:** no fill, no edge, not sticky, a 56 row 8 from the top, the change (11 / 14 at 600) over the dated rate line, the centre line on the plate's. The super-admin's shield (`accent`, a graphic held to 3 : 1) is unchanged.
+- **Every other `pos` / `neg` site** moves with the tokens and reads stronger on its card.
+
+### Rejected
+
+- **B, the change in `ink` after a 12 px `TrendingUp` / `TrendingDown` glyph in `pos` / `neg`:** a new mark, as no change in the app carries a direction glyph, and the line's colour moves from the figure to a 12 px icon.
+- **C, spot 1's peak dimmed (12.5 % light, 16 % dark):** it dims the backdrop at the top right of every screen, and fixes one peak of four. Light `pos` still misses on the other three, wherever else it lands on the bare page.
+- **D, the change in `ink` with no colour:** the one change in the app without its gain or loss colour.
+
+### Settled by research
+
+- **The floor.** WCAG 2.2 SC 1.4.3, "at least 4.5:1". Large text starts at 14 pt bold, so 11 px is not exempt. W3C F83 fails a background image that does not keep that contrast. WebAIM: "We recommend usually testing the area where contrast is lowest."
+- **The text moves, not the background.** Primer: "All contrast values for text and borders are calculated against bgColor-muted", one text token set against the darker of its backgrounds. A is that rule, with the glow's peak as the darker background.
+- **Colour is not alone.** WCAG 1.4.1: the change keeps its sign («+», «−»), so colour is never its only cue.
+
+### Implementation checks
+
+- #799:
+  - The three values in `src/index.css` (`--color-pos` in light, `--color-neg` in both), and nothing else in the theme.
+  - `glow.test.ts`'s three `muted` pins (each spot's bare peak, the /balances date range on spot 1, and dark's grain at its mean) extended to `pos` and `neg`. The figures live there.
+  - The `#a03c30` in `self-xss-warning.test.tsx` is its own stub of `neg-tint-text`, which holds. It is not the old `neg`, and stays.
+
 ## Перенесено
 
 Rules of the sign-in entry, the sign-out and /profile that no code, test or decision records.

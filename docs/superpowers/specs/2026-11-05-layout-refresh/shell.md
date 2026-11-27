@@ -65,6 +65,7 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 - **Glow.** A fixed layer behind the content: four radial spots, `color-mix(var(--color-HUE) A%, transparent)`, fading to transparent at 68 % of the radius. The hues are `accent`, `reit`, `ovdp8976` and `energy`, at 20 / 18 / 16 / 12 % in dark and the same at ×0.7 (14 / 12.6 / 11.2 / 8.4 %) in light. The spots overlap at 360.
   - *Overturned in light by wave 15: each light glow hue sits at its own cap (B3) ([glass-light.md](glass-light.md#signed)).*
 - **Why those caps.** `muted` sitting directly on a spot's peak must keep 4.5 : 1 (WCAG F83). At 20 % the light theme would fail, hence ×0.7.
+  - *Overturned by wave 30: `pos` and `neg` are held to the same floor, and their values move to meet it; the caps hold ([rail-and-account-foot.md](rail-and-account-foot.md#wave-30-the-change-line-on-the-bare-glow)).*
 - **Grain.** SVG `feTurbulence` noise at 3 % opacity, normal blend. An overlay blend left a hard compositing seam across the 360 frame.
 - **Reduced transparency.** `prefers-reduced-transparency: reduce` drops the glow and the grain: the plain page. Safari doesn't report the query, so the default is built to pass on its own.
 
@@ -118,6 +119,7 @@ Wave 2 later puts glass on the content cards, the sidebar and the dock ([glass.m
 
 - **Glass belongs to floating chrome.** Apple HIG Materials (glass for floating chrome only), Fluent Acrylic, NN/g glassmorphism. At the glow strength that keeps `muted` text ≥ 4.5 : 1, translucent cards show nothing, so content cards stay solid.
 - **The glow's cap** is set by WCAG F83: `muted` must keep 4.5 : 1 on a spot's peak.
+  - *Overturned by wave 30: `pos` and `neg` meet the same floor by their own values ([rail-and-account-foot.md](rail-and-account-foot.md#wave-30-the-change-line-on-the-bare-glow)).*
 - **The hero total + chart** follows Ghostfolio, IBKR and Trading 212. D is the research recommendation (hybrid header, sections, solid cards over the glow, Mica's model).
 - **The floating sidebar** follows the owner's canvas (its Розподіл/Актив boards), shadcn floating (p-2, rounded-lg border shadow-sm) and Apple HIG: sidebars "can float above content".
 - **The rail as the collapsed state only** follows HA's 56 px rail and the M3 rail (≤ 7 destinations collapsed). 10 destinations exceed M3's 7, and NN/g found hidden labels halve discoverability on desktop.
